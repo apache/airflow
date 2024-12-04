@@ -1531,6 +1531,7 @@ def _defer_task(
 ) -> TaskInstance:
     from airflow.models.trigger import Trigger
 
+    timeout: timedelta | None
     if exception is not None:
         trigger_row = Trigger.from_object(exception.trigger)
         next_method = exception.method_name

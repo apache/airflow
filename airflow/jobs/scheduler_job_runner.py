@@ -65,6 +65,7 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
+from airflow.models.trigger import TRIGGER_FAIL_REPR, TriggerFailureReason
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
@@ -2265,8 +2266,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
                     .values(
                         state=TaskInstanceState.SCHEDULED,
-                        next_method="__fail__",
-                        next_kwargs={"error": "Trigger/execution timeout"},
+                        next_method=TRIGGER_FAIL_REPR,
+                        next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
                         trigger_id=None,
                     )
                 ).rowcount

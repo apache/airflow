@@ -237,12 +237,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StructureDataResponse'
-        '400':
+        '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -2636,70 +2636,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/tags:
-    get:
-      tags:
-      - DAG
-      summary: Get Dag Tags
-      description: Get all DAG tags.
-      operationId: get_dag_tags
-      parameters:
-      - name: limit
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 0
-          default: 100
-          title: Limit
-      - name: offset
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 0
-          default: 0
-          title: Offset
-      - name: order_by
-        in: query
-        required: false
-        schema:
-          type: string
-          default: name
-          title: Order By
-      - name: tag_name_pattern
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Tag Name Pattern
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DAGTagCollectionResponse'
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
   /public/dags/{dag_id}:
     get:
       tags:
@@ -2969,6 +2905,29 @@ paths:
       description: Get all Event Logs.
       operationId: get_event_logs
       parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: id
+          title: Order By
       - name: dag_id
         in: query
         required: false
@@ -3063,29 +3022,6 @@ paths:
             format: date-time
           - type: 'null'
           title: After
-      - name: limit
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 0
-          default: 100
-          title: Limit
-      - name: offset
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 0
-          default: 0
-          title: Offset
-      - name: order_by
-        in: query
-        required: false
-        schema:
-          type: string
-          default: id
-          title: Order By
       responses:
         '200':
           description: Successful Response
@@ -5702,6 +5638,70 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dagTags:
+    get:
+      tags:
+      - DAG
+      summary: Get Dag Tags
+      description: Get all DAG tags.
+      operationId: get_dag_tags
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: name
+          title: Order By
+      - name: tag_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tag Name Pattern
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGTagCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/monitor/health:
     get:
       tags:
@@ -7782,9 +7782,7 @@ components:
           - type: 'null'
           title: Children
         id:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Id
         is_mapped:
           anyOf:
@@ -7792,9 +7790,7 @@ components:
           - type: 'null'
           title: Is Mapped
         label:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Label
         tooltip:
           anyOf:
@@ -7815,11 +7811,12 @@ components:
           - join
           - sensor
           - task
-          - task_group
+          - asset_condition
           title: Type
       type: object
       required:
       - id
+      - label
       - type
       title: NodeResponse
       description: Node serializer for responses.

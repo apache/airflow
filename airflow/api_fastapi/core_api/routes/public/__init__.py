@@ -29,6 +29,7 @@ from airflow.api_fastapi.core_api.routes.public.dag_parsing import dag_parsing_r
 from airflow.api_fastapi.core_api.routes.public.dag_run import dag_run_router
 from airflow.api_fastapi.core_api.routes.public.dag_sources import dag_sources_router
 from airflow.api_fastapi.core_api.routes.public.dag_stats import dag_stats_router
+from airflow.api_fastapi.core_api.routes.public.dag_tags import dag_tags_router
 from airflow.api_fastapi.core_api.routes.public.dag_warning import dag_warning_router
 from airflow.api_fastapi.core_api.routes.public.dags import dags_router
 from airflow.api_fastapi.core_api.routes.public.event_logs import event_logs_router
@@ -75,6 +76,7 @@ authenticated_router.include_router(tasks_router)
 authenticated_router.include_router(variables_router)
 authenticated_router.include_router(task_instances_log_router)
 authenticated_router.include_router(dag_parsing_router)
+authenticated_router.include_router(dag_tags_router)
 
 
 # Include authenticated router in public router
