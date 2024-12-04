@@ -34,9 +34,10 @@ class GridTaskInstanceSummary(BaseModel):
     states: dict[str, int] | None
     task_count: int
     overall_state: str | None
+    note: str | None
 
 
-class GridDAGRun(BaseModel):
+class GridDAGRunwithTIs(BaseModel):
     """DAG Run model for the Grid UI."""
 
     run_id: str
@@ -48,12 +49,8 @@ class GridDAGRun(BaseModel):
     data_interval_start: datetime | None
     data_interval_end: datetime | None
     version_number: UUID | None
-
-
-class GridDAGRunwithTIs(GridDAGRun):
-    """DAG Run model for the Grid UI with Task Instances."""
-
-    task_instances: list[GridTaskInstanceSummary] | None
+    note: str | None
+    task_instances: list[GridTaskInstanceSummary]
 
 
 class GridResponse(BaseModel):
