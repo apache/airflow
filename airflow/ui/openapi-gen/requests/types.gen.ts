@@ -761,15 +761,15 @@ export type JobResponse = {
  */
 export type NodeResponse = {
   children?: Array<NodeResponse> | null;
-  id: string | null;
+  id: string;
   is_mapped?: boolean | null;
-  label?: string | null;
+  label: string;
   tooltip?: string | null;
   setup_teardown_type?: "setup" | "teardown" | null;
-  type: "join" | "sensor" | "task" | "task_group";
+  type: "join" | "sensor" | "task" | "asset_condition";
 };
 
-export type type = "join" | "sensor" | "task" | "task_group";
+export type type = "join" | "sensor" | "task" | "asset_condition";
 
 /**
  * Request body for Clear Task Instances endpoint.

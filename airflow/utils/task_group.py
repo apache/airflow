@@ -123,7 +123,7 @@ def task_group_to_dict(task_item_or_group):
         "tooltip": task_group.tooltip,
         "is_mapped": is_mapped,
         "children": children,
-        "type": "task_group",
+        "type": "task",
     }
 
 

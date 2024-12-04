@@ -21,10 +21,7 @@ import dayjs from "dayjs";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
-import { Tooltip } from "src/components/ui";
-import { stateColor } from "src/utils/stateColor";
-
-import { StateCircle } from "./StateCircle";
+import { Tooltip, Status } from "src/components/ui";
 
 type Props = {
   readonly dataIntervalEnd?: string | null;
@@ -82,10 +79,7 @@ const DagRunInfo = ({
       <HStack fontSize="sm">
         <Time datetime={dataIntervalStart} showTooltip={false} />
         {state === undefined ? undefined : (
-          <>
-            <StateCircle state={state} />
-            <Text color={stateColor[state]}>{state}</Text>
-          </>
+          <Status state={state}>{state}</Status>
         )}
       </HStack>
     </Tooltip>
