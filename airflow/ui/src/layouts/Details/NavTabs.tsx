@@ -16,16 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Center, Flex } from "@chakra-ui/react";
-import type { ReactNode } from "react";
-import { NavLink } from "react-router-dom";
+import { Button, Center, Flex } from "@chakra-ui/react";
+import { FaChartGantt } from "react-icons/fa6";
+import { FiGrid } from "react-icons/fi";
+import { NavLink, Link as RouterLink } from "react-router-dom";
+
+import { DagIcon } from "src/assets/DagIcon";
 
 type Props = {
-  readonly rightButtons?: ReactNode;
   readonly tabs: Array<{ label: string; value: string }>;
 };
 
-export const NavTabs = ({ rightButtons, tabs }: Props) => (
+export const NavTabs = ({ tabs }: Props) => (
   <Flex
     alignItems="center"
     borderBottomWidth={1}
@@ -52,6 +54,25 @@ export const NavTabs = ({ rightButtons, tabs }: Props) => (
         </NavLink>
       ))}
     </Flex>
-    <Flex alignSelf="flex-end">{rightButtons}</Flex>
+    <Flex alignSelf="flex-end">
+      <Button asChild colorPalette="blue" variant="ghost">
+        <RouterLink to={{ search: "modal=gantt" }}>
+          <FaChartGantt height={5} width={5} />
+          Gantt
+        </RouterLink>
+      </Button>
+      <Button asChild colorPalette="blue" variant="ghost">
+        <RouterLink to={{ search: "modal=grid" }}>
+          <FiGrid height={5} width={5} />
+          Grid
+        </RouterLink>
+      </Button>
+      <Button asChild colorPalette="blue" variant="ghost">
+        <RouterLink to={{ search: "modal=graph" }}>
+          <DagIcon height={5} width={5} />
+          Graph
+        </RouterLink>
+      </Button>
+    </Flex>
   </Flex>
 );

@@ -28,50 +28,48 @@ import Time from "src/components/Time";
 import { Status } from "src/components/ui";
 
 export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => (
-  <Box borderColor="border" borderRadius={8} borderWidth={1}>
-    <Box p={2}>
-      <Flex alignItems="center" justifyContent="space-between" mb={2}>
-        <HStack alignItems="center" gap={2}>
-          <FiBarChart size="1.75rem" />
-          <Heading size="lg">
-            <strong>Run: </strong>
-            {dagRun.dag_run_id}
-          </Heading>
-          <Status state={dagRun.state}>{dagRun.state}</Status>
-          <Flex>
-            <div />
-          </Flex>
-        </HStack>
-      </Flex>
-      {dagRun.note === null || dagRun.note.length === 0 ? undefined : (
-        <Flex alignItems="flex-start" justifyContent="space-between" mr={16}>
-          <MdOutlineModeComment size="3rem" />
-          <Text fontSize="sm" ml={3}>
-            {dagRun.note}
-          </Text>
+  <Box borderColor="border" borderRadius={8} borderWidth={1} p={2}>
+    <Flex alignItems="center" justifyContent="space-between" mb={2}>
+      <HStack alignItems="center" gap={2}>
+        <FiBarChart size="1.75rem" />
+        <Heading size="lg">
+          <strong>Run: </strong>
+          {dagRun.dag_run_id}
+        </Heading>
+        <Status state={dagRun.state}>{dagRun.state}</Status>
+        <Flex>
+          <div />
         </Flex>
-      )}
-      <SimpleGrid columns={4} gap={4}>
-        <Stat label="Run Type">
-          <HStack>
-            <RunTypeIcon runType={dagRun.run_type} />
-            <Text>{dagRun.run_type}</Text>
-          </HStack>
-        </Stat>
-        <Stat label="Start">
-          <Time datetime={dagRun.start_date} />
-        </Stat>
-        <Stat label="End">
-          <Time datetime={dagRun.end_date} />
-        </Stat>
-        <Stat label="Duration">
-          {dayjs
-            .duration(dayjs(dagRun.end_date).diff(dagRun.start_date))
-            .asSeconds()
-            .toFixed(2)}
-          s
-        </Stat>
-      </SimpleGrid>
-    </Box>
+      </HStack>
+    </Flex>
+    {dagRun.note === null || dagRun.note.length === 0 ? undefined : (
+      <Flex alignItems="flex-start" justifyContent="space-between" mr={16}>
+        <MdOutlineModeComment size="3rem" />
+        <Text fontSize="sm" ml={3}>
+          {dagRun.note}
+        </Text>
+      </Flex>
+    )}
+    <SimpleGrid columns={4} gap={4}>
+      <Stat label="Run Type">
+        <HStack>
+          <RunTypeIcon runType={dagRun.run_type} />
+          <Text>{dagRun.run_type}</Text>
+        </HStack>
+      </Stat>
+      <Stat label="Start">
+        <Time datetime={dagRun.start_date} />
+      </Stat>
+      <Stat label="End">
+        <Time datetime={dagRun.end_date} />
+      </Stat>
+      <Stat label="Duration">
+        {dayjs
+          .duration(dayjs(dagRun.end_date).diff(dagRun.start_date))
+          .asSeconds()
+          .toFixed(2)}
+        s
+      </Stat>
+    </SimpleGrid>
   </Box>
 );

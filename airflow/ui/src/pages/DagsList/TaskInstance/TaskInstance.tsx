@@ -16,35 +16,54 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
 import { LiaSlashSolid } from "react-icons/lia";
-import { useParams, Link as RouterLink, Outlet } from "react-router-dom";
+import { useParams, Link as RouterLink } from "react-router-dom";
 
 import {
   useDagServiceGetDagDetails,
   useTaskInstanceServiceGetTaskInstance,
 } from "openapi/queries";
 import { Breadcrumb } from "src/components/ui";
-import { OpenGroupsProvider } from "src/context/openGroups";
+import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 
 import { Header } from "./Header";
-import { TaskInstanceTabs } from "./Tabs";
+
+const tabs = [
+  { label: "Logs", value: "" },
+  { label: "Events", value: "events" },
+  { label: "XCom", value: "xcom" },
+  { label: "Code", value: "code" },
+  { label: "Details", value: "details" },
+];
 
 export const TaskInstance = () => {
   const { dagId = "", runId = "", taskId = "" } = useParams();
 
-  const { data: dag } = useDagServiceGetDagDetails({
-    dagId,
-  });
-
-  const { data: taskInstance } = useTaskInstanceServiceGetTaskInstance({
+  const {
+    data: taskInstance,
+    error,
+    isLoading,
+  } = useTaskInstanceServiceGetTaskInstance({
     dagId,
     dagRunId: runId,
     taskId,
   });
 
+  const {
+    data: dag,
+    error: dagError,
+    isLoading: isDagLoading,
+  } = useDagServiceGetDagDetails({
+    dagId,
+  });
+
   return (
-    <OpenGroupsProvider dagId={dagId}>
+    <DetailsLayout
+      dag={dag}
+      error={error ?? dagError}
+      isLoading={isLoading || isDagLoading}
+      tabs={tabs}
+    >
       <Breadcrumb.Root mb={3} separator={<LiaSlashSolid />}>
         <Breadcrumb.Link asChild color="fg.info">
           <RouterLink to="/dags">Dags</RouterLink>
@@ -60,10 +79,6 @@ export const TaskInstance = () => {
       {taskInstance === undefined ? undefined : (
         <Header taskInstance={taskInstance} />
       )}
-      <TaskInstanceTabs dag={dag} />
-      <Box overflow="auto">
-        <Outlet />
-      </Box>
-    </OpenGroupsProvider>
+    </DetailsLayout>
   );
 };

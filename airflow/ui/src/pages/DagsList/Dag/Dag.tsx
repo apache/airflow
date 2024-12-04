@@ -16,30 +16,33 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button } from "@chakra-ui/react";
-import { FiChevronsLeft } from "react-icons/fi";
-import { Outlet, Link as RouterLink, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 import {
   useDagServiceGetDagDetails,
   useDagsServiceRecentDagRuns,
 } from "openapi/queries";
-import { ErrorAlert } from "src/components/ErrorAlert";
-import { ProgressBar } from "src/components/ui";
-import { OpenGroupsProvider } from "src/context/openGroups";
+import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 
 import { Header } from "./Header";
-import { DagTabs } from "./Tabs";
+
+const tabs = [
+  { label: "Overview", value: "" },
+  { label: "Runs", value: "runs" },
+  { label: "Tasks", value: "tasks" },
+  { label: "Events", value: "events" },
+  { label: "Code", value: "code" },
+];
 
 export const Dag = () => {
-  const { dagId } = useParams();
+  const { dagId = "" } = useParams();
 
   const {
     data: dag,
     error,
     isLoading,
   } = useDagServiceGetDagDetails({
-    dagId: dagId ?? "",
+    dagId,
   });
 
   // TODO: replace with with a list dag runs by dag id request
@@ -47,7 +50,7 @@ export const Dag = () => {
     data: runsData,
     error: runsError,
     isLoading: isLoadingRuns,
-  } = useDagsServiceRecentDagRuns({ dagIdPattern: dagId ?? "" }, undefined, {
+  } = useDagsServiceRecentDagRuns({ dagIdPattern: dagId }, undefined, {
     enabled: Boolean(dagId),
   });
 
@@ -56,25 +59,13 @@ export const Dag = () => {
       ?.latest_dag_runs ?? [];
 
   return (
-    <OpenGroupsProvider dagId={dagId ?? ""}>
-      <Box>
-        <Button asChild colorPalette="blue" variant="ghost">
-          <RouterLink to="/dags">
-            <FiChevronsLeft />
-            Back to all dags
-          </RouterLink>
-        </Button>
-        <Header dag={dag} dagId={dagId} latestRun={runs[0]} />
-        <ErrorAlert error={error ?? runsError} />
-        <ProgressBar
-          size="xs"
-          visibility={isLoading || isLoadingRuns ? "visible" : "hidden"}
-        />
-        <DagTabs dag={dag} />
-      </Box>
-      <Box overflow="auto">
-        <Outlet />
-      </Box>
-    </OpenGroupsProvider>
+    <DetailsLayout
+      dag={dag}
+      error={error ?? runsError}
+      isLoading={isLoading || isLoadingRuns}
+      tabs={tabs}
+    >
+      <Header dag={dag} dagId={dagId} latestRun={runs[0]} />
+    </DetailsLayout>
   );
 };
