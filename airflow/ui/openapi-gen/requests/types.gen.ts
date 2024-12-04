@@ -767,6 +767,7 @@ export type NodeResponse = {
   tooltip?: string | null;
   setup_teardown_type?: "setup" | "teardown" | null;
   type: "join" | "sensor" | "task" | "asset_condition";
+  operator?: string | null;
 };
 
 export type type = "join" | "sensor" | "task" | "asset_condition";
