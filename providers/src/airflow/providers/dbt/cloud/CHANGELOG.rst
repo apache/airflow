@@ -28,6 +28,17 @@
 Changelog
 ---------
 
+main
+.....
+
+.. warning::
+   All deprecated classes, parameters and features have been removed from the DBT provider package.
+   The following breaking changes were introduced:
+
+   * Sensors
+      * Remove ``airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunAsyncSensor``. Use ``airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunSensor`` with ``deferrable``to ``True`` instead.
+      * Removed ``polling_interval`` parameter from ``DbtCloudJobRunSensor``. Use ``poke_interval`` instead.
+
 3.11.2
 ......
 
