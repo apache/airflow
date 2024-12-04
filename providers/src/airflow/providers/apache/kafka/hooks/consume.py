@@ -51,7 +51,7 @@ class KafkaConsumerHook(KafkaBaseHook):
 
     def _get_client(self, config) -> Consumer:
         config_shallow = config.copy()
-        if config.get("error_cb", None) is None:
+        if config.get("error_cb") is None:
             config_shallow["error_cb"] = error_callback
         else:
             config_shallow["error_cb"] = import_string(config["error_cb"])
