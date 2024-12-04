@@ -19,13 +19,9 @@ from __future__ import annotations
 
 import collections
 import itertools
-import operator
-from functools import cache
 
 from fastapi import HTTPException, Request, status
 from sqlalchemy import func, select
-from sqlalchemy.sql.operators import ColumnOperators
-from typing_extensions import Any
 
 from airflow import DAG
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -33,6 +29,8 @@ from airflow.api_fastapi.common.parameters import (
     OptionalDateTimeQuery,
     QueryDagRunRunTypesFilter,
     QueryDagRunStateFilter,
+    QueryIncludeDownstream,
+    QueryIncludeUpstream,
     QueryLimit,
     QueryOffset,
     SortParam,
@@ -41,17 +39,17 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.grid import (
     GridDAGRunwithTIs,
     GridResponse,
-    GridTaskInstanceSummary,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException
-from airflow.models import DagRun, MappedOperator, TaskInstance
-from airflow.models.baseoperator import BaseOperator
-from airflow.models.taskmap import TaskMap
+from airflow.api_fastapi.core_api.routes.ui.service.grid import (
+    fill_task_instance_summaries,
+    get_dag_run_sort_param,
+    get_task_group_map,
+)
+from airflow.models import DagRun, TaskInstance
+from airflow.models.dagrun import DagRunNote
+from airflow.models.taskinstance import TaskInstanceNote
 from airflow.utils import timezone
-from airflow.utils.state import TaskInstanceState
-from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 
 grid_router = AirflowRouter(prefix="/grid", tags=["Grid"])
 
@@ -69,20 +67,18 @@ def grid_data(
     offset: QueryOffset,
     request: Request,
     num_runs: QueryLimit,
+    include_upstream: QueryIncludeUpstream,
+    include_downstream: QueryIncludeDownstream,
     base_date: OptionalDateTimeQuery = None,
     root: str | None = None,
-    filter_upstream: bool = False,
-    filter_downstream: bool = False,
 ) -> GridResponse:
     """Return grid data."""
-    ## Database calls to retrieve the DAG Runs and Task Instances and validate the data
     dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
-
     if root:
         dag = dag.partial_subset(
-            task_ids_or_regex=root, include_upstream=filter_upstream, include_downstream=filter_downstream
+            task_ids_or_regex=root, include_upstream=include_upstream, include_downstream=include_downstream
         )
 
     current_time = timezone.utcnow()
@@ -98,38 +94,20 @@ def grid_data(
             DagRun.data_interval_start,
             DagRun.data_interval_end,
             DagRun.dag_version_id.label("version_number"),
+            DagRunNote.content.label("note"),
         )
+        .join(DagRun.dag_run_note, isouter=True)
         .select_from(DagRun)
         .where(DagRun.dag_id == dag.dag_id, DagRun.logical_date <= func.coalesce(base_date, current_time))
-        .order_by(DagRun.id.desc())
     )
 
-    def get_dag_run_sort_param():
-        """Get the Sort Param for the DAG Run."""
-
-        def _get_run_ordering_expr(name: str) -> ColumnOperators:
-            """Get the Run Ordering Expression."""
-            expr = DagRun.__mapper__.columns[name]
-            # Data interval columns are NULL for runs created before 2.3, but SQL's
-            # NULL-sorting logic would make those old runs always appear first. In a
-            # perfect world we'd want to sort by ``get_run_data_interval()``, but that's
-            # not efficient, so instead the columns are coalesced into logical_date,
-            # which is good enough in most cases.
-            if name in ("data_interval_start", "data_interval_end"):
-                expr = func.coalesce(expr, DagRun.logical_date)
-            return expr.desc()
-
-        ordering_expression = (_get_run_ordering_expr(name) for name in dag.timetable.run_ordering)
-        # create SortParam with ordering_expression and DagRun.id.desc()
-        return ordering_expression
-
     dag_runs_select_filter, _ = paginated_select(
-        statement=base_query.order_by(*get_dag_run_sort_param(), DagRun.id.desc()),
+        statement=base_query,
         filters=[
             run_types,
             run_states,
         ],
-        order_by=None,
+        order_by=get_dag_run_sort_param(dag=dag),
         offset=offset,
         limit=num_runs,
     )
@@ -150,73 +128,20 @@ def grid_data(
             TaskInstance.start_date,
             TaskInstance.end_date,
             TaskInstance.queued_dttm.label("queued_dttm"),
+            TaskInstanceNote.content.label("note"),
         )
         .join(TaskInstance.task_instance_note, isouter=True)
         .where(TaskInstance.dag_id == dag.dag_id),
         filters=[],
-        order_by=SortParam(allowed_attrs=["task_id", "run_id"], model=TaskInstance).dynamic_depends(
-            "task_id"
-        )(),
+        order_by=SortParam(allowed_attrs=["task_id", "run_id"], model=TaskInstance).set_value("task_id"),
         offset=offset,
         limit=None,
     )
 
     task_instances = session.execute(tis_of_dag_runs)
 
-    @cache
-    def get_task_group_children_getter() -> operator.methodcaller:
-        """Get the Task Group Children Getter for the DAG."""
-        sort_order = conf.get("webserver", "grid_view_sorting_order", fallback="topological")
-        if sort_order == "topological":
-            return operator.methodcaller("topological_sort")
-        if sort_order == "hierarchical_alphabetical":
-            return operator.methodcaller("hierarchical_alphabetical_sort")
-        raise AirflowConfigException(f"Unsupported grid_view_sorting_order: {sort_order}")
-
-    @cache
-    def get_task_group_map() -> dict[str, dict[str, Any]]:
-        """Get the Task Group Map for the DAG."""
-        task_nodes = {}
-
-        def _fill_task_group_map(
-            task_node: BaseOperator | MappedTaskGroup | TaskMap | None,
-            parent_node: BaseOperator | MappedTaskGroup | TaskMap | None,
-        ):
-            """Recursively fill the Task Group Map."""
-            if task_node is None:
-                return
-            if isinstance(task_node, MappedOperator):
-                task_nodes[task_node.node_id] = {
-                    "is_group": False,
-                    "parent_id": parent_node.node_id if parent_node else None,
-                    "task_count": task_node,
-                }
-                return
-            elif isinstance(task_node, BaseOperator):
-                task_nodes[task_node.task_id] = {
-                    "is_group": False,
-                    "parent_id": parent_node.node_id if parent_node else None,
-                    "task_count": 1,
-                }
-                return
-            elif isinstance(task_node, TaskGroup):
-                task_nodes[task_node.node_id] = {
-                    "is_group": True,
-                    "parent_id": parent_node.node_id if parent_node else None,
-                    "task_count": len([child for child in get_task_group_children_getter()(task_node)]),
-                }
-                return [
-                    _fill_task_group_map(task_node=child, parent_node=task_node)
-                    for child in get_task_group_children_getter()(task_node)
-                ]
-
-        for node in [child for child in get_task_group_children_getter()(dag.task_group)]:
-            _fill_task_group_map(task_node=node, parent_node=None)
-
-        return task_nodes
-
     # Generate Grouped Task Instances
-    task_node_map = get_task_group_map()
+    task_node_map = get_task_group_map(dag=dag)
     parent_tis: dict[tuple[str, str], list] = collections.defaultdict(list)
     all_tis: dict[tuple[str, str], list] = collections.defaultdict(list)
     for ti in task_instances:
@@ -239,62 +164,6 @@ def grid_data(
         }
     )
 
-    def fill_task_instance_summaries(
-        grouped_task_instances: dict[tuple[str, str], list],
-        task_instance_summaries_to_fill: dict[str, list],
-    ):
-        ## Additional logic to calculate the overall state and task count dict of states
-        priority: list[None | TaskInstanceState] = [
-            TaskInstanceState.FAILED,
-            TaskInstanceState.UPSTREAM_FAILED,
-            TaskInstanceState.UP_FOR_RETRY,
-            TaskInstanceState.UP_FOR_RESCHEDULE,
-            TaskInstanceState.QUEUED,
-            TaskInstanceState.SCHEDULED,
-            TaskInstanceState.DEFERRED,
-            TaskInstanceState.RUNNING,
-            TaskInstanceState.RESTARTING,
-            None,
-            TaskInstanceState.SUCCESS,
-            TaskInstanceState.SKIPPED,
-            TaskInstanceState.REMOVED,
-        ]
-
-        for (task_id, run_id), tis in grouped_task_instances.items():
-            overall_state = next(
-                (state.value for ti in tis for state in priority if state is not None and ti.state == state),
-                None,
-            )
-            ti_try_number = max([ti.try_number for ti in tis])
-            ti_start_date = min([ti.start_date for ti in tis if ti.start_date], default=None)
-            ti_end_date = max([ti.end_date for ti in tis if ti.end_date], default=None)
-            ti_queued_dttm = min([ti.queued_dttm for ti in tis if ti.queued_dttm], default=None)
-            all_states = {"no_status" if state is None else state.name.lower(): 0 for state in priority}
-            all_states.update(
-                {
-                    "no_status" if state is None else state.name.lower(): len(
-                        [ti for ti in tis if ti.state == state]
-                    )
-                    for state in priority
-                }
-            )
-            # Task Count is either integer or a TaskGroup to get the task count
-            task_count = task_node_map[task_id]["task_count"]
-            task_instance_summaries_to_fill[run_id].append(
-                GridTaskInstanceSummary(
-                    task_id=task_id,
-                    try_number=ti_try_number,
-                    start_date=ti_start_date,
-                    end_date=ti_end_date,
-                    queued_dttm=ti_queued_dttm,
-                    states=all_states,
-                    task_count=task_count
-                    if type(task_count) is int
-                    else task_count.get_mapped_ti_count(run_id=run_id, session=session),
-                    overall_state=overall_state,
-                )
-            )
-
     # Create the Task Instance Summaries to be used in the Grid Response
     task_instance_summaries: dict[str, list] = {
         run_id: [] for (_, run_id), _ in itertools.chain(parent_tis.items(), all_tis.items())
@@ -305,18 +174,24 @@ def grid_data(
     fill_task_instance_summaries(
         grouped_task_instances=parent_tis,
         task_instance_summaries_to_fill=task_instance_summaries,
+        task_node_map=task_node_map,
+        session=session,
     )
     # Fill the Task Instance Summaries for the Grouped Task Instances
     fill_task_instance_summaries(
         grouped_task_instances=all_tis,
         task_instance_summaries_to_fill=task_instance_summaries,
+        task_node_map=task_node_map,
+        session=session,
     )
 
     # Aggregate the Task Instances by DAG Run
     grid_dag_runs = [
         GridDAGRunwithTIs(
             **dag_run,
-            task_instances=task_instance_summaries[dag_run.run_id],
+            task_instances=task_instance_summaries[dag_run.run_id]
+            if dag_run.run_id in task_instance_summaries
+            else [],
         )
         for dag_run in dag_runs
     ]

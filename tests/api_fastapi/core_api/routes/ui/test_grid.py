@@ -29,14 +29,11 @@ from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.db import clear_db_assets, clear_db_dags, clear_db_runs, clear_db_serialized_dags
 from tests_common.test_utils.mock_operators import MockOperator
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
