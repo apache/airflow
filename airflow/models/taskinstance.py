@@ -866,7 +866,8 @@ def _refresh_from_db(
         # If the scheduler that started the dag_run has exited (gracefully or forcefully),
         # there will be changes to the dag_run span context_carrier.
         # It's best to include the dag_run whenever possible, so that the ti will contain the updates.
-        include_dag_run = not inspector.detached and "task_instance" not in inspector.unloaded
+        include_dag_run = not inspector.detached and "dag_run" not in inspector.unloaded
+        log.debug("Unloaded: %s", inspector.unloaded)
         _set_ti_attrs(task_instance, ti, include_dag_run=include_dag_run)
     else:
         task_instance.state = None
@@ -1003,7 +1004,11 @@ def _get_template_context(
         # Re-attach it if we get called.
         nonlocal dag_run
         if dag_run not in session:
-            dag_run = session.merge(dag_run, load=False)
+            # In case, refresh_from_db has also included the dag_run,
+            # the object will be considered dirty by the session.
+            # Trying to merge the dirty dag_run with load=False, will result to an SQLAlchemy error.
+            # Regular merge, with the default load value.
+            dag_run = session.merge(dag_run)
         asset_events = dag_run.consumed_asset_events
         triggering_events: dict[str, list[AssetEvent | AssetEventPydantic]] = defaultdict(list)
         for event in asset_events:
@@ -3808,8 +3813,9 @@ class SimpleTaskInstance:
             key=ti.key,
             run_as_user=ti.run_as_user if hasattr(ti, "run_as_user") else None,
             priority_weight=ti.priority_weight if hasattr(ti, "priority_weight") else None,
+            # Inspect the ti, to check if the 'dag_run' relationship is loaded.
             parent_context_carrier=ti.dag_run.context_carrier
-            if (hasattr(ti, "dag_run") and hasattr(ti.dag_run, "context_carrier"))
+            if "dag_run" not in inspect(ti).unloaded
             else None,
             context_carrier=ti.context_carrier if hasattr(ti, "context_carrier") else None,
             span_status=ti.span_status if hasattr(ti, "span_status") else None,

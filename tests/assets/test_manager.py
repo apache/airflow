@@ -100,6 +100,8 @@ def mock_task_instance():
         dag_model=None,
         raw=False,
         is_trigger_log_context=False,
+        context_carrier={},
+        span_status="ended",
     )
 
 

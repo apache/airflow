@@ -1111,9 +1111,6 @@ class DagRun(Base, LoggingMixin):
                         self.run_id,
                     )
 
-            for ti in schedulable_tis:
-                ti.dag_run = self
-
             self.set_state(DagRunState.RUNNING)
 
         if self._state == DagRunState.FAILED or self._state == DagRunState.SUCCESS:
