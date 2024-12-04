@@ -25,16 +25,14 @@ import { DagVizModal } from "src/components/DagVizModal";
 import { NavTabs } from "src/components/NavTabs";
 
 const tabs = [
-  { label: "Overview", value: "" },
-  { label: "Runs", value: "runs" },
-  { label: "Tasks", value: "tasks" },
+  { label: "Task Instances", value: "" },
   { label: "Events", value: "events" },
   { label: "Code", value: "code" },
 ];
 
 const MODAL = "modal";
 
-export const DagTabs = ({ dag }: { readonly dag?: DAGResponse }) => {
+export const RunTabs = ({ dag }: { readonly dag?: DAGResponse }) => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const modal = searchParams.get(MODAL);

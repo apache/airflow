@@ -21,7 +21,7 @@ import { Heading } from "@chakra-ui/react";
 import type { DAGResponse } from "openapi/requests/types.gen";
 import { Dialog } from "src/components/ui";
 
-import { Graph } from "./Graph";
+import { Graph } from "../pages/DagsList/Dag/Graph";
 
 type TriggerDAGModalProps = {
   dagDisplayName?: DAGResponse["dag_display_name"];

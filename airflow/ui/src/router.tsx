@@ -25,6 +25,8 @@ import { Code } from "src/pages/DagsList/Dag/Code";
 import { Overview } from "src/pages/DagsList/Dag/Overview";
 import { Runs } from "src/pages/DagsList/Dag/Runs";
 import { Run } from "src/pages/DagsList/Run";
+import { TaskInstances } from "src/pages/DagsList/Run/TaskInstances";
+import { TaskInstance } from "src/pages/DagsList/TaskInstance";
 import { Dashboard } from "src/pages/Dashboard";
 import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
@@ -56,7 +58,19 @@ export const router = createBrowserRouter(
           element: <Dag />,
           path: "dags/:dagId",
         },
-        { element: <Run />, path: "dags/:dagId/runs/:runId" },
+        {
+          children: [
+            { element: <TaskInstances />, index: true },
+            { element: <Events />, path: "events" },
+            { element: <Code />, path: "code" },
+          ],
+          element: <Run />,
+          path: "dags/:dagId/runs/:runId",
+        },
+        {
+          element: <TaskInstance />,
+          path: "dags/:dagId/runs/:runId/tasks/:taskId",
+        },
       ],
       element: <BaseLayout />,
       errorElement: (

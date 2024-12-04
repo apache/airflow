@@ -16,16 +16,31 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Heading } from "@chakra-ui/react";
-import { FiChevronsLeft } from "react-icons/fi";
-import { useParams, Link as RouterLink } from "react-router-dom";
+import { Box } from "@chakra-ui/react";
+import { LiaSlashSolid } from "react-icons/lia";
+import { useParams, Link as RouterLink, Outlet } from "react-router-dom";
 
-import { useDagRunServiceGetDagRun } from "openapi/queries";
+import {
+  useDagRunServiceGetDagRun,
+  useDagServiceGetDagDetails,
+} from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { ProgressBar, Status } from "src/components/ui";
+import { Breadcrumb, ProgressBar } from "src/components/ui";
+import { OpenGroupsProvider } from "src/context/openGroups";
+
+import { Header } from "./Header";
+import { RunTabs } from "./Tabs";
 
 export const Run = () => {
   const { dagId = "", runId = "" } = useParams();
+
+  const {
+    data: dag,
+    error: dagError,
+    isLoading: isLoadingDag,
+  } = useDagServiceGetDagDetails({
+    dagId,
+  });
 
   const {
     data: dagRun,
@@ -37,21 +52,28 @@ export const Run = () => {
   });
 
   return (
-    <Box>
-      <Button asChild colorPalette="blue" variant="ghost">
-        <RouterLink to={`/dags/${dagId}`}>
-          <FiChevronsLeft />
-          Back to Dag
-        </RouterLink>
-      </Button>
-      <Heading>
-        {dagId}.{runId}
-      </Heading>
-      <ErrorAlert error={error} />
-      <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
-      {dagRun === undefined ? undefined : (
-        <Status state={dagRun.state}>{dagRun.state}</Status>
-      )}
-    </Box>
+    <OpenGroupsProvider dagId={dagId}>
+      <Box>
+        <Breadcrumb.Root mb={3} separator={<LiaSlashSolid />}>
+          <Breadcrumb.Link asChild color="fg.info">
+            <RouterLink to="/dags">Dags</RouterLink>
+          </Breadcrumb.Link>
+          <Breadcrumb.Link asChild color="fg.info">
+            <RouterLink to={`/dags/${dagId}`}>{dagId}</RouterLink>
+          </Breadcrumb.Link>
+          <Breadcrumb.CurrentLink>{runId}</Breadcrumb.CurrentLink>
+        </Breadcrumb.Root>
+        {dagRun === undefined ? undefined : <Header dagRun={dagRun} />}
+        <ErrorAlert error={error ?? dagError} />
+        <ProgressBar
+          size="xs"
+          visibility={isLoading || isLoadingDag ? "visible" : "hidden"}
+        />
+        <RunTabs dag={dag} />
+      </Box>
+      <Box overflow="auto">
+        <Outlet />
+      </Box>
+    </OpenGroupsProvider>
   );
 };

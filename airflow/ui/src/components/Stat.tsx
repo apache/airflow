@@ -16,20 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Heading, VStack } from "@chakra-ui/react";
+import type { PropsWithChildren } from "react";
 
-export * from "./Dialog";
-export * from "./Pagination";
-export * from "./Select";
-export * from "./Alert";
-export * from "./CloseButton";
-export * from "./InputGroup";
+type Props = {
+  readonly label: string;
+} & PropsWithChildren;
 
-export * from "./Switch";
-export * from "./Tag";
-export * from "./Tooltip";
-
-export * from "./ProgressBar";
-export * from "./Menu";
-export * from "./Accordion";
-export * from "./Status";
-export * from "./Breadcrumb";
+export const Stat = ({ children, label }: Props) => (
+  <VStack align="flex-start" gap={1}>
+    <Heading color="fg.muted" fontSize="xs">
+      {label}
+    </Heading>
+    {children}
+  </VStack>
+);
