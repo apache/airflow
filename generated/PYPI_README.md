@@ -54,9 +54,9 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 
 Apache Airflow is tested with:
 
-|             | Main version (dev)           | Stable version (2.10.3)      |
+|             | Main version (dev)           | Stable version (2.10.4)      |
 |-------------|------------------------------|------------------------------|
-| Python      | 3.8, 3.9, 3.10, 3.11, 3.12   | 3.8, 3.9, 3.10, 3.11, 3.12   |
+| Python      | 3.9, 3.10, 3.11, 3.12        | 3.8, 3.9, 3.10, 3.11, 3.12   |
 | Platform    | AMD64/ARM64(\*)              | AMD64/ARM64(\*)              |
 | Kubernetes  | 1.26, 1.27, 1.28, 1.29, 1.30 | 1.26, 1.27, 1.28, 1.29, 1.30 |
 | PostgreSQL  | 12, 13, 14, 15, 16           | 12, 13, 14, 15, 16           |
@@ -128,15 +128,15 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==2.10.3' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.3/constraints-3.8.txt"
+pip install 'apache-airflow==2.10.4' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.4/constraints-3.8.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
 pip install 'apache-airflow[postgres,google]==2.8.3' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.3/constraints-3.8.txt"
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.4/constraints-3.8.txt"
 ```
 
 For information on installing provider packages, check
