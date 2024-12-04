@@ -194,13 +194,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /ui/graph/graph_data:
+  /ui/structure/structure_data:
     get:
       tags:
-      - Graph
-      summary: Graph Data
-      description: Get Graph Data.
-      operationId: graph_data
+      - Structure
+      summary: Structure Data
+      description: Get Structure Data.
+      operationId: structure_data
       parameters:
       - name: dag_id
         in: query
@@ -236,13 +236,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GraphDataResponse'
-        '400':
+                $ref: '#/components/schemas/StructureDataResponse'
+        '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -2636,70 +2636,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/tags:
-    get:
-      tags:
-      - DAG
-      summary: Get Dag Tags
-      description: Get all DAG tags.
-      operationId: get_dag_tags
-      parameters:
-      - name: limit
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 0
-          default: 100
-          title: Limit
-      - name: offset
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 0
-          default: 0
-          title: Offset
-      - name: order_by
-        in: query
-        required: false
-        schema:
-          type: string
-          default: name
-          title: Order By
-      - name: tag_name_pattern
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Tag Name Pattern
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DAGTagCollectionResponse'
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
   /public/dags/{dag_id}:
     get:
       tags:
@@ -2969,6 +2905,29 @@ paths:
       description: Get all Event Logs.
       operationId: get_event_logs
       parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: id
+          title: Order By
       - name: dag_id
         in: query
         required: false
@@ -3063,29 +3022,6 @@ paths:
             format: date-time
           - type: 'null'
           title: After
-      - name: limit
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 0
-          default: 100
-          title: Limit
-      - name: offset
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 0
-          default: 0
-          title: Offset
-      - name: order_by
-        in: query
-        required: false
-        schema:
-          type: string
-          default: id
-          title: Order By
       responses:
         '200':
           description: Successful Response
@@ -5702,6 +5638,70 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dagTags:
+    get:
+      tags:
+      - DAG
+      summary: Get Dag Tags
+      description: Get all DAG tags.
+      operationId: get_dag_tags
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: name
+          title: Order By
+      - name: tag_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tag Name Pattern
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGTagCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/monitor/health:
     get:
       tags:
@@ -5786,10 +5786,14 @@ components:
         name:
           type: string
           title: Name
+        group:
+          type: string
+          title: Group
       type: object
       required:
       - id
       - name
+      - group
       title: AssetAliasSchema
       description: Asset alias serializer for assets.
     AssetCollectionResponse:
@@ -7590,30 +7594,6 @@ components:
       - name
       title: FastAPIAppResponse
       description: Serializer for Plugin FastAPI App responses.
-    GraphDataResponse:
-      properties:
-        edges:
-          items:
-            $ref: '#/components/schemas/EdgeResponse'
-          type: array
-          title: Edges
-        nodes:
-          $ref: '#/components/schemas/NodeResponse'
-        arrange:
-          type: string
-          enum:
-          - BT
-          - LR
-          - RL
-          - TB
-          title: Arrange
-      type: object
-      required:
-      - edges
-      - nodes
-      - arrange
-      title: GraphDataResponse
-      description: Graph Data serializer for responses.
     HTTPExceptionResponse:
       properties:
         detail:
@@ -7802,70 +7782,44 @@ components:
           - type: 'null'
           title: Children
         id:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Id
-        value:
-          $ref: '#/components/schemas/NodeValueResponse'
-      type: object
-      required:
-      - id
-      - value
-      title: NodeResponse
-      description: Node serializer for responses.
-    NodeValueResponse:
-      properties:
-        isMapped:
+        is_mapped:
           anyOf:
           - type: boolean
           - type: 'null'
-          title: Ismapped
+          title: Is Mapped
         label:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Label
-        labelStyle:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Labelstyle
-        style:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Style
         tooltip:
           anyOf:
           - type: string
           - type: 'null'
           title: Tooltip
-        rx:
-          type: integer
-          title: Rx
-        ry:
-          type: integer
-          title: Ry
-        clusterLabelPos:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Clusterlabelpos
-        setupTeardownType:
+        setup_teardown_type:
           anyOf:
           - type: string
             enum:
             - setup
             - teardown
           - type: 'null'
-          title: Setupteardowntype
+          title: Setup Teardown Type
+        type:
+          type: string
+          enum:
+          - join
+          - sensor
+          - task
+          - asset_condition
+          title: Type
       type: object
       required:
-      - rx
-      - ry
-      title: NodeValueResponse
-      description: Graph Node Value responses.
+      - id
+      - label
+      - type
+      title: NodeResponse
+      description: Node serializer for responses.
     PatchTaskInstanceBody:
       properties:
         dry_run:
@@ -8215,6 +8169,33 @@ components:
       - latest_scheduler_heartbeat
       title: SchedulerInfoResponse
       description: Scheduler info serializer for responses.
+    StructureDataResponse:
+      properties:
+        edges:
+          items:
+            $ref: '#/components/schemas/EdgeResponse'
+          type: array
+          title: Edges
+        nodes:
+          items:
+            $ref: '#/components/schemas/NodeResponse'
+          type: array
+          title: Nodes
+        arrange:
+          type: string
+          enum:
+          - BT
+          - LR
+          - RL
+          - TB
+          title: Arrange
+      type: object
+      required:
+      - edges
+      - nodes
+      - arrange
+      title: StructureDataResponse
+      description: Structure Data serializer for responses.
     TaskCollectionResponse:
       properties:
         tasks:

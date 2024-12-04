@@ -15,13 +15,13 @@ import {
   DashboardService,
   EventLogService,
   ExtraLinksService,
-  GraphService,
   ImportErrorService,
   JobService,
   MonitorService,
   PluginService,
   PoolService,
   ProviderService,
+  StructureService,
   TaskInstanceService,
   TaskService,
   VariableService,
@@ -407,17 +407,17 @@ export const prefetchUseDashboardServiceHistoricalMetrics = (
     queryFn: () => DashboardService.historicalMetrics({ endDate, startDate }),
   });
 /**
- * Graph Data
- * Get Graph Data.
+ * Structure Data
+ * Get Structure Data.
  * @param data The data for the request.
  * @param data.dagId
  * @param data.root
  * @param data.includeUpstream
  * @param data.includeDownstream
- * @returns GraphDataResponse Successful Response
+ * @returns StructureDataResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseGraphServiceGraphData = (
+export const prefetchUseStructureServiceStructureData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -432,14 +432,14 @@ export const prefetchUseGraphServiceGraphData = (
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseGraphServiceGraphDataKeyFn({
+    queryKey: Common.UseStructureServiceStructureDataKeyFn({
       dagId,
       includeDownstream,
       includeUpstream,
       root,
     }),
     queryFn: () =>
-      GraphService.graphData({
+      StructureService.structureData({
         dagId,
         includeDownstream,
         includeUpstream,
@@ -851,41 +851,6 @@ export const prefetchUseDagServiceGetDags = (
       }),
   });
 /**
- * Get Dag Tags
- * Get all DAG tags.
- * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
- * @param data.tagNamePattern
- * @returns DAGTagCollectionResponse Successful Response
- * @throws ApiError
- */
-export const prefetchUseDagServiceGetDagTags = (
-  queryClient: QueryClient,
-  {
-    limit,
-    offset,
-    orderBy,
-    tagNamePattern,
-  }: {
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-    tagNamePattern?: string;
-  } = {},
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseDagServiceGetDagTagsKeyFn({
-      limit,
-      offset,
-      orderBy,
-      tagNamePattern,
-    }),
-    queryFn: () =>
-      DagService.getDagTags({ limit, offset, orderBy, tagNamePattern }),
-  });
-/**
  * Get Dag
  * Get basic information about a DAG.
  * @param data The data for the request.
@@ -926,6 +891,41 @@ export const prefetchUseDagServiceGetDagDetails = (
     queryFn: () => DagService.getDagDetails({ dagId }),
   });
 /**
+ * Get Dag Tags
+ * Get all DAG tags.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @param data.tagNamePattern
+ * @returns DAGTagCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagServiceGetDagTags = (
+  queryClient: QueryClient,
+  {
+    limit,
+    offset,
+    orderBy,
+    tagNamePattern,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    tagNamePattern?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagServiceGetDagTagsKeyFn({
+      limit,
+      offset,
+      orderBy,
+      tagNamePattern,
+    }),
+    queryFn: () =>
+      DagService.getDagTags({ limit, offset, orderBy, tagNamePattern }),
+  });
+/**
  * Get Event Log
  * @param data The data for the request.
  * @param data.eventLogId
@@ -948,6 +948,9 @@ export const prefetchUseEventLogServiceGetEventLog = (
  * Get Event Logs
  * Get all Event Logs.
  * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
  * @param data.dagId
  * @param data.taskId
  * @param data.runId
@@ -959,9 +962,6 @@ export const prefetchUseEventLogServiceGetEventLog = (
  * @param data.includedEvents
  * @param data.before
  * @param data.after
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
  * @returns EventLogCollectionResponse Successful Response
  * @throws ApiError
  */

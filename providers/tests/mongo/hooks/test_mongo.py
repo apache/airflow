@@ -18,13 +18,12 @@
 from __future__ import annotations
 
 import importlib
-import warnings
 from typing import TYPE_CHECKING
 
 import pymongo
 import pytest
 
-from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowConfigException
 from airflow.models import Connection
 from airflow.providers.mongo.hooks.mongo import MongoHook
 
@@ -99,22 +98,10 @@ class TestMongoHook:
         self.conn = self.hook.get_conn()
 
     def test_mongo_conn_id(self):
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", category=AirflowProviderDeprecationWarning)
-            # Use default "mongo_default"
-            assert MongoHook().mongo_conn_id == "mongo_default"
-            # Positional argument
-            assert MongoHook("fake_connection").mongo_conn_id == "fake_connection"
-
-        warning_message = "Parameter `conn_id` is deprecated"
-        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
-            assert MongoHook(conn_id="fake_connection").mongo_conn_id == "fake_connection"
-
-        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
-            assert (
-                MongoHook(conn_id="fake_connection", mongo_conn_id="foo-bar").mongo_conn_id
-                == "fake_connection"
-            )
+        # Use default "mongo_default"
+        assert MongoHook().mongo_conn_id == "mongo_default"
+        # Positional argument
+        assert MongoHook("fake_connection").mongo_conn_id == "fake_connection"
 
     def test_get_conn(self):
         assert self.hook.connection.port == 27017

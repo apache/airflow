@@ -27,6 +27,7 @@ export type AppBuilderViewResponse = {
 export type AssetAliasSchema = {
   id: number;
   name: string;
+  group: string;
 };
 
 /**
@@ -680,17 +681,6 @@ export type FastAPIAppResponse = {
 };
 
 /**
- * Graph Data serializer for responses.
- */
-export type GraphDataResponse = {
-  edges: Array<EdgeResponse>;
-  nodes: NodeResponse;
-  arrange: "BT" | "LR" | "RL" | "TB";
-};
-
-export type arrange = "BT" | "LR" | "RL" | "TB";
-
-/**
  * HTTPException Model used for error response.
  */
 export type HTTPExceptionResponse = {
@@ -771,24 +761,15 @@ export type JobResponse = {
  */
 export type NodeResponse = {
   children?: Array<NodeResponse> | null;
-  id: string | null;
-  value: NodeValueResponse;
+  id: string;
+  is_mapped?: boolean | null;
+  label: string;
+  tooltip?: string | null;
+  setup_teardown_type?: "setup" | "teardown" | null;
+  type: "join" | "sensor" | "task" | "asset_condition";
 };
 
-/**
- * Graph Node Value responses.
- */
-export type NodeValueResponse = {
-  isMapped?: boolean | null;
-  label?: string | null;
-  labelStyle?: string | null;
-  style?: string | null;
-  tooltip?: string | null;
-  rx: number;
-  ry: number;
-  clusterLabelPos?: string | null;
-  setupTeardownType?: "setup" | "teardown" | null;
-};
+export type type = "join" | "sensor" | "task" | "asset_condition";
 
 /**
  * Request body for Clear Task Instances endpoint.
@@ -928,6 +909,17 @@ export type SchedulerInfoResponse = {
   status: string | null;
   latest_scheduler_heartbeat: string | null;
 };
+
+/**
+ * Structure Data serializer for responses.
+ */
+export type StructureDataResponse = {
+  edges: Array<EdgeResponse>;
+  nodes: Array<NodeResponse>;
+  arrange: "BT" | "LR" | "RL" | "TB";
+};
+
+export type arrange = "BT" | "LR" | "RL" | "TB";
 
 /**
  * Task collection serializer for responses.
@@ -1424,14 +1416,14 @@ export type HistoricalMetricsData = {
 
 export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
 
-export type GraphDataData = {
+export type StructureDataData = {
   dagId: string;
   includeDownstream?: boolean;
   includeUpstream?: boolean;
   root?: string | null;
 };
 
-export type GraphDataResponse2 = GraphDataResponse;
+export type StructureDataResponse2 = StructureDataResponse;
 
 export type ListBackfillsData = {
   dagId: string;
@@ -1644,15 +1636,6 @@ export type PatchDagsData = {
 
 export type PatchDagsResponse = DAGCollectionResponse;
 
-export type GetDagTagsData = {
-  limit?: number;
-  offset?: number;
-  orderBy?: string;
-  tagNamePattern?: string | null;
-};
-
-export type GetDagTagsResponse = DAGTagCollectionResponse;
-
 export type GetDagData = {
   dagId: string;
 };
@@ -1678,6 +1661,15 @@ export type GetDagDetailsData = {
 };
 
 export type GetDagDetailsResponse = DAGDetailsResponse;
+
+export type GetDagTagsData = {
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  tagNamePattern?: string | null;
+};
+
+export type GetDagTagsResponse = DAGTagCollectionResponse;
 
 export type GetEventLogData = {
   eventLogId: number;
@@ -2455,18 +2447,18 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/ui/graph/graph_data": {
+  "/ui/structure/structure_data": {
     get: {
-      req: GraphDataData;
+      req: StructureDataData;
       res: {
         /**
          * Successful Response
          */
-        200: GraphDataResponse;
+        200: StructureDataResponse;
         /**
-         * Bad Request
+         * Not Found
          */
-        400: HTTPExceptionResponse;
+        404: HTTPExceptionResponse;
         /**
          * Validation Error
          */
@@ -3196,29 +3188,6 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/tags": {
-    get: {
-      req: GetDagTagsData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: DAGTagCollectionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
   "/public/dags/{dag_id}": {
     get: {
       req: GetDagData;
@@ -3332,6 +3301,29 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dagTags": {
+    get: {
+      req: GetDagTagsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGTagCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */

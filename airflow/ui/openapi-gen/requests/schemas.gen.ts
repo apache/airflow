@@ -99,9 +99,13 @@ export const $AssetAliasSchema = {
       type: "string",
       title: "Name",
     },
+    group: {
+      type: "string",
+      title: "Group",
+    },
   },
   type: "object",
-  required: ["id", "name"],
+  required: ["id", "name", "group"],
   title: "AssetAliasSchema",
   description: "Asset alias serializer for assets.",
 } as const;
@@ -2834,30 +2838,6 @@ export const $FastAPIAppResponse = {
   description: "Serializer for Plugin FastAPI App responses.",
 } as const;
 
-export const $GraphDataResponse = {
-  properties: {
-    edges: {
-      items: {
-        $ref: "#/components/schemas/EdgeResponse",
-      },
-      type: "array",
-      title: "Edges",
-    },
-    nodes: {
-      $ref: "#/components/schemas/NodeResponse",
-    },
-    arrange: {
-      type: "string",
-      enum: ["BT", "LR", "RL", "TB"],
-      title: "Arrange",
-    },
-  },
-  type: "object",
-  required: ["edges", "nodes", "arrange"],
-  title: "GraphDataResponse",
-  description: "Graph Data serializer for responses.",
-} as const;
-
 export const $HTTPExceptionResponse = {
   properties: {
     detail: {
@@ -3148,29 +3128,10 @@ export const $NodeResponse = {
       title: "Children",
     },
     id: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "string",
       title: "Id",
     },
-    value: {
-      $ref: "#/components/schemas/NodeValueResponse",
-    },
-  },
-  type: "object",
-  required: ["id", "value"],
-  title: "NodeResponse",
-  description: "Node serializer for responses.",
-} as const;
-
-export const $NodeValueResponse = {
-  properties: {
-    isMapped: {
+    is_mapped: {
       anyOf: [
         {
           type: "boolean",
@@ -3179,40 +3140,11 @@ export const $NodeValueResponse = {
           type: "null",
         },
       ],
-      title: "Ismapped",
+      title: "Is Mapped",
     },
     label: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "string",
       title: "Label",
-    },
-    labelStyle: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Labelstyle",
-    },
-    style: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Style",
     },
     tooltip: {
       anyOf: [
@@ -3225,26 +3157,7 @@ export const $NodeValueResponse = {
       ],
       title: "Tooltip",
     },
-    rx: {
-      type: "integer",
-      title: "Rx",
-    },
-    ry: {
-      type: "integer",
-      title: "Ry",
-    },
-    clusterLabelPos: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Clusterlabelpos",
-    },
-    setupTeardownType: {
+    setup_teardown_type: {
       anyOf: [
         {
           type: "string",
@@ -3254,13 +3167,18 @@ export const $NodeValueResponse = {
           type: "null",
         },
       ],
-      title: "Setupteardowntype",
+      title: "Setup Teardown Type",
+    },
+    type: {
+      type: "string",
+      enum: ["join", "sensor", "task", "asset_condition"],
+      title: "Type",
     },
   },
   type: "object",
-  required: ["rx", "ry"],
-  title: "NodeValueResponse",
-  description: "Graph Node Value responses.",
+  required: ["id", "label", "type"],
+  title: "NodeResponse",
+  description: "Node serializer for responses.",
 } as const;
 
 export const $PatchTaskInstanceBody = {
@@ -3749,6 +3667,34 @@ export const $SchedulerInfoResponse = {
   required: ["status", "latest_scheduler_heartbeat"],
   title: "SchedulerInfoResponse",
   description: "Scheduler info serializer for responses.",
+} as const;
+
+export const $StructureDataResponse = {
+  properties: {
+    edges: {
+      items: {
+        $ref: "#/components/schemas/EdgeResponse",
+      },
+      type: "array",
+      title: "Edges",
+    },
+    nodes: {
+      items: {
+        $ref: "#/components/schemas/NodeResponse",
+      },
+      type: "array",
+      title: "Nodes",
+    },
+    arrange: {
+      type: "string",
+      enum: ["BT", "LR", "RL", "TB"],
+      title: "Arrange",
+    },
+  },
+  type: "object",
+  required: ["edges", "nodes", "arrange"],
+  title: "StructureDataResponse",
+  description: "Structure Data serializer for responses.",
 } as const;
 
 export const $TaskCollectionResponse = {

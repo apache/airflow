@@ -16,13 +16,13 @@ import {
   DashboardService,
   EventLogService,
   ExtraLinksService,
-  GraphService,
   ImportErrorService,
   JobService,
   MonitorService,
   PluginService,
   PoolService,
   ProviderService,
+  StructureService,
   TaskInstanceService,
   TaskService,
   VariableService,
@@ -327,15 +327,16 @@ export const UseDashboardServiceHistoricalMetricsKeyFn = (
   useDashboardServiceHistoricalMetricsKey,
   ...(queryKey ?? [{ endDate, startDate }]),
 ];
-export type GraphServiceGraphDataDefaultResponse = Awaited<
-  ReturnType<typeof GraphService.graphData>
+export type StructureServiceStructureDataDefaultResponse = Awaited<
+  ReturnType<typeof StructureService.structureData>
 >;
-export type GraphServiceGraphDataQueryResult<
-  TData = GraphServiceGraphDataDefaultResponse,
+export type StructureServiceStructureDataQueryResult<
+  TData = StructureServiceStructureDataDefaultResponse,
   TError = unknown,
 > = UseQueryResult<TData, TError>;
-export const useGraphServiceGraphDataKey = "GraphServiceGraphData";
-export const UseGraphServiceGraphDataKeyFn = (
+export const useStructureServiceStructureDataKey =
+  "StructureServiceStructureData";
+export const UseStructureServiceStructureDataKeyFn = (
   {
     dagId,
     includeDownstream,
@@ -349,7 +350,7 @@ export const UseGraphServiceGraphDataKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [
-  useGraphServiceGraphDataKey,
+  useStructureServiceStructureDataKey,
   ...(queryKey ?? [{ dagId, includeDownstream, includeUpstream, root }]),
 ];
 export type BackfillServiceListBackfillsDefaultResponse = Awaited<
@@ -655,31 +656,6 @@ export const UseDagServiceGetDagsKeyFn = (
     },
   ]),
 ];
-export type DagServiceGetDagTagsDefaultResponse = Awaited<
-  ReturnType<typeof DagService.getDagTags>
->;
-export type DagServiceGetDagTagsQueryResult<
-  TData = DagServiceGetDagTagsDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useDagServiceGetDagTagsKey = "DagServiceGetDagTags";
-export const UseDagServiceGetDagTagsKeyFn = (
-  {
-    limit,
-    offset,
-    orderBy,
-    tagNamePattern,
-  }: {
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-    tagNamePattern?: string;
-  } = {},
-  queryKey?: Array<unknown>,
-) => [
-  useDagServiceGetDagTagsKey,
-  ...(queryKey ?? [{ limit, offset, orderBy, tagNamePattern }]),
-];
 export type DagServiceGetDagDefaultResponse = Awaited<
   ReturnType<typeof DagService.getDag>
 >;
@@ -712,6 +688,31 @@ export const UseDagServiceGetDagDetailsKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useDagServiceGetDagDetailsKey, ...(queryKey ?? [{ dagId }])];
+export type DagServiceGetDagTagsDefaultResponse = Awaited<
+  ReturnType<typeof DagService.getDagTags>
+>;
+export type DagServiceGetDagTagsQueryResult<
+  TData = DagServiceGetDagTagsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagServiceGetDagTagsKey = "DagServiceGetDagTags";
+export const UseDagServiceGetDagTagsKeyFn = (
+  {
+    limit,
+    offset,
+    orderBy,
+    tagNamePattern,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    tagNamePattern?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useDagServiceGetDagTagsKey,
+  ...(queryKey ?? [{ limit, offset, orderBy, tagNamePattern }]),
+];
 export type EventLogServiceGetEventLogDefaultResponse = Awaited<
   ReturnType<typeof EventLogService.getEventLog>
 >;
