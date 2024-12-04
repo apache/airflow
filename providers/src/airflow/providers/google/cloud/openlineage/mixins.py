@@ -88,7 +88,7 @@ class _BigQueryOpenLineageMixin:
 
         job_facets = {"sql": SQLJobFacet(query=SQLParser.normalize_sql(self.sql))}
 
-        self.client = self.hook.get_client(project_id=self.hook.project_id)
+        self.client = self.hook.get_client(project_id=self.hook.project_id, location=self.location)
         job_ids = self.job_id
         if isinstance(self.job_id, str):
             job_ids = [self.job_id]
