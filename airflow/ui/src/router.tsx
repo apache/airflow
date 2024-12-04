@@ -24,12 +24,11 @@ import { Dag } from "src/pages/DagsList/Dag";
 import { Code } from "src/pages/DagsList/Dag/Code";
 import { Overview } from "src/pages/DagsList/Dag/Overview";
 import { Runs } from "src/pages/DagsList/Dag/Runs";
+import { Tasks } from "src/pages/DagsList/Dag/Tasks";
 import { Run } from "src/pages/DagsList/Run";
 import { Dashboard } from "src/pages/Dashboard";
-
-import { Tasks } from "./pages/DagsList/Dag/Tasks";
-import { ErrorPage } from "./pages/Error";
-import { Events } from "./pages/Events";
+import { ErrorPage } from "src/pages/Error";
+import { Events } from "src/pages/Events";
 
 export const router = createBrowserRouter(
   [

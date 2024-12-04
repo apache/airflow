@@ -66,7 +66,9 @@ export const TaskRecentRuns = ({
                 <Text>
                   End Date: <Time datetime={taskInstance.end_date} />
                 </Text>
-                <Text>Try Number: {taskInstance.try_number}</Text>
+                {taskInstance.try_number > 1 && (
+                  <Text>Try Number: {taskInstance.try_number}</Text>
+                )}
                 <Text>Duration: {taskInstance.duration.toFixed(2)}s</Text>
               </Box>
             }

@@ -29,6 +29,7 @@ import type {
   TaskResponse,
   TaskInstanceResponse,
 } from "openapi/requests/types.gen";
+import Time from "src/components/Time";
 import { Status } from "src/components/ui";
 
 import { TaskRecentRuns } from "./TaskRecentRuns.tsx";
@@ -45,7 +46,7 @@ export const TaskCard = ({ task, taskInstances }: Props) => (
     borderWidth={1}
     overflow="hidden"
   >
-    <Text bg="bg.info" color="fg.info" p={2}>
+    <Text bg="bg.info" color="fg.info" fontWeight="bold" p={2}>
       {task.task_display_name ?? task.task_id}
       {task.is_mapped ? "[]" : undefined}
     </Text>
@@ -64,11 +65,11 @@ export const TaskCard = ({ task, taskInstances }: Props) => (
       </VStack>
       <VStack align="flex-start" gap={1}>
         <Heading color="fg.muted" fontSize="xs">
-          Last Run
+          Last Instance
         </Heading>
         {taskInstances[0] ? (
           <HStack fontSize="sm">
-            <Text> {taskInstances[0].logical_date} </Text>
+            <Time datetime={taskInstances[0].start_date} />
             {taskInstances[0].state === null ? undefined : (
               <Status state={taskInstances[0].state}>
                 {taskInstances[0].state}

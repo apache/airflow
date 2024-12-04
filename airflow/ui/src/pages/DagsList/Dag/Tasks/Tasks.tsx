@@ -31,6 +31,7 @@ import type {
 import { DataTable } from "src/components/DataTable";
 import type { CardDef } from "src/components/DataTable/types";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { pluralize } from "src/utils";
 
 import { TaskCard } from "./TaskCard";
 
@@ -96,7 +97,7 @@ export const Tasks = () => {
     <Box>
       <ErrorAlert error={TasksError} />
       <Heading my={1} size="md">
-        {data ? data.total_entries : 0} Tasks
+        {pluralize("Task", data ? data.total_entries : 0)}
       </Heading>
       <DataTable
         cardDef={cardDef(TaskInstancesResponse?.task_instances.reverse())}
