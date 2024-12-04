@@ -177,10 +177,10 @@ class OperatorExecutor(TaskExecutor):
         outlet_events = context_get_outlet_events(self.context)
         # TODO: change back to operator.execute once ExecutorSafeguard is fixed
         return ExecutionCallableRunner(
-            func=self.operator.execute.__wrapped__,
+            func=self.operator.execute,
             outlet_events=outlet_events,
             logger=self.log,
-        ).run(self.operator, self.context)
+        ).run(self.context)
 
 
 class TriggerExecutor(TaskExecutor):
@@ -393,7 +393,9 @@ class IterableOperator(BaseOperator):
     @classmethod
     def _run_operator(cls, context: Context, task_instance: TaskInstance):
         try:
-            with OperatorExecutor(context=context, task_instance=task_instance) as executor:
+            with OperatorExecutor(
+                context=context, task_instance=task_instance
+            ) as executor:
                 return executor.run()
         except TaskDeferred as task_deferred:
             return task_deferred
