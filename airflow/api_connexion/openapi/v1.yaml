@@ -1743,7 +1743,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TaskInstance"
+                $ref: "#/components/schemas/TaskInstanceHistory"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -1774,7 +1774,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TaskInstanceCollection"
+                $ref: "#/components/schemas/TaskInstanceHistoryCollection"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -1806,7 +1806,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TaskInstanceCollection"
+                $ref: "#/components/schemas/TaskInstanceHistoryCollection"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -1836,7 +1836,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TaskInstance"
+                $ref: "#/components/schemas/TaskInstanceHistory"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -2274,7 +2274,7 @@ paths:
                 properties:
                   content:
                     type: string
-            plain/text:
+            text/plain:
               schema:
                 type: string
 
@@ -4021,7 +4021,95 @@ components:
               items:
                 $ref: "#/components/schemas/TaskInstance"
         - $ref: "#/components/schemas/CollectionInfo"
+    TaskInstanceHistory:
+      type: object
+      properties:
+        task_id:
+          type: string
+        task_display_name:
+          type: string
+          description: |
+            Human centric display text for the task.
 
+            *New in version 2.9.0*
+        dag_id:
+          type: string
+        dag_run_id:
+          type: string
+          description: |
+            The DagRun ID for this task instance
+
+            *New in version 2.3.0*
+        start_date:
+          type: string
+          format: datetime
+          nullable: true
+        end_date:
+          type: string
+          format: datetime
+          nullable: true
+        duration:
+          type: number
+          nullable: true
+        state:
+          $ref: "#/components/schemas/TaskState"
+        try_number:
+          type: integer
+        map_index:
+          type: integer
+        max_tries:
+          type: integer
+        hostname:
+          type: string
+        unixname:
+          type: string
+        pool:
+          type: string
+        pool_slots:
+          type: integer
+        queue:
+          type: string
+          nullable: true
+        priority_weight:
+          type: integer
+          nullable: true
+        operator:
+          type: string
+          nullable: true
+          description: |
+            *Changed in version 2.1.1*&#58; Field becomes nullable.
+        queued_when:
+          type: string
+          nullable: true
+          description: |
+            The datetime that the task enter the state QUEUE, also known as queue_at
+        pid:
+          type: integer
+          nullable: true
+        executor:
+          type: string
+          nullable: true
+          description: |
+            Executor the task is configured to run on or None (which indicates the default executor)
+
+            *New in version 2.10.0*
+        executor_config:
+          type: string
+
+    TaskInstanceHistoryCollection:
+      type: object
+      description: |
+        Collection of task instances .
+
+        *Changed in version 2.1.0*&#58; 'total_entries' field is added.
+      allOf:
+        - type: object
+          properties:
+            task_instances_history:
+              type: array
+              items:
+                $ref: "#/components/schemas/TaskInstanceHistory"
+        - $ref: "#/components/schemas/CollectionInfo"
     TaskInstanceReference:
       type: object
       properties:
@@ -5097,6 +5185,15 @@ components:
     ListTaskInstanceForm:
       type: object
       properties:
+        page_offset:
+          type: integer
+          minimum: 0
+          description: The number of items to skip before starting to collect the result set.
+        page_limit:
+          type: integer
+          minimum: 1
+          default: 100
+          description: The numbers of items to return.
         dag_ids:
           type: array
           items:

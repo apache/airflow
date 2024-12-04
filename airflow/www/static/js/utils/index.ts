@@ -20,6 +20,7 @@
 import Color from "color";
 import type { DagRun, RunOrdering, Task, TaskInstance } from "src/types";
 
+import { LogLevel } from "src/dag/details/taskInstance/Logs/utils";
 import useOffsetTop from "./useOffsetTop";
 
 // Delay in ms for various hover actions
@@ -170,7 +171,7 @@ interface RunLabelProps {
 const getDagRunLabel = ({
   dagRun,
   ordering = ["executionDate"],
-}: RunLabelProps) => dagRun[ordering[0]] ?? dagRun[ordering[1]];
+}: RunLabelProps) => dagRun[ordering[0]];
 
 const getStatusBackgroundColor = (color: string, hasNote: boolean) =>
   hasNote
@@ -187,6 +188,7 @@ const toSentenceCase = (camelCase: string): string => {
 
 const highlightByKeywords = (
   parsedLine: string,
+  currentLogLevel: string,
   errorKeywords: string[],
   warningKeywords: string[],
   logGroupStart: RegExp,
@@ -205,7 +207,7 @@ const highlightByKeywords = (
     lowerParsedLine.includes(keyword)
   );
 
-  if (containsError) {
+  if (containsError || currentLogLevel === (LogLevel.ERROR as string)) {
     return red(parsedLine);
   }
 
@@ -213,7 +215,7 @@ const highlightByKeywords = (
     lowerParsedLine.includes(keyword)
   );
 
-  if (containsWarning) {
+  if (containsWarning || currentLogLevel === (LogLevel.WARNING as string)) {
     return yellow(parsedLine);
   }
 

@@ -224,7 +224,7 @@ class DagScheduleDatasetAliasReference(Base):
         ForeignKeyConstraint(
             columns=(dag_id,),
             refcolumns=["dag.dag_id"],
-            name="dsdar_dag_fkey",
+            name="dsdar_dag_id_fkey",
             ondelete="CASCADE",
         ),
         Index("idx_dag_schedule_dataset_alias_reference_dag_id", dag_id),

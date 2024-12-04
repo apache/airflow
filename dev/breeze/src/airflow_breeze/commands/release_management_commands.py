@@ -226,21 +226,22 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "24.0"
-AIRFLOW_UV_VERSION = "0.1.10"
+AIRFLOW_PIP_VERSION = "24.3.1"
+AIRFLOW_UV_VERSION = "0.4.29"
 AIRFLOW_USE_UV = False
-WHEEL_VERSION = "0.36.2"
-GITPYTHON_VERSION = "3.1.40"
-RICH_VERSION = "13.7.0"
-NODE_VERSION = "21.2.0"
+# TODO: automate thsese as well
+WHEEL_VERSION = "0.44.0"
+GITPYTHON_VERSION = "3.1.43"
+RICH_VERSION = "13.9.4"
+NODE_VERSION = "22.2.0"
 PRE_COMMIT_VERSION = "3.5.0"
-HATCH_VERSION = "1.9.1"
-PYYAML_VERSION = "6.0.1"
+HATCH_VERSION = "1.13.0"
+PYYAML_VERSION = "6.0.2"
 
 AIRFLOW_BUILD_DOCKERFILE = f"""
 FROM python:{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}-slim-{ALLOWED_DEBIAN_VERSIONS[0]}
 RUN apt-get update && apt-get install -y --no-install-recommends git
-RUN pip install pip=={AIRFLOW_PIP_VERSION} hatch=={HATCH_VERSION} pyyaml=={PYYAML_VERSION}\
+RUN pip install --root-user-action ignore pip=={AIRFLOW_PIP_VERSION} hatch=={HATCH_VERSION} pyyaml=={PYYAML_VERSION}\
  gitpython=={GITPYTHON_VERSION} rich=={RICH_VERSION} pre-commit=={PRE_COMMIT_VERSION}
 COPY . /opt/airflow
 """
@@ -451,7 +452,11 @@ def _check_sdist_to_wheel_dists(dists_info: tuple[DistributionPackageInfo, ...])
                 continue
 
             if not venv_created:
-                python_path = create_venv(Path(tmp_dir_name) / ".venv", pip_version=AIRFLOW_PIP_VERSION)
+                python_path = create_venv(
+                    Path(tmp_dir_name) / ".venv",
+                    pip_version=AIRFLOW_PIP_VERSION,
+                    uv_version=AIRFLOW_UV_VERSION,
+                )
                 pip_command = create_pip_command(python_path)
                 venv_created = True
 
@@ -515,7 +520,6 @@ def prepare_airflow_packages(
     version_suffix_for_pypi: str,
     use_local_hatch: bool,
 ):
-    check_python_version()
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
@@ -3062,7 +3066,6 @@ def prepare_helm_chart_tarball(
 ) -> None:
     import yaml
 
-    check_python_version()
     chart_yaml_file_content = CHART_YAML_FILE.read_text()
     chart_yaml_dict = yaml.safe_load(chart_yaml_file_content)
     version_in_chart = chart_yaml_dict["version"]
@@ -3204,8 +3207,6 @@ def prepare_helm_chart_tarball(
 @option_dry_run
 @option_verbose
 def prepare_helm_chart_package(sign_email: str):
-    check_python_version()
-
     import yaml
 
     from airflow_breeze.utils.kubernetes_utils import (

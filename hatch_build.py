@@ -103,7 +103,10 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "python-ldap",
     ],
     "leveldb": [
-        "plyvel",
+        # The plyvel package is a huge pain when installing on MacOS - especially when Apple releases new
+        # OS version. It's usually next to impossible to install it at least for a few months after the new
+        # MacOS version is released. We can skip it on MacOS as this is an optional feature anyway.
+        "plyvel>=1.5.1; sys_platform != 'darwin'",
     ],
     "otel": [
         "opentelemetry-exporter-prometheus",
@@ -433,9 +436,13 @@ DEPENDENCIES = [
     "cryptography>=41.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
+    # Required for python 3.8 and 3.9 to work with new annotations styles. Check package
+    # description on PyPI for more details: https://pypi.org/project/eval-type-backport/
+    # see https://github.com/pydantic/pydantic/issues/10958
+    'eval-type-backport>=0.2.0;python_version<"3.10"',
     "flask-caching>=2.0.0",
     # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
-    # all parameters now are mandatory which make AirflowDatabaseSessionInterface incopatible with this version.
+    # all parameters now are mandatory which make AirflowDatabaseSessionInterface incompatible with this version.
     "flask-session>=0.4.0,<0.6",
     "flask-wtf>=1.1.0",
     # Flask 2.3 is scheduled to introduce a number of deprecation removals - some of them might be breaking
@@ -462,8 +469,8 @@ DEPENDENCIES = [
     "marshmallow-oneofschema>=2.0.1",
     "mdit-py-plugins>=0.3.0",
     "methodtools>=0.4.7",
-    "opentelemetry-api>=1.15.0",
-    "opentelemetry-exporter-otlp>=1.15.0",
+    "opentelemetry-api>=1.24.0",
+    "opentelemetry-exporter-otlp>=1.24.0",
     "packaging>=23.0",
     "pathspec>=0.9.0",
     'pendulum>=2.1.2,<4.0;python_version<"3.12"',

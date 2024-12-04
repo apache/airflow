@@ -25,12 +25,14 @@ import sys
 import time
 import warnings
 from collections import Counter, defaultdict, deque
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import timedelta
 from functools import lru_cache, partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 
+from deprecated import deprecated
 from sqlalchemy import and_, delete, func, not_, or_, select, text, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import lazyload, load_only, make_transient, selectinload
@@ -96,6 +98,9 @@ if TYPE_CHECKING:
 TI = TaskInstance
 DR = DagRun
 DM = DagModel
+
+TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
+""":meta private:"""
 
 
 @dataclass
@@ -226,6 +231,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         task_queued_timeout = conf.getfloat("scheduler", "task_queued_timeout")
         self._task_queued_timeout = max(
             stalled_task_timeout, task_adoption_timeout, worker_pods_pending_timeout, task_queued_timeout
+        )
+
+        # this param is intentionally undocumented
+        self._num_stuck_queued_retries = conf.getint(
+            section="scheduler",
+            key="num_stuck_in_queued_retries",
+            fallback=2,
         )
 
         self.do_pickle = do_pickle
@@ -847,9 +859,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 span.set_attribute("ququed_by_job_id", ti.queued_by_job_id)
                 span.set_attribute("pid", ti.pid)
                 if span.is_recording():
-                    span.add_event(name="queued", timestamp=datetime_to_nano(ti.queued_dttm))
-                    span.add_event(name="started", timestamp=datetime_to_nano(ti.start_date))
-                    span.add_event(name="ended", timestamp=datetime_to_nano(ti.end_date))
+                    if ti.queued_dttm:
+                        span.add_event(name="queued", timestamp=datetime_to_nano(ti.queued_dttm))
+                    if ti.start_date:
+                        span.add_event(name="started", timestamp=datetime_to_nano(ti.start_date))
+                    if ti.end_date:
+                        span.add_event(name="ended", timestamp=datetime_to_nano(ti.end_date))
                 if conf.has_option("traces", "otel_task_log_event") and conf.getboolean(
                     "traces", "otel_task_log_event"
                 ):
@@ -1090,7 +1105,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         timers.call_regular_interval(
             conf.getfloat("scheduler", "task_queued_timeout_check_interval"),
-            self._fail_tasks_stuck_in_queued,
+            self._handle_tasks_stuck_in_queued,
         )
 
         timers.call_regular_interval(
@@ -1105,16 +1120,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
         for loop_count in itertools.count(start=1):
-            with Trace.start_span(span_name="scheduler_job_loop", component="SchedulerJobRunner") as span:
+            with Trace.start_span(
+                span_name="scheduler_job_loop", component="SchedulerJobRunner"
+            ) as span, Stats.timer("scheduler.scheduler_loop_duration") as timer:
                 span.set_attribute("category", "scheduler")
                 span.set_attribute("loop_count", loop_count)
-                with Stats.timer("scheduler.scheduler_loop_duration") as timer:
-                    if self.using_sqlite and self.processor_agent:
-                        self.processor_agent.run_single_parsing_loop()
-                        # For the sqlite case w/ 1 thread, wait until the processor
-                        # is finished to avoid concurrent access to the DB.
-                        self.log.debug("Waiting for processors to finish since we're using sqlite")
-                        self.processor_agent.wait_until_finished()
+
+                if self.using_sqlite and self.processor_agent:
+                    self.processor_agent.run_single_parsing_loop()
+                    # For the sqlite case w/ 1 thread, wait until the processor
+                    # is finished to avoid concurrent access to the DB.
+                    self.log.debug("Waiting for processors to finish since we're using sqlite")
+                    self.processor_agent.wait_until_finished()
 
                 with create_session() as session:
                     # This will schedule for as many executors as possible.
@@ -1136,6 +1153,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 for executor in self.job.executors:
                     try:
                         # this is backcompat check if executor does not inherit from BaseExecutor
+                        # todo: remove in airflow 3.0
                         if not hasattr(executor, "_task_event_logs"):
                             continue
                         with create_session() as session:
@@ -1767,48 +1785,132 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.job.executor.send_callback(request)
 
     @provide_session
-    def _fail_tasks_stuck_in_queued(self, session: Session = NEW_SESSION) -> None:
+    def _handle_tasks_stuck_in_queued(self, session: Session = NEW_SESSION) -> None:
         """
-        Mark tasks stuck in queued for longer than `task_queued_timeout` as failed.
+        Handle the scenario where a task is queued for longer than `task_queued_timeout`.
 
         Tasks can get stuck in queued for a wide variety of reasons (e.g. celery loses
         track of a task, a cluster can't further scale up its workers, etc.), but tasks
-        should not be stuck in queued for a long time. This will mark tasks stuck in
-        queued for longer than `self._task_queued_timeout` as failed. If the task has
-        available retries, it will be retried.
-        """
-        self.log.debug("Calling SchedulerJob._fail_tasks_stuck_in_queued method")
+        should not be stuck in queued for a long time.
 
-        tasks_stuck_in_queued = session.scalars(
+        We will attempt to requeue the task (by revoking it from executor and setting to
+        scheduled) up to 2 times before failing the task.
+        """
+        tasks_stuck_in_queued = self._get_tis_stuck_in_queued(session)
+        for executor, stuck_tis in self._executor_to_tis(tasks_stuck_in_queued).items():
+            try:
+                for ti in stuck_tis:
+                    executor.revoke_task(ti=ti)
+                    self._maybe_requeue_stuck_ti(
+                        ti=ti,
+                        session=session,
+                    )
+            except NotImplementedError:
+                # this block only gets entered if the executor has not implemented `revoke_task`.
+                # in which case, we try the fallback logic
+                # todo: remove the call to _stuck_in_queued_backcompat_logic in airflow 3.0.
+                #   after 3.0, `cleanup_stuck_queued_tasks` will be removed, so we should
+                #   just continue immediately.
+                self._stuck_in_queued_backcompat_logic(executor, stuck_tis)
+                continue
+
+    def _get_tis_stuck_in_queued(self, session) -> Iterable[TaskInstance]:
+        """Query db for TIs that are stuck in queued."""
+        return session.scalars(
             select(TI).where(
                 TI.state == TaskInstanceState.QUEUED,
                 TI.queued_dttm < (timezone.utcnow() - timedelta(seconds=self._task_queued_timeout)),
                 TI.queued_by_job_id == self.job.id,
             )
-        ).all()
+        )
 
-        for executor, stuck_tis in self._executor_to_tis(tasks_stuck_in_queued).items():
-            try:
-                cleaned_up_task_instances = set(executor.cleanup_stuck_queued_tasks(tis=stuck_tis))
-                for ti in stuck_tis:
-                    if repr(ti) in cleaned_up_task_instances:
-                        self.log.warning(
-                            "Marking task instance %s stuck in queued as failed. "
-                            "If the task instance has available retries, it will be retried.",
-                            ti,
-                        )
-                        session.add(
-                            Log(
-                                event="stuck in queued",
-                                task_instance=ti.key,
-                                extra=(
-                                    "Task will be marked as failed. If the task instance has "
-                                    "available retries, it will be retried."
-                                ),
-                            )
-                        )
-            except NotImplementedError:
-                self.log.debug("Executor doesn't support cleanup of stuck queued tasks. Skipping.")
+    def _maybe_requeue_stuck_ti(self, *, ti, session):
+        """
+        Requeue task if it has not been attempted too many times.
+
+        Otherwise, fail it.
+        """
+        num_times_stuck = self._get_num_times_stuck_in_queued(ti, session)
+        if num_times_stuck < self._num_stuck_queued_retries:
+            self.log.info("Task stuck in queued; will try to requeue. task_id=%s", ti.task_id)
+            session.add(
+                Log(
+                    event=TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
+                    task_instance=ti.key,
+                    extra=(
+                        f"Task was in queued state for longer than {self._task_queued_timeout} "
+                        "seconds; task state will be set back to scheduled."
+                    ),
+                )
+            )
+            self._reschedule_stuck_task(ti)
+        else:
+            self.log.info(
+                "Task requeue attempts exceeded max; marking failed. task_instance=%s",
+                ti,
+            )
+            session.add(
+                Log(
+                    event="stuck in queued tries exceeded",
+                    task_instance=ti.key,
+                    extra=f"Task was requeued more than {self._num_stuck_queued_retries} times and will be failed.",
+                )
+            )
+            ti.set_state(TaskInstanceState.FAILED, session=session)
+
+    @deprecated(
+        reason="This is backcompat layer for older executor interface. Should be removed in 3.0",
+        category=RemovedInAirflow3Warning,
+        action="ignore",
+    )
+    def _stuck_in_queued_backcompat_logic(self, executor, stuck_tis):
+        """
+        Try to invoke stuck in queued cleanup for older executor interface.
+
+        TODO: remove in airflow 3.0
+
+        Here we handle case where the executor pre-dates the interface change that
+        introduced `cleanup_tasks_stuck_in_queued` and deprecated `cleanup_stuck_queued_tasks`.
+
+        """
+        with suppress(NotImplementedError):
+            for ti_repr in executor.cleanup_stuck_queued_tasks(tis=stuck_tis):
+                self.log.warning(
+                    "Task instance %s stuck in queued. Will be set to failed.",
+                    ti_repr,
+                )
+
+    @provide_session
+    def _reschedule_stuck_task(self, ti, session=NEW_SESSION):
+        session.execute(
+            update(TI)
+            .where(TI.filter_for_tis([ti]))
+            .values(
+                state=TaskInstanceState.SCHEDULED,
+                queued_dttm=None,
+            )
+            .execution_options(synchronize_session=False)
+        )
+
+    @provide_session
+    def _get_num_times_stuck_in_queued(self, ti: TaskInstance, session: Session = NEW_SESSION) -> int:
+        """
+        Check the Log table to see how many times a taskinstance has been stuck in queued.
+
+        We can then use this information to determine whether to reschedule a task or fail it.
+        """
+        return (
+            session.query(Log)
+            .where(
+                Log.task_id == ti.task_id,
+                Log.dag_id == ti.dag_id,
+                Log.run_id == ti.run_id,
+                Log.map_index == ti.map_index,
+                Log.try_number == ti.try_number,
+                Log.event == TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
+            )
+            .count()
+        )
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:
@@ -2097,7 +2199,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         updated_count = sum(self._set_orphaned(dataset) for dataset in orphaned_dataset_query)
         Stats.gauge("dataset.orphaned", updated_count)
 
-    def _executor_to_tis(self, tis: list[TaskInstance]) -> dict[BaseExecutor, list[TaskInstance]]:
+    def _executor_to_tis(self, tis: Iterable[TaskInstance]) -> dict[BaseExecutor, list[TaskInstance]]:
         """Organize TIs into lists per their respective executor."""
         _executor_to_tis: defaultdict[BaseExecutor, list[TaskInstance]] = defaultdict(list)
         for ti in tis:
