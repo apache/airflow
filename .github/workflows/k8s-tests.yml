@@ -44,6 +44,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to include success outputs"
         required: true
         type: string
+      use-uv:
+        description: "Whether to use uv"
+        required: true
+        type: string
       debug-resources:
         description: "Whether to debug resources"
         required: true
@@ -96,6 +100,9 @@ jobs:
           key: "\
             k8s-env-${{ steps.breeze.outputs.host-python-version }}-\
             ${{ hashFiles('scripts/ci/kubernetes/k8s_requirements.txt','hatch_build.py') }}"
+      - name: "Switch breeze to use uv"
+        run: breeze setup config --use-uv
+        if: inputs.use-uv == 'true'
       - name: Run complete K8S tests ${{ inputs.kubernetes-combos-list-as-string }}
         run: breeze k8s run-complete-tests --run-in-parallel --upgrade --no-copy-local-sources
         env:

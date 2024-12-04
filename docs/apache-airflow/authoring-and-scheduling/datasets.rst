@@ -432,7 +432,7 @@ The following example creates a dataset event against the S3 URI ``f"s3://bucket
 
     @task(outlets=[DatasetAlias("my-task-outputs")])
     def my_task_with_outlet_events(*, outlet_events):
-        outlet_events["my-task-outputs"].add(Dataset("s3://bucket/my-task"), extra={"k": "v"})
+        outlet_events[DatasetAlias("my-task-outputs")].add(Dataset("s3://bucket/my-task"), extra={"k": "v"})
 
 
 **Emit a dataset event during task execution through yielding Metadata**
@@ -462,11 +462,11 @@ Only one dataset event is emitted for an added dataset, even if it is added to t
         ]
     )
     def my_task_with_outlet_events(*, outlet_events):
-        outlet_events["my-task-outputs-1"].add(Dataset("s3://bucket/my-task"), extra={"k": "v"})
+        outlet_events[DatasetAlias("my-task-outputs-1")].add(Dataset("s3://bucket/my-task"), extra={"k": "v"})
         # This line won't emit an additional dataset event as the dataset and extra are the same as the previous line.
-        outlet_events["my-task-outputs-2"].add(Dataset("s3://bucket/my-task"), extra={"k": "v"})
+        outlet_events[DatasetAlias("my-task-outputs-2")].add(Dataset("s3://bucket/my-task"), extra={"k": "v"})
         # This line will emit an additional dataset event as the extra is different.
-        outlet_events["my-task-outputs-3"].add(Dataset("s3://bucket/my-task"), extra={"k2": "v2"})
+        outlet_events[DatasetAlias("my-task-outputs-3")].add(Dataset("s3://bucket/my-task"), extra={"k2": "v2"})
 
 Scheduling based on dataset aliases
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -487,7 +487,7 @@ The dataset alias is resolved to the datasets during DAG parsing. Thus, if the "
 
         @task(outlets=[DatasetAlias("example-alias")])
         def produce_dataset_events(*, outlet_events):
-            outlet_events["example-alias"].add(Dataset("s3://bucket/my-task"))
+            outlet_events[DatasetAlias("example-alias")].add(Dataset("s3://bucket/my-task"))
 
 
     with DAG(dag_id="dataset-consumer", schedule=Dataset("s3://bucket/my-task")):
@@ -511,7 +511,9 @@ As mentioned in :ref:`Fetching information from previously emitted dataset event
 
         @task(outlets=[DatasetAlias("example-alias")])
         def produce_dataset_events(*, outlet_events):
-            outlet_events["example-alias"].add(Dataset("s3://bucket/my-task"), extra={"row_count": 1})
+            outlet_events[DatasetAlias("example-alias")].add(
+                Dataset("s3://bucket/my-task"), extra={"row_count": 1}
+            )
 
 
     with DAG(dag_id="dataset-alias-consumer", schedule=None):

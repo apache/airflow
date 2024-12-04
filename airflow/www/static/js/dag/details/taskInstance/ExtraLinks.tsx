@@ -55,7 +55,7 @@ const ExtraLinks = ({
 
   const isSanitised = (url: string | null) => {
     if (!url) {
-      return true;
+      return false; // Empty or null urls should cause the link to be disabled
     }
     const urlRegex = /^(https?:)/i;
     return urlRegex.test(url);

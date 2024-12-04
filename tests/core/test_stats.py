@@ -506,6 +506,10 @@ class TestStatsWithInfluxDBEnabled:
         )
         self.statsd_client.incr.assert_called_once_with("test_stats_run.delay,key0=0,key1=val1", 1, 1)
 
+    def test_increment_counter_with_tags_and_forward_slash(self):
+        self.stats.incr("test_stats_run.dag", tags={"path": "/some/path/dag.py"})
+        self.statsd_client.incr.assert_called_once_with("test_stats_run.dag,path=/some/path/dag.py", 1, 1)
+
     def test_does_not_increment_counter_drops_invalid_tags(self):
         self.stats.incr(
             "test_stats_run.delay",

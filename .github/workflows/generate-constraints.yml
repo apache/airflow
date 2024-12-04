@@ -95,7 +95,7 @@ jobs:
         timeout-minutes: 25
         run: >
           breeze release-management generate-constraints --run-in-parallel
-          --airflow-constraints-mode constraints-no-providers --answer yes
+          --airflow-constraints-mode constraints-no-providers --answer yes --parallelism 3
         # The no providers constraints are only needed when we want to update constraints (in canary builds)
         # They slow down the start of PROD image builds so we want to only run them when needed.
         if: inputs.generate-no-providers-constraints == 'true'
@@ -115,7 +115,7 @@ jobs:
         run: >
           breeze release-management generate-constraints --run-in-parallel
           --airflow-constraints-mode constraints --answer yes
-          --chicken-egg-providers "${{ inputs.chicken-egg-providers }}"
+          --chicken-egg-providers "${{ inputs.chicken-egg-providers }}" --parallelism 3
       - name: "Dependency upgrade summary"
         shell: bash
         run: |

@@ -341,7 +341,6 @@ def remove_old_releases(version, repo_root):
     "--version", required=True, help="The release candidate version e.g. 2.4.3rc1", envvar="VERSION"
 )
 def prepare_airflow_tarball(version: str):
-    check_python_version()
     from packaging.version import Version
 
     airflow_version = Version(version)

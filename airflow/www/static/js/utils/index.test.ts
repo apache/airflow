@@ -163,6 +163,7 @@ describe("Test highlightByKeywords", () => {
     const expected = `\x1b[1m\x1b[31mline with Error\x1b[39m\x1b[0m`;
     const highlightedLine = highlightByKeywords(
       originalLine,
+      "",
       ["error"],
       ["warn"],
       logGroupStart,
@@ -175,6 +176,7 @@ describe("Test highlightByKeywords", () => {
     const expected = `\x1b[1m\x1b[33mline with Warning\x1b[39m\x1b[0m`;
     const highlightedLine = highlightByKeywords(
       originalLine,
+      "",
       ["error"],
       ["warn"],
       logGroupStart,
@@ -187,6 +189,7 @@ describe("Test highlightByKeywords", () => {
     const expected = `\x1b[1m\x1b[31mline with error Warning\x1b[39m\x1b[0m`;
     const highlightedLine = highlightByKeywords(
       originalLine,
+      "",
       ["error"],
       ["warn"],
       logGroupStart,
@@ -198,6 +201,7 @@ describe("Test highlightByKeywords", () => {
     const originalLine = " INFO - ::group::error";
     const highlightedLine = highlightByKeywords(
       originalLine,
+      "",
       ["error"],
       ["warn"],
       logGroupStart,
@@ -209,6 +213,7 @@ describe("Test highlightByKeywords", () => {
     const originalLine = " INFO - ::endgroup::";
     const highlightedLine = highlightByKeywords(
       originalLine,
+      "",
       ["endgroup"],
       ["warn"],
       logGroupStart,
@@ -220,6 +225,7 @@ describe("Test highlightByKeywords", () => {
     const originalLine = "sample line";
     const highlightedLine = highlightByKeywords(
       originalLine,
+      "",
       ["error"],
       ["warn"],
       logGroupStart,

@@ -67,7 +67,7 @@ with DAG(
     def produce_dataset_events_through_dataset_alias(*, outlet_events=None):
         bucket_name = "bucket"
         object_path = "my-task"
-        outlet_events["example-alias"].add(Dataset(f"s3://{bucket_name}/{object_path}"))
+        outlet_events[DatasetAlias("example-alias")].add(Dataset(f"s3://{bucket_name}/{object_path}"))
 
     produce_dataset_events_through_dataset_alias()
 
