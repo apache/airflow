@@ -694,11 +694,7 @@ class TestHandleRequest:
                 PutVariable(key="test_key", value="test_value", description="test_description"),
                 b"",
                 "variables.set",
-                (
-                    PutVariable(
-                        key="test_key", value="test_value", description="test_description", type="PutVariable"
-                    ),
-                ),
+                (PutVariable(key="test_key", value="test_value", description="test_description"),),
                 {"message": "Variable successfully set"},
                 id="set_variable",
             ),

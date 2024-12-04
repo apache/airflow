@@ -140,15 +140,13 @@ class TestVariableOperations:
         def handle_request(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/variables/test_key":
                 return httpx.Response(
-                    status_code=200,
-                    json={"ok": True},
+                    status_code=201,
+                    json={"message": "Variable successfully set"},
                 )
             return httpx.Response(status_code=400, json={"detail": "Bad Request"})
 
         client = make_client(transport=httpx.MockTransport(handle_request))
 
-        msg = PutVariable(
-            key="test_key", value="test_value", description="test_description", type="PutVariable"
-        )
+        msg = PutVariable(key="test_key", value="test_value", description="test_description")
         result = client.variables.set(msg=msg)
         assert result == {"ok": True}

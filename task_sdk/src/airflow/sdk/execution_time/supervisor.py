@@ -44,7 +44,11 @@ import structlog
 from pydantic import TypeAdapter
 
 from airflow.sdk.api.client import Client, ServerResponseError
-from airflow.sdk.api.datamodels._generated import IntermediateTIState, TaskInstance, TerminalTIState
+from airflow.sdk.api.datamodels._generated import (
+    IntermediateTIState,
+    TaskInstance,
+    TerminalTIState,
+)
 from airflow.sdk.execution_time.comms import (
     DeferTask,
     GetConnection,

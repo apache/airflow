@@ -26,7 +26,7 @@ from enum import Enum
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ConnectionResponse(BaseModel):
@@ -121,6 +121,9 @@ class VariablePostBody(BaseModel):
     Request body schema for creating variables.
     """
 
+    model_config = ConfigDict(
+        extra="forbid",
+    )
     value: Annotated[str | None, Field(title="Value")] = None
     description: Annotated[str | None, Field(title="Description")] = None
 
