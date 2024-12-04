@@ -45,7 +45,7 @@ from tests.integration.otel.test_utils import (
 )
 from tests_common.test_utils.db import initial_db_init
 
-log = logging.getLogger("test_otel.TestOtelIntegration")
+log = logging.getLogger("integration.otel.test_otel")
 
 
 def unpause_trigger_dag_and_get_run_id(dag_id: str) -> str:
@@ -448,7 +448,7 @@ class TestOtelIntegration:
         os.environ["AIRFLOW__SCHEDULER__PROCESSOR_POLL_INTERVAL"] = "2"
 
         # The heartrate is determined by the conf "AIRFLOW__SCHEDULER__SCHEDULER_HEARTBEAT_SEC".
-        # By default, the heartrate is 5 seconds. Every iteration of the scheduler loop check the
+        # By default, the heartrate is 5 seconds. Every iteration of the scheduler loop, checks the
         # time passed since the last heartbeat and if it was longer than the 5 second heartrate,
         # it performs a heartbeat update.
         # If there hasn't been a heartbeat for an amount of time longer than the
@@ -619,7 +619,7 @@ class TestOtelIntegration:
                         break
 
             with capfd.disabled():
-                # When we pause the scheduler1 thread, capfd keeps trying to read the
+                # When the scheduler1 thread is paused, capfd keeps trying to read the
                 # file descriptors for the process and ends up freezing the test.
                 # Temporarily disable capfd to avoid that.
                 scheduler_process_1.send_signal(signal.SIGSTOP)
@@ -719,7 +719,7 @@ class TestOtelIntegration:
                     continue
 
             with capfd.disabled():
-                # When we pause the scheduler1 thread, capfd keeps trying to read the
+                # When the scheduler1 thread is paused, capfd keeps trying to read the
                 # file descriptors for the process and ends up freezing the test.
                 # Temporarily disable capfd to avoid that.
                 scheduler_process_1.send_signal(signal.SIGSTOP)

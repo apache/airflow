@@ -171,9 +171,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     job_type = "SchedulerJob"
 
-    # Dict entries: dag_run.run_id - span
+    # key: dag_run.run_id | value: span
     active_dagrun_spans = ThreadSafeDict()
-    # Dict entries: ti.key - span
+    # key: ti.key | value: span
     active_ti_spans = ThreadSafeDict()
 
     def __init__(
@@ -246,7 +246,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _exit_gracefully(self, signum: int, frame: FrameType | None) -> None:
         """Clean up processor_agent to avoid leaving orphan processes."""
-        self._cleanup_active_spans_before_process_exit()
+        self._end_active_spans()
 
         if not _is_parent_process():
             # Only the parent process should perform the cleanup.
@@ -839,7 +839,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             active_ti_span = cls.active_ti_spans.get(ti.key)
             if active_ti_span is not None:
-                cls._set_span_attrs__process_executor_events(span=active_ti_span, state=state, ti=ti)
+                cls.set_ti_span_attrs(span=active_ti_span, state=state, ti=ti)
                 # End the span and remove it from the active_ti_spans dict.
                 active_ti_span.end(end_time=datetime_to_nano(ti.end_date))
                 cls.active_ti_spans.delete(ti.key)
@@ -908,7 +908,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         return len(event_buffer)
 
     @classmethod
-    def _set_span_attrs__process_executor_events(cls, span, state, ti):
+    def set_ti_span_attrs(cls, span, state, ti):
         span.set_attributes(
             {
                 "airflow.category": "scheduler",
@@ -1048,7 +1048,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.exception("Failed to update dag run state for paused dags due to %s", e)
 
     @provide_session
-    def _cleanup_active_spans_before_process_exit(self, session: Session = NEW_SESSION):
+    def _end_active_spans(self, session: Session = NEW_SESSION):
         # No need to do a commit for every update. The annotation will commit all of them once at the end.
         for run_id, span in self.active_dagrun_spans.get_all().items():
             dag_run: DagRun = session.scalars(select(DagRun).where(DagRun.run_id == run_id)).one()
@@ -1079,7 +1079,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             ).one()
             if ti.state in State.finished:
-                self._set_span_attrs__process_executor_events(span=span, state=ti.state, ti=ti)
+                self.set_ti_span_attrs(span=span, state=ti.state, ti=ti)
                 span.end(end_time=datetime_to_nano(ti.end_date))
                 ti.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
             else:
@@ -1125,7 +1125,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             active_ti_span = self.active_ti_spans.get(ti.key)
             if active_ti_span is not None:
                 if ti.state in State.finished:
-                    self._set_span_attrs__process_executor_events(span=active_ti_span, state=ti.state, ti=ti)
+                    self.set_ti_span_attrs(span=active_ti_span, state=ti.state, ti=ti)
                     active_ti_span.end(end_time=datetime_to_nano(ti.end_date))
                 else:
                     active_ti_span.end()
@@ -1133,7 +1133,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
 
     @provide_session
-    def _recreate_dead_scheduler_spans_if_needed(self, dag_run: DagRun, session: Session = NEW_SESSION):
+    def _recreate_unhealthy_scheduler_spans_if_needed(self, dag_run: DagRun, session: Session = NEW_SESSION):
         scheduler_health_timeout = conf.getint("scheduler", "scheduler_health_check_threshold")
 
         # There are two scenarios:
@@ -1202,6 +1202,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ti.set_context_carrier(context_carrier=ti_carrier, session=session, with_commit=False)
 
                     if ti.state in State.finished:
+                        self.set_ti_span_attrs(span=ti_span, state=ti.state, ti=ti)
                         ti_span.end(end_time=datetime_to_nano(ti.end_date))
                         ti.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
                     else:
@@ -1953,7 +1954,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # If the dag_run has been previously scheduled by another job and there is no active span,
                 # then check if the job is still healthy.
                 # If it's not healthy, then recreate the spans.
-                self._recreate_dead_scheduler_spans_if_needed(dag_run, session)
+                self._recreate_unhealthy_scheduler_spans_if_needed(dag_run, session)
 
             dag_run.set_scheduled_by_job_id(job_id=self.job.id, session=session, with_commit=False)
 

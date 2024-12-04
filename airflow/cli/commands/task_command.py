@@ -464,7 +464,7 @@ def task_run(args, dag: DAG | None = None) -> TaskReturnCode | None:
     log.info("Running %s on host %s", ti, hostname)
 
     if args.carrier is not None:
-        log.info("Found args.carrier: %s. Setting the value in the ti instance.", args.carrier)
+        log.info("Found args.carrier: %s. Setting the value on the ti instance.", args.carrier)
         # The arg value is a dict string, and it needs to be converted back to a dict.
         carrier_dict = json.loads(args.carrier)
         ti.set_context_carrier(context_carrier=carrier_dict, with_commit=True)

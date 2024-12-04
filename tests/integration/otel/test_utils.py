@@ -24,7 +24,7 @@ from sqlalchemy import inspect
 
 from airflow.models import Base
 
-log = logging.getLogger("tests.otel.test_utils")
+log = logging.getLogger("integration.otel.test_utils")
 
 
 def dump_airflow_metadata_db(session):

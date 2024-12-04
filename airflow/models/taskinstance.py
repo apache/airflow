@@ -862,7 +862,7 @@ def _refresh_from_db(
 
     if ti:
         inspector = inspect(ti)
-        # Check if the ti is detached or not loaded.
+        # Check if the ti is detached or the dag_run relationship isn't loaded.
         # If the scheduler that started the dag_run has exited (gracefully or forcefully),
         # there will be changes to the dag_run span context_carrier.
         # It's best to include the dag_run whenever possible, so that the ti will contain the updates.
@@ -2279,7 +2279,7 @@ class TaskInstance(Base, LoggingMixin):
         """
         Set TaskInstance span_status.
 
-        :param status: dict with the injected carrier to set for the ti
+        :param status: dict with the injected carrier to set for the TI
         :param session: SQLAlchemy ORM Session
         :param with_commit: should the status be committed?
         :return: has the span_status been changed?
