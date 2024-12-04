@@ -82,7 +82,6 @@ def task_group_to_dict(task_item_or_group):
     from airflow.models.abstractoperator import AbstractOperator
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.mappedoperator import MappedOperator
-    from airflow.sensors.base import BaseSensorOperator
 
     if isinstance(task := task_item_or_group, AbstractOperator):
         setup_teardown_type = {}
@@ -95,8 +94,6 @@ def task_group_to_dict(task_item_or_group):
             setup_teardown_type["setup_teardown_type"] = "teardown"
         if isinstance(task, MappedOperator):
             is_mapped["is_mapped"] = True
-        if isinstance(task, BaseSensorOperator):
-            node_type["type"] = "sensor"
         if isinstance(task, BaseOperator) or isinstance(task, MappedOperator):
             node_operator["operator"] = task.operator_name
 
