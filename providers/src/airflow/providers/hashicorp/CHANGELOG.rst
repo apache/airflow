@@ -27,6 +27,11 @@
 Changelog
 ---------
 
+<<<<<<< Updated upstream
+=======
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
 main
 .....
 
@@ -36,8 +41,15 @@ main
 
    * The usage of role_id for AppRole authentication has been deprecated from airflow.providers.hashicorp.hook.vault .Please use connection login
    * The usage of role_id in connection extra for AppRole authentication has been deprecated from airflow.providers.hashicorp.hook.vault. Please use connection login
+<<<<<<< Updated upstream
    * Removed role_id from get_connection_form_widgets method
 
+=======
+   * Removed role_id from get_connection_form_widgets
+   * Removed deprecated method ``VaultBackend.get_conn_uri`` from airflow.providers.hashicorp.secrets.vault
+
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
 3.8.0
 .....
 
