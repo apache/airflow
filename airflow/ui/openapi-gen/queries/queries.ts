@@ -21,6 +21,7 @@ import {
   DashboardService,
   EventLogService,
   ExtraLinksService,
+  GridService,
   ImportErrorService,
   JobService,
   MonitorService,
@@ -576,8 +577,6 @@ export const useDashboardServiceHistoricalMetrics = <
  * @param data The data for the request.
  * @param data.dagId
  * @param data.root
- * @param data.includeUpstream
- * @param data.includeDownstream
  * @returns StructureDataResponse Successful Response
  * @throws ApiError
  */
@@ -588,13 +587,9 @@ export const useStructureServiceStructureData = <
 >(
   {
     dagId,
-    includeDownstream,
-    includeUpstream,
     root,
   }: {
     dagId: string;
-    includeDownstream?: boolean;
-    includeUpstream?: boolean;
     root?: string;
   },
   queryKey?: TQueryKey,
@@ -602,15 +597,65 @@ export const useStructureServiceStructureData = <
 ) =>
   useQuery<TData, TError>({
     queryKey: Common.UseStructureServiceStructureDataKeyFn(
-      { dagId, includeDownstream, includeUpstream, root },
+      { dagId, root },
+      queryKey,
+    ),
+    queryFn: () => StructureService.structureData({ dagId, root }) as TData,
+    ...options,
+  });
+/**
+ * Grid Data
+ * Return grid data.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.baseDate
+ * @param data.root
+ * @param data.runTypes
+ * @param data.state
+ * @param data.offset
+ * @param data.limit
+ * @returns GridResponse Successful Response
+ * @throws ApiError
+ */
+export const useGridServiceGridData = <
+  TData = Common.GridServiceGridDataDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    baseDate,
+    dagId,
+    limit,
+    offset,
+    root,
+    runTypes,
+    state,
+  }: {
+    baseDate?: string;
+    dagId: string;
+    limit?: number;
+    offset?: number;
+    root?: string;
+    runTypes?: string[];
+    state?: string[];
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseGridServiceGridDataKeyFn(
+      { baseDate, dagId, limit, offset, root, runTypes, state },
       queryKey,
     ),
     queryFn: () =>
-      StructureService.structureData({
+      GridService.gridData({
+        baseDate,
         dagId,
-        includeDownstream,
-        includeUpstream,
+        limit,
+        offset,
         root,
+        runTypes,
+        state,
       }) as TData,
     ...options,
   });

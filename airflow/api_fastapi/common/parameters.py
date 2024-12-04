@@ -555,8 +555,8 @@ QueryLastDagRunStateFilter = Annotated[
     FilterParam[Optional[DagRunState]],
     Depends(filter_param_factory(DagRun.state, Optional[DagRunState], filter_name="last_dag_run_state")),
 ]
-
 QueryDagRunRunTypesFilter = Annotated[DagRunRunTypesFilter, Depends(DagRunRunTypesFilter().depends)]
+
 
 def _transform_dag_run_states(states: Iterable[str] | None) -> list[DagRunState | None] | None:
     try:
@@ -647,3 +647,7 @@ QueryAssetAliasNamePatternSearch = Annotated[
 QueryAssetDagIdPatternSearch = Annotated[
     _DagIdAssetReferenceFilter, Depends(_DagIdAssetReferenceFilter().depends)
 ]
+
+# UI Shared
+QueryIncludeUpstream = Annotated[Union[bool, None], Depends(lambda: False)]
+QueryIncludeDownstream = Annotated[Union[bool, None], Depends(lambda: False)]
