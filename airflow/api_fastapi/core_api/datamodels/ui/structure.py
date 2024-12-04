@@ -39,7 +39,8 @@ class NodeResponse(BaseModel):
     label: str
     tooltip: str | None = None
     setup_teardown_type: Literal["setup", "teardown"] | None = None
-    type: Literal["join", "sensor", "task", "asset_condition"]
+    type: Literal["join", "task", "asset_condition"]
+    operator: str | None = None
 
 
 class StructureDataResponse(BaseModel):
