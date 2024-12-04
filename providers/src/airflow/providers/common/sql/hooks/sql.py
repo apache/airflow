@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import warnings
+from collections.abc import Generator, Iterable, Mapping, MutableMapping, Sequence
 from contextlib import closing, contextmanager, suppress
 from datetime import datetime
 from functools import cached_property
@@ -25,11 +26,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Generator,
-    Iterable,
-    List,
-    Mapping,
-    MutableMapping,
     Protocol,
     TypeVar,
     cast,
