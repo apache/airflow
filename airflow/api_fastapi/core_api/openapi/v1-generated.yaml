@@ -7809,7 +7809,6 @@ components:
           type: string
           enum:
           - join
-          - sensor
           - task
           - asset_condition
           title: Type
