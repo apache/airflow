@@ -822,7 +822,7 @@ class TestHandleRequest:
                     '{"key": "test_key", "value": {"key2": "value2"}}',
                     None,
                 ),
-                {"message": "XCom successfully set"},
+                {"ok": True},
                 id="set_xcom",
             ),
         ],

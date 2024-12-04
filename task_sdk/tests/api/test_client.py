@@ -144,13 +144,22 @@ class TestXCOMOperations:
 
     # TODO: Add tests for get xcom in a follow up
 
-    def test_xcom_set_success(self):
+    @pytest.mark.parametrize(
+        "values",
+        [
+            pytest.param("value1", id="string-value"),
+            pytest.param({"key1": "value1"}, id="dict-value"),
+            pytest.param(["value1", "value2"], id="list-value"),
+            pytest.param({"key": "test_key", "value": {"key2": "value2"}}, id="nested-dict-value"),
+        ],
+    )
+    def test_xcom_set_success(self, values):
         # Simulate a successful response from the server when setting an xcom
         def handle_request(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/xcoms/dag_id/run_id/task_id/key":
                 return httpx.Response(
-                    status_code=200,
-                    json={"ok": True},
+                    status_code=201,
+                    json={"message": "XCom successfully set"},
                 )
             return httpx.Response(status_code=400, json={"detail": "Bad Request"})
 
@@ -160,6 +169,6 @@ class TestXCOMOperations:
             run_id="run_id",
             task_id="task_id",
             key="key",
-            value={"key": "test_key", "value": {"key2": "value2"}},
+            value=values,
         )
         assert result == {"ok": True}
