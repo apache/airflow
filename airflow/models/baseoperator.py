@@ -364,7 +364,7 @@ class ExecutorSafeguard:
             sentinel = kwargs.pop(sentinel_key, None)
 
             if sentinel:
-                 if not getattr(cls._sentinel,'callers',None):
+                if not getattr(cls._sentinel, 'callers', None):
                     cls._sentinel.callers = {}
                 cls._sentinel.callers[sentinel_key] = sentinel
             else:
