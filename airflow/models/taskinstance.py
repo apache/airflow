@@ -91,7 +91,7 @@ from airflow.exceptions import (
     XComForMappingNotPushed,
 )
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.asset import AssetEvent, AssetModel
+from airflow.models.asset import AssetActive, AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
 from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
@@ -263,6 +263,7 @@ def _run_raw_task(
         context = ti.get_template_context(ignore_param_exceptions=False, session=session)
 
         try:
+            ti._validate_outlet_assets_activeness(session=session)
             if not mark_success:
                 TaskInstance._execute_task_with_callbacks(
                     self=ti,  # type: ignore[arg-type]
@@ -3641,6 +3642,27 @@ class TaskInstance(Base, LoggingMixin):
                 ),
             }
         )
+
+    def _validate_outlet_assets_activeness(self, session: Session) -> None:
+        if not self.task or not self.task.outlets:
+            return
+
+        all_assets_name_uri = {
+            (outlet.name, outlet.uri) for outlet in self.task.outlets if isinstance(outlet, Asset)
+        }
+        active_assets_name_uri = set(
+            session.execute(
+                select(AssetActive.name, AssetActive.uri).where(
+                    tuple_in_condition((AssetActive.name, AssetActive.uri), all_assets_name_uri)
+                )
+            )
+        )
+        inactive_assets_name_uri = all_assets_name_uri - active_assets_name_uri
+        if inactive_assets_name_uri:
+            error_msg = "; ".join(
+                f'Asset(name="{name}", uri="{uri}") is inactive' for name, uri in inactive_assets_name_uri
+            )
+            raise AirflowExecuteWithInactiveAssetExecption(error_msg)
 
 
 def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> MappedTaskGroup | None:

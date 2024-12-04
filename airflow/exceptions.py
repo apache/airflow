@@ -111,6 +111,10 @@ class AirflowFailException(AirflowException):
     """Raise when the task should be failed without retrying."""
 
 
+class AirflowExecuteWithInactiveAssetExecption(AirflowFailException):
+    """Raise when the task is exected with inactive asset."""
+
+
 class AirflowOptionalProviderFeatureException(AirflowException):
     """Raise by providers when imports are missing for optional provider features."""
 
