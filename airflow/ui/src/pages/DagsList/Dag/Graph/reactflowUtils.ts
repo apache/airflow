@@ -31,7 +31,9 @@ export type CustomNodeProps = {
   isMapped?: boolean;
   isOpen?: boolean;
   label: string;
+  operator?: string | null;
   setupTeardownType?: NodeResponse["setup_teardown_type"];
+  type: string;
   width?: number;
 };
 
