@@ -23,10 +23,10 @@ import typing
 from sqlalchemy import select
 
 from airflow.api.common.trigger_dag import trigger_dag
-from airflow.api_fastapi.core_api.datamodels.assets import AssetResponse
+from airflow.api_fastapi.core_api.datamodels.assets import AssetAliasSchema, AssetResponse
 from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.cli.simple_table import AirflowConsole
-from airflow.models.asset import AssetModel, TaskOutletAssetReference
+from airflow.models.asset import AssetAliasModel, AssetModel, TaskOutletAssetReference
 from airflow.utils import cli as cli_utils
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.types import DagRunTriggeredByType
@@ -36,30 +36,51 @@ if typing.TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from airflow.api_fastapi.core_api.base import BaseModel
+
 log = logging.getLogger(__name__)
+
+
+def _list_asset_aliases(args, *, session: Session) -> tuple[Any, type[BaseModel]]:
+    aliases = session.scalars(select(AssetAliasModel).order_by(AssetAliasModel.name))
+    return aliases, AssetAliasSchema
+
+
+def _list_assets(args, *, session: Session) -> tuple[Any, type[BaseModel]]:
+    assets = session.scalars(select(AssetModel).order_by(AssetModel.name))
+    return assets, AssetResponse
 
 
 @cli_utils.action_cli
 @provide_session
 def asset_list(args, *, session: Session = NEW_SESSION) -> None:
     """Display assets in the command line."""
-    assets = session.scalars(select(AssetModel).order_by(AssetModel.name))
+    if args.alias:
+        data, model_cls = _list_asset_aliases(args, session=session)
+    else:
+        data, model_cls = _list_assets(args, session=session)
 
-    def detail_mapper(asset: AssetModel) -> dict[str, Any]:
-        model = AssetResponse.model_validate(asset)
-        return model.model_dump(include=args.columns)
+    def detail_mapper(asset: Any) -> dict[str, Any]:
+        model = model_cls.model_validate(asset)
+        return model.model_dump(mode="json", include=args.columns)
 
-    AirflowConsole().print_as(
-        data=assets,
-        output=args.output,
-        mapper=detail_mapper,
-    )
+    AirflowConsole().print_as(data=data, output=args.output, mapper=detail_mapper)
 
 
-@cli_utils.action_cli
-@provide_session
-def asset_details(args, *, session: Session = NEW_SESSION) -> None:
-    """Display details of an asset."""
+def _detail_asset_alias(args, *, session: Session) -> BaseModel:
+    if not args.name:
+        raise SystemExit("Required --name with --alias")
+    if args.uri:
+        raise SystemExit("Cannot use --uri with --alias")
+
+    alias = session.scalar(select(AssetAliasModel).where(AssetAliasModel.name == args.name))
+    if alias is None:
+        raise SystemExit(f"Asset alias with name {args.name} does not exist.")
+
+    return AssetAliasSchema.model_validate(alias)
+
+
+def _detail_asset(args, *, session: Session) -> BaseModel:
     if not args.name and not args.uri:
         raise SystemExit("Either --name or --uri is required")
 
@@ -79,7 +100,19 @@ def asset_details(args, *, session: Session = NEW_SESSION) -> None:
     if next(asset_it, None) is not None:
         raise SystemExit(f"More than one asset exists with {select_message}.")
 
-    model_data = AssetResponse.model_validate(asset).model_dump()
+    return AssetResponse.model_validate(asset)
+
+
+@cli_utils.action_cli
+@provide_session
+def asset_details(args, *, session: Session = NEW_SESSION) -> None:
+    """Display details of an asset."""
+    if args.alias:
+        model = _detail_asset_alias(args, session=session)
+    else:
+        model = _detail_asset(args, session=session)
+
+    model_data = model.model_dump(mode="json")
     if args.output in ["table", "plain"]:
         data = [{"property_name": key, "property_value": value} for key, value in model_data.items()]
     else:
@@ -118,7 +151,7 @@ def asset_materialize(args, *, session: Session = NEW_SESSION) -> None:
 
     dagrun = trigger_dag(dag_id=dag_id, triggered_by=DagRunTriggeredByType.CLI, session=session)
     if dagrun is not None:
-        data = [DAGRunResponse.model_validate(dagrun).model_dump()]
+        data = [DAGRunResponse.model_validate(dagrun).model_dump(mode="json")]
     else:
         data = []
 
