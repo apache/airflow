@@ -7782,9 +7782,7 @@ components:
           - type: 'null'
           title: Children
         id:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Id
         is_mapped:
           anyOf:
@@ -7792,9 +7790,7 @@ components:
           - type: 'null'
           title: Is Mapped
         label:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Label
         tooltip:
           anyOf:
@@ -7815,11 +7811,12 @@ components:
           - join
           - sensor
           - task
-          - task_group
+          - asset_condition
           title: Type
       type: object
       required:
       - id
+      - label
       - type
       title: NodeResponse
       description: Node serializer for responses.

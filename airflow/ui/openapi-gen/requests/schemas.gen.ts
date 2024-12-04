@@ -3128,14 +3128,7 @@ export const $NodeResponse = {
       title: "Children",
     },
     id: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "string",
       title: "Id",
     },
     is_mapped: {
@@ -3150,14 +3143,7 @@ export const $NodeResponse = {
       title: "Is Mapped",
     },
     label: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "string",
       title: "Label",
     },
     tooltip: {
@@ -3185,12 +3171,12 @@ export const $NodeResponse = {
     },
     type: {
       type: "string",
-      enum: ["join", "sensor", "task", "task_group"],
+      enum: ["join", "sensor", "task", "asset_condition"],
       title: "Type",
     },
   },
   type: "object",
-  required: ["id", "type"],
+  required: ["id", "label", "type"],
   title: "NodeResponse",
   description: "Node serializer for responses.",
 } as const;

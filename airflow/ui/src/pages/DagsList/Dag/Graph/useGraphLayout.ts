@@ -19,7 +19,12 @@
 import { useQuery } from "@tanstack/react-query";
 import ELK, { type ElkNode, type ElkExtendedEdge, type ElkShape } from "elkjs";
 
-import type { Edge, Node } from "./data";
+import type {
+  EdgeResponse,
+  NodeResponse,
+  StructureDataResponse,
+} from "openapi/requests/types.gen";
+
 import { flattenGraph, formatFlowEdges } from "./reactflowUtils";
 
 type EdgeLabel = {
@@ -35,9 +40,9 @@ type FormattedNode = {
   isGroup: boolean;
   isMapped?: boolean;
   isOpen?: boolean;
-  setupTeardownType?: Node["setup_teardown_type"];
+  setupTeardownType?: NodeResponse["setup_teardown_type"];
 } & ElkShape &
-  Node;
+  NodeResponse;
 
 type FormattedEdge = {
   id: string;
@@ -46,7 +51,7 @@ type FormattedEdge = {
   parentNode?: string;
 } & ElkExtendedEdge;
 
-export type LayoutNode = ElkNode & Node;
+export type LayoutNode = ElkNode & NodeResponse;
 
 // Take text and font to calculate how long each node should be
 const getTextWidth = (text: string, font: string) => {
@@ -76,15 +81,16 @@ const getDirection = (arrange: string) => {
 };
 
 const formatElkEdge = (
-  edge: Edge,
+  edge: EdgeResponse,
   font: string,
-  node?: Node,
+  node?: NodeResponse,
 ): FormattedEdge => ({
   id: `${edge.source_id}-${edge.target_id}`,
-  isSetupTeardown: edge.is_setup_teardown,
+  isSetupTeardown:
+    edge.is_setup_teardown === null ? undefined : edge.is_setup_teardown,
   // isSourceAsset: e.isSourceAsset,
   labels:
-    edge.label === undefined
+    edge.label === undefined || edge.label === null
       ? []
       : [
           {
@@ -99,7 +105,7 @@ const formatElkEdge = (
   targets: [edge.target_id],
 });
 
-const getNestedChildIds = (children: Array<Node>) => {
+const getNestedChildIds = (children: Array<NodeResponse>) => {
   let childIds: Array<string> = [];
 
   children.forEach((child) => {
@@ -116,9 +122,9 @@ const getNestedChildIds = (children: Array<Node>) => {
 
 type GenerateElkProps = {
   arrange: string;
-  edges: Array<Edge>;
+  edges: Array<EdgeResponse>;
   font: string;
-  nodes: Array<Node>;
+  nodes: Array<NodeResponse>;
   openGroupIds?: Array<string>;
 };
 
@@ -132,15 +138,17 @@ const generateElkGraph = ({
   const closedGroupIds: Array<string> = [];
   let filteredEdges = unformattedEdges;
 
-  const formatChildNode = (node: Node): FormattedNode => {
+  const formatChildNode = (node: NodeResponse): FormattedNode => {
     const isOpen = openGroupIds?.includes(node.id);
 
     const childCount =
       node.children?.filter((child) => child.type !== "join").length ?? 0;
     const childIds =
-      node.children === undefined ? [] : getNestedChildIds(node.children);
+      node.children === null || node.children === undefined
+        ? []
+        : getNestedChildIds(node.children);
 
-    if (isOpen && node.children !== undefined) {
+    if (isOpen && node.children !== null && node.children !== undefined) {
       return {
         ...node,
         childCount,
@@ -212,7 +220,7 @@ const generateElkGraph = ({
       height,
       id: node.id,
       isGroup: Boolean(node.children),
-      isMapped: node.is_mapped,
+      isMapped: node.is_mapped === null ? undefined : node.is_mapped,
       label: node.label,
       setupTeardownType: node.setup_teardown_type,
       type: node.type,
@@ -225,7 +233,7 @@ const generateElkGraph = ({
   const edges = filteredEdges.map((fe) => formatElkEdge(fe, font));
 
   return {
-    children,
+    children: children as Array<ElkNode>,
     edges,
     id: "root",
     layoutOptions: {
@@ -238,11 +246,8 @@ const generateElkGraph = ({
 };
 
 type LayoutProps = {
-  arrange?: string;
-  edges: Array<Edge>;
-  nodes: Array<Node>;
   openGroupIds: Array<string>;
-};
+} & StructureDataResponse;
 
 export const useGraphLayout = ({
   arrange = "LR",
@@ -271,7 +276,7 @@ export const useGraphLayout = ({
 
       // 3. Flatten the nodes and edges for xyflow to actually render the graph
       const flattenedData = flattenGraph({
-        children: data.children,
+        children: (data.children ?? []) as Array<LayoutNode>,
       });
 
       // merge & dedupe edges

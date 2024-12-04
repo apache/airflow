@@ -190,17 +190,17 @@ EXPECTED_JSON = {
                         {"id": "group234.group34.task4", "label": "task4", "type": "task"},
                         {"id": "group234.group34.downstream_join_id", "label": "", "type": "join"},
                     ],
-                    "type": "task_group",
+                    "type": "task",
                 },
                 {"id": "group234.task2", "label": "task2", "type": "task"},
                 {"id": "group234.upstream_join_id", "label": "", "type": "join"},
             ],
-            "type": "task_group",
+            "type": "task",
         },
         {"id": "task1", "label": "task1", "type": "task"},
         {"id": "task5", "label": "task5", "type": "task"},
     ],
-    "type": "task_group",
+    "type": "task",
 }
 
 
