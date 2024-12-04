@@ -29,8 +29,8 @@ from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
-    DagIdsFilter,
-    DagRunIdsFilter,
+    FilterOptionEnum,
+    FilterParam,
     LimitFilter,
     OffsetFilter,
     QueryLimit,
@@ -42,11 +42,6 @@ from airflow.api_fastapi.common.parameters import (
     Range,
     RangeFilter,
     SortParam,
-    TaskIdsFilter,
-    TIExecutorFilter,
-    TIPoolFilter,
-    TIQueueFilter,
-    TIStateFilter,
     datetime_range_filter_factory,
     float_range_filter_factory,
 )
@@ -418,9 +413,9 @@ def get_task_instances_batch(
     session: SessionDep,
 ) -> TaskInstanceCollectionResponse:
     """Get list of task instances."""
-    dag_ids = DagIdsFilter(TI, body.dag_ids)
-    dag_run_ids = DagRunIdsFilter(TI, body.dag_run_ids)
-    task_ids = TaskIdsFilter(TI, body.task_ids)
+    dag_ids = FilterParam(TI.dag_id, body.dag_ids, FilterOptionEnum.IN)
+    dag_run_ids = FilterParam(TI.run_id, body.dag_run_ids, FilterOptionEnum.IN)
+    task_ids = FilterParam(TI.task_id, body.task_ids, FilterOptionEnum.IN)
     logical_date = RangeFilter(
         Range(lower_bound=body.logical_date_gte, upper_bound=body.logical_date_lte),
         attribute=TI.logical_date,
@@ -437,10 +432,10 @@ def get_task_instances_batch(
         Range(lower_bound=body.duration_gte, upper_bound=body.duration_lte),
         attribute=TI.duration,
     )
-    state = TIStateFilter(body.state)
-    pool = TIPoolFilter(body.pool)
-    queue = TIQueueFilter(body.queue)
-    executor = TIExecutorFilter(body.executor)
+    state = FilterParam(TI.state, body.state, FilterOptionEnum.ANY_EQUAL)
+    pool = FilterParam(TI.pool, body.pool, FilterOptionEnum.ANY_EQUAL)
+    queue = FilterParam(TI.queue, body.queue, FilterOptionEnum.ANY_EQUAL)
+    executor = FilterParam(TI.executor, body.executor, FilterOptionEnum.ANY_EQUAL)
 
     offset = OffsetFilter(body.page_offset)
     limit = LimitFilter(body.page_limit)

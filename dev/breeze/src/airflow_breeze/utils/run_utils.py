@@ -266,10 +266,10 @@ def assert_pre_commit_installed():
         need_to_reinstall_precommit = True
         get_console().print(f"\n[error]Error checking for pre-commit-installation: [/]\n{e}\n")
     if need_to_reinstall_precommit:
-        get_console().print("\n[info]Make sure to install pre-commit. For example by running\n\n")
-        get_console().print("uv tool install pre-commit\n")
+        get_console().print("[info]Make sure to install pre-commit. For example by running:\n")
+        get_console().print("   uv tool install pre-commit --with pre-commit-uv\n")
         get_console().print("Or if you prefer pipx:\n")
-        get_console().print("pipx install pre-commit")
+        get_console().print("   pipx install pre-commit")
         sys.exit(1)
 
 

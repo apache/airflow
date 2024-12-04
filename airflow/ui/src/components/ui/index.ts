@@ -31,3 +31,4 @@ export * from "./Tooltip";
 export * from "./ProgressBar";
 export * from "./Menu";
 export * from "./Accordion";
+export * from "./Status";

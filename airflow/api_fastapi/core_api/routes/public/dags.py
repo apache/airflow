@@ -34,7 +34,6 @@ from airflow.api_fastapi.common.parameters import (
     QueryDagDisplayNamePatternSearch,
     QueryDagIdPatternSearch,
     QueryDagIdPatternSearchWithNone,
-    QueryDagTagPatternSearch,
     QueryLastDagRunStateFilter,
     QueryLimit,
     QueryOffset,
@@ -50,11 +49,10 @@ from airflow.api_fastapi.core_api.datamodels.dags import (
     DAGDetailsResponse,
     DAGPatchBody,
     DAGResponse,
-    DAGTagCollectionResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.exceptions import AirflowException, DagNotFound
-from airflow.models import DAG, DagModel, DagTag
+from airflow.models import DAG, DagModel
 from airflow.models.dagrun import DagRun
 
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
@@ -107,38 +105,6 @@ def get_dags(
         dags=dags,
         total_entries=total_entries,
     )
-
-
-@dags_router.get(
-    "/tags",
-)
-def get_dag_tags(
-    limit: QueryLimit,
-    offset: QueryOffset,
-    order_by: Annotated[
-        SortParam,
-        Depends(
-            SortParam(
-                ["name"],
-                DagTag,
-            ).dynamic_depends()
-        ),
-    ],
-    tag_name_pattern: QueryDagTagPatternSearch,
-    session: SessionDep,
-) -> DAGTagCollectionResponse:
-    """Get all DAG tags."""
-    query = select(DagTag.name).group_by(DagTag.name)
-    dag_tags_select, total_entries = paginated_select(
-        statement=query,
-        filters=[tag_name_pattern],
-        order_by=order_by,
-        offset=offset,
-        limit=limit,
-        session=session,
-    )
-    dag_tags = session.execute(dag_tags_select).scalars().all()
-    return DAGTagCollectionResponse(tags=[x for x in dag_tags], total_entries=total_entries)
 
 
 @dags_router.get(

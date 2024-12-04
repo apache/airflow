@@ -112,7 +112,7 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
         self._dag_directory = dag_directory
         self._callback_requests = callback_requests
 
-        # The process that was launched to process the given .
+        # The process that was launched to process the given DAG file.
         self._process: multiprocessing.process.BaseProcess | None = None
         # The result of DagFileProcessor.process_file(file_path).
         self._result: tuple[int, int, int] | None = None
@@ -120,7 +120,7 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
         self._done = False
         # When the process started.
         self._start_time: datetime | None = None
-        # This ID is use to uniquely name the process / thread that's launched
+        # This ID is used to uniquely name the process / thread that's launched
         # by this processor instance
         self._instance_id = DagFileProcessorProcess.class_creation_counter
 
