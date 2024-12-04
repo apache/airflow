@@ -22,9 +22,8 @@ from __future__ import annotations
 from typing import Any
 
 import pdpyras
-from deprecated import deprecated
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.pagerduty.hooks.pagerduty_events import PagerdutyEventsHook
 
@@ -109,74 +108,6 @@ class PagerdutyHook(BaseHook):
         """
         self._session = pdpyras.APISession(self.token)
         return self._session
-
-    @deprecated(
-        reason=(
-            "This method will be deprecated. Please use the "
-            "`airflow.providers.pagerduty.hooks.PagerdutyEventsHook` to interact with the Events API"
-        ),
-        category=AirflowProviderDeprecationWarning,
-    )
-    def create_event(
-        self,
-        summary: str,
-        severity: str,
-        source: str = "airflow",
-        action: str = "trigger",
-        routing_key: str | None = None,
-        dedup_key: str | None = None,
-        custom_details: Any | None = None,
-        group: str | None = None,
-        component: str | None = None,
-        class_type: str | None = None,
-        images: list[Any] | None = None,
-        links: list[Any] | None = None,
-    ) -> dict:
-        """
-        Create event for service integration.
-
-        :param summary: Summary for the event
-        :param severity: Severity for the event, needs to be one of: info, warning, error, critical
-        :param source: Specific human-readable unique identifier, such as a
-            hostname, for the system having the problem.
-        :param action: Event action, needs to be one of: trigger, acknowledge,
-            resolve. Default to trigger if not specified.
-        :param routing_key: Integration key. If not specified, will try to read
-            from connection's extra json blob.
-        :param dedup_key: A string which identifies the alert triggered for the given event.
-            Required for the actions acknowledge and resolve.
-        :param custom_details: Free-form details from the event. Can be a dictionary or a string.
-            If a dictionary is passed it will show up in PagerDuty as a table.
-        :param group: A cluster or grouping of sources. For example, sources
-            "prod-datapipe-02" and "prod-datapipe-03" might both be part of "prod-datapipe"
-        :param component: The part or component of the affected system that is broken.
-        :param class_type: The class/type of the event.
-        :param images: List of images to include. Each dictionary in the list accepts the following keys:
-            `src`: The source (URL) of the image being attached to the incident. This image must be served via
-            HTTPS.
-            `href`: [Optional] URL to make the image a clickable link.
-            `alt`: [Optional] Alternative text for the image.
-        :param links: List of links to include. Each dictionary in the list accepts the following keys:
-            `href`: URL of the link to be attached.
-            `text`: [Optional] Plain text that describes the purpose of the link, and can be used as the
-            link's text.
-        :return: PagerDuty Events API v2 response.
-        """
-        routing_key = routing_key or self.routing_key
-
-        return PagerdutyEventsHook(integration_key=routing_key).create_event(
-            summary=summary,
-            severity=severity,
-            source=source,
-            action=action,
-            dedup_key=dedup_key,
-            custom_details=custom_details,
-            group=group,
-            component=component,
-            class_type=class_type,
-            images=images,
-            links=links,
-        )
 
     def test_connection(self):
         try:
