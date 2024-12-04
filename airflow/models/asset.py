@@ -119,7 +119,7 @@ class AssetAliasModel(Base):
             ),
             "mysql",
         ),
-        default=str,
+        default="",
         nullable=False,
     )
 

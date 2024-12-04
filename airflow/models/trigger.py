@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime
 from collections.abc import Iterable
+from enum import Enum
 from traceback import format_exception
 from typing import TYPE_CHECKING, Any
 
@@ -39,6 +40,27 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
     from airflow.triggers.base import BaseTrigger
+
+TRIGGER_FAIL_REPR = "__fail__"
+"""String value to represent trigger failure.
+
+Internal use only.
+
+:meta private:
+"""
+
+
+class TriggerFailureReason(str, Enum):
+    """
+    Reasons for trigger failures.
+
+    Internal use only.
+
+    :meta private:
+    """
+
+    TRIGGER_TIMEOUT = "Trigger timeout"
+    TRIGGER_FAILURE = "Trigger failure"
 
 
 class Trigger(Base):
@@ -229,8 +251,11 @@ class Trigger(Base):
         ):
             # Add the error and set the next_method to the fail state
             traceback = format_exception(type(exc), exc, exc.__traceback__) if exc else None
-            task_instance.next_method = "__fail__"
-            task_instance.next_kwargs = {"error": "Trigger failure", "traceback": traceback}
+            task_instance.next_method = TRIGGER_FAIL_REPR
+            task_instance.next_kwargs = {
+                "error": TriggerFailureReason.TRIGGER_FAILURE,
+                "traceback": traceback,
+            }
             # Remove ourselves as its trigger
             task_instance.trigger_id = None
             # Finally, mark it as scheduled so it gets re-queued

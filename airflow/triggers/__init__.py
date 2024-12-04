@@ -14,3 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from __future__ import annotations
+
+from airflow.utils.deprecation_tools import add_deprecated_classes
+
+__deprecated_classes = {
+    "external_task": {
+        "WorkflowTrigger": "airflow.providers.standard.triggers.external_task.WorkflowTrigger",
+        "DagStateTrigger": "airflow.providers.standard.triggers.external_task.DagStateTrigger",
+    },
+    "file": {
+        "FileTrigger": "airflow.providers.standard.triggers.file.FileTrigger",
+    },
+    "temporal": {
+        "DateTimeTrigger": "airflow.providers.standard.triggers.temporal.DateTimeTrigger",
+        "TimeDeltaTrigger": "airflow.providers.standard.triggers.temporal.TimeDeltaTrigger",
+    },
+}
+add_deprecated_classes(__deprecated_classes, __name__)

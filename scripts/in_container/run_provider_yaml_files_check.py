@@ -39,7 +39,7 @@ from jsonpath_ng.ext import parse
 from rich.console import Console
 from tabulate import tabulate
 
-from airflow.cli.commands.info_command import Architecture
+from airflow.cli.commands.local_commands.info_command import Architecture
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers_manager import ProvidersManager
 
