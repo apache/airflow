@@ -270,9 +270,9 @@ class TestFlowerCommand:
             ]
         )
 
-    @mock.patch("airflow.cli.commands.daemon_utils.TimeoutPIDLockFile")
-    @mock.patch("airflow.cli.commands.daemon_utils.setup_locations")
-    @mock.patch("airflow.cli.commands.daemon_utils.daemon")
+    @mock.patch("airflow.cli.commands.local_commands.daemon_utils.TimeoutPIDLockFile")
+    @mock.patch("airflow.cli.commands.local_commands.daemon_utils.setup_locations")
+    @mock.patch("airflow.cli.commands.local_commands.daemon_utils.daemon")
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
     def test_run_command_daemon(self, mock_celery_app, mock_daemon, mock_setup_locations, mock_pid_file):
         mock_setup_locations.return_value = (
@@ -309,7 +309,7 @@ class TestFlowerCommand:
             ]
         )
         mock_open = mock.mock_open()
-        with mock.patch("airflow.cli.commands.daemon_utils.open", mock_open):
+        with mock.patch("airflow.cli.commands.local_commands.daemon_utils.open", mock_open):
             celery_command.flower(args)
 
         mock_celery_app.start.assert_called_once_with(

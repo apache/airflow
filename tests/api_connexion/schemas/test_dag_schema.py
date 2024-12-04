@@ -198,8 +198,8 @@ def test_serialize_test_dag_detail_schema(url_safe_serializer):
 
 @pytest.mark.db_test
 def test_serialize_test_dag_with_asset_schedule_detail_schema(url_safe_serializer):
-    asset1 = Asset(uri="s3://bucket/obj1")
-    asset2 = Asset(uri="s3://bucket/obj2")
+    asset1 = Asset(uri="s3://bucket/obj1", name="asset1")
+    asset2 = Asset(uri="s3://bucket/obj2", name="asset2")
     dag = DAG(
         dag_id="test_dag",
         start_date=datetime(2020, 6, 19),
