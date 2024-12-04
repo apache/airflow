@@ -81,7 +81,8 @@ export const DagTabs = ({ dag }: { readonly dag?: DAGResponse }) => {
         </Flex>
       </Flex>
       <DagVizModal
-        dagDisplayName={dag?.dag_display_name ?? "graph"}
+        dagDisplayName={dag?.dag_display_name}
+        dagId={dag?.dag_id}
         onClose={onClose}
         open={isGraphOpen}
       />
