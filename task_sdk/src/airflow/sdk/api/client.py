@@ -162,7 +162,7 @@ class VariableOperations:
     def set(self, msg: PutVariable):
         """Set an Airflow Variable via the API server."""
         key = msg.key
-        body = VariablePostBody(**msg.model_dump(exclude_unset=True))
+        body = VariablePostBody(**msg.model_dump(exclude_unset=True, include={"value", "description"}))
         self.client.put(f"variables/{key}", content=body.model_dump_json())
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
