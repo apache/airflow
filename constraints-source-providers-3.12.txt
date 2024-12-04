@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-04T07:42:25.500086
+# This constraints file was automatically generated on 2024-12-04T13:47:20.146649
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -164,7 +164,7 @@ db-dtypes==1.3.1
 debugpy==1.8.9
 decorator==5.1.1
 defusedxml==0.7.1
-deltalake==0.22.2
+deltalake==0.21.0
 diagrams==0.24.1
 dill==0.3.9
 distro==1.9.0
@@ -373,7 +373,7 @@ networkx==3.4.2
 nh3==0.2.19
 numpy==1.26.4
 oauthlib==3.2.2
-openai==1.56.1
+openai==1.56.2
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.25.0
@@ -527,7 +527,7 @@ smmap==5.0.1
 sniffio==1.3.1
 snowballstemmer==2.2.0
 snowflake-connector-python==3.12.3
-snowflake-sqlalchemy==1.7.0
+snowflake-sqlalchemy==1.7.1
 sortedcontainers==2.4.0
 soupsieve==2.6
 sphinx-airflow-theme==0.0.12
@@ -630,7 +630,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.326.0
 yarl==1.18.3
 ydb-dbapi==0.1.5
-ydb==3.18.9
+ydb==3.18.10
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.21.0
