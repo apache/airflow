@@ -78,9 +78,9 @@ if TYPE_CHECKING:
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
+    from airflow.models.iterableoperator import IterableOperator
     from airflow.models.operator import Operator
     from airflow.models.param import ParamsDict
-    from airflow.models.streamedoperator import StreamedOperator
     from airflow.models.xcom_arg import XComArg
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.utils.context import Context
@@ -240,8 +240,8 @@ class OperatorPartial:
         )
         return op
 
-    def stream(self, **mapped_kwargs: OperatorExpandArgument) -> StreamedOperator:
-        from airflow.models.streamedoperator import StreamedOperator
+    def iterate(self, **mapped_kwargs: OperatorExpandArgument) -> IterableOperator:
+        from airflow.models.iterableoperator import IterableOperator
 
         if not mapped_kwargs:
             raise TypeError("no arguments to expand against")

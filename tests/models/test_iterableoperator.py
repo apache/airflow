@@ -32,7 +32,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import ParamsDict
-from airflow.models.streamedoperator import StreamedOperator
+from airflow.models.IterableOperator import IterableOperator
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom_arg import XComArg
@@ -56,7 +56,7 @@ def test_task_mapping_with_dag():
     with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE) as dag:
         task1 = BaseOperator(task_id="op1")
         literal = ["a", "b", "c"]
-        mapped = MockOperator.partial(task_id="task_2").stream(arg2=literal)
+        mapped = MockOperator.partial(task_id="task_2").iterate(arg2=literal)
         finish = MockOperator(task_id="finish")
 
         task1 >> mapped >> finish
@@ -91,7 +91,7 @@ def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template
     with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE) as dag:
         task1 = CustomOperator(task_id="op1", arg=None)
         unrenderable_values = [UnrenderableClass(), UnrenderableClass()]
-        mapped = CustomOperator.partial(task_id="task_2").stream(arg=unrenderable_values)
+        mapped = CustomOperator.partial(task_id="task_2").iterate(arg=unrenderable_values)
         task1 >> mapped
     dag.test()
     assert (
@@ -105,13 +105,13 @@ def test_task_mapping_without_dag_context():
     with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE) as dag:
         task1 = BaseOperator(task_id="op1")
     literal = ["a", "b", "c"]
-    streamed = MockOperator.partial(task_id="task_2").stream(arg2=literal)
+    iterable = MockOperator.partial(task_id="task_2").iterate(arg2=literal)
 
-    task1 >> streamed
+    task1 >> iterable
 
-    assert isinstance(streamed, StreamedOperator)
-    assert streamed in dag.tasks
-    assert task1.downstream_list == [streamed]
+    assert isinstance(iterable, IterableOperator)
+    assert iterable in dag.tasks
+    assert task1.downstream_list == [iterable]
     # At parse time there should only be two tasks!
     assert len(dag.tasks) == 2
 
@@ -121,38 +121,38 @@ def test_task_mapping_default_args():
     with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE, default_args=default_args):
         task1 = BaseOperator(task_id="op1")
         literal = ["a", "b", "c"]
-        streamed = MockOperator.partial(task_id="task_2").stream(arg2=literal)
+        iterable = MockOperator.partial(task_id="task_2").iterate(arg2=literal)
 
-        task1 >> streamed
+        task1 >> iterable
 
-    assert streamed.owner == "test"
-    assert streamed.start_date == pendulum.instance(default_args["start_date"])
+    assert iterable.owner == "test"
+    assert iterable.start_date == pendulum.instance(default_args["start_date"])
 
 
 def test_task_mapping_override_default_args():
     default_args = {"retries": 2, "start_date": DEFAULT_DATE.now()}
     with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE, default_args=default_args):
         literal = ["a", "b", "c"]
-        streamed = MockOperator.partial(task_id="task", retries=1).stream(arg2=literal)
+        iterable = MockOperator.partial(task_id="task", retries=1).iterate(arg2=literal)
 
-    # retries should be 0 because it will be applied on the streamed tasks
-    assert streamed.retries == 0
+    # retries should be 0 because it will be applied on the iterable tasks
+    assert iterable.retries == 0
     # start_date should be equal to default_args["start_date"] because it is not provided as partial arg
-    assert streamed.start_date == pendulum.instance(default_args["start_date"])
+    assert iterable.start_date == pendulum.instance(default_args["start_date"])
     # owner should be equal to Airflow default owner (airflow) because it is not provided at all
-    assert streamed.owner == "airflow"
+    assert iterable.owner == "airflow"
 
 
 def test_map_unknown_arg_raises():
     with pytest.raises(TypeError, match=r"argument 'file'"):
-        BaseOperator.partial(task_id="a").stream(file=[1, 2, {"a": "b"}])
+        BaseOperator.partial(task_id="a").iterate(file=[1, 2, {"a": "b"}])
 
 
 def test_map_xcom_arg():
     """Test that dependencies are correct when mapping with an XComArg"""
     with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE):
         task1 = BaseOperator(task_id="op1")
-        mapped = MockOperator.partial(task_id="task_2").stream(arg2=task1.output)
+        mapped = MockOperator.partial(task_id="task_2").iterate(arg2=task1.output)
         finish = MockOperator(task_id="finish")
 
         mapped >> finish
@@ -178,8 +178,8 @@ def test_map_xcom_arg_multiple_upstream_xcoms(dag_maker, session):
     with dag_maker("test-dag", session=session, start_date=DEFAULT_DATE) as dag:
         upstream_return = [1, 2, 3]
         task1 = PushExtraXComOperator(return_value=upstream_return, task_id="task_1")
-        task2 = PushExtraXComOperator.partial(task_id="task_2").stream(return_value=task1.output)
-        task3 = PushExtraXComOperator.partial(task_id="task_3").stream(return_value=task2.output)
+        task2 = PushExtraXComOperator.partial(task_id="task_2").iterate(return_value=task1.output)
+        task3 = PushExtraXComOperator.partial(task_id="task_3").iterate(return_value=task2.output)
 
     dr = dag_maker.create_dagrun()
     ti_1 = dr.get_task_instance("task_1", session)
@@ -247,7 +247,7 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
     literal = [1, 2, {"a": "b"}]
     with dag_maker(session=session):
         task1 = BaseOperator(task_id="op1")
-        mapped = MockOperator.partial(task_id="task_2").stream(arg2=task1.output)
+        mapped = MockOperator.partial(task_id="task_2").iterate(arg2=task1.output)
 
     dr = dag_maker.create_dagrun()
 
@@ -298,7 +298,7 @@ def test_expand_mapped_task_failed_state_in_db(dag_maker, session):
     literal = [1, 2]
     with dag_maker(session=session):
         task1 = BaseOperator(task_id="op1")
-        mapped = MockOperator.partial(task_id="task_2").stream(arg2=task1.output)
+        mapped = MockOperator.partial(task_id="task_2").iterate(arg2=task1.output)
 
     dr = dag_maker.create_dagrun()
 
@@ -344,7 +344,7 @@ def test_expand_mapped_task_failed_state_in_db(dag_maker, session):
 def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
     with dag_maker(session=session):
         task1 = BaseOperator(task_id="op1")
-        mapped = MockOperator.partial(task_id="task_2").stream(arg2=task1.output)
+        mapped = MockOperator.partial(task_id="task_2").iterate(arg2=task1.output)
 
     dr = dag_maker.create_dagrun()
 
@@ -363,7 +363,7 @@ def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
 def test_mapped_task_applies_default_args_classic(dag_maker):
     with dag_maker(default_args={"execution_timeout": timedelta(minutes=30)}) as dag:
         MockOperator(task_id="simple", arg1=None, arg2=0)
-        MockOperator.partial(task_id="mapped").stream(arg1=[1], arg2=[2, 3])
+        MockOperator.partial(task_id="mapped").iterate(arg1=[1], arg2=[2, 3])
 
     assert dag.get_task("simple").execution_timeout == timedelta(minutes=30)
     assert dag.get_task("mapped").execution_timeout == timedelta(minutes=30)
@@ -381,7 +381,7 @@ def test_mapped_task_applies_default_args_taskflow(dag_maker):
             pass
 
         simple(arg=0)
-        mapped.stream(arg=[1, 2])
+        mapped.iterate(arg=[1, 2])
 
     assert dag.get_task("simple").execution_timeout == timedelta(minutes=30)
     assert dag.get_task("mapped").execution_timeout == timedelta(minutes=30)
@@ -398,10 +398,10 @@ def test_mapped_task_applies_default_args_taskflow(dag_maker):
 )
 def test_mapped_expand_against_params(dag_maker, dag_params, task_params, expected_partial_params):
     with dag_maker(params=dag_params) as dag:
-        MockOperator.partial(task_id="t", params=task_params).stream(params=[{"c": "x"}, {"d": 1}])
+        MockOperator.partial(task_id="t", params=task_params).iterate(params=[{"c": "x"}, {"d": 1}])
 
     t = dag.get_task("t")
-    assert isinstance(t, StreamedOperator)
+    assert isinstance(t, IterableOperator)
     assert t.params == expected_partial_params
     assert t.expand_input.value == {"params": [{"c": "x"}, {"d": 1}]}
 
@@ -439,7 +439,7 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session, t
             output1 = task1.output
             mapped = MyOperator.partial(
                 task_id="a", partial_template="{{ ti.task_id }}", partial_static="{{ ti.task_id }}"
-            ).stream(map_template=output1, map_static=output1, file_template=["/path/to/file.ext"])
+            ).iterate(map_template=output1, map_static=output1, file_template=["/path/to/file.ext"])
 
         dr = dag_maker.create_dagrun()
         ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
@@ -527,7 +527,7 @@ def test_mapped_render_nested_template_fields(dag_maker, session):
     with dag_maker(session=session):
         MockOperatorWithNestedFields.partial(
             task_id="t", arg2=NestedFields(field_1="{{ ti.task_id }}", field_2="value_2")
-        ).stream(arg1=["{{ ti.task_id }}", ["s", "{{ ti.task_id }}"]])
+        ).iterate(arg1=["{{ ti.task_id }}", ["s", "{{ ti.task_id }}"]])
 
     dr = dag_maker.create_dagrun()
     decision = dr.task_instance_scheduling_decisions()
@@ -624,7 +624,7 @@ def _create_mapped_with_name_template_classic(*, task_id, map_names, template):
         def execute(self, context):
             context["map_name"] = self.map_name
 
-    return HasMapName.partial(task_id=task_id, map_index_template=template).stream(
+    return HasMapName.partial(task_id=task_id, map_index_template=template).iterate(
         map_name=map_names,
     )
 
@@ -637,7 +637,7 @@ def _create_mapped_with_name_template_taskflow(*, task_id, map_names, template):
         context = get_current_context()
         context["map_name"] = map_name
 
-    return task1.stream(map_name=map_names)
+    return task1.iterate(map_name=map_names)
 
 
 def _create_named_map_index_renders_on_failure_classic(*, task_id, map_names, template):
@@ -650,7 +650,7 @@ def _create_named_map_index_renders_on_failure_classic(*, task_id, map_names, te
             context["map_name"] = self.map_name
             raise AirflowSkipException("Imagine this task failed!")
 
-    return HasMapName.partial(task_id=task_id, map_index_template=template).stream(
+    return HasMapName.partial(task_id=task_id, map_index_template=template).iterate(
         map_name=map_names,
     )
 
@@ -664,7 +664,7 @@ def _create_named_map_index_renders_on_failure_taskflow(*, task_id, map_names, t
         context["map_name"] = map_name
         raise AirflowSkipException("Imagine this task failed!")
 
-    return task1.stream(map_name=map_names)
+    return task1.iterate(map_name=map_names)
 
 
 @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
@@ -759,7 +759,7 @@ def test_expand_kwargs_render_template_fields_validating_operator(dag_maker, ses
 
 def test_xcomarg_property_of_mapped_operator(dag_maker):
     with dag_maker("test_xcomarg_property_of_mapped_operator"):
-        op_a = MockOperator.partial(task_id="a").stream(arg1=["x", "y", "z"])
+        op_a = MockOperator.partial(task_id="a").iterate(arg1=["x", "y", "z"])
     dag_maker.create_dagrun()
 
     assert op_a.output == XComArg(op_a)
@@ -767,8 +767,8 @@ def test_xcomarg_property_of_mapped_operator(dag_maker):
 
 def test_set_xcomarg_dependencies_with_mapped_operator(dag_maker):
     with dag_maker("test_set_xcomargs_dependencies_with_mapped_operator"):
-        op1 = MockOperator.partial(task_id="op1").stream(arg1=[1, 2, 3])
-        op2 = MockOperator.partial(task_id="op2").stream(arg2=["a", "b", "c"])
+        op1 = MockOperator.partial(task_id="op1").iterate(arg1=[1, 2, 3])
+        op2 = MockOperator.partial(task_id="op2").iterate(arg2=["a", "b", "c"])
         op3 = MockOperator(task_id="op3", arg1=op1.output)
         op4 = MockOperator(task_id="op4", arg1=[op1.output, op2.output])
         op5 = MockOperator(task_id="op5", arg1={"op1": op1.output, "op2": op2.output})
@@ -793,7 +793,7 @@ def test_all_xcomargs_from_mapped_tasks_are_consumable(dag_maker, session):
             assert set(self.arg1) == {1, 2, 3}
 
     with dag_maker("test_all_xcomargs_from_mapped_tasks_are_consumable"):
-        op1 = PushXcomOperator.partial(task_id="op1").stream(arg1=[1, 2, 3])
+        op1 = PushXcomOperator.partial(task_id="op1").iterate(arg1=[1, 2, 3])
         ConsumeXcomOperator(task_id="op2", arg1=op1.output)
 
     dr = dag_maker.create_dagrun()
@@ -809,7 +809,7 @@ def test_task_mapping_with_task_group_context():
 
         with TaskGroup("test-group") as group:
             literal = ["a", "b", "c"]
-            mapped = MockOperator.partial(task_id="task_2").stream(arg2=literal)
+            mapped = MockOperator.partial(task_id="task_2").iterate(arg2=literal)
 
             task1 >> group >> finish
 
@@ -830,7 +830,7 @@ def test_task_mapping_with_explicit_task_group():
 
         group = TaskGroup("test-group")
         literal = ["a", "b", "c"]
-        mapped = MockOperator.partial(task_id="task_2", task_group=group).stream(arg2=literal)
+        mapped = MockOperator.partial(task_id="task_2", task_group=group).iterate(arg2=literal)
 
         task1 >> group >> finish
 
@@ -908,7 +908,7 @@ class TestMappedSetupTeardown:
                     print(f"teardown: {val}")
 
                 s = my_setup()
-                t = my_teardown.stream(val=s)
+                t = my_teardown.iterate(val=s)
                 with t:
                     my_work(s)
         else:
@@ -921,7 +921,7 @@ class TestMappedSetupTeardown:
             with dag_maker() as dag:
                 my_setup = self.classic_operator("my_setup", [[1], [2], [3]])
                 my_teardown = self.classic_operator("my_teardown", partial=True)
-                t = my_teardown.stream(op_args=my_setup.output)
+                t = my_teardown.iterate(op_args=my_setup.output)
                 with t.as_teardown(setups=my_setup):
                     my_work(my_setup.output)
 
@@ -975,7 +975,7 @@ class TestMappedSetupTeardown:
                 def my_teardown(val):
                     print(f"teardown: {val}")
 
-                s = my_setup.stream(val=["data1.json", "data2.json", "data3.json"])
+                s = my_setup.iterate(val=["data1.json", "data2.json", "data3.json"])
                 o_setup = other_setup()
                 o_teardown = other_teardown()
                 with o_teardown.as_teardown(setups=o_setup):
@@ -999,7 +999,7 @@ class TestMappedSetupTeardown:
                 my_teardown = self.classic_operator("my_teardown")
 
                 my_setup = self.classic_operator("my_setup", partial=True, fail=True)
-                s = my_setup.stream(op_args=[["data1.json"], ["data2.json"], ["data3.json"]])
+                s = my_setup.iterate(op_args=[["data1.json"], ["data2.json"], ["data3.json"]])
                 o_setup = self.classic_operator("other_setup")
                 o_teardown = self.classic_operator("other_teardown")
                 with o_teardown.as_teardown(setups=o_setup):
@@ -1063,7 +1063,7 @@ class TestMappedSetupTeardown:
                 def my_teardown(val):
                     print(f"teardown: {val}")
 
-                s = my_setup.stream(val=["data1.json", "data2.json", "data3.json"])
+                s = my_setup.iterate(val=["data1.json", "data2.json", "data3.json"])
                 o_setup = other_setup()
                 o_teardown = other_teardown()
                 with o_teardown.as_teardown(setups=o_setup):
@@ -1096,7 +1096,7 @@ class TestMappedSetupTeardown:
                     print(f"work: {val}")
 
                 my_setup = self.classic_operator("my_setup", partial=True, fail=True)
-                s = my_setup.stream(op_args=[["data1.json"], ["data2.json"], ["data3.json"]])
+                s = my_setup.iterate(op_args=[["data1.json"], ["data2.json"], ["data3.json"]])
                 o_setup = other_setup()
                 o_teardown = other_teardown()
                 with o_teardown.as_teardown(setups=o_setup):
@@ -1163,7 +1163,7 @@ class TestMappedSetupTeardown:
                 def my_teardown(val):
                     print(f"teardown: {val}")
 
-                s = my_setup.stream(val=["data1.json", "data2.json", "data3.json"])
+                s = my_setup.iterate(val=["data1.json", "data2.json", "data3.json"])
                 o_setup = other_setup()
                 o_teardown = other_teardown()
                 with o_teardown.as_teardown(setups=o_setup):
@@ -1207,7 +1207,7 @@ class TestMappedSetupTeardown:
                 def my_teardown_callable(val):
                     print(f"teardown: {val}")
 
-                s = my_setup.stream(op_args=[["data1.json"], ["data2.json"], ["data3.json"]])
+                s = my_setup.iterate(op_args=[["data1.json"], ["data2.json"], ["data3.json"]])
                 o_setup = other_setup()
                 o_teardown = other_teardown()
                 with o_teardown.as_teardown(setups=o_setup):
@@ -1261,7 +1261,7 @@ class TestMappedSetupTeardown:
                     print(f"teardown: {val}")
 
                 s = my_setup()
-                t = my_teardown.stream(val=s).as_teardown(setups=s)
+                t = my_teardown.iterate(val=s).as_teardown(setups=s)
                 with t:
                     my_work(s)
         else:
@@ -1276,7 +1276,7 @@ class TestMappedSetupTeardown:
                 my_teardown = self.classic_operator(task_id="my_teardown", partial=True)
 
                 s = self.classic_operator(task_id="my_setup", ret=[[1], [2], [3]])
-                t = my_teardown.stream(op_args=s.output).as_teardown(setups=s)
+                t = my_teardown.iterate(op_args=s.output).as_teardown(setups=s)
                 with t:
                     my_work(s)
         dr = dag.test()
@@ -1319,7 +1319,7 @@ class TestMappedSetupTeardown:
                         raise ValueError("failure")
 
                 s = my_setup()
-                t = my_teardown.stream(val=s).as_teardown(setups=s, on_failure_fail_dagrun=True)
+                t = my_teardown.iterate(val=s).as_teardown(setups=s, on_failure_fail_dagrun=True)
                 with t:
                     my_work(s)
                 # todo: if on_failure_fail_dagrun=True, should we still regard the WORK task as a leaf?
@@ -1339,7 +1339,7 @@ class TestMappedSetupTeardown:
                 s = self.classic_operator(task_id="my_setup", ret=[[1], [2], [3]])
                 my_teardown = PythonOperator.partial(
                     task_id="my_teardown", python_callable=my_teardown_callable
-                ).stream(op_args=s.output)
+                ).iterate(op_args=s.output)
                 t = my_teardown.as_teardown(setups=s, on_failure_fail_dagrun=True)
                 with t:
                     my_work(s.output)
@@ -1389,7 +1389,7 @@ class TestMappedSetupTeardown:
                     with t:
                         my_work(filename)
 
-                file_transforms.stream(filename=["data1.json", "data2.json", "data3.json"])
+                file_transforms.iterate(filename=["data1.json", "data2.json", "data3.json"])
         else:
             with dag_maker() as dag:
 
@@ -1418,7 +1418,7 @@ class TestMappedSetupTeardown:
                     with t.as_teardown(setups=s):
                         my_work(filename)
 
-                file_transforms.stream(filename=[["data1.json"], ["data2.json"], ["data3.json"]])
+                file_transforms.iterate(filename=[["data1.json"], ["data2.json"], ["data3.json"]])
         dr = dag.test()
         states = self.get_states(dr)
         expected = {
@@ -1464,7 +1464,7 @@ class TestMappedSetupTeardown:
                     with t:
                         my_work(filename)
 
-                file_transforms.stream(filename=["data1.json", "data2.json", "data3.json"])
+                file_transforms.iterate(filename=["data1.json", "data2.json", "data3.json"])
         else:
             with dag_maker() as dag:
 
@@ -1492,7 +1492,7 @@ class TestMappedSetupTeardown:
                     with t:
                         my_work(filename)
 
-                file_transforms.stream(filename=[["data1.json"], ["data2.json"], ["data3.json"]])
+                file_transforms.iterate(filename=[["data1.json"], ["data2.json"], ["data3.json"]])
         dr = dag.test()
         states = self.get_states(dr)
         expected = {
@@ -1530,7 +1530,7 @@ class TestMappedSetupTeardown:
                 def my_teardown(val):
                     print(f"teardown: {val}")
 
-                s = my_setup.stream(val=["data1.json", "data2.json", "data3.json"])
+                s = my_setup.iterate(val=["data1.json", "data2.json", "data3.json"])
                 with my_teardown(s).as_teardown(setups=s):
                     my_work(s)
         else:
@@ -1549,7 +1549,7 @@ class TestMappedSetupTeardown:
                     print(f"work: {val}")
 
                 s = PythonOperator.partial(task_id="my_setup", python_callable=my_setup_callable)
-                s = s.stream(op_args=[["data1.json"], ["data2.json"], ["data3.json"]])
+                s = s.iterate(op_args=[["data1.json"], ["data2.json"], ["data3.json"]])
                 t = self.classic_operator("my_teardown")
                 with t.as_teardown(setups=s):
                     my_work(s.output)
@@ -1587,7 +1587,7 @@ class TestMappedSetupTeardown:
                 print(f"teardown: {val}")
 
             s = my_setup()
-            t = my_teardown.stream(val=s).as_teardown(setups=s)
+            t = my_teardown.iterate(val=s).as_teardown(setups=s)
             with t:
                 my_work(s)
 
@@ -1626,7 +1626,7 @@ class TestMappedSetupTeardown:
                         print(f"teardown: {val}")
 
                     s = my_setup()
-                    t = my_teardown.stream(val=s).as_teardown(setups=s)
+                    t = my_teardown.iterate(val=s).as_teardown(setups=s)
                     with t:
                         my_work(s)
         tg1, tg2 = dag.task_group.children.values()
@@ -1673,8 +1673,8 @@ class TestMappedSetupTeardown:
                     def my_teardown(val):
                         print(f"teardown: {val}")
 
-                    s = my_setup.stream(val=my_pre_setup())
-                    t = my_teardown.stream(val=s).as_teardown(setups=s)
+                    s = my_setup.iterate(val=my_pre_setup())
+                    t = my_teardown.iterate(val=s).as_teardown(setups=s)
                     with t:
                         my_work(s)
         tg1, tg2 = dag.task_group.children.values()
@@ -1715,7 +1715,7 @@ class TestMappedSetupTeardown:
             def group(n: int) -> None:
                 last(double(n))
 
-            group.stream(n=make_list())
+            group.iterate(n=make_list())
 
         dr = dag.test()
         states = self.get_states(dr)
@@ -1744,7 +1744,7 @@ class TestMappedSetupTeardown:
             def group(n: int) -> None:
                 last(double(n))
 
-            group.stream(n=[1, 2, 3])
+            group.iterate(n=[1, 2, 3])
 
         dr = dag.test()
         states = self.get_states(dr)

@@ -205,7 +205,7 @@ class TriggerExecutor(TaskExecutor):
                     return await self.run(task_deferred=task_deferred)
 
 
-class StreamedOperator(BaseOperator):
+class IterableOperator(BaseOperator):
     """Object representing a streamed operator in a DAG."""
 
     _operator_class: type[BaseOperator]
