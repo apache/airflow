@@ -17,7 +17,6 @@
  * under the License.
  */
 import { Box, Button } from "@chakra-ui/react";
-import { useState } from "react";
 import { FiChevronsLeft } from "react-icons/fi";
 import { Outlet, Link as RouterLink, useParams } from "react-router-dom";
 
@@ -35,7 +34,6 @@ import { DagTabs } from "./Tabs";
 
 export const Dag = () => {
   const { dagId } = useParams();
-  const [isDocsOpen, setIsDocsOpen] = useState(false);
 
   const {
     data: dag,
@@ -68,22 +66,13 @@ export const Dag = () => {
             Back to all dags
           </RouterLink>
         </Button>
-        <Header
-          dag={dag}
-          dagId={dagId}
-          latestRun={runs[0]}
-          setIsDocsOpen={setIsDocsOpen}
-        />
+        <Header dag={dag} dagId={dagId} latestRun={runs[0]} />
         <ErrorAlert error={error ?? runsError} />
         <ProgressBar
           size="xs"
           visibility={isLoading || isLoadingRuns ? "visible" : "hidden"}
         />
-        <DagTabs
-          dag={dag}
-          isDocsOpen={isDocsOpen}
-          setIsDocsOpen={setIsDocsOpen}
-        />
+        <DagTabs dag={dag} />
       </Box>
       <Box overflow="auto">
         <Outlet />

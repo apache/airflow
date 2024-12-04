@@ -23,22 +23,13 @@ import type { DAGDetailsResponse } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
 import { capitalize } from "src/utils";
 
-import { DagDocumentation } from "./DagDocumentation";
 import { DagVizModal } from "./DagVizModal";
 
 const tabs = ["overview", "runs", "tasks", "events", "code"];
 
 const MODAL = "modal";
 
-export const DagTabs = ({
-  dag,
-  isDocsOpen,
-  setIsDocsOpen,
-}: {
-  readonly dag?: DAGDetailsResponse;
-  readonly isDocsOpen: boolean;
-  readonly setIsDocsOpen: React.Dispatch<React.SetStateAction<boolean>>;
-}) => {
+export const DagTabs = ({ dag }: { readonly dag?: DAGDetailsResponse }) => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const modal = searchParams.get(MODAL);
@@ -95,11 +86,6 @@ export const DagTabs = ({
         dagId={dag?.dag_id}
         onClose={onClose}
         open={isGraphOpen}
-      />
-      <DagDocumentation
-        docMd={dag?.doc_md ?? ""}
-        onClose={() => setIsDocsOpen(false)}
-        open={isDocsOpen}
       />
     </>
   );

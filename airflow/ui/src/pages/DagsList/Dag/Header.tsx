@@ -27,9 +27,12 @@ import {
 } from "@chakra-ui/react";
 import { FiCalendar } from "react-icons/fi";
 
-import type { DAGResponse, DAGRunResponse } from "openapi/requests/types.gen";
+import type {
+  DAGDetailsResponse,
+  DAGRunResponse,
+} from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
-import DagDocumentationButton from "src/components/DagDocumentationButton";
+import DagDocumentation from "src/components/DagDocumentation";
 import DagRunInfo from "src/components/DagRunInfo";
 import ParseDag from "src/components/ParseDag";
 import { TogglePause } from "src/components/TogglePause";
@@ -42,12 +45,10 @@ export const Header = ({
   dag,
   dagId,
   latestRun,
-  setIsDocsOpen,
 }: {
-  readonly dag?: DAGResponse;
+  readonly dag?: DAGDetailsResponse;
   readonly dagId?: string;
   readonly latestRun?: DAGRunResponse;
-  readonly setIsDocsOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }) => (
   <Box borderColor="border" borderRadius={8} borderWidth={1} overflow="hidden">
     <Box p={2}>
@@ -66,7 +67,9 @@ export const Header = ({
         <Flex>
           {dag ? (
             <HStack>
-              <DagDocumentationButton setIsDocsOpen={setIsDocsOpen} />
+              {dag.doc_md === null ? undefined : (
+                <DagDocumentation docMd={dag.doc_md} />
+              )}
               <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />
               <TriggerDAGTextButton dag={dag} />
             </HStack>

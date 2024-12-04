@@ -29,7 +29,7 @@ const onError = () => {
   toaster.create({
     description:
       "Dag parsing request failed. There could be pending parsing requests yet to be processed.",
-    title: "Dag Reparsing request",
+    title: "Dag Failed to Reparse",
     type: "error",
   });
 };
@@ -47,8 +47,8 @@ export const useDagParsing = ({ dagId }: { readonly dagId: string }) => {
     });
 
     toaster.create({
-      description: "Dag Reparsing request submitted successfully.",
-      title: "Dag Reparsing request.",
+      description: "Dag should reparse soon.",
+      title: "Reparsing request submitted successfully",
       type: "success",
     });
   };
