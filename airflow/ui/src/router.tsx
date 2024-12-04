@@ -26,14 +26,10 @@ import { Overview } from "src/pages/DagsList/Dag/Overview";
 import { Runs } from "src/pages/DagsList/Dag/Runs";
 import { Run } from "src/pages/DagsList/Run";
 import { Dashboard } from "src/pages/Dashboard";
-import { BaseLayout } from "./layouts/BaseLayout";
-import { Dag } from "./pages/DagsList/Dag";
-import { Code } from "./pages/DagsList/Dag/Code";
-import { Overview } from "./pages/DagsList/Dag/Overview";
+
 import { Tasks } from "./pages/DagsList/Dag/Tasks";
 import { ErrorPage } from "./pages/Error";
 import { Events } from "./pages/Events";
-
 
 export const router = createBrowserRouter(
   [

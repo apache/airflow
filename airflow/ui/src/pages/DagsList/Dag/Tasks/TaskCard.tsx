@@ -29,8 +29,7 @@ import type {
   TaskResponse,
   TaskInstanceResponse,
 } from "openapi/requests/types.gen";
-import { StateCircle } from "src/components/StateCircle";
-import { stateColor } from "src/utils/stateColor";
+import { Status } from "src/components/ui";
 
 import { TaskRecentRuns } from "./TaskRecentRuns.tsx";
 
@@ -71,12 +70,9 @@ export const TaskCard = ({ task, taskInstances }: Props) => (
           <HStack fontSize="sm">
             <Text> {taskInstances[0].logical_date} </Text>
             {taskInstances[0].state === null ? undefined : (
-              <>
-                <StateCircle state={taskInstances[0].state} />
-                <Text color={stateColor[taskInstances[0].state]}>
-                  {taskInstances[0].state}
-                </Text>
-              </>
+              <Status state={taskInstances[0].state}>
+                {taskInstances[0].state}
+              </Status>
             )}
           </HStack>
         ) : undefined}
