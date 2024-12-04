@@ -31,14 +31,14 @@ main
 .....
 
 .. warning::
-   All deprecated classes, parameters and features have been removed from the elasticearch provider package.
+   All deprecated classes, parameters and features have been removed from the ElasticSearch provider package.
    The following breaking changes were introduced:
 
-* Hooks
-   * Remove ``airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook``. Use ``airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchSQLHook`` instead.
-* Log
-   * Removed ``log_id_template`` parameter from ``ElasticsearchTaskHandler``.
-   * Removed ``retry_timeout`` parameter from ``ElasticsearchTaskHandler``. Use ``retry_on_timeout`` instead
+   * Hooks
+      * Remove ``airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook``. Use ``airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchSQLHook`` instead.
+   * Log
+      * Removed ``log_id_template`` parameter from ``ElasticsearchTaskHandler``.
+      * Removed ``retry_timeout`` parameter from ``ElasticsearchTaskHandler``. Use ``retry_on_timeout`` instead
 
 5.5.3
 .....
