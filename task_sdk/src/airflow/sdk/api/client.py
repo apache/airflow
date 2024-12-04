@@ -46,7 +46,6 @@ from airflow.utils.platform import getuser
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from airflow.sdk.execution_time.comms import PutVariable
     from airflow.typing_compat import ParamSpec
 
     P = ParamSpec("P")
@@ -159,10 +158,9 @@ class VariableOperations:
         resp = self.client.get(f"variables/{key}")
         return VariableResponse.model_validate_json(resp.read())
 
-    def set(self, msg: PutVariable):
+    def set(self, key: str, value: str | None, description: str | None = None):
         """Set an Airflow Variable via the API server."""
-        key = msg.key
-        body = VariablePostBody(**msg.model_dump(exclude_unset=True, include={"value", "description"}))
+        body = VariablePostBody(value=value, description=description)
         self.client.put(f"variables/{key}", content=body.model_dump_json())
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to

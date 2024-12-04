@@ -676,7 +676,7 @@ class WatchedSubprocess:
                 self.client.task_instances.defer(self.ti_id, msg)
                 resp = None
             elif isinstance(msg, PutVariable):
-                self.client.variables.set(msg)
+                self.client.variables.set(msg.key, msg.value, msg.description)
                 resp = None
             else:
                 log.error("Unhandled request", msg=msg)

@@ -808,7 +808,7 @@ class TestHandleRequest:
                 PutVariable(key="test_key", value="test_value", description="test_description"),
                 b"",
                 "variables.set",
-                (PutVariable(key="test_key", value="test_value", description="test_description"),),
+                ("test_key", "test_value", "test_description"),
                 {"ok": True},
                 id="set_variable",
             ),

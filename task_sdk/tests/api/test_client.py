@@ -22,7 +22,6 @@ import pytest
 
 from airflow.sdk.api.client import Client, RemoteValidationError, ServerResponseError
 from airflow.sdk.api.datamodels._generated import VariableResponse
-from airflow.sdk.execution_time.comms import PutVariable
 
 
 class TestClient:
@@ -147,6 +146,5 @@ class TestVariableOperations:
 
         client = make_client(transport=httpx.MockTransport(handle_request))
 
-        msg = PutVariable(key="test_key", value="test_value", description="test_description")
-        result = client.variables.set(msg=msg)
+        result = client.variables.set(key="test_key", value="test_value", description="test_description")
         assert result == {"ok": True}
