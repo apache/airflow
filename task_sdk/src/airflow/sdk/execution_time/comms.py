@@ -43,6 +43,7 @@ Execution API server is because:
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -101,6 +102,7 @@ class TaskState(BaseModel):
     """
 
     state: TerminalTIState
+    end_date: datetime | None = None
     type: Literal["TaskState"] = "TaskState"
 
 
