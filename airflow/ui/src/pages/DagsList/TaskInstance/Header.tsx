@@ -18,55 +18,64 @@
  */
 import { Box, Flex, Heading, HStack, SimpleGrid, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
-import { FiBarChart } from "react-icons/fi";
-import { MdOutlineModeComment } from "react-icons/md";
+import { MdOutlineModeComment, MdOutlineTask } from "react-icons/md";
 
-import type { DAGRunResponse } from "openapi/requests/types.gen";
-import { RunTypeIcon } from "src/components/RunTypeIcon";
+import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { Stat } from "src/components/Stat";
 import Time from "src/components/Time";
 import { Status } from "src/components/ui";
 
-export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => (
+export const Header = ({
+  taskInstance,
+}: {
+  readonly taskInstance: TaskInstanceResponse;
+}) => (
   <Box borderColor="border" borderRadius={8} borderWidth={1}>
     <Box p={2}>
       <Flex alignItems="center" justifyContent="space-between" mb={2}>
         <HStack alignItems="center" gap={2}>
-          <FiBarChart size="1.75rem" />
+          <MdOutlineTask size="1.75rem" />
           <Heading size="lg">
-            <strong>Run: </strong>
-            {dagRun.dag_run_id}
+            <strong>Task Instance: </strong>
+            {taskInstance.task_display_name}{" "}
+            <Time datetime={taskInstance.start_date} />
           </Heading>
-          <Status state={dagRun.state}>{dagRun.state}</Status>
+          <Status state={taskInstance.state ?? undefined}>
+            {taskInstance.state}
+          </Status>
           <Flex>
             <div />
           </Flex>
         </HStack>
       </Flex>
-      {dagRun.note === null || dagRun.note.length === 0 ? undefined : (
+      {taskInstance.note === null ||
+      taskInstance.note.length === 0 ? undefined : (
         <Flex alignItems="flex-start" justifyContent="space-between" mr={16}>
           <MdOutlineModeComment size="3rem" />
           <Text fontSize="sm" ml={3}>
-            {dagRun.note}
+            {taskInstance.note}
           </Text>
         </Flex>
       )}
-      <SimpleGrid columns={4} gap={4}>
-        <Stat label="Run Type">
-          <HStack>
-            <RunTypeIcon runType={dagRun.run_type} />
-            <Text>{dagRun.run_type}</Text>
-          </HStack>
-        </Stat>
+      <SimpleGrid columns={4} gap={4} my={2}>
+        <Stat label="Operator">{taskInstance.operator}</Stat>
+        {taskInstance.map_index > -1 ? (
+          <Stat label="Map Index">{taskInstance.map_index}</Stat>
+        ) : undefined}
+        {taskInstance.try_number > 1 ? (
+          <Stat label="Try Number">{taskInstance.try_number}</Stat>
+        ) : undefined}
         <Stat label="Start">
-          <Time datetime={dagRun.start_date} />
+          <Time datetime={taskInstance.start_date} />
         </Stat>
         <Stat label="End">
-          <Time datetime={dagRun.end_date} />
+          <Time datetime={taskInstance.end_date} />
         </Stat>
         <Stat label="Duration">
           {dayjs
-            .duration(dayjs(dagRun.end_date).diff(dagRun.start_date))
+            .duration(
+              dayjs(taskInstance.end_date).diff(taskInstance.start_date),
+            )
             .asSeconds()
             .toFixed(2)}
           s

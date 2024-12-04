@@ -16,26 +16,54 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Box } from "@chakra-ui/react";
 import { LiaSlashSolid } from "react-icons/lia";
-import { useParams, Link as RouterLink } from "react-router-dom";
+import { useParams, Link as RouterLink, Outlet } from "react-router-dom";
 
+import {
+  useDagServiceGetDagDetails,
+  useTaskInstanceServiceGetTaskInstance,
+} from "openapi/queries";
 import { Breadcrumb } from "src/components/ui";
+import { OpenGroupsProvider } from "src/context/openGroups";
+
+import { Header } from "./Header";
+import { TaskInstanceTabs } from "./Tabs";
 
 export const TaskInstance = () => {
-  const { dagId, runId, taskId } = useParams();
+  const { dagId = "", runId = "", taskId = "" } = useParams();
+
+  const { data: dag } = useDagServiceGetDagDetails({
+    dagId,
+  });
+
+  const { data: taskInstance } = useTaskInstanceServiceGetTaskInstance({
+    dagId,
+    dagRunId: runId,
+    taskId,
+  });
 
   return (
-    <Breadcrumb.Root mb={3} separator={<LiaSlashSolid />}>
-      <Breadcrumb.Link asChild color="fg.info">
-        <RouterLink to="/dags">Dags</RouterLink>
-      </Breadcrumb.Link>
-      <Breadcrumb.Link asChild color="fg.info">
-        <RouterLink to={`/dags/${dagId}`}>{dagId}</RouterLink>
-      </Breadcrumb.Link>
-      <Breadcrumb.Link asChild color="fg.info">
-        <RouterLink to={`/dags/${dagId}/runs/${runId}`}>{runId}</RouterLink>
-      </Breadcrumb.Link>
-      <Breadcrumb.CurrentLink>{taskId}</Breadcrumb.CurrentLink>
-    </Breadcrumb.Root>
+    <OpenGroupsProvider dagId={dagId}>
+      <Breadcrumb.Root mb={3} separator={<LiaSlashSolid />}>
+        <Breadcrumb.Link asChild color="fg.info">
+          <RouterLink to="/dags">Dags</RouterLink>
+        </Breadcrumb.Link>
+        <Breadcrumb.Link asChild color="fg.info">
+          <RouterLink to={`/dags/${dagId}`}>{dagId}</RouterLink>
+        </Breadcrumb.Link>
+        <Breadcrumb.Link asChild color="fg.info">
+          <RouterLink to={`/dags/${dagId}/runs/${runId}`}>{runId}</RouterLink>
+        </Breadcrumb.Link>
+        <Breadcrumb.CurrentLink>{taskId}</Breadcrumb.CurrentLink>
+      </Breadcrumb.Root>
+      {taskInstance === undefined ? undefined : (
+        <Header taskInstance={taskInstance} />
+      )}
+      <TaskInstanceTabs dag={dag} />
+      <Box overflow="auto">
+        <Outlet />
+      </Box>
+    </OpenGroupsProvider>
   );
 };

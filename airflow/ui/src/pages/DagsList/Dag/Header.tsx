@@ -38,7 +38,7 @@ export const Header = ({
   readonly dagId?: string;
   readonly latestRun?: DAGRunResponse;
 }) => (
-  <Box borderColor="border" borderRadius={8} borderWidth={1} overflow="hidden">
+  <Box borderColor="border" borderRadius={8} borderWidth={1}>
     <Box p={2}>
       <Flex alignItems="center" justifyContent="space-between">
         <HStack alignItems="center" gap={2}>

@@ -68,6 +68,13 @@ export const router = createBrowserRouter(
           path: "dags/:dagId/runs/:runId",
         },
         {
+          children: [
+            { element: <div>Logs</div>, index: true },
+            { element: <Events />, path: "events" },
+            { element: <div>Xcom</div>, path: "xcom" },
+            { element: <Code />, path: "code" },
+            { element: <div>Details</div>, path: "details" },
+          ],
           element: <TaskInstance />,
           path: "dags/:dagId/runs/:runId/tasks/:taskId",
         },
