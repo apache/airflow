@@ -21,15 +21,23 @@ from datetime import timedelta
 from time import sleep
 from typing import TYPE_CHECKING, Any, NoReturn
 
+from packaging.version import Version
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowSkipException
+from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.providers.standard.utils.version_references import AIRFLOW_V_3_0_PLUS
 from airflow.sensors.base import BaseSensorOperator
-from airflow.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+
+def _get_airflow_version():
+    from airflow import __version__ as airflow_version
+
+    return Version(Version(airflow_version).base_version)
 
 
 class TimeDeltaSensor(BaseSensorOperator):
@@ -91,7 +99,18 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
                 raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
             raise
 
-        self.defer(trigger=trigger, method_name="execute_complete")
+        # todo: remove backcompat when min airflow version greater than 2.11
+        timeout: int | float | timedelta
+        if _get_airflow_version() >= Version("2.11.0"):
+            timeout = self.timeout
+        else:
+            timeout = timedelta(seconds=self.timeout)
+
+        self.defer(
+            trigger=trigger,
+            method_name="execute_complete",
+            timeout=timeout,
+        )
 
     def execute_complete(self, context: Context, event: Any = None) -> None:
         """Handle the event when the trigger fires and return immediately."""

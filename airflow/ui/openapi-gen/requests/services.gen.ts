@@ -25,15 +25,17 @@ import type {
   GetDagAssetQueuedEventResponse,
   DeleteDagAssetQueuedEventData,
   DeleteDagAssetQueuedEventResponse,
-  HistoricalMetricsData,
-  HistoricalMetricsResponse,
-  RecentDagRunsData,
-  RecentDagRunsResponse,
   GetConfigsResponse,
   GetConfigData,
   GetConfigResponse,
   GetConfigValueData,
   GetConfigValueResponse,
+  RecentDagRunsData,
+  RecentDagRunsResponse,
+  HistoricalMetricsData,
+  HistoricalMetricsResponse,
+  StructureDataData,
+  StructureDataResponse2,
   ListBackfillsData,
   ListBackfillsResponse,
   CreateBackfillData,
@@ -56,6 +58,8 @@ import type {
   GetConnectionsResponse,
   PostConnectionData,
   PostConnectionResponse,
+  PostConnectionsData,
+  PostConnectionsResponse,
   TestConnectionData,
   TestConnectionResponse,
   GetDagRunData,
@@ -70,6 +74,10 @@ import type {
   ClearDagRunResponse,
   GetDagRunsData,
   GetDagRunsResponse,
+  TriggerDagRunData,
+  TriggerDagRunResponse,
+  GetListDagRunsBatchData,
+  GetListDagRunsBatchResponse,
   GetDagSourceData,
   GetDagSourceResponse,
   GetDagStatsData,
@@ -80,8 +88,6 @@ import type {
   GetDagsResponse,
   PatchDagsData,
   PatchDagsResponse,
-  GetDagTagsData,
-  GetDagTagsResponse,
   GetDagData,
   GetDagResponse,
   PatchDagData,
@@ -90,14 +96,50 @@ import type {
   DeleteDagResponse,
   GetDagDetailsData,
   GetDagDetailsResponse,
+  GetDagTagsData,
+  GetDagTagsResponse,
   GetEventLogData,
   GetEventLogResponse,
   GetEventLogsData,
   GetEventLogsResponse,
+  GetExtraLinksData,
+  GetExtraLinksResponse,
+  GetTaskInstanceData,
+  GetTaskInstanceResponse,
+  PatchTaskInstanceData,
+  PatchTaskInstanceResponse,
+  GetMappedTaskInstancesData,
+  GetMappedTaskInstancesResponse,
+  GetTaskInstanceDependenciesData,
+  GetTaskInstanceDependenciesResponse,
+  GetTaskInstanceDependencies1Data,
+  GetTaskInstanceDependencies1Response,
+  GetTaskInstanceTriesData,
+  GetTaskInstanceTriesResponse,
+  GetMappedTaskInstanceTriesData,
+  GetMappedTaskInstanceTriesResponse,
+  GetMappedTaskInstanceData,
+  GetMappedTaskInstanceResponse,
+  PatchTaskInstance1Data,
+  PatchTaskInstance1Response,
+  GetTaskInstancesData,
+  GetTaskInstancesResponse,
+  GetTaskInstancesBatchData,
+  GetTaskInstancesBatchResponse,
+  GetTaskInstanceTryDetailsData,
+  GetTaskInstanceTryDetailsResponse,
+  GetMappedTaskInstanceTryDetailsData,
+  GetMappedTaskInstanceTryDetailsResponse,
+  PostClearTaskInstancesData,
+  PostClearTaskInstancesResponse,
+  GetLogData,
+  GetLogResponse,
   GetImportErrorData,
   GetImportErrorResponse,
   GetImportErrorsData,
   GetImportErrorsResponse,
+  GetJobsData,
+  GetJobsResponse,
   GetPluginsData,
   GetPluginsResponse,
   DeletePoolData,
@@ -114,28 +156,10 @@ import type {
   PostPoolsResponse,
   GetProvidersData,
   GetProvidersResponse,
-  GetTaskInstanceData,
-  GetTaskInstanceResponse,
-  GetMappedTaskInstancesData,
-  GetMappedTaskInstancesResponse,
-  GetTaskInstanceDependenciesData,
-  GetTaskInstanceDependenciesResponse,
-  GetTaskInstanceDependencies1Data,
-  GetTaskInstanceDependencies1Response,
-  GetMappedTaskInstanceData,
-  GetMappedTaskInstanceResponse,
-  GetTaskInstancesData,
-  GetTaskInstancesResponse,
-  GetTaskInstancesBatchData,
-  GetTaskInstancesBatchResponse,
-  GetTaskInstanceTryDetailsData,
-  GetTaskInstanceTryDetailsResponse,
-  GetMappedTaskInstanceTryDetailsData,
-  GetMappedTaskInstanceTryDetailsResponse,
-  PostClearTaskInstancesData,
-  PostClearTaskInstancesResponse,
-  GetLogData,
-  GetLogResponse,
+  GetXcomEntryData,
+  GetXcomEntryResponse,
+  GetXcomEntriesData,
+  GetXcomEntriesResponse,
   GetTasksData,
   GetTasksResponse,
   GetTaskData,
@@ -150,8 +174,8 @@ import type {
   GetVariablesResponse,
   PostVariableData,
   PostVariableResponse,
-  GetXcomEntryData,
-  GetXcomEntryResponse,
+  ReparseDagFileData,
+  ReparseDagFileResponse,
   GetHealthResponse,
   GetVersionResponse,
 } from "./types.gen";
@@ -490,77 +514,6 @@ export class AssetService {
   }
 }
 
-export class DashboardService {
-  /**
-   * Historical Metrics
-   * Return cluster activity historical metrics.
-   * @param data The data for the request.
-   * @param data.startDate
-   * @param data.endDate
-   * @returns HistoricalMetricDataResponse Successful Response
-   * @throws ApiError
-   */
-  public static historicalMetrics(
-    data: HistoricalMetricsData,
-  ): CancelablePromise<HistoricalMetricsResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/ui/dashboard/historical_metrics_data",
-      query: {
-        start_date: data.startDate,
-        end_date: data.endDate,
-      },
-      errors: {
-        400: "Bad Request",
-        422: "Validation Error",
-      },
-    });
-  }
-}
-
-export class DagsService {
-  /**
-   * Recent Dag Runs
-   * Get recent DAG runs.
-   * @param data The data for the request.
-   * @param data.dagRunsLimit
-   * @param data.limit
-   * @param data.offset
-   * @param data.tags
-   * @param data.owners
-   * @param data.dagIdPattern
-   * @param data.dagDisplayNamePattern
-   * @param data.onlyActive
-   * @param data.paused
-   * @param data.lastDagRunState
-   * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static recentDagRuns(
-    data: RecentDagRunsData = {},
-  ): CancelablePromise<RecentDagRunsResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/ui/dags/recent_dag_runs",
-      query: {
-        dag_runs_limit: data.dagRunsLimit,
-        limit: data.limit,
-        offset: data.offset,
-        tags: data.tags,
-        owners: data.owners,
-        dag_id_pattern: data.dagIdPattern,
-        dag_display_name_pattern: data.dagDisplayNamePattern,
-        only_active: data.onlyActive,
-        paused: data.paused,
-        last_dag_run_state: data.lastDagRunState,
-      },
-      errors: {
-        422: "Validation Error",
-      },
-    });
-  }
-}
-
 export class ConfigService {
   /**
    * Get Configs
@@ -635,6 +588,109 @@ export class ConfigService {
         403: "Forbidden",
         404: "Not Found",
         406: "Not Acceptable",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class DagsService {
+  /**
+   * Recent Dag Runs
+   * Get recent DAG runs.
+   * @param data The data for the request.
+   * @param data.dagRunsLimit
+   * @param data.limit
+   * @param data.offset
+   * @param data.tags
+   * @param data.owners
+   * @param data.dagIdPattern
+   * @param data.dagDisplayNamePattern
+   * @param data.onlyActive
+   * @param data.paused
+   * @param data.lastDagRunState
+   * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static recentDagRuns(
+    data: RecentDagRunsData = {},
+  ): CancelablePromise<RecentDagRunsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/dags/recent_dag_runs",
+      query: {
+        dag_runs_limit: data.dagRunsLimit,
+        limit: data.limit,
+        offset: data.offset,
+        tags: data.tags,
+        owners: data.owners,
+        dag_id_pattern: data.dagIdPattern,
+        dag_display_name_pattern: data.dagDisplayNamePattern,
+        only_active: data.onlyActive,
+        paused: data.paused,
+        last_dag_run_state: data.lastDagRunState,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class DashboardService {
+  /**
+   * Historical Metrics
+   * Return cluster activity historical metrics.
+   * @param data The data for the request.
+   * @param data.startDate
+   * @param data.endDate
+   * @returns HistoricalMetricDataResponse Successful Response
+   * @throws ApiError
+   */
+  public static historicalMetrics(
+    data: HistoricalMetricsData,
+  ): CancelablePromise<HistoricalMetricsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/dashboard/historical_metrics_data",
+      query: {
+        start_date: data.startDate,
+        end_date: data.endDate,
+      },
+      errors: {
+        400: "Bad Request",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class StructureService {
+  /**
+   * Structure Data
+   * Get Structure Data.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.root
+   * @param data.includeUpstream
+   * @param data.includeDownstream
+   * @returns StructureDataResponse Successful Response
+   * @throws ApiError
+   */
+  public static structureData(
+    data: StructureDataData,
+  ): CancelablePromise<StructureDataResponse2> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/structure/structure_data",
+      query: {
+        dag_id: data.dagId,
+        root: data.root,
+        include_upstream: data.includeUpstream,
+        include_downstream: data.includeDownstream,
+      },
+      errors: {
+        404: "Not Found",
         422: "Validation Error",
       },
     });
@@ -944,6 +1000,31 @@ export class ConnectionService {
   }
 
   /**
+   * Post Connections
+   * Create connection entry.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns ConnectionCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static postConnections(
+    data: PostConnectionsData,
+  ): CancelablePromise<PostConnectionsResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/connections/bulk",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        409: "Conflict",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
    * Test Connection
    * Test an API connection.
    *
@@ -1176,6 +1257,66 @@ export class DagRunService {
       },
     });
   }
+
+  /**
+   * Trigger Dag Run
+   * Trigger a DAG.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.requestBody
+   * @returns DAGRunResponse Successful Response
+   * @throws ApiError
+   */
+  public static triggerDagRun(
+    data: TriggerDagRunData,
+  ): CancelablePromise<TriggerDagRunResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/dags/{dag_id}/dagRuns",
+      path: {
+        dag_id: data.dagId,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        409: "Conflict",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get List Dag Runs Batch
+   * Get a list of DAG Runs.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.requestBody
+   * @returns DAGRunCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getListDagRunsBatch(
+    data: GetListDagRunsBatchData,
+  ): CancelablePromise<GetListDagRunsBatchResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/dags/{dag_id}/dagRuns/list",
+      path: {
+        dag_id: data.dagId,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
 }
 
 export class DagSourceService {
@@ -1371,37 +1512,6 @@ export class DagService {
   }
 
   /**
-   * Get Dag Tags
-   * Get all DAG tags.
-   * @param data The data for the request.
-   * @param data.limit
-   * @param data.offset
-   * @param data.orderBy
-   * @param data.tagNamePattern
-   * @returns DAGTagCollectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static getDagTags(
-    data: GetDagTagsData = {},
-  ): CancelablePromise<GetDagTagsResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/dags/tags",
-      query: {
-        limit: data.limit,
-        offset: data.offset,
-        order_by: data.orderBy,
-        tag_name_pattern: data.tagNamePattern,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
    * Get Dag
    * Get basic information about a DAG.
    * @param data The data for the request.
@@ -1513,6 +1623,37 @@ export class DagService {
       },
     });
   }
+
+  /**
+   * Get Dag Tags
+   * Get all DAG tags.
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @param data.tagNamePattern
+   * @returns DAGTagCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDagTags(
+    data: GetDagTagsData = {},
+  ): CancelablePromise<GetDagTagsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dagTags",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+        tag_name_pattern: data.tagNamePattern,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        422: "Validation Error",
+      },
+    });
+  }
 }
 
 export class EventLogService {
@@ -1545,6 +1686,9 @@ export class EventLogService {
    * Get Event Logs
    * Get all Event Logs.
    * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
    * @param data.dagId
    * @param data.taskId
    * @param data.runId
@@ -1556,9 +1700,6 @@ export class EventLogService {
    * @param data.includedEvents
    * @param data.before
    * @param data.after
-   * @param data.limit
-   * @param data.offset
-   * @param data.orderBy
    * @returns EventLogCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -1569,6 +1710,9 @@ export class EventLogService {
       method: "GET",
       url: "/public/eventLogs",
       query: {
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
         dag_id: data.dagId,
         task_id: data.taskId,
         run_id: data.runId,
@@ -1580,9 +1724,6 @@ export class EventLogService {
         included_events: data.includedEvents,
         before: data.before,
         after: data.after,
-        limit: data.limit,
-        offset: data.offset,
-        order_by: data.orderBy,
       },
       errors: {
         401: "Unauthorized",
@@ -1593,281 +1734,32 @@ export class EventLogService {
   }
 }
 
-export class ImportErrorService {
+export class ExtraLinksService {
   /**
-   * Get Import Error
-   * Get an import error.
+   * Get Extra Links
+   * Get extra links for task instance.
    * @param data The data for the request.
-   * @param data.importErrorId
-   * @returns ImportErrorResponse Successful Response
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @returns ExtraLinksResponse Successful Response
    * @throws ApiError
    */
-  public static getImportError(
-    data: GetImportErrorData,
-  ): CancelablePromise<GetImportErrorResponse> {
+  public static getExtraLinks(
+    data: GetExtraLinksData,
+  ): CancelablePromise<GetExtraLinksResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/importErrors/{import_error_id}",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links",
       path: {
-        import_error_id: data.importErrorId,
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
       },
       errors: {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Get Import Errors
-   * Get all import errors.
-   * @param data The data for the request.
-   * @param data.limit
-   * @param data.offset
-   * @param data.orderBy
-   * @returns ImportErrorCollectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static getImportErrors(
-    data: GetImportErrorsData = {},
-  ): CancelablePromise<GetImportErrorsResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/importErrors",
-      query: {
-        limit: data.limit,
-        offset: data.offset,
-        order_by: data.orderBy,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        422: "Validation Error",
-      },
-    });
-  }
-}
-
-export class PluginService {
-  /**
-   * Get Plugins
-   * @param data The data for the request.
-   * @param data.limit
-   * @param data.offset
-   * @returns PluginCollectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static getPlugins(
-    data: GetPluginsData = {},
-  ): CancelablePromise<GetPluginsResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/plugins",
-      query: {
-        limit: data.limit,
-        offset: data.offset,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        422: "Validation Error",
-      },
-    });
-  }
-}
-
-export class PoolService {
-  /**
-   * Delete Pool
-   * Delete a pool entry.
-   * @param data The data for the request.
-   * @param data.poolName
-   * @returns void Successful Response
-   * @throws ApiError
-   */
-  public static deletePool(
-    data: DeletePoolData,
-  ): CancelablePromise<DeletePoolResponse> {
-    return __request(OpenAPI, {
-      method: "DELETE",
-      url: "/public/pools/{pool_name}",
-      path: {
-        pool_name: data.poolName,
-      },
-      errors: {
-        400: "Bad Request",
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Get Pool
-   * Get a pool.
-   * @param data The data for the request.
-   * @param data.poolName
-   * @returns PoolResponse Successful Response
-   * @throws ApiError
-   */
-  public static getPool(data: GetPoolData): CancelablePromise<GetPoolResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/pools/{pool_name}",
-      path: {
-        pool_name: data.poolName,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Patch Pool
-   * Update a Pool.
-   * @param data The data for the request.
-   * @param data.poolName
-   * @param data.requestBody
-   * @param data.updateMask
-   * @returns PoolResponse Successful Response
-   * @throws ApiError
-   */
-  public static patchPool(
-    data: PatchPoolData,
-  ): CancelablePromise<PatchPoolResponse> {
-    return __request(OpenAPI, {
-      method: "PATCH",
-      url: "/public/pools/{pool_name}",
-      path: {
-        pool_name: data.poolName,
-      },
-      query: {
-        update_mask: data.updateMask,
-      },
-      body: data.requestBody,
-      mediaType: "application/json",
-      errors: {
-        400: "Bad Request",
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Get Pools
-   * Get all pools entries.
-   * @param data The data for the request.
-   * @param data.limit
-   * @param data.offset
-   * @param data.orderBy
-   * @returns PoolCollectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static getPools(
-    data: GetPoolsData = {},
-  ): CancelablePromise<GetPoolsResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/pools",
-      query: {
-        limit: data.limit,
-        offset: data.offset,
-        order_by: data.orderBy,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Post Pool
-   * Create a Pool.
-   * @param data The data for the request.
-   * @param data.requestBody
-   * @returns PoolResponse Successful Response
-   * @throws ApiError
-   */
-  public static postPool(
-    data: PostPoolData,
-  ): CancelablePromise<PostPoolResponse> {
-    return __request(OpenAPI, {
-      method: "POST",
-      url: "/public/pools",
-      body: data.requestBody,
-      mediaType: "application/json",
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        409: "Conflict",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Post Pools
-   * Create multiple pools.
-   * @param data The data for the request.
-   * @param data.requestBody
-   * @returns PoolCollectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static postPools(
-    data: PostPoolsData,
-  ): CancelablePromise<PostPoolsResponse> {
-    return __request(OpenAPI, {
-      method: "POST",
-      url: "/public/pools/bulk",
-      body: data.requestBody,
-      mediaType: "application/json",
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        409: "Conflict",
-        422: "Validation Error",
-      },
-    });
-  }
-}
-
-export class ProviderService {
-  /**
-   * Get Providers
-   * Get providers.
-   * @param data The data for the request.
-   * @param data.limit
-   * @param data.offset
-   * @returns ProviderCollectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static getProviders(
-    data: GetProvidersData = {},
-  ): CancelablePromise<GetProvidersResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/providers",
-      query: {
-        limit: data.limit,
-        offset: data.offset,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
         422: "Validation Error",
       },
     });
@@ -1875,6 +1767,36 @@ export class ProviderService {
 }
 
 export class TaskInstanceService {
+  /**
+   * Get Extra Links
+   * Get extra links for task instance.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @returns ExtraLinksResponse Successful Response
+   * @throws ApiError
+   */
+  public static getExtraLinks(
+    data: GetExtraLinksData,
+  ): CancelablePromise<GetExtraLinksResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
   /**
    * Get Task Instance
    * Get task instance.
@@ -1897,6 +1819,46 @@ export class TaskInstanceService {
         task_id: data.taskId,
       },
       errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Patch Task Instance
+   * Update the state of a task instance.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.requestBody
+   * @param data.mapIndex
+   * @param data.updateMask
+   * @returns TaskInstanceResponse Successful Response
+   * @throws ApiError
+   */
+  public static patchTaskInstance(
+    data: PatchTaskInstanceData,
+  ): CancelablePromise<PatchTaskInstanceResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+      },
+      query: {
+        map_index: data.mapIndex,
+        update_mask: data.updateMask,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
@@ -2038,6 +2000,71 @@ export class TaskInstanceService {
   }
 
   /**
+   * Get Task Instance Tries
+   * Get list of task instances history.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.mapIndex
+   * @returns TaskInstanceHistoryCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getTaskInstanceTries(
+    data: GetTaskInstanceTriesData,
+  ): CancelablePromise<GetTaskInstanceTriesResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+      },
+      query: {
+        map_index: data.mapIndex,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Mapped Task Instance Tries
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.mapIndex
+   * @returns TaskInstanceHistoryCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getMappedTaskInstanceTries(
+    data: GetMappedTaskInstanceTriesData,
+  ): CancelablePromise<GetMappedTaskInstanceTriesResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+        map_index: data.mapIndex,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
    * Get Mapped Task Instance
    * Get task instance.
    * @param data The data for the request.
@@ -2061,6 +2088,46 @@ export class TaskInstanceService {
         map_index: data.mapIndex,
       },
       errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Patch Task Instance
+   * Update the state of a task instance.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.mapIndex
+   * @param data.requestBody
+   * @param data.updateMask
+   * @returns TaskInstanceResponse Successful Response
+   * @throws ApiError
+   */
+  public static patchTaskInstance1(
+    data: PatchTaskInstance1Data,
+  ): CancelablePromise<PatchTaskInstance1Response> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+        map_index: data.mapIndex,
+      },
+      query: {
+        update_mask: data.updateMask,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
@@ -2308,6 +2375,423 @@ export class TaskInstanceService {
   }
 }
 
+export class ImportErrorService {
+  /**
+   * Get Import Error
+   * Get an import error.
+   * @param data The data for the request.
+   * @param data.importErrorId
+   * @returns ImportErrorResponse Successful Response
+   * @throws ApiError
+   */
+  public static getImportError(
+    data: GetImportErrorData,
+  ): CancelablePromise<GetImportErrorResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/importErrors/{import_error_id}",
+      path: {
+        import_error_id: data.importErrorId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Import Errors
+   * Get all import errors.
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @returns ImportErrorCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getImportErrors(
+    data: GetImportErrorsData = {},
+  ): CancelablePromise<GetImportErrorsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/importErrors",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class JobService {
+  /**
+   * Get Jobs
+   * Get all jobs.
+   * @param data The data for the request.
+   * @param data.isAlive
+   * @param data.startDateGte
+   * @param data.startDateLte
+   * @param data.endDateGte
+   * @param data.endDateLte
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @param data.jobState
+   * @param data.jobType
+   * @param data.hostname
+   * @param data.executorClass
+   * @returns JobCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getJobs(
+    data: GetJobsData = {},
+  ): CancelablePromise<GetJobsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/jobs",
+      query: {
+        is_alive: data.isAlive,
+        start_date_gte: data.startDateGte,
+        start_date_lte: data.startDateLte,
+        end_date_gte: data.endDateGte,
+        end_date_lte: data.endDateLte,
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+        job_state: data.jobState,
+        job_type: data.jobType,
+        hostname: data.hostname,
+        executor_class: data.executorClass,
+      },
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class PluginService {
+  /**
+   * Get Plugins
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @returns PluginCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getPlugins(
+    data: GetPluginsData = {},
+  ): CancelablePromise<GetPluginsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/plugins",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class PoolService {
+  /**
+   * Delete Pool
+   * Delete a pool entry.
+   * @param data The data for the request.
+   * @param data.poolName
+   * @returns void Successful Response
+   * @throws ApiError
+   */
+  public static deletePool(
+    data: DeletePoolData,
+  ): CancelablePromise<DeletePoolResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/public/pools/{pool_name}",
+      path: {
+        pool_name: data.poolName,
+      },
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Pool
+   * Get a pool.
+   * @param data The data for the request.
+   * @param data.poolName
+   * @returns PoolResponse Successful Response
+   * @throws ApiError
+   */
+  public static getPool(data: GetPoolData): CancelablePromise<GetPoolResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/pools/{pool_name}",
+      path: {
+        pool_name: data.poolName,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Patch Pool
+   * Update a Pool.
+   * @param data The data for the request.
+   * @param data.poolName
+   * @param data.requestBody
+   * @param data.updateMask
+   * @returns PoolResponse Successful Response
+   * @throws ApiError
+   */
+  public static patchPool(
+    data: PatchPoolData,
+  ): CancelablePromise<PatchPoolResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/pools/{pool_name}",
+      path: {
+        pool_name: data.poolName,
+      },
+      query: {
+        update_mask: data.updateMask,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Pools
+   * Get all pools entries.
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @returns PoolCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getPools(
+    data: GetPoolsData = {},
+  ): CancelablePromise<GetPoolsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/pools",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Post Pool
+   * Create a Pool.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns PoolResponse Successful Response
+   * @throws ApiError
+   */
+  public static postPool(
+    data: PostPoolData,
+  ): CancelablePromise<PostPoolResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/pools",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        409: "Conflict",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Post Pools
+   * Create multiple pools.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns PoolCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static postPools(
+    data: PostPoolsData,
+  ): CancelablePromise<PostPoolsResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/pools/bulk",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        409: "Conflict",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class ProviderService {
+  /**
+   * Get Providers
+   * Get providers.
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @returns ProviderCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getProviders(
+    data: GetProvidersData = {},
+  ): CancelablePromise<GetProvidersResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/providers",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class XcomService {
+  /**
+   * Get Xcom Entry
+   * Get an XCom entry.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.taskId
+   * @param data.dagRunId
+   * @param data.xcomKey
+   * @param data.mapIndex
+   * @param data.deserialize
+   * @param data.stringify
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getXcomEntry(
+    data: GetXcomEntryData,
+  ): CancelablePromise<GetXcomEntryResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
+      path: {
+        dag_id: data.dagId,
+        task_id: data.taskId,
+        dag_run_id: data.dagRunId,
+        xcom_key: data.xcomKey,
+      },
+      query: {
+        map_index: data.mapIndex,
+        deserialize: data.deserialize,
+        stringify: data.stringify,
+      },
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Xcom Entries
+   * Get all XCom entries.
+   *
+   * This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCom entries for all DAGs.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.xcomKey
+   * @param data.mapIndex
+   * @param data.limit
+   * @param data.offset
+   * @returns XComCollection Successful Response
+   * @throws ApiError
+   */
+  public static getXcomEntries(
+    data: GetXcomEntriesData,
+  ): CancelablePromise<GetXcomEntriesResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+      },
+      query: {
+        xcom_key: data.xcomKey,
+        map_index: data.mapIndex,
+        limit: data.limit,
+        offset: data.offset,
+      },
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
 export class TaskService {
   /**
    * Get Tasks
@@ -2509,40 +2993,25 @@ export class VariableService {
   }
 }
 
-export class XcomService {
+export class DagParsingService {
   /**
-   * Get Xcom Entry
-   * Get an XCom entry.
+   * Reparse Dag File
+   * Request re-parsing a DAG file.
    * @param data The data for the request.
-   * @param data.dagId
-   * @param data.taskId
-   * @param data.dagRunId
-   * @param data.xcomKey
-   * @param data.mapIndex
-   * @param data.deserialize
-   * @param data.stringify
-   * @returns unknown Successful Response
+   * @param data.fileToken
+   * @returns null Successful Response
    * @throws ApiError
    */
-  public static getXcomEntry(
-    data: GetXcomEntryData,
-  ): CancelablePromise<GetXcomEntryResponse> {
+  public static reparseDagFile(
+    data: ReparseDagFileData,
+  ): CancelablePromise<ReparseDagFileResponse> {
     return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
+      method: "PUT",
+      url: "/public/parseDagFile/{file_token}",
       path: {
-        dag_id: data.dagId,
-        task_id: data.taskId,
-        dag_run_id: data.dagRunId,
-        xcom_key: data.xcomKey,
-      },
-      query: {
-        map_index: data.mapIndex,
-        deserialize: data.deserialize,
-        stringify: data.stringify,
+        file_token: data.fileToken,
       },
       errors: {
-        400: "Bad Request",
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
@@ -2555,7 +3024,7 @@ export class XcomService {
 export class MonitorService {
   /**
    * Get Health
-   * @returns HealthInfoSchema Successful Response
+   * @returns HealthInfoResponse Successful Response
    * @throws ApiError
    */
   public static getHealth(): CancelablePromise<GetHealthResponse> {

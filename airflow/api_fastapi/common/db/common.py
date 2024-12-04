@@ -23,73 +23,54 @@ Database helpers for Airflow REST API.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Literal, overload
+from typing import TYPE_CHECKING, Annotated, Literal, overload
 
+from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from airflow.utils.db import get_query_count, get_query_count_async
 from airflow.utils.session import NEW_SESSION, create_session, create_session_async, provide_session
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
 
     from airflow.api_fastapi.common.parameters import BaseParam
 
 
-def get_session() -> Session:
-    """
-    Dependency for providing a session.
-
-    For non route function please use the :class:`airflow.utils.session.provide_session` decorator.
-
-    Example usage:
-
-    .. code:: python
-
-        @router.get("/your_path")
-        def your_route(session: Annotated[Session, Depends(get_session)]):
-            pass
-    """
+def _get_session() -> Session:
     with create_session(scoped=False) as session:
         yield session
 
 
+SessionDep = Annotated[Session, Depends(_get_session)]
+
+
 def apply_filters_to_select(
-    *,
-    base_select: Select,
-    filters: Sequence[BaseParam | None] | None = None,
+    *, statement: Select, filters: Sequence[BaseParam | None] | None = None
 ) -> Select:
     if filters is None:
-        return base_select
+        return statement
     for f in filters:
         if f is None:
             continue
-        base_select = f.to_orm(base_select)
+        statement = f.to_orm(statement)
 
-    return base_select
+    return statement
 
 
-async def get_async_session() -> AsyncSession:
-    """
-    Dependency for providing a session.
-
-    Example usage:
-
-    .. code:: python
-
-        @router.get("/your_path")
-        def your_route(session: Annotated[AsyncSession, Depends(get_async_session)]):
-            pass
-    """
+async def _get_async_session() -> AsyncSession:
     async with create_session_async() as session:
         yield session
+
+
+AsyncSessionDep = Annotated[AsyncSession, Depends(_get_async_session)]
 
 
 @overload
 async def paginated_select_async(
     *,
-    query: Select,
+    statement: Select,
     filters: Sequence[BaseParam] | None = None,
     order_by: BaseParam | None = None,
     offset: BaseParam | None = None,
@@ -102,7 +83,7 @@ async def paginated_select_async(
 @overload
 async def paginated_select_async(
     *,
-    query: Select,
+    statement: Select,
     filters: Sequence[BaseParam] | None = None,
     order_by: BaseParam | None = None,
     offset: BaseParam | None = None,
@@ -114,7 +95,7 @@ async def paginated_select_async(
 
 async def paginated_select_async(
     *,
-    query: Select,
+    statement: Select,
     filters: Sequence[BaseParam | None] | None = None,
     order_by: BaseParam | None = None,
     offset: BaseParam | None = None,
@@ -122,32 +103,32 @@ async def paginated_select_async(
     session: AsyncSession,
     return_total_entries: bool = True,
 ) -> tuple[Select, int | None]:
-    query = apply_filters_to_select(
-        base_select=query,
+    statement = apply_filters_to_select(
+        statement=statement,
         filters=filters,
     )
 
     total_entries = None
     if return_total_entries:
-        total_entries = await get_query_count_async(query, session=session)
+        total_entries = await get_query_count_async(statement, session=session)
 
     # TODO: Re-enable when permissions are handled. Readable / writable entities,
     # for instance:
     # readable_dags = get_auth_manager().get_permitted_dag_ids(user=g.user)
     # dags_select = dags_select.where(DagModel.dag_id.in_(readable_dags))
 
-    query = apply_filters_to_select(
-        base_select=query,
+    statement = apply_filters_to_select(
+        statement=statement,
         filters=[order_by, offset, limit],
     )
 
-    return query, total_entries
+    return statement, total_entries
 
 
 @overload
 def paginated_select(
     *,
-    select: Select,
+    statement: Select,
     filters: Sequence[BaseParam] | None = None,
     order_by: BaseParam | None = None,
     offset: BaseParam | None = None,
@@ -160,7 +141,7 @@ def paginated_select(
 @overload
 def paginated_select(
     *,
-    select: Select,
+    statement: Select,
     filters: Sequence[BaseParam] | None = None,
     order_by: BaseParam | None = None,
     offset: BaseParam | None = None,
@@ -173,7 +154,7 @@ def paginated_select(
 @provide_session
 def paginated_select(
     *,
-    select: Select,
+    statement: Select,
     filters: Sequence[BaseParam] | None = None,
     order_by: BaseParam | None = None,
     offset: BaseParam | None = None,
@@ -181,20 +162,20 @@ def paginated_select(
     session: Session = NEW_SESSION,
     return_total_entries: bool = True,
 ) -> tuple[Select, int | None]:
-    base_select = apply_filters_to_select(
-        base_select=select,
+    statement = apply_filters_to_select(
+        statement=statement,
         filters=filters,
     )
 
     total_entries = None
     if return_total_entries:
-        total_entries = get_query_count(base_select, session=session)
+        total_entries = get_query_count(statement, session=session)
 
     # TODO: Re-enable when permissions are handled. Readable / writable entities,
     # for instance:
     # readable_dags = get_auth_manager().get_permitted_dag_ids(user=g.user)
     # dags_select = dags_select.where(DagModel.dag_id.in_(readable_dags))
 
-    base_select = apply_filters_to_select(base_select=base_select, filters=[order_by, offset, limit])
+    statement = apply_filters_to_select(statement=statement, filters=[order_by, offset, limit])
 
-    return base_select, total_entries
+    return statement, total_entries

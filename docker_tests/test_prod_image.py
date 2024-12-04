@@ -57,13 +57,13 @@ class TestCommands:
         """Checking the image without a command. It should return non-zero exit code."""
         with pytest.raises(DockerException) as ctx:
             run_cmd_in_docker(image=default_docker_image)
-        assert 2 == ctx.value.return_code
+        assert ctx.value.return_code == 2
 
     def test_airflow_command(self, default_docker_image):
         """Checking 'airflow' command. It should return non-zero exit code."""
         with pytest.raises(DockerException) as ctx:
             run_airflow_cmd_in_docker(image=default_docker_image)
-        assert 2 == ctx.value.return_code
+        assert ctx.value.return_code == 2
 
     def test_airflow_version(self, default_docker_image):
         """Checking 'airflow version' command. It should return zero exit code."""

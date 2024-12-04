@@ -22,9 +22,8 @@ from fastapi import Depends, HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import delete, select
-from sqlalchemy.orm import Session
 
-from airflow.api_fastapi.common.db.common import get_session, paginated_select
+from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.pools import (
@@ -53,7 +52,7 @@ pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
 )
 def delete_pool(
     pool_name: str,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ):
     """Delete a pool entry."""
     if pool_name == "default_pool":
@@ -71,7 +70,7 @@ def delete_pool(
 )
 def get_pool(
     pool_name: str,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> PoolResponse:
     """Get a pool."""
     pool = session.scalar(select(Pool).where(Pool.pool == pool_name))
@@ -92,11 +91,11 @@ def get_pools(
         SortParam,
         Depends(SortParam(["id", "name"], Pool).dynamic_depends()),
     ],
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> PoolCollectionResponse:
     """Get all pools entries."""
     pools_select, total_entries = paginated_select(
-        select=select(Pool),
+        statement=select(Pool),
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -123,7 +122,7 @@ def get_pools(
 def patch_pool(
     pool_name: str,
     patch_body: PoolPatchBody,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     update_mask: list[str] | None = Query(None),
 ) -> PoolResponse:
     """Update a Pool."""
@@ -167,7 +166,7 @@ def patch_pool(
 )
 def post_pool(
     body: PoolPostBody,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> PoolResponse:
     """Create a Pool."""
     pool = Pool(**body.model_dump())
@@ -186,7 +185,7 @@ def post_pool(
 )
 def post_pools(
     body: PoolPostBulkBody,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> PoolCollectionResponse:
     """Create multiple pools."""
     pools = [Pool(**body.model_dump()) for body in body.pools]

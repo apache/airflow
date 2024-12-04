@@ -142,7 +142,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "statsd>=3.3.0",
     ],
     "uv": [
-        "uv>=0.5.3",
+        "uv>=0.5.5",
     ],
 }
 
@@ -248,7 +248,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
     ],
     "devel-static-checks": [
         "black>=23.12.0",
-        "ruff==0.8.0",
+        "ruff==0.8.1",
         "yamllint>=1.33.0",
     ],
     "devel-tests": [
@@ -414,8 +414,7 @@ DEPENDENCIES = [
     'pendulum>=3.0.0,<4.0;python_version>="3.12"',
     "pluggy>=1.5.0",
     "psutil>=5.8.0",
-    # https://github.com/pydantic/pydantic/issues/10910
-    "pydantic>=2.10.1",
+    "pydantic>=2.10.2",
     "pygments>=2.0.1",
     "pyjwt>=2.0.0",
     "python-daemon>=3.0.0",

@@ -27,7 +27,7 @@ from airflow.security import permissions
 
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_role, delete_role
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 class TestRoleCollectionItemSchema:

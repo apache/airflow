@@ -27,11 +27,11 @@ source-date-epoch: 1729683247
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:
-  - 0.6.1pre0
+  - 0.9.0pre0
 
 dependencies:
   - apache-airflow>=2.10.0
-  - pydantic>=2.10.1
+  - pydantic>=2.10.2
 
 plugins:
   - name: edge_executor
@@ -80,10 +80,10 @@ config:
         default: "30"
       worker_concurrency:
         description: |
-          The concurrency that will be used when starting workers with the
-          ``airflow edge worker`` command. This defines the number of task instances that
-          a worker will take, so size up your workers based on the resources on
-          your worker box and the nature of your tasks
+          The concurrency defines the default max parallel running task instances and can also be set during
+          start of worker with the ``airflow edge worker`` command parameter. The size of the workers
+          and the resources must support the nature of your tasks. The parameter
+          works together with the concurrency_slots parameter of a task.
         version_added: ~
         type: integer
         example: ~

@@ -38,13 +38,14 @@ def clean_listener_manager():
     asset_listener.clear()
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 @pytest.mark.db_test
 @provide_session
 def test_asset_listener_on_asset_changed_gets_calls(create_task_instance_of_operator, session):
-    asset_uri = "test_asset_uri"
-    asset = Asset(uri=asset_uri)
-    asset_model = AssetModel(uri=asset_uri)
+    asset_uri = "test://asset/"
+    asset_name = "test_asset_uri"
+    asset_group = "test-group"
+    asset = Asset(uri=asset_uri, name=asset_name, group=asset_group)
+    asset_model = AssetModel(uri=asset_uri, name=asset_name, group=asset_group)
     session.add(asset_model)
 
     session.flush()
@@ -60,3 +61,5 @@ def test_asset_listener_on_asset_changed_gets_calls(create_task_instance_of_oper
 
     assert len(asset_listener.changed) == 1
     assert asset_listener.changed[0].uri == asset_uri
+    assert asset_listener.changed[0].name == asset_name
+    assert asset_listener.changed[0].group == asset_group

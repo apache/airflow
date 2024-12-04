@@ -67,7 +67,7 @@ class TestSensors:
             kafka_config_id="kafka_d", topics=["test"], task_id="test", apply_function=_return_true
         )
 
-        assert "test" == sensor.execute_complete(context={}, event="test")
+        assert sensor.execute_complete(context={}, event="test") == "test"
 
     def test_await_message_trigger_event(self):
         sensor = AwaitMessageTriggerFunctionSensor(

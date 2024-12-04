@@ -23,7 +23,7 @@ from airflow.utils.session import provide_session
 
 from tests_common.test_utils.db import clear_db_pools
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 POOL1_NAME = "pool1"
 POOL1_SLOT = 3
@@ -69,7 +69,7 @@ class TestDeletePool(TestPoolsEndpoint):
         response = test_client.delete("/public/pools/default_pool")
         assert response.status_code == 400
         body = response.json()
-        assert "Default Pool can't be deleted" == body["detail"]
+        assert body["detail"] == "Default Pool can't be deleted"
 
     def test_delete_should_respond_404(self, test_client):
         response = test_client.delete(f"/public/pools/{POOL1_NAME}")
@@ -120,7 +120,7 @@ class TestGetPools(TestPoolsEndpoint):
         self, test_client, session, query_params, expected_total_entries, expected_ids
     ):
         self.create_pools()
-        response = test_client.get("/public/pools/", params=query_params)
+        response = test_client.get("/public/pools", params=query_params)
         assert response.status_code == 200
 
         body = response.json()
@@ -324,7 +324,7 @@ class TestPostPool(TestPoolsEndpoint):
     def test_should_respond_200(self, test_client, session, body, expected_status_code, expected_response):
         self.create_pools()
         n_pools = session.query(Pool).count()
-        response = test_client.post("/public/pools/", json=body)
+        response = test_client.post("/public/pools", json=body)
         assert response.status_code == expected_status_code
 
         assert response.json() == expected_response
@@ -365,11 +365,11 @@ class TestPostPool(TestPoolsEndpoint):
     ):
         self.create_pools()
         n_pools = session.query(Pool).count()
-        response = test_client.post("/public/pools/", json=body)
+        response = test_client.post("/public/pools", json=body)
         assert response.status_code == first_expected_status_code
         assert response.json() == first_expected_response
         assert session.query(Pool).count() == n_pools + 1
-        response = test_client.post("/public/pools/", json=body)
+        response = test_client.post("/public/pools", json=body)
         assert response.status_code == second_expected_status_code
         assert response.json() == second_expected_response
         assert session.query(Pool).count() == n_pools + 1

@@ -64,9 +64,9 @@ class TestTrinoToGCSOperator:
     @patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook")
     def test_save_as_json(self, mock_gcs_hook, mock_trino_hook):
         def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
-            assert BUCKET == bucket
+            assert bucket == BUCKET
             assert FILENAME.format(0) == obj
-            assert "application/json" == mime_type
+            assert mime_type == "application/json"
             assert not gzip
             with open(tmp_filename, "rb") as file:
                 assert b"".join(NDJSON_LINES) == file.read()
@@ -118,8 +118,8 @@ class TestTrinoToGCSOperator:
         }
 
         def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
-            assert BUCKET == bucket
-            assert "application/json" == mime_type
+            assert bucket == BUCKET
+            assert mime_type == "application/json"
             assert not gzip
             with open(tmp_filename, "rb") as file:
                 assert expected_upload[obj] == file.read()
@@ -160,7 +160,7 @@ class TestTrinoToGCSOperator:
         def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
             if obj == SCHEMA_FILENAME:
                 with open(tmp_filename, "rb") as file:
-                    assert SCHEMA_JSON == file.read()
+                    assert file.read() == SCHEMA_JSON
 
         mock_gcs_hook.return_value.upload.side_effect = _assert_upload
 
@@ -191,15 +191,15 @@ class TestTrinoToGCSOperator:
         op.execute(None)
 
         # once for the file and once for the schema
-        assert 2 == mock_gcs_hook.return_value.upload.call_count
+        assert mock_gcs_hook.return_value.upload.call_count == 2
 
     @patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook")
     @patch("airflow.providers.google.cloud.transfers.trino_to_gcs.TrinoHook")
     def test_save_as_csv(self, mock_trino_hook, mock_gcs_hook):
         def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
-            assert BUCKET == bucket
+            assert bucket == BUCKET
             assert FILENAME.format(0) == obj
-            assert "text/csv" == mime_type
+            assert mime_type == "text/csv"
             assert not gzip
             with open(tmp_filename, "rb") as file:
                 assert b"".join(CSV_LINES) == file.read()
@@ -252,8 +252,8 @@ class TestTrinoToGCSOperator:
         }
 
         def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
-            assert BUCKET == bucket
-            assert "text/csv" == mime_type
+            assert bucket == BUCKET
+            assert mime_type == "text/csv"
             assert not gzip
             with open(tmp_filename, "rb") as file:
                 assert expected_upload[obj] == file.read()
@@ -295,7 +295,7 @@ class TestTrinoToGCSOperator:
         def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
             if obj == SCHEMA_FILENAME:
                 with open(tmp_filename, "rb") as file:
-                    assert SCHEMA_JSON == file.read()
+                    assert file.read() == SCHEMA_JSON
 
         mock_gcs_hook.return_value.upload.side_effect = _assert_upload
 
@@ -324,4 +324,4 @@ class TestTrinoToGCSOperator:
         op.execute(None)
 
         # once for the file and once for the schema
-        assert 2 == mock_gcs_hook.return_value.upload.call_count
+        assert mock_gcs_hook.return_value.upload.call_count == 2

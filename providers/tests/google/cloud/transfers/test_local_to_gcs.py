@@ -25,6 +25,10 @@ from unittest import mock
 import pytest
 
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.openlineage.facet import (
+    Identifier,
+    SymlinksDatasetFacet,
+)
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 
 pytestmark = pytest.mark.db_test
@@ -72,7 +76,7 @@ class TestFileToGcsOperator:
     def test_execute(self, mock_hook):
         mock_instance = mock_hook.return_value
         operator = LocalFilesystemToGCSOperator(
-            task_id="gcs_to_file_sensor",
+            task_id="file_to_gcs_operator",
             dag=self.dag,
             src=self.testfile1,
             dst="test/test1.csv",
@@ -91,7 +95,7 @@ class TestFileToGcsOperator:
     @pytest.mark.db_test
     def test_execute_with_empty_src(self):
         operator = LocalFilesystemToGCSOperator(
-            task_id="local_to_sensor",
+            task_id="file_to_gcs_operator",
             dag=self.dag,
             src="no_file.txt",
             dst="test/no_file.txt",
@@ -104,7 +108,7 @@ class TestFileToGcsOperator:
     def test_execute_multiple(self, mock_hook):
         mock_instance = mock_hook.return_value
         operator = LocalFilesystemToGCSOperator(
-            task_id="gcs_to_file_sensor", dag=self.dag, src=self.testfiles, dst="test/", **self._config
+            task_id="file_to_gcs_operator", dag=self.dag, src=self.testfiles, dst="test/", **self._config
         )
         operator.execute(None)
         files_objects = zip(
@@ -127,7 +131,7 @@ class TestFileToGcsOperator:
     def test_execute_wildcard(self, mock_hook):
         mock_instance = mock_hook.return_value
         operator = LocalFilesystemToGCSOperator(
-            task_id="gcs_to_file_sensor", dag=self.dag, src="/tmp/fake*.csv", dst="test/", **self._config
+            task_id="file_to_gcs_operator", dag=self.dag, src="/tmp/fake*.csv", dst="test/", **self._config
         )
         operator.execute(None)
         object_names = ["test/" + os.path.basename(fp) for fp in glob("/tmp/fake*.csv")]
@@ -145,17 +149,82 @@ class TestFileToGcsOperator:
         ]
         mock_instance.upload.assert_has_calls(calls)
 
+    @pytest.mark.parametrize(
+        ("src", "dst"),
+        [
+            ("/tmp/fake*.csv", "test/test1.csv"),
+            ("/tmp/fake*.csv", "test"),
+            ("/tmp/fake*.csv", "test/dir"),
+        ],
+    )
     @mock.patch("airflow.providers.google.cloud.transfers.local_to_gcs.GCSHook", autospec=True)
-    def test_execute_negative(self, mock_hook):
+    def test_execute_negative(self, mock_hook, src, dst):
         mock_instance = mock_hook.return_value
         operator = LocalFilesystemToGCSOperator(
-            task_id="gcs_to_file_sensor",
+            task_id="file_to_gcs_operator",
             dag=self.dag,
-            src="/tmp/fake*.csv",
-            dst="test/test1.csv",
+            src=src,
+            dst=dst,
             **self._config,
         )
-        print(glob("/tmp/fake*.csv"))
         with pytest.raises(ValueError):
             operator.execute(None)
         mock_instance.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("src", "dst", "expected_input", "expected_output", "symlink"),
+        [
+            ("/tmp/fake*.csv", "test/", "/tmp", "test", True),
+            ("/tmp/../tmp/fake*.csv", "test/", "/tmp", "test", True),
+            ("/tmp/fake1.csv", "test/test1.csv", "/tmp/fake1.csv", "test/test1.csv", False),
+            ("/tmp/fake1.csv", "test/pre", "/tmp/fake1.csv", "test/pre", False),
+        ],
+    )
+    def test_get_openlineage_facets_on_start_with_string_src(
+        self, src, dst, expected_input, expected_output, symlink
+    ):
+        operator = LocalFilesystemToGCSOperator(
+            task_id="gcs_to_file_sensor",
+            dag=self.dag,
+            src=src,
+            dst=dst,
+            **self._config,
+        )
+        result = operator.get_openlineage_facets_on_start()
+        assert not result.job_facets
+        assert not result.run_facets
+        assert len(result.outputs) == 1
+        assert len(result.inputs) == 1
+        assert result.outputs[0].namespace == "gs://dummy"
+        assert result.outputs[0].name == expected_output
+        assert result.inputs[0].namespace == "file"
+        assert result.inputs[0].name == expected_input
+        if symlink:
+            assert result.inputs[0].facets["symlink"] == SymlinksDatasetFacet(
+                identifiers=[Identifier(namespace="file", name=src, type="file")]
+            )
+
+    @pytest.mark.parametrize(
+        ("src", "dst", "expected_inputs", "expected_output"),
+        [
+            (["/tmp/fake1.csv", "/tmp/fake2.csv"], "test/", ["/tmp/fake1.csv", "/tmp/fake2.csv"], "test"),
+            (["/tmp/fake1.csv", "/tmp/fake2.csv"], "", ["/tmp/fake1.csv", "/tmp/fake2.csv"], "/"),
+        ],
+    )
+    def test_get_openlineage_facets_on_start_with_list_src(self, src, dst, expected_inputs, expected_output):
+        operator = LocalFilesystemToGCSOperator(
+            task_id="gcs_to_file_sensor",
+            dag=self.dag,
+            src=src,
+            dst=dst,
+            **self._config,
+        )
+        result = operator.get_openlineage_facets_on_start()
+        assert not result.job_facets
+        assert not result.run_facets
+        assert len(result.outputs) == 1
+        assert len(result.inputs) == len(expected_inputs)
+        assert result.outputs[0].name == expected_output
+        assert result.outputs[0].namespace == "gs://dummy"
+        assert all(inp.name in expected_inputs for inp in result.inputs)
+        assert all(inp.namespace == "file" for inp in result.inputs)

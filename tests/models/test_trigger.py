@@ -30,6 +30,7 @@ from cryptography.fernet import Fernet
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import TaskInstance, Trigger, XCom
+from airflow.models.asset import AssetEvent, AssetModel, asset_trigger_association_table
 from airflow.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.triggers.base import (
@@ -59,13 +60,37 @@ def session():
 @pytest.fixture(autouse=True)
 def clear_db(session):
     session.query(TaskInstance).delete()
+    session.query(asset_trigger_association_table).delete()
     session.query(Trigger).delete()
+    session.query(AssetModel).delete()
+    session.query(AssetEvent).delete()
     session.query(Job).delete()
     yield session
     session.query(TaskInstance).delete()
+    session.query(asset_trigger_association_table).delete()
     session.query(Trigger).delete()
+    session.query(AssetModel).delete()
+    session.query(AssetEvent).delete()
     session.query(Job).delete()
     session.commit()
+
+
+def test_fetch_trigger_ids_with_asset(session):
+    # Create triggers
+    trigger1 = Trigger(classpath="airflow.triggers.testing.SuccessTrigger1", kwargs={})
+    trigger1.id = 1
+    trigger2 = Trigger(classpath="airflow.triggers.testing.SuccessTrigger2", kwargs={})
+    trigger2.id = 2
+    session.add(trigger1)
+    session.add(trigger2)
+    # Create assets
+    asset = AssetModel("test")
+    asset.triggers.extend([trigger1])
+    session.add(asset)
+    session.commit()
+
+    results = Trigger.fetch_trigger_ids_with_asset()
+    assert results == {1}
 
 
 def test_clean_unused(session, create_task_instance):
@@ -73,37 +98,56 @@ def test_clean_unused(session, create_task_instance):
     Tests that unused triggers (those with no task instances referencing them)
     are cleaned out automatically.
     """
-    # Make three triggers
-    trigger1 = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    # Create triggers
+    trigger1 = Trigger(classpath="airflow.triggers.testing.SuccessTrigger1", kwargs={})
     trigger1.id = 1
-    trigger2 = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    trigger2 = Trigger(classpath="airflow.triggers.testing.SuccessTrigger2", kwargs={})
     trigger2.id = 2
-    trigger3 = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    trigger3 = Trigger(classpath="airflow.triggers.testing.SuccessTrigger3", kwargs={})
     trigger3.id = 3
+    trigger4 = Trigger(classpath="airflow.triggers.testing.SuccessTrigger4", kwargs={})
+    trigger4.id = 4
+    trigger5 = Trigger(classpath="airflow.triggers.testing.SuccessTrigger5", kwargs={})
+    trigger5.id = 5
     session.add(trigger1)
     session.add(trigger2)
     session.add(trigger3)
+    session.add(trigger4)
+    session.add(trigger5)
     session.commit()
-    assert session.query(Trigger).count() == 3
+    assert session.query(Trigger).count() == 5
     # Tie one to a fake TaskInstance that is not deferred, and one to one that is
     task_instance = create_task_instance(
         session=session, task_id="fake", state=State.DEFERRED, logical_date=timezone.utcnow()
     )
     task_instance.trigger_id = trigger1.id
     session.add(task_instance)
-    fake_task = EmptyOperator(task_id="fake2", dag=task_instance.task.dag)
-    task_instance = TaskInstance(task=fake_task, run_id=task_instance.run_id)
-    task_instance.state = State.SUCCESS
-    task_instance.trigger_id = trigger2.id
-    session.add(task_instance)
+    fake_task1 = EmptyOperator(task_id="fake2", dag=task_instance.task.dag)
+    task_instance1 = TaskInstance(task=fake_task1, run_id=task_instance.run_id)
+    task_instance1.state = State.SUCCESS
+    task_instance1.trigger_id = trigger2.id
+    session.add(task_instance1)
+    fake_task2 = EmptyOperator(task_id="fake3", dag=task_instance.task.dag)
+    task_instance2 = TaskInstance(task=fake_task2, run_id=task_instance.run_id)
+    task_instance2.state = State.SUCCESS
+    task_instance2.trigger_id = trigger4.id
+    session.add(task_instance2)
     session.commit()
+
+    # Create assets
+    asset = AssetModel("test")
+    asset.triggers.extend([trigger4, trigger5])
+    session.add(asset)
+    session.commit()
+    assert session.query(AssetModel).count() == 1
+
     # Run clear operation
     Trigger.clean_unused()
-    # Verify that one trigger is gone, and the right one is left
-    assert session.query(Trigger).one().id == trigger1.id
+    results = session.query(Trigger).all()
+    assert len(results) == 3
+    assert {result.id for result in results} == {1, 4, 5}
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_submit_event(session, create_task_instance):
     """
     Tests that events submitted to a trigger re-wake their dependent
@@ -121,6 +165,15 @@ def test_submit_event(session, create_task_instance):
     task_instance.trigger_id = trigger.id
     task_instance.next_kwargs = {"cheesecake": True}
     session.commit()
+    # Create assets
+    asset = AssetModel("test")
+    asset.id = 1
+    asset.triggers.extend([trigger])
+    session.add(asset)
+    session.commit()
+
+    # Check that the asset has 0 event prior to sending an event to the trigger
+    assert session.query(AssetEvent).filter_by(asset_id=asset.id).count() == 0
     # Call submit_event
     Trigger.submit_event(trigger.id, TriggerEvent(42), session=session)
     # commit changes made by submit event and expire all cache to read from db.
@@ -129,9 +182,10 @@ def test_submit_event(session, create_task_instance):
     updated_task_instance = session.query(TaskInstance).one()
     assert updated_task_instance.state == State.SCHEDULED
     assert updated_task_instance.next_kwargs == {"event": 42, "cheesecake": True}
+    # Check that the asset has received an event
+    assert session.query(AssetEvent).filter_by(asset_id=asset.id).count() == 1
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_submit_failure(session, create_task_instance):
     """
     Tests that failures submitted to a trigger fail their dependent
@@ -154,7 +208,6 @@ def test_submit_failure(session, create_task_instance):
     assert updated_task_instance.next_method == "__fail__"
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 @pytest.mark.parametrize(
     "event_cls, expected",
     [
@@ -311,7 +364,6 @@ def test_assign_unassigned(session, create_task_instance):
     )
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_get_sorted_triggers_same_priority_weight(session, create_task_instance):
     """
     Tests that triggers are sorted by the creation_date if they have the same priority.
@@ -353,16 +405,34 @@ def test_get_sorted_triggers_same_priority_weight(session, create_task_instance)
     TI_new.priority_weight = 1
     TI_new.trigger_id = trigger_new.id
     session.add(TI_new)
-
+    trigger_orphan = Trigger(
+        classpath="airflow.triggers.testing.TriggerOrphan",
+        kwargs={},
+        created_date=new_logical_date,
+    )
+    trigger_orphan.id = 3
+    session.add(trigger_orphan)
+    trigger_asset = Trigger(
+        classpath="airflow.triggers.testing.TriggerAsset",
+        kwargs={},
+        created_date=new_logical_date,
+    )
+    trigger_asset.id = 4
+    session.add(trigger_asset)
     session.commit()
-    assert session.query(Trigger).count() == 2
+    assert session.query(Trigger).count() == 4
+    # Create assets
+    asset = AssetModel("test")
+    asset.id = 1
+    asset.triggers.extend([trigger_asset])
+    session.add(asset)
+    session.commit()
 
     trigger_ids_query = Trigger.get_sorted_triggers(capacity=100, alive_triggerer_ids=[], session=session)
 
-    assert trigger_ids_query == [(1,), (2,)]
+    assert trigger_ids_query == [(1,), (2,), (4,)]
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_get_sorted_triggers_different_priority_weights(session, create_task_instance):
     """
     Tests that triggers are sorted by the priority_weight.

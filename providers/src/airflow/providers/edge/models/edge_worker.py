@@ -20,28 +20,15 @@ import ast
 import json
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Optional
 
-from pydantic import BaseModel, ConfigDict
-from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    select,
-)
+from sqlalchemy import Column, Integer, String
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.exceptions import AirflowException
 from airflow.models.base import Base
-from airflow.serialization.serialized_objects import add_pydantic_class_type_mapping
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm.session import Session
 
 
 class EdgeWorkerVersionException(AirflowException):
@@ -129,180 +116,49 @@ class EdgeWorkerModel(Base, LoggingMixin):
         self.queues = queues
 
 
-class EdgeWorker(BaseModel, LoggingMixin):
-    """Accessor for Edge Worker instances as logical model."""
+def set_metrics(
+    worker_name: str,
+    state: EdgeWorkerState,
+    jobs_active: int,
+    concurrency: int,
+    free_concurrency: int,
+    queues: list[str] | None,
+) -> None:
+    """Set metric of edge worker."""
+    queues = queues if queues else []
+    connected = state not in (EdgeWorkerState.UNKNOWN, EdgeWorkerState.OFFLINE)
 
-    worker_name: str
-    state: EdgeWorkerState
-    queues: Optional[list[str]]  # noqa: UP007 - prevent Sphinx failing
-    first_online: datetime
-    last_update: Optional[datetime] = None  # noqa: UP007 - prevent Sphinx failing
-    jobs_active: int
-    jobs_taken: int
-    jobs_success: int
-    jobs_failed: int
-    sysinfo: str
-    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
+    Stats.gauge(f"edge_worker.state.{worker_name}", int(connected))
+    Stats.gauge(
+        "edge_worker.state",
+        int(connected),
+        tags={"name": worker_name, "state": state},
+    )
 
-    @staticmethod
-    def set_metrics(
-        worker_name: str,
-        state: EdgeWorkerState,
-        connected: bool,
-        jobs_active: int,
-        concurrency: int,
-        queues: Optional[list[str]],  # noqa: UP007 - prevent Sphinx failing
-    ) -> None:
-        """Set metric of edge worker."""
-        queues = queues if queues else []
+    Stats.gauge(f"edge_worker.jobs_active.{worker_name}", jobs_active)
+    Stats.gauge("edge_worker.jobs_active", jobs_active, tags={"worker_name": worker_name})
 
-        Stats.gauge(f"edge_worker.state.{worker_name}", int(connected))
-        Stats.gauge(
-            "edge_worker.state",
-            int(connected),
-            tags={"name": worker_name, "state": state},
-        )
+    Stats.gauge(f"edge_worker.concurrency.{worker_name}", concurrency)
+    Stats.gauge("edge_worker.concurrency", concurrency, tags={"worker_name": worker_name})
 
-        Stats.gauge(f"edge_worker.jobs_active.{worker_name}", jobs_active)
-        Stats.gauge("edge_worker.jobs_active", jobs_active, tags={"worker_name": worker_name})
+    Stats.gauge(f"edge_worker.free_concurrency.{worker_name}", free_concurrency)
+    Stats.gauge("edge_worker.free_concurrency", free_concurrency, tags={"worker_name": worker_name})
 
-        Stats.gauge(f"edge_worker.concurrency.{worker_name}", concurrency)
-        Stats.gauge("edge_worker.concurrency", concurrency, tags={"worker_name": worker_name})
-
-        Stats.gauge(
-            f"edge_worker.num_queues.{worker_name}",
-            len(queues),
-        )
-        Stats.gauge(
-            "edge_worker.num_queues",
-            len(queues),
-            tags={"worker_name": worker_name, "queues": ",".join(queues)},
-        )
-
-    @staticmethod
-    def reset_metrics(worker_name: str) -> None:
-        """Reset metrics of worker."""
-        EdgeWorker.set_metrics(
-            worker_name=worker_name,
-            state=EdgeWorkerState.UNKNOWN,
-            connected=False,
-            jobs_active=0,
-            concurrency=0,
-            queues=None,
-        )
-
-    @staticmethod
-    def assert_version(sysinfo: dict[str, str]) -> None:
-        """Check if the Edge Worker version matches the central API site."""
-        from airflow import __version__ as airflow_version
-        from airflow.providers.edge import __version__ as edge_provider_version
-
-        # Note: In future, more stable versions we might be more liberate, for the
-        #       moment we require exact version match for Edge Worker and core version
-        if "airflow_version" in sysinfo:
-            airflow_on_worker = sysinfo["airflow_version"]
-            if airflow_on_worker != airflow_version:
-                raise EdgeWorkerVersionException(
-                    f"Edge Worker runs on Airflow {airflow_on_worker} "
-                    f"and the core runs on {airflow_version}. Rejecting access due to difference."
-                )
-        else:
-            raise EdgeWorkerVersionException("Edge Worker does not specify the version it is running on.")
-
-        if "edge_provider_version" in sysinfo:
-            provider_on_worker = sysinfo["edge_provider_version"]
-            if provider_on_worker != edge_provider_version:
-                raise EdgeWorkerVersionException(
-                    f"Edge Worker runs on Edge Provider {provider_on_worker} "
-                    f"and the core runs on {edge_provider_version}. Rejecting access due to difference."
-                )
-        else:
-            raise EdgeWorkerVersionException(
-                "Edge Worker does not specify the provider version it is running on."
-            )
-
-    @staticmethod
-    @internal_api_call
-    @provide_session
-    def register_worker(
-        worker_name: str,
-        state: EdgeWorkerState,
-        queues: list[str] | None,
-        sysinfo: dict[str, str],
-        session: Session = NEW_SESSION,
-    ) -> EdgeWorker:
-        EdgeWorker.assert_version(sysinfo)
-        query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
-        worker: EdgeWorkerModel = session.scalar(query)
-        if not worker:
-            worker = EdgeWorkerModel(worker_name=worker_name, state=state, queues=queues)
-        worker.state = state
-        worker.queues = queues
-        worker.sysinfo = json.dumps(sysinfo)
-        worker.last_update = timezone.utcnow()
-        session.add(worker)
-        return EdgeWorker(
-            worker_name=worker_name,
-            state=state,
-            queues=queues,
-            first_online=worker.first_online,
-            last_update=worker.last_update,
-            jobs_active=worker.jobs_active or 0,
-            jobs_taken=worker.jobs_taken or 0,
-            jobs_success=worker.jobs_success or 0,
-            jobs_failed=worker.jobs_failed or 0,
-            sysinfo=worker.sysinfo or "{}",
-        )
-
-    @staticmethod
-    @internal_api_call
-    @provide_session
-    def set_state(
-        worker_name: str,
-        state: EdgeWorkerState,
-        jobs_active: int,
-        sysinfo: dict[str, str],
-        session: Session = NEW_SESSION,
-    ) -> list[str] | None:
-        """Set state of worker and returns the current assigned queues."""
-        query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
-        worker: EdgeWorkerModel = session.scalar(query)
-        worker.state = state
-        worker.jobs_active = jobs_active
-        worker.sysinfo = json.dumps(sysinfo)
-        worker.last_update = timezone.utcnow()
-        session.commit()
-        Stats.incr(f"edge_worker.heartbeat_count.{worker_name}", 1, 1)
-        Stats.incr("edge_worker.heartbeat_count", 1, 1, tags={"worker_name": worker_name})
-        EdgeWorker.set_metrics(
-            worker_name=worker_name,
-            state=state,
-            connected=True,
-            jobs_active=jobs_active,
-            concurrency=int(sysinfo["concurrency"]),
-            queues=worker.queues,
-        )
-        EdgeWorker.assert_version(sysinfo)  #  Exception only after worker state is in the DB
-        return worker.queues
-
-    @staticmethod
-    @provide_session
-    def add_and_remove_queues(
-        worker_name: str,
-        new_queues: list[str] | None = None,
-        remove_queues: list[str] | None = None,
-        session: Session = NEW_SESSION,
-    ) -> None:
-        query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
-        worker: EdgeWorkerModel = session.scalar(query)
-        if new_queues:
-            worker.add_queues(new_queues)
-        if remove_queues:
-            worker.remove_queues(remove_queues)
-        session.add(worker)
-        session.commit()
+    Stats.gauge(f"edge_worker.num_queues.{worker_name}", len(queues))
+    Stats.gauge(
+        "edge_worker.num_queues",
+        len(queues),
+        tags={"worker_name": worker_name, "queues": ",".join(queues)},
+    )
 
 
-EdgeWorker.model_rebuild()
-
-add_pydantic_class_type_mapping("edge_worker", EdgeWorkerModel, EdgeWorker)
+def reset_metrics(worker_name: str) -> None:
+    """Reset metrics of worker."""
+    set_metrics(
+        worker_name=worker_name,
+        state=EdgeWorkerState.UNKNOWN,
+        jobs_active=0,
+        concurrency=0,
+        free_concurrency=-1,
+        queues=None,
+    )

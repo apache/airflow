@@ -27,6 +27,62 @@
 Changelog
 ---------
 
+0.9.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Remove dependency to Internal API after migration to FastAPI.``
+
+0.8.2pre0
+.........
+
+Misc
+~~~~
+
+* ``Migrate worker job calls to FastAPI.``
+
+0.8.1pre0
+.........
+
+Misc
+~~~~
+
+* ``Migrate worker log calls to FastAPI.``
+
+0.8.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Migrate worker registration and heartbeat to FastAPI.``
+
+0.7.1pre0
+.........
+
+Misc
+~~~~
+
+* ``Edge worker state is sent as 0 to DB if offline or unknown.``
+
+0.7.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Edge worker supports concurrency slots feature so that jobs which need more concurrency blocking other jobs beeing executed on the same worker in parallel.``
+
+0.6.2pre0
+.........
+
+Misc
+~~~~
+
+* ``Fix race that reporting status fails if the task has been cleaned in parallel.``
+
 0.6.1pre0
 .........
 

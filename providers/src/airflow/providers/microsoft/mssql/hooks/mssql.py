@@ -98,12 +98,14 @@ class MsSqlHook(DbApiHook):
     def get_conn(self) -> PymssqlConnection:
         """Return ``pymssql`` connection object."""
         conn = self.connection
+        extra_conn_args = {key: val for key, val in conn.extra_dejson.items() if key != "sqlalchemy_scheme"}
         return pymssql.connect(
             server=conn.host,
             user=conn.login,
             password=conn.password,
             database=self.schema or conn.schema,
             port=str(conn.port),
+            **extra_conn_args,
         )
 
     def set_autocommit(

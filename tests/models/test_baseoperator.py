@@ -29,7 +29,7 @@ import jinja2
 import pytest
 
 from airflow.decorators import task as task_decorator
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferralTimeout
 from airflow.lineage.entities import File
 from airflow.models.baseoperator import (
     BaseOperator,
@@ -40,6 +40,7 @@ from airflow.models.baseoperator import (
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.trigger import TriggerFailureReason
 from airflow.providers.common.sql.operators import sql
 from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup
@@ -350,12 +351,12 @@ class TestBaseOperator:
         assert [op5] == op3.get_direct_relatives(upstream=False)
         assert {op4, op5} == set(op6.get_direct_relatives(upstream=True))
 
-        assert {"label": "label1"} == dag.get_edge_info(
-            upstream_task_id=op1.task_id, downstream_task_id=op2.task_id
-        )
-        assert {"label": "label2"} == dag.get_edge_info(
-            upstream_task_id=op1.task_id, downstream_task_id=op3.task_id
-        )
+        assert dag.get_edge_info(upstream_task_id=op1.task_id, downstream_task_id=op2.task_id) == {
+            "label": "label1"
+        }
+        assert dag.get_edge_info(upstream_task_id=op1.task_id, downstream_task_id=op3.task_id) == {
+            "label": "label2"
+        }
 
         # Begin test for `XComArgs` with `EdgeModifiers`
         [xlabel1, xlabel2] = [Label(label=f"xcomarg_label{i}") for i in range(1, 3)]
@@ -370,12 +371,12 @@ class TestBaseOperator:
         assert [xop5.operator] == xop3.operator.get_direct_relatives(upstream=False)
         assert {xop4.operator, xop5.operator} == set(xop6.operator.get_direct_relatives(upstream=True))
 
-        assert {"label": "xcomarg_label1"} == dag.get_edge_info(
+        assert dag.get_edge_info(
             upstream_task_id=xop1.operator.task_id, downstream_task_id=xop2.operator.task_id
-        )
-        assert {"label": "xcomarg_label2"} == dag.get_edge_info(
+        ) == {"label": "xcomarg_label1"}
+        assert dag.get_edge_info(
             upstream_task_id=xop1.operator.task_id, downstream_task_id=xop3.operator.task_id
-        )
+        ) == {"label": "xcomarg_label2"}
 
         # Begin test for `TaskGroups`
         [tg1, tg2] = [TaskGroup(group_id=f"tg{i}", dag=dag) for i in range(1, 3)]
@@ -582,6 +583,15 @@ class TestBaseOperator:
         # leaking a lot of state)
         assert caplog.messages == ["test"]
 
+    def test_resume_execution(self):
+        op = BaseOperator(task_id="hi")
+        with pytest.raises(TaskDeferralTimeout):
+            op.resume_execution(
+                next_method="__fail__",
+                next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
+                context={},
+            )
+
 
 def test_deepcopy():
     # Test bug when copying an operator attached to a DAG
@@ -694,7 +704,6 @@ def get_states(dr):
     return dict(ti_dict)
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 @pytest.mark.db_test
 def test_teardown_and_fail_stop(dag_maker):
     """
@@ -740,7 +749,6 @@ def test_teardown_and_fail_stop(dag_maker):
     assert states == expected
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 @pytest.mark.db_test
 def test_get_task_instances(session):
     import pendulum
