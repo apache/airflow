@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-03T19:40:44.214584
+# This constraints file was automatically generated on 2024-12-04T02:15:47.932328
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -189,7 +189,7 @@ execnet==2.1.1
 executing==2.1.0
 facebook_business==21.0.5
 fastapi-cli==0.0.5
-fastapi==0.115.5
+fastapi==0.115.6
 fastavro==1.9.7
 fasteners==0.19
 fastjsonschema==2.21.1
@@ -365,7 +365,7 @@ multidict==6.1.0
 mypy-boto3-appflow==1.35.39
 mypy-boto3-rds==1.35.72
 mypy-boto3-redshift-data==1.35.51
-mypy-boto3-s3==1.35.72
+mypy-boto3-s3==1.35.74
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.1.0
