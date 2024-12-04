@@ -61,6 +61,40 @@ so you can change it at any place, and run
 
 inside container, to enable modified tmux configurations.
 
+Tmux tldr
+~~~~~~~~~
+
+In case you, like some Airflow core devs, are a tmux dummy, here are some tmux config entries
+that you may find helpful.
+
+.. code-block::
+
+  # if you like vi mode instead of emacs
+  set-window-option -g mode-keys vi
+
+  # will not clear the selection immediately
+  bind-key -T copy-mode MouseDragEnd1Pane send-keys -X copy-selection-no-clear
+
+  # make it so ctrl+shift+arrow moves the focused pane
+  bind -T root C-S-Left select-pane -L
+  bind -T root C-S-Right select-pane -R
+  bind -T root C-S-Up select-pane -U
+  bind -T root C-S-Down select-pane -D
+
+Some helpful commands:
+
+  - ``ctrl-b + z``: zoom into selected pane
+  - ``ctrl-b + [``: enter copy mode
+
+To copy an entire pane:
+  - select the pane
+  - enter copy mode: ``ctrl-b + [``
+  - go to start: ``g``
+  - begin selection: ``space``
+  - extend selection to end: ``G``
+  - copy and clear selection: ``enter``
+
+
 Additional tools in Breeze container
 ------------------------------------
 
