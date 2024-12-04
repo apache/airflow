@@ -809,7 +809,7 @@ class TestHandleRequest:
                 b"",
                 "variables.set",
                 (PutVariable(key="test_key", value="test_value", description="test_description"),),
-                {"message": "Variable successfully set"},
+                {"ok": True},
                 id="set_variable",
             ),
         ],
