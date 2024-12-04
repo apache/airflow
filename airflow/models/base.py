@@ -47,7 +47,7 @@ def _get_schema():
 metadata = MetaData(schema=_get_schema(), naming_convention=naming_convention)
 mapper_registry = registry(metadata=metadata)
 _sentinel = type('DefaultSentinel', (object,), {})
-
+_sentinel.callers = {}
 if TYPE_CHECKING:
     Base = Any
 else:
