@@ -21,7 +21,7 @@ import httpx
 import pytest
 
 from airflow.sdk.api.client import Client, RemoteValidationError, ServerResponseError
-from airflow.sdk.api.datamodels._generated import VariableResponse
+from airflow.sdk.api.datamodels._generated import VariableResponse, XComResponse
 
 
 class TestClient:
@@ -142,7 +142,26 @@ class TestXCOMOperations:
     response parsing.
     """
 
-    # TODO: Add tests for get xcom in a follow up
+    def test_xcom_get_success(self):
+        # Simulate a successful response from the server when getting an xcom
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/xcoms/dag_id/run_id/task_id/key":
+                return httpx.Response(
+                    status_code=201,
+                    json={"key": "test_key", "value": "test_value"},
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.xcoms.get(
+            dag_id="dag_id",
+            run_id="run_id",
+            task_id="task_id",
+            key="key",
+        )
+        assert isinstance(result, XComResponse)
+        assert result.key == "test_key"
+        assert result.value == "test_value"
 
     @pytest.mark.parametrize(
         "values",
