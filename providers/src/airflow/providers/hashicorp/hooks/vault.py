@@ -145,9 +145,8 @@ class VaultHook(BaseHook):
         if kwargs:
             client_kwargs = merge_dicts(client_kwargs, kwargs)
 
-        if auth_type == "approle":
-            if self.connection.login:
-                role_id = self.connection.login
+        if auth_type == "approle" and self.connection.login:
+            role_id = self.connection.login
 
         if auth_type == "aws_iam":
             if not role_id:
