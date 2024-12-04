@@ -32,12 +32,14 @@ import type {
 import { StateCircle } from "src/components/StateCircle";
 import { stateColor } from "src/utils/stateColor";
 
+import { TaskRecentRuns } from "./TaskRecentRuns.tsx";
+
 type Props = {
   readonly task: TaskResponse;
-  readonly taskInstance: Array<TaskInstanceResponse>;
+  readonly taskInstances: Array<TaskInstanceResponse>;
 };
 
-export const TaskCard = ({ task, taskInstance }: Props) => (
+export const TaskCard = ({ task, taskInstances }: Props) => (
   <Box
     borderColor="border.emphasized"
     borderRadius={8}
@@ -46,8 +48,9 @@ export const TaskCard = ({ task, taskInstance }: Props) => (
   >
     <Text bg="bg.info" color="fg.info" p={2}>
       {task.task_display_name ?? task.task_id}
+      {task.is_mapped ? "[]" : undefined}
     </Text>
-    <SimpleGrid columns={3} gap={4} height={20} px={3} py={2}>
+    <SimpleGrid columns={4} gap={4} height={20} px={3} py={2}>
       <VStack align="flex-start" gap={1}>
         <Heading color="fg.muted" fontSize="xs">
           Operator
@@ -64,20 +67,22 @@ export const TaskCard = ({ task, taskInstance }: Props) => (
         <Heading color="fg.muted" fontSize="xs">
           Last Run
         </Heading>
-        {taskInstance[0] ? (
+        {taskInstances[0] ? (
           <HStack fontSize="sm">
-            <Text> {taskInstance[0].logical_date} </Text>
-            {taskInstance[0].state === null ? undefined : (
+            <Text> {taskInstances[0].logical_date} </Text>
+            {taskInstances[0].state === null ? undefined : (
               <>
-                <StateCircle state={taskInstance[0].state} />
-                <Text color={stateColor[taskInstance[0].state]}>
-                  {taskInstance[0].state}
+                <StateCircle state={taskInstances[0].state} />
+                <Text color={stateColor[taskInstances[0].state]}>
+                  {taskInstances[0].state}
                 </Text>
               </>
             )}
           </HStack>
         ) : undefined}
       </VStack>
+      {/* TODO: Handled mapped tasks to not plot each map index as a task instance */}
+      {!task.is_mapped && <TaskRecentRuns taskInstances={taskInstances} />}
     </SimpleGrid>
   </Box>
 );

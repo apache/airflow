@@ -40,7 +40,7 @@ const cardDef = (
   card: ({ row }) => (
     <TaskCard
       task={row}
-      taskInstance={
+      taskInstances={
         taskInstances
           ? taskInstances.filter(
               (instance: TaskInstanceResponse) =>
@@ -68,7 +68,7 @@ export const Tasks = () => {
 
   // TODO: Replace dagIdPattern with dagId once supported for better matching
   const { data: runsData } = useDagsServiceRecentDagRuns(
-    { dagIdPattern: dagId ?? "", dagRunsLimit: 1 },
+    { dagIdPattern: dagId ?? "", dagRunsLimit: 14 },
     undefined,
     {
       enabled: Boolean(dagId),
@@ -79,12 +79,14 @@ export const Tasks = () => {
     runsData?.dags.find((dagWithRuns) => dagWithRuns.dag_id === dagId)
       ?.latest_dag_runs ?? [];
 
-  // Fetch the latest dag run and get task instances since we only display last run
+  // TODO: Revisit this endpoint since only 100 task instances are returned and
+  // only duration is calculated with other attributes unused.
   const { data: TaskInstancesResponse } =
     useTaskInstanceServiceGetTaskInstances(
       {
         dagId: dagId ?? "",
-        dagRunId: runs[0]?.dag_run_id ?? "~",
+        dagRunId: "~",
+        logicalDateGte: runs.at(-1)?.logical_date ?? "",
       },
       undefined,
       { enabled: Boolean(runs[0]?.dag_run_id) },
@@ -97,7 +99,7 @@ export const Tasks = () => {
         {data ? data.total_entries : 0} Tasks
       </Heading>
       <DataTable
-        cardDef={cardDef(TaskInstancesResponse?.task_instances)}
+        cardDef={cardDef(TaskInstancesResponse?.task_instances.reverse())}
         columns={[]}
         data={data ? data.tasks : []}
         displayMode="card"
