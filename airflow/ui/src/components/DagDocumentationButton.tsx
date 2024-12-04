@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button } from "@chakra-ui/react";
 import { FiBookOpen } from "react-icons/fi";
+
+import { Button } from "src/components/ui";
 
 const DagDocumentationButton = ({
   setIsDocsOpen,
