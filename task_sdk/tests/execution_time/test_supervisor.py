@@ -789,6 +789,14 @@ class TestHandleRequest:
                 id="get_variable",
             ),
             pytest.param(
+                DeferTask(next_method="execute_callback", classpath="my-classpath"),
+                b"",
+                "task_instances.defer",
+                (TI_ID, DeferTask(next_method="execute_callback", classpath="my-classpath")),
+                "",
+                id="patch_task_instance_to_deferred",
+            ),
+            pytest.param(
                 GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
                 b'{"key":"test_key","value":"test_value"}\n',
                 "xcoms.get",
@@ -797,12 +805,14 @@ class TestHandleRequest:
                 id="get_xcom",
             ),
             pytest.param(
-                DeferTask(next_method="execute_callback", classpath="my-classpath"),
-                b"",
-                "task_instances.defer",
-                (TI_ID, DeferTask(next_method="execute_callback", classpath="my-classpath")),
-                "",
-                id="patch_task_instance_to_deferred",
+                GetXCom(
+                    dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key", map_index=2
+                ),
+                b'{"key":"test_key","value":"test_value"}\n',
+                "xcoms.get",
+                ("test_dag", "test_run", "test_task", "test_key", 2),
+                XComResult(key="test_key", value="test_value"),
+                id="get_xcom_map_index",
             ),
             pytest.param(
                 SetXCom(
@@ -824,6 +834,28 @@ class TestHandleRequest:
                 ),
                 {"ok": True},
                 id="set_xcom",
+            ),
+            pytest.param(
+                SetXCom(
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    task_id="test_task",
+                    key="test_key",
+                    value='{"key": "test_key", "value": {"key2": "value2"}}',
+                    map_index=2,
+                ),
+                b"",
+                "xcoms.set",
+                (
+                    "test_dag",
+                    "test_run",
+                    "test_task",
+                    "test_key",
+                    '{"key": "test_key", "value": {"key2": "value2"}}',
+                    2,
+                ),
+                {"ok": True},
+                id="set_xcom_with_map_index",
             ),
         ],
     )
