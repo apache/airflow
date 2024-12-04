@@ -20,36 +20,14 @@ from __future__ import annotations
 from unittest import mock
 from unittest.mock import MagicMock
 
-import pytest
 from elasticsearch import Elasticsearch
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.elasticsearch.hooks.elasticsearch import (
-    ElasticsearchHook,
     ElasticsearchPythonHook,
     ElasticsearchSQLHook,
     ESConnection,
 )
-
-
-class TestElasticsearchHook:
-    def test_throws_warning(self):
-        self.cur = mock.MagicMock(rowcount=0)
-        self.conn = mock.MagicMock()
-        self.conn.cursor.return_value = self.cur
-        conn = self.conn
-        self.connection = Connection(host="localhost", port=9200, schema="http")
-
-        with pytest.warns(AirflowProviderDeprecationWarning):
-
-            class UnitTestElasticsearchHook(ElasticsearchHook):
-                conn_name_attr = "test_conn_id"
-
-                def get_conn(self):
-                    return conn
-
-            self.db_hook = UnitTestElasticsearchHook()
 
 
 class TestElasticsearchSQLHookConn:
