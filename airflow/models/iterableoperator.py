@@ -22,13 +22,14 @@ import logging
 import os
 from abc import abstractmethod
 from asyncio import AbstractEventLoop, Future, Semaphore, ensure_future, gather
+from collections.abc import Generator, Iterable, Sequence
 from contextlib import contextmanager, suppress
 from datetime import timedelta
 from math import ceil
 from multiprocessing import TimeoutError
 from multiprocessing.pool import ThreadPool
 from time import sleep
-from typing import TYPE_CHECKING, Any, Generator, Iterable, Sequence
+from typing import TYPE_CHECKING, Any
 
 from airflow import XComArg
 from airflow.exceptions import (
@@ -41,17 +42,16 @@ from airflow.models.abstractoperator import DEFAULT_TASK_EXECUTION_TIMEOUT
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.expandinput import (
     ExpandInput,
-    is_mappable,
     _needs_run_time_resolution,
+    is_mappable,
 )
 from airflow.models.taskinstance import TaskInstance
+from airflow.triggers.base import run_trigger
 from airflow.utils import timezone
 from airflow.utils.context import Context, context_get_outlet_events
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_helpers import ExecutionCallableRunner
 from airflow.utils.task_instance_session import get_current_task_instance_session
-
-from airflow.triggers.base import run_trigger
 
 if TYPE_CHECKING:
     import jinja2
@@ -117,9 +117,7 @@ class TaskExecutor(LoggingMixin):
         if self.task_instance.try_number == 0:
             self.operator.render_template_fields(context=self.context)
             self.operator.pre_execute(context=self.context)
-            self.task_instance._run_execute_callback(
-                context=self.context, task=self.operator
-            )
+            self.task_instance._run_execute_callback(context=self.context, task=self.operator)
 
         return self
 
@@ -232,9 +230,7 @@ class IterableOperator(BaseOperator):
         self._operator_class = operator_class
         self.expand_input = expand_input
         self.partial_kwargs = partial_kwargs or {}
-        self.timeout = (
-            timeout.total_seconds() if isinstance(timeout, timedelta) else timeout
-        )
+        self.timeout = timeout.total_seconds() if isinstance(timeout, timedelta) else timeout
         self._mapped_kwargs: list[dict] = []
         if not self.max_active_tis_per_dag:
             self.max_active_tis_per_dag = os.cpu_count() or 1
@@ -297,10 +293,7 @@ class IterableOperator(BaseOperator):
         failed_tasks: list[TaskInstance] = []
 
         with ThreadPool(processes=self.max_active_tis_per_dag) as pool:
-            futures = [
-                (task, pool.apply_async(self._run_operator, (context, task)))
-                for task in tasks
-            ]
+            futures = [(task, pool.apply_async(self._run_operator, (context, task))) for task in tasks]
 
             for task, future in futures:
                 try:
@@ -335,9 +328,7 @@ class IterableOperator(BaseOperator):
             self.log.info("Running %s deferred tasks", len(deferred_tasks))
 
             with event_loop() as loop:
-                for result in loop.run_until_complete(
-                    gather(*deferred_tasks, return_exceptions=True)
-                ):
+                for result in loop.run_until_complete(gather(*deferred_tasks, return_exceptions=True)):
                     self.log.debug("result: %s", result)
 
                     if isinstance(result, Exception):
@@ -386,11 +377,10 @@ class IterableOperator(BaseOperator):
             except TaskDeferred as task_deferred:
                 return task_deferred
 
-    async def _run_deferrable(
-        self, context: Context, task: TaskInstance, task_deferred: TaskDeferred
-    ):
-        with TriggerExecutor(context=context, task_instance=task) as executor:
-            return await executor.run(task_deferred)
+    async def _run_deferrable(self, context: Context, task: TaskInstance, task_deferred: TaskDeferred):
+        async with self._semaphore:
+            async with TriggerExecutor(context=context, task_instance=task) as executor:
+                return await executor.run(task_deferred)
 
     def _create_task(self, context: Context, index: int) -> TaskInstance:
         operator = self._unmap_operator(index)
