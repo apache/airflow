@@ -16,15 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button } from "@chakra-ui/react";
-import { useQueryClient } from "@tanstack/react-query";
 import { FiRefreshCw } from "react-icons/fi";
 
-import {
-  useDagParsingServiceReparseDagFile,
-  UseDagServiceGetDagDetailsKeyFn,
-  UseDagSourceServiceGetDagSourceKeyFn,
-} from "openapi/queries";
+import { Button } from "src/components/ui/button.tsx";
+import { useDagParsing } from "src/queries/useDagParsing.tsx";
 
 type Props = {
   readonly dagId: string;
@@ -32,25 +27,13 @@ type Props = {
 };
 
 const ParseDag = ({ dagId, fileToken }: Props) => {
-  const queryClient = useQueryClient();
-
-  const onSuccess = async () => {
-    await queryClient.invalidateQueries({
-      queryKey: UseDagServiceGetDagDetailsKeyFn({ dagId }),
-    });
-
-    await queryClient.invalidateQueries({
-      queryKey: UseDagSourceServiceGetDagSourceKeyFn({ dagId }),
-    });
-  };
-
-  const { mutate } = useDagParsingServiceReparseDagFile({ onSuccess });
+  const { isPending, mutate } = useDagParsing({ dagId });
 
   return (
     <Button
-      borderColor="border.emphasized"
+      loading={isPending}
       onClick={() => mutate({ fileToken })}
-      variant="ghost"
+      variant="outline"
     >
       <FiRefreshCw height={5} width={5} />
       Reparse Dag

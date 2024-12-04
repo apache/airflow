@@ -18,24 +18,22 @@
  */
 import { Button } from "@chakra-ui/react";
 import { FiBookOpen } from "react-icons/fi";
-import { useSearchParams } from "react-router-dom";
 
-const MODAL = "modal";
-
-const DagDocumentation = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
-
+const DagDocumentationButton = ({
+  setIsDocsOpen,
+}: {
+  readonly setIsDocsOpen: React.Dispatch<React.SetStateAction<boolean>>;
+}) => {
   const onOpen = () => {
-    searchParams.set(MODAL, "docs");
-    setSearchParams(searchParams);
+    setIsDocsOpen(true);
   };
 
   return (
-    <Button borderColor="border.emphasized" onClick={onOpen} variant="ghost">
+    <Button onClick={onOpen} variant="outline">
       <FiBookOpen height={5} width={5} />
       Dag Docs
     </Button>
   );
 };
 
-export default DagDocumentation;
+export default DagDocumentationButton;

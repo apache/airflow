@@ -30,14 +30,21 @@ const tabs = ["overview", "runs", "tasks", "events", "code"];
 
 const MODAL = "modal";
 
-export const DagTabs = ({ dag }: { readonly dag?: DAGDetailsResponse }) => {
+export const DagTabs = ({
+  dag,
+  isDocsOpen,
+  setIsDocsOpen,
+}: {
+  readonly dag?: DAGDetailsResponse;
+  readonly isDocsOpen: boolean;
+  readonly setIsDocsOpen: React.Dispatch<React.SetStateAction<boolean>>;
+}) => {
   const { dagId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const modal = searchParams.get(MODAL);
 
   const isGraphOpen = modal === "graph";
-  const isDocsOpen = modal === "docs";
 
   const onClose = () => {
     searchParams.delete(MODAL);
@@ -92,7 +99,7 @@ export const DagTabs = ({ dag }: { readonly dag?: DAGDetailsResponse }) => {
       />
       <DagDocumentation
         docMd={dag?.doc_md ?? ""}
-        onClose={onClose}
+        onClose={() => setIsDocsOpen(false)}
         open={isDocsOpen}
       />
     </>

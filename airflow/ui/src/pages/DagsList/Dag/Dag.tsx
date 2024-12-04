@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Button } from "@chakra-ui/react";
+import { useState } from "react";
 import { FiChevronsLeft } from "react-icons/fi";
 import { Outlet, Link as RouterLink, useParams } from "react-router-dom";
 
@@ -26,6 +27,7 @@ import {
 } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ProgressBar } from "src/components/ui";
+import { Toaster } from "src/components/ui/toaster.tsx";
 import { OpenGroupsProvider } from "src/context/openGroups";
 
 import { Header } from "./Header";
@@ -33,6 +35,7 @@ import { DagTabs } from "./Tabs";
 
 export const Dag = () => {
   const { dagId } = useParams();
+  const [isDocsOpen, setIsDocsOpen] = useState(false);
 
   const {
     data: dag,
@@ -58,19 +61,29 @@ export const Dag = () => {
   return (
     <OpenGroupsProvider dagId={dagId ?? ""}>
       <Box>
+        <Toaster />
         <Button asChild colorPalette="blue" variant="ghost">
           <RouterLink to="/dags">
             <FiChevronsLeft />
             Back to all dags
           </RouterLink>
         </Button>
-        <Header dag={dag} dagId={dagId} latestRun={runs[0]} />
+        <Header
+          dag={dag}
+          dagId={dagId}
+          latestRun={runs[0]}
+          setIsDocsOpen={setIsDocsOpen}
+        />
         <ErrorAlert error={error ?? runsError} />
         <ProgressBar
           size="xs"
           visibility={isLoading || isLoadingRuns ? "visible" : "hidden"}
         />
-        <DagTabs dag={dag} />
+        <DagTabs
+          dag={dag}
+          isDocsOpen={isDocsOpen}
+          setIsDocsOpen={setIsDocsOpen}
+        />
       </Box>
       <Box overflow="auto">
         <Outlet />

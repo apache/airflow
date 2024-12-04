@@ -33,7 +33,7 @@ export const DagDocumentation: React.FC<DagDocumentationModalProps> = ({
   onClose,
   open,
 }) => (
-  <Dialog.Root onOpenChange={onClose} open={open} size="full">
+  <Dialog.Root onOpenChange={onClose} open={open} size="md">
     <Dialog.Content backdrop>
       <Dialog.Header bg="blue.muted">
         <Heading size="xl">Dag Documentation</Heading>
