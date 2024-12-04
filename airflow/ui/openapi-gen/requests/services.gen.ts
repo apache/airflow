@@ -34,8 +34,8 @@ import type {
   RecentDagRunsResponse,
   HistoricalMetricsData,
   HistoricalMetricsResponse,
-  GraphDataData,
-  GraphDataResponse2,
+  StructureDataData,
+  StructureDataResponse2,
   ListBackfillsData,
   ListBackfillsResponse,
   CreateBackfillData,
@@ -58,6 +58,8 @@ import type {
   GetConnectionsResponse,
   PostConnectionData,
   PostConnectionResponse,
+  PostConnectionsData,
+  PostConnectionsResponse,
   TestConnectionData,
   TestConnectionResponse,
   GetDagRunData,
@@ -663,24 +665,24 @@ export class DashboardService {
   }
 }
 
-export class GraphService {
+export class StructureService {
   /**
-   * Graph Data
-   * Get Graph Data.
+   * Structure Data
+   * Get Structure Data.
    * @param data The data for the request.
    * @param data.dagId
    * @param data.root
    * @param data.includeUpstream
    * @param data.includeDownstream
-   * @returns GraphDataResponse Successful Response
+   * @returns StructureDataResponse Successful Response
    * @throws ApiError
    */
-  public static graphData(
-    data: GraphDataData,
-  ): CancelablePromise<GraphDataResponse2> {
+  public static structureData(
+    data: StructureDataData,
+  ): CancelablePromise<StructureDataResponse2> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/ui/graph/graph_data",
+      url: "/ui/structure/structure_data",
       query: {
         dag_id: data.dagId,
         root: data.root,
@@ -986,6 +988,31 @@ export class ConnectionService {
     return __request(OpenAPI, {
       method: "POST",
       url: "/public/connections",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        409: "Conflict",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Post Connections
+   * Create connection entry.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns ConnectionCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static postConnections(
+    data: PostConnectionsData,
+  ): CancelablePromise<PostConnectionsResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/connections/bulk",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
@@ -1659,6 +1686,9 @@ export class EventLogService {
    * Get Event Logs
    * Get all Event Logs.
    * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
    * @param data.dagId
    * @param data.taskId
    * @param data.runId
@@ -1670,9 +1700,6 @@ export class EventLogService {
    * @param data.includedEvents
    * @param data.before
    * @param data.after
-   * @param data.limit
-   * @param data.offset
-   * @param data.orderBy
    * @returns EventLogCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -1683,6 +1710,9 @@ export class EventLogService {
       method: "GET",
       url: "/public/eventLogs",
       query: {
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
         dag_id: data.dagId,
         task_id: data.taskId,
         run_id: data.runId,
@@ -1694,9 +1724,6 @@ export class EventLogService {
         included_events: data.includedEvents,
         before: data.before,
         after: data.after,
-        limit: data.limit,
-        offset: data.offset,
-        order_by: data.orderBy,
       },
       errors: {
         401: "Unauthorized",

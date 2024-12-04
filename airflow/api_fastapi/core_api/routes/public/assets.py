@@ -26,17 +26,14 @@ from sqlalchemy.orm import joinedload, subqueryload
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
+    FilterParam,
     OptionalDateTimeQuery,
     QueryAssetDagIdPatternSearch,
-    QueryAssetIdFilter,
     QueryLimit,
     QueryOffset,
-    QuerySourceDagIdFilter,
-    QuerySourceMapIndexFilter,
-    QuerySourceRunIdFilter,
-    QuerySourceTaskIdFilter,
     QueryUriPatternSearch,
     SortParam,
+    filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.assets import (
@@ -51,7 +48,6 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.assets.manager import asset_manager
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
-from airflow.sdk.definitions.asset import Asset
 from airflow.utils import timezone
 
 assets_router = AirflowRouter(tags=["Asset"])
@@ -136,11 +132,21 @@ def get_asset_events(
             ).dynamic_depends("timestamp")
         ),
     ],
-    asset_id: QueryAssetIdFilter,
-    source_dag_id: QuerySourceDagIdFilter,
-    source_task_id: QuerySourceTaskIdFilter,
-    source_run_id: QuerySourceRunIdFilter,
-    source_map_index: QuerySourceMapIndexFilter,
+    asset_id: Annotated[
+        FilterParam[int | None], Depends(filter_param_factory(AssetEvent.asset_id, int | None))
+    ],
+    source_dag_id: Annotated[
+        FilterParam[str | None], Depends(filter_param_factory(AssetEvent.source_dag_id, str | None))
+    ],
+    source_task_id: Annotated[
+        FilterParam[str | None], Depends(filter_param_factory(AssetEvent.source_task_id, str | None))
+    ],
+    source_run_id: Annotated[
+        FilterParam[str | None], Depends(filter_param_factory(AssetEvent.source_run_id, str | None))
+    ],
+    source_map_index: Annotated[
+        FilterParam[int | None], Depends(filter_param_factory(AssetEvent.source_map_index, int | None))
+    ],
     session: SessionDep,
 ) -> AssetEventCollectionResponse:
     """Get asset events."""
@@ -171,13 +177,13 @@ def create_asset_event(
     session: SessionDep,
 ) -> AssetEventResponse:
     """Create asset events."""
-    asset = session.scalar(select(AssetModel).where(AssetModel.uri == body.uri).limit(1))
-    if not asset:
+    asset_model = session.scalar(select(AssetModel).where(AssetModel.uri == body.uri).limit(1))
+    if not asset_model:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Asset with uri: `{body.uri}` was not found")
     timestamp = timezone.utcnow()
 
     assets_event = asset_manager.register_asset_change(
-        asset=Asset(uri=body.uri),
+        asset=asset_model.to_public(),
         timestamp=timestamp,
         extra=body.extra,
         session=session,

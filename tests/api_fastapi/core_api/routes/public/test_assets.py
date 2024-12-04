@@ -722,7 +722,7 @@ class TestPostAssetEvents(TestAssets):
         }
 
     def test_invalid_attr_not_allowed(self, test_client, session):
-        self.create_assets()
+        self.create_assets(session)
         event_invalid_payload = {"asset_uri": "s3://bucket/key/1", "extra": {"foo": "bar"}, "fake": {}}
         response = test_client.post("/public/assets/events", json=event_invalid_payload)
 
@@ -731,7 +731,7 @@ class TestPostAssetEvents(TestAssets):
     @pytest.mark.usefixtures("time_freezer")
     @pytest.mark.enable_redact
     def test_should_mask_sensitive_extra(self, test_client, session):
-        self.create_assets()
+        self.create_assets(session)
         event_payload = {"uri": "s3://bucket/key/1", "extra": {"password": "bar"}}
         response = test_client.post("/public/assets/events", json=event_payload)
         assert response.status_code == 200

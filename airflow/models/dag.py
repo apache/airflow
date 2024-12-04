@@ -66,6 +66,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref, relationship
 from sqlalchemy.sql import Select, expression
+from sqlalchemy_utils import UUIDType
 
 from airflow import settings, utils
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
@@ -118,8 +119,6 @@ if TYPE_CHECKING:
     from airflow.models.abstractoperator import TaskStateChangeCallback
     from airflow.models.dagbag import DagBag
     from airflow.models.operator import Operator
-    from airflow.serialization.pydantic.dag import DagModelPydantic
-    from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.typing_compat import Literal
 
 log = logging.getLogger(__name__)
@@ -513,7 +512,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         # infer from the logical date.
         return self.infer_automated_data_interval(dag_model.next_dagrun)
 
-    def get_run_data_interval(self, run: DagRun | DagRunPydantic) -> DataInterval:
+    def get_run_data_interval(self, run: DagRun) -> DataInterval:
         """
         Get the data interval of this run.
 
@@ -873,7 +872,7 @@ class DAG(TaskSDKDag, LoggingMixin):
 
     @staticmethod
     @provide_session
-    def fetch_dagrun(dag_id: str, run_id: str, session: Session = NEW_SESSION) -> DagRun | DagRunPydantic:
+    def fetch_dagrun(dag_id: str, run_id: str, session: Session = NEW_SESSION) -> DagRun:
         """
         Return the dag run for a given run_id if it exists, otherwise none.
 
@@ -885,7 +884,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         return session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
 
     @provide_session
-    def get_dagrun(self, run_id: str, session: Session = NEW_SESSION) -> DagRun | DagRunPydantic:
+    def get_dagrun(self, run_id: str, session: Session = NEW_SESSION) -> DagRun:
         return DAG.fetch_dagrun(dag_id=self.dag_id, run_id=run_id, session=session)
 
     @provide_session
@@ -2028,6 +2027,9 @@ class DagModel(Base):
     fileloc = Column(String(2000))
     # The base directory used by Dag Processor that parsed this dag.
     processor_subdir = Column(String(2000), nullable=True)
+    bundle_id = Column(UUIDType(binary=False), ForeignKey("dag_bundle.id"), nullable=True)
+    # The version of the bundle the last time the DAG was parsed
+    latest_bundle_version = Column(String(200), nullable=True)
     # String representing the owners
     owners = Column(String(2000))
     # Display name of the dag
@@ -2139,7 +2141,7 @@ class DagModel(Base):
 
     @classmethod
     @provide_session
-    def get_current(cls, dag_id: str, session=NEW_SESSION) -> DagModel | DagModelPydantic:
+    def get_current(cls, dag_id: str, session=NEW_SESSION) -> DagModel:
         return session.scalar(select(cls).where(cls.dag_id == dag_id))
 
     @provide_session
