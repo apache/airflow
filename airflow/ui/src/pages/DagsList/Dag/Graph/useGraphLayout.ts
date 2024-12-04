@@ -222,6 +222,7 @@ const generateElkGraph = ({
       isGroup: Boolean(node.children),
       isMapped: node.is_mapped === null ? undefined : node.is_mapped,
       label: node.label,
+      operator: node.operator,
       setupTeardownType: node.setup_teardown_type,
       type: node.type,
       width,
