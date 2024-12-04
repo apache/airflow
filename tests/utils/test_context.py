@@ -29,6 +29,7 @@ class TestOutletEventAccessor:
     @pytest.mark.parametrize(
         "key, asset_alias_events",
         (
+            (AssetUniqueKey.from_asset(Asset("test_uri")), []),
             (
                 AssetAliasUniqueKey.from_asset_alias(AssetAlias("test_alias")),
                 [
@@ -39,7 +40,6 @@ class TestOutletEventAccessor:
                     )
                 ],
             ),
-            (AssetUniqueKey.from_asset(Asset("test_uri")), []),
         ),
     )
     def test_add(self, key, asset_alias_events):
@@ -52,7 +52,7 @@ class TestOutletEventAccessor:
         "key, asset_alias_events",
         (
             (
-                AssetAliasUniqueKey.from_asset_alias(AssetAlias("test_alias")),
+                "test_alias",
                 [
                     AssetAliasEvent(
                         source_alias_name="test_alias",
@@ -62,6 +62,16 @@ class TestOutletEventAccessor:
                 ],
             ),
             (AssetUniqueKey.from_asset(Asset("test_uri")), []),
+            (
+                AssetAliasUniqueKey.from_asset_alias(AssetAlias("test_alias")),
+                [
+                    AssetAliasEvent(
+                        source_alias_name="test_alias",
+                        dest_asset_key=AssetUniqueKey(name="test-asset", uri="test://asset-uri/"),
+                        extra={},
+                    )
+                ],
+            ),
         ),
     )
     def test_add_with_db(self, key, asset_alias_events, session):
@@ -69,19 +79,18 @@ class TestOutletEventAccessor:
         aam = AssetAliasModel(name="test_alias")
         session.add_all([asm, aam])
         session.flush()
+        asset = Asset(uri="test://asset-uri", name="test-asset")
 
         outlet_event_accessor = OutletEventAccessor(key=key, extra={"not": ""})
-        outlet_event_accessor.add(Asset(uri="test://asset-uri", name="test-asset"), extra={})
+        outlet_event_accessor.add(asset, extra={})
         assert outlet_event_accessor.asset_alias_events == asset_alias_events
-
-
-# TODO: add test case to verify string does not work
 
 
 class TestOutletEventAccessors:
     @pytest.mark.parametrize(
         "access_key, internal_key",
         (
+            ("test", "test"),
             (Asset("test"), AssetUniqueKey.from_asset(Asset("test"))),
             (
                 Asset(name="test", uri="test://asset"),

@@ -49,7 +49,7 @@ from airflow.models.tasklog import LogTemplate
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasUniqueKey, AssetUniqueKey
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.pydantic.asset import AssetEventPydantic, AssetPydantic
 from airflow.serialization.pydantic.dag import DagModelPydantic, DagTagPydantic
@@ -258,7 +258,7 @@ class MockLazySelectSequence(LazySelectSequence):
         ),
         (
             OutletEventAccessor(
-                key=Asset(uri="test", name="test", group="test-group"),
+                key=AssetUniqueKey.from_asset(Asset(uri="test", name="test", group="test-group")),
                 extra={"key": "value"},
                 asset_alias_events=[],
             ),
@@ -267,7 +267,9 @@ class MockLazySelectSequence(LazySelectSequence):
         ),
         (
             OutletEventAccessor(
-                key=AssetAlias(name="test_alias", group="test-alias-group"),
+                key=AssetAliasUniqueKey.from_asset_alias(
+                    AssetAlias(name="test_alias", group="test-alias-group")
+                ),
                 extra={"key": "value"},
                 asset_alias_events=[
                     AssetAliasEvent(
@@ -277,6 +279,12 @@ class MockLazySelectSequence(LazySelectSequence):
                     )
                 ],
             ),
+            DAT.ASSET_EVENT_ACCESSOR,
+            equal_outlet_event_accessor,
+        ),
+        # TODO: deprecate string access
+        (
+            OutletEventAccessor(key="test", extra={"key": "value"}, asset_alias_events=[]),
             DAT.ASSET_EVENT_ACCESSOR,
             equal_outlet_event_accessor,
         ),

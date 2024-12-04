@@ -2757,7 +2757,11 @@ class TaskInstance(Base, LoggingMixin):
         asset_models: dict[AssetUniqueKey, AssetModel] = {
             AssetUniqueKey.from_asset(asset_obj): asset_obj
             for asset_obj in session.scalars(
-                select(AssetModel).where(tuple_(AssetModel.name, AssetModel.uri).in_(asset_alias_names))
+                select(AssetModel).where(
+                    tuple_(AssetModel.name, AssetModel.uri).in_(
+                        (key.name, key.uri) for key, _ in asset_alias_names
+                    )
+                )
             )
         }
         if missing_assets := [
