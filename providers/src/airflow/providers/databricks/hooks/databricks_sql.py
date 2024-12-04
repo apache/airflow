@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import threading
-import warnings
 from collections import namedtuple
 from collections.abc import Iterable, Mapping, Sequence
 from contextlib import closing
@@ -35,10 +34,7 @@ from typing import (
 from databricks import sql  # type: ignore[attr-defined]
 from databricks.sql.types import Row
 
-from airflow.exceptions import (
-    AirflowException,
-    AirflowProviderDeprecationWarning,
-)
+from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection as AirflowConnection
 from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
 from airflow.providers.databricks.exceptions import DatabricksSqlExecutionError, DatabricksSqlExecutionTimeout
@@ -81,10 +77,6 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         on every request
     :param catalog: An optional initial catalog to use. Requires DBR version 9.0+
     :param schema: An optional initial schema to use. Requires DBR version 9.0+
-    :param return_tuple: Return a ``namedtuple`` object instead of a ``databricks.sql.Row`` object. Default
-        to False. In a future release of the provider, this will become True by default. This parameter
-        ensures backward-compatibility during the transition phase to common tuple objects for all hooks based
-        on DbApiHook. This flag will also be removed in a future release.
     :param kwargs: Additional parameters internal to Databricks SQL Connector parameters
     """
 
@@ -101,7 +93,6 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         catalog: str | None = None,
         schema: str | None = None,
         caller: str = "DatabricksSqlHook",
-        return_tuple: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(databricks_conn_id, caller=caller)
@@ -114,17 +105,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         self.http_headers = http_headers
         self.catalog = catalog
         self.schema = schema
-        self.return_tuple = return_tuple
         self.additional_params = kwargs
-
-        if not self.return_tuple:
-            warnings.warn(
-                """Returning a raw `databricks.sql.Row` object is deprecated. A namedtuple will be
-                returned instead in a future release of the databricks provider. Set `return_tuple=True` to
-                enable this behavior.""",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
 
     def _get_extra_config(self) -> dict[str, Any | None]:
         extra_params = copy(self.databricks_conn.extra_dejson)
@@ -285,11 +266,8 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
 
                     if handler is not None:
                         raw_result = handler(cur)
-                        if self.return_tuple:
-                            result = self._make_common_data_structure(raw_result)
-                        else:
-                            # Returning raw result is deprecated, and do not comply with current common.sql interface
-                            result = raw_result  # type: ignore[assignment]
+                        result = self._make_common_data_structure(raw_result)
+
                         if return_single_query_results(sql, return_last, split_statements):
                             results = [result]
                             self.descriptions = [cur.description]
