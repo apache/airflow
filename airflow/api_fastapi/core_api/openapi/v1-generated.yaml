@@ -237,12 +237,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StructureDataResponse'
-        '400':
+        '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
+          description: Not Found
         '422':
           description: Validation Error
           content:
