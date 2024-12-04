@@ -974,7 +974,7 @@ class TestDeprecatedConf:
                 with mock.patch.dict("os.environ", AIRFLOW__CORE__LOGGING_LEVEL="VALUE"):
                     assert conf.get("logging", "logging_level") == "VALUE"
 
-            with pytest.warns(FutureWarning, match="Please update your `conf.get"):
+            with pytest.warns(DeprecationWarning, match=r"The logging_level option in \[core\]"):
                 with mock.patch.dict("os.environ", AIRFLOW__CORE__LOGGING_LEVEL="VALUE"):
                     assert conf.get("core", "logging_level") == "VALUE"
 
