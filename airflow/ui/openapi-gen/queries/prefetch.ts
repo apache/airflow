@@ -851,41 +851,6 @@ export const prefetchUseDagServiceGetDags = (
       }),
   });
 /**
- * Get Dag Tags
- * Get all DAG tags.
- * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
- * @param data.tagNamePattern
- * @returns DAGTagCollectionResponse Successful Response
- * @throws ApiError
- */
-export const prefetchUseDagServiceGetDagTags = (
-  queryClient: QueryClient,
-  {
-    limit,
-    offset,
-    orderBy,
-    tagNamePattern,
-  }: {
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-    tagNamePattern?: string;
-  } = {},
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseDagServiceGetDagTagsKeyFn({
-      limit,
-      offset,
-      orderBy,
-      tagNamePattern,
-    }),
-    queryFn: () =>
-      DagService.getDagTags({ limit, offset, orderBy, tagNamePattern }),
-  });
-/**
  * Get Dag
  * Get basic information about a DAG.
  * @param data The data for the request.
@@ -926,6 +891,41 @@ export const prefetchUseDagServiceGetDagDetails = (
     queryFn: () => DagService.getDagDetails({ dagId }),
   });
 /**
+ * Get Dag Tags
+ * Get all DAG tags.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @param data.tagNamePattern
+ * @returns DAGTagCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagServiceGetDagTags = (
+  queryClient: QueryClient,
+  {
+    limit,
+    offset,
+    orderBy,
+    tagNamePattern,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    tagNamePattern?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagServiceGetDagTagsKeyFn({
+      limit,
+      offset,
+      orderBy,
+      tagNamePattern,
+    }),
+    queryFn: () =>
+      DagService.getDagTags({ limit, offset, orderBy, tagNamePattern }),
+  });
+/**
  * Get Event Log
  * @param data The data for the request.
  * @param data.eventLogId
@@ -948,6 +948,9 @@ export const prefetchUseEventLogServiceGetEventLog = (
  * Get Event Logs
  * Get all Event Logs.
  * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
  * @param data.dagId
  * @param data.taskId
  * @param data.runId
@@ -959,9 +962,6 @@ export const prefetchUseEventLogServiceGetEventLog = (
  * @param data.includedEvents
  * @param data.before
  * @param data.after
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
  * @returns EventLogCollectionResponse Successful Response
  * @throws ApiError
  */

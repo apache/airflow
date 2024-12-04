@@ -28,6 +28,17 @@
 Changelog
 ---------
 
+main
+.....
+
+.. warning::
+   All deprecated classes, parameters and features have been removed from the Livy provider package.
+   The following breaking changes were introduced:
+
+   * Operators
+
+      * Removed ``get_hook`` method from ``LivyOperator``. Use ``hook`` property instead
+
 3.9.2
 .....
 

@@ -38,26 +38,26 @@ class GitDagBundle(BaseDagBundle):
     and then do a clone for each version from there.
 
     :param repo_url: URL of the git repository
-    :param head: Branch or tag for this DAG bundle
+    :param tracking_ref: Branch or tag for this DAG bundle
     :param subdir: Subdirectory within the repository where the DAGs are stored (Optional)
     """
 
     supports_versioning = True
 
-    def __init__(self, *, repo_url: str, head: str, subdir: str | None = None, **kwargs) -> None:
+    def __init__(self, *, repo_url: str, tracking_ref: str, subdir: str | None = None, **kwargs) -> None:
         super().__init__(**kwargs)
         self.repo_url = repo_url
-        self.head = head
+        self.tracking_ref = tracking_ref
         self.subdir = subdir
 
         self.bare_repo_path = self._dag_bundle_root_storage_path / "git" / self.name
         self.repo_path = (
-            self._dag_bundle_root_storage_path / "git" / (self.name + f"+{self.version or self.head}")
+            self._dag_bundle_root_storage_path / "git" / (self.name + f"+{self.version or self.tracking_ref}")
         )
         self._clone_bare_repo_if_required()
         self._ensure_version_in_bare_repo()
         self._clone_repo_if_required()
-        self.repo.git.checkout(self.head)
+        self.repo.git.checkout(self.tracking_ref)
 
         if self.version:
             if not self._has_version(self.repo, self.version):

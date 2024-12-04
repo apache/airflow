@@ -88,8 +88,6 @@ import type {
   GetDagsResponse,
   PatchDagsData,
   PatchDagsResponse,
-  GetDagTagsData,
-  GetDagTagsResponse,
   GetDagData,
   GetDagResponse,
   PatchDagData,
@@ -98,6 +96,8 @@ import type {
   DeleteDagResponse,
   GetDagDetailsData,
   GetDagDetailsResponse,
+  GetDagTagsData,
+  GetDagTagsResponse,
   GetEventLogData,
   GetEventLogResponse,
   GetEventLogsData,
@@ -690,7 +690,7 @@ export class StructureService {
         include_downstream: data.includeDownstream,
       },
       errors: {
-        400: "Bad Request",
+        404: "Not Found",
         422: "Validation Error",
       },
     });
@@ -1512,37 +1512,6 @@ export class DagService {
   }
 
   /**
-   * Get Dag Tags
-   * Get all DAG tags.
-   * @param data The data for the request.
-   * @param data.limit
-   * @param data.offset
-   * @param data.orderBy
-   * @param data.tagNamePattern
-   * @returns DAGTagCollectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static getDagTags(
-    data: GetDagTagsData = {},
-  ): CancelablePromise<GetDagTagsResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/dags/tags",
-      query: {
-        limit: data.limit,
-        offset: data.offset,
-        order_by: data.orderBy,
-        tag_name_pattern: data.tagNamePattern,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
    * Get Dag
    * Get basic information about a DAG.
    * @param data The data for the request.
@@ -1654,6 +1623,37 @@ export class DagService {
       },
     });
   }
+
+  /**
+   * Get Dag Tags
+   * Get all DAG tags.
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @param data.tagNamePattern
+   * @returns DAGTagCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDagTags(
+    data: GetDagTagsData = {},
+  ): CancelablePromise<GetDagTagsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dagTags",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+        tag_name_pattern: data.tagNamePattern,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        422: "Validation Error",
+      },
+    });
+  }
 }
 
 export class EventLogService {
@@ -1686,6 +1686,9 @@ export class EventLogService {
    * Get Event Logs
    * Get all Event Logs.
    * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
    * @param data.dagId
    * @param data.taskId
    * @param data.runId
@@ -1697,9 +1700,6 @@ export class EventLogService {
    * @param data.includedEvents
    * @param data.before
    * @param data.after
-   * @param data.limit
-   * @param data.offset
-   * @param data.orderBy
    * @returns EventLogCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -1710,6 +1710,9 @@ export class EventLogService {
       method: "GET",
       url: "/public/eventLogs",
       query: {
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
         dag_id: data.dagId,
         task_id: data.taskId,
         run_id: data.runId,
@@ -1721,9 +1724,6 @@ export class EventLogService {
         included_events: data.includedEvents,
         before: data.before,
         after: data.after,
-        limit: data.limit,
-        offset: data.offset,
-        order_by: data.orderBy,
       },
       errors: {
         401: "Unauthorized",
