@@ -84,7 +84,7 @@ def get_task_group_map(dag: DAG) -> dict[str, dict[str, Any]]:
 
     :return: Task Group Map
     """
-    task_nodes = {}
+    task_nodes: dict[str, dict[str, Any]] = {}
 
     def _is_task_node_mapped_task_group(task_node: BaseOperator | MappedTaskGroup | TaskMap | None) -> bool:
         return type(task_node) is MappedTaskGroup
@@ -101,7 +101,9 @@ def get_task_group_map(dag: DAG) -> dict[str, dict[str, Any]]:
             task_nodes[task_node.node_id] = {
                 "is_group": False,
                 "parent_id": parent_node.node_id if parent_node else None,
-                "task_count": task_node,
+                "task_count": task_nodes[parent_node.node_id]["task_count"]
+                if _is_task_node_mapped_task_group(parent_node) and parent_node
+                else task_node,
             }
             return
         elif isinstance(task_node, BaseOperator):
