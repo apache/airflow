@@ -19,7 +19,7 @@
 import { Button, Center, Flex } from "@chakra-ui/react";
 import { NavLink, useSearchParams } from "react-router-dom";
 
-import type { DAGResponse } from "openapi/requests/types.gen";
+import type { DAGDetailsResponse } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
 import { capitalize } from "src/utils";
 
@@ -29,12 +29,13 @@ const tabs = ["overview", "runs", "tasks", "events", "code"];
 
 const MODAL = "modal";
 
-export const DagTabs = ({ dag }: { readonly dag?: DAGResponse }) => {
+export const DagTabs = ({ dag }: { readonly dag?: DAGDetailsResponse }) => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const modal = searchParams.get(MODAL);
 
   const isGraphOpen = modal === "graph";
+
   const onClose = () => {
     searchParams.delete(MODAL);
     setSearchParams(searchParams);

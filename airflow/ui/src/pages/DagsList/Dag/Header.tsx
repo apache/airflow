@@ -27,9 +27,14 @@ import {
 } from "@chakra-ui/react";
 import { FiCalendar } from "react-icons/fi";
 
-import type { DAGResponse, DAGRunResponse } from "openapi/requests/types.gen";
+import type {
+  DAGDetailsResponse,
+  DAGRunResponse,
+} from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
+import DagDocumentation from "src/components/DagDocumentation";
 import DagRunInfo from "src/components/DagRunInfo";
+import ParseDag from "src/components/ParseDag";
 import { TogglePause } from "src/components/TogglePause";
 import TriggerDAGTextButton from "src/components/TriggerDag/TriggerDAGTextButton";
 import { Tooltip } from "src/components/ui";
@@ -41,7 +46,7 @@ export const Header = ({
   dagId,
   latestRun,
 }: {
-  readonly dag?: DAGResponse;
+  readonly dag?: DAGDetailsResponse;
   readonly dagId?: string;
   readonly latestRun?: DAGRunResponse;
 }) => (
@@ -59,7 +64,17 @@ export const Header = ({
             />
           )}
         </HStack>
-        <Flex>{dag ? <TriggerDAGTextButton dag={dag} /> : undefined}</Flex>
+        <Flex>
+          {dag ? (
+            <HStack>
+              {dag.doc_md === null ? undefined : (
+                <DagDocumentation docMd={dag.doc_md} />
+              )}
+              <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />
+              <TriggerDAGTextButton dag={dag} />
+            </HStack>
+          ) : undefined}
+        </Flex>
       </Flex>
       <SimpleGrid columns={4} gap={4} my={2}>
         <VStack align="flex-start" gap={1}>
