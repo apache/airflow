@@ -16,19 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Badge, Text, Skeleton } from "@chakra-ui/react";
+import { Box, HStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useState } from "react";
-import { Link, useLocation, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
-import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
+import {
+  useDagRunServiceGetDagRuns,
+  useTaskInstanceServiceGetTaskInstances,
+} from "openapi/queries";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
-import { pluralize } from "src/utils";
+import { TrendCountButton } from "src/components/TrendCountButton";
 import { stateColor } from "src/utils/stateColor";
 
-import { Chart } from "./Chart";
-
-const defaultHour = "8";
+const defaultHour = "12";
 
 export const Overview = () => {
   const { dagId } = useParams();
@@ -48,7 +49,13 @@ export const Overview = () => {
       state: ["failed"],
     });
 
-  const location = useLocation();
+  const { data: failedRuns, isLoading: isLoadingRuns } =
+    useDagRunServiceGetDagRuns({
+      dagId: dagId ?? "",
+      logicalDateGte: startDate,
+      logicalDateLte: endDate,
+      state: ["failed"],
+    });
 
   // TODO actually link to task instances list
   return (
@@ -62,35 +69,38 @@ export const Overview = () => {
           startDate={startDate}
         />
       </Box>
-      {failedTasks?.total_entries !== undefined &&
-      failedTasks.total_entries > 0 ? (
-        // TODO: make sure url params pass correctly
-        <Link to={`${location.pathname}/tasks?state=failed`}>
-          <HStack borderRadius={4} borderWidth={1} p={3} width="max-content">
-            <Badge
-              borderRadius="50%"
-              colorPalette={stateColor.failed}
-              variant="solid"
-            >
-              {failedTasks.total_entries}
-            </Badge>
-            <Text fontSize="sm" fontWeight="bold">
-              Failed{" "}
-              {pluralize("Task", failedTasks.total_entries, undefined, true)}
-            </Text>
-            <Chart
-              endDate={endDate}
-              events={failedTasks.task_instances.map((ti) => ({
-                timestamp: ti.start_date ?? ti.logical_date,
-              }))}
-              startDate={startDate}
-            />
-          </HStack>
-        </Link>
-      ) : undefined}
-      {isLoading ? (
-        <Skeleton borderRadius={4} height="45px" width="350px" />
-      ) : undefined}
+      <HStack>
+        <TrendCountButton
+          colorPalette={stateColor.failed}
+          count={failedTasks?.total_entries ?? 0}
+          endDate={endDate}
+          events={(failedTasks?.task_instances ?? []).map((ti) => ({
+            timestamp: ti.start_date ?? ti.logical_date,
+          }))}
+          isLoading={isLoading}
+          label="Failed Task"
+          route={{
+            pathname: "tasks",
+            search: "state=failed",
+          }}
+          startDate={startDate}
+        />
+        <TrendCountButton
+          colorPalette={stateColor.failed}
+          count={failedRuns?.total_entries ?? 0}
+          endDate={endDate}
+          events={(failedRuns?.dag_runs ?? []).map((dr) => ({
+            timestamp: dr.start_date ?? dr.logical_date ?? "",
+          }))}
+          isLoading={isLoadingRuns}
+          label="Failed Run"
+          route={{
+            pathname: "runs",
+            search: "state=failed",
+          }}
+          startDate={startDate}
+        />
+      </HStack>
     </Box>
   );
 };

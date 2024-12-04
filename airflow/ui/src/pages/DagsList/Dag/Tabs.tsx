@@ -16,13 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Flex, Tabs } from "@chakra-ui/react";
-import {
-  Link as RouterLink,
-  useLocation,
-  useParams,
-  useSearchParams,
-} from "react-router-dom";
+import { Button, Center, Flex } from "@chakra-ui/react";
+import { NavLink, useSearchParams } from "react-router-dom";
 
 import type { DAGResponse } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
@@ -30,12 +25,11 @@ import { capitalize } from "src/utils";
 
 import { DagVizModal } from "./DagVizModal";
 
-const tabs = ["runs", "tasks", "events", "code"];
+const tabs = ["overview", "runs", "tasks", "events", "code"];
 
 const MODAL = "modal";
 
 export const DagTabs = ({ dag }: { readonly dag?: DAGResponse }) => {
-  const { dagId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const modal = searchParams.get(MODAL);
@@ -51,35 +45,41 @@ export const DagTabs = ({ dag }: { readonly dag?: DAGResponse }) => {
     setSearchParams(searchParams);
   };
 
-  const { pathname } = useLocation();
-
-  const activeTab =
-    tabs.find((tab) => pathname.endsWith(`/${tab}`)) ?? "overview";
-
   return (
     <>
-      <Tabs.Root value={activeTab}>
-        <Tabs.List justifyContent="space-between" position="relative">
-          <Flex>
-            <Tabs.Trigger asChild value="overview">
-              <RouterLink to={`/dags/${dagId}`}>Overview</RouterLink>
-            </Tabs.Trigger>
-            {tabs.map((tab) => (
-              <Tabs.Trigger asChild key={tab} value={tab}>
-                <RouterLink to={`/dags/${dagId}/${tab}`}>
+      <Flex
+        alignItems="center"
+        borderBottomWidth={1}
+        justifyContent="space-between"
+      >
+        <Flex>
+          {tabs.map((tab) => (
+            <NavLink end key={tab} to={tab === "overview" ? "" : tab}>
+              {({ isActive }) => (
+                <Center
+                  borderBottomColor="border.info"
+                  borderBottomWidth={isActive ? 3 : 0}
+                  fontWeight={isActive ? "bold" : undefined}
+                  height="40px"
+                  mb="-2px" // Show the border on top of its parent's border
+                  pb={isActive ? 0 : "3px"}
+                  px={2}
+                  transition="all 0.2s ease"
+                  width="100px"
+                >
                   {capitalize(tab)}
-                </RouterLink>
-              </Tabs.Trigger>
-            ))}
-          </Flex>
-          <Flex alignSelf="flex-end">
-            <Button colorPalette="blue" onClick={onOpen} variant="ghost">
-              <DagIcon height={5} width={5} />
-              Graph
-            </Button>
-          </Flex>
-        </Tabs.List>
-      </Tabs.Root>
+                </Center>
+              )}
+            </NavLink>
+          ))}
+        </Flex>
+        <Flex alignSelf="flex-end">
+          <Button colorPalette="blue" onClick={onOpen} variant="ghost">
+            <DagIcon height={5} width={5} />
+            Graph
+          </Button>
+        </Flex>
+      </Flex>
       <DagVizModal
         dagDisplayName={dag?.dag_display_name ?? "graph"}
         onClose={onClose}
