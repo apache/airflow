@@ -34,10 +34,10 @@ class TestElasticsearchSQLHookConn:
     def setup_method(self):
         self.connection = Connection(host="localhost", port=9200, schema="http")
 
-        class UnitTestElasticsearchHook(ElasticsearchSQLHook):
+        class UnitTestElasticsearchSQLHook(ElasticsearchSQLHook):
             conn_name_attr = "elasticsearch_conn_id"
 
-        self.db_hook = UnitTestElasticsearchHook()
+        self.db_hook = UnitTestElasticsearchSQLHook()
         self.db_hook.get_connection = mock.Mock()
         self.db_hook.get_connection.return_value = self.connection
 
@@ -55,13 +55,13 @@ class TestElasticsearchSQLHook:
         self.conn.cursor.return_value = self.cur
         conn = self.conn
 
-        class UnitTestElasticsearchHook(ElasticsearchSQLHook):
+        class UnitTestElasticsearchSQLHook(ElasticsearchSQLHook):
             conn_name_attr = "test_conn_id"
 
             def get_conn(self):
                 return conn
 
-        self.db_hook = UnitTestElasticsearchHook()
+        self.db_hook = UnitTestElasticsearchSQLHook()
 
     def test_get_first_record(self):
         statement = "SQL"
