@@ -73,7 +73,7 @@ that you may find helpful.
   set-window-option -g mode-keys vi
 
   # will not clear the selection immediately
-  bind-key -T copy-mode MouseDragEnd1Pane send-keys -X copy-selection-no-clear
+  bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-selection-no-clear
 
   # make it so ctrl+shift+arrow moves the focused pane
   bind -T root C-S-Left select-pane -L
