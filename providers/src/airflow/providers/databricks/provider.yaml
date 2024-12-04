@@ -78,7 +78,6 @@ dependencies:
   - databricks-sql-connector>=3.0.0
   - aiohttp>=3.9.2, <4
   - mergedeep>=1.3.4
-  - pyarrow>=14.0.1
 
 
 additional-extras:
