@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import Depends, status
-from sqlalchemy import and_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from airflow.api_fastapi.common.db.common import get_async_session, paginated_select_async
@@ -48,20 +48,17 @@ async def list_backfills(
     session: Annotated[AsyncSession, Depends(get_async_session)],
     dag_id: str | None = None,
 ) -> BackfillCollectionResponse:
-    print("dag_id")
     conditions = [Backfill.completed_at.is_(None)]  # Active dag
     if dag_id:
         conditions.append(Backfill.dag_id == dag_id)
-    print(dag_id, str(conditions))
 
     select_stmt, total_entries = await paginated_select_async(
-        statement=select(Backfill).where(and_(*conditions)),
+        statement=select(Backfill).where(*conditions),
         order_by=order_by,
         offset=offset,
         limit=limit,
         session=session,
     )
-    print(select_stmt)
     backfills = await session.scalars(select_stmt)
     return BackfillCollectionResponse(
         backfills=backfills,
