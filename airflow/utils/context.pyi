@@ -39,7 +39,7 @@ from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, BaseAsset, BaseAssetUniqueKey
+from airflow.sdk.definitions.asset import Asset, AssetUniqueKey, BaseAsset, BaseAssetUniqueKey
 from airflow.serialization.pydantic.asset import AssetEventPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.typing_compat import TypedDict
@@ -70,18 +70,18 @@ class OutletEventAccessor:
         self,
         *,
         extra: dict[str, Any],
-        key: BaseAssetUniqueKey,
+        key: str | BaseAssetUniqueKey,
         asset_alias_events: list[AssetAliasEvent],
     ) -> None: ...
     def add(self, asset: Asset, extra: dict[str, Any] | None = None) -> None: ...
     extra: dict[str, Any]
-    key: BaseAssetUniqueKey
+    key: str | BaseAssetUniqueKey
     asset_alias_events: list[AssetAliasEvent]
 
-class OutletEventAccessors(Mapping[BaseAsset, OutletEventAccessor]):
+class OutletEventAccessors(Mapping[str | BaseAsset, OutletEventAccessor]):
     def __iter__(self) -> Iterator[BaseAsset]: ...
     def __len__(self) -> int: ...
-    def __getitem__(self, key: BaseAsset) -> OutletEventAccessor: ...
+    def __getitem__(self, key: str | BaseAsset) -> OutletEventAccessor: ...
 
 class InletEventsAccessor(Sequence[AssetEvent]):
     @overload
@@ -90,11 +90,11 @@ class InletEventsAccessor(Sequence[AssetEvent]):
     def __getitem__(self, key: slice) -> Sequence[AssetEvent]: ...
     def __len__(self) -> int: ...
 
-class InletEventsAccessors(Mapping[Asset | AssetAlias, InletEventsAccessor]):
+class InletEventsAccessors(Mapping[str | BaseAsset, InletEventsAccessor]):
     def __init__(self, inlets: list, *, session: Session) -> None: ...
-    def __iter__(self) -> Iterator[Asset | AssetAlias]: ...
+    def __iter__(self) -> Iterator[BaseAsset]: ...
     def __len__(self) -> int: ...
-    def __getitem__(self, key: int | Asset | AssetAlias) -> InletEventsAccessor: ...
+    def __getitem__(self, key: int | str | BaseAsset) -> InletEventsAccessor: ...
 
 # NOTE: Please keep this in sync with the following:
 # * KNOWN_CONTEXT_KEYS in airflow/utils/context.py

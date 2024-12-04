@@ -2770,7 +2770,7 @@ class TestTaskInstance:
         asset_uri = "test_inlet_asset_extra_ds"
         asset_alias_name = "test_inlet_asset_extra_asset_alias"
 
-        asset_model = AssetModel(id=1, uri=asset_uri)
+        asset_model = AssetModel(id=1, uri=asset_uri, group="asset")
         asset_alias_model = AssetAliasModel(name=asset_alias_name)
         asset_alias_model.assets.append(asset_model)
         session.add_all([asset_model, asset_alias_model])
