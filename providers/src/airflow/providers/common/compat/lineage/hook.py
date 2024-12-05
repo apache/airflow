@@ -38,7 +38,7 @@ def _get_asset_compat_hook_lineage_collector():
 
     DatasetLineageInfo.asset = DatasetLineageInfo.dataset
 
-    def rename_dataset_kwargs_as_assets_kwargs(function):
+    def rename_asset_kwargs_to_dataset_kwargs(function):
         @wraps(function)
         def wrapper(*args, **kwargs):
             if "asset_kwargs" in kwargs:
@@ -51,9 +51,9 @@ def _get_asset_compat_hook_lineage_collector():
 
         return wrapper
 
-    collector.create_asset = rename_dataset_kwargs_as_assets_kwargs(collector.create_dataset)
-    collector.add_input_asset = rename_dataset_kwargs_as_assets_kwargs(collector.add_input_dataset)
-    collector.add_output_asset = rename_dataset_kwargs_as_assets_kwargs(collector.add_output_dataset)
+    collector.create_asset = rename_asset_kwargs_to_dataset_kwargs(collector.create_dataset)
+    collector.add_input_asset = rename_asset_kwargs_to_dataset_kwargs(collector.add_input_dataset)
+    collector.add_output_asset = rename_asset_kwargs_to_dataset_kwargs(collector.add_output_dataset)
 
     def collected_assets_compat(collector) -> HookLineage:
         """Get the collected hook lineage information."""
