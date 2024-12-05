@@ -22,13 +22,11 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.slack.operators.slack import (
     SlackAPIFileOperator,
     SlackAPIOperator,
     SlackAPIPostOperator,
 )
-from airflow.utils.task_instance_session import set_current_task_instance_session
 
 SLACK_API_TEST_CONNECTION_ID = "test_slack_conn_id"
 DEFAULT_HOOKS_PARAMETERS = {"base_url": None, "timeout": None, "proxy": None, "retry_handlers": None}
@@ -71,20 +69,6 @@ class TestSlackAPIOperator:
         mock_slack_hook_cls.assert_called_once_with(
             slack_conn_id=SLACK_API_TEST_CONNECTION_ID, **hook_extra_kwargs
         )
-
-    @pytest.mark.parametrize("slack_method", [pytest.param("", id="empty"), pytest.param(None, id="none")])
-    def test_empty_method(self, slack_method):
-        warning_message = "Define `method` parameter as empty string or None is deprecated"
-        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
-            # Should only raise a warning on task initialisation
-            op = SlackAPIOperator(
-                task_id="test-mask-token",
-                slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
-                method=slack_method,
-            )
-
-        with pytest.raises(ValueError, match="Expected non empty `method` attribute"):
-            op.execute({})
 
 
 class TestSlackAPIPostOperator:
@@ -236,7 +220,6 @@ class TestSlackAPIFileOperator:
     @pytest.mark.parametrize(
         "method_version, method_name",
         [
-            pytest.param("v1", "send_file", id="v1"),
             pytest.param("v2", "send_file_v1_to_v2", id="v2"),
         ],
     )
@@ -271,7 +254,6 @@ class TestSlackAPIFileOperator:
     @pytest.mark.parametrize(
         "method_version, method_name",
         [
-            pytest.param("v1", "send_file", id="v1"),
             pytest.param("v2", "send_file_v1_to_v2", id="v2"),
         ],
     )
@@ -300,85 +282,3 @@ class TestSlackAPIFileOperator:
                 title=title,
                 snippet_type=snippet_type,
             )
-
-    def test_channel_deprecated(self):
-        warning_message = (
-            r"Argument `channel` is deprecated and will removed in a future releases\. "
-            r"Please use `channels` instead\."
-        )
-        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
-            op = SlackAPIFileOperator(
-                task_id="slack",
-                slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
-                channel="#random",
-                channels=None,
-            )
-        assert op.channels == "#random"
-
-    def test_both_channel_and_channels_set(self):
-        error_message = r"Cannot set both arguments: channel=.* and channels=.*\."
-        warning_message = (
-            r"Argument `channel` is deprecated and will removed in a future releases\. "
-            r"Please use `channels` instead\."
-        )
-        with pytest.raises(ValueError, match=error_message):
-            with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
-                SlackAPIFileOperator(
-                    task_id="slack",
-                    slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
-                    channel="#random",
-                    channels="#general",
-                )
-
-    @pytest.mark.db_test
-    @pytest.mark.parametrize(
-        "channel",
-        [
-            pytest.param("#contributors", id="single-channel"),
-            pytest.param(["#random", "#general"], id="multiple-channels"),
-        ],
-    )
-    def test_partial_deprecated_channel(self, channel, dag_maker, session):
-        with dag_maker(dag_id="test_partial_deprecated_channel", session=session):
-            SlackAPIFileOperator.partial(
-                task_id="fake-task-id",
-                slack_conn_id="fake-conn-id",
-                channel=channel,
-            ).expand(filename=["/dev/zero", "/dev/urandom"])
-
-        dr = dag_maker.create_dagrun()
-        tis = dr.get_task_instances(session=session)
-        with set_current_task_instance_session(session=session):
-            warning_match = r"Argument `channel` is deprecated.*use `channels` instead"
-            for ti in tis:
-                with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
-                    ti.render_templates()
-                assert ti.task.channels == channel
-
-    @pytest.mark.db_test
-    @pytest.mark.parametrize(
-        "channel, channels",
-        [
-            pytest.param("#contributors", "#user-troubleshooting", id="ambiguous-channel-params"),
-            pytest.param(["#random", "#general"], ["#random", "#general"], id="non-ambiguous-channel-params"),
-        ],
-    )
-    def test_partial_both_channel_parameters(self, channel, channels, dag_maker, session):
-        with dag_maker("test_partial_both_channel_parameters", session=session):
-            SlackAPIFileOperator.partial(
-                task_id="fake-task-id",
-                slack_conn_id="fake-conn-id",
-                channel=channel,
-                channels=channels,
-            ).expand(filename=["/dev/zero", "/dev/urandom"])
-
-        dr = dag_maker.create_dagrun(session=session)
-        tis = dr.get_task_instances(session=session)
-        with set_current_task_instance_session(session=session):
-            warning_match = r"Argument `channel` is deprecated.*use `channels` instead"
-            for ti in tis:
-                with (
-                    pytest.warns(AirflowProviderDeprecationWarning, match=warning_match),
-                    pytest.raises(ValueError, match="Cannot set both arguments"),
-                ):
-                    ti.render_templates()
