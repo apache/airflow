@@ -22,6 +22,7 @@ from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.structure import StructureDataResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.task_group import task_group_to_dict
 
@@ -40,6 +41,7 @@ def structure_data(
     root: str | None = None,
     include_upstream: bool = False,
     include_downstream: bool = False,
+    external_dependencies: bool = False,
 ) -> StructureDataResponse:
     """Get Structure Data."""
     dag = request.app.state.dag_bag.get_dag(dag_id)
@@ -62,5 +64,30 @@ def structure_data(
         "nodes": nodes,
         "edges": edges,
     }
+
+    if external_dependencies:
+        dependencies = SerializedDagModel.get_dag_dependencies()[dag_id]
+
+        entry_node_ref = nodes[0]
+        exit_node_ref = nodes[-1]
+
+        for dependency in dependencies:
+            # Add nodes
+            nodes.append(
+                {
+                    "id": dependency.node_id,
+                    "label": dependency.node_id,
+                    "type": dependency.dependency_type,
+                }
+            )
+
+            # Add edges
+            # start dependency
+            if dependency.target != dependency.dependency_type:
+                edges.insert(0, {"source_id": dependency.node_id, "target_id": entry_node_ref["id"]})
+
+            # end dependency
+            elif dependency.source != dependency.dependency_type:
+                edges.append({"source_id": exit_node_ref["id"], "target_id": dependency.node_id})
 
     return StructureDataResponse(**data)

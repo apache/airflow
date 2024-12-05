@@ -22,6 +22,7 @@ import pytest
 
 from airflow.models import DagBag
 from airflow.operators.empty import EmptyOperator
+from airflow.sdk.definitions.asset import Asset, AssetAlias, Dataset
 
 from tests_common.test_utils.db import clear_db_runs
 
@@ -51,8 +52,15 @@ def make_dag(dag_maker, session, time_machine):
         serialized=True,
         session=session,
         start_date=pendulum.DateTime(2023, 2, 1, 0, 0, 0, tzinfo=pendulum.UTC),
+        schedule=(
+            Asset(uri="s3://bucket/next-run-asset/1", name="asset1")
+            & Asset(uri="s3://bucket/next-run-asset/2", name="asset2")
+            & AssetAlias("example-alias")
+        ),
     ):
-        EmptyOperator(task_id="task_1") >> EmptyOperator(task_id="task_2")
+        EmptyOperator(
+            task_id="task_1", outlets=[Dataset(uri="s3://dataset-bucket/example.csv")]
+        ) >> EmptyOperator(task_id="task_2")
 
     dag_maker.dagbag.sync_to_db()
 
@@ -124,6 +132,109 @@ class TestStructureDataEndpoint:
                             "setup_teardown_type": None,
                             "tooltip": None,
                             "type": "task",
+                        },
+                    ],
+                },
+            ),
+            (
+                {
+                    "dag_id": DAG_ID,
+                    "external_dependencies": True,
+                },
+                {
+                    "arrange": "LR",
+                    "edges": [
+                        {
+                            "is_setup_teardown": None,
+                            "label": None,
+                            "source_id": "asset-alias:example-alias",
+                            "target_id": "task_1",
+                        },
+                        {
+                            "is_setup_teardown": None,
+                            "label": None,
+                            "source_id": "asset:asset2",
+                            "target_id": "task_1",
+                        },
+                        {
+                            "is_setup_teardown": None,
+                            "label": None,
+                            "source_id": "asset:asset1",
+                            "target_id": "task_1",
+                        },
+                        {
+                            "is_setup_teardown": None,
+                            "label": None,
+                            "source_id": "task_1",
+                            "target_id": "task_2",
+                        },
+                        {
+                            "is_setup_teardown": None,
+                            "label": None,
+                            "source_id": "task_2",
+                            "target_id": "asset:s3://dataset-bucket/example.csv",
+                        },
+                    ],
+                    "nodes": [
+                        {
+                            "children": None,
+                            "id": "task_1",
+                            "is_mapped": None,
+                            "label": "task_1",
+                            "operator": "EmptyOperator",
+                            "setup_teardown_type": None,
+                            "tooltip": None,
+                            "type": "task",
+                        },
+                        {
+                            "children": None,
+                            "id": "task_2",
+                            "is_mapped": None,
+                            "label": "task_2",
+                            "operator": "EmptyOperator",
+                            "setup_teardown_type": None,
+                            "tooltip": None,
+                            "type": "task",
+                        },
+                        {
+                            "children": None,
+                            "id": "asset:asset1",
+                            "is_mapped": None,
+                            "label": "asset:asset1",
+                            "operator": None,
+                            "setup_teardown_type": None,
+                            "tooltip": None,
+                            "type": "asset",
+                        },
+                        {
+                            "children": None,
+                            "id": "asset:asset2",
+                            "is_mapped": None,
+                            "label": "asset:asset2",
+                            "operator": None,
+                            "setup_teardown_type": None,
+                            "tooltip": None,
+                            "type": "asset",
+                        },
+                        {
+                            "children": None,
+                            "id": "asset-alias:example-alias",
+                            "is_mapped": None,
+                            "label": "asset-alias:example-alias",
+                            "operator": None,
+                            "setup_teardown_type": None,
+                            "tooltip": None,
+                            "type": "asset-alias",
+                        },
+                        {
+                            "children": None,
+                            "id": "asset:s3://dataset-bucket/example.csv",
+                            "is_mapped": None,
+                            "label": "asset:s3://dataset-bucket/example.csv",
+                            "operator": None,
+                            "setup_teardown_type": None,
+                            "tooltip": None,
+                            "type": "asset",
                         },
                     ],
                 },
