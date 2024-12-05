@@ -32,8 +32,7 @@ import { useSearchParams } from "react-router-dom";
 import { useDagServiceGetDagTags } from "openapi/queries";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { QuickFilterButton } from "src/components/QuickFilterButton";
-import { StateCircle } from "src/components/StateCircle";
-import { Select } from "src/components/ui";
+import { Select, Status } from "src/components/ui";
 import {
   SearchParamsKeys,
   type SearchParamsKeysType,
@@ -164,24 +163,21 @@ export const DagsFilters = () => {
             onClick={handleStateChange}
             value="failed"
           >
-            <StateCircle state="failed" />
-            Failed
+            <Status state="failed">Failed</Status>
           </QuickFilterButton>
           <QuickFilterButton
             isActive={isRunning}
             onClick={handleStateChange}
             value="running"
           >
-            <StateCircle state="running" />
-            Running
+            <Status state="running">Running</Status>
           </QuickFilterButton>
           <QuickFilterButton
             isActive={isSuccess}
             onClick={handleStateChange}
             value="success"
           >
-            <StateCircle state="success" />
-            Success
+            <Status state="success">Success</Status>
           </QuickFilterButton>
         </HStack>
         <Select.Root

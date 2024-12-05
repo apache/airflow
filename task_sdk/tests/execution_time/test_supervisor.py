@@ -43,6 +43,7 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetVariable,
     GetXCom,
+    PutVariable,
     SetXCom,
     VariableResult,
     XComResult,
@@ -856,6 +857,14 @@ class TestHandleRequest:
                 ),
                 {"ok": True},
                 id="set_xcom_with_map_index",
+            ),
+            pytest.param(
+                PutVariable(key="test_key", value="test_value", description="test_description"),
+                b"",
+                "variables.set",
+                ("test_key", "test_value", "test_description"),
+                {"ok": True},
+                id="set_variable",
             ),
         ],
     )

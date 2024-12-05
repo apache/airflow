@@ -42,10 +42,10 @@ ChartJS.register(
   Tooltip,
 );
 
-type Event = { timestamp: string };
+export type ChartEvent = { timestamp: string };
 
 const aggregateEventsIntoIntervals = (
-  events: Array<Event>,
+  events: Array<ChartEvent>,
   startDate: string,
   endDate: string,
 ) => {
@@ -103,11 +103,11 @@ const options = {
 
 type Props = {
   readonly endDate: string;
-  readonly events: Array<Event>;
+  readonly events: Array<ChartEvent>;
   readonly startDate: string;
 };
 
-export const Chart = ({ endDate, events, startDate }: Props) => {
+export const TrendCountChart = ({ endDate, events, startDate }: Props) => {
   const { colorMode } = useColorMode();
   const chartRef = useRef<ChartJS<"line">>();
 

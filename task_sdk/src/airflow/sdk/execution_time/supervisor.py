@@ -44,12 +44,17 @@ import structlog
 from pydantic import TypeAdapter
 
 from airflow.sdk.api.client import Client, ServerResponseError
-from airflow.sdk.api.datamodels._generated import IntermediateTIState, TaskInstance, TerminalTIState
+from airflow.sdk.api.datamodels._generated import (
+    IntermediateTIState,
+    TaskInstance,
+    TerminalTIState,
+)
 from airflow.sdk.execution_time.comms import (
     DeferTask,
     GetConnection,
     GetVariable,
     GetXCom,
+    PutVariable,
     SetXCom,
     StartupDetails,
     TaskState,
@@ -673,6 +678,9 @@ class WatchedSubprocess:
                 resp = None
             elif isinstance(msg, SetXCom):
                 self.client.xcoms.set(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.value, msg.map_index)
+                resp = None
+            elif isinstance(msg, PutVariable):
+                self.client.variables.set(msg.key, msg.value, msg.description)
                 resp = None
             else:
                 log.error("Unhandled request", msg=msg)

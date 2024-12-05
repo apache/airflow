@@ -36,6 +36,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIHeartbeatInfo,
     TITerminalStatePayload,
     ValidationError as RemoteValidationError,
+    VariablePostBody,
     VariableResponse,
     XComResponse,
 )
@@ -156,6 +157,15 @@ class VariableOperations:
         """Get a variable from the API server."""
         resp = self.client.get(f"variables/{key}")
         return VariableResponse.model_validate_json(resp.read())
+
+    def set(self, key: str, value: str | None, description: str | None = None):
+        """Set an Airflow Variable via the API server."""
+        body = VariablePostBody(value=value, description=description)
+        self.client.put(f"variables/{key}", content=body.model_dump_json())
+        # Any error from the server will anyway be propagated down to the supervisor,
+        # so we choose to send a generic response to the supervisor over the server response to
+        # decouple from the server response string
+        return {"ok": True}
 
 
 class XComOperations:
