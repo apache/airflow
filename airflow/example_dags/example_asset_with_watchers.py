@@ -28,7 +28,8 @@ from airflow.models.dag import DAG
 from airflow.providers.standard.triggers.file import FileTrigger
 from airflow.sdk.definitions.asset import Asset
 
-file_path = "test_file"
+import tempfile
+file_path = tempfile.NamedTemporaryFile().name
 
 with DAG(
     dag_id="example_create_file",
