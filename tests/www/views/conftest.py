@@ -187,6 +187,7 @@ class _TemplateWithContext(NamedTuple):
             # airflow.www.views.AirflowBaseView.extra_args
             "macros",
             "auth_manager",
+            "triggerer_job",
         ]
         for key in keys_to_delete:
             del result[key]
