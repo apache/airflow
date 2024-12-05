@@ -31,7 +31,6 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.db import clear_db_assets, clear_db_dags, clear_db_runs, clear_db_serialized_dags
 from tests_common.test_utils.mock_operators import MockOperator
 
@@ -67,7 +66,7 @@ def setup(dag_maker, session=None):
         with TaskGroup(group_id="task_group"):
             MockOperator.partial(task_id="mapped_task").expand(arg1=["a", "b", "c", "d"])
 
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST}
     logical_date = timezone.datetime(2024, 11, 30)
 
     data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
