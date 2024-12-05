@@ -43,7 +43,7 @@ const TaskInstanceTooltip = ({
         {taskInstance.try_number > 1 && (
           <Text>Try Number: {taskInstance.try_number}</Text>
         )}
-        <Text>Duration: {taskInstance.duration?.toFixed(2)}s</Text>
+        <Text>Duration: {taskInstance.duration?.toFixed(2) ?? 0}s</Text>
         <Text>State: {taskInstance.state}</Text>
       </Box>
     }
