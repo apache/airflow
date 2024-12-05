@@ -14,19 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-services:
-  airflow:
-    # Forwards local credentials to docker image
-    # Useful for gcloud/aws/kubernetes etc. authorisation to be passed
-    # To inside docker. Use with care - your credentials will be available to
-    # everything you install in Docker.
-    environment:
-      - GITHUB_TOKEN
-    volumes:
-      - ${HOME}/.aws:/root/.aws:cached
-      - ${HOME}/.azure:/root/.azure:cached
-      - ${HOME}/.config:/root/.config:cached
-      - ${HOME}/.docker:/root/.docker:cached
-      - ${HOME}/.snowsql:/root/.snowsql:cached
-      - ${HOME}/.ssh:/root/.ssh:cached
+
+from __future__ import annotations
+
+from pydantic import BaseModel
+
+
+class DAGTagCollectionResponse(BaseModel):
+    """DAG Tags Collection serializer for responses."""
+
+    tags: list[str]
+    total_entries: int
