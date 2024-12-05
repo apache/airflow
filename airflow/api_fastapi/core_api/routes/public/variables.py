@@ -136,20 +136,17 @@ def patch_variable(
     fields_to_update = patch_body.model_fields_set
     if update_mask:
         fields_to_update = fields_to_update.intersection(update_mask)
-        data = patch_body.model_dump(
-            include=fields_to_update - non_update_fields, by_alias=True, exclude_none=True
-        )
+        data = patch_body.model_dump(include=fields_to_update - non_update_fields, by_alias=True)
     else:
         try:
             VariableBody(**patch_body.model_dump())
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
-        data = patch_body.model_dump(exclude=non_update_fields, by_alias=True, exclude_none=True)
+        data = patch_body.model_dump(exclude=non_update_fields, by_alias=True)
 
     for key, val in data.items():
         setattr(variable, key, val)
 
-    session.commit()
     return variable
 
 

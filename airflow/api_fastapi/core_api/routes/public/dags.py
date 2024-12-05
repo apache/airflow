@@ -22,7 +22,7 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, Query, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
-from sqlalchemy import select, update
+from sqlalchemy import update
 
 from airflow.api.common import delete_dag as delete_dag_module
 from airflow.api_fastapi.common.db.common import (
@@ -189,18 +189,17 @@ def patch_dag(
                 status.HTTP_400_BAD_REQUEST, "Only `is_paused` field can be updated through the REST API"
             )
 
-        data = patch_body.model_dump(include=fields_to_update)
+        data = patch_body.model_dump(include=fields_to_update, by_alias=True)
     else:
         try:
             DAGPatchBody(**patch_body.model_dump())
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
-        data = patch_body.model_dump()
+        data = patch_body.model_dump(by_alias=True)
 
     for key, val in data.items():
         setattr(dag, key, val)
 
-    session.commit()
     return dag
 
 

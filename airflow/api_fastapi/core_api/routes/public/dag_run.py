@@ -146,13 +146,13 @@ def patch_dag_run(
 
     if update_mask:
         fields_to_update = fields_to_update.intersection(update_mask)
-        data = patch_body.model_dump(include=fields_to_update)
+        data = patch_body.model_dump(include=fields_to_update, by_alias=True)
     else:
         try:
             DAGRunPatchBody(**patch_body.model_dump())
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
-        data = patch_body.model_dump()
+        data = patch_body.model_dump(by_alias=True)
 
     for attr_name, attr_value in data.items():
         if attr_name == "state":
@@ -174,7 +174,6 @@ def patch_dag_run(
                 dag_run.dag_run_note.content = attr_value
 
     dag_run = session.get(DagRun, dag_run.id)
-    session.commit()
 
     return dag_run
 
