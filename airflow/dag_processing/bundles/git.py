@@ -93,8 +93,15 @@ class GitDagBundle(BaseDagBundle):
             if not self._has_version(self.bare_repo, self.version):
                 raise AirflowException(f"Version {self.version} not found in the repository")
 
-    def __hash__(self) -> int:
-        return hash((self.name, self.get_current_version()))
+    def __repr__(self):
+        return (
+            f"<GitDagBundle("
+            f"name={self.name!r}, "
+            f"tracking_ref={self.tracking_ref!r}, "
+            f"subdir={self.subdir!r}, "
+            f"version={self.version!r}"
+            f")>"
+        )
 
     def get_current_version(self) -> str:
         return self.repo.head.commit.hexsha
