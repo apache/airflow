@@ -133,3 +133,18 @@ class TestVariableOperations:
                 "reason": "not_found",
             }
         }
+
+    def test_variable_set_success(self):
+        # Simulate a successful response from the server when putting a variable
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/variables/test_key":
+                return httpx.Response(
+                    status_code=201,
+                    json={"message": "Variable successfully set"},
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+
+        result = client.variables.set(key="test_key", value="test_value", description="test_description")
+        assert result == {"ok": True}
