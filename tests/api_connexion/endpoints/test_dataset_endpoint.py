@@ -539,9 +539,9 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
     @pytest.mark.parametrize(
         "timestamp_gte, timestamp_lte, expected_ids",
         [
-            (timezone.parse("2020-06-11T00:00:00"), timezone.parse("2020-06-12T00:00:00"), [1]),
-            (timezone.parse("2020-06-12T00:00:00"), timezone.parse("2020-06-13T00:00:00"), [2]),
-            (timezone.parse("2020-06-11T00:00:00"), timezone.parse("2020-06-13T00:00:00"), [1, 2]),
+            ("2020-06-11T00:00:00", "2020-06-12T00:00:00", [1]),
+            ("2020-06-12T00:00:00", "2020-06-13T00:00:00", [2]),
+            ("2020-06-11T00:00:00", "2020-06-13T00:00:00", [1, 2]),
         ],
     )
     @provide_session
@@ -581,7 +581,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
 
         # Construct query URL with timestamp_gte and timestamp_lte filters
         response = self.client.get(
-            f"/api/v1/datasets/events?timestamp_gte={timestamp_gte.isoformat()}&timestamp_lte={timestamp_lte.isoformat()}",
+            f"/api/v1/datasets/events?timestamp_gte={timestamp_gte}&timestamp_lte={timestamp_lte}",
             environ_overrides={"REMOTE_USER": "test"}
         )
 
