@@ -466,7 +466,7 @@ def test_sanitize_uri_raises_exception():
 
 
 @mock.patch("airflow.sdk.definitions.asset._get_uri_normalizer", return_value=None)
-def test_normalize_uri_no_normalizer_found():
+def test_normalize_uri_no_normalizer_found(mock_get_uri_normalizer):
     asset = Asset(uri="any_uri_without_normalizer_defined")
     assert asset.normalized_uri is None
 
@@ -482,7 +482,7 @@ def test_normalize_uri_invalid_uri():
 
 @mock.patch("airflow.sdk.definitions.asset._get_uri_normalizer", _mock_get_uri_normalizer_noop)
 @mock.patch("airflow.sdk.definitions.asset._get_normalized_scheme", return_value="valid_scheme")
-def test_normalize_uri_valid_uri():
+def test_normalize_uri_valid_uri(mock_get_normalized_scheme):
     asset = Asset(uri="valid_aip60_uri")
     assert asset.normalized_uri == "valid_aip60_uri"
 
