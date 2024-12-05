@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+main
+....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the Sqlite provider package.
+  The following breaking changes were introduced:
+
+  * Operators
+     * Remove ``airflow.providers.sqlite.operators.sqlite.SqliteOperator``. Please use ``airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator``.
+
 3.9.1
 .....
 
