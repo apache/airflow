@@ -21,15 +21,16 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
+
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.microsoft.azure.hooks.powerbi import (
     PowerBIDatasetRefreshFields,
     PowerBIDatasetRefreshStatus,
 )
 from airflow.providers.microsoft.azure.operators.powerbi import PowerBIDatasetRefreshOperator
 from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
-
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.utils import timezone
+
 from providers.tests.microsoft.azure.base import Base
 from providers.tests.microsoft.conftest import get_airflow_connection, mock_context
 
