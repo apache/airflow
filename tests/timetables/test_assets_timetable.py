@@ -18,13 +18,17 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import TYPE_CHECKING, Any
 
 import pytest
 from pendulum import DateTime
+from sqlalchemy.sql import select
 
-from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
-from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.models.asset import AssetAliasModel, AssetDagRunQueue, AssetEvent, AssetModel
+from airflow.models.serialized_dag import SerializedDAG, SerializedDagModel
+from airflow.operators.empty import EmptyOperator
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
 from airflow.timetables.assets import AssetOrTimeSchedule
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import AssetTriggeredTimetable
@@ -287,3 +291,88 @@ def test_summary(session: Session) -> None:
 
     table = AssetTriggeredTimetable(asset_alias)
     assert table.summary == "Asset"
+
+
+@pytest.mark.db_test
+class TestAssetConditionWithTimetable:
+    @pytest.fixture(autouse=True)
+    def clear_assets(self):
+        from tests_common.test_utils.db import clear_db_assets
+
+        clear_db_assets()
+        yield
+        clear_db_assets()
+
+    @pytest.fixture
+    def create_test_assets(self):
+        """Fixture to create test assets and corresponding models."""
+        return [Asset(uri=f"test://asset{i}", name=f"hello{i}") for i in range(1, 3)]
+
+    def test_asset_dag_run_queue_processing(self, session, dag_maker, create_test_assets):
+        assets = create_test_assets
+        asset_models = session.query(AssetModel).all()
+
+        with dag_maker(schedule=AssetAny(*assets)) as dag:
+            EmptyOperator(task_id="hello")
+
+        # Add AssetDagRunQueue entries to simulate asset event processing
+        for am in asset_models:
+            session.add(AssetDagRunQueue(asset_id=am.id, target_dag_id=dag.dag_id))
+        session.commit()
+
+        # Fetch and evaluate asset triggers for all DAGs affected by asset events
+        records = session.scalars(select(AssetDagRunQueue)).all()
+        dag_statuses = defaultdict(lambda: defaultdict(bool))
+        for record in records:
+            dag_statuses[record.target_dag_id][record.asset.uri] = True
+
+        serialized_dags = session.execute(
+            select(SerializedDagModel).where(SerializedDagModel.dag_id.in_(dag_statuses.keys()))
+        ).fetchall()
+
+        for (serialized_dag,) in serialized_dags:
+            dag = SerializedDAG.deserialize(serialized_dag.data)
+            for asset_uri, status in dag_statuses[dag.dag_id].items():
+                cond = dag.timetable.asset_condition
+                assert cond.evaluate({asset_uri: status}), "DAG trigger evaluation failed"
+
+    def test_dag_with_complex_asset_condition(self, session, dag_maker):
+        # Create Asset instances
+        asset1 = Asset(uri="test://asset1", name="hello1")
+        asset2 = Asset(uri="test://asset2", name="hello2")
+
+        # Create and add AssetModel instances to the session
+        am1 = AssetModel(uri=asset1.uri, name=asset1.name, group="asset")
+        am2 = AssetModel(uri=asset2.uri, name=asset2.name, group="asset")
+        session.add_all([am1, am2])
+        session.commit()
+
+        # Setup a DAG with complex asset triggers (AssetAny with AssetAll)
+        with dag_maker(schedule=AssetAny(asset1, AssetAll(asset2, asset1))) as dag:
+            EmptyOperator(task_id="hello")
+
+        assert isinstance(
+            dag.timetable.asset_condition, AssetAny
+        ), "DAG's asset trigger should be an instance of AssetAny"
+        assert any(
+            isinstance(trigger, AssetAll) for trigger in dag.timetable.asset_condition.objects
+        ), "DAG's asset trigger should include AssetAll"
+
+        serialized_triggers = SerializedDAG.serialize(dag.timetable.asset_condition)
+
+        deserialized_triggers = SerializedDAG.deserialize(serialized_triggers)
+
+        assert isinstance(
+            deserialized_triggers, AssetAny
+        ), "Deserialized triggers should be an instance of AssetAny"
+        assert any(
+            isinstance(trigger, AssetAll) for trigger in deserialized_triggers.objects
+        ), "Deserialized triggers should include AssetAll"
+
+        serialized_timetable_dict = SerializedDAG.to_dict(dag)["dag"]["timetable"]["__var"]
+        assert (
+            "asset_condition" in serialized_timetable_dict
+        ), "Serialized timetable should contain 'asset_condition'"
+        assert isinstance(
+            serialized_timetable_dict["asset_condition"], dict
+        ), "Serialized 'asset_condition' should be a dict"
