@@ -29,6 +29,7 @@ import type {
   TaskResponse,
   TaskInstanceResponse,
 } from "openapi/requests/types.gen";
+import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import Time from "src/components/Time";
 import { Status } from "src/components/ui";
 
@@ -68,14 +69,19 @@ export const TaskCard = ({ task, taskInstances }: Props) => (
           Last Instance
         </Heading>
         {taskInstances[0] ? (
-          <HStack fontSize="sm">
-            <Time datetime={taskInstances[0].start_date} />
-            {taskInstances[0].state === null ? undefined : (
-              <Status state={taskInstances[0].state}>
-                {taskInstances[0].state}
-              </Status>
-            )}
-          </HStack>
+          <TaskInstanceTooltip
+            child={
+              <HStack fontSize="sm">
+                <Time datetime={taskInstances[0].start_date} />
+                {taskInstances[0].state === null ? undefined : (
+                  <Status state={taskInstances[0].state}>
+                    {taskInstances[0].state}
+                  </Status>
+                )}
+              </HStack>
+            }
+            taskInstance={taskInstances[0]}
+          />
         ) : undefined}
       </VStack>
       {/* TODO: Handled mapped tasks to not plot each map index as a task instance */}

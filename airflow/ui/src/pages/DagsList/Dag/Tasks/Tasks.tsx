@@ -60,7 +60,7 @@ export const Tasks = () => {
   const { dagId } = useParams();
   const {
     data,
-    error: TasksError,
+    error: tasksError,
     isFetching,
     isLoading,
   } = useTaskServiceGetTasks({
@@ -82,7 +82,7 @@ export const Tasks = () => {
 
   // TODO: Revisit this endpoint since only 100 task instances are returned and
   // only duration is calculated with other attributes unused.
-  const { data: TaskInstancesResponse } =
+  const { data: taskInstancesResponse } =
     useTaskInstanceServiceGetTaskInstances(
       {
         dagId: dagId ?? "",
@@ -95,12 +95,12 @@ export const Tasks = () => {
 
   return (
     <Box>
-      <ErrorAlert error={TasksError} />
+      <ErrorAlert error={tasksError} />
       <Heading my={1} size="md">
         {pluralize("Task", data ? data.total_entries : 0)}
       </Heading>
       <DataTable
-        cardDef={cardDef(TaskInstancesResponse?.task_instances.reverse())}
+        cardDef={cardDef(taskInstancesResponse?.task_instances.reverse())}
         columns={[]}
         data={data ? data.tasks : []}
         displayMode="card"

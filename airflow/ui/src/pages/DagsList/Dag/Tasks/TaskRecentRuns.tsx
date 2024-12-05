@@ -16,14 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Text } from "@chakra-ui/react";
+import { Box } from "@chakra-ui/react";
 import { Flex } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import duration from "dayjs/plugin/duration";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
-import Time from "src/components/Time";
-import { Tooltip } from "src/components/ui";
+import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import { stateColor } from "src/utils/stateColor";
 
 dayjs.extend(duration);
@@ -56,42 +55,21 @@ export const TaskRecentRuns = ({
     <Flex alignItems="flex-end" flexDirection="row-reverse">
       {taskInstancesWithDuration.map((taskInstance) =>
         taskInstance.state === null ? undefined : (
-          <Tooltip
-            content={
-              <Box>
-                <Text>State: {taskInstance.state}</Text>
-                <Text>
-                  Start Date: <Time datetime={taskInstance.start_date} />
-                </Text>
-                <Text>
-                  End Date: <Time datetime={taskInstance.end_date} />
-                </Text>
-                {taskInstance.try_number > 1 && (
-                  <Text>Try Number: {taskInstance.try_number}</Text>
-                )}
-                <Text>Duration: {taskInstance.duration.toFixed(2)}s</Text>
+          <TaskInstanceTooltip
+            child={
+              <Box p={1}>
+                <Box
+                  bg={stateColor[taskInstance.state]}
+                  borderRadius="4px"
+                  height={`${(taskInstance.duration / max) * BAR_HEIGHT}px`}
+                  minHeight={1}
+                  width="4px"
+                />
               </Box>
             }
             key={taskInstance.dag_run_id}
-            positioning={{
-              offset: {
-                crossAxis: 5,
-                mainAxis: 5,
-              },
-              placement: "bottom-start",
-            }}
-            showArrow
-          >
-            <Box p={1}>
-              <Box
-                bg={stateColor[taskInstance.state]}
-                borderRadius="4px"
-                height={`${(taskInstance.duration / max) * BAR_HEIGHT}px`}
-                minHeight={1}
-                width="4px"
-              />
-            </Box>
-          </Tooltip>
+            taskInstance={taskInstance}
+          />
         ),
       )}
     </Flex>
