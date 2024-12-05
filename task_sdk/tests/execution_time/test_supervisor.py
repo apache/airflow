@@ -790,6 +790,14 @@ class TestHandleRequest:
                 id="get_variable",
             ),
             pytest.param(
+                PutVariable(key="test_key", value="test_value", description="test_description"),
+                b"",
+                "variables.set",
+                ("test_key", "test_value", "test_description"),
+                {"ok": True},
+                id="set_variable",
+            ),
+            pytest.param(
                 DeferTask(next_method="execute_callback", classpath="my-classpath"),
                 b"",
                 "task_instances.defer",
@@ -857,14 +865,6 @@ class TestHandleRequest:
                 ),
                 {"ok": True},
                 id="set_xcom_with_map_index",
-            ),
-            pytest.param(
-                PutVariable(key="test_key", value="test_value", description="test_description"),
-                b"",
-                "variables.set",
-                ("test_key", "test_value", "test_description"),
-                {"ok": True},
-                id="set_variable",
             ),
         ],
     )
