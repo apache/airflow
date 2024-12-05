@@ -655,41 +655,42 @@ class AzureServiceBusRequestReplyOperator(BaseOperator):
     """
     Implement request-reply pattern using Azure Service Bus.
 
-    Send a message to an Azure Service Bus Queue and receive a reply by message id from an Azure Service Bus
-    Topic. This implements the Request-Reply pattern from Enterprise Integration Patterns, Hohpe, Woolf,
+    Send a message to an Azure Service Bus Queue and receive a reply by correlation id from an Azure Service
+    Bus Topic. This implements the Request-Reply pattern from Enterprise Integration Patterns, Hohpe, Woolf,
     Addison-Wesley, 2003: https://www.enterpriseintegrationpatterns.com/patterns/messaging/RequestReply.html
 
     Steps are:
-    1. Generate a unique ID for the message. The subscription needs to exist before the request message is
-       sent or there will be a race condition where the reply message is sent before the subscription is
-       created. A UUID is used for the unique ID and this should be reasonably unique over the life of the
-       universe.
-    2. Create a subscription on the reply topic for that unique ID.
-    3. Send the message to the request queue with (a) the reply-to property set to the reply topic, (b) the
-       reply type property set to topic, and (c) the message ID property set to the unique ID.
-    4. Wait for a reply message on the reply topic with the message ID set to the unique ID.
-    5. Remove the subscription on the reply topic.
+        1. Generate a unique ID for the message. The subscription needs to exist before the request message is
+            sent or there will be a race condition where the reply message could be sent before the
+            subscription is created. By default, a UUID is used for the unique ID and this should be
+            reasonably unique over the life of the universe.
+        2. Create a subscription to the reply topic for messages where the correlation ID equals the unique ID
+            created in #1.
+        3. Send the message to the request queue with (a) the reply-to property set to the reply topic,
+            (b) the reply type property set to topic, and (c) the message ID set to the unique ID.
+        4. Wait for a reply message on the reply topic with the correlation ID set to the unique ID.
+        5. Remove the subscription on the reply topic.
 
-    The caller can pass in a generator function to create the request message body (request_body_generator)
-    from the context and a callback is provided to process the reply message (reply_message_callback). This
+    The caller must pass in a generator function to create the request message body (request_body_generator)
+    from the context and an optional callback can  process the reply message (reply_message_callback). This
     callback could either detect errors and abort processing by throwing an exception or could process the
     message body and add information into XComs for downstream tasks to use.
 
-    :param request_queue_name: Name of the queue to send the request to. This queue must be reachable through
-        a connection from the connection name specified in the param ```azure_service_bus_conn_id```.
+    :param request_queue_name: Name of the queue to send the request to. This queue must be reachable from
+        a connection created from the connection name specified in the param `azure_service_bus_conn_id`.
     :param request_body_generator: A method to generate the request message body from the context.
-    :param reply_topic_name: Name of the topic to send the reply to. This topic must be reachable through
-        a connection from the connection name specified in the param ```azure_service_bus_conn_id```.
+    :param reply_topic_name: Name of the topic to send the reply to. This topic must be reachable from
+        a connection created from the connection name specified in the param "azure_service_bus_conn_id".
     :param reply_correlation_id: a string to use to correlate the request and reply. This will also be the
         message ID of the request message. If not specified, a UUID will be generated and used. Generally,
         the default behavior should be used.
     :param max_wait_time: maximum wait for a reply in seconds. This should be set to some small multiple of
         the expected processing time. Perhaps 3x the expected processing time. Default is 60 seconds.
-    :param reply_message_callback: A callback to handle the response message. This takes the service bus
-        message and the context as parameters and can raise an exception to abort processing or insert values
-        into the XCOM for downstream tasks to use.
+    :param reply_message_callback: An optional callback to handle the response message. This takes the service
+        bus message and the context as parameters and can raise an exception to abort processing or insert
+        values into the XCOM for downstream tasks to use.
     :param azure_service_bus_conn_id: ID of the airflow connection to the Azure Service Bus. It defaults to
-        "azure_service_bus_default",
+        `azure_service_bus_default`,
     """
 
     REPLY_SUBSCRIPTION_PREFIX = "reply-"
@@ -753,7 +754,7 @@ class AzureServiceBusRequestReplyOperator(BaseOperator):
                 reply_to=self.reply_topic_name,
             )
             with service_bus_client.get_queue_sender(queue_name=self.request_queue_name) as sender:
-                sender.send_messages(message, timeout=60)  # don't wait forever for send.
+                sender.send_messages(message, timeout=60)
                 self.log.info(
                     "Sent request with id %s to queue %s", self.reply_correlation_id, self.request_queue_name
                 )
