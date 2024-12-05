@@ -38,7 +38,7 @@ def _get_asset_compat_hook_lineage_collector():
 
     DatasetLineageInfo.asset = DatasetLineageInfo.dataset
 
-    def rename_dataset_kwargs_as_assets_kwargs(function):
+    def rename_asset_kwargs_to_dataset_kwargs(function):
         @wraps(function)
         def wrapper(*args, **kwargs):
             if "asset_kwargs" in kwargs:
@@ -51,9 +51,9 @@ def _get_asset_compat_hook_lineage_collector():
 
         return wrapper
 
-    collector.create_asset = rename_dataset_kwargs_as_assets_kwargs(collector.create_dataset)
-    collector.add_input_asset = rename_dataset_kwargs_as_assets_kwargs(collector.add_input_dataset)
-    collector.add_output_asset = rename_dataset_kwargs_as_assets_kwargs(collector.add_output_dataset)
+    collector.create_asset = rename_asset_kwargs_to_dataset_kwargs(collector.create_dataset)
+    collector.add_input_asset = rename_asset_kwargs_to_dataset_kwargs(collector.add_input_dataset)
+    collector.add_output_asset = rename_asset_kwargs_to_dataset_kwargs(collector.add_output_dataset)
 
     def collected_assets_compat(collector) -> HookLineage:
         """Get the collected hook lineage information."""
@@ -89,6 +89,8 @@ def get_hook_lineage_collector():
     if AIRFLOW_V_2_10_PLUS:
         return _get_asset_compat_hook_lineage_collector()
 
+    # For the case that airflow has not yet upgraded to 2.10 or higher,
+    # but using the providers that already uses `get_hook_lineage_collector`
     class NoOpCollector:
         """
         NoOpCollector is a hook lineage collector that does nothing.
@@ -96,10 +98,18 @@ def get_hook_lineage_collector():
         It is used when you want to disable lineage collection.
         """
 
+        # for providers that support asset rename
         def add_input_asset(self, *_, **__):
             pass
 
         def add_output_asset(self, *_, **__):
+            pass
+
+        # for providers that do not support asset rename
+        def add_input_dataset(self, *_, **__):
+            pass
+
+        def add_output_dataset(self, *_, **__):
             pass
 
     return NoOpCollector()
