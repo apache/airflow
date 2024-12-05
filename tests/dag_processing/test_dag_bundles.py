@@ -24,6 +24,7 @@ import pytest
 from git import Repo
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
+from airflow.dag_processing.bundles.dagfolder import DagsFolderDagBundle
 from airflow.dag_processing.bundles.git import GitDagBundle
 from airflow.dag_processing.bundles.local import LocalDagBundle
 from airflow.exceptions import AirflowException
@@ -70,6 +71,13 @@ class TestLocalDagBundle:
         bundle = LocalDagBundle(name="test", local_folder="/hello")
 
         assert bundle.get_current_version() is None
+
+
+class TestDagsFolderDagBundle:
+    @conf_vars({("core", "dags_folder"): "/tmp/somewhere/dags"})
+    def test_path(self):
+        bundle = DagsFolderDagBundle(name="test")
+        assert bundle.path == Path("/tmp/somewhere/dags")
 
 
 GIT_DEFAULT_BRANCH = "main"
