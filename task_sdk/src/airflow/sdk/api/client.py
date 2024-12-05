@@ -176,6 +176,8 @@ class XComOperations:
 
     def get(self, dag_id: str, run_id: str, task_id: str, key: str, map_index: int = -1) -> XComResponse:
         """Get a XCom value from the API server."""
+        # TODO: check if we need to use map_index as params in the uri
+        # ref: https://github.com/apache/airflow/blob/v2-10-stable/airflow/api_connexion/openapi/v1.yaml#L1785C1-L1785C81
         resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params={"map_index": map_index})
         return XComResponse.model_validate_json(resp.read())
 
@@ -183,6 +185,8 @@ class XComOperations:
         self, dag_id: str, run_id: str, task_id: str, key: str, value, map_index: int | None = None
     ) -> dict[str, bool]:
         """Set a XCom value via the API server."""
+        # TODO: check if we need to use map_index as params in the uri
+        # ref: https://github.com/apache/airflow/blob/v2-10-stable/airflow/api_connexion/openapi/v1.yaml#L1785C1-L1785C81
         params = {}
         if map_index:
             params = {"map_index": map_index}
