@@ -674,6 +674,7 @@ export class StructureService {
    * @param data.root
    * @param data.includeUpstream
    * @param data.includeDownstream
+   * @param data.externalDependencies
    * @returns StructureDataResponse Successful Response
    * @throws ApiError
    */
@@ -688,6 +689,7 @@ export class StructureService {
         root: data.root,
         include_upstream: data.includeUpstream,
         include_downstream: data.includeDownstream,
+        external_dependencies: data.externalDependencies,
       },
       errors: {
         404: "Not Found",

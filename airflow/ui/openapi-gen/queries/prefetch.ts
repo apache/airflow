@@ -414,6 +414,7 @@ export const prefetchUseDashboardServiceHistoricalMetrics = (
  * @param data.root
  * @param data.includeUpstream
  * @param data.includeDownstream
+ * @param data.externalDependencies
  * @returns StructureDataResponse Successful Response
  * @throws ApiError
  */
@@ -421,11 +422,13 @@ export const prefetchUseStructureServiceStructureData = (
   queryClient: QueryClient,
   {
     dagId,
+    externalDependencies,
     includeDownstream,
     includeUpstream,
     root,
   }: {
     dagId: string;
+    externalDependencies?: boolean;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
     root?: string;
@@ -434,6 +437,7 @@ export const prefetchUseStructureServiceStructureData = (
   queryClient.prefetchQuery({
     queryKey: Common.UseStructureServiceStructureDataKeyFn({
       dagId,
+      externalDependencies,
       includeDownstream,
       includeUpstream,
       root,
@@ -441,6 +445,7 @@ export const prefetchUseStructureServiceStructureData = (
     queryFn: () =>
       StructureService.structureData({
         dagId,
+        externalDependencies,
         includeDownstream,
         includeUpstream,
         root,
