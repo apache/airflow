@@ -16,38 +16,37 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, HStack } from "@chakra-ui/react";
-import type { DAGRunStates } from "openapi-gen/requests/types.gen";
+import { Box, Text, Button } from "@chakra-ui/react";
+import { FiChevronRight } from "react-icons/fi";
+import { Link as RouterLink } from "react-router-dom";
 
 import { MetricsBadge } from "src/components/MetricsBadge";
+import { capitalize } from "src/utils";
 
-import { MetricSection } from "./MetricSection";
+// TODO: Add badge count once API is available
 
-type DagRunMetricsProps = {
-  readonly dagRunStates: DAGRunStates;
-  readonly total: number;
-};
-
-const DAGRUN_STATES: Array<keyof DAGRunStates> = [
-  "queued",
-  "running",
-  "success",
-  "failed",
-];
-
-export const DagRunMetrics = ({ dagRunStates, total }: DagRunMetricsProps) => (
-  <Box borderRadius={5} borderWidth={1} p={2}>
-    <HStack mb={4}>
-      <MetricsBadge backgroundColor="blue.solid" runs={total} />
-      <Heading size="md">Dag Runs</Heading>
-    </HStack>
-    {DAGRUN_STATES.map((state) => (
-      <MetricSection
-        key={state}
-        runs={dagRunStates[state]}
-        state={state}
-        total={total}
-      />
-    ))}
-  </Box>
+export const DagFilterButton = ({
+  badgeColor,
+  filter,
+  link,
+}: {
+  readonly badgeColor: string;
+  readonly filter: string;
+  readonly link: string;
+}) => (
+  <RouterLink to={link}>
+    <Button
+      alignItems="center"
+      borderRadius="md"
+      display="flex"
+      gap={2}
+      variant="outline"
+    >
+      <Box alignItems="center" display="flex" gap={1}>
+        <MetricsBadge backgroundColor={badgeColor} />
+        <Text fontWeight="bold">{capitalize(filter)} Dags</Text>
+        <FiChevronRight />
+      </Box>
+    </Button>
+  </RouterLink>
 );
