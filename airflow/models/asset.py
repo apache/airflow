@@ -42,13 +42,13 @@ from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Iterable
 
     from sqlalchemy.orm import Session
 
 
 def _fetch_active_assets_by_name(
-    names: Sequence[str],
+    names: Iterable[str],
     session: Session,
 ) -> dict[str, Asset]:
     return {
