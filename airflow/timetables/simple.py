@@ -19,7 +19,6 @@ from __future__ import annotations
 from collections.abc import Collection, Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.sdk.definitions.asset import AssetAlias, AssetAliasCondition
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 from airflow.utils import timezone
 
@@ -169,9 +168,6 @@ class AssetTriggeredTimetable(_TrivialTimetable):
     def __init__(self, assets: BaseAsset) -> None:
         super().__init__()
         self.asset_condition = assets
-        if isinstance(self.asset_condition, AssetAlias):
-            self.asset_condition = AssetAliasCondition.from_asset_alias(self.asset_condition)
-
         if not next(self.asset_condition.iter_assets(), False):
             self._summary = AssetTriggeredTimetable.UNRESOLVED_ALIAS_SUMMARY
         else:
