@@ -25,6 +25,9 @@
 Changelog
 ---------
 
+main
+.....
+
 .. warning::
   All deprecated classes, parameters and features have been removed from the Common SQL provider package.
   The following breaking changes were introduced:
