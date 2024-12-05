@@ -20,6 +20,7 @@ import { useQuery } from "@tanstack/react-query";
 import ELK, { type ElkNode, type ElkExtendedEdge, type ElkShape } from "elkjs";
 
 import type {
+  DAGResponse,
   EdgeResponse,
   NodeResponse,
   StructureDataResponse,
@@ -247,11 +248,13 @@ const generateElkGraph = ({
 };
 
 type LayoutProps = {
+  dagId: DAGResponse["dag_id"];
   openGroupIds: Array<string>;
 } & StructureDataResponse;
 
 export const useGraphLayout = ({
   arrange = "LR",
+  dagId,
   edges,
   nodes,
   openGroupIds = [],
@@ -290,5 +293,5 @@ export const useGraphLayout = ({
 
       return { edges: formattedEdges, nodes: flattenedData.nodes };
     },
-    queryKey: ["graphLayout", nodes.length, openGroupIds, arrange],
+    queryKey: ["graphLayout", nodes.length, openGroupIds, arrange, dagId],
   });
