@@ -70,6 +70,21 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         "group_id",
     )
     template_fields_renderers = {"parameters": "json"}
+    INTERMEDIATE_STATES = (
+        "Unknown"
+    )
+    SUCCESS_STATES = (
+        "Completed"
+    )
+    FAILURE_STATES = (
+        "Failed",
+        "Disabled"
+    )
+    TERMINAL_STATES = (
+        "Completed",
+        "Failed",
+        "Disabled"
+    )
 
     operator_extra_links = (PowerBILink(),)
 
@@ -126,7 +141,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event:
-            if event["status"] == "error":
+            if event["status"] in self.FAILURE_STATES:
                 raise AirflowException(event["message"])
 
             self.xcom_push(
