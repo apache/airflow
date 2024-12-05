@@ -21,7 +21,7 @@ import uuid
 from datetime import timedelta
 from typing import Annotated, Any, Literal, Union
 
-from pydantic import Discriminator, Field, Tag, WithJsonSchema
+from pydantic import ConfigDict, Discriminator, Field, Tag, WithJsonSchema
 
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel
@@ -135,3 +135,11 @@ class TaskInstance(BaseModel):
     run_id: str
     try_number: int
     map_index: int | None = None
+
+
+class RTIFPayload(BaseModel):
+    """Schema for setting RTIF for a task instance."""
+
+    rendered_fields: dict[str, str]
+
+    model_config = ConfigDict(extra="forbid")
