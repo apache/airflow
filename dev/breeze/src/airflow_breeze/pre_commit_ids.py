@@ -56,6 +56,7 @@ PRE_COMMIT_LIST = [
     "check-google-re2-as-dependency",
     "check-hatch-build-order",
     "check-hooks-apply",
+    "check-imports-in-providers",
     "check-incorrect-use-of-LoggingMixin",
     "check-init-decorator-arguments",
     "check-integrations-list-consistent",
