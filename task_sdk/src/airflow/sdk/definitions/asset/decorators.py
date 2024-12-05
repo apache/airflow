@@ -54,7 +54,7 @@ class _AssetMainOperator(PythonOperator):
             yield key, value
 
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
-        from airflow.models.asset import _fetch_active_assets_by_name
+        from airflow.models.asset import fetch_active_assets_by_name
         from airflow.utils.session import create_session
 
         asset_names = {asset_ref.name for asset_ref in self.inlets if isinstance(asset_ref, AssetRef)}
@@ -63,7 +63,7 @@ class _AssetMainOperator(PythonOperator):
 
         if asset_names:
             with create_session() as session:
-                active_assets = _fetch_active_assets_by_name(asset_names, session)
+                active_assets = fetch_active_assets_by_name(asset_names, session)
         else:
             active_assets = {}
         return dict(self._iter_kwargs(context, active_assets))

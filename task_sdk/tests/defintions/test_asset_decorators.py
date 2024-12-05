@@ -146,7 +146,7 @@ class TestAssetDefinition:
 
 
 class Test_AssetMainOperator:
-    @mock.patch("airflow.models.asset._fetch_active_assets_by_name")
+    @mock.patch("airflow.models.asset.fetch_active_assets_by_name")
     @mock.patch("airflow.utils.session.create_session")
     def test_determine_kwargs(
         self,

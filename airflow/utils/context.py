@@ -35,7 +35,7 @@ import lazy_object_proxy
 from sqlalchemy import select
 
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel, _fetch_active_assets_by_name
+from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel, fetch_active_assets_by_name
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
@@ -250,7 +250,7 @@ class InletEventsAccessors(Mapping[str, LazyAssetEventSelectSequence]):
                 _asset_ref_names.append(inlet.name)
 
         if _asset_ref_names:
-            for asset_name, asset in _fetch_active_assets_by_name(_asset_ref_names, self._session).items():
+            for asset_name, asset in fetch_active_assets_by_name(_asset_ref_names, self._session).items():
                 self._assets[asset_name] = asset
 
     def __iter__(self) -> Iterator[str]:

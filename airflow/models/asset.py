@@ -47,10 +47,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 
-def _fetch_active_assets_by_name(
-    names: Iterable[str],
-    session: Session,
-) -> dict[str, Asset]:
+def fetch_active_assets_by_name(names: Iterable[str], session: Session) -> dict[str, Asset]:
     return {
         asset_model[0].name: asset_model[0].to_public()
         for asset_model in session.execute(
@@ -59,6 +56,16 @@ def _fetch_active_assets_by_name(
             .where(AssetActive.name.in_(name for name in names))
         )
     }
+
+
+def expand_alias_to_assets(alias_name: str, session: Session) -> Iterable[AssetModel]:
+    """Expand asset alias to resolved assets."""
+    asset_alias_obj = session.scalar(
+        select(AssetAliasModel).where(AssetAliasModel.name == alias_name).limit(1)
+    )
+    if asset_alias_obj:
+        return list(asset_alias_obj.assets)
+    return []
 
 
 alias_association_table = Table(
