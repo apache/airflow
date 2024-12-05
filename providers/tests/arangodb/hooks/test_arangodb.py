@@ -19,6 +19,7 @@ from __future__ import annotations
 from unittest.mock import Mock, patch
 
 import pytest
+from arango.cursor import Cursor
 
 from airflow.models import Connection
 from airflow.providers.arangodb.hooks.arangodb import ArangoDBHook
@@ -67,6 +68,9 @@ class TestArangoDBHook:
     def test_query(self, arango_mock):
         arangodb_hook = ArangoDBHook()
         with patch.object(arangodb_hook, "db_conn"):
+            mock_cursor = Mock(spec=Cursor)
+            arangodb_hook.db_conn.aql.execute.return_value = mock_cursor
+
             arangodb_query = "FOR doc IN students RETURN doc"
             arangodb_hook.query(arangodb_query)
 
