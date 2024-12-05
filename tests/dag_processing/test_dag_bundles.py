@@ -72,10 +72,14 @@ class TestLocalDagBundle:
         assert bundle.get_current_version() is None
 
 
+GIT_DEFAULT_BRANCH = "main"
+
+
 @pytest.fixture
 def git_repo(tmp_path_factory):
     directory = tmp_path_factory.mktemp("repo")
     repo = Repo.init(directory)
+    repo.git.symbolic_ref("HEAD", f"refs/heads/{GIT_DEFAULT_BRANCH}")
     file_path = directory / "test_dag.py"
     with open(file_path, "w") as f:
         f.write("hello world")
@@ -90,12 +94,12 @@ class TestGitDagBundle:
 
     def test_uses_dag_bundle_root_storage_path(self, git_repo):
         repo_path, repo = git_repo
-        bundle = GitDagBundle(name="test", repo_url=repo_path, tracking_ref="master")
+        bundle = GitDagBundle(name="test", repo_url=repo_path, tracking_ref=GIT_DEFAULT_BRANCH)
         assert str(bundle._dag_bundle_root_storage_path) in str(bundle.path)
 
     def test_get_current_version(self, git_repo):
         repo_path, repo = git_repo
-        bundle = GitDagBundle(name="test", repo_url=repo_path, tracking_ref="master")
+        bundle = GitDagBundle(name="test", repo_url=repo_path, tracking_ref=GIT_DEFAULT_BRANCH)
 
         assert bundle.get_current_version() == repo.head.commit.hexsha
 
@@ -111,7 +115,7 @@ class TestGitDagBundle:
         repo.index.commit("Another commit")
 
         bundle = GitDagBundle(
-            name="test", version=starting_commit.hexsha, repo_url=repo_path, tracking_ref="master"
+            name="test", version=starting_commit.hexsha, repo_url=repo_path, tracking_ref=GIT_DEFAULT_BRANCH
         )
 
         assert bundle.get_current_version() == starting_commit.hexsha
@@ -134,7 +138,9 @@ class TestGitDagBundle:
         repo.index.add([file_path])
         repo.index.commit("Another commit")
 
-        bundle = GitDagBundle(name="test", version="test", repo_url=repo_path, tracking_ref="master")
+        bundle = GitDagBundle(
+            name="test", version="test", repo_url=repo_path, tracking_ref=GIT_DEFAULT_BRANCH
+        )
 
         assert bundle.get_current_version() == starting_commit.hexsha
 
@@ -151,7 +157,7 @@ class TestGitDagBundle:
         repo.index.add([file_path])
         repo.index.commit("Another commit")
 
-        bundle = GitDagBundle(name="test", repo_url=repo_path, tracking_ref="master")
+        bundle = GitDagBundle(name="test", repo_url=repo_path, tracking_ref=GIT_DEFAULT_BRANCH)
 
         assert bundle.get_current_version() != starting_commit.hexsha
 
@@ -162,7 +168,7 @@ class TestGitDagBundle:
         repo_path, repo = git_repo
         starting_commit = repo.head.commit
 
-        bundle = GitDagBundle(name="test", repo_url=repo_path, tracking_ref="master")
+        bundle = GitDagBundle(name="test", repo_url=repo_path, tracking_ref=GIT_DEFAULT_BRANCH)
 
         assert bundle.get_current_version() == starting_commit.hexsha
 
@@ -193,7 +199,9 @@ class TestGitDagBundle:
         repo_path, repo = git_repo
 
         with pytest.raises(AirflowException, match="Version not_found not found in the repository"):
-            GitDagBundle(name="test", version="not_found", repo_url=repo_path, tracking_ref="master")
+            GitDagBundle(
+                name="test", version="not_found", repo_url=repo_path, tracking_ref=GIT_DEFAULT_BRANCH
+            )
 
     def test_subdir(self, git_repo):
         repo_path, repo = git_repo
@@ -208,7 +216,7 @@ class TestGitDagBundle:
         repo.index.add([file_path])
         repo.index.commit("Initial commit")
 
-        bundle = GitDagBundle(name="test", repo_url=repo_path, tracking_ref="master", subdir=subdir)
+        bundle = GitDagBundle(name="test", repo_url=repo_path, tracking_ref=GIT_DEFAULT_BRANCH, subdir=subdir)
 
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert str(bundle.path).endswith(subdir)
