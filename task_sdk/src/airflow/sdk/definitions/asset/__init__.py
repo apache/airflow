@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import functools
 import logging
 import operator
 import os
@@ -33,17 +34,13 @@ from typing import (
 )
 
 import attrs
-from sqlalchemy import select
 
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.typing_compat import TypedDict
-from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
     from urllib.parse import SplitResult
-
-    from sqlalchemy.orm.session import Session
 
     from airflow.triggers.base import BaseTrigger
 
@@ -502,21 +499,6 @@ class AssetAny(_AssetBooleanCondition):
         return {"any": [o.as_expression() for o in self.objects]}
 
 
-@provide_session
-def expand_alias_to_assets(alias: str | AssetAlias, *, session: Session = NEW_SESSION) -> list[BaseAsset]:
-    """Expand asset alias to resolved assets."""
-    from airflow.models.asset import AssetAliasModel
-
-    alias_name = alias.name if isinstance(alias, AssetAlias) else alias
-
-    asset_alias_obj = session.scalar(
-        select(AssetAliasModel).where(AssetAliasModel.name == alias_name).limit(1)
-    )
-    if asset_alias_obj:
-        return [asset.to_public() for asset in asset_alias_obj.assets]
-    return []
-
-
 class AssetAliasCondition(AssetAny):
     """
     Use to expand AssetAlias as AssetAny of its resolved Assets.
@@ -527,10 +509,18 @@ class AssetAliasCondition(AssetAny):
     def __init__(self, name: str, group: str) -> None:
         self.name = name
         self.group = group
-        self.objects = expand_alias_to_assets(name)
 
     def __repr__(self) -> str:
         return f"AssetAliasCondition({', '.join(map(str, self.objects))})"
+
+    @functools.cached_property
+    def objects(self) -> list[BaseAsset]:  # type: ignore[override]
+        from airflow.models.asset import expand_alias_to_assets
+        from airflow.utils.session import create_session
+
+        with create_session() as session:
+            asset_models = expand_alias_to_assets(self.name, session)
+        return [m.to_public() for m in asset_models]
 
     def as_expression(self) -> Any:
         """

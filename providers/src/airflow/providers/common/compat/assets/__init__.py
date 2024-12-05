@@ -28,24 +28,24 @@ from airflow.providers.common.compat import (
 
 if TYPE_CHECKING:
     from airflow.auth.managers.models.resource_details import AssetDetails
+    from airflow.models.asset import expand_alias_to_assets
     from airflow.sdk.definitions.asset import (
         Asset,
         AssetAlias,
         AssetAliasEvent,
         AssetAll,
         AssetAny,
-        expand_alias_to_assets,
     )
 else:
     if AIRFLOW_V_3_0_PLUS:
         from airflow.auth.managers.models.resource_details import AssetDetails
+        from airflow.models.asset import expand_alias_to_assets
         from airflow.sdk.definitions.asset import (
             Asset,
             AssetAlias,
             AssetAliasEvent,
             AssetAll,
             AssetAny,
-            expand_alias_to_assets,
         )
     else:
         # dataset is renamed to asset since Airflow 3.0
