@@ -766,10 +766,11 @@ export type NodeResponse = {
   label: string;
   tooltip?: string | null;
   setup_teardown_type?: "setup" | "teardown" | null;
-  type: "join" | "sensor" | "task" | "asset_condition";
+  type: "join" | "task" | "asset_condition";
+  operator?: string | null;
 };
 
-export type type = "join" | "sensor" | "task" | "asset_condition";
+export type type = "join" | "task" | "asset_condition";
 
 /**
  * Request body for Clear Task Instances endpoint.

@@ -3171,8 +3171,19 @@ export const $NodeResponse = {
     },
     type: {
       type: "string",
-      enum: ["join", "sensor", "task", "asset_condition"],
+      enum: ["join", "task", "asset_condition"],
       title: "Type",
+    },
+    operator: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Operator",
     },
   },
   type: "object",
