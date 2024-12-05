@@ -49,6 +49,12 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("norecursedirs", "tests/test_dags")
 
 
+@pytest.hookimpl(tryfirst=True)
+def pytest_runtest_setup(item):
+    if next(item.iter_markers(name="db_test"), None):
+        pytest.fail("Task SDK tests must not use database")
+
+
 class LogCapture:
     # Like structlog.typing.LogCapture, but that doesn't add log_level in to the event dict
     entries: list[EventDict]
