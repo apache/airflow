@@ -1634,6 +1634,7 @@ def _handle_reschedule(
     # see https://github.com/apache/airflow/pull/21362 for more info
     session.add(
         TaskReschedule(
+            ti.ti_id,
             ti.task_id,
             ti.dag_id,
             ti.run_id,

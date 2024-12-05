@@ -90,6 +90,7 @@ class TaskInstanceDependencies(Base):
 
     __abstract__ = True
 
+    ti_id = Column(String(36), nullable=False)
     task_id = Column(StringID(), nullable=False)
     dag_id = Column(StringID(), nullable=False)
     run_id = Column(StringID(), nullable=False)
