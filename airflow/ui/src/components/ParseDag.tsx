@@ -16,21 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { FiRefreshCw } from "react-icons/fi";
 
-export * from "./Dialog";
-export * from "./Pagination";
-export * from "./Select";
-export * from "./Alert";
-export * from "./CloseButton";
-export * from "./InputGroup";
+import { Button } from "src/components/ui";
+import { useDagParsing } from "src/queries/useDagParsing.ts";
 
-export * from "./Switch";
-export * from "./Tag";
-export * from "./Tooltip";
+type Props = {
+  readonly dagId: string;
+  readonly fileToken: string;
+};
 
-export * from "./ProgressBar";
-export * from "./Menu";
-export * from "./Accordion";
-export * from "./Status";
-export * from "./Button";
-export * from "./Toaster";
+const ParseDag = ({ dagId, fileToken }: Props) => {
+  const { isPending, mutate } = useDagParsing({ dagId });
+
+  return (
+    <Button
+      loading={isPending}
+      onClick={() => mutate({ fileToken })}
+      variant="outline"
+    >
+      <FiRefreshCw height={5} width={5} />
+      Reparse Dag
+    </Button>
+  );
+};
+
+export default ParseDag;

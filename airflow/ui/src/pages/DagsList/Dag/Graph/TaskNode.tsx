@@ -34,7 +34,9 @@ export const TaskNode = ({
     isMapped,
     isOpen,
     label,
+    operator,
     setupTeardownType,
+    type: nodeType,
     width,
   },
   id,
@@ -61,9 +63,11 @@ export const TaskNode = ({
           width={`${width}px`}
         >
           <Box>
-            {/* TODO: replace 'Operator' */}
-            <Text fontSize="xs" fontWeight="lighter" textTransform="uppercase">
-              {isGroup ? "Task Group" : "Operator"}
+            <Text fontSize="xs" fontWeight="lighter" textTransform="capitalize">
+              {isGroup ? "Task Group" : operator}
+            </Text>
+            <Text color="blue.solid" textTransform="capitalize">
+              {nodeType}
             </Text>
             <TaskName
               id={id}

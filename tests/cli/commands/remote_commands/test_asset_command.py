@@ -29,7 +29,6 @@ from airflow.cli import cli_parser
 from airflow.cli.commands.remote_commands import asset_command
 from airflow.models.dagbag import DagBag
 
-from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 if typing.TYPE_CHECKING:
@@ -56,7 +55,6 @@ def parser() -> ArgumentParser:
     return cli_parser.get_parser()
 
 
-@conf_vars({("core", "load_examples"): "true"})
 def test_cli_assets_list(parser: ArgumentParser) -> None:
     args = parser.parse_args(["assets", "list", "--output=json"])
     with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
@@ -64,11 +62,19 @@ def test_cli_assets_list(parser: ArgumentParser) -> None:
 
     asset_list = json.loads(temp_stdout.getvalue())
     assert len(asset_list) > 0
-    assert "name" in asset_list[0]
-    assert "uri" in asset_list[0]
-    assert "group" in asset_list[0]
-    assert "extra" in asset_list[0]
-    assert any(asset["uri"] == "s3://dag1/output_1.txt" for asset in asset_list)
+    assert set(asset_list[0]) == {"name", "uri", "group", "extra"}
+    assert any(asset["uri"] == "s3://dag1/output_1.txt" for asset in asset_list), asset_list
+
+
+def test_cli_assets_alias_list(parser: ArgumentParser) -> None:
+    args = parser.parse_args(["assets", "list", "--alias", "--output=json"])
+    with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+        asset_command.asset_list(args)
+
+    alias_list = json.loads(temp_stdout.getvalue())
+    assert len(alias_list) > 0
+    assert set(alias_list[0]) == {"name", "group"}
+    assert any(alias["name"] == "example-alias" for alias in alias_list), alias_list
 
 
 def test_cli_assets_details(parser: ArgumentParser) -> None:
@@ -95,6 +101,20 @@ def test_cli_assets_details(parser: ArgumentParser) -> None:
         "extra": {},
         "aliases": [],
     }
+
+
+def test_cli_assets_alias_details(parser: ArgumentParser) -> None:
+    args = parser.parse_args(["assets", "details", "--alias", "--name=example-alias", "--output=json"])
+    with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+        asset_command.asset_details(args)
+
+    alias_detail_list = json.loads(temp_stdout.getvalue())
+    assert len(alias_detail_list) == 1
+
+    # No good way to statically compare these.
+    undeterministic = {"id": None}
+
+    assert alias_detail_list[0] | undeterministic == undeterministic | {"name": "example-alias", "group": ""}
 
 
 def test_cli_assets_materialize(parser: ArgumentParser) -> None:
@@ -124,5 +144,5 @@ def test_cli_assets_materialize(parser: ArgumentParser) -> None:
         "run_type": "manual",
         "start_date": None,
         "state": "queued",
-        "triggered_by": "DagRunTriggeredByType.CLI",
+        "triggered_by": "cli",
     }
