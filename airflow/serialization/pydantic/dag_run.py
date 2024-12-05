@@ -59,6 +59,9 @@ class DagRunPydantic(BaseModelPydantic):
     consumed_asset_events: list[AssetEventPydantic]
     log_template_id: Optional[int]
     triggered_by: Optional[DagRunTriggeredByType]
+    scheduled_by_job_id: Optional[int]
+    context_carrier: Optional[dict]
+    span_status: Optional[str]
 
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
