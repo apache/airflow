@@ -18,11 +18,11 @@
 from __future__ import annotations
 
 import base64
-import pickle
 from collections.abc import Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Callable
 
+import cloudpickle
 from requests import Response
 
 from airflow.configuration import conf
@@ -177,8 +177,6 @@ class HttpSensor(BaseSensorOperator):
                     method=self.method,
                     extra_options=self.extra_options,
                     poke_interval=self.poke_interval,
-                    response_check=self.response_check,
-                    context=context,
                 ),
                 method_name="execute_complete",
             )
@@ -214,7 +212,7 @@ class HttpSensor(BaseSensorOperator):
         if event["status"] == "success":
             response = event["response"]
             if self.response_check:
-                retrieved_data = pickle.loads(base64.standard_b64decode(response))
+                retrieved_data = cloudpickle.loads(base64.standard_b64decode(response))
                 if self.process_response(context=context, response=retrieved_data):
                     self.log.info("response_check condition is matched for %s", self.task_id)
                 else:
