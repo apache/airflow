@@ -190,7 +190,8 @@ class _TemplateWithContext(NamedTuple):
             "triggerer_job",
         ]
         for key in keys_to_delete:
-            del result[key]
+            if key in result:
+                del result[key]
 
         return result
 
