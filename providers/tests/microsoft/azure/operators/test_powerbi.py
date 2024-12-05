@@ -21,16 +21,15 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
-
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.microsoft.azure.hooks.powerbi import (
     PowerBIDatasetRefreshFields,
     PowerBIDatasetRefreshStatus,
 )
 from airflow.providers.microsoft.azure.operators.powerbi import PowerBIDatasetRefreshOperator
 from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
-from airflow.utils import timezone
 
+from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.utils import timezone
 from providers.tests.microsoft.azure.base import Base
 from providers.tests.microsoft.conftest import get_airflow_connection, mock_context
 
@@ -106,12 +105,27 @@ class TestPowerBIDatasetRefreshOperator(Base):
             **CONFIG,
         )
         context = {"ti": MagicMock()}
-        with pytest.raises(AirflowException):
+        with pytest.raises(AirflowException) as exc:
             operator.execute_complete(
                 context=context,
                 event={"status": "error", "message": "error", "dataset_refresh_id": "1234"},
             )
         assert context["ti"].xcom_push.call_count == 0
+        assert str(exc.value) == "error"
+
+    def test_powerbi_operator_refresh_fail(self):
+        """Assert that execute_complete raise exception on refresh fail"""
+        operator = PowerBIDatasetRefreshOperator(
+            **CONFIG,
+        )
+        context = {"ti": MagicMock()}
+        with pytest.raises(AirflowException) as exc:
+            operator.execute_complete(
+                context=context,
+                event={"status": "Failed", "message": "error message", "dataset_refresh_id": "1234"},
+            )
+        assert context["ti"].xcom_push.call_count == 0
+        assert str(exc.value) == "error message"
 
     def test_execute_complete_no_event(self):
         """Test execute_complete when event is None or empty."""

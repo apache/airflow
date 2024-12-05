@@ -20,10 +20,11 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIDatasetRefreshStatus, PowerBIHook
 from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
+
+from airflow.exceptions import AirflowException
+from airflow.models import BaseOperator, BaseOperatorLink
 
 if TYPE_CHECKING:
     from msgraph_core import APIVersion
@@ -124,7 +125,6 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event:
-            self.xcom_push(context=context, key="event", value=str(event))
             if (
                 event["status"] == "error"
                 or event["status"] == PowerBIDatasetRefreshStatus.FAILED
