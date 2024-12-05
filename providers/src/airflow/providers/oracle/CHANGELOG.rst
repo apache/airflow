@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+
+main
+.....
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the oracle provider package.
+  The following breaking changes were introduced:
+
+  * ``Removed deprecated OracleOperator. Use airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator instead.``
+  * ``Removed using conn.schema to pass the Oracle Service Name as its deprecated. Use conn.extra.service_name instead.``
+
 3.12.1
 ......
 
