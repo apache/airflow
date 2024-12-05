@@ -21,7 +21,7 @@ import { Badge, type BadgeProps } from "@chakra-ui/react";
 type MetricBadgeProps = {
   readonly backgroundColor: string;
   readonly color?: string;
-  readonly runs: number;
+  readonly runs?: number;
 } & BadgeProps;
 
 export const MetricsBadge = ({
@@ -34,6 +34,7 @@ export const MetricsBadge = ({
     borderRadius={15}
     color={color}
     minWidth={10}
+    mr={1}
     px={4}
     py={1}
     size="md"
