@@ -1090,50 +1090,6 @@ export const useDagServiceGetDags = <
     ...options,
   });
 /**
- * Get Dag Tags
- * Get all DAG tags.
- * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
- * @param data.tagNamePattern
- * @returns DAGTagCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useDagServiceGetDagTags = <
-  TData = Common.DagServiceGetDagTagsDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    limit,
-    offset,
-    orderBy,
-    tagNamePattern,
-  }: {
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-    tagNamePattern?: string;
-  } = {},
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseDagServiceGetDagTagsKeyFn(
-      { limit, offset, orderBy, tagNamePattern },
-      queryKey,
-    ),
-    queryFn: () =>
-      DagService.getDagTags({
-        limit,
-        offset,
-        orderBy,
-        tagNamePattern,
-      }) as TData,
-    ...options,
-  });
-/**
  * Get Dag
  * Get basic information about a DAG.
  * @param data The data for the request.
@@ -1183,6 +1139,50 @@ export const useDagServiceGetDagDetails = <
   useQuery<TData, TError>({
     queryKey: Common.UseDagServiceGetDagDetailsKeyFn({ dagId }, queryKey),
     queryFn: () => DagService.getDagDetails({ dagId }) as TData,
+    ...options,
+  });
+/**
+ * Get Dag Tags
+ * Get all DAG tags.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @param data.tagNamePattern
+ * @returns DAGTagCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagServiceGetDagTags = <
+  TData = Common.DagServiceGetDagTagsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    limit,
+    offset,
+    orderBy,
+    tagNamePattern,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    tagNamePattern?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDagServiceGetDagTagsKeyFn(
+      { limit, offset, orderBy, tagNamePattern },
+      queryKey,
+    ),
+    queryFn: () =>
+      DagService.getDagTags({
+        limit,
+        offset,
+        orderBy,
+        tagNamePattern,
+      }) as TData,
     ...options,
   });
 /**
