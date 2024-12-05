@@ -22,10 +22,8 @@ import time
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
 
-from airflow.providers.microsoft.azure.hooks.powerbi import (
-    PowerBIDatasetRefreshStatus,
-    PowerBIHook,
-)
+from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIDatasetRefreshStatus, PowerBIHook
+
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
@@ -106,20 +104,20 @@ class PowerBITrigger(BaseTrigger):
             group_id=self.group_id,
         )
 
-        async def fetch_refresh_status() -> str:
-            """Fetch the current status of the dataset refresh."""
+        async def fetch_refresh_status_and_error() -> tuple[str, str]:
+            """Fetch the current status and error of the dataset refresh."""
             refresh_details = await self.hook.get_refresh_details_by_refresh_id(
                 dataset_id=self.dataset_id,
                 group_id=self.group_id,
                 refresh_id=self.dataset_refresh_id,
             )
-            return refresh_details["status"]
+            return refresh_details["status"], refresh_details["error"]
 
         try:
-            dataset_refresh_status = await fetch_refresh_status()
+            dataset_refresh_status, dataset_refresh_error = await fetch_refresh_status_and_error()
             start_time = time.monotonic()
             while start_time + self.timeout > time.monotonic():
-                dataset_refresh_status = await fetch_refresh_status()
+                dataset_refresh_status, dataset_refresh_error = await fetch_refresh_status_and_error()
 
                 if dataset_refresh_status == PowerBIDatasetRefreshStatus.COMPLETED:
                     yield TriggerEvent(
@@ -134,7 +132,7 @@ class PowerBITrigger(BaseTrigger):
                     yield TriggerEvent(
                         {
                             "status": dataset_refresh_status,
-                            "message": f"The dataset refresh {self.dataset_refresh_id} has {dataset_refresh_status}.",
+                            "message": f"The dataset refresh {self.dataset_refresh_id} has {dataset_refresh_status}. Error: {dataset_refresh_error}",
                             "dataset_refresh_id": self.dataset_refresh_id,
                         }
                     )
