@@ -30,6 +30,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy_utils import UUIDType
 
+from airflow.models.base import StringID
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 
 revision = "e229247a6cb1"
@@ -43,7 +44,7 @@ def upgrade():
     op.create_table(
         "dag_bundle",
         sa.Column("id", UUIDType(binary=False), nullable=False),
-        sa.Column("name", sa.String(length=200), nullable=False),
+        sa.Column("name", StringID(), nullable=False),
         sa.Column("classpath", sa.String(length=1000), nullable=False),
         sa.Column("kwargs", ExtendedJSON(), nullable=True),
         sa.Column("refresh_interval", sa.Integer(), nullable=True),

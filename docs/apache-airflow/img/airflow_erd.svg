@@ -1425,7 +1425,7 @@
 <polygon fill="none" stroke="black" points="12.5,-1888 12.5,-1913 300.5,-1913 300.5,-1888 12.5,-1888"/>
 <text text-anchor="start" x="17.5" y="-1897.8" font-family="Helvetica,sans-Serif" font-size="14.00">name</text>
 <text text-anchor="start" x="57.5" y="-1897.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="62.5" y="-1897.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(200)]</text>
+<text text-anchor="start" x="62.5" y="-1897.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
 <text text-anchor="start" x="183.5" y="-1897.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 <polygon fill="none" stroke="black" points="12.5,-1863 12.5,-1888 300.5,-1888 300.5,-1863 12.5,-1863"/>
 <text text-anchor="start" x="17.5" y="-1872.8" font-family="Helvetica,sans-Serif" font-size="14.00">refresh_interval</text>
