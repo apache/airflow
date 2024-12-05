@@ -41,24 +41,26 @@ class TestRedisHook:
     @mock.patch("airflow.providers.redis.hooks.redis.Redis")
     @mock.patch(
         "airflow.providers.redis.hooks.redis.RedisHook.get_connection",
-        return_value=Connection(
+    )
+    def test_get_conn_with_extra_config(self, mock_get_connection, mock_redis):
+        connection = Connection(
             login="user",
             password="password",
             host="remote_host",
             port=1234,
-            extra="""{
-                        "db": 2,
-                        "ssl": true,
-                        "ssl_cert_reqs": "required",
-                        "ssl_ca_certs": "/path/to/custom/ca-cert",
-                        "ssl_keyfile": "/path/to/key-file",
-                        "ssl_certfile": "/path/to/cert-file",
-                        "ssl_check_hostname": true
-                    }""",
-        ),
-    )
-    def test_get_conn_with_extra_config(self, mock_get_connection, mock_redis):
-        connection = mock_get_connection.return_value
+        )
+        connection.set_extra(
+            """{
+                "db": 2,
+                "ssl": true,
+                "ssl_cert_reqs": "required",
+                "ssl_ca_certs": "/path/to/custom/ca-cert",
+                "ssl_keyfile": "/path/to/key-file",
+                "ssl_certfile": "/path/to/cert-file",
+                "ssl_check_hostname": true
+            }"""
+        )
+        mock_get_connection.return_value = connection
         hook = RedisHook()
 
         hook.get_conn()
