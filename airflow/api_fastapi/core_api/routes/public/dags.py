@@ -183,12 +183,11 @@ def patch_dag(
 
     fields_to_update = patch_body.model_fields_set
     if update_mask:
-        fields_to_update = fields_to_update.intersection(update_mask)
-        if not set(fields_to_update).issubset({"is_paused"}):
+        if update_mask != ["is_paused"]:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST, "Only `is_paused` field can be updated through the REST API"
             )
-
+        fields_to_update = fields_to_update.intersection(update_mask)
         data = patch_body.model_dump(include=fields_to_update, by_alias=True)
     else:
         try:
