@@ -20,8 +20,9 @@ import asyncio
 import base64
 import pickle
 from collections.abc import AsyncIterator
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
+import cloudpickle
 import requests
 from requests.cookies import RequestsCookieJar
 from requests.structures import CaseInsensitiveDict
@@ -32,8 +33,6 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
-
-    from airflow.utils.context import Context
 
 
 class HttpTrigger(BaseTrigger):
@@ -153,8 +152,6 @@ class HttpSensorTrigger(BaseTrigger):
         headers: dict[str, str] | None = None,
         extra_options: dict[str, Any] | None = None,
         poke_interval: float = 5.0,
-        response_check: Callable[..., bool] | None = None,
-        context: Context | None = None,
     ):
         super().__init__()
         self.endpoint = endpoint
@@ -164,8 +161,6 @@ class HttpSensorTrigger(BaseTrigger):
         self.extra_options = extra_options or {}
         self.http_conn_id = http_conn_id
         self.poke_interval = poke_interval
-        self.response_check = response_check
-        self.context = context
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize HttpTrigger arguments and classpath."""
@@ -217,7 +212,7 @@ class HttpSensorTrigger(BaseTrigger):
                 yield TriggerEvent(
                     {
                         "status": "success",
-                        "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
+                        "response": base64.standard_b64encode(cloudpickle.dumps(response)).decode("ascii"),
                     }
                 )
                 return
