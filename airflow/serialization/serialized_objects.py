@@ -306,7 +306,7 @@ def encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
     raw_key = var.raw_key
     return {
         "extra": var.extra,
-        "asset_alias_events": var.asset_alias_events,
+        "asset_alias_events": [attrs.asdict(e) for e in var.asset_alias_events],
         "raw_key": BaseSerialization.serialize(raw_key),
     }
 
