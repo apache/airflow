@@ -22,13 +22,12 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
 
-const TaskInstanceTooltip = ({
-  child,
-  taskInstance,
-}: {
-  readonly child: React.ReactElement;
+type Props = {
+  readonly children: React.ReactNode;
   readonly taskInstance: TaskInstanceResponse;
-}) => (
+};
+
+const TaskInstanceTooltip = ({ children, taskInstance }: Props) => (
   <Tooltip
     content={
       <Box>
@@ -57,7 +56,7 @@ const TaskInstanceTooltip = ({
     }}
     showArrow
   >
-    {child}
+    {children}
   </Tooltip>
 );
 

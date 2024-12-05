@@ -56,20 +56,19 @@ export const TaskRecentRuns = ({
       {taskInstancesWithDuration.map((taskInstance) =>
         taskInstance.state === null ? undefined : (
           <TaskInstanceTooltip
-            child={
-              <Box p={1}>
-                <Box
-                  bg={stateColor[taskInstance.state]}
-                  borderRadius="4px"
-                  height={`${(taskInstance.duration / max) * BAR_HEIGHT}px`}
-                  minHeight={1}
-                  width="4px"
-                />
-              </Box>
-            }
             key={taskInstance.dag_run_id}
             taskInstance={taskInstance}
-          />
+          >
+            <Box p={1}>
+              <Box
+                bg={stateColor[taskInstance.state]}
+                borderRadius="4px"
+                height={`${(taskInstance.duration / max) * BAR_HEIGHT}px`}
+                minHeight={1}
+                width="4px"
+              />
+            </Box>
+          </TaskInstanceTooltip>
         ),
       )}
     </Flex>
