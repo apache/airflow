@@ -17,7 +17,8 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, TypeVar
+from collections.abc import Iterable, Mapping
+from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
 from methodtools import lru_cache
 
