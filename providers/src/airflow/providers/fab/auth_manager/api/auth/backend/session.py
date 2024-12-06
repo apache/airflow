@@ -23,7 +23,7 @@ from typing import Any, Callable, TypeVar, cast
 
 from flask import Response
 
-from airflow.www.extensions.init_auth_manager import get_auth_manager
+from airflow.api_fastapi.app import get_auth_manager
 
 CLIENT_AUTH: tuple[str, str] | Any | None = None
 
