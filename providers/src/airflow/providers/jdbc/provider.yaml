@@ -67,10 +67,6 @@ integrations:
     logo: /integration-logos/jdbc/JDBC.png
     tags: [protocol]
 
-operators:
-  - integration-name: Java Database Connectivity (JDBC)
-    python-modules:
-      - airflow.providers.jdbc.operators.jdbc
 hooks:
   - integration-name: Java Database Connectivity (JDBC)
     python-modules:

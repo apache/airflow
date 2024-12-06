@@ -35,8 +35,8 @@
 Changelog
 ---------
 
-0.0.3
-.....
+main
+....
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
