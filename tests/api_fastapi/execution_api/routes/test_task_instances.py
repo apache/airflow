@@ -430,7 +430,7 @@ class TestTIPutRTIF:
         )
         session.commit()
 
-        payload = {"rendered_fields": {"field1": "rendered_value1", "field2": "rendered_value2"}}
+        payload = {"field1": "rendered_value1", "field2": "rendered_value2"}
 
         response = client.put(f"/execution/task-instances/{ti.id}/rtif", json=payload)
         assert response.status_code == 201
@@ -441,8 +441,11 @@ class TestTIPutRTIF:
         rtifs = session.query(RenderedTaskInstanceFields).all()
         assert len(rtifs) == 1
 
+        assert rtifs[0].dag_id == "dag"
+        assert rtifs[0].run_id == "test"
         assert rtifs[0].task_id == "test_ti_put_rtif_success"
-        assert rtifs[0].rendered_fields == payload["rendered_fields"]
+        assert rtifs[0].map_index == -1
+        assert rtifs[0].rendered_fields == payload
 
     def test_ti_put_rtif_missing_ti(self, client, session, create_task_instance):
         create_task_instance(
@@ -452,9 +455,9 @@ class TestTIPutRTIF:
         )
         session.commit()
 
-        payload = {"rendered_fields": {"field1": "rendered_value1", "field2": "rendered_value2"}}
+        payload = {"field1": "rendered_value1", "field2": "rendered_value2"}
 
-        random_id = str(uuid6.uuid7())
+        random_id = uuid6.uuid7()
         response = client.put(f"/execution/task-instances/{random_id}/rtif", json=payload)
         assert response.status_code == 404
         assert response.json()["detail"] == "Not Found"
@@ -468,24 +471,18 @@ class TestTIPutRTIF:
         session.commit()
 
         payload = {
-            "rendered_fields": {"field1": "rendered_value1", "field2": "rendered_value2"},
-            "foo": "bar",
-            "baz": "qux",
+            "field1": "rendered_value1",
+            "field2": "rendered_value2",
+            "invalid_key": {"field3": "rendered_value3"},
         }
 
         response = client.put(f"/execution/task-instances/{ti.id}/rtif", json=payload)
         assert response.status_code == 422
         assert response.json()["detail"] == [
             {
-                "input": "bar",
-                "loc": ["body", "foo"],
-                "msg": "Extra inputs are not permitted",
-                "type": "extra_forbidden",
-            },
-            {
-                "input": "qux",
-                "loc": ["body", "baz"],
-                "msg": "Extra inputs are not permitted",
-                "type": "extra_forbidden",
-            },
+                "input": {"field3": "rendered_value3"},
+                "loc": ["body", "invalid_key"],
+                "msg": "Input should be a valid string",
+                "type": "string_type",
+            }
         ]

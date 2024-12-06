@@ -247,7 +247,6 @@ def ti_put_rtif(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
         )
-    rendered_fields = put_rtif_payload.rendered_fields
-    _update_rtif(task_instance, rendered_fields, session)
+    _update_rtif(task_instance, put_rtif_payload.model_dump(), session)
 
     return {"message": "Rendered task instance fields successfully set"}
