@@ -76,6 +76,7 @@ from airflow.exceptions import (
     UnknownExecutorException,
 )
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.executors.workloads import DagBundle
 from airflow.models.asset import (
     AssetDagRunQueue,
     AssetModel,
@@ -243,7 +244,7 @@ def _triggerer_is_healthy():
 
 @provide_session
 def _create_orm_dagrun(
-    dag,
+    dag: DAG,
     dag_id,
     run_id,
     logical_date,
@@ -259,6 +260,9 @@ def _create_orm_dagrun(
     session,
     triggered_by,
 ):
+    bundle_version = session.scalar(
+        select(DagModel.latest_bundle_version).where(DagModel.dag_id == dag.dag_id)
+    )
     run = DagRun(
         dag_id=dag_id,
         run_id=run_id,
@@ -273,6 +277,7 @@ def _create_orm_dagrun(
         data_interval=data_interval,
         triggered_by=triggered_by,
         backfill_id=backfill_id,
+        bundle_version=bundle_version,
     )
     # Load defaults into the following two fields to ensure result can be serialized detached
     run.log_template_id = int(session.scalar(select(func.max(LogTemplate.__table__.c.id))))
@@ -2002,6 +2007,18 @@ class DagOwnerAttributes(Base):
         return dag_links
 
 
+bundle = DagBundle.model_construct(
+    name="my-bundle",
+    classpath="airflow.dag_processing.bundles.git.GitDagBundle",
+    kwargs={
+        "repo_url": "git@github.com:dstandish/my-dags.git",
+        "tracking_ref": "main",
+        "subdir": "dags",
+    },
+    version="dd4399e",
+)
+
+
 class DagModel(Base):
     """Table containing DAG properties."""
 
@@ -2092,6 +2109,10 @@ class DagModel(Base):
     dag_versions = relationship(
         "DagVersion", back_populates="dag_model", cascade="all, delete, delete-orphan"
     )
+
+    # todo: uncomment this when parsing side is "there"
+    # dag_bundle = relationship("DagBundle")
+    dag_bundle = bundle
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
