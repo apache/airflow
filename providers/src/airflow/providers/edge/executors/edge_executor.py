@@ -135,6 +135,7 @@ class EdgeExecutor(BaseExecutor):
         heartbeat_interval: int = conf.getint("edge", "heartbeat_interval")
         lifeless_workers: list[EdgeWorkerModel] = (
             session.query(EdgeWorkerModel)
+            .with_for_update(skip_locked=True)
             .filter(
                 EdgeWorkerModel.state.not_in([EdgeWorkerState.UNKNOWN, EdgeWorkerState.OFFLINE]),
                 EdgeWorkerModel.last_update < (timezone.utcnow() - timedelta(seconds=heartbeat_interval * 5)),
@@ -154,6 +155,7 @@ class EdgeExecutor(BaseExecutor):
         heartbeat_interval: int = conf.getint("scheduler", "scheduler_zombie_task_threshold")
         lifeless_jobs: list[EdgeJobModel] = (
             session.query(EdgeJobModel)
+            .with_for_update(skip_locked=True)
             .filter(
                 EdgeJobModel.state == TaskInstanceState.RUNNING,
                 EdgeJobModel.last_update < (timezone.utcnow() - timedelta(seconds=heartbeat_interval)),
@@ -180,6 +182,7 @@ class EdgeExecutor(BaseExecutor):
         job_fail_purge = conf.getint("edge", "job_fail_purge")
         jobs: list[EdgeJobModel] = (
             session.query(EdgeJobModel)
+            .with_for_update(skip_locked=True)
             .filter(
                 EdgeJobModel.state.in_(
                     [
