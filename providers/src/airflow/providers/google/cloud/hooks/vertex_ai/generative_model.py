@@ -43,6 +43,11 @@ if TYPE_CHECKING:
 class GenerativeModelHook(GoogleBaseHook):
     """Hook for Google Cloud Vertex AI Generative Model APIs."""
 
+    @deprecated(
+        planned_removal_date="April 09, 2025",
+        use_instead="GenerativeModelHook.get_generative_model",
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_text_generation_model(self, pretrained_model: str):
         """Return a Model Garden Model object based on Text Generation."""
         model = TextGenerationModel.from_pretrained(pretrained_model)
@@ -275,6 +280,11 @@ class GenerativeModelHook(GoogleBaseHook):
 
         return response.text
 
+    @deprecated(
+        planned_removal_date="April 09, 2025",
+        use_instead="GenerativeModelHook.generative_model_generate_content",
+        category=AirflowProviderDeprecationWarning,
+    )
     @GoogleBaseHook.fallback_to_default_project_id
     def text_generation_model_predict(
         self,

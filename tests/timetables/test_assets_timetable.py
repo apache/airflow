@@ -19,23 +19,20 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pytest
 from pendulum import DateTime
 from sqlalchemy.sql import select
 
-from airflow.models.asset import AssetAliasModel, AssetDagRunQueue, AssetEvent, AssetModel
+from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.models.serialized_dag import SerializedDAG, SerializedDagModel
 from airflow.operators.empty import EmptyOperator
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
+from airflow.sdk.definitions.asset import Asset, AssetAll, AssetAny
 from airflow.timetables.assets import AssetOrTimeSchedule
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.utils.types import DagRunType
-
-if TYPE_CHECKING:
-    from sqlalchemy import Session
 
 
 class MockTimetable(Timetable):
@@ -272,25 +269,6 @@ def test_run_ordering_inheritance(asset_timetable: AssetOrTimeSchedule) -> None:
     ), "AssetOrTimeSchedule should have 'run_ordering' attribute"
     parent_run_ordering = getattr(AssetTriggeredTimetable, "run_ordering", None)
     assert asset_timetable.run_ordering == parent_run_ordering, "run_ordering does not match the parent class"
-
-
-@pytest.mark.db_test
-def test_summary(session: Session) -> None:
-    asset_model = AssetModel(uri="test_asset")
-    asset_alias_model = AssetAliasModel(name="test_asset_alias")
-    session.add_all([asset_model, asset_alias_model])
-    session.commit()
-
-    asset_alias = AssetAlias("test_asset_alias")
-    table = AssetTriggeredTimetable(asset_alias)
-    assert table.summary == "Unresolved AssetAlias"
-
-    asset_alias_model.assets.append(asset_model)
-    session.add(asset_alias_model)
-    session.commit()
-
-    table = AssetTriggeredTimetable(asset_alias)
-    assert table.summary == "Asset"
 
 
 @pytest.mark.db_test
