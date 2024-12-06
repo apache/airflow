@@ -353,6 +353,11 @@ class PromptMultimodalModelWithMediaOperator(GoogleCloudBaseOperator):
         return response
 
 
+@deprecated(
+    planned_removal_date="April 09, 2025",
+    use_instead="GenerativeModelGenerateContentOperator",
+    category=AirflowProviderDeprecationWarning,
+)
 class TextGenerationModelPredictOperator(GoogleCloudBaseOperator):
     """
     Uses the Vertex AI PaLM API to generate natural language text.
