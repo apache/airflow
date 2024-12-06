@@ -19,9 +19,12 @@ from __future__ import annotations
 
 import httpx
 import pytest
+import uuid6
 
 from airflow.sdk.api.client import Client, RemoteValidationError, ServerResponseError
 from airflow.sdk.api.datamodels._generated import VariableResponse
+from airflow.sdk.execution_time.comms import DeferTask
+from airflow.utils.state import TerminalTIState
 
 
 class TestClient:
@@ -80,6 +83,88 @@ class TestClient:
 def make_client(transport: httpx.MockTransport) -> Client:
     """Get a client with a custom transport"""
     return Client(base_url="test://server", token="", transport=transport)
+
+
+class TestTaskInstanceOperations:
+    """
+    Test that the TestVariableOperations class works as expected. While the operations are simple, it
+    still catches the basic functionality of the client for task instances including endpoint and
+    response parsing.
+    """
+
+    def test_task_instance_start(self):
+        # Simulate a successful response from the server that starts a task
+        ti_id = uuid6.uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti_id}/state":
+                return httpx.Response(
+                    status_code=204,
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        try:
+            client.task_instances.start(ti_id, 100, "2024-10-31T12:00:00Z")
+        except Exception as e:
+            pytest.fail(f"Unexpected error occurred: {e}")
+
+    @pytest.mark.parametrize("state", [state for state in TerminalTIState])
+    def test_task_instance_finish(self, state):
+        # Simulate a successful response from the server that finishes a task
+        ti_id = uuid6.uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti_id}/state":
+                return httpx.Response(
+                    status_code=204,
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        try:
+            client.task_instances.finish(ti_id, state=state, when="2024-10-31T12:00:00Z")
+        except Exception as e:
+            pytest.fail(f"Unexpected error occurred: {e}")
+
+    def test_task_instance_heartbeat(self):
+        # Simulate a successful response from the server is used to heartbeat
+        ti_id = uuid6.uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti_id}/heartbeat":
+                return httpx.Response(
+                    status_code=204,
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        try:
+            client.task_instances.heartbeat(ti_id, 100)
+        except Exception as e:
+            pytest.fail(f"Unexpected error occurred: {e}")
+
+    def test_task_instance_defer(self):
+        # Simulate a successful response from the server that defers a task
+        ti_id = uuid6.uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti_id}/state":
+                return httpx.Response(
+                    status_code=204,
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        try:
+            msg = DeferTask(
+                classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
+                trigger_kwargs={"moment": "2024-11-07T12:34:59Z", "end_from_trigger": False},
+                next_method="execute_complete",
+            )
+            client.task_instances.defer(ti_id, msg)
+        except Exception as e:
+            pytest.fail(f"Unexpected error occurred: {e}")
 
 
 class TestVariableOperations:
