@@ -80,6 +80,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         timeout: float = 60 * 60 * 24 * 7,
         proxies: dict | None = None,
         api_version: APIVersion | str | None = None,
+        api_timeout: float = 30,
         check_interval: int = 60,
         **kwargs,
     ) -> None:
@@ -90,6 +91,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         self.wait_for_termination = True
         self.conn_id = conn_id
         self.timeout = timeout
+        self.api_timeout = api_timeout
         self.check_interval = check_interval
 
     @property
@@ -112,6 +114,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
                     proxies=self.proxies,
                     api_version=self.api_version,
                     check_interval=self.check_interval,
+                    api_timeout=self.api_timeout,
                     wait_for_termination=self.wait_for_termination,
                 ),
                 method_name=self.execute_complete.__name__,
