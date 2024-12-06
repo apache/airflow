@@ -28,8 +28,8 @@ Airflow 2.0 is split into core and providers. They are delivered as separate pac
 Where providers are kept in our repository
 ------------------------------------------
 
-Airflow Providers are stored in the same source tree as Airflow Core (under ``airflow.providers``) package. This
-means that Airflow's repository is a monorepo, that keeps multiple packages in a single repository. This has a number
+Airflow Providers are stored in the separate tree than Airflow Core (under ``providers`` directory).
+Airflow's repository is a monorepo, that keeps multiple packages in a single repository. This has a number
 of advantages, because code and CI infrastructure and tests can be shared. Also contributions are happening to a
 single repository - so no matter if you contribute to Airflow or Providers, you are contributing to the same
 repository and project.
@@ -49,7 +49,7 @@ dependencies including runtime dependencies. See `local virtualenv <../07_local_
 for more information.
 
 Therefore, until we can introduce multiple ``pyproject.toml`` for providers information/meta-data about the providers
-is kept in ``provider.yaml`` file in the right sub-directory of ``airflow\providers``. This file contains:
+is kept in ``provider.yaml`` file in the right sub-directory of ``providers``. This file contains:
 
 * package name (``apache-airflow-provider-*``)
 * user-facing name of the provider package
@@ -89,6 +89,19 @@ and pre-commit will generate new entry in ``generated/provider_dependencies.json
 ``pyproject.toml`` so that the package extra dependencies are properly handled when package
 might be installed when breeze is restarted or by your IDE or by running ``pip install -e ".[devel]"``.
 
+Chicken-egg providers
+---------------------
+
+Sometimes, when provider depends on another provider, you might want to add a new feature that spans across
+two providers. In this case, you might need to add a new feature to the "dependent" provider, but you need
+to add a new feature to the "dependency" provider as well. This is a chicken-egg problem and by default
+some CI jobs (like generating PyPI constraints) will fail because they cannot use the source version of
+the provider package. This is handled by adding the "dependent" provider to the chicken-egg list of
+"providers" in ``dev/breeze/src/airflow_breeze/global_constants.py``. By doing this, the provider is build
+locally from sources rather than downloaded from PyPI when generating constraints.
+
+More information about the chicken-egg providers and how release is handled can be found in
+the `Release Provider Packages documentation <../dev/README_RELEASE_PROVIDER_PACKAGES.md#chicken-egg-providers>`_
 
 Developing community managed provider packages
 ----------------------------------------------
