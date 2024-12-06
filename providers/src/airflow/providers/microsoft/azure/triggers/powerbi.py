@@ -22,7 +22,11 @@ import time
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
 
-from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIDatasetRefreshStatus, PowerBIHook
+from airflow.providers.microsoft.azure.hooks.powerbi import (
+    PowerBIDatasetRefreshException,
+    PowerBIDatasetRefreshStatus,
+    PowerBIHook,
+)
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
@@ -58,6 +62,7 @@ class PowerBITrigger(BaseTrigger):
         proxies: dict | None = None,
         api_version: APIVersion | str | None = None,
         check_interval: int = 60,
+        api_timeout: float = 30,
         wait_for_termination: bool = True,
     ):
         super().__init__()
@@ -66,6 +71,7 @@ class PowerBITrigger(BaseTrigger):
         self.timeout = timeout
         self.group_id = group_id
         self.check_interval = check_interval
+        self.api_timeout = api_timeout
         self.wait_for_termination = wait_for_termination
 
     def serialize(self):
@@ -80,6 +86,7 @@ class PowerBITrigger(BaseTrigger):
                 "group_id": self.group_id,
                 "timeout": self.timeout,
                 "check_interval": self.check_interval,
+                "api_timeout": self.api_timeout,
                 "wait_for_termination": self.wait_for_termination,
             },
         )
