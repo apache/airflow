@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import httpx
 import pytest
+import uuid6
 
 from airflow.sdk.api.client import Client, RemoteValidationError, ServerResponseError
 from airflow.sdk.api.datamodels._generated import VariableResponse
@@ -80,6 +81,47 @@ class TestClient:
 def make_client(transport: httpx.MockTransport) -> Client:
     """Get a client with a custom transport"""
     return Client(base_url="test://server", token="", transport=transport)
+
+
+class TestTaskInstanceOperations:
+    """
+    Test that the TestVariableOperations class works as expected. While the operations are simple, it
+    still catches the basic functionality of the client for task instances including endpoint and
+    response parsing.
+    """
+
+    # TODO: Add tests for different ti endpoints
+
+    @pytest.mark.parametrize(
+        "rendered_fields",
+        [
+            pytest.param({"field1": "rendered_value1", "field2": "rendered_value2"}, id="simple-rendering"),
+            pytest.param(
+                {
+                    "field1": "ClassWithCustomAttributes({'nested1': ClassWithCustomAttributes("
+                    "{'att1': 'test', 'att2': 'test2'), "
+                    "'nested2': ClassWithCustomAttributes("
+                    "{'att3': 'test3', 'att4': 'test4')"
+                },
+                id="complex-rendering",
+            ),
+        ],
+    )
+    def test_taskinstance_set_rtif_success(self, rendered_fields):
+        TI_ID = uuid6.uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{TI_ID}/rtif":
+                return httpx.Response(
+                    status_code=201,
+                    json={"message": "Rendered task instance fields successfully set"},
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_instances.set_rtif(id=TI_ID, body=rendered_fields)
+
+        assert result == {"ok": True}
 
 
 class TestVariableOperations:
