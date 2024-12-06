@@ -27,7 +27,6 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, NamedTuple, overload
 import attrs
 
 from airflow.serialization.dag_dependency import DagDependency
-from airflow.typing_compat import TypedDict
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
@@ -454,14 +453,6 @@ class AssetAlias(BaseAsset):
             )
 
 
-class AssetAliasEvent(TypedDict):
-    """A represeation of asset event to be triggered by an asset alias."""
-
-    source_alias_name: str
-    dest_asset_uri: str
-    extra: dict[str, Any]
-
-
 class _AssetBooleanCondition(BaseAsset):
     """Base class for asset boolean logic."""
 
@@ -476,7 +467,7 @@ class _AssetBooleanCondition(BaseAsset):
         return self.agg_func(x.evaluate(statuses=statuses) for x in self.objects)
 
     def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
-        seen = set()  # We want to keep the first instance.
+        seen: set[AssetUniqueKey] = set()  # We want to keep the first instance.
         for o in self.objects:
             for k, v in o.iter_assets():
                 if k in seen:
@@ -486,8 +477,13 @@ class _AssetBooleanCondition(BaseAsset):
 
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
         """Filter asset aliases in the condition."""
+        seen: set[str] = set()  # We want to keep the first instance.
         for o in self.objects:
-            yield from o.iter_asset_aliases()
+            for k, v in o.iter_asset_aliases():
+                if k in seen:
+                    continue
+                yield k, v
+                seen.add(k)
 
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
         """

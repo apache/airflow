@@ -2748,9 +2748,9 @@ class TaskInstance(Base, LoggingMixin):
                 )
             elif isinstance(obj, AssetAlias):
                 for asset_alias_event in events[obj].asset_alias_events:
-                    asset_alias_name = asset_alias_event["source_alias_name"]
-                    asset_uri = asset_alias_event["dest_asset_uri"]
-                    frozen_extra = frozenset(asset_alias_event["extra"].items())
+                    asset_alias_name = asset_alias_event.source_alias_name
+                    asset_uri = asset_alias_event.dest_asset_uri
+                    frozen_extra = frozenset(asset_alias_event.extra.items())
                     asset_alias_names[(asset_uri, frozen_extra)].add(asset_alias_name)
 
         asset_models: dict[str, AssetModel] = {
