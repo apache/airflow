@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.9.2pre0
+.........
+
+Misc
+~~~~
+
+* ``Fix check api call with different root url.``
+
 0.9.1pre0
 .........
 

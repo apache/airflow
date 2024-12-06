@@ -66,13 +66,18 @@ def _forbidden_response(message: str):
 def jwt_token_authorization(method: str, authorization: str):
     """Check if the JWT token is correct."""
     try:
+        # worker sends method without api_url
+        api_url = conf.get("edge", "api_url")
+        base_url = conf.get("webserver", "base_url")
+        url_prefix = api_url.replace(base_url, "").replace("/rpcapi", "")
+        pure_method = method.replace(url_prefix, "")
         payload = jwt_signer().verify_token(authorization)
         signed_method = payload.get("method")
-        if not signed_method or signed_method != method:
+        if not signed_method or signed_method != pure_method:
             _forbidden_response(
                 "Invalid method in token authorization. "
                 f"signed method='{signed_method}' "
-                f"called method='{method}'",
+                f"called method='{pure_method}'",
             )
     except BadSignature:
         _forbidden_response("Bad Signature. Please use only the tokens provided by the API.")
