@@ -218,7 +218,7 @@ class TestXCOMOperations:
         # Simulate a successful response from the server when setting an xcom
         def handle_request(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/xcoms/dag_id/run_id/task_id/key":
-                assert json.loads(request.read().decode("utf-8")) == values
+                assert json.loads(request.read()) == values
                 return httpx.Response(
                     status_code=201,
                     json={"message": "XCom successfully set"},
@@ -242,7 +242,7 @@ class TestXCOMOperations:
                 request.url.path == "/xcoms/dag_id/run_id/task_id/key"
                 and request.url.params.get("map_index") == "2"
             ):
-                assert json.loads(request.read().decode("utf-8")) == "value1"
+                assert json.loads(request.read()) == "value1"
                 return httpx.Response(
                     status_code=201,
                     json={"message": "XCom successfully set"},
