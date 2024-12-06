@@ -27,6 +27,21 @@
 Changelog
 ---------
 
+main
+....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the Postgres provider package.
+  The following breaking changes were introduced:
+
+  * Hooks
+     * The ``schema`` arg has been renamed to ``database`` as it contained the database name. Deprecated parameters, getters and setters have been removed. Please use ``database`` to set the database name.
+  * Operators
+     * Remove ``airflow.providers.postgres.operators.postgres.PostgresOperator``. Please use ``airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`` instead.
+
 5.14.0
 ......
 
