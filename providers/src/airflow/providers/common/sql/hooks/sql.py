@@ -44,7 +44,6 @@ from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowOptionalProviderFeatureException,
-    AirflowProviderDeprecationWarning,
 )
 from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.dialects.dialect import Dialect
@@ -591,17 +590,6 @@ class DbApiHook(BaseHook):
         If this method is not overridden, the result data is returned as-is. If the output of the cursor
         is already a common data structure, this method should be ignored.
         """
-        # Back-compatibility call for providers implementing old ´_make_serializable' method.
-        with contextlib.suppress(AttributeError):
-            result = self._make_serializable(result=result)  # type: ignore[attr-defined]
-            warnings.warn(
-                "The `_make_serializable` method is deprecated and support will be removed in a future "
-                f"version of the common.sql provider. Please update the {self.__class__.__name__}'s provider "
-                "to a version based on common.sql >= 1.9.1.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-
         if isinstance(result, Sequence):
             return cast(list[tuple], result)
         return cast(tuple, result)
