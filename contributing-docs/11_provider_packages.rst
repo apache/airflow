@@ -28,7 +28,7 @@ Airflow 2.0 is split into core and providers. They are delivered as separate pac
 Where providers are kept in our repository
 ------------------------------------------
 
-Airflow Providers are stored in the separate tree than Airflow Core (under ``providers`` directory).
+Airflow Providers are stored in a separate tree other than the Airflow Core (under ``providers`` directory).
 Airflow's repository is a monorepo, that keeps multiple packages in a single repository. This has a number
 of advantages, because code and CI infrastructure and tests can be shared. Also contributions are happening to a
 single repository - so no matter if you contribute to Airflow or Providers, you are contributing to the same
