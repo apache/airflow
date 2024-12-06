@@ -142,10 +142,8 @@ def test_run_deferred_basic(test_dags_dir: Path, time_machine):
 def test_startup_basic_templated_dag(test_dags_dir: Path):
     """Test running a basic task."""
     what = StartupDetails(
-        ti=TaskInstance(
-            id=uuid7(), task_id="task1", dag_id="super_basic_templated_dag", run_id="c", try_number=1
-        ),
-        file=str(test_dags_dir / "super_basic_templated_dag.py"),
+        ti=TaskInstance(id=uuid7(), task_id="task1", dag_id="basic_templated_dag", run_id="c", try_number=1),
+        file=str(test_dags_dir / "basic_templated_dag.py"),
         requests_fd=0,
     )
     parse(what)
@@ -157,6 +155,8 @@ def test_startup_basic_templated_dag(test_dags_dir: Path):
         startup()
 
         mock_supervisor_comms.send_request.assert_called_once_with(
-            msg=RTIFPayload({"bash_command": "echo 'Execution date is {{ ds }}'", "cwd": None, "env": None}),
+            msg=RTIFPayload(
+                {"bash_command": "echo 'Logical date is {{ logical_date }}'", "cwd": None, "env": None}
+            ),
             log=mock.ANY,
         )

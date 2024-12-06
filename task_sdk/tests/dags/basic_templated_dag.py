@@ -27,11 +27,11 @@ default_args = {
 
 
 @dag()
-def super_basic_templated_dag():
+def basic_templated_dag():
     BashOperator(
         task_id="task1",
-        bash_command="echo 'Execution date is {{ ds }}'",
+        bash_command="echo 'Logical date is {{ logical_date }}'",
     )
 
 
-super_basic_templated_dag()
+basic_templated_dag()
