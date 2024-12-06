@@ -137,7 +137,7 @@ class MultiAssetDefinition(BaseAsset):
 
 
 @attrs.define(kw_only=True)
-class _DAGArguments:
+class _DAGFactory:
     """
     Common class for things that take DAG-like arguments.
 
@@ -175,7 +175,7 @@ class _DAGArguments:
 
 
 @attrs.define(kw_only=True)
-class asset(_DAGArguments):
+class asset(_DAGFactory):
     """Create an asset by decorating a materialization function."""
 
     uri: str | ObjectStoragePath | None = None
@@ -184,7 +184,7 @@ class asset(_DAGArguments):
     watchers: list[BaseTrigger] = attrs.field(factory=list)
 
     @attrs.define(kw_only=True)
-    class multi(_DAGArguments):
+    class multi(_DAGFactory):
         """Create a one-task DAG that emits multiple assets."""
 
         outlets: Collection[BaseAsset]  # TODO: Support non-asset outlets?
