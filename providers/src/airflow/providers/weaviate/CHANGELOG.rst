@@ -27,7 +27,7 @@ main
   All deprecated classes, parameters and features have been removed from the weaviate provider package.
   The following breaking changes were introduced:
 
-  *Removed deprecated ``input_json`` parameter from ``WeaviateIngestOperator``. Use ``input_data`` instead.
+  * Removed deprecated ``input_json`` parameter from ``WeaviateIngestOperator``. Use ``input_data`` instead.
 
 2.1.0
 .....
