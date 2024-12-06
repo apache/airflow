@@ -207,6 +207,7 @@ class TestExecutorSafeguard:
 
 class TestExecutorSafeguardThread(threading.Thread):
     def __init__(self):
+        threading.Thread.__init__(self)
         self.executor_safeguard = ExecutorSafeguard()
 
     def run(self):
