@@ -35,6 +35,7 @@ def my_callback():
     pass
 
 
+@pytest.mark.db_test
 class TestDeadline:
     def setup_method(self):
         self._clean_db()
