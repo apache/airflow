@@ -92,8 +92,8 @@ might be installed when breeze is restarted or by your IDE or by running ``pip i
 Chicken-egg providers
 ---------------------
 
-Sometimes, when provider depends on another provider, you might want to add a new feature that spans across
-two providers. In this case, you might need to add a new feature to the "dependent" provider, but you need
+Sometimes, when a provider depends on another provider, and you want to add a new feature that spans across
+two providers, you might need to add a new feature to the "dependent" provider, you need
 to add a new feature to the "dependency" provider as well. This is a chicken-egg problem and by default
 some CI jobs (like generating PyPI constraints) will fail because they cannot use the source version of
 the provider package. This is handled by adding the "dependent" provider to the chicken-egg list of
