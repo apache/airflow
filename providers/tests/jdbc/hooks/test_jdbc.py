@@ -61,12 +61,6 @@ def get_hook(
     class MockedJdbcHook(JdbcHook):
         @classmethod
         def get_connection(cls, conn_id: str) -> Connection:
-            # nonlocal jvm_started
-            #
-            # if jvm_started:
-            #     raise OSError("JVM already started")
-            #
-            # jvm_started = True
             return connection
 
     hook = MockedJdbcHook(**hook_params)
