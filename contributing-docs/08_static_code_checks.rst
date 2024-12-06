@@ -384,6 +384,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-providers-dependencies                             | Update dependencies for provider packages              |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| update-providers-init-py                                  | Update providers __init__.py files                     |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-reproducible-source-date-epoch                     | Update Source Date Epoch for reproducible builds       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-spelling-wordlist-to-be-sorted                     | Sort spelling_wordlist.txt                             |         |
