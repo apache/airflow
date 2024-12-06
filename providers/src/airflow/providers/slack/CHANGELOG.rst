@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+main
+....
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the slack provider package.
+  The following breaking changes were introduced:
+
+  * Removed deprecated ``SqlToSlackOperator``. Use ``SqlToSlackWebhookOperator`` instead.
+  * Removed deprecated ``send_file`` method from hooks. Use ``send_file_v2`` or ``send_file_v1_to_v2`` instead.
+  * Removed deprecated module lack_notifier.py. Use ``airflow.providers.slack.notifications.slack`` instead.
+  * Define method parameter as empty string or None is deprecated.
+  * Removed deprecated parameter ``slack_conn_id`` from ``SqlToSlackWebhookOperator``. Use ``slack_webhook_conn_id`` instead.
+
+
 8.9.2
 .....
 
