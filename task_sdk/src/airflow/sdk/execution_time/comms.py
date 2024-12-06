@@ -44,9 +44,9 @@ Execution API server is because:
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
@@ -138,7 +138,9 @@ class PutVariable(BaseModel):
     type: Literal["PutVariable"] = "PutVariable"
 
 
+RTIFPayload = RootModel[dict[str, Optional[str]]]
+
 ToSupervisor = Annotated[
-    Union[TaskState, GetXCom, GetConnection, GetVariable, DeferTask, PutVariable],
+    Union[TaskState, GetXCom, GetConnection, GetVariable, DeferTask, PutVariable, RTIFPayload],
     Field(discriminator="type"),
 ]
