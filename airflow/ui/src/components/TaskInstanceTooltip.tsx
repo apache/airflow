@@ -20,12 +20,11 @@ import { Box, Text } from "@chakra-ui/react";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
-import { Tooltip } from "src/components/ui";
+import { Tooltip, type TooltipProps } from "src/components/ui";
 
 type Props = {
-  readonly children: React.ReactNode;
   readonly taskInstance: TaskInstanceResponse;
-};
+} & Omit<TooltipProps, "content">;
 
 const TaskInstanceTooltip = ({ children, taskInstance }: Props) => (
   <Tooltip
