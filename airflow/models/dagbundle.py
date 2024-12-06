@@ -22,7 +22,7 @@ import uuid6
 from sqlalchemy import Column, Integer, String
 from sqlalchemy_utils import UUIDType
 
-from airflow.models.base import Base
+from airflow.models.base import Base, StringID
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
@@ -38,7 +38,7 @@ class DagBundleModel(Base):
 
     __tablename__ = "dag_bundle"
     id = Column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
-    name = Column(String(200), nullable=False, unique=True)
+    name = Column(StringID(), nullable=False, unique=True)
     classpath = Column(String(1000), nullable=False)
     kwargs = Column(ExtendedJSON, nullable=True)
     refresh_interval = Column(Integer, nullable=True)

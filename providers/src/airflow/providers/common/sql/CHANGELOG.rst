@@ -25,6 +25,16 @@
 Changelog
 ---------
 
+main
+.....
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the Common SQL provider package.
+  The following breaking changes were introduced:
+
+  * Hooks
+      * Remove ``_make_serializable`` method from ``DbApiHook``. Use ``_make_common_data_structure`` instead.
+
 1.20.0
 ......
 

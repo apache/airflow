@@ -62,20 +62,6 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-def _find_orm_dags(dag_ids: Iterable[str], *, session: Session) -> dict[str, DagModel]:
-    """Find existing DagModel objects from DAG objects."""
-    stmt = (
-        select(DagModel)
-        .options(joinedload(DagModel.tags, innerjoin=False))
-        .where(DagModel.dag_id.in_(dag_ids))
-        .options(joinedload(DagModel.schedule_asset_references))
-        .options(joinedload(DagModel.schedule_asset_alias_references))
-        .options(joinedload(DagModel.task_outlet_asset_references))
-    )
-    stmt = with_row_locks(stmt, of=DagModel, session=session)
-    return {dm.dag_id: dm for dm in session.scalars(stmt).unique()}
-
-
 def _create_orm_dags(dags: Iterable[DAG], *, session: Session) -> Iterator[DagModel]:
     for dag in dags:
         orm_dag = DagModel(dag_id=dag.dag_id)
@@ -181,8 +167,21 @@ class DagModelOperation(NamedTuple):
 
     dags: dict[str, DAG]
 
+    def find_orm_dags(self, *, session: Session) -> dict[str, DagModel]:
+        """Find existing DagModel objects from DAG objects."""
+        stmt = (
+            select(DagModel)
+            .options(joinedload(DagModel.tags, innerjoin=False))
+            .where(DagModel.dag_id.in_(self.dags))
+            .options(joinedload(DagModel.schedule_asset_references))
+            .options(joinedload(DagModel.schedule_asset_alias_references))
+            .options(joinedload(DagModel.task_outlet_asset_references))
+        )
+        stmt = with_row_locks(stmt, of=DagModel, session=session)
+        return {dm.dag_id: dm for dm in session.scalars(stmt).unique()}
+
     def add_dags(self, *, session: Session) -> dict[str, DagModel]:
-        orm_dags = _find_orm_dags(self.dags, session=session)
+        orm_dags = self.find_orm_dags(session=session)
         orm_dags.update(
             (model.dag_id, model)
             for model in _create_orm_dags(

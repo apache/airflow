@@ -28,25 +28,13 @@ from airflow.providers.common.compat import (
 
 if TYPE_CHECKING:
     from airflow.auth.managers.models.resource_details import AssetDetails
-    from airflow.sdk.definitions.asset import (
-        Asset,
-        AssetAlias,
-        AssetAliasEvent,
-        AssetAll,
-        AssetAny,
-        expand_alias_to_assets,
-    )
+    from airflow.models.asset import expand_alias_to_assets
+    from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
 else:
     if AIRFLOW_V_3_0_PLUS:
         from airflow.auth.managers.models.resource_details import AssetDetails
-        from airflow.sdk.definitions.asset import (
-            Asset,
-            AssetAlias,
-            AssetAliasEvent,
-            AssetAll,
-            AssetAny,
-            expand_alias_to_assets,
-        )
+        from airflow.models.asset import expand_alias_to_assets
+        from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
     else:
         # dataset is renamed to asset since Airflow 3.0
         from airflow.datasets import Dataset as Asset
@@ -63,7 +51,6 @@ else:
         if AIRFLOW_V_2_10_PLUS:
             from airflow.datasets import (
                 DatasetAlias as AssetAlias,
-                DatasetAliasEvent as AssetAliasEvent,
                 expand_alias_to_datasets as expand_alias_to_assets,
             )
 
@@ -71,7 +58,6 @@ else:
 __all__ = [
     "Asset",
     "AssetAlias",
-    "AssetAliasEvent",
     "AssetAll",
     "AssetAny",
     "AssetDetails",

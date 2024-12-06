@@ -48,6 +48,7 @@ export const Graph = ({ dagId }: { readonly dagId: DAGResponse["dag_id"] }) => {
 
   const { data } = useGraphLayout({
     ...graphData,
+    dagId,
     openGroupIds,
   });
 
