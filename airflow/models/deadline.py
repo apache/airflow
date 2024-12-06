@@ -31,33 +31,17 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 
-class Deadline(LoggingMixin):
+class Deadline(Base, LoggingMixin):
     """A Deadline is a 'need-by' date which triggers a callback if the provided time has passed."""
-
-    @classmethod
-    @provide_session
-    def add_deadline(cls, deadline: DeadlineModel, session: Session = NEW_SESSION):
-        """Add the provided deadline to the table."""
-        session.add(deadline)
-
-
-class DeadlineModel(Base, LoggingMixin):
-    """Table containing Deadline Alert properties."""
 
     __tablename__ = "deadline"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
 
     # If the Deadline Alert is for a DAG, store the DAG ID and Run ID from the dag_run.
-    """
-    TODO FIXME:   making these foreign keys causes the following error:
+    dag_id = Column(StringID())
+    run_id = Column(StringID())
 
-    qlalchemy.exc.OperationalError: (sqlite3.OperationalError) foreign key mismatch - "deadline" referencing "dag_run"
-    [SQL: INSERT INTO deadline (dag_id, run_id, deadline, callback, callback_kwargs) VALUES (?, ?, ?, ?, ?)]
-    [parameters: ('deadlines_1', 'manual__2024-12-04T00:14:06.333084+00:00', '2024-12-04 01:14:06.362093', 'email', 'null')]
-    """
-    dag_id = Column(StringID())  # ForeignKey("dag_run.dag_id"))
-    run_id = Column(StringID())  # ForeignKey("dag_run.run_id"))
     # The time after which the Deadline has passed and the callback should be triggered.
     deadline = Column(DateTime, nullable=False)
     # The Callback to be called when the Deadline has passed.
@@ -98,3 +82,9 @@ class DeadlineModel(Base, LoggingMixin):
             f"[{resource_type} Deadline] {resource_details} needed by "
             f"{self.deadline} or run: {self.callback}({callback_kwargs})"
         )
+
+    @classmethod
+    @provide_session
+    def add_deadline(cls, deadline: Deadline, session: Session = NEW_SESSION):
+        """Add the provided deadline to the table."""
+        session.add(deadline)
