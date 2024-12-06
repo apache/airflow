@@ -31,7 +31,7 @@ main
 ....
 
 .. warning::
-  All deprecated classes, parameters and features have been removed from the {provider_name} provider package.
+  All deprecated classes, parameters and features have been removed from the sftp provider package.
   The following breaking changes were introduced:
 
   * Removed deprecated ``ssh_hook`` parameter from ``SFTPOperator``. Use ``sftp_hook`` instead.
