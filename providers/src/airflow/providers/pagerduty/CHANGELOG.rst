@@ -34,8 +34,7 @@ main
    All deprecated classes, parameters and features have been removed from the pagerduty provider package.
    The following breaking changes were introduced:
 
-   * Removed deprecated method ``create_event`` from providers.pagerduty.hooks.pagerduty. Please use the ``airflow.providers.pagerduty.hooks.PagerdutyEventsHook`` to interact with the Events API
-   * Removed deprecated method ``create_event`` from providers.pagerduty.hooks.pagerduty_events. Please use the ``PagerdutyEventsHook.send_event`` to interact with the Events API
+   * Removed deprecated method ``create_event`` from ``providers.pagerduty.hooks.pagerduty`` and ``providers.pagerduty.hooks.pagerduty_events``. Please use the ``airflow.providers.pagerduty.hooks.pagerduty_events.PagerdutyEventsHook.send_event`` to interact with the Events API
 
 3.8.1
 .....
