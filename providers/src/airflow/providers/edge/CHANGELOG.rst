@@ -33,7 +33,7 @@ Changelog
 Misc
 ~~~~
 
-* ``Fix check api call with different root url.``
+* ``Fix check edge worker api call authentication with different base url. Authentication failed when Airflow is not installed in webserver root.``
 
 0.9.1pre0
 .........
