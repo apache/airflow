@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-04T19:45:53.009306
+# This constraints file was automatically generated on 2024-12-06T07:47:00.727883
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -36,14 +36,14 @@ WTForms==3.2.1
 Werkzeug==2.2.3
 aiobotocore==2.15.2
 aiohappyeyeballs==2.4.4
-aiohttp==3.11.9
+aiohttp==3.11.10
 aioitertools==0.12.0
 aiosignal==1.3.1
 aiosqlite==0.20.0
 alembic==1.14.0
 amqp==5.3.1
 annotated-types==0.7.0
-anyio==4.6.2.post1
+anyio==4.7.0
 apispec==6.8.0
 argcomplete==3.5.1
 asgiref==3.8.1
@@ -134,7 +134,7 @@ plyvel==1.5.1
 prison==0.2.1
 prometheus_client==0.21.1
 propcache==0.2.1
-protobuf==5.29.0
+protobuf==5.29.1
 psutil==6.1.0
 pure-sasl==0.6.2
 pyasn1==0.6.1
@@ -158,11 +158,11 @@ requests-toolbelt==1.0.0
 requests==2.32.3
 rfc3339-validator==0.1.4
 rich-argparse==1.6.0
-rich-toolkit==0.11.3
+rich-toolkit==0.12.0
 rich==13.9.4
 rpds-py==0.22.3
 s3fs==2024.10.0
-sentry-sdk==2.19.0
+sentry-sdk==2.19.1
 setproctitle==1.3.4
 setuptools==75.6.0
 shellingham==1.5.4
@@ -186,7 +186,7 @@ uc-micro-py==1.0.3
 universal_pathlib==0.2.5
 urllib3==2.2.3
 uuid6==2024.7.10
-uv==0.5.5
+uv==0.5.6
 uvicorn==0.32.1
 uvloop==0.21.0
 vine==5.1.0

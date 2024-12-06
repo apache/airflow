@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-04T19:48:53.965922
+# This constraints file was automatically generated on 2024-12-06T07:49:59.569623
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -97,7 +97,7 @@ analytics-python==1.2.9
 annotated-types==0.7.0
 ansicolors==1.1.8
 anyascii==0.3.2
-anyio==4.6.2.post1
+anyio==4.7.0
 apache-airflow-providers-airbyte==4.0.0
 apache-airflow-providers-alibaba==2.9.1
 apache-airflow-providers-apache-beam==5.9.1
@@ -277,7 +277,7 @@ db-dtypes==1.3.1
 debugpy==1.8.9
 decorator==5.1.1
 defusedxml==0.7.1
-deltalake==0.21.0
+deltalake==0.22.3
 diagrams==0.24.1
 dill==0.3.1.1
 distro==1.9.0
@@ -322,7 +322,7 @@ google-api-python-client==2.154.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.36.0
-google-cloud-aiplatform==1.73.0
+google-cloud-aiplatform==1.74.0
 google-cloud-appengine-logging==1.5.0
 google-cloud-audit-log==0.3.0
 google-cloud-automl==2.14.1
@@ -353,10 +353,10 @@ google-cloud-redis==2.16.1
 google-cloud-resource-manager==1.13.1
 google-cloud-run==0.10.13
 google-cloud-secret-manager==2.21.1
-google-cloud-spanner==3.50.1
+google-cloud-spanner==3.51.0
 google-cloud-speech==2.28.1
 google-cloud-storage-transfer==1.13.1
-google-cloud-storage==2.18.2
+google-cloud-storage==2.19.0
 google-cloud-tasks==2.17.1
 google-cloud-texttospeech==2.21.1
 google-cloud-translate==3.18.0
@@ -475,7 +475,7 @@ multidict==6.1.0
 mypy-boto3-appflow==1.35.39
 mypy-boto3-rds==1.35.72
 mypy-boto3-redshift-data==1.35.51
-mypy-boto3-s3==1.35.74
+mypy-boto3-s3==1.35.76
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.1.0
@@ -489,7 +489,7 @@ nh3==0.2.19
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.56.2
+openai==1.57.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.25.0
@@ -623,7 +623,7 @@ rfc3339-validator==0.1.4
 rfc3986==2.0.0
 rich-argparse==1.6.0
 rich-click==1.8.5
-rich-toolkit==0.11.3
+rich-toolkit==0.12.0
 rich==13.9.4
 rpds-py==0.22.3
 rsa==4.9
@@ -635,19 +635,19 @@ scrapbook==0.5.0
 semver==3.0.2
 sendgrid==6.11.0
 sentinels==1.0.0
-sentry-sdk==2.19.0
+sentry-sdk==2.19.1
 setproctitle==1.3.4
 shapely==2.0.6
 shellingham==1.5.4
 simple-salesforce==1.12.6
 six==1.17.0
-slack_sdk==3.33.4
+slack_sdk==3.33.5
 smbprotocol==1.15.0
 smmap==5.0.1
 sniffio==1.3.1
 snowballstemmer==2.2.0
 snowflake-connector-python==3.12.4
-snowflake-snowpark-python==1.25.0
+snowflake-snowpark-python==1.26.0
 snowflake-sqlalchemy==1.7.1
 sortedcontainers==2.4.0
 soupsieve==2.6
@@ -707,12 +707,12 @@ types-PyYAML==6.0.12.20240917
 types-aiofiles==24.1.0.20240626
 types-certifi==2021.10.8.3
 types-cffi==1.16.0.20240331
-types-croniter==4.0.0.20241030
+types-croniter==5.0.1.20241205
 types-docutils==0.21.0.20241128
 types-paramiko==3.5.0.20240928
 types-protobuf==5.28.3.20241203
 types-pyOpenSSL==24.1.0.20240722
-types-python-dateutil==2.9.0.20241003
+types-python-dateutil==2.9.0.20241206
 types-python-slugify==8.0.2.20240310
 types-pytz==2024.2.0.20241003
 types-redis==4.6.0.20241004
@@ -729,7 +729,7 @@ universal_pathlib==0.2.5
 uritemplate==4.1.1
 urllib3==2.2.3
 uuid6==2024.7.10
-uv==0.5.5
+uv==0.5.6
 uvicorn==0.32.1
 uvloop==0.21.0
 validators==0.33.0
