@@ -32,6 +32,8 @@ import sys
 import warnings
 from typing import TYPE_CHECKING
 
+from packaging.version import Version
+
 if os.environ.get("_AIRFLOW_PATCH_GEVENT"):
     # If you are using gevents and start airflow webserver, you might want to run gevent monkeypatching
     # as one of the first thing when Airflow is started. This allows gevent to patch networking and other
@@ -60,7 +62,43 @@ if sys.platform == "win32":
 # configuration is therefore initted early here, simply by importing it.
 from airflow import configuration, settings
 
+
+class AirflowVersion(Version):
+    def __le__(self, other):
+        if isinstance(other, str):
+            other = Version(other)
+        return self.__le__(other)
+
+    def __lt__(self, other):
+        if isinstance(other, str):
+            other = Version(other)
+        return self.__lt__(other)
+
+    def __gt__(self, other):
+        if isinstance(other, str):
+            other = Version(other)
+        return self.__gt__(other)
+
+    def __ge__(self, other):
+        if isinstance(other, str):
+            other = Version(other)
+        return self.__ge__(other)
+
+    def __eq__(self, other):
+        if isinstance(other, str):
+            other = Version(other)
+        return self.__eq__(other)
+
+    def __ne__(self, other):
+        if isinstance(other, str):
+            other = Version(other)
+        return self.__ne__(other)
+
+
+AIRFLOW_BASE_VERSION = AirflowVersion(Version(__version__).base_version)
+
 __all__ = [
+    "AIRFLOW_BASE_VERSION",
     "__version__",
     "DAG",
     "Asset",
