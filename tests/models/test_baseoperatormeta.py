@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 import pytest
+
 from airflow.configuration import conf
 from airflow.decorators import task
 from airflow.exceptions import AirflowException, AirflowRescheduleException, AirflowSkipException
