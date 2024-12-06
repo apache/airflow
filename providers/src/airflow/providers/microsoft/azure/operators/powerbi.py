@@ -47,6 +47,12 @@ class PowerBILink(BaseOperatorLink):
         return url
 
 
+class PowerBIDatasetRefreshRequestStatus(PowerBIDatasetRefreshStatus):
+    """Power BI refresh dataset request statuses: PowerBIDatasetRefreshStatus statuses and "error" status from Trigger."""
+
+    ERROR = "error"
+
+
 class PowerBIDatasetRefreshOperator(BaseOperator):
     """
     Refreshes a Power BI dataset.
@@ -125,9 +131,9 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         """
         if event:
             if (
-                event["status"] == "error"
-                or event["status"] == PowerBIDatasetRefreshStatus.FAILED
-                or event["status"] == PowerBIDatasetRefreshStatus.DISABLED
+                event["status"] == PowerBIDatasetRefreshRequestStatus.ERROR
+                or event["status"] == PowerBIDatasetRefreshRequestStatus.FAILED
+                or event["status"] == PowerBIDatasetRefreshRequestStatus.DISABLED
             ):
                 raise AirflowException(event["message"])
 
