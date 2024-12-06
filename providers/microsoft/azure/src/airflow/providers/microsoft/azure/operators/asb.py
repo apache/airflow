@@ -674,7 +674,13 @@ class AzureServiceBusRequestReplyOperator(BaseOperator):
     The caller must pass in a generator function to create the request message body (request_body_generator)
     from the context and an optional callback can  process the reply message (reply_message_callback). This
     callback could either detect errors and abort processing by throwing an exception or could process the
-    message body and add information into XComs for downstream tasks to use.
+    message body and add information into XComs for downstream tasks to use. The remote service can send back
+    the message in any format it chooses. The supplied callback should be able to handle the message format.
+
+    The remote service should reply to the topic or queue specified in the reply_to property of the request
+    message. The remote service can tell if the reply should go to a topic or a queue based on the reply_type
+    although the current implementation expects all replies to be sent through a topic. The reply message
+    should have the correlation ID set to the message ID of the request message.
 
     :param request_queue_name: Name of the queue to send the request to. This queue must be reachable from
         a connection created from the connection name specified in the param `azure_service_bus_conn_id`.
