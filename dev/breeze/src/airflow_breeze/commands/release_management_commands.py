@@ -777,18 +777,19 @@ def prepare_provider_documentation(
                     with_breaking_changes=with_breaking_changes,
                     maybe_with_new_features=maybe_with_new_features,
                 )
-            with ci_group(
-                f"Updates changelog for last release of package '{provider_id}'",
-                skip_printing_title=only_min_version_update,
-            ):
-                update_changelog(
-                    package_id=provider_id,
-                    base_branch=base_branch,
-                    reapply_templates_only=reapply_templates_only,
-                    with_breaking_changes=with_breaking_changes,
-                    maybe_with_new_features=maybe_with_new_features,
-                    only_min_version_update=only_min_version_update,
-                )
+            if not only_min_version_update:
+                with ci_group(
+                    f"Updates changelog for last release of package '{provider_id}'",
+                    skip_printing_title=only_min_version_update,
+                ):
+                    update_changelog(
+                        package_id=provider_id,
+                        base_branch=base_branch,
+                        reapply_templates_only=reapply_templates_only,
+                        with_breaking_changes=with_breaking_changes,
+                        maybe_with_new_features=maybe_with_new_features,
+                        only_min_version_update=only_min_version_update,
+                    )
         except PrepareReleaseDocsNoChangesException:
             no_changes_packages.append(provider_id)
         except PrepareReleaseDocsChangesOnlyException:
