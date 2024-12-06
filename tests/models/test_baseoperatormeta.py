@@ -205,19 +205,18 @@ class TestExecutorSafeguard:
             "HelloWorldOperator.execute cannot be called outside TaskInstance!"
         )
 
-class TestExecutorSafeguardThread(threading.Thread):
-    def __init__(self):
-        threading.Thread.__init__(self)
-        self.executor_safeguard = ExecutorSafeguard()
+    def test_thread_local_executor_safeguard(self):
+        class TestExecutorSafeguardThread(threading.Thread):
+            def __init__(self):
+                threading.Thread.__init__(self)
+                self.executor_safeguard = ExecutorSafeguard()
 
-    def run(self):
-        class Wrapper:
-            def wrapper_test_func(self, *args, **kwargs):
-                print("test")
-        wrap_func = self.executor_safeguard.decorator(Wrapper.wrapper_test_func)
-        wrap_func(Wrapper(), Wrapper__sentinel="abc")
+            def run(self):
+                class Wrapper:
+                    def wrapper_test_func(self, *args, **kwargs):
+                        print("test")
 
-
-def test_thread_local_executor_safeguard():
-    # Test thread local caller value is set properly
-    TestExecutorSafeguardThread().start()
+                wrap_func = self.executor_safeguard.decorator(Wrapper.wrapper_test_func)
+                wrap_func(Wrapper(), Wrapper__sentinel="abc")
+        # Test thread local caller value is set properly
+        TestExecutorSafeguardThread().start()
