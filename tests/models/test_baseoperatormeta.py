@@ -218,5 +218,6 @@ class TestExecutorSafeguard:
 
                 wrap_func = self.executor_safeguard.decorator(Wrapper.wrapper_test_func)
                 wrap_func(Wrapper(), Wrapper__sentinel="abc")
+
         # Test thread local caller value is set properly
         TestExecutorSafeguardThread().start()
