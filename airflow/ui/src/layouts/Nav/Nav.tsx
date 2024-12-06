@@ -20,7 +20,6 @@ import { Box, Flex, VStack, Link } from "@chakra-ui/react";
 import { FiCornerUpLeft, FiDatabase, FiHome, FiSettings } from "react-icons/fi";
 
 import { useVersionServiceGetVersion } from "openapi/queries";
-
 import { AirflowPin } from "src/assets/AirflowPin";
 import { DagIcon } from "src/assets/DagIcon";
 
@@ -89,4 +88,4 @@ export const Nav = () => {
       </Flex>
     </VStack>
   );
-}
+};
