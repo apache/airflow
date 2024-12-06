@@ -59,6 +59,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
     :param group_id: The workspace id.
     :param conn_id: Airflow Connection ID that contains the connection information for the Power BI account used for authentication.
     :param timeout: Time in seconds to wait for a dataset to reach a terminal status for asynchronous waits. Used only if ``wait_for_termination`` is True.
+    :param api_timeout: Time in seconds to wait for the API request to get the refresh status.
     :param check_interval: Number of seconds to wait before rechecking the
         refresh status.
     """
