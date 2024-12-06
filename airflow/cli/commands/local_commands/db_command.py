@@ -21,7 +21,6 @@ from __future__ import annotations
 import logging
 import os
 import textwrap
-import warnings
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
@@ -43,32 +42,12 @@ log = logging.getLogger(__name__)
 
 
 @providers_configuration_loaded
-def initdb(args):
-    """Initialize the metadata database."""
-    warnings.warn(
-        "`db init` is deprecated.  Use `db migrate` instead to migrate the db and/or "
-        "airflow connections create-default-connections to create the default connections",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    print(f"DB: {settings.engine.url!r}")
-    db.initdb()
-    print("Initialization done")
-
-
-@providers_configuration_loaded
 def resetdb(args):
     """Reset the metadata database."""
     print(f"DB: {settings.engine.url!r}")
     if not (args.yes or input("This will drop existing tables if they exist. Proceed? (y/n)").upper() == "Y"):
         raise SystemExit("Cancelled")
     db.resetdb(skip_init=args.skip_init)
-
-
-def upgradedb(args):
-    """Upgrades the metadata database."""
-    warnings.warn("`db upgrade` is deprecated. Use `db migrate` instead.", DeprecationWarning, stacklevel=2)
-    migratedb(args)
 
 
 def _get_version_revision(

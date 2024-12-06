@@ -22,7 +22,6 @@ import inspect
 import logging
 import sys
 import time
-import warnings
 from collections import defaultdict
 from operator import attrgetter
 from typing import TYPE_CHECKING, Any, Callable, Literal
@@ -36,7 +35,7 @@ from packaging.version import Version
 
 from airflow import __version__ as airflow_version
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit
@@ -77,20 +76,6 @@ def get_es_kwargs_from_config() -> dict[str, Any]:
         if elastic_search_config
         else {}
     )
-    # TODO: Remove in next major release (drop support for elasticsearch<8 parameters)
-    if (
-        elastic_search_config
-        and "retry_timeout" in elastic_search_config
-        and not kwargs_dict.get("retry_on_timeout")
-    ):
-        warnings.warn(
-            "retry_timeout is not supported with elasticsearch>=8. Please use `retry_on_timeout`.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-        retry_timeout = elastic_search_config.get("retry_timeout")
-        if retry_timeout is not None:
-            kwargs_dict["retry_on_timeout"] = retry_timeout
     return kwargs_dict
 
 
@@ -162,8 +147,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         index_patterns: str = conf.get("elasticsearch", "index_patterns"),
         index_patterns_callable: str = conf.get("elasticsearch", "index_patterns_callable", fallback=""),
         es_kwargs: dict | None | Literal["default_es_kwargs"] = "default_es_kwargs",
-        *,
-        log_id_template: str | None = None,
         **kwargs,
     ):
         es_kwargs = es_kwargs or {}
@@ -175,14 +158,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         self.client = elasticsearch.Elasticsearch(host, **es_kwargs)
         # in airflow.cfg, host of elasticsearch has to be http://dockerhostXxxx:9200
-        if USE_PER_RUN_LOG_ID and log_id_template is not None:
-            warnings.warn(
-                "Passing log_id_template to ElasticsearchTaskHandler is deprecated and has no effect",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
 
-        self.log_id_template = log_id_template  # Only used on Airflow < 2.3.2.
         self.frontend = frontend
         self.mark_end_on_close = True
         self.end_of_log_mark = end_of_log_mark.strip()
@@ -244,8 +220,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             dag_run = ti.get_dagrun(session=session)
             if USE_PER_RUN_LOG_ID:
                 log_id_template = dag_run.get_log_template(session=session).elasticsearch_id
-            else:
-                log_id_template = self.log_id_template
 
         if TYPE_CHECKING:
             assert ti.task
