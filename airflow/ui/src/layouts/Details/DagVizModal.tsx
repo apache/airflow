@@ -60,6 +60,9 @@ export const DagVizModal: React.FC<TriggerDAGModalProps> = ({
   const [searchParams] = useSearchParams();
 
   const activeViz = searchParams.get("modal") ?? "graph";
+  const params = new URLSearchParams(searchParams);
+
+  params.delete("modal");
 
   return (
     <Dialog.Root onOpenChange={onClose} open={open} size="full">
@@ -73,7 +76,7 @@ export const DagVizModal: React.FC<TriggerDAGModalProps> = ({
               <RouterLink
                 key={value}
                 to={{
-                  search: `modal=${value}`,
+                  search: `${params.toString()}&modal=${value}`,
                 }}
               >
                 <Button

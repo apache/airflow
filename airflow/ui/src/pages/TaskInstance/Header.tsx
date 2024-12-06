@@ -56,7 +56,7 @@ export const Header = ({
         </Text>
       </Flex>
     )}
-    <SimpleGrid columns={4} gap={4} my={2}>
+    <SimpleGrid columns={6} gap={4} my={2}>
       <Stat label="Operator">{taskInstance.operator}</Stat>
       {taskInstance.map_index > -1 ? (
         <Stat label="Map Index">{taskInstance.map_index}</Stat>

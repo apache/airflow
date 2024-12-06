@@ -17,11 +17,15 @@
  * under the License.
  */
 import { LiaSlashSolid } from "react-icons/lia";
-import { useParams, Link as RouterLink } from "react-router-dom";
+import {
+  useParams,
+  Link as RouterLink,
+  useSearchParams,
+} from "react-router-dom";
 
 import {
   useDagServiceGetDagDetails,
-  useTaskInstanceServiceGetTaskInstance,
+  useTaskInstanceServiceGetMappedTaskInstance,
 } from "openapi/queries";
 import { Breadcrumb } from "src/components/ui";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
@@ -38,14 +42,19 @@ const tabs = [
 
 export const TaskInstance = () => {
   const { dagId = "", runId = "", taskId = "" } = useParams();
+  const [searchParams] = useSearchParams();
+
+  const mapIndexParam = searchParams.get("map_index");
+  const mapIndex = parseInt(mapIndexParam ?? "-1", 10);
 
   const {
     data: taskInstance,
     error,
     isLoading,
-  } = useTaskInstanceServiceGetTaskInstance({
+  } = useTaskInstanceServiceGetMappedTaskInstance({
     dagId,
     dagRunId: runId,
+    mapIndex,
     taskId,
   });
 
@@ -57,6 +66,17 @@ export const TaskInstance = () => {
     dagId,
   });
 
+  const links = [
+    { label: "Dags", value: "/dags" },
+    { label: dag?.dag_display_name ?? dagId, value: `/dags/${dagId}` },
+    { label: runId, value: `/dags/${dagId}/runs/${runId}` },
+    { label: taskInstance?.task_display_name ?? taskId },
+  ];
+
+  if (mapIndexParam !== null) {
+    links.push({ label: mapIndexParam });
+  }
+
   return (
     <DetailsLayout
       dag={dag}
@@ -65,20 +85,25 @@ export const TaskInstance = () => {
       tabs={tabs}
     >
       <Breadcrumb.Root mb={3} separator={<LiaSlashSolid />}>
-        <Breadcrumb.Link asChild color="fg.info">
-          <RouterLink to="/dags">Dags</RouterLink>
-        </Breadcrumb.Link>
-        <Breadcrumb.Link asChild color="fg.info">
-          <RouterLink to={`/dags/${dagId}`}>
-            {dag?.dag_display_name ?? dagId}
-          </RouterLink>
-        </Breadcrumb.Link>
-        <Breadcrumb.Link asChild color="fg.info">
-          <RouterLink to={`/dags/${dagId}/runs/${runId}`}>{runId}</RouterLink>
-        </Breadcrumb.Link>
-        <Breadcrumb.CurrentLink>
-          {taskInstance?.task_display_name ?? taskId}
-        </Breadcrumb.CurrentLink>
+        {links.map((link, index) => {
+          if (index === links.length - 1) {
+            return (
+              <Breadcrumb.CurrentLink key={link.label}>
+                {link.label}
+              </Breadcrumb.CurrentLink>
+            );
+          }
+
+          return link.value === undefined ? (
+            <Breadcrumb.Link color="fg.info" key={link.label}>
+              {link.label}
+            </Breadcrumb.Link>
+          ) : (
+            <Breadcrumb.Link asChild color="fg.info" key={link.label}>
+              <RouterLink to={link.value}>{link.label}</RouterLink>
+            </Breadcrumb.Link>
+          );
+        })}
       </Breadcrumb.Root>
       {taskInstance === undefined ? undefined : (
         <Header taskInstance={taskInstance} />

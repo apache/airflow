@@ -35,7 +35,7 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
     cell: ({ row: { original } }) => (
       <Link asChild color="fg.info" fontWeight="bold">
         <RouterLink
-          to={`/dags/${original.dag_id}/runs/${original.dag_run_id}/tasks/${original.task_id}`}
+          to={`/dags/${original.dag_id}/runs/${original.dag_run_id}/tasks/${original.task_id}${original.map_index > -1 ? `?map_index=${original.map_index}` : ""}`}
         >
           {original.task_display_name}
         </RouterLink>

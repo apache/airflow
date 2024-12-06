@@ -132,6 +132,7 @@ export const Events = () => {
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy,
     runId,
+    taskId,
   });
 
   return (
