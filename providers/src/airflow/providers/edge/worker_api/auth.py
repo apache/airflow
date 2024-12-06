@@ -71,6 +71,7 @@ def jwt_token_authorization(method: str, authorization: str):
         base_url = conf.get("webserver", "base_url")
         url_prefix = api_url.replace(base_url, "").replace("/rpcapi", "")
         pure_method = method.replace(url_prefix, "")
+        pure_method = pure_method[1:]
         payload = jwt_signer().verify_token(authorization)
         signed_method = payload.get("method")
         if not signed_method or signed_method != pure_method:
