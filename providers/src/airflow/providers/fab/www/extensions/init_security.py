@@ -16,13 +16,27 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
+import logging
 
-pytestmark = pytest.mark.db_test
+from airflow.configuration import conf
+
+log = logging.getLogger(__name__)
 
 
-def test_health(test_client):
-    response = test_client.get("/execution/health")
+def init_xframe_protection(app):
+    """
+    Add X-Frame-Options header.
 
-    assert response.status_code == 200
-    assert response.json() == {"status": "healthy"}
+    Use it to avoid click-jacking attacks, by ensuring that their content is not embedded into other sites.
+
+    See also: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options
+    """
+    x_frame_enabled = conf.getboolean("webserver", "X_FRAME_ENABLED", fallback=True)
+    if x_frame_enabled:
+        return
+
+    def apply_caching(response):
+        response.headers["X-Frame-Options"] = "DENY"
+        return response
+
+    app.after_request(apply_caching)
