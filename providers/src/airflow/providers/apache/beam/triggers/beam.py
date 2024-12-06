@@ -21,10 +21,8 @@ import contextlib
 from collections.abc import AsyncIterator, Sequence
 from typing import IO, Any
 
-from deprecated import deprecated
 from google.cloud.dataflow_v1beta3 import ListJobsRequest
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import BeamAsyncHook
 from airflow.providers.google.cloud.hooks.dataflow import AsyncDataflowHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -289,20 +287,3 @@ class BeamJavaPipelineTrigger(BeamPipelineBaseTrigger):
         else:
             yield TriggerEvent({"status": "error", "message": "Operation failed"})
         return
-
-
-@deprecated(
-    reason="`BeamPipelineTrigger` is deprecated. Please use `BeamPythonPipelineTrigger`.",
-    category=AirflowProviderDeprecationWarning,
-)
-class BeamPipelineTrigger(BeamPythonPipelineTrigger):
-    """
-    Trigger to perform checking the Python pipeline status until it reaches terminate state.
-
-    This class is deprecated. Please use
-    :class:`airflow.providers.apache.beam.triggers.beam.BeamPythonPipelineTrigger`
-    instead.
-    """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)

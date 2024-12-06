@@ -26,9 +26,12 @@ from airflow.providers.google.cloud.hooks.translate import TranslateHook
 from airflow.providers.google.cloud.operators.translate import (
     CloudTranslateTextOperator,
     TranslateCreateDatasetOperator,
+    TranslateCreateModelOperator,
     TranslateDatasetsListOperator,
     TranslateDeleteDatasetOperator,
+    TranslateDeleteModelOperator,
     TranslateImportDataOperator,
+    TranslateModelsListOperator,
     TranslateTextBatchOperator,
     TranslateTextOperator,
 )
@@ -39,6 +42,7 @@ GCP_CONN_ID = "google_cloud_default"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 PROJECT_ID = "test-project-id"
 DATASET_ID = "sample_ds_id"
+MODEL_ID = "sample_model_id"
 TIMEOUT_VALUE = 30
 
 
@@ -379,6 +383,158 @@ class TestTranslateDeleteData:
         )
         mock_hook.return_value.delete_dataset.assert_called_once_with(
             dataset_id=DATASET_ID,
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            timeout=TIMEOUT_VALUE,
+            retry=DEFAULT,
+            metadata=(),
+        )
+        wait_for_done.assert_called_once_with(operation=m_delete_method_result, timeout=TIMEOUT_VALUE)
+
+
+class TestTranslateModelCreate:
+    @mock.patch("airflow.providers.google.cloud.links.translate.TranslationModelLink.persist")
+    @mock.patch("airflow.providers.google.cloud.operators.translate.TranslateCreateModelOperator.xcom_push")
+    @mock.patch("airflow.providers.google.cloud.operators.translate.TranslateHook")
+    def test_minimal_green_path(self, mock_hook, mock_xcom_push, mock_link_persist):
+        MODEL_DISPLAY_NAME = "model_display_name_01"
+        MODEL_CREATION_RESULT_SAMPLE = {
+            "display_name": MODEL_DISPLAY_NAME,
+            "name": f"projects/{PROJECT_ID}/locations/{LOCATION}/models/{MODEL_ID}",
+            "dataset": f"projects/{PROJECT_ID}/locations/{LOCATION}/datasets/{DATASET_ID}",
+            "source_language_code": "",
+            "target_language_code": "",
+            "create_time": "2024-11-15T14:05:00Z",
+            "update_time": "2024-11-16T01:09:03Z",
+            "test_example_count": 1000,
+            "train_example_count": 115,
+            "validate_example_count": 140,
+        }
+        sample_operation = mock.MagicMock()
+        sample_operation.result.return_value = automl_translation.Model(MODEL_CREATION_RESULT_SAMPLE)
+
+        mock_hook.return_value.create_model.return_value = sample_operation
+        mock_hook.return_value.wait_for_operation_result.side_effect = lambda operation: operation.result()
+        mock_hook.return_value.extract_object_id = TranslateHook.extract_object_id
+        op = TranslateCreateModelOperator(
+            task_id="task_id",
+            display_name=MODEL_DISPLAY_NAME,
+            dataset_id=DATASET_ID,
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            timeout=TIMEOUT_VALUE,
+            retry=None,
+        )
+        context = mock.MagicMock()
+        result = op.execute(context=context)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.create_model.assert_called_once_with(
+            display_name=MODEL_DISPLAY_NAME,
+            dataset_id=DATASET_ID,
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            timeout=TIMEOUT_VALUE,
+            retry=None,
+            metadata=(),
+        )
+        mock_xcom_push.assert_called_once_with(context, key="model_id", value=MODEL_ID)
+        mock_link_persist.assert_called_once_with(
+            context=context,
+            task_instance=op,
+            model_id=MODEL_ID,
+            project_id=PROJECT_ID,
+            dataset_id=DATASET_ID,
+        )
+        assert result == MODEL_CREATION_RESULT_SAMPLE
+
+
+class TestTranslateListModels:
+    @mock.patch("airflow.providers.google.cloud.links.translate.TranslationModelsListLink.persist")
+    @mock.patch("airflow.providers.google.cloud.operators.translate.TranslateHook")
+    def test_minimal_green_path(self, mock_hook, mock_link_persist):
+        MODEL_ID_1 = "sample_model_1"
+        MODEL_ID_2 = "sample_model_2"
+        model_result_1 = automl_translation.Model(
+            dict(
+                display_name="model_1_display_name",
+                name=f"projects/{PROJECT_ID}/locations/{LOCATION}/models/{MODEL_ID_1}",
+                dataset=f"projects/{PROJECT_ID}/locations/{LOCATION}/datasets/ds_for_model_1",
+                source_language_code="en",
+                target_language_code="es",
+            )
+        )
+        model_result_2 = automl_translation.Model(
+            dict(
+                display_name="model_2_display_name",
+                name=f"projects/{PROJECT_ID}/locations/{LOCATION}/models/{MODEL_ID_2}",
+                dataset=f"projects/{PROJECT_ID}/locations/{LOCATION}/datasets/ds_for_model_2",
+                source_language_code="uk",
+                target_language_code="en",
+            )
+        )
+        mock_hook.return_value.list_models.return_value = [model_result_1, model_result_2]
+        mock_hook.return_value.extract_object_id = TranslateHook.extract_object_id
+
+        op = TranslateModelsListOperator(
+            task_id="task_id",
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            timeout=TIMEOUT_VALUE,
+            retry=DEFAULT,
+        )
+        context = mock.MagicMock()
+        result = op.execute(context=context)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.list_models.assert_called_once_with(
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            timeout=TIMEOUT_VALUE,
+            retry=DEFAULT,
+            metadata=(),
+        )
+        assert result == [MODEL_ID_1, MODEL_ID_2]
+        mock_link_persist.assert_called_once_with(
+            context=context,
+            task_instance=op,
+            project_id=PROJECT_ID,
+        )
+
+
+class TestTranslateDeleteModel:
+    @mock.patch("airflow.providers.google.cloud.operators.translate.TranslateHook")
+    def test_minimal_green_path(self, mock_hook):
+        m_delete_method_result = mock.MagicMock()
+        mock_hook.return_value.delete_model.return_value = m_delete_method_result
+        wait_for_done = mock_hook.return_value.wait_for_operation_done
+
+        op = TranslateDeleteModelOperator(
+            task_id="task_id",
+            model_id=MODEL_ID,
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            timeout=TIMEOUT_VALUE,
+            retry=DEFAULT,
+        )
+        context = mock.MagicMock()
+        op.execute(context=context)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.delete_model.assert_called_once_with(
+            model_id=MODEL_ID,
             project_id=PROJECT_ID,
             location=LOCATION,
             timeout=TIMEOUT_VALUE,
