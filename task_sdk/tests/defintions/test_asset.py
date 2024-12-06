@@ -27,7 +27,6 @@ from airflow.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
-    AssetAliasCondition,
     AssetAll,
     AssetAny,
     BaseAsset,
@@ -487,78 +486,38 @@ def test_normalize_uri_valid_uri(mock_get_normalized_scheme):
     assert asset.normalized_uri == "valid_aip60_uri"
 
 
-class FakeSession:
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *args, **kwargs):
-        pass
-
-
-FAKE_SESSION = FakeSession()
-
-
-class TestAssetAliasCondition:
+class TestAssetAlias:
     @pytest.fixture
-    def asset_model(self):
+    def asset(self):
         """Example asset links to asset alias resolved_asset_alias_2."""
-        from airflow.models.asset import AssetModel
-
-        return AssetModel(
-            id=1,
-            uri="test://asset1/",
-            name="test_name",
-            group="asset",
-        )
+        return Asset(uri="test://asset1/", name="test_name", group="asset")
 
     @pytest.fixture
     def asset_alias_1(self):
         """Example asset alias links to no assets."""
-        from airflow.models.asset import AssetAliasModel
-
-        return AssetAliasModel(name="test_name", group="test")
+        asset_alias_1 = AssetAlias(name="test_name", group="test")
+        with mock.patch.object(asset_alias_1, "_resolve_assets", return_value=[]):
+            yield asset_alias_1
 
     @pytest.fixture
-    def resolved_asset_alias_2(self, asset_model):
-        """Example asset alias links to asset asset_alias_1."""
-        from airflow.models.asset import AssetAliasModel
+    def resolved_asset_alias_2(self, asset):
+        """Example asset alias links to asset."""
+        asset_alias_2 = AssetAlias(name="test_name_2")
+        with mock.patch.object(asset_alias_2, "_resolve_assets", return_value=[asset]):
+            yield asset_alias_2
 
-        asset_alias_2 = AssetAliasModel(name="test_name_2")
-        asset_alias_2.assets.append(asset_model)
-        return asset_alias_2
+    @pytest.mark.parametrize("alias_fixture_name", ["asset_alias_1", "resolved_asset_alias_2"])
+    def test_as_expression(self, request: pytest.FixtureRequest, alias_fixture_name):
+        alias = request.getfixturevalue(alias_fixture_name)
+        assert alias.as_expression() == {"alias": {"name": alias.name, "group": alias.group}}
 
-    def test_as_expression(self, asset_alias_1, resolved_asset_alias_2):
-        for asset_alias in (asset_alias_1, resolved_asset_alias_2):
-            cond = AssetAliasCondition.from_asset_alias(asset_alias)
-            assert cond.as_expression() == {"alias": {"name": asset_alias.name, "group": asset_alias.group}}
+    def test_evalute_empty(self, asset_alias_1, asset):
+        assert asset_alias_1.evaluate({asset.uri: True}) is False
+        assert asset_alias_1._resolve_assets.mock_calls == [mock.call()]
 
-    @mock.patch("airflow.models.asset.expand_alias_to_assets")
-    @mock.patch("airflow.utils.session.create_session", return_value=FAKE_SESSION)
-    def test_evalute_empty(
-        self, mock_create_session, mock_expand_alias_to_assets, asset_alias_1, asset_model
-    ):
-        mock_expand_alias_to_assets.return_value = []
-
-        cond = AssetAliasCondition.from_asset_alias(asset_alias_1)
-        assert cond.evaluate({asset_model.uri: True}) is False
-
-        assert mock_expand_alias_to_assets.mock_calls == [mock.call(asset_alias_1.name, FAKE_SESSION)]
-        assert mock_create_session.mock_calls == [mock.call()]
-
-    @mock.patch("airflow.models.asset.expand_alias_to_assets")
-    @mock.patch("airflow.utils.session.create_session", return_value=FAKE_SESSION)
-    def test_evalute_resolved(
-        self, mock_create_session, mock_expand_alias_to_assets, resolved_asset_alias_2, asset_model
-    ):
-        mock_expand_alias_to_assets.return_value = [asset_model]
-
-        cond = AssetAliasCondition.from_asset_alias(resolved_asset_alias_2)
-        assert cond.evaluate({asset_model.uri: True}) is True
-
-        assert mock_expand_alias_to_assets.mock_calls == [
-            mock.call(resolved_asset_alias_2.name, FAKE_SESSION),
-        ]
-        assert mock_create_session.mock_calls == [mock.call()]
+    def test_evalute_resolved(self, resolved_asset_alias_2, asset):
+        assert resolved_asset_alias_2.evaluate({asset.uri: True}) is True
+        assert resolved_asset_alias_2._resolve_assets.mock_calls == [mock.call()]
 
 
 class TestAssetSubclasses:

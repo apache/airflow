@@ -59,7 +59,6 @@ from airflow.providers_manager import ProvidersManager
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
-    AssetAliasCondition,
     AssetAll,
     AssetAny,
     AssetRef,
@@ -1108,9 +1107,7 @@ class DependencyDetector:
                     )
                 )
             elif isinstance(obj, AssetAlias):
-                cond = AssetAliasCondition(name=obj.name, group=obj.group)
-
-                deps.extend(cond.iter_dag_dependencies(source=task.dag_id, target=""))
+                deps.extend(obj.iter_dag_dependencies(source=task.dag_id, target=""))
         return deps
 
     @staticmethod

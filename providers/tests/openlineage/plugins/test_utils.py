@@ -337,7 +337,7 @@ def test_serialize_timetable():
         Asset(name="2", uri="test://2", group="test-group"),
         AssetAlias(name="example-alias", group="test-group"),
         Asset(name="3", uri="test://3", group="test-group"),
-        AssetAll(AssetAlias("this-should-not-be-seen"), Asset("4")),
+        AssetAll(AssetAlias("another"), Asset("4")),
     )
     dag = MagicMock()
     dag.timetable = AssetTriggeredTimetable(asset)
@@ -354,7 +354,11 @@ def test_serialize_timetable():
                     "name": "2",
                     "group": "test-group",
                 },
-                {"__type": DagAttributeTypes.ASSET_ANY, "objects": []},
+                {
+                    "__type": DagAttributeTypes.ASSET_ALIAS,
+                    "name": "example-alias",
+                    "group": "test-group",
+                },
                 {
                     "__type": DagAttributeTypes.ASSET,
                     "extra": {},
@@ -365,7 +369,11 @@ def test_serialize_timetable():
                 {
                     "__type": DagAttributeTypes.ASSET_ALL,
                     "objects": [
-                        {"__type": DagAttributeTypes.ASSET_ANY, "objects": []},
+                        {
+                            "__type": DagAttributeTypes.ASSET_ALIAS,
+                            "name": "another",
+                            "group": "",
+                        },
                         {
                             "__type": DagAttributeTypes.ASSET,
                             "extra": {},
