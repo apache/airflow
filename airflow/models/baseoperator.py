@@ -353,6 +353,7 @@ class ExecutorSafeguard:
     test_mode = conf.getboolean("core", "unit_test_mode")
     _sentinel = local()
     _sentinel.callers = {}
+
     @classmethod
     def decorator(cls, func):
         @wraps(func)
