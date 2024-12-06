@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 import pytest
-
+import threading
 from airflow.configuration import conf
 from airflow.decorators import task
 from airflow.exceptions import AirflowException, AirflowRescheduleException, AirflowSkipException
@@ -204,3 +204,19 @@ class TestExecutorSafeguard:
         mock_log.warning.assert_called_once_with(
             "HelloWorldOperator.execute cannot be called outside TaskInstance!"
         )
+
+class TestExecutorSafeguardThread(threading.Thread):
+    def __init__(self):
+        self.executor_safeguard = ExecutorSafeguard()
+
+    def run(self):
+        class Wrapper:
+            def wrapper_test_func(self, *args, **kwargs):
+                print("test")
+        wrap_func = self.executor_safeguard.decorator(Wrapper.wrapper_test_func)
+        wrap_func(Wrapper(), Wrapper__sentinel="abc")
+
+
+def test_thread_local_executor_safeguard():
+    # Test thread local caller value is set properly
+    TestExecutorSafeguardThread().start()
