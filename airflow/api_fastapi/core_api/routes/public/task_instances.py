@@ -39,9 +39,12 @@ from airflow.api_fastapi.common.parameters import (
     QueryTIStateFilter,
     Range,
     RangeFilter,
+    SearchParam,
     SortParam,
     datetime_range_filter_factory,
+    filter_param_factory,
     float_range_filter_factory,
+    search_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.task_instances import (
@@ -330,11 +333,15 @@ def get_task_instances(
     dag_id: str,
     dag_run_id: str,
     request: Request,
+    task_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(TI.task_id, str | None))],
     logical_date: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", TI))],
     start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", TI))],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", TI))],
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", TI))],
     duration_range: Annotated[RangeFilter, Depends(float_range_filter_factory("duration", TI))],
+    task_display_name_pattern: Annotated[
+        SearchParam, Depends(search_param_factory(TI.task_display_name, "task_display_name_pattern"))
+    ],
     state: QueryTIStateFilter,
     pool: QueryTIPoolFilter,
     queue: QueryTIQueueFilter,
@@ -387,6 +394,8 @@ def get_task_instances(
             pool,
             queue,
             executor,
+            task_id,
+            task_display_name_pattern,
         ],
         order_by=order_by,
         offset=offset,
