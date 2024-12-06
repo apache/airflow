@@ -23,7 +23,6 @@ from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
 
 from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIDatasetRefreshStatus, PowerBIHook
-
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
