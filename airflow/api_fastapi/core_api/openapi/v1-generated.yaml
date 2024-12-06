@@ -101,6 +101,16 @@ paths:
           items:
             type: string
           title: Owners
+      - name: dag_ids
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Dag Ids
       - name: dag_id_pattern
         in: query
         required: false

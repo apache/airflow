@@ -267,6 +267,7 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    dagIds,
     dagRunsLimit,
     lastDagRunState,
     limit,
@@ -278,6 +279,7 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    dagIds?: string[];
     dagRunsLimit?: number;
     lastDagRunState?: DagRunState;
     limit?: number;
@@ -294,6 +296,7 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
     {
       dagDisplayNamePattern,
       dagIdPattern,
+      dagIds,
       dagRunsLimit,
       lastDagRunState,
       limit,
