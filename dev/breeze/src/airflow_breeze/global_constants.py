@@ -607,7 +607,7 @@ DEFAULT_EXTRAS = [
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
-CHICKEN_EGG_PROVIDERS = " ".join(["standard amazon common.sql"])
+CHICKEN_EGG_PROVIDERS = " ".join(["common.compat"])
 
 
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
