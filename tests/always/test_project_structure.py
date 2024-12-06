@@ -353,6 +353,7 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.automl.AutoMLTablesListTableSpecsOperator",
         "airflow.providers.google.cloud.operators.automl.AutoMLTablesUpdateDatasetOperator",
         "airflow.providers.google.cloud.operators.automl.AutoMLDeployModelOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLBatchPredictOperator",
         "airflow.providers.google.cloud.operators.datapipeline.CreateDataPipelineOperator",
         "airflow.providers.google.cloud.operators.datapipeline.RunDataPipelineOperator",
         "airflow.providers.google.cloud.operators.dataproc.DataprocScaleClusterOperator",
@@ -367,6 +368,12 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.mlengine.MLEngineSetDefaultVersionOperator",
         "airflow.providers.google.cloud.operators.mlengine.MLEngineStartBatchPredictionJobOperator",
         "airflow.providers.google.cloud.operators.mlengine.MLEngineStartTrainingJobOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineTrainingCancelJobOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptLanguageModelOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerateTextEmbeddingsOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptMultimodalModelOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptMultimodalModelWithMediaOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.TextGenerationModelPredictOperator",
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360CreateQueryOperator",
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360RunQueryOperator",
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360DownloadReportV2Operator",
@@ -385,7 +392,6 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
     }
 
     MISSING_EXAMPLES_FOR_CLASSES = {
-        "airflow.providers.google.cloud.operators.mlengine.MLEngineTrainingCancelJobOperator",
         "airflow.providers.google.cloud.operators.dlp.CloudDLPRedactImageOperator",
         "airflow.providers.google.cloud.transfers.cassandra_to_gcs.CassandraToGCSOperator",
         "airflow.providers.google.cloud.transfers.adls_to_gcs.ADLSToGCSOperator",
@@ -394,11 +400,6 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.vertex_ai.auto_ml.AutoMLTrainingJobBaseOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.UpdateEndpointOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.GetBatchPredictionJobOperator",
-        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptLanguageModelOperator",
-        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerateTextEmbeddingsOperator",
-        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptMultimodalModelOperator",
-        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptMultimodalModelWithMediaOperator",
-        "airflow.providers.google.cloud.operators.automl.AutoMLBatchPredictOperator",
     }
 
     ASSETS_NOT_REQUIRED = {
