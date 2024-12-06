@@ -352,6 +352,13 @@ repos:
         pass_filenames: true
         files: ^providers/src/airflow/providers/.*/(operators|transfers|sensors)/.*\.py$
         additional_dependencies: [ 'rich>=12.4.4' ]
+      - id: update-providers-init-py
+        name: Update providers __init__.py files
+        entry: ./scripts/ci/pre_commit/update_providers_init.py
+        language: python
+        pass_filenames: true
+        files: ^providers/.*/__init__.py$|^providers/.*/provider.yaml$|^airflow_breeze/templates/PROVIDER__INIT__PY_TEMPLATE.py.jinja2^
+        additional_dependencies: ['rich>=12.4.4','requests']
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
