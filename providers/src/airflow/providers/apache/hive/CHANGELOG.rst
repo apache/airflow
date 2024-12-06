@@ -26,6 +26,14 @@
 
 Changelog
 ---------
+main
+....
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the {provider_name} provider package.
+  The following breaking changes were introduced:
+
+  * ``Removed deprecated 'GSSAPI' for auth_mechanism. Use KERBEROS instead.``
 
 8.2.1
 .....
