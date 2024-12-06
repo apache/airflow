@@ -970,6 +970,7 @@ linux
 ListDatasetsPager
 ListGenerator
 ListInfoTypesResponse
+ListModelsPager
 ListSecretsPager
 Liveness
 liveness
