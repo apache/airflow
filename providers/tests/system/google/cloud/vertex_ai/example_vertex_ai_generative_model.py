@@ -36,7 +36,6 @@ from airflow.providers.google.cloud.operators.vertex_ai.generative_model import 
     GenerativeModelGenerateContentOperator,
     RunEvaluationOperator,
     TextEmbeddingModelGetEmbeddingsOperator,
-    TextGenerationModelPredictOperator,
 )
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
@@ -44,7 +43,6 @@ DAG_ID = "vertex_ai_generative_model_dag"
 REGION = "us-central1"
 PROMPT = "In 10 words or less, why is Apache Airflow amazing?"
 CONTENTS = [PROMPT]
-LANGUAGE_MODEL = "text-bison"
 TEXT_EMBEDDING_MODEL = "textembedding-gecko"
 MULTIMODAL_MODEL = "gemini-pro"
 MULTIMODAL_VISION_MODEL = "gemini-pro-vision"
@@ -117,16 +115,6 @@ with DAG(
     catchup=False,
     tags=["example", "vertex_ai", "generative_model"],
 ) as dag:
-    # [START how_to_cloud_vertex_ai_text_generation_model_predict_operator]
-    predict_task = TextGenerationModelPredictOperator(
-        task_id="predict_task",
-        project_id=PROJECT_ID,
-        location=REGION,
-        prompt=PROMPT,
-        pretrained_model=LANGUAGE_MODEL,
-    )
-    # [END how_to_cloud_vertex_ai_text_generation_model_predict_operator]
-
     # [START how_to_cloud_vertex_ai_text_embedding_model_get_embeddings_operator]
     generate_embeddings_task = TextEmbeddingModelGetEmbeddingsOperator(
         task_id="generate_embeddings_task",

@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,3 +14,29 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+import logging
+
+from airflow.configuration import conf
+
+log = logging.getLogger(__name__)
+
+
+def init_xframe_protection(app):
+    """
+    Add X-Frame-Options header.
+
+    Use it to avoid click-jacking attacks, by ensuring that their content is not embedded into other sites.
+
+    See also: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options
+    """
+    x_frame_enabled = conf.getboolean("webserver", "X_FRAME_ENABLED", fallback=True)
+    if x_frame_enabled:
+        return
+
+    def apply_caching(response):
+        response.headers["X-Frame-Options"] = "DENY"
+        return response
+
+    app.after_request(apply_caching)

@@ -22,28 +22,15 @@ import operator
 import os
 import urllib.parse
 import warnings
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    ClassVar,
-    NamedTuple,
-    cast,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, NamedTuple, overload
 
 import attrs
-from sqlalchemy import select
 
 from airflow.serialization.dag_dependency import DagDependency
-from airflow.typing_compat import TypedDict
-from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
     from urllib.parse import SplitResult
-
-    from sqlalchemy.orm.session import Session
 
     from airflow.triggers.base import BaseTrigger
 
@@ -54,7 +41,6 @@ __all__ = [
     "Model",
     "AssetRef",
     "AssetAlias",
-    "AssetAliasCondition",
     "AssetAll",
     "AssetAny",
 ]
@@ -410,32 +396,61 @@ class AssetAlias(BaseAsset):
     name: str = attrs.field(validator=_validate_non_empty_identifier)
     group: str = attrs.field(kw_only=True, default="", validator=_validate_identifier)
 
+    def _resolve_assets(self) -> list[Asset]:
+        from airflow.models.asset import expand_alias_to_assets
+        from airflow.utils.session import create_session
+
+        with create_session() as session:
+            asset_models = expand_alias_to_assets(self.name, session)
+        return [m.to_public() for m in asset_models]
+
+    def as_expression(self) -> Any:
+        """
+        Serialize the asset alias into its scheduling expression.
+
+        :meta private:
+        """
+        return {"alias": {"name": self.name, "group": self.group}}
+
+    def evaluate(self, statuses: dict[str, bool]) -> bool:
+        return any(x.evaluate(statuses=statuses) for x in self._resolve_assets())
+
     def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
         return iter(())
 
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
         yield self.name, self
 
-    def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
+    def iter_dag_dependencies(self, *, source: str = "", target: str = "") -> Iterator[DagDependency]:
         """
-        Iterate an asset alias as dag dependency.
+        Iterate an asset alias and its resolved assets as dag dependency.
 
         :meta private:
         """
-        yield DagDependency(
-            source=source or "asset-alias",
-            target=target or "asset-alias",
-            dependency_type="asset-alias",
-            dependency_id=self.name,
-        )
-
-
-class AssetAliasEvent(TypedDict):
-    """A represeation of asset event to be triggered by an asset alias."""
-
-    source_alias_name: str
-    dest_asset_uri: str
-    extra: dict[str, Any]
+        if not (resolved_assets := self._resolve_assets()):
+            yield DagDependency(
+                source=source or "asset-alias",
+                target=target or "asset-alias",
+                dependency_type="asset-alias",
+                dependency_id=self.name,
+            )
+            return
+        for asset in resolved_assets:
+            asset_name = asset.name
+            # asset
+            yield DagDependency(
+                source=f"asset-alias:{self.name}" if source else "asset",
+                target="asset" if source else f"asset-alias:{self.name}",
+                dependency_type="asset",
+                dependency_id=asset_name,
+            )
+            # asset alias
+            yield DagDependency(
+                source=source or f"asset:{asset_name}",
+                target=target or f"asset:{asset_name}",
+                dependency_type="asset-alias",
+                dependency_id=self.name,
+            )
 
 
 class _AssetBooleanCondition(BaseAsset):
@@ -446,17 +461,13 @@ class _AssetBooleanCondition(BaseAsset):
     def __init__(self, *objects: BaseAsset) -> None:
         if not all(isinstance(o, BaseAsset) for o in objects):
             raise TypeError("expect asset expressions in condition")
-
-        self.objects = [
-            AssetAliasCondition.from_asset_alias(obj) if isinstance(obj, AssetAlias) else obj
-            for obj in objects
-        ]
+        self.objects = objects
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         return self.agg_func(x.evaluate(statuses=statuses) for x in self.objects)
 
     def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
-        seen = set()  # We want to keep the first instance.
+        seen: set[AssetUniqueKey] = set()  # We want to keep the first instance.
         for o in self.objects:
             for k, v in o.iter_assets():
                 if k in seen:
@@ -466,8 +477,13 @@ class _AssetBooleanCondition(BaseAsset):
 
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
         """Filter asset aliases in the condition."""
+        seen: set[str] = set()  # We want to keep the first instance.
         for o in self.objects:
-            yield from o.iter_asset_aliases()
+            for k, v in o.iter_asset_aliases():
+                if k in seen:
+                    continue
+                yield k, v
+                seen.add(k)
 
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
         """
@@ -500,84 +516,6 @@ class AssetAny(_AssetBooleanCondition):
         :meta private:
         """
         return {"any": [o.as_expression() for o in self.objects]}
-
-
-@provide_session
-def expand_alias_to_assets(alias: str | AssetAlias, *, session: Session = NEW_SESSION) -> list[BaseAsset]:
-    """Expand asset alias to resolved assets."""
-    from airflow.models.asset import AssetAliasModel
-
-    alias_name = alias.name if isinstance(alias, AssetAlias) else alias
-
-    asset_alias_obj = session.scalar(
-        select(AssetAliasModel).where(AssetAliasModel.name == alias_name).limit(1)
-    )
-    if asset_alias_obj:
-        return [asset.to_public() for asset in asset_alias_obj.assets]
-    return []
-
-
-class AssetAliasCondition(AssetAny):
-    """
-    Use to expand AssetAlias as AssetAny of its resolved Assets.
-
-    :meta private:
-    """
-
-    def __init__(self, name: str, group: str) -> None:
-        self.name = name
-        self.group = group
-        self.objects = expand_alias_to_assets(name)
-
-    def __repr__(self) -> str:
-        return f"AssetAliasCondition({', '.join(map(str, self.objects))})"
-
-    def as_expression(self) -> Any:
-        """
-        Serialize the asset alias into its scheduling expression.
-
-        :meta private:
-        """
-        return {"alias": {"name": self.name, "group": self.group}}
-
-    def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
-        yield self.name, AssetAlias(self.name)
-
-    def iter_dag_dependencies(self, *, source: str = "", target: str = "") -> Iterator[DagDependency]:
-        """
-        Iterate an asset alias and its resolved assets as dag dependency.
-
-        :meta private:
-        """
-        if self.objects:
-            for obj in self.objects:
-                asset = cast(Asset, obj)
-                asset_name = asset.name
-                # asset
-                yield DagDependency(
-                    source=f"asset-alias:{self.name}" if source else "asset",
-                    target="asset" if source else f"asset-alias:{self.name}",
-                    dependency_type="asset",
-                    dependency_id=asset_name,
-                )
-                # asset alias
-                yield DagDependency(
-                    source=source or f"asset:{asset_name}",
-                    target=target or f"asset:{asset_name}",
-                    dependency_type="asset-alias",
-                    dependency_id=self.name,
-                )
-        else:
-            yield DagDependency(
-                source=source or "asset-alias",
-                target=target or "asset-alias",
-                dependency_type="asset-alias",
-                dependency_id=self.name,
-            )
-
-    @staticmethod
-    def from_asset_alias(asset_alias: AssetAlias) -> AssetAliasCondition:
-        return AssetAliasCondition(name=asset_alias.name, group=asset_alias.group)
 
 
 class AssetAll(_AssetBooleanCondition):

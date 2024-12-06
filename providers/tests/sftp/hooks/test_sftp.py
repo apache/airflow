@@ -116,6 +116,12 @@ class TestSFTPHook:
         output = self.hook.list_directory(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
         assert output == [SUB_DIR, FIFO_FOR_TESTS]
 
+    def test_list_directory_with_attr(self):
+        output = self.hook.list_directory_with_attr(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+        file_names = [f.filename for f in output]
+        assert all(isinstance(f, paramiko.SFTPAttributes) for f in output)
+        assert sorted(file_names) == [SUB_DIR, FIFO_FOR_TESTS]
+
     def test_mkdir(self):
         new_dir_name = "mk_dir"
         self.hook.mkdir(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
@@ -418,7 +424,7 @@ class TestSFTPHook:
 
     def test_get_all_matched_files(self):
         output = self.hook.get_files_by_pattern(self.temp_dir, "test_*.txt")
-        assert output == [TMP_FILE_FOR_TESTS, ANOTHER_FILE_FOR_TESTS]
+        assert sorted(output) == [TMP_FILE_FOR_TESTS, ANOTHER_FILE_FOR_TESTS]
 
     def test_get_matched_files_with_different_pattern(self):
         output = self.hook.get_files_by_pattern(self.temp_dir, "*_file_*.txt")
