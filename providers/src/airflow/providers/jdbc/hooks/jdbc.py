@@ -28,6 +28,7 @@ from sqlalchemy.engine import URL
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from wrapt import synchronized
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
@@ -177,6 +178,7 @@ class JdbcHook(DbApiHook):
 
         return super().get_sqlalchemy_engine(engine_kwargs)
 
+    @synchronized
     def get_conn(self) -> jaydebeapi.Connection:
         conn: Connection = self.connection
         host: str = conn.host
