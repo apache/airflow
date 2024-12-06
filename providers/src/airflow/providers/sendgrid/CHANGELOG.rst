@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+main
+.....
+
+.. warning::
+   All deprecated classes, parameters and features have been removed from the SendGrid provider package.
+   The following breaking changes were introduced:
+
+   * Utils
+
+      * Removed Fetching SendGrid credentials from environment variables. Use ``Connection`` to set credentials instead.
+
+
 3.6.0
 .....
 
