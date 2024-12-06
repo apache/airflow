@@ -21,20 +21,19 @@ import datetime
 import json
 import os
 import shutil
-from io import StringIO
+from io import BytesIO, StringIO
 from unittest import mock
 from unittest.mock import AsyncMock, patch
 
 import paramiko
 import pytest
-from asyncssh import SFTPAttrs, SFTPNoSuchFile
-from asyncssh.sftp import SFTPName
-
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.sftp.hooks.sftp import SFTPHook, SFTPHookAsync
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.utils.session import provide_session
+from asyncssh import SFTPAttrs, SFTPNoSuchFile
+from asyncssh.sftp import SFTPName
 
 pytestmark = pytest.mark.db_test
 
@@ -88,7 +87,10 @@ class TestSFTPHook:
                 file.write("Test file")
         with open(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS), "a") as file:
             file.write("Test file")
-        os.mkfifo(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, FIFO_FOR_TESTS))
+        try:
+            os.mkfifo(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, FIFO_FOR_TESTS))
+        except AttributeError:
+            os.makedirs(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, FIFO_FOR_TESTS))
 
         self.temp_dir = str(temp_dir)
 
@@ -182,6 +184,24 @@ class TestSFTPHook:
         )
         assert retrieved_file_name in os.listdir(self.temp_dir)
         os.remove(os.path.join(self.temp_dir, retrieved_file_name))
+        self.hook.delete_file(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS))
+        output = self.hook.list_directory(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+        assert output == [SUB_DIR, FIFO_FOR_TESTS]
+
+    def test_store_retrieve_and_delete_file_using_buffer(self):
+        file_contents = BytesIO(b"Test file")
+        self.hook.store_file(
+            remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
+            local_full_path=file_contents,
+        )
+        output = self.hook.list_directory(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+        assert output == [SUB_DIR, FIFO_FOR_TESTS, TMP_FILE_FOR_TESTS]
+        retrieved_file_contents = BytesIO()
+        self.hook.retrieve_file(
+            remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
+            local_full_path=retrieved_file_contents,
+        )
+        assert retrieved_file_contents.getvalue() == file_contents.getvalue()
         self.hook.delete_file(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS))
         output = self.hook.list_directory(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
         assert output == [SUB_DIR, FIFO_FOR_TESTS]
@@ -374,20 +394,34 @@ class TestSFTPHook:
         assert status is False
         assert msg == "Connection Error"
 
+    @pytest.mark.parametrize(
+        "test_connection_side_effect",
+        [
+            (lambda: (True, "Connection successfully tested")),
+            RuntimeError("Test connection failed"),
+        ],
+    )
     @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
-    def test_connection_success(self, mock_get_connection):
-        connection = Connection(
-            login="login",
-            host="host",
-        )
+    def test_context_manager(self, mock_get_connection, test_connection_side_effect):
+        connection = Connection(login="login", host="host")
         mock_get_connection.return_value = connection
 
-        with mock.patch.object(SFTPHook, "get_conn") as get_conn:
-            get_conn.return_value.pwd = "/home/someuser"
-            hook = SFTPHook()
-            status, msg = hook.test_connection()
-        assert status is True
-        assert msg == "Connection successfully tested"
+        with mock.patch.object(SFTPHook, "get_conn") as mock_get_conn, \
+            mock.patch.object(SFTPHook, "close_conn") as mock_close_conn:
+            mock_get_conn.return_value.pwd = "/home/someuser"
+
+            with SFTPHook() as hook:
+                with mock.patch.object(hook, "test_connection", side_effect=test_connection_side_effect):
+                    try:
+                        status, msg = hook.test_connection()
+
+                        assert status is True
+                        assert msg == "Connection successfully tested"
+                    except RuntimeError as e:
+                        assert str(e) == "Test connection failed"
+
+            mock_get_conn.assert_called_once()
+            mock_close_conn.assert_called_once()
 
     @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_deprecation_ftp_conn_id(self, mock_get_connection):
