@@ -24,7 +24,6 @@ import attrs
 
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk.definitions.asset import Asset, AssetRef
-from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterator, Mapping
@@ -55,15 +54,16 @@ class _AssetMainOperator(PythonOperator):
             yield key, value
 
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
-        from airflow.models.asset import _fetch_active_assets_by_name
+        from airflow.models.asset import fetch_active_assets_by_name
+        from airflow.utils.session import create_session
 
-        asset_names = [asset_ref.name for asset_ref in self.inlets if isinstance(asset_ref, AssetRef)]
+        asset_names = {asset_ref.name for asset_ref in self.inlets if isinstance(asset_ref, AssetRef)}
         if "self" in inspect.signature(self.python_callable).parameters:
-            asset_names.append(self._definition_name)
+            asset_names.add(self._definition_name)
 
         if asset_names:
             with create_session() as session:
-                active_assets = _fetch_active_assets_by_name(asset_names, session)
+                active_assets = fetch_active_assets_by_name(asset_names, session)
         else:
             active_assets = {}
         return dict(self._iter_kwargs(context, active_assets))
@@ -140,6 +140,8 @@ class asset:
         return AssetDefinition(
             name=name,
             uri=name if self.uri is None else str(self.uri),
+            group=self.group,
+            extra=self.extra,
             function=f,
             source=self,
         )
