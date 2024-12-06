@@ -15,13 +15,13 @@ import {
   DashboardService,
   EventLogService,
   ExtraLinksService,
-  GraphService,
   ImportErrorService,
   JobService,
   MonitorService,
   PluginService,
   PoolService,
   ProviderService,
+  StructureService,
   TaskInstanceService,
   TaskService,
   VariableService,
@@ -502,18 +502,18 @@ export const useDashboardServiceHistoricalMetricsSuspense = <
     ...options,
   });
 /**
- * Graph Data
- * Get Graph Data.
+ * Structure Data
+ * Get Structure Data.
  * @param data The data for the request.
  * @param data.dagId
  * @param data.root
  * @param data.includeUpstream
  * @param data.includeDownstream
- * @returns GraphDataResponse Successful Response
+ * @returns StructureDataResponse Successful Response
  * @throws ApiError
  */
-export const useGraphServiceGraphDataSuspense = <
-  TData = Common.GraphServiceGraphDataDefaultResponse,
+export const useStructureServiceStructureDataSuspense = <
+  TData = Common.StructureServiceStructureDataDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -532,12 +532,12 @@ export const useGraphServiceGraphDataSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseGraphServiceGraphDataKeyFn(
+    queryKey: Common.UseStructureServiceStructureDataKeyFn(
       { dagId, includeDownstream, includeUpstream, root },
       queryKey,
     ),
     queryFn: () =>
-      GraphService.graphData({
+      StructureService.structureData({
         dagId,
         includeDownstream,
         includeUpstream,
@@ -1026,50 +1026,6 @@ export const useDagServiceGetDagsSuspense = <
     ...options,
   });
 /**
- * Get Dag Tags
- * Get all DAG tags.
- * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
- * @param data.tagNamePattern
- * @returns DAGTagCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useDagServiceGetDagTagsSuspense = <
-  TData = Common.DagServiceGetDagTagsDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    limit,
-    offset,
-    orderBy,
-    tagNamePattern,
-  }: {
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-    tagNamePattern?: string;
-  } = {},
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseDagServiceGetDagTagsKeyFn(
-      { limit, offset, orderBy, tagNamePattern },
-      queryKey,
-    ),
-    queryFn: () =>
-      DagService.getDagTags({
-        limit,
-        offset,
-        orderBy,
-        tagNamePattern,
-      }) as TData,
-    ...options,
-  });
-/**
  * Get Dag
  * Get basic information about a DAG.
  * @param data The data for the request.
@@ -1122,6 +1078,50 @@ export const useDagServiceGetDagDetailsSuspense = <
     ...options,
   });
 /**
+ * Get Dag Tags
+ * Get all DAG tags.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @param data.tagNamePattern
+ * @returns DAGTagCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagServiceGetDagTagsSuspense = <
+  TData = Common.DagServiceGetDagTagsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    limit,
+    offset,
+    orderBy,
+    tagNamePattern,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    tagNamePattern?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseDagServiceGetDagTagsKeyFn(
+      { limit, offset, orderBy, tagNamePattern },
+      queryKey,
+    ),
+    queryFn: () =>
+      DagService.getDagTags({
+        limit,
+        offset,
+        orderBy,
+        tagNamePattern,
+      }) as TData,
+    ...options,
+  });
+/**
  * Get Event Log
  * @param data The data for the request.
  * @param data.eventLogId
@@ -1153,6 +1153,9 @@ export const useEventLogServiceGetEventLogSuspense = <
  * Get Event Logs
  * Get all Event Logs.
  * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
  * @param data.dagId
  * @param data.taskId
  * @param data.runId
@@ -1164,9 +1167,6 @@ export const useEventLogServiceGetEventLogSuspense = <
  * @param data.includedEvents
  * @param data.before
  * @param data.after
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
  * @returns EventLogCollectionResponse Successful Response
  * @throws ApiError
  */

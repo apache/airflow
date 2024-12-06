@@ -117,6 +117,12 @@ class TestSFTPHook:
         output = self.hook.list_directory(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
         assert output == [SUB_DIR, FIFO_FOR_TESTS]
 
+    def test_list_directory_with_attr(self):
+        output = self.hook.list_directory_with_attr(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+        file_names = [f.filename for f in output]
+        assert all(isinstance(f, paramiko.SFTPAttributes) for f in output)
+        assert sorted(file_names) == [SUB_DIR, FIFO_FOR_TESTS]
+
     def test_mkdir(self):
         new_dir_name = "mk_dir"
         self.hook.mkdir(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
@@ -457,7 +463,7 @@ class TestSFTPHook:
 
     def test_get_all_matched_files(self):
         output = self.hook.get_files_by_pattern(self.temp_dir, "test_*.txt")
-        assert output == [TMP_FILE_FOR_TESTS, ANOTHER_FILE_FOR_TESTS]
+        assert sorted(output) == [TMP_FILE_FOR_TESTS, ANOTHER_FILE_FOR_TESTS]
 
     def test_get_matched_files_with_different_pattern(self):
         output = self.hook.get_files_by_pattern(self.temp_dir, "*_file_*.txt")
@@ -788,3 +794,31 @@ class TestSFTPHookAsync:
         with pytest.raises(AirflowException) as exc:
             await hook.get_mod_time("/path/does_not/exist/")
         assert str(exc.value) == "No files matching"
+
+    @patch("paramiko.SSHClient")
+    @mock.patch("paramiko.ProxyCommand")
+    def test_sftp_hook_with_proxy_command(self, mock_proxy_command, mock_ssh_client):
+        mock_transport = mock.MagicMock()
+        mock_ssh_client.return_value.get_transport.return_value = mock_transport
+        mock_proxy_command.return_value = mock.MagicMock()
+
+        host_proxy_cmd = "ncat --proxy-auth proxy_user:**** --proxy proxy_host:port %h %p"
+        hook = SFTPHook(
+            remote_host="example.com",
+            username="user",
+            host_proxy_cmd=host_proxy_cmd,
+        )
+        hook.get_conn()
+
+        mock_proxy_command.assert_called_once_with(host_proxy_cmd)
+        mock_ssh_client.return_value.connect.assert_called_once_with(
+            hostname="example.com",
+            username="user",
+            timeout=None,
+            compress=True,
+            port=22,
+            sock=mock_proxy_command.return_value,
+            look_for_keys=True,
+            banner_timeout=30.0,
+            auth_timeout=None,
+        )

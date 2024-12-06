@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+main
+....
+
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the HTTP provider package.
+  The following breaking changes were introduced:
+
+  * Operators
+     * Remove ``airflow.providers.http.operators.http.SimpleHttpOperator``. Use ``airflow.providers.http.operators.http.HttpOperator`` instead.
+
 4.13.3
 ......
 

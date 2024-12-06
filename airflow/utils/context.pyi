@@ -39,10 +39,9 @@ from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent
+from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.serialization.pydantic.asset import AssetEventPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
-from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.typing_compat import TypedDict
 
 KNOWN_CONTEXT_KEYS: set[str]
@@ -57,6 +56,12 @@ class VariableAccessor:
 
 class ConnectionAccessor:
     def get(self, key: str, default_conn: Any = None) -> Any: ...
+
+class AssetAliasEvent:
+    source_alias_name: str
+    dest_asset_uri: str
+    extra: dict[str, Any]
+    def __init__(self, source_alias_name: str, dest_asset_uri: str, extra: dict[str, Any]) -> None: ...
 
 class OutletEventAccessor:
     def __init__(
@@ -118,11 +123,11 @@ class Context(TypedDict, total=False):
     reason: str | None
     run_id: str
     task: BaseOperator
-    task_instance: TaskInstance | TaskInstancePydantic
+    task_instance: TaskInstance
     task_instance_key_str: str
     test_mode: bool
     templates_dict: Mapping[str, Any] | None
-    ti: TaskInstance | TaskInstancePydantic
+    ti: TaskInstance
     triggering_asset_events: Mapping[str, Collection[AssetEvent | AssetEventPydantic]]
     ts: str
     ts_nodash: str

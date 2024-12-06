@@ -83,6 +83,7 @@ class SFTPHook(SSHHook):
         self,
         ssh_conn_id: str | None = "sftp_default",
         ssh_hook: SSHHook | None = None,
+        host_proxy_cmd: str | None = None,
         *args,
         **kwargs,
     ) -> None:
@@ -115,6 +116,7 @@ class SFTPHook(SSHHook):
             ssh_conn_id = ftp_conn_id
 
         kwargs["ssh_conn_id"] = ssh_conn_id
+        kwargs["host_proxy_cmd"] = host_proxy_cmd
         self.ssh_conn_id = ssh_conn_id
 
         super().__init__(*args, **kwargs)
@@ -165,6 +167,15 @@ class SFTPHook(SSHHook):
         conn = self.get_conn()
         files = sorted(conn.listdir(path))
         return files
+
+    def list_directory_with_attr(self, path: str) -> list[paramiko.SFTPAttributes]:
+        """
+        List files in a directory on the remote system including their SFTPAttributes.
+
+        :param path: full path to the remote directory to list
+        """
+        conn = self.get_conn()
+        return [file for file in conn.listdir_attr(path)]
 
     def mkdir(self, path: str, mode: int = 0o777) -> None:
         """
@@ -342,10 +353,9 @@ class SFTPHook(SSHHook):
             (form: ``func(str)``)
         :param bool recurse: *Default: True* - should it recurse
         """
-        conn = self.get_conn()
-        for entry in self.list_directory(path):
-            pathname = os.path.join(path, entry)
-            mode = conn.stat(pathname).st_mode
+        for entry in self.list_directory_with_attr(path):
+            pathname = os.path.join(path, entry.filename)
+            mode = entry.st_mode
             if stat.S_ISDIR(mode):  # type: ignore
                 # It's a directory, call the dcallback function
                 dcallback(pathname)
@@ -421,9 +431,9 @@ class SFTPHook(SSHHook):
         :return: list of string containing the found files, or an empty list if none matched
         """
         matched_files = []
-        for file in self.list_directory(path):
-            if fnmatch(file, fnmatch_pattern):
-                matched_files.append(file)
+        for file in self.list_directory_with_attr(path):
+            if fnmatch(file.filename, fnmatch_pattern):
+                matched_files.append(file.filename)
 
         return matched_files
 

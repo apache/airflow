@@ -20,6 +20,7 @@ from __future__ import annotations
 import inspect
 import logging
 import os
+import selectors
 import signal
 import sys
 from io import BytesIO
@@ -29,18 +30,21 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import httpx
+import psutil
 import pytest
 from uuid6 import uuid7
 
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
-from airflow.sdk.api.datamodels._generated import TaskInstance
+from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeferTask,
     GetConnection,
     GetVariable,
     GetXCom,
+    PutVariable,
+    SetXCom,
     VariableResult,
     XComResult,
 )
@@ -257,6 +261,53 @@ class TestWatchedSubprocess:
             "timestamp": "2024-11-07T12:34:56.078901Z",
         } in captured_logs
 
+    def test_supervise_handles_deferred_task(self, test_dags_dir, captured_logs, time_machine, mocker):
+        """
+        Test that the supervisor handles a deferred task correctly.
+
+        This includes ensuring the task starts and executes successfully, and that the task is deferred (via
+        the API client) with the expected parameters.
+        """
+
+        ti = TaskInstance(
+            id=uuid7(), task_id="async", dag_id="super_basic_deferred_run", run_id="d", try_number=1
+        )
+        dagfile_path = test_dags_dir / "super_basic_deferred_run.py"
+
+        # Create a mock client to assert calls to the client
+        # We assume the implementation of the client is correct and only need to check the calls
+        mock_client = mocker.Mock(spec=sdk_client.Client)
+
+        instant = tz.datetime(2024, 11, 7, 12, 34, 56, 0)
+        time_machine.move_to(instant, tick=False)
+
+        # Assert supervisor runs the task successfully
+        assert supervise(ti=ti, dag_path=dagfile_path, token="", client=mock_client) == 0
+
+        # Validate calls to the client
+        mock_client.task_instances.start.assert_called_once_with(ti.id, mocker.ANY, mocker.ANY)
+        mock_client.task_instances.heartbeat.assert_called_once_with(ti.id, pid=mocker.ANY)
+        mock_client.task_instances.defer.assert_called_once_with(
+            ti.id,
+            DeferTask(
+                classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
+                trigger_kwargs={"moment": "2024-11-07T12:34:59Z", "end_from_trigger": False},
+                next_method="execute_complete",
+            ),
+        )
+
+        # We are asserting the log messages here to ensure the task ran successfully
+        # and mainly to get the final state of the task matches one in the DB.
+        assert {
+            "exit_code": 0,
+            "duration": 0.0,
+            "final_state": "deferred",
+            "event": "Task finished",
+            "timestamp": mocker.ANY,
+            "level": "info",
+            "logger": "supervisor",
+        } in captured_logs
+
     def test_supervisor_handles_already_running_task(self):
         """Test that Supervisor prevents starting a Task Instance that is already running."""
         ti = TaskInstance(id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1)
@@ -419,7 +470,7 @@ class TestWatchedSubprocess:
         proc._send_heartbeat_if_needed()
 
         assert proc.failed_heartbeats == max_failed_heartbeats
-        mock_kill.assert_called_once_with(signal.SIGTERM)
+        mock_kill.assert_called_once_with(signal.SIGTERM, force=True)
         mock_client_heartbeat.assert_called_with(TI_ID, pid=mock_process.pid)
         assert {
             "event": "Too many failed heartbeats; terminating process",
@@ -428,6 +479,283 @@ class TestWatchedSubprocess:
             "logger": "supervisor",
             "timestamp": mocker.ANY,
         } in captured_logs
+
+    @pytest.mark.parametrize(
+        ["terminal_state", "task_end_time_monotonic", "overtime_threshold", "expected_kill"],
+        [
+            pytest.param(
+                None,
+                15.0,
+                10,
+                False,
+                id="no_terminal_state",
+            ),
+            pytest.param(TerminalTIState.SUCCESS, 15.0, 10, False, id="below_threshold"),
+            pytest.param(TerminalTIState.SUCCESS, 9.0, 10, True, id="above_threshold"),
+            pytest.param(TerminalTIState.FAILED, 9.0, 10, True, id="above_threshold_failed_state"),
+            pytest.param(TerminalTIState.SKIPPED, 9.0, 10, True, id="above_threshold_skipped_state"),
+            pytest.param(TerminalTIState.SUCCESS, None, 20, False, id="task_end_datetime_none"),
+        ],
+    )
+    def test_overtime_handling(
+        self,
+        mocker,
+        terminal_state,
+        task_end_time_monotonic,
+        overtime_threshold,
+        expected_kill,
+        monkeypatch,
+    ):
+        """Test handling of overtime under various conditions."""
+        # Mocking logger since we are only interested that it is called with the expected message
+        # and not the actual log output
+        mock_logger = mocker.patch("airflow.sdk.execution_time.supervisor.log")
+
+        # Mock the kill method at the class level so we can assert it was called with the correct signal
+        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+
+        # Mock the current monotonic time
+        mocker.patch("time.monotonic", return_value=20.0)
+
+        # Patch the task overtime threshold
+        monkeypatch.setattr(WatchedSubprocess, "TASK_OVERTIME_THRESHOLD", overtime_threshold)
+
+        mock_watched_subprocess = WatchedSubprocess(
+            ti_id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+
+        # Set the terminal state and task end datetime
+        mock_watched_subprocess._terminal_state = terminal_state
+        mock_watched_subprocess._task_end_time_monotonic = task_end_time_monotonic
+
+        # Call `wait` to trigger the overtime handling
+        # This will call the `kill` method if the task has been running for too long
+        mock_watched_subprocess._handle_task_overtime_if_needed()
+
+        # Validate process kill behavior and log messages
+        if expected_kill:
+            mock_kill.assert_called_once_with(signal.SIGTERM, force=True)
+            mock_logger.warning.assert_called_once_with(
+                "Task success overtime reached; terminating process",
+                ti_id=TI_ID,
+            )
+        else:
+            mock_kill.assert_not_called()
+            mock_logger.warning.assert_not_called()
+
+
+class TestWatchedSubprocessKill:
+    @pytest.fixture
+    def mock_process(self, mocker):
+        process = mocker.Mock(spec=psutil.Process)
+        process.pid = 12345
+        return process
+
+    @pytest.fixture
+    def watched_subprocess(self, mocker, mock_process):
+        proc = WatchedSubprocess(
+            ti_id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            client=mocker.Mock(),
+            process=mock_process,
+        )
+        # Mock the selector
+        mock_selector = mocker.Mock(spec=selectors.DefaultSelector)
+        mock_selector.select.return_value = []
+
+        # Set the selector on the process
+        proc.selector = mock_selector
+        return proc
+
+    @pytest.mark.parametrize(
+        ["signal_to_send", "wait_side_effect", "expected_signals"],
+        [
+            pytest.param(
+                signal.SIGINT,
+                [0],
+                [signal.SIGINT],
+                id="SIGINT-success-without-escalation",
+            ),
+            pytest.param(
+                signal.SIGINT,
+                [psutil.TimeoutExpired(0.1), 0],
+                [signal.SIGINT, signal.SIGTERM],
+                id="SIGINT-escalates-to-SIGTERM",
+            ),
+            pytest.param(
+                signal.SIGINT,
+                [
+                    psutil.TimeoutExpired(0.1),  # SIGINT times out
+                    psutil.TimeoutExpired(0.1),  # SIGTERM times out
+                    0,  # SIGKILL succeeds
+                ],
+                [signal.SIGINT, signal.SIGTERM, signal.SIGKILL],
+                id="SIGINT-escalates-to-SIGTERM-then-SIGKILL",
+            ),
+            pytest.param(
+                signal.SIGTERM,
+                [
+                    psutil.TimeoutExpired(0.1),  # SIGTERM times out
+                    0,  # SIGKILL succeeds
+                ],
+                [signal.SIGTERM, signal.SIGKILL],
+                id="SIGTERM-escalates-to-SIGKILL",
+            ),
+            pytest.param(
+                signal.SIGKILL,
+                [0],
+                [signal.SIGKILL],
+                id="SIGKILL-success-without-escalation",
+            ),
+        ],
+    )
+    def test_force_kill_escalation(
+        self,
+        watched_subprocess,
+        mock_process,
+        mocker,
+        signal_to_send,
+        wait_side_effect,
+        expected_signals,
+        captured_logs,
+    ):
+        """Test escalation path for SIGINT, SIGTERM, and SIGKILL when force=True."""
+        # Mock the process wait method to return the exit code or raise an exception
+        mock_process.wait.side_effect = wait_side_effect
+
+        watched_subprocess.kill(signal_to_send=signal_to_send, escalation_delay=0.1, force=True)
+
+        # Check that the correct signals were sent
+        mock_process.send_signal.assert_has_calls([mocker.call(sig) for sig in expected_signals])
+
+        # Check that the process was waited on for each signal
+        mock_process.wait.assert_has_calls([mocker.call(timeout=0)] * len(expected_signals))
+
+        ## Validate log messages
+        # If escalation occurred, we should see a warning log for each signal sent
+        if len(expected_signals) > 1:
+            assert {
+                "event": "Process did not terminate in time; escalating",
+                "level": "warning",
+                "logger": "supervisor",
+                "pid": 12345,
+                "signal": expected_signals[-2].name,
+                "timestamp": mocker.ANY,
+            } in captured_logs
+
+        # Regardless of escalation, we should see an info log for the final signal sent
+        assert {
+            "event": "Process exited",
+            "level": "info",
+            "logger": "supervisor",
+            "pid": 12345,
+            "signal": expected_signals[-1].name,
+            "exit_code": 0,
+            "timestamp": mocker.ANY,
+        } in captured_logs
+
+        # Validate `selector.select` calls
+        assert watched_subprocess.selector.select.call_count == len(expected_signals)
+        watched_subprocess.selector.select.assert_has_calls(
+            [mocker.call(timeout=0.1)] * len(expected_signals)
+        )
+
+        assert watched_subprocess._exit_code == 0
+
+    def test_force_kill_with_selector_events(self, watched_subprocess, mock_process, mocker):
+        """Test force escalation with selector events handled during wait."""
+        # Mock selector to return events during escalation
+        mock_key = mocker.Mock()
+        mock_key.fileobj = mocker.Mock()
+
+        # Simulate EOF
+        mock_key.data = mocker.Mock(return_value=False)
+
+        watched_subprocess.selector.select.side_effect = [
+            [(mock_key, None)],  # Event during SIGINT
+            [],  # No event during SIGTERM
+            [(mock_key, None)],  # Event during SIGKILL
+        ]
+
+        mock_process.wait.side_effect = [
+            psutil.TimeoutExpired(0.1),  # SIGINT times out
+            psutil.TimeoutExpired(0.1),  # SIGTERM times out
+            0,  # SIGKILL succeeds
+        ]
+
+        watched_subprocess.kill(signal.SIGINT, escalation_delay=0.1, force=True)
+
+        # Validate selector interactions
+        assert watched_subprocess.selector.select.call_count == 3
+        mock_key.data.assert_has_calls([mocker.call(mock_key.fileobj), mocker.call(mock_key.fileobj)])
+
+        # Validate signal escalation
+        mock_process.send_signal.assert_has_calls(
+            [mocker.call(signal.SIGINT), mocker.call(signal.SIGTERM), mocker.call(signal.SIGKILL)]
+        )
+
+    def test_kill_process_already_exited(self, watched_subprocess, mock_process):
+        """Test behavior when the process has already exited."""
+        mock_process.wait.side_effect = psutil.NoSuchProcess(pid=1234)
+
+        watched_subprocess.kill(signal.SIGINT, force=True)
+
+        mock_process.send_signal.assert_called_once_with(signal.SIGINT)
+        mock_process.wait.assert_called_once()
+        assert watched_subprocess._exit_code == -1
+
+    def test_kill_process_custom_signal(self, watched_subprocess, mock_process):
+        """Test that the process is killed with the correct signal."""
+        mock_process.wait.return_value = 0
+
+        signal_to_send = signal.SIGUSR1
+        watched_subprocess.kill(signal_to_send, force=False)
+
+        mock_process.send_signal.assert_called_once_with(signal_to_send)
+        mock_process.wait.assert_called_once_with(timeout=0)
+
+    def test_service_subprocess(self, watched_subprocess, mock_process, mocker):
+        """Test `_service_subprocess` processes selector events and handles subprocess exit."""
+        ## Given
+
+        # Mock file objects and handlers
+        mock_stdout = mocker.Mock()
+        mock_stderr = mocker.Mock()
+
+        # Handlers for stdout and stderr
+        mock_stdout_handler = mocker.Mock(return_value=False)  # Simulate EOF for stdout
+        mock_stderr_handler = mocker.Mock(return_value=True)  # Continue processing for stderr
+
+        # Mock selector to return events
+        mock_key_stdout = mocker.Mock(fileobj=mock_stdout, data=mock_stdout_handler)
+        mock_key_stderr = mocker.Mock(fileobj=mock_stderr, data=mock_stderr_handler)
+        watched_subprocess.selector.select.return_value = [(mock_key_stdout, None), (mock_key_stderr, None)]
+
+        # Mock to simulate process exited successfully
+        mock_process.wait.return_value = 0
+
+        ## Our actual test
+        watched_subprocess._service_subprocess(max_wait_time=1.0)
+
+        ## Validations!
+        # Validate selector interactions
+        watched_subprocess.selector.select.assert_called_once_with(timeout=1.0)
+
+        # Validate handler calls
+        mock_stdout_handler.assert_called_once_with(mock_stdout)
+        mock_stderr_handler.assert_called_once_with(mock_stderr)
+
+        # Validate unregistering and closing of EOF file object
+        watched_subprocess.selector.unregister.assert_called_once_with(mock_stdout)
+        mock_stdout.close.assert_called_once()
+
+        # Validate that `_check_subprocess_exit` is called
+        mock_process.wait.assert_called_once_with(timeout=0)
 
 
 class TestHandleRequest:
@@ -462,12 +790,12 @@ class TestHandleRequest:
                 id="get_variable",
             ),
             pytest.param(
-                GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
-                b'{"key":"test_key","value":"test_value"}\n',
-                "xcoms.get",
-                ("test_dag", "test_run", "test_task", "test_key", -1),
-                XComResult(key="test_key", value="test_value"),
-                id="get_xcom",
+                PutVariable(key="test_key", value="test_value", description="test_description"),
+                b"",
+                "variables.set",
+                ("test_key", "test_value", "test_description"),
+                {"ok": True},
+                id="set_variable",
             ),
             pytest.param(
                 DeferTask(next_method="execute_callback", classpath="my-classpath"),
@@ -476,6 +804,67 @@ class TestHandleRequest:
                 (TI_ID, DeferTask(next_method="execute_callback", classpath="my-classpath")),
                 "",
                 id="patch_task_instance_to_deferred",
+            ),
+            pytest.param(
+                GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
+                b'{"key":"test_key","value":"test_value"}\n',
+                "xcoms.get",
+                ("test_dag", "test_run", "test_task", "test_key", -1),
+                XComResult(key="test_key", value="test_value"),
+                id="get_xcom",
+            ),
+            pytest.param(
+                GetXCom(
+                    dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key", map_index=2
+                ),
+                b'{"key":"test_key","value":"test_value"}\n',
+                "xcoms.get",
+                ("test_dag", "test_run", "test_task", "test_key", 2),
+                XComResult(key="test_key", value="test_value"),
+                id="get_xcom_map_index",
+            ),
+            pytest.param(
+                SetXCom(
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    task_id="test_task",
+                    key="test_key",
+                    value='{"key": "test_key", "value": {"key2": "value2"}}',
+                ),
+                b"",
+                "xcoms.set",
+                (
+                    "test_dag",
+                    "test_run",
+                    "test_task",
+                    "test_key",
+                    '{"key": "test_key", "value": {"key2": "value2"}}',
+                    None,
+                ),
+                {"ok": True},
+                id="set_xcom",
+            ),
+            pytest.param(
+                SetXCom(
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    task_id="test_task",
+                    key="test_key",
+                    value='{"key": "test_key", "value": {"key2": "value2"}}',
+                    map_index=2,
+                ),
+                b"",
+                "xcoms.set",
+                (
+                    "test_dag",
+                    "test_run",
+                    "test_task",
+                    "test_key",
+                    '{"key": "test_key", "value": {"key2": "value2"}}',
+                    2,
+                ),
+                {"ok": True},
+                id="set_xcom_with_map_index",
             ),
         ],
     )

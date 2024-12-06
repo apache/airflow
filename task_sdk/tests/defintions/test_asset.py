@@ -18,20 +18,15 @@
 from __future__ import annotations
 
 import os
-from collections import defaultdict
 from typing import Callable
-from unittest.mock import patch
+from unittest import mock
 
 import pytest
-from sqlalchemy.sql import select
 
-from airflow.models.asset import AssetAliasModel, AssetDagRunQueue, AssetModel
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
-    AssetAliasCondition,
     AssetAll,
     AssetAny,
     BaseAsset,
@@ -40,18 +35,10 @@ from airflow.sdk.definitions.asset import (
     _get_normalized_scheme,
     _sanitize_uri,
 )
+from airflow.sdk.definitions.dag import DAG
 from airflow.serialization.serialized_objects import BaseSerialization, SerializedDAG
 
 ASSET_MODULE_PATH = "airflow.sdk.definitions.asset"
-
-
-@pytest.fixture
-def clear_assets():
-    from tests_common.test_utils.db import clear_db_assets
-
-    clear_db_assets()
-    yield
-    clear_db_assets()
 
 
 @pytest.mark.parametrize(
@@ -170,18 +157,17 @@ def test_asset_logic_operations():
 
 
 def test_asset_iter_assets():
-    assert list(asset1.iter_assets()) == [("s3://bucket1/data1", asset1)]
+    assert list(asset1.iter_assets()) == [(("asset-1", "s3://bucket1/data1"), asset1)]
 
 
-@pytest.mark.db_test
 def test_asset_iter_asset_aliases():
     base_asset = AssetAll(
-        AssetAlias("example-alias-1"),
+        AssetAlias(name="example-alias-1"),
         Asset("1"),
         AssetAny(
-            Asset("2"),
+            Asset(name="2", uri="test://asset1"),
             AssetAlias("example-alias-2"),
-            Asset("3"),
+            Asset(name="3"),
             AssetAll(AssetAlias("example-alias-3"), Asset("4"), AssetAlias("example-alias-4")),
         ),
         AssetAll(AssetAlias("example-alias-5"), Asset("5")),
@@ -225,8 +211,14 @@ def test_assset_boolean_condition_evaluate_iter():
     # Testing iter_assets indirectly through the subclasses
     assets_any = dict(any_condition.iter_assets())
     assets_all = dict(all_condition.iter_assets())
-    assert assets_any == {"s3://bucket1/data1": asset1, "s3://bucket2/data2": asset2}
-    assert assets_all == {"s3://bucket1/data1": asset1, "s3://bucket2/data2": asset2}
+    assert assets_any == {
+        ("asset-1", "s3://bucket1/data1"): asset1,
+        ("asset-2", "s3://bucket2/data2"): asset2,
+    }
+    assert assets_all == {
+        ("asset-1", "s3://bucket1/data1"): asset1,
+        ("asset-2", "s3://bucket2/data2"): asset2,
+    }
 
 
 @pytest.mark.parametrize(
@@ -254,7 +246,7 @@ def test_assset_boolean_condition_evaluate_iter():
 )
 def test_asset_logical_conditions_evaluation_and_serialization(inputs, scenario, expected):
     class_ = AssetAny if scenario == "any" else AssetAll
-    assets = [Asset(uri=f"s3://abc/{i}") for i in range(123, 126)]
+    assets = [Asset(uri=f"s3://abc/{i}", name=f"asset_{i}") for i in range(123, 126)]
     condition = class_(*assets)
 
     statuses = {asset.uri: status for asset, status in zip(assets, inputs)}
@@ -274,31 +266,31 @@ def test_asset_logical_conditions_evaluation_and_serialization(inputs, scenario,
         (
             (False, True, True),
             False,
-        ),  # AssetAll requires all conditions to be True, but d1 is False
+        ),  # AssetAll requires all conditions to be True, but asset1 is False
         ((True, True, True), True),  # All conditions are True
         (
             (True, False, True),
             True,
-        ),  # d1 is True, and AssetAny condition (d2 or d3 being True) is met
+        ),  # asset1 is True, and AssetAny condition (asset2 or asset3 being True) is met
         (
             (True, False, False),
             False,
-        ),  # d1 is True, but neither d2 nor d3 meet the AssetAny condition
+        ),  # asset1 is True, but neither asset2 nor asset3 meet the AssetAny condition
     ],
 )
 def test_nested_asset_conditions_with_serialization(status_values, expected_evaluation):
     # Define assets
-    d1 = Asset(uri="s3://abc/123")
-    d2 = Asset(uri="s3://abc/124")
-    d3 = Asset(uri="s3://abc/125")
+    asset1 = Asset(uri="s3://abc/123")
+    asset2 = Asset(uri="s3://abc/124")
+    asset3 = Asset(uri="s3://abc/125")
 
-    # Create a nested condition: AssetAll with d1 and AssetAny with d2 and d3
-    nested_condition = AssetAll(d1, AssetAny(d2, d3))
+    # Create a nested condition: AssetAll with asset1 and AssetAny with asset2 and asset3
+    nested_condition = AssetAll(asset1, AssetAny(asset2, asset3))
 
     statuses = {
-        d1.uri: status_values[0],
-        d2.uri: status_values[1],
-        d3.uri: status_values[2],
+        asset1.uri: status_values[0],
+        asset2.uri: status_values[1],
+        asset3.uri: status_values[2],
     }
 
     assert nested_condition.evaluate(statuses) == expected_evaluation, "Initial evaluation mismatch"
@@ -312,22 +304,16 @@ def test_nested_asset_conditions_with_serialization(status_values, expected_eval
 
 
 @pytest.fixture
-def create_test_assets(session):
+def create_test_assets():
     """Fixture to create test assets and corresponding models."""
-    assets = [Asset(uri=f"hello{i}") for i in range(1, 3)]
-    for asset in assets:
-        session.add(AssetModel(uri=asset.uri))
-    session.commit()
-    return assets
+    return [Asset(uri=f"test://asset{i}", name=f"hello{i}") for i in range(1, 3)]
 
 
-@pytest.mark.db_test
-@pytest.mark.usefixtures("clear_assets")
-def test_asset_trigger_setup_and_serialization(session, dag_maker, create_test_assets):
+def test_asset_trigger_setup_and_serialization(create_test_assets):
     assets = create_test_assets
 
     # Create DAG with asset triggers
-    with dag_maker(schedule=AssetAny(*assets)) as dag:
+    with DAG(dag_id="test", schedule=AssetAny(*assets), catchup=False) as dag:
         EmptyOperator(task_id="hello")
 
     # Verify assets are set up correctly
@@ -343,81 +329,6 @@ def test_asset_trigger_setup_and_serialization(session, dag_maker, create_test_a
     assert (
         deserialized_dag.timetable.asset_condition.objects == dag.timetable.asset_condition.objects
     ), "Deserialized assets should match original"
-
-
-@pytest.mark.db_test
-@pytest.mark.usefixtures("clear_assets")
-def test_asset_dag_run_queue_processing(session, clear_assets, dag_maker, create_test_assets):
-    assets = create_test_assets
-    asset_models = session.query(AssetModel).all()
-
-    with dag_maker(schedule=AssetAny(*assets)) as dag:
-        EmptyOperator(task_id="hello")
-
-    # Add AssetDagRunQueue entries to simulate asset event processing
-    for am in asset_models:
-        session.add(AssetDagRunQueue(asset_id=am.id, target_dag_id=dag.dag_id))
-    session.commit()
-
-    # Fetch and evaluate asset triggers for all DAGs affected by asset events
-    records = session.scalars(select(AssetDagRunQueue)).all()
-    dag_statuses = defaultdict(lambda: defaultdict(bool))
-    for record in records:
-        dag_statuses[record.target_dag_id][record.asset.uri] = True
-
-    serialized_dags = session.execute(
-        select(SerializedDagModel).where(SerializedDagModel.dag_id.in_(dag_statuses.keys()))
-    ).fetchall()
-
-    for (serialized_dag,) in serialized_dags:
-        dag = SerializedDAG.deserialize(serialized_dag.data)
-        for asset_uri, status in dag_statuses[dag.dag_id].items():
-            cond = dag.timetable.asset_condition
-            assert cond.evaluate({asset_uri: status}), "DAG trigger evaluation failed"
-
-
-@pytest.mark.db_test
-@pytest.mark.usefixtures("clear_assets")
-def test_dag_with_complex_asset_condition(session, dag_maker):
-    # Create Asset instances
-    d1 = Asset(uri="hello1")
-    d2 = Asset(uri="hello2")
-
-    # Create and add AssetModel instances to the session
-    am1 = AssetModel(uri=d1.uri)
-    am2 = AssetModel(uri=d2.uri)
-    session.add_all([am1, am2])
-    session.commit()
-
-    # Setup a DAG with complex asset triggers (AssetAny with AssetAll)
-    with dag_maker(schedule=AssetAny(d1, AssetAll(d2, d1))) as dag:
-        EmptyOperator(task_id="hello")
-
-    assert isinstance(
-        dag.timetable.asset_condition, AssetAny
-    ), "DAG's asset trigger should be an instance of AssetAny"
-    assert any(
-        isinstance(trigger, AssetAll) for trigger in dag.timetable.asset_condition.objects
-    ), "DAG's asset trigger should include AssetAll"
-
-    serialized_triggers = SerializedDAG.serialize(dag.timetable.asset_condition)
-
-    deserialized_triggers = SerializedDAG.deserialize(serialized_triggers)
-
-    assert isinstance(
-        deserialized_triggers, AssetAny
-    ), "Deserialized triggers should be an instance of AssetAny"
-    assert any(
-        isinstance(trigger, AssetAll) for trigger in deserialized_triggers.objects
-    ), "Deserialized triggers should include AssetAll"
-
-    serialized_timetable_dict = SerializedDAG.to_dict(dag)["dag"]["timetable"]["__var"]
-    assert (
-        "asset_condition" in serialized_timetable_dict
-    ), "Serialized timetable should contain 'asset_condition'"
-    assert isinstance(
-        serialized_timetable_dict["asset_condition"], dict
-    ), "Serialized 'asset_condition' should be a dict"
 
 
 def assets_equal(a1: BaseAsset, a2: BaseAsset) -> bool:
@@ -442,11 +353,11 @@ def assets_equal(a1: BaseAsset, a2: BaseAsset) -> bool:
     return False
 
 
-asset1 = Asset(uri="s3://bucket1/data1")
-asset2 = Asset(uri="s3://bucket2/data2")
-asset3 = Asset(uri="s3://bucket3/data3")
-asset4 = Asset(uri="s3://bucket4/data4")
-asset5 = Asset(uri="s3://bucket5/data5")
+asset1 = Asset(uri="s3://bucket1/data1", name="asset-1")
+asset2 = Asset(uri="s3://bucket2/data2", name="asset-2")
+asset3 = Asset(uri="s3://bucket3/data3", name="asset-3")
+asset4 = Asset(uri="s3://bucket4/data4", name="asset-4")
+asset5 = Asset(uri="s3://bucket5/data5", name="asset-5")
 
 test_cases = [
     (lambda: asset1, asset1),
@@ -542,7 +453,7 @@ def _mock_get_uri_normalizer_noop(normalized_scheme):
     return normalizer
 
 
-@patch(
+@mock.patch(
     "airflow.sdk.definitions.asset._get_uri_normalizer",
     _mock_get_uri_normalizer_raising_error,
 )
@@ -553,13 +464,13 @@ def test_sanitize_uri_raises_exception():
     assert str(e_info.value) == "Incorrect URI format"
 
 
-@patch("airflow.sdk.definitions.asset._get_uri_normalizer", lambda x: None)
-def test_normalize_uri_no_normalizer_found():
+@mock.patch("airflow.sdk.definitions.asset._get_uri_normalizer", return_value=None)
+def test_normalize_uri_no_normalizer_found(mock_get_uri_normalizer):
     asset = Asset(uri="any_uri_without_normalizer_defined")
     assert asset.normalized_uri is None
 
 
-@patch(
+@mock.patch(
     "airflow.sdk.definitions.asset._get_uri_normalizer",
     _mock_get_uri_normalizer_raising_error,
 )
@@ -568,68 +479,45 @@ def test_normalize_uri_invalid_uri():
     assert asset.normalized_uri is None
 
 
-@patch("airflow.sdk.definitions.asset._get_uri_normalizer", _mock_get_uri_normalizer_noop)
-@patch("airflow.sdk.definitions.asset._get_normalized_scheme", lambda x: "valid_scheme")
-def test_normalize_uri_valid_uri():
+@mock.patch("airflow.sdk.definitions.asset._get_uri_normalizer", _mock_get_uri_normalizer_noop)
+@mock.patch("airflow.sdk.definitions.asset._get_normalized_scheme", return_value="valid_scheme")
+def test_normalize_uri_valid_uri(mock_get_normalized_scheme):
     asset = Asset(uri="valid_aip60_uri")
     assert asset.normalized_uri == "valid_aip60_uri"
 
 
-@pytest.mark.db_test
-@pytest.mark.usefixtures("clear_assets")
-class TestAssetAliasCondition:
+class TestAssetAlias:
     @pytest.fixture
-    def asset_1(self, session):
+    def asset(self):
         """Example asset links to asset alias resolved_asset_alias_2."""
-        asset_uri = "test_uri"
-        asset_1 = AssetModel(id=1, uri=asset_uri)
-
-        session.add(asset_1)
-        session.commit()
-
-        return asset_1
+        return Asset(uri="test://asset1/", name="test_name", group="asset")
 
     @pytest.fixture
-    def asset_alias_1(self, session):
+    def asset_alias_1(self):
         """Example asset alias links to no assets."""
-        alias_name = "test_name"
-        asset_alias_model = AssetAliasModel(name=alias_name)
-
-        session.add(asset_alias_model)
-        session.commit()
-
-        return asset_alias_model
+        asset_alias_1 = AssetAlias(name="test_name", group="test")
+        with mock.patch.object(asset_alias_1, "_resolve_assets", return_value=[]):
+            yield asset_alias_1
 
     @pytest.fixture
-    def resolved_asset_alias_2(self, session, asset_1):
-        """Example asset alias links to asset asset_alias_1."""
-        asset_name = "test_name_2"
-        asset_alias_2 = AssetAliasModel(name=asset_name)
-        asset_alias_2.assets.append(asset_1)
+    def resolved_asset_alias_2(self, asset):
+        """Example asset alias links to asset."""
+        asset_alias_2 = AssetAlias(name="test_name_2")
+        with mock.patch.object(asset_alias_2, "_resolve_assets", return_value=[asset]):
+            yield asset_alias_2
 
-        session.add(asset_alias_2)
-        session.commit()
+    @pytest.mark.parametrize("alias_fixture_name", ["asset_alias_1", "resolved_asset_alias_2"])
+    def test_as_expression(self, request: pytest.FixtureRequest, alias_fixture_name):
+        alias = request.getfixturevalue(alias_fixture_name)
+        assert alias.as_expression() == {"alias": {"name": alias.name, "group": alias.group}}
 
-        return asset_alias_2
+    def test_evalute_empty(self, asset_alias_1, asset):
+        assert asset_alias_1.evaluate({asset.uri: True}) is False
+        assert asset_alias_1._resolve_assets.mock_calls == [mock.call()]
 
-    def test_init(self, asset_alias_1, asset_1, resolved_asset_alias_2):
-        cond = AssetAliasCondition(name=asset_alias_1.name)
-        assert cond.objects == []
-
-        cond = AssetAliasCondition(name=resolved_asset_alias_2.name)
-        assert cond.objects == [Asset(uri=asset_1.uri)]
-
-    def test_as_expression(self, asset_alias_1, resolved_asset_alias_2):
-        for assset_alias in (asset_alias_1, resolved_asset_alias_2):
-            cond = AssetAliasCondition(assset_alias.name)
-            assert cond.as_expression() == {"alias": assset_alias.name}
-
-    def test_evalute(self, asset_alias_1, resolved_asset_alias_2, asset_1):
-        cond = AssetAliasCondition(asset_alias_1.name)
-        assert cond.evaluate({asset_1.uri: True}) is False
-
-        cond = AssetAliasCondition(resolved_asset_alias_2.name)
-        assert cond.evaluate({asset_1.uri: True}) is True
+    def test_evalute_resolved(self, resolved_asset_alias_2, asset):
+        assert resolved_asset_alias_2.evaluate({asset.uri: True}) is True
+        assert resolved_asset_alias_2._resolve_assets.mock_calls == [mock.call()]
 
 
 class TestAssetSubclasses:

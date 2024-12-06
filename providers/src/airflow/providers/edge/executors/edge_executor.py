@@ -33,7 +33,7 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.providers.edge.cli.edge_command import EDGE_COMMANDS
 from airflow.providers.edge.models.edge_job import EdgeJobModel
 from airflow.providers.edge.models.edge_logs import EdgeLogsModel
-from airflow.providers.edge.models.edge_worker import EdgeWorker, EdgeWorkerModel, EdgeWorkerState
+from airflow.providers.edge.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, reset_metrics
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.db import DBLocks, create_global_lock
@@ -135,6 +135,7 @@ class EdgeExecutor(BaseExecutor):
         heartbeat_interval: int = conf.getint("edge", "heartbeat_interval")
         lifeless_workers: list[EdgeWorkerModel] = (
             session.query(EdgeWorkerModel)
+            .with_for_update(skip_locked=True)
             .filter(
                 EdgeWorkerModel.state.not_in([EdgeWorkerState.UNKNOWN, EdgeWorkerState.OFFLINE]),
                 EdgeWorkerModel.last_update < (timezone.utcnow() - timedelta(seconds=heartbeat_interval * 5)),
@@ -145,7 +146,7 @@ class EdgeExecutor(BaseExecutor):
         for worker in lifeless_workers:
             changed = True
             worker.state = EdgeWorkerState.UNKNOWN
-            EdgeWorker.reset_metrics(worker.worker_name)
+            reset_metrics(worker.worker_name)
 
         return changed
 
@@ -154,6 +155,7 @@ class EdgeExecutor(BaseExecutor):
         heartbeat_interval: int = conf.getint("scheduler", "scheduler_zombie_task_threshold")
         lifeless_jobs: list[EdgeJobModel] = (
             session.query(EdgeJobModel)
+            .with_for_update(skip_locked=True)
             .filter(
                 EdgeJobModel.state == TaskInstanceState.RUNNING,
                 EdgeJobModel.last_update < (timezone.utcnow() - timedelta(seconds=heartbeat_interval)),
@@ -180,6 +182,7 @@ class EdgeExecutor(BaseExecutor):
         job_fail_purge = conf.getint("edge", "job_fail_purge")
         jobs: list[EdgeJobModel] = (
             session.query(EdgeJobModel)
+            .with_for_update(skip_locked=True)
             .filter(
                 EdgeJobModel.state.in_(
                     [

@@ -330,7 +330,7 @@ repos:
           The word(s) should be in lowercase." && exec codespell "$@"' --
         language: python
         types: [text]
-        exclude: ^.*/.*_vendor/|^airflow/www/static/css/material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$|^.*pnpm-lock\.yaml$
+        exclude: ^.*/.*_vendor/|material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$|^.*pnpm-lock\.yaml$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=providers/src/airflow/providers/*/*.rst,airflow/www/*.log,docs/*/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
@@ -352,6 +352,13 @@ repos:
         pass_filenames: true
         files: ^providers/src/airflow/providers/.*/(operators|transfers|sensors)/.*\.py$
         additional_dependencies: [ 'rich>=12.4.4' ]
+      - id: update-providers-init-py
+        name: Update providers __init__.py files
+        entry: ./scripts/ci/pre_commit/update_providers_init.py
+        language: python
+        pass_filenames: true
+        files: ^providers/.*/__init__.py$|^providers/.*/provider.yaml$|^airflow_breeze/templates/PROVIDER__INIT__PY_TEMPLATE.py.jinja2^
+        additional_dependencies: ['rich>=12.4.4','requests']
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
@@ -360,7 +367,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ["ruff==0.8.0"]
+        additional_dependencies: ["ruff==0.8.1"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^performance/tests/test_.*.py
       - id: ruff-format
         name: Run 'ruff format'
@@ -370,7 +377,7 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ["ruff==0.8.0"]
+        additional_dependencies: ["ruff==0.8.1"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py$
       - id: replace-bad-characters
         name: Replace bad characters
@@ -607,8 +614,8 @@ repos:
           (?x)
           ^airflow/api_connexion/openapi/v1.yaml$|
           ^airflow/ui/openapi-gen/|
-          ^airflow/cli/commands/fastapi_api_command.py$|
-          ^airflow/cli/commands/webserver_command.py$|
+          ^airflow/cli/commands/local_commands/fastapi_api_command.py$|
+          ^airflow/cli/commands/local_commands/webserver_command.py$|
           ^airflow/config_templates/|
           ^airflow/models/baseoperator.py$|
           ^airflow/operators/__init__.py$|
@@ -622,6 +629,7 @@ repos:
           ^providers/src/airflow/providers/apache/spark/operators/|
           ^providers/src/airflow/providers/exasol/hooks/exasol.py$|
           ^providers/src/airflow/providers/fab/auth_manager/security_manager/|
+          ^providers/src/airflow/providers/fab/www/static/css/bootstrap-theme.css$|
           ^providers/src/airflow/providers/google/cloud/hooks/bigquery.py$|
           ^providers/src/airflow/providers/google/cloud/operators/cloud_build.py$|
           ^providers/src/airflow/providers/google/cloud/operators/dataproc.py$|

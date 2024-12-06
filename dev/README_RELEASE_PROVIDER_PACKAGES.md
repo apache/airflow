@@ -203,6 +203,15 @@ release should get it changed to `>= x.y.z`. This is a rare case and should be h
 We call such case chicken-egg providers as it's not clear who should be released first - the provider or
 the Airflow.
 
+Similar case is when provider depends on another provider (usually `common.*`) that is not yet released
+because you it contains new feature and you want to release the providers together.
+
+In such case the "common" provider should be added to the list of "chicken-egg" providers in the
+`./dev/breeze/src/airflow_breeze/global_constants.py` file and version of the provider should be bumped
+in the PR by author of the PR that adds both the functionality. This will make sure that the
+provider is build in CI from sources, when CI jobs are run rather than latest version downloaded from PyPI
+when constraints are generated.
+
 # Prepare Regular Provider packages (RC)
 
 ## Move provider into remove state
@@ -1377,9 +1386,10 @@ Example for special cases:
 ------------------------------------------------------------------------------------------------------------
 Announcement is done from official Apache-Airflow accounts.
 
-* Twitter: https://twitter.com/ApacheAirflow
-* Linkedin: https://www.linkedin.com/company/apache-airflow/
+* X: https://x.com/ApacheAirflow
+* LinkedIn: https://www.linkedin.com/company/apache-airflow/
 * Fosstodon: https://fosstodon.org/@airflow
+* Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
 
 Make sure attach the release image generated with Figma to the post.
 If you don't have access to the account ask a PMC member to post.

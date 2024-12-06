@@ -115,7 +115,6 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
             "catalog": self.catalog,
             "schema": self.schema,
             "caller": "DatabricksSqlOperator",
-            "return_tuple": True,
             **self.client_parameters,
             **self.hook_params,
         }

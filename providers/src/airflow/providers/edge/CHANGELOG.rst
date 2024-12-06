@@ -26,6 +26,47 @@
 
 Changelog
 ---------
+
+0.9.1pre0
+.........
+
+Misc
+~~~~
+
+* ``Make edge executor DB access is multi instance save.``
+
+0.9.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Remove dependency to Internal API after migration to FastAPI.``
+
+0.8.2pre0
+.........
+
+Misc
+~~~~
+
+* ``Migrate worker job calls to FastAPI.``
+
+0.8.1pre0
+.........
+
+Misc
+~~~~
+
+* ``Migrate worker log calls to FastAPI.``
+
+0.8.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Migrate worker registration and heartbeat to FastAPI.``
+
 0.7.1pre0
 .........
 

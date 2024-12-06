@@ -19,7 +19,6 @@ from __future__ import annotations
 from collections.abc import Collection, Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.sdk.definitions.asset import AssetAlias, AssetAliasCondition
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 from airflow.utils import timezone
 
@@ -162,20 +161,11 @@ class AssetTriggeredTimetable(_TrivialTimetable):
     :meta private:
     """
 
-    UNRESOLVED_ALIAS_SUMMARY = "Unresolved AssetAlias"
-
     description: str = "Triggered by assets"
 
     def __init__(self, assets: BaseAsset) -> None:
         super().__init__()
         self.asset_condition = assets
-        if isinstance(self.asset_condition, AssetAlias):
-            self.asset_condition = AssetAliasCondition(self.asset_condition.name)
-
-        if not next(self.asset_condition.iter_assets(), False):
-            self._summary = AssetTriggeredTimetable.UNRESOLVED_ALIAS_SUMMARY
-        else:
-            self._summary = "Asset"
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
@@ -185,7 +175,7 @@ class AssetTriggeredTimetable(_TrivialTimetable):
 
     @property
     def summary(self) -> str:
-        return self._summary
+        return "Asset"
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.serialized_objects import encode_asset_condition
