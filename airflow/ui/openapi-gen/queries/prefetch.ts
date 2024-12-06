@@ -1454,6 +1454,7 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstance = (
  * @param data The data for the request.
  * @param data.dagId
  * @param data.dagRunId
+ * @param data.taskId
  * @param data.logicalDateGte
  * @param data.logicalDateLte
  * @param data.startDateGte
@@ -1464,6 +1465,7 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstance = (
  * @param data.updatedAtLte
  * @param data.durationGte
  * @param data.durationLte
+ * @param data.taskDisplayNamePattern
  * @param data.state
  * @param data.pool
  * @param data.queue
@@ -1494,6 +1496,8 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
     startDateGte,
     startDateLte,
     state,
+    taskDisplayNamePattern,
+    taskId,
     updatedAtGte,
     updatedAtLte,
   }: {
@@ -1514,6 +1518,8 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
+    taskDisplayNamePattern?: string;
+    taskId?: string;
     updatedAtGte?: string;
     updatedAtLte?: string;
   },
@@ -1537,6 +1543,8 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
       startDateGte,
       startDateLte,
       state,
+      taskDisplayNamePattern,
+      taskId,
       updatedAtGte,
       updatedAtLte,
     }),
@@ -1559,6 +1567,8 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
         startDateGte,
         startDateLte,
         state,
+        taskDisplayNamePattern,
+        taskId,
         updatedAtGte,
         updatedAtLte,
       }),

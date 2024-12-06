@@ -1734,6 +1734,7 @@ export const useTaskInstanceServiceGetMappedTaskInstance = <
  * @param data The data for the request.
  * @param data.dagId
  * @param data.dagRunId
+ * @param data.taskId
  * @param data.logicalDateGte
  * @param data.logicalDateLte
  * @param data.startDateGte
@@ -1744,6 +1745,7 @@ export const useTaskInstanceServiceGetMappedTaskInstance = <
  * @param data.updatedAtLte
  * @param data.durationGte
  * @param data.durationLte
+ * @param data.taskDisplayNamePattern
  * @param data.state
  * @param data.pool
  * @param data.queue
@@ -1777,6 +1779,8 @@ export const useTaskInstanceServiceGetTaskInstances = <
     startDateGte,
     startDateLte,
     state,
+    taskDisplayNamePattern,
+    taskId,
     updatedAtGte,
     updatedAtLte,
   }: {
@@ -1797,6 +1801,8 @@ export const useTaskInstanceServiceGetTaskInstances = <
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
+    taskDisplayNamePattern?: string;
+    taskId?: string;
     updatedAtGte?: string;
     updatedAtLte?: string;
   },
@@ -1823,6 +1829,8 @@ export const useTaskInstanceServiceGetTaskInstances = <
         startDateGte,
         startDateLte,
         state,
+        taskDisplayNamePattern,
+        taskId,
         updatedAtGte,
         updatedAtLte,
       },
@@ -1847,6 +1855,8 @@ export const useTaskInstanceServiceGetTaskInstances = <
         startDateGte,
         startDateLte,
         state,
+        taskDisplayNamePattern,
+        taskId,
         updatedAtGte,
         updatedAtLte,
       }) as TData,

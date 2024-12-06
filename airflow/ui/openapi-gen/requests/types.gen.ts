@@ -1827,6 +1827,8 @@ export type GetTaskInstancesData = {
   startDateGte?: string | null;
   startDateLte?: string | null;
   state?: Array<string>;
+  taskDisplayNamePattern?: string | null;
+  taskId?: string | null;
   updatedAtGte?: string | null;
   updatedAtLte?: string | null;
 };
