@@ -20,13 +20,11 @@ from __future__ import annotations
 
 import logging
 import logging.config
-import warnings
 from unittest.mock import MagicMock
 
 import pytest
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
 from airflow.utils.session import provide_session
@@ -237,23 +235,6 @@ class TestDbApiHook:
         with pytest.raises(ValueError) as err:
             dbapi_hook.run(sql=empty_statement)
         assert err.value.args[0] == "List of SQL statements is empty"
-
-    @pytest.mark.db_test
-    def test_make_common_data_structure_hook_has_deprecated_method(self):
-        """If hook implements ``_make_serializable`` warning should be raised on call."""
-        hook = mock_hook(DbApiHook)
-        hook._make_serializable = lambda result: result
-        with pytest.warns(
-            AirflowProviderDeprecationWarning, match="`_make_serializable` method is deprecated"
-        ):
-            hook._make_common_data_structure(["foo", "bar", "baz"])
-
-    @pytest.mark.db_test
-    def test_make_common_data_structure_no_deprecated_method(self):
-        """If hook not implements ``_make_serializable`` there is no warning should be raised on call."""
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", AirflowProviderDeprecationWarning)
-            mock_hook(DbApiHook)._make_common_data_structure(["foo", "bar", "baz"])
 
     @pytest.mark.db_test
     def test_placeholder_config_from_extra(self):

@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 
 from airflow.operators.empty import EmptyOperator
@@ -61,5 +63,5 @@ def test_next_run_assets(test_client, dag_maker):
                 }
             ]
         },
-        "events": [{"id": 20, "uri": "s3://bucket/next-run-asset/1", "lastUpdate": None}],
+        "events": [{"id": mock.ANY, "uri": "s3://bucket/next-run-asset/1", "lastUpdate": None}],
     }

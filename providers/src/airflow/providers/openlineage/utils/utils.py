@@ -20,22 +20,17 @@ from __future__ import annotations
 import datetime
 import json
 import logging
-from collections.abc import Iterable
 from contextlib import suppress
 from functools import wraps
 from importlib import metadata
 from typing import TYPE_CHECKING, Any, Callable
 
 import attrs
-from deprecated import deprecated
 from openlineage.client.utils import RedactMixin
 from packaging.version import Version
 from sqlalchemy import exists
 
 from airflow import __version__ as AIRFLOW_VERSION
-from airflow.exceptions import (
-    AirflowProviderDeprecationWarning,
-)
 
 # TODO: move this maybe to Airflow's logic?
 from airflow.models import DAG, BaseOperator, DagRun, MappedOperator, TaskReschedule
@@ -717,20 +712,6 @@ def print_warning(log):
 def get_filtered_unknown_operator_keys(operator: BaseOperator) -> dict:
     not_required_keys = {"dag", "task_group"}
     return {attr: value for attr, value in operator.__dict__.items() if attr not in not_required_keys}
-
-
-@deprecated(
-    reason=(
-        "`airflow.providers.openlineage.utils.utils.normalize_sql` "
-        "has been deprecated and will be removed in future"
-    ),
-    category=AirflowProviderDeprecationWarning,
-)
-def normalize_sql(sql: str | Iterable[str]):
-    if isinstance(sql, str):
-        sql = [stmt for stmt in sql.split(";") if stmt != ""]
-    sql = [obj for stmt in sql for obj in stmt.split(";") if obj != ""]
-    return ";\n".join(sql)
 
 
 def should_use_external_connection(hook) -> bool:
