@@ -142,7 +142,11 @@ class ConnectionAccessor:
 
 @attrs.define()
 class AssetAliasEvent:
-    """A represeation of asset event to be triggered by an asset alias."""
+    """
+    Represeation of asset event to be triggered by an asset alias.
+
+    :meta private:
+    """
 
     source_alias_name: str
     dest_asset_uri: str
