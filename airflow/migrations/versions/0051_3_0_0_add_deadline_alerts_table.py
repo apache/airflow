@@ -41,21 +41,18 @@ airflow_version = "3.0.0"
 
 def upgrade():
     op.create_table(
-        "deadlines",
+        "deadline",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("dag_id", sa.String(length=250), nullable=True),
         sa.Column("run_id", sa.String(length=250), nullable=True),
         sa.Column("deadline", sa.DateTime(), nullable=False),
         sa.Column("callback", sa.String(), nullable=False),
         sa.Column("callback_kwargs", sqlalchemy_jsonfield.jsonfield.JSONField(), nullable=True),
-        sa.PrimaryKeyConstraint("id", name=op.f("deadlines_pkey")),
+        sa.PrimaryKeyConstraint("id", name=op.f("deadline_pkey")),
     )
-    with op.batch_alter_table("deadlines", schema=None) as batch_op:
+    with op.batch_alter_table("deadline", schema=None) as batch_op:
         batch_op.create_index("deadline_idx", ["deadline"], unique=False)
 
 
 def downgrade():
-    with op.batch_alter_table("deadlines", schema=None) as batch_op:
-        batch_op.drop_index("deadline_idx")
-
-    op.drop_table("deadlines")
+    op.drop_table("deadline")

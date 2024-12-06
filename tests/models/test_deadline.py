@@ -22,7 +22,7 @@ from datetime import datetime
 import pytest
 from sqlalchemy import select
 
-from airflow.models.deadlines import Deadlines, DeadlinesModel
+from airflow.models.deadline import Deadline, DeadlineModel
 
 from tests_common.test_utils import db
 
@@ -35,7 +35,7 @@ def my_callback():
     pass
 
 
-class TestDeadlines:
+class TestDeadline:
     def setup_method(self):
         self._clean_db()
 
@@ -44,11 +44,11 @@ class TestDeadlines:
 
     @staticmethod
     def _clean_db():
-        db.clear_db_deadlines()
+        db.clear_db_deadline()
 
     @pytest.fixture
     def deadline_orm(self):
-        return DeadlinesModel(
+        return DeadlineModel(
             deadline=datetime(2024, 12, 4, 16, 00, 0),
             callback=my_callback.__module__,
             callback_kwargs={"to": "the_boss@work.com"},
@@ -57,13 +57,13 @@ class TestDeadlines:
         )
 
     def test_add_deadline(self, deadline_orm, session):
-        assert session.query(DeadlinesModel).count() == 0
+        assert session.query(DeadlineModel).count() == 0
 
-        Deadlines.add_deadline(deadline_orm)
+        Deadline.add_deadline(deadline_orm)
 
-        assert session.query(DeadlinesModel).count() == 1
+        assert session.query(DeadlineModel).count() == 1
 
-        result = session.scalars(select(DeadlinesModel)).first()
+        result = session.scalars(select(DeadlineModel)).first()
         assert result.dag_id == deadline_orm.dag_id
         assert result.run_id == deadline_orm.run_id
         assert result.deadline == deadline_orm.deadline
@@ -71,9 +71,9 @@ class TestDeadlines:
         assert result.callback_kwargs == deadline_orm.callback_kwargs
 
 
-class TestDeadlinesModel:
+class TestDeadlineModel:
     def test_orm(self):
-        deadline_orm = DeadlinesModel(
+        deadline_orm = DeadlineModel(
             deadline=datetime(2024, 12, 4, 16, 00, 0),
             callback=my_callback.__module__,
             callback_kwargs={"to": "the_boss@work.com"},
@@ -88,7 +88,7 @@ class TestDeadlinesModel:
         assert deadline_orm.run_id == RUN_ID
 
     def test_repr_with_callback_kwargs(self):
-        deadline_orm = DeadlinesModel(
+        deadline_orm = DeadlineModel(
             deadline=datetime(2024, 12, 4, 16, 00, 0),
             callback=my_callback.__module__,
             callback_kwargs={"to": "the_boss@work.com"},
@@ -103,7 +103,7 @@ class TestDeadlinesModel:
         )
 
     def test_repr_without_callback_kwargs(self):
-        deadline_orm = DeadlinesModel(
+        deadline_orm = DeadlineModel(
             deadline=datetime(2024, 12, 4, 16, 00, 0),
             callback=my_callback.__module__,
             dag_id=DAG_ID,

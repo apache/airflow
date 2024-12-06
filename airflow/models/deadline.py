@@ -31,20 +31,20 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 
-class Deadlines(LoggingMixin):
+class Deadline(LoggingMixin):
     """A Deadline is a 'need-by' date which triggers a callback if the provided time has passed."""
 
     @classmethod
     @provide_session
-    def add_deadline(cls, deadline: DeadlinesModel, session: Session = NEW_SESSION):
+    def add_deadline(cls, deadline: DeadlineModel, session: Session = NEW_SESSION):
         """Add the provided deadline to the table."""
         session.add(deadline)
 
 
-class DeadlinesModel(Base, LoggingMixin):
+class DeadlineModel(Base, LoggingMixin):
     """Table containing Deadline Alert properties."""
 
-    __tablename__ = "deadlines"
+    __tablename__ = "deadline"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
 
@@ -52,8 +52,8 @@ class DeadlinesModel(Base, LoggingMixin):
     """
     TODO FIXME:   making these foreign keys causes the following error:
 
-    qlalchemy.exc.OperationalError: (sqlite3.OperationalError) foreign key mismatch - "deadlines" referencing "dag_run"
-    [SQL: INSERT INTO deadlines (dag_id, run_id, deadline, callback, callback_kwargs) VALUES (?, ?, ?, ?, ?)]
+    qlalchemy.exc.OperationalError: (sqlite3.OperationalError) foreign key mismatch - "deadline" referencing "dag_run"
+    [SQL: INSERT INTO deadline (dag_id, run_id, deadline, callback, callback_kwargs) VALUES (?, ?, ?, ?, ?)]
     [parameters: ('deadlines_1', 'manual__2024-12-04T00:14:06.333084+00:00', '2024-12-04 01:14:06.362093', 'email', 'null')]
     """
     dag_id = Column(StringID())  # ForeignKey("dag_run.dag_id"))
