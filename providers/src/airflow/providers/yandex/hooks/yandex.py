@@ -16,12 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from typing import Any
 
 import yandexcloud
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.yandex.utils.credentials import (
     CredentialsType,
@@ -94,16 +92,6 @@ class YandexCloudBaseHook(BaseHook):
                 description="Optional. Specify an API endpoint. Leave blank to use default.",
             ),
         }
-
-    @classmethod
-    def provider_user_agent(cls) -> str | None:
-        warnings.warn(
-            "Using `provider_user_agent` in `YandexCloudBaseHook` is deprecated. "
-            "Please use it in `utils.user_agent` instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-        return provider_user_agent()
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
