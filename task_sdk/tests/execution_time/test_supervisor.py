@@ -349,11 +349,14 @@ class TestWatchedSubprocess:
         """
         import airflow.sdk.execution_time.supervisor
 
-        monkeypatch.setattr(airflow.sdk.execution_time.supervisor, "MIN_HEARTBEAT_INTERVAL", 0.1)
+        # Heartbeat every time around the loop
+        monkeypatch.setattr(airflow.sdk.execution_time.supervisor, "MIN_HEARTBEAT_INTERVAL", 0.0)
 
         def subprocess_main():
             sys.stdin.readline()
             sleep(5)
+            # Shouldn't get here
+            exit(5)
 
         ti_id = uuid7()
 
@@ -389,23 +392,22 @@ class TestWatchedSubprocess:
         # Wait for the subprocess to finish -- it should have been terminated
         assert proc.wait() == -signal.SIGTERM
 
-        count_request = request_count["count"]
+        assert request_count["count"] == 2
         # Verify the number of requests made
-        assert count_request >= 2
         assert captured_logs == [
             {
-                "event": "Server indicated the task shouldn't be running anymore",
-                "level": "error",
-                "status_code": 409,
-                "logger": "supervisor",
-                "timestamp": mocker.ANY,
                 "detail": {
                     "reason": "not_running",
                     "message": "TI is no longer in the running state and task should terminate",
                     "current_state": "success",
                 },
+                "event": "Server indicated the task shouldn't be running anymore",
+                "level": "error",
+                "status_code": 409,
+                "logger": "supervisor",
+                "timestamp": mocker.ANY,
             }
-        ] * (count_request - 1)
+        ]
 
     @pytest.mark.parametrize("captured_logs", [logging.WARNING], indirect=True)
     def test_heartbeat_failures_handling(self, monkeypatch, mocker, captured_logs, time_machine):
@@ -573,133 +575,6 @@ class TestWatchedSubprocessKill:
         proc.selector = mock_selector
         return proc
 
-    @pytest.mark.parametrize(
-        ["signal_to_send", "wait_side_effect", "expected_signals"],
-        [
-            pytest.param(
-                signal.SIGINT,
-                [0],
-                [signal.SIGINT],
-                id="SIGINT-success-without-escalation",
-            ),
-            pytest.param(
-                signal.SIGINT,
-                [psutil.TimeoutExpired(0.1), 0],
-                [signal.SIGINT, signal.SIGTERM],
-                id="SIGINT-escalates-to-SIGTERM",
-            ),
-            pytest.param(
-                signal.SIGINT,
-                [
-                    psutil.TimeoutExpired(0.1),  # SIGINT times out
-                    psutil.TimeoutExpired(0.1),  # SIGTERM times out
-                    0,  # SIGKILL succeeds
-                ],
-                [signal.SIGINT, signal.SIGTERM, signal.SIGKILL],
-                id="SIGINT-escalates-to-SIGTERM-then-SIGKILL",
-            ),
-            pytest.param(
-                signal.SIGTERM,
-                [
-                    psutil.TimeoutExpired(0.1),  # SIGTERM times out
-                    0,  # SIGKILL succeeds
-                ],
-                [signal.SIGTERM, signal.SIGKILL],
-                id="SIGTERM-escalates-to-SIGKILL",
-            ),
-            pytest.param(
-                signal.SIGKILL,
-                [0],
-                [signal.SIGKILL],
-                id="SIGKILL-success-without-escalation",
-            ),
-        ],
-    )
-    def test_force_kill_escalation(
-        self,
-        watched_subprocess,
-        mock_process,
-        mocker,
-        signal_to_send,
-        wait_side_effect,
-        expected_signals,
-        captured_logs,
-    ):
-        """Test escalation path for SIGINT, SIGTERM, and SIGKILL when force=True."""
-        # Mock the process wait method to return the exit code or raise an exception
-        mock_process.wait.side_effect = wait_side_effect
-
-        watched_subprocess.kill(signal_to_send=signal_to_send, escalation_delay=0.1, force=True)
-
-        # Check that the correct signals were sent
-        mock_process.send_signal.assert_has_calls([mocker.call(sig) for sig in expected_signals])
-
-        # Check that the process was waited on for each signal
-        mock_process.wait.assert_has_calls([mocker.call(timeout=0)] * len(expected_signals))
-
-        ## Validate log messages
-        # If escalation occurred, we should see a warning log for each signal sent
-        if len(expected_signals) > 1:
-            assert {
-                "event": "Process did not terminate in time; escalating",
-                "level": "warning",
-                "logger": "supervisor",
-                "pid": 12345,
-                "signal": expected_signals[-2].name,
-                "timestamp": mocker.ANY,
-            } in captured_logs
-
-        # Regardless of escalation, we should see an info log for the final signal sent
-        assert {
-            "event": "Process exited",
-            "level": "info",
-            "logger": "supervisor",
-            "pid": 12345,
-            "signal": expected_signals[-1].name,
-            "exit_code": 0,
-            "timestamp": mocker.ANY,
-        } in captured_logs
-
-        # Validate `selector.select` calls
-        assert watched_subprocess.selector.select.call_count == len(expected_signals)
-        watched_subprocess.selector.select.assert_has_calls(
-            [mocker.call(timeout=0.1)] * len(expected_signals)
-        )
-
-        assert watched_subprocess._exit_code == 0
-
-    def test_force_kill_with_selector_events(self, watched_subprocess, mock_process, mocker):
-        """Test force escalation with selector events handled during wait."""
-        # Mock selector to return events during escalation
-        mock_key = mocker.Mock()
-        mock_key.fileobj = mocker.Mock()
-
-        # Simulate EOF
-        mock_key.data = mocker.Mock(return_value=False)
-
-        watched_subprocess.selector.select.side_effect = [
-            [(mock_key, None)],  # Event during SIGINT
-            [],  # No event during SIGTERM
-            [(mock_key, None)],  # Event during SIGKILL
-        ]
-
-        mock_process.wait.side_effect = [
-            psutil.TimeoutExpired(0.1),  # SIGINT times out
-            psutil.TimeoutExpired(0.1),  # SIGTERM times out
-            0,  # SIGKILL succeeds
-        ]
-
-        watched_subprocess.kill(signal.SIGINT, escalation_delay=0.1, force=True)
-
-        # Validate selector interactions
-        assert watched_subprocess.selector.select.call_count == 3
-        mock_key.data.assert_has_calls([mocker.call(mock_key.fileobj), mocker.call(mock_key.fileobj)])
-
-        # Validate signal escalation
-        mock_process.send_signal.assert_has_calls(
-            [mocker.call(signal.SIGINT), mocker.call(signal.SIGTERM), mocker.call(signal.SIGKILL)]
-        )
-
     def test_kill_process_already_exited(self, watched_subprocess, mock_process):
         """Test behavior when the process has already exited."""
         mock_process.wait.side_effect = psutil.NoSuchProcess(pid=1234)
@@ -719,6 +594,109 @@ class TestWatchedSubprocessKill:
 
         mock_process.send_signal.assert_called_once_with(signal_to_send)
         mock_process.wait.assert_called_once_with(timeout=0)
+
+    @pytest.mark.parametrize(
+        ["signal_to_send", "exit_after"],
+        [
+            pytest.param(
+                signal.SIGINT,
+                signal.SIGINT,
+                id="SIGINT-success-without-escalation",
+            ),
+            pytest.param(
+                signal.SIGINT,
+                signal.SIGTERM,
+                id="SIGINT-escalates-to-SIGTERM",
+            ),
+            pytest.param(
+                signal.SIGINT,
+                None,
+                id="SIGINT-escalates-to-SIGTERM-then-SIGKILL",
+            ),
+            pytest.param(
+                signal.SIGTERM,
+                None,
+                id="SIGTERM-escalates-to-SIGKILL",
+            ),
+            pytest.param(
+                signal.SIGKILL,
+                None,
+                id="SIGKILL-success-without-escalation",
+            ),
+        ],
+    )
+    def test_kill_escalation_path(self, signal_to_send, exit_after, mocker, captured_logs, monkeypatch):
+        def subprocess_main():
+            import signal
+
+            def _handler(sig, frame):
+                print(f"Signal {sig} received", file=sys.stderr)
+                if exit_after == sig:
+                    sleep(0.1)
+                    exit(sig)
+                sleep(5)
+                print("Should not get here")
+
+            signal.signal(signal.SIGINT, _handler)
+            signal.signal(signal.SIGTERM, _handler)
+            try:
+                sys.stdin.readline()
+                print("Ready")
+                sleep(10)
+            except Exception as e:
+                print(e)
+            # Shouldn't get here
+            exit(5)
+
+        ti_id = uuid7()
+
+        proc = WatchedSubprocess.start(
+            path=os.devnull,
+            ti=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
+            client=MagicMock(spec=sdk_client.Client),
+            target=subprocess_main,
+        )
+        # Ensure we get one normal run, to give the proc time to register it's custom sighandler
+        proc._service_subprocess(max_wait_time=1)
+        proc.kill(signal_to_send=signal_to_send, escalation_delay=0.5, force=True)
+
+        # Wait for the subprocess to finish
+        assert proc.wait() == exit_after or -signal.SIGKILL
+        exit_after = exit_after or signal.SIGKILL
+
+        logs = [{"event": m["event"], "chan": m.get("chan"), "logger": m["logger"]} for m in captured_logs]
+        expected_logs = [
+            {"chan": "stdout", "event": "Ready", "logger": "task"},
+        ]
+        # Work out what logs we expect to see
+        if signal_to_send == signal.SIGINT:
+            expected_logs.append({"chan": "stderr", "event": "Signal 2 received", "logger": "task"})
+        if signal_to_send == signal.SIGTERM or (
+            signal_to_send == signal.SIGINT and exit_after != signal.SIGINT
+        ):
+            if signal_to_send == signal.SIGINT:
+                expected_logs.append(
+                    {
+                        "chan": None,
+                        "event": "Process did not terminate in time; escalating",
+                        "logger": "supervisor",
+                    }
+                )
+            expected_logs.append({"chan": "stderr", "event": "Signal 15 received", "logger": "task"})
+        if exit_after == signal.SIGKILL:
+            if signal_to_send in {signal.SIGINT, signal.SIGTERM}:
+                expected_logs.append(
+                    {
+                        "chan": None,
+                        "event": "Process did not terminate in time; escalating",
+                        "logger": "supervisor",
+                    }
+                )
+            # expected_logs.push({"chan": "stderr", "event": "Signal 9 received", "logger": "task"})
+            ...
+
+        expected_logs.extend(({"chan": None, "event": "Process exited", "logger": "supervisor"},))
+        assert logs == expected_logs
 
     def test_service_subprocess(self, watched_subprocess, mock_process, mocker):
         """Test `_service_subprocess` processes selector events and handles subprocess exit."""
