@@ -21,7 +21,6 @@ import pytest
 
 from airflow.models import Connection
 from airflow.providers.pagerduty.hooks.pagerduty import PagerdutyHook
-from airflow.providers.pagerduty.hooks.pagerduty_events import PagerdutyEventsHook
 from airflow.utils import db
 
 pytestmark = pytest.mark.db_test
