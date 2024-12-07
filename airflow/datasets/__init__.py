@@ -24,17 +24,38 @@
 # lib.)  This is required by some IDEs to resolve the import paths.
 from __future__ import annotations
 
+import importlib
 import warnings
-
-from airflow.sdk.definitions.asset import AssetAlias as DatasetAlias, Dataset
 
 # TODO: Remove this module in Airflow 3.2
 
-warnings.warn(
-    "Import from the airflow.dataset module is deprecated and "
-    "will be removed in the Airflow 3.2. Please import it from 'airflow.sdk.definitions.asset'.",
-    DeprecationWarning,
-    stacklevel=2,
-)
+_names_moved = {
+    "DatasetAlias": ("airflow.sdk.definitions.asset", "AssetAlias"),
+    "DatasetAll": ("airflow.sdk.definitions.asset", "AssetAll"),
+    "DatasetAny": ("airflow.sdk.definitions.asset", "DatasetAny"),
+    "Dataset": ("airflow.sdk.definitions.asset", "Asset"),
+    "expand_alias_to_datasets": ("airflow.models.asset", "expand_alias_to_assets"),
+}
 
-__all__ = ["Dataset", "DatasetAlias"]
+
+def __getattr__(name: str):
+    # PEP-562: Lazy loaded attributes on python modules
+    if name not in _names_moved:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+    module_path, new_name = _names_moved[name]
+    warnings.warn(
+        f"Import 'airflow.dataset.{name}' is deprecated and "
+        f"will be removed in the Airflow 3.2. Please import it from '{module_path}.{new_name}'.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    mod = importlib.import_module(module_path, __name__)
+    val = getattr(mod, new_name)
+
+    # Store for next time
+    globals()[name] = val
+    return val
+
+
+__all__ = ["Dataset", "DatasetAlias", "DatasetAll", "DatasetAny", "expand_alias_to_datasets"]
