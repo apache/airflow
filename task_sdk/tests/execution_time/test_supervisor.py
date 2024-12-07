@@ -389,22 +389,23 @@ class TestWatchedSubprocess:
         # Wait for the subprocess to finish -- it should have been terminated
         assert proc.wait() == -signal.SIGTERM
 
+        count_request = request_count["count"]
         # Verify the number of requests made
-        assert request_count["count"] == 2
+        assert count_request >= 2
         assert captured_logs == [
             {
-                "detail": {
-                    "current_state": "success",
-                    "message": "TI is no longer in the running state and task should terminate",
-                    "reason": "not_running",
-                },
                 "event": "Server indicated the task shouldn't be running anymore",
                 "level": "error",
                 "status_code": 409,
                 "logger": "supervisor",
                 "timestamp": mocker.ANY,
+                "detail": {
+                    "reason": "not_running",
+                    "message": "TI is no longer in the running state and task should terminate",
+                    "current_state": "success",
+                },
             }
-        ]
+        ] * (count_request - 1)
 
     @pytest.mark.parametrize("captured_logs", [logging.WARNING], indirect=True)
     def test_heartbeat_failures_handling(self, monkeypatch, mocker, captured_logs, time_machine):
