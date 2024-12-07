@@ -68,12 +68,6 @@ integrations:
     logo: /integration-logos/sqlite/SQLite.png
     tags: [software]
 
-operators:
-  - integration-name: SQLite
-
-    python-modules:
-      - airflow.providers.sqlite.operators.sqlite
-
 hooks:
   - integration-name: SQLite
     python-modules:
