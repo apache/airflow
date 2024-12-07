@@ -35,7 +35,7 @@ main
   The following breaking changes were introduced:
 
   * Hooks
-    * Paramter ``tag`` cannot be None. It is not set to MATCH_ALL_TAG as default.
+    * Parameter ``tag`` cannot be None. It is not set to MATCH_ALL_TAG as default.
   * Notifications
     * Parameter ``notify_type`` cannot be None. It is not set to NotifyType.INFO as default.
     * Parameter ``body_format`` cannot be None. It is not set to NotifyFormat.TEXT as default.
