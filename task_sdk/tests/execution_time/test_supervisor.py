@@ -349,11 +349,14 @@ class TestWatchedSubprocess:
         """
         import airflow.sdk.execution_time.supervisor
 
-        monkeypatch.setattr(airflow.sdk.execution_time.supervisor, "MIN_HEARTBEAT_INTERVAL", 0.1)
+        # Heartbeat every time around the loop
+        monkeypatch.setattr(airflow.sdk.execution_time.supervisor, "MIN_HEARTBEAT_INTERVAL", 0.0)
 
         def subprocess_main():
             sys.stdin.readline()
             sleep(5)
+            # Shouldn't get here
+            exit(5)
 
         ti_id = uuid7()
 
@@ -389,23 +392,22 @@ class TestWatchedSubprocess:
         # Wait for the subprocess to finish -- it should have been terminated
         assert proc.wait() == -signal.SIGTERM
 
-        count_request = request_count["count"]
+        assert request_count["count"] == 2
         # Verify the number of requests made
-        assert count_request >= 2
         assert captured_logs == [
             {
-                "event": "Server indicated the task shouldn't be running anymore",
-                "level": "error",
-                "status_code": 409,
-                "logger": "supervisor",
-                "timestamp": mocker.ANY,
                 "detail": {
                     "reason": "not_running",
                     "message": "TI is no longer in the running state and task should terminate",
                     "current_state": "success",
                 },
+                "event": "Server indicated the task shouldn't be running anymore",
+                "level": "error",
+                "status_code": 409,
+                "logger": "supervisor",
+                "timestamp": mocker.ANY,
             }
-        ] * (count_request - 1)
+        ]
 
     @pytest.mark.parametrize("captured_logs", [logging.WARNING], indirect=True)
     def test_heartbeat_failures_handling(self, monkeypatch, mocker, captured_logs, time_machine):
