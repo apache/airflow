@@ -445,12 +445,21 @@ class WatchedSubprocess:
             try:
                 self._process.send_signal(sig)
 
-                # Service subprocess events during the escalation delay
-                self._service_subprocess(max_wait_time=escalation_delay, raise_on_timeout=True)
-                if self._exit_code is not None:
-                    log.info("Process exited", pid=self.pid, exit_code=self._exit_code, signal=sig.name)
-                    return
-            except psutil.TimeoutExpired:
+                start = time.monotonic()
+                end = start + escalation_delay
+                now = start
+
+                while now < end:
+                    # Service subprocess events during the escalation delay. This will return as soon as it's
+                    # read from any of the sockets, so we need to re-run it if the process is still alive
+                    if (
+                        exit_code := self._service_subprocess(max_wait_time=end - now, raise_on_timeout=False)
+                    ) is not None:
+                        log.info("Process exited", pid=self.pid, exit_code=exit_code, signal=sig.name)
+                        return
+
+                    now = time.monotonic()
+
                 msg = "Process did not terminate in time"
                 if sig != escalation_path[-1]:
                     msg += "; escalating"
@@ -539,6 +548,7 @@ class WatchedSubprocess:
 
         :param max_wait_time: Maximum time to block while waiting for events, in seconds.
         :param raise_on_timeout: If True, raise an exception if the subprocess does not exit within the timeout.
+        :returns: The process exit code, or None if it's still alive
         """
         events = self.selector.select(timeout=max_wait_time)
         for key, _ in events:
@@ -559,9 +569,9 @@ class WatchedSubprocess:
                 key.fileobj.close()  # type: ignore[union-attr]
 
         # Check if the subprocess has exited
-        self._check_subprocess_exit(raise_on_timeout=raise_on_timeout)
+        return self._check_subprocess_exit(raise_on_timeout=raise_on_timeout)
 
-    def _check_subprocess_exit(self, raise_on_timeout: bool = False):
+    def _check_subprocess_exit(self, raise_on_timeout: bool = False) -> int | None:
         """Check if the subprocess has exited."""
         if self._exit_code is None:
             try:
@@ -570,7 +580,7 @@ class WatchedSubprocess:
             except psutil.TimeoutExpired:
                 if raise_on_timeout:
                     raise
-                pass
+        return self._exit_code
 
     def _send_heartbeat_if_needed(self):
         """Send a heartbeat to the client if heartbeat interval has passed."""
