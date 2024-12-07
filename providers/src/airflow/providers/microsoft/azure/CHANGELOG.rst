@@ -31,7 +31,7 @@ main
 ....
 
 .. warning::
-  All deprecated classes, parameters and features have been removed from the microspft azure provider package.
+  All deprecated classes, parameters and features have been removed from the microsoft azure provider package.
   The following breaking changes were introduced:
 
     * Removed deprecated ``extra__azure_data_explorer__foo`` in azure connection extra.
