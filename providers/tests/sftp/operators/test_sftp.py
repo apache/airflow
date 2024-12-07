@@ -26,7 +26,7 @@ from unittest import mock
 import paramiko
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models import DAG, Connection
 from airflow.providers.common.compat.openlineage.facet import Dataset
 from airflow.providers.sftp.hooks.sftp import SFTPHook
@@ -110,7 +110,7 @@ class TestSFTPOperator:
         with dag_maker(dag_id="unit_tests_sftp_op_pickle_file_transfer_put", start_date=DEFAULT_DATE):
             SFTPOperator(  # Put test file to remote.
                 task_id="put_test_task",
-                ssh_hook=self.hook,
+                sftp_hook=self.sftp_hook,
                 local_filepath=self.test_local_filepath,
                 remote_filepath=self.test_remote_filepath,
                 operation=SFTPOperation.PUT,
@@ -124,9 +124,8 @@ class TestSFTPOperator:
             )
 
         tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
-        with pytest.warns(AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"):
-            tis["put_test_task"].run()
-            tis["check_file_task"].run()
+        tis["put_test_task"].run()
+        tis["check_file_task"].run()
 
         pulled = tis["check_file_task"].xcom_pull(task_ids="check_file_task", key="return_value")
         assert pulled.strip() == test_local_file_content
@@ -148,7 +147,7 @@ class TestSFTPOperator:
             SFTPOperator,
             dag_id="unit_tests_sftp_op_file_transfer_no_intermediate_dir_error_put",
             task_id="test_sftp",
-            ssh_hook=self.hook,
+            sftp_hook=self.sftp_hook,
             local_filepath=self.test_local_filepath,
             remote_filepath=self.test_remote_filepath_int_dir,
             operation=SFTPOperation.PUT,
@@ -156,7 +155,6 @@ class TestSFTPOperator:
         )
         with (
             pytest.raises(AirflowException) as ctx,
-            pytest.warns(AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"),
         ):
             ti2.run()
         assert "No such file" in str(ctx.value)
@@ -175,7 +173,7 @@ class TestSFTPOperator:
         with dag_maker(dag_id="unit_tests_sftp_op_file_transfer_with_intermediate_dir_put"):
             SFTPOperator(  # Put test file to remote.
                 task_id="test_sftp",
-                ssh_hook=self.hook,
+                sftp_hook=self.sftp_hook,
                 local_filepath=self.test_local_filepath,
                 remote_filepath=self.test_remote_filepath_int_dir,
                 operation=SFTPOperation.PUT,
@@ -189,10 +187,8 @@ class TestSFTPOperator:
             )
         dagrun = dag_maker.create_dagrun(logical_date=timezone.utcnow())
         tis = {ti.task_id: ti for ti in dagrun.task_instances}
-        with pytest.warns(AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"):
-            tis["test_sftp"].run()
-            tis["test_check_file"].run()
-
+        tis["test_sftp"].run()
+        tis["test_check_file"].run()
         pulled = tis["test_check_file"].xcom_pull(task_ids="test_check_file", key="return_value")
         assert pulled.strip() == test_local_file_content
 
@@ -209,7 +205,7 @@ class TestSFTPOperator:
         with dag_maker(dag_id="unit_tests_sftp_op_json_file_transfer_put"):
             SFTPOperator(  # Put test file to remote.
                 task_id="put_test_task",
-                ssh_hook=self.hook,
+                sftp_hook=self.sftp_hook,
                 local_filepath=self.test_local_filepath,
                 remote_filepath=self.test_remote_filepath,
                 operation=SFTPOperation.PUT,
@@ -222,9 +218,9 @@ class TestSFTPOperator:
             )
         dagrun = dag_maker.create_dagrun(logical_date=timezone.utcnow())
         tis = {ti.task_id: ti for ti in dagrun.task_instances}
-        with pytest.warns(AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"):
-            tis["put_test_task"].run()
-            tis["check_file_task"].run()
+
+        tis["put_test_task"].run()
+        tis["check_file_task"].run()
 
         pulled = tis["check_file_task"].xcom_pull(task_ids="check_file_task", key="return_value")
         assert pulled.strip() == b64encode(test_local_file_content).decode("utf-8")
@@ -242,16 +238,13 @@ class TestSFTPOperator:
         with dag_maker(dag_id="unit_tests_sftp_op_pickle_file_transfer_get"):
             SFTPOperator(  # Get remote file to local.
                 task_id="test_sftp",
-                ssh_hook=self.hook,
+                sftp_hook=self.sftp_hook,
                 local_filepath=self.test_local_filepath,
                 remote_filepath=self.test_remote_filepath,
                 operation=SFTPOperation.GET,
             )
         for ti in dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances:
-            with pytest.warns(
-                AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"
-            ):
-                ti.run()
+            ti.run()
 
         # Test the received content.
         with open(self.test_local_filepath, "rb") as file:
@@ -263,16 +256,13 @@ class TestSFTPOperator:
         with dag_maker(dag_id="unit_tests_sftp_op_json_file_transfer_get"):
             SFTPOperator(  # Get remote file to local.
                 task_id="test_sftp",
-                ssh_hook=self.hook,
+                sftp_hook=self.sftp_hook,
                 local_filepath=self.test_local_filepath,
                 remote_filepath=self.test_remote_filepath,
                 operation=SFTPOperation.GET,
             )
         for ti in dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances:
-            with pytest.warns(
-                AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"
-            ):
-                ti.run()
+            ti.run()
 
         # Test the received content.
         content_received = None
@@ -286,7 +276,7 @@ class TestSFTPOperator:
         with dag_maker(dag_id="unit_tests_sftp_op_file_transfer_no_intermediate_dir_error_get"):
             SFTPOperator(  # Try to GET test file from remote.
                 task_id="test_sftp",
-                ssh_hook=self.hook,
+                sftp_hook=self.sftp_hook,
                 local_filepath=self.test_local_filepath_int_dir,
                 remote_filepath=self.test_remote_filepath,
                 operation=SFTPOperation.GET,
@@ -297,9 +287,6 @@ class TestSFTPOperator:
             # does not exist.
             with (
                 pytest.raises(AirflowException) as ctx,
-                pytest.warns(
-                    AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"
-                ),
             ):
                 ti.run()
             assert "No such file" in str(ctx.value)
@@ -310,7 +297,7 @@ class TestSFTPOperator:
         with dag_maker(dag_id="unit_tests_sftp_op_file_transfer_with_intermediate_dir_error_get"):
             SFTPOperator(  # Get remote file to local.
                 task_id="test_sftp",
-                ssh_hook=self.hook,
+                sftp_hook=self.sftp_hook,
                 local_filepath=self.test_local_filepath_int_dir,
                 remote_filepath=self.test_remote_filepath,
                 operation=SFTPOperation.GET,
@@ -318,10 +305,7 @@ class TestSFTPOperator:
             )
 
         for ti in dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances:
-            with pytest.warns(
-                AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"
-            ):
-                ti.run()
+            ti.run()
 
         # Test the received content.
         content_received = None
@@ -336,7 +320,7 @@ class TestSFTPOperator:
             schedule=None,
             default_args={"start_date": DEFAULT_DATE},
         )
-        # Exception should be raised if neither ssh_hook nor ssh_conn_id is provided
+        # Exception should be raised if ssh_conn_id is not provided
         task_0 = SFTPOperator(
             task_id="test_sftp_0",
             local_filepath=self.test_local_filepath,
@@ -347,10 +331,9 @@ class TestSFTPOperator:
         with pytest.raises(AirflowException, match="Cannot operate without sftp_hook or ssh_conn_id."):
             task_0.execute(None)
 
-        # if ssh_hook is invalid/not provided, use ssh_conn_id to create SSHHook
+        # use ssh_conn_id to create SSHHook
         task_1 = SFTPOperator(
             task_id="test_sftp_1",
-            ssh_hook="string_rather_than_SSHHook",  # type: ignore
             ssh_conn_id=TEST_CONN_ID,
             local_filepath=self.test_local_filepath,
             remote_filepath=self.test_remote_filepath,
@@ -363,7 +346,7 @@ class TestSFTPOperator:
 
         task_2 = SFTPOperator(
             task_id="test_sftp_2",
-            ssh_conn_id=TEST_CONN_ID,  # no ssh_hook provided
+            ssh_conn_id=TEST_CONN_ID,
             local_filepath=self.test_local_filepath,
             remote_filepath=self.test_remote_filepath,
             operation=SFTPOperation.PUT,
@@ -373,53 +356,8 @@ class TestSFTPOperator:
             task_2.execute(None)
         assert task_2.sftp_hook.ssh_conn_id == TEST_CONN_ID
 
-        # if both valid ssh_hook and ssh_conn_id are provided, ignore ssh_conn_id
         task_3 = SFTPOperator(
             task_id="test_sftp_3",
-            ssh_hook=self.hook,
-            ssh_conn_id=TEST_CONN_ID,
-            local_filepath=self.test_local_filepath,
-            remote_filepath=self.test_remote_filepath,
-            operation=SFTPOperation.PUT,
-            dag=dag,
-        )
-        with (
-            contextlib.suppress(Exception),
-            pytest.warns(AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"),
-        ):
-            task_3.execute(None)
-        assert task_3.sftp_hook.ssh_conn_id == self.hook.ssh_conn_id
-
-        task_4 = SFTPOperator(
-            task_id="test_sftp_4",
-            local_filepath=self.test_local_filepath,
-            remote_filepath=self.test_remote_filepath,
-            operation="invalid_operation",
-            dag=dag,
-        )
-        # Exception should be raised if operation is invalid
-        with pytest.raises(TypeError, match="Unsupported operation value invalid_operation, "):
-            task_4.execute(None)
-
-        task_5 = SFTPOperator(
-            task_id="test_sftp_5",
-            ssh_hook=self.hook,
-            sftp_hook=SFTPHook(),
-            local_filepath=self.test_local_filepath,
-            remote_filepath=self.test_remote_filepath,
-            operation=SFTPOperation.PUT,
-            dag=dag,
-        )
-
-        # Exception should be raised if both ssh_hook and sftp_hook are provided
-        with pytest.raises(
-            AirflowException,
-            match="Both `ssh_hook` and `sftp_hook` are defined. Please use only one of them.",
-        ):
-            task_5.execute(None)
-
-        task_6 = SFTPOperator(
-            task_id="test_sftp_6",
             ssh_conn_id=TEST_CONN_ID,
             remote_host="remotehost",
             local_filepath=self.test_local_filepath,
@@ -428,8 +366,8 @@ class TestSFTPOperator:
             dag=dag,
         )
         with contextlib.suppress(Exception):
-            task_6.execute(None)
-        assert task_6.sftp_hook.remote_host == "remotehost"
+            task_3.execute(None)
+        assert task_3.sftp_hook.remote_host == "remotehost"
 
     def test_unequal_local_remote_file_paths(self):
         with pytest.raises(ValueError):
@@ -571,37 +509,6 @@ class TestSFTPOperator:
         task = SFTPOperator(
             task_id=task_id,
             sftp_hook=SFTPHook(ssh_conn_id="sftp_conn_id"),
-            dag=DAG(dag_id, schedule=None),
-            start_date=timezone.utcnow(),
-            local_filepath="/path/local",
-            remote_filepath="/path/remote",
-            operation=operation,
-        )
-        lineage = task.get_openlineage_facets_on_start()
-
-        assert lineage.inputs == expected[0]
-        assert lineage.outputs == expected[1]
-
-    @pytest.mark.parametrize(
-        "operation, expected",
-        TEST_GET_PUT_PARAMS,
-    )
-    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_conn", spec=paramiko.SSHClient)
-    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_connection", spec=Connection)
-    def test_extract_ssh_hook(self, get_connection, get_conn, operation, expected):
-        get_connection.return_value = Connection(
-            conn_id="sftp_conn_id",
-            conn_type="sftp",
-            host="remotehost",
-            port=22,
-        )
-
-        dag_id = "sftp_dag"
-        task_id = "sftp_task"
-
-        task = SFTPOperator(
-            task_id=task_id,
-            ssh_hook=SSHHook(ssh_conn_id="sftp_conn_id"),
             dag=DAG(dag_id, schedule=None),
             start_date=timezone.utcnow(),
             local_filepath="/path/local",
