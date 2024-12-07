@@ -27,6 +27,33 @@
 Changelog
 ---------
 
+main
+....
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the microspft azure provider package.
+  The following breaking changes were introduced:
+
+    * Removed deprecated ``extra__azure_data_explorer__foo`` in azure connection extra.
+    * Removed deprecated ``extra__azure__tenantId`` in azure connection extra. Use ``tenantId`` instead.
+    * Removed deprecated ``get_state_exitcode_details`` method. Use ``get_state`` instead.
+    * Removed deprecated ``get_messages`` method. Use ``get_state`` instead.
+    * Removed deprecated ``extra__azure_data_factory__foo`` in azure connection extra.
+    * Usage of `default_conn_name=azure_synapse_connection` is deprecated in ``AzureSynapsePipelineHook``. Use ``default_conn_name=azure_synapse_default`` instead.
+    * Removed deprecated method ``get_hook`` to get instance of ``AzureDataExplorerHook``. Use ``hook`` property instead.
+    * Removed deprecated method ``get_hook`` to get instance of ``AzureBatchHook``. Use ``hook`` property instead.
+    * Removed deprecated method ``AzureKeyVaultBackend.get_conn_uri``. Use ``get_conn_value`` instead.
+    * Removed deprecated class ``WasbBlobAsyncSensor``. Use ``WasbBlobSensor`` with ``deferrable=True`` instead.
+    * Removed deprecated operator `AzureBlobStorageToGCSOperator`. Use ``airflow.providers.google.cloud.transfers.azure_blob_to_gcs.AzureBlobStorageToGCSOperator`` instead.
+
+
+
+
+
+
+
+
+
 11.1.0
 ......
 
