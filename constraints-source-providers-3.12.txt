@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-06T13:46:22.984347
+# This constraints file was automatically generated on 2024-12-07T02:13:28.973079
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -78,7 +78,7 @@ anyascii==0.3.2
 anyio==4.7.0
 apispec==6.8.0
 apprise==1.9.0
-argcomplete==3.5.1
+argcomplete==3.5.2
 asana==3.2.3
 asgiref==3.8.1
 asn1crypto==1.5.1
@@ -449,7 +449,7 @@ pydruid==0.6.9
 pyenchant==3.2.2
 pyexasol==0.27.0
 pygraphviz==1.14
-pyiceberg==0.8.0
+pyiceberg==0.8.1
 pykerberos==1.2.4
 pymongo==4.10.1
 pymssql==2.3.2
