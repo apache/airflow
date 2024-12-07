@@ -226,7 +226,7 @@ class TestPluginsManager:
         ):
             from airflow import plugins_manager
 
-            plugins_manager.initialize_web_ui_plugins()
+            plugins_manager.initialize_flask_plugins()
 
         assert caplog.record_tuples == [
             (
@@ -260,7 +260,7 @@ class TestPluginsManager:
         ):
             from airflow import plugins_manager
 
-            plugins_manager.initialize_web_ui_plugins()
+            plugins_manager.initialize_flask_plugins()
 
         assert caplog.record_tuples == []
 
@@ -283,7 +283,7 @@ class TestPluginsManager:
         ):
             from airflow import plugins_manager
 
-            plugins_manager.initialize_web_ui_plugins()
+            plugins_manager.initialize_flask_plugins()
 
         assert caplog.record_tuples == []
 

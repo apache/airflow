@@ -24,6 +24,8 @@ import pytest
 
 from tests_common.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
 HEADERS_NONE = None
 HEADERS_ANY = {"Accept": "*/*"}
 HEADERS_JSON = {"Accept": "application/json"}
