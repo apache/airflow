@@ -518,11 +518,14 @@ class WatchedSubprocess:
             )
             # Block until events are ready or the timeout is reached
             # This listens for activity (e.g., subprocess output) on registered file objects
-            self._service_subprocess(max_wait_time=max_wait_time)
+            alive = self._service_subprocess(max_wait_time=max_wait_time) is None
 
-            self._send_heartbeat_if_needed()
+            if alive:
+                # We don't need to heartbeat if the process has shutdown, as we are just finishing of reading the
+                # logs
+                self._send_heartbeat_if_needed()
 
-            self._handle_task_overtime_if_needed()
+                self._handle_task_overtime_if_needed()
 
     def _handle_task_overtime_if_needed(self):
         """Handle termination of auxiliary processes if the task exceeds the configured overtime."""
