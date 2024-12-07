@@ -38,7 +38,6 @@ class YandexCloudBaseHook(BaseHook):
     A base hook for Yandex.Cloud related tasks.
 
     :param yandex_conn_id: The connection ID to use when fetching connection info
-    :param connection_id: Deprecated, use yandex_conn_id instead
     :param default_folder_id: The folder ID to use instead of connection folder ID
     :param default_public_ssh_key: The key to use instead of connection key
     :param default_service_account_id: The service account ID to use instead of key service account ID
@@ -116,21 +115,14 @@ class YandexCloudBaseHook(BaseHook):
 
     def __init__(
         self,
-        # connection_id is deprecated, use yandex_conn_id instead
-        connection_id: str | None = None,
         yandex_conn_id: str | None = None,
         default_folder_id: str | None = None,
         default_public_ssh_key: str | None = None,
         default_service_account_id: str | None = None,
     ) -> None:
         super().__init__()
-        if connection_id:
-            warnings.warn(
-                "Using `connection_id` is deprecated. Please use `yandex_conn_id` parameter.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-        self.connection_id = yandex_conn_id or connection_id or default_conn_name
+
+        self.connection_id = yandex_conn_id or default_conn_name
         self.connection = self.get_connection(self.connection_id)
         self.extras = self.connection.extra_dejson
         self.credentials: CredentialsType = get_credentials(
