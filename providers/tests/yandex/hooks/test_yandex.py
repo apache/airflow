@@ -23,7 +23,6 @@ import pytest
 
 yandexcloud = pytest.importorskip("yandexcloud")
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
 
 from tests_common.test_utils.config import conf_vars
@@ -52,23 +51,6 @@ class TestYandexHook:
             default_public_ssh_key=default_public_ssh_key,
         )
         assert hook.client is not None
-
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
-    @mock.patch("airflow.providers.yandex.utils.credentials.get_credentials")
-    def test_provider_user_agent(self, mock_get_credentials, mock_get_connection):
-        mock_get_connection.return_value = mock.Mock(yandex_conn_id="yandexcloud_default", extra_dejson="{}")
-        mock_get_credentials.return_value = {"token": 122323}
-        sdk_prefix = "MyAirflow"
-
-        hook = YandexCloudBaseHook()
-        with (
-            conf_vars({("yandex", "sdk_user_agent_prefix"): sdk_prefix}),
-            pytest.warns(
-                AirflowProviderDeprecationWarning,
-                match="Using `provider_user_agent` in `YandexCloudBaseHook` is deprecated. Please use it in `utils.user_agent` instead.",
-            ),
-        ):
-            assert hook.provider_user_agent().startswith(sdk_prefix)
 
     @mock.patch("airflow.hooks.base.BaseHook.get_connection")
     @mock.patch("airflow.providers.yandex.utils.credentials.get_credentials")
