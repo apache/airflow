@@ -44,9 +44,9 @@ from airflow.models.asset import AssetModel, DagScheduleAssetReference, TaskOutl
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.variable import Variable
 from airflow.typing_compat import Self
 from airflow.utils import timezone
-from airflow.utils.filter_pattern import Filter, FilterPatternType
 from airflow.utils.state import DagRunState, TaskInstanceState
 
 if TYPE_CHECKING:
@@ -134,54 +134,6 @@ class _SearchParam(BaseParam[str]):
         raise NotImplementedError("Use search_param_factory instead , depends is not implemented.")
 
 
-class _AdvanceSearchParam(BaseParam[str]):
-    """Advance search class with support for advanced match types."""
-
-    def __init__(self, attribute: ColumnElement, skip_none: bool = True) -> None:
-        super().__init__(skip_none=skip_none)
-        self.attribute: ColumnElement = attribute
-
-        # Default behaviour should be contains
-        self.pattern_type = FilterPatternType.CONTAINS
-
-    def to_orm(self, select: Select) -> Select:
-        if self.value is None and self.skip_none:
-            return select
-
-        # Map pattern types to SQLAlchemy expressions
-        pattern_map = {
-            FilterPatternType.STARTS_WITH: f"{self.value}%",
-            FilterPatternType.ENDS_WITH: f"%{self.value}",
-            FilterPatternType.CONTAINS: f"%{self.value}%",
-            FilterPatternType.EQUALS: self.value,
-            FilterPatternType.NOT_STARTS_WITH: f"{self.value}%",
-            FilterPatternType.NOT_ENDS_WITH: f"%{self.value}",
-            FilterPatternType.NOT_CONTAINS: f"%{self.value}%",
-        }
-
-        pattern_value = pattern_map[FilterPatternType(self.pattern_type)]
-        if self.pattern_type in [
-            FilterPatternType.NOT_STARTS_WITH,
-            FilterPatternType.NOT_ENDS_WITH,
-            FilterPatternType.NOT_CONTAINS,
-        ]:
-            return select.where(not_(self.attribute.ilike(pattern_value)))
-        else:
-            return select.where(self.attribute.ilike(pattern_value))
-
-    def transform_aliases(self, value: str | None) -> str | None:
-        """Transform any special characters, e.g., '~' to '%'."""
-        if value == "~":
-            value = "%"
-        return value
-
-    def set_pattern_type(self, pattern_type: FilterPatternType):
-        # Validate the key pattern type on initialization
-        FilterPatternType.validate(pattern_type)
-
-        self.pattern_type = pattern_type
-
-
 def search_param_factory(
     attribute: ColumnElement,
     pattern_name: str,
@@ -195,19 +147,125 @@ def search_param_factory(
     return depends_search
 
 
-class _VariableKeyPatternSearch(_AdvanceSearchParam):
-    """Search on key with dynamic match types."""
+class SearchPatternEnum(Enum):
+    """
+    Enum representing the types of search patterns supported.
 
-    def __init__(self, attribute: Column, skip_none: bool = True) -> None:
-        if attribute is None:
-            return
-        super().__init__(attribute=attribute, skip_none=skip_none)
+    - STARTS_WITH: Matches strings starting with the given value.
+    - ENDS_WITH: Matches strings ending with the given value.
+    - CONTAINS: Matches strings containing the given value.
+    - EQUALS: Matches strings exactly equal to the given value.
+    - NOT_STARTS_WITH: Excludes strings starting with the given value.
+    - NOT_ENDS_WITH: Excludes strings ending with the given value.
+    - NOT_CONTAINS: Excludes strings containing the given value.
+    """
 
-    def depends(self, filter: Filter) -> _VariableKeyPatternSearch:
-        filter.value = super().transform_aliases(filter.value)
-        if filter.pattern is not None:
-            super().set_pattern_type(filter.pattern)
-        return self.set_value(filter.value)
+    STARTS_WITH = "starts_with"
+    ENDS_WITH = "ends_with"
+    CONTAINS = "contains"
+    EQUALS = "equals"
+    NOT_STARTS_WITH = "not_starts_with"
+    NOT_ENDS_WITH = "not_ends_with"
+    NOT_CONTAINS = "not_contains"
+
+
+class _AdvancedSearchParam(BaseParam[str]):
+    """Advanced search parameter supporting multiple match types."""
+
+    def __init__(
+        self, attribute: ColumnElement, pattern_type: SearchPatternEnum, skip_none: bool = True
+    ) -> None:
+        self.attribute: ColumnElement = attribute
+        self.pattern_type: SearchPatternEnum = pattern_type
+        self.value: str | None = None
+        self.skip_none = skip_none
+
+    def set_value(self, value: str | None) -> _AdvancedSearchParam:
+        self.value = value
+        return self
+
+    def to_orm(self, select: Select) -> Select:
+        """Apply the appropriate filter to the SQLAlchemy query based on the match type."""
+        if self.value is None and self.skip_none:
+            return select
+
+        pattern_map = {
+            SearchPatternEnum.STARTS_WITH: f"{self.value}%",
+            SearchPatternEnum.ENDS_WITH: f"%{self.value}",
+            SearchPatternEnum.CONTAINS: f"%{self.value}%",
+            SearchPatternEnum.EQUALS: self.value,
+            SearchPatternEnum.NOT_STARTS_WITH: f"{self.value}%",
+            SearchPatternEnum.NOT_ENDS_WITH: f"%{self.value}",
+            SearchPatternEnum.NOT_CONTAINS: f"%{self.value}%",
+        }
+
+        pattern_value = pattern_map[self.pattern_type]
+
+        if self.pattern_type in [
+            SearchPatternEnum.NOT_STARTS_WITH,
+            SearchPatternEnum.NOT_ENDS_WITH,
+            SearchPatternEnum.NOT_CONTAINS,
+        ]:
+            return select.where(not_(self.attribute.ilike(pattern_value)))
+        else:
+            return select.where(self.attribute.ilike(pattern_value))
+
+    def transform_aliases(self, value: str) -> str:
+        if value == "~":
+            value = "%"
+        return value
+
+    def depends(self, *args: Any, **kwargs: Any) -> Self:
+        raise NotImplementedError("Use search_param_factory instead , depends is not implemented.")
+
+
+def advanced_search_param_factory(
+    column_map: dict[str, ColumnElement],
+    search_query: str,
+    skip_none: bool = True,
+) -> Callable[[list[str] | None], list[_AdvancedSearchParam]]:
+    def depends_search(
+        values: list[str] | None = Query(alias=search_query, default=None),
+    ) -> list[_AdvancedSearchParam]:
+        if not values:
+            return []
+
+        search_params = []
+        for value in values:
+            try:
+                # Split the input string `column_name:pattern_type:val`
+                column_name, pattern_type, search_value = value.split(":", 2)
+            except ValueError:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Invalid search format: {value}. Expected format 'column_name:pattern_type:value'.",
+                )
+
+            # Validate column name
+            attribute = column_map.get(column_name)
+            if not attribute:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Invalid column name: {column_name}. Available columns: {', '.join(column_map.keys())}.",
+                )
+
+            # Validate pattern type
+            try:
+                resolved_pattern_type = SearchPatternEnum(pattern_type.lower())
+            except ValueError:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Invalid pattern type: {pattern_type}. Supported patterns: {', '.join(pt.value for pt in SearchPatternEnum)}.",
+                )
+
+            # Create and append the search parameter
+            search_param = _AdvancedSearchParam(attribute, resolved_pattern_type, skip_none)
+            value = search_param.transform_aliases(search_value)
+            search_params.append(search_param.set_value(search_value))
+
+        return search_params
+
+    return depends_search
 
 
 class SortParam(BaseParam[str]):
@@ -635,4 +693,13 @@ QueryTIExecutorFilter = Annotated[
 QueryUriPatternSearch = Annotated[_SearchParam, Depends(search_param_factory(AssetModel.uri, "uri_pattern"))]
 QueryAssetDagIdPatternSearch = Annotated[
     _DagIdAssetReferenceFilter, Depends(_DagIdAssetReferenceFilter().depends)
+]
+
+# Variables
+VARIABLE_COLUMN_MAP = {
+    "key": Variable.key,
+    "value": Variable._val,
+}
+QueryVariableSearch = Annotated[
+    list[_AdvancedSearchParam], Depends(advanced_search_param_factory(VARIABLE_COLUMN_MAP, "filters"))
 ]

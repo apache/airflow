@@ -2943,10 +2943,10 @@ export class VariableService {
    * Get Variables
    * Get all Variables entries.
    * @param data The data for the request.
-   * @param data.filters
    * @param data.limit
    * @param data.offset
    * @param data.orderBy
+   * @param data.filters
    * @returns VariableCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -2957,10 +2957,10 @@ export class VariableService {
       method: "GET",
       url: "/public/variables",
       query: {
-        filters: data.filters,
         limit: data.limit,
         offset: data.offset,
         order_by: data.orderBy,
+        filters: data.filters,
       },
       errors: {
         401: "Unauthorized",

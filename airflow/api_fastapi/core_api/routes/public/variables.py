@@ -25,8 +25,8 @@ from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     QueryLimit,
     QueryOffset,
+    QueryVariableSearch,
     SortParam,
-    _VariableKeyPatternSearch,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.variables import (
@@ -36,7 +36,6 @@ from airflow.api_fastapi.core_api.datamodels.variables import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.models.variable import Variable
-from airflow.utils.filter_pattern import Filter
 
 variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
 
@@ -92,18 +91,12 @@ def get_variables(
         ),
     ],
     session: SessionDep,
-    filters: list[Filter] = Query(None),
+    filters: QueryVariableSearch,
 ) -> VariableCollectionResponse:
     """Get all Variables entries."""
-    processed_filters = []
-    if filters is not Query(None):
-        processed_filters = [_VariableKeyPatternSearch(f.field).depends(f) for f in filters]
-    else:
-        processed_filters = Query(None)
-
     variable_select, total_entries = paginated_select(
         statement=select(Variable),
-        filters=processed_filters,
+        filters=filters,
         order_by=order_by,
         offset=offset,
         limit=limit,

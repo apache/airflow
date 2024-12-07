@@ -29,11 +29,7 @@ import {
   VersionService,
   XcomService,
 } from "../requests/services.gen";
-import {
-  DagRunState,
-  DagWarningType,
-  SearchPatternType,
-} from "../requests/types.gen";
+import { DagRunState, DagWarningType } from "../requests/types.gen";
 
 export type AssetServiceNextRunAssetsDefaultResponse = Awaited<
   ReturnType<typeof AssetService.nextRunAssets>
@@ -1558,7 +1554,7 @@ export const UseVariableServiceGetVariablesKeyFn = (
     offset,
     orderBy,
   }: {
-    filters?: { field: string; pattern?: SearchPatternType; value: string }[];
+    filters?: string[];
     limit?: number;
     offset?: number;
     orderBy?: string;

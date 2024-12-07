@@ -5404,27 +5404,6 @@ paths:
       description: Get all Variables entries.
       operationId: get_variables
       parameters:
-      - name: filters
-        in: query
-        required: false
-        schema:
-          type: array
-          items:
-            type: object
-            properties:
-              field:
-                type: string
-                description: "The field to filter by, e.g., 'key', 'value'."
-              pattern:
-                $ref: '#/components/schemas/SearchPatternType'
-              value:
-                type: string
-                description: "The value to match in the filter."
-            required:
-              - field
-              - value
-            description: "Optional list of filters to apply"
-        title: Filters
       - name: limit
         in: query
         required: false
@@ -5448,6 +5427,16 @@ paths:
           type: string
           default: id
           title: Order By
+      - name: filters
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Filters
       responses:
         '200':
           description: Successful Response
@@ -8194,34 +8183,6 @@ components:
       - latest_scheduler_heartbeat
       title: SchedulerInfoResponse
       description: Scheduler info serializer for responses.
-    SearchPatternType:
-      type: string
-      enum:
-      - starts_with
-      - ends_with
-      - contains
-      - equals
-      - not_starts_with
-      - not_ends_with
-      - not_contains
-      title: SearchPatternType
-      description: 'Enum representing the types of patterns that can be used for advanced
-        search queries.
-
-
-        STARTS_WITH: Match strings that start with the given value.
-
-        ENDS_WITH: Match strings that end with the given value.
-
-        CONTAINS: Match strings that contain the given value.
-
-        EQUALS: Match strings that exactly match the given value.
-
-        NOT_STARTS_WITH: Exclude strings that start with the given value.
-
-        NOT_ENDS_WITH: Exclude strings that end with the given value.
-
-        NOT_CONTAINS: Exclude strings that contain the given value.'
     StructureDataResponse:
       properties:
         edges:

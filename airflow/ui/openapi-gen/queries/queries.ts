@@ -50,7 +50,6 @@ import {
   PoolPatchBody,
   PoolPostBody,
   PoolPostBulkBody,
-  SearchPatternType,
   TaskInstancesBatchBody,
   TriggerDAGRunPostBody,
   VariableBody,
@@ -2501,10 +2500,10 @@ export const useVariableServiceGetVariable = <
  * Get Variables
  * Get all Variables entries.
  * @param data The data for the request.
- * @param data.filters
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
+ * @param data.filters
  * @returns VariableCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -2519,7 +2518,7 @@ export const useVariableServiceGetVariables = <
     offset,
     orderBy,
   }: {
-    filters?: { field: string; pattern?: SearchPatternType; value: string }[];
+    filters?: string[];
     limit?: number;
     offset?: number;
     orderBy?: string;
