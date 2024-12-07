@@ -328,10 +328,7 @@ transfers:
     target-integration-name: Microsoft Azure Blob Storage
     how-to-guide: /docs/apache-airflow-providers-microsoft-azure/transfer/s3_to_wasb.rst
     python-module: airflow.providers.microsoft.azure.transfers.s3_to_wasb
-  - source-integration-name: Microsoft Azure Blob Storage
-    target-integration-name: Google Cloud Storage (GCS)
-    how-to-guide: /docs/apache-airflow-providers-microsoft-azure/transfer/azure_blob_to_gcs.rst
-    python-module: airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs
+
 
 connection-types:
   - hook-class-name: airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook
