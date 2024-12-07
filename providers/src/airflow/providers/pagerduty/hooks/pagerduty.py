@@ -25,7 +25,6 @@ import pdpyras
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.providers.pagerduty.hooks.pagerduty_events import PagerdutyEventsHook
 
 
 class PagerdutyHook(BaseHook):
