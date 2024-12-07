@@ -338,10 +338,10 @@ If your test accesses the database but is not marked properly the Non-DB test in
 How to verify if DB test is correctly classified
 ................................................
 
-When you add if you want to see if your DB test is correctly classified, you can run the test or group
+If you want to see if your DB test is correctly classified, you can run the test or group
 of tests with ``--skip-db-tests`` flag.
 
-You can run the all (or subset of) test types if you want to make sure all ot the problems are fixed
+You can run the all (or subset of) test types if you want to make sure all of the problems are fixed
 
   .. code-block:: bash
 
@@ -458,8 +458,8 @@ Do this:
 Problems with Non-DB test collection
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Sometimes, even if whole module is marked as ``@pytest.mark.db_test`` even parsing the file and collecting
-tests will fail when ``--skip-db-tests`` is used because some of the imports od objects created in the
+Sometimes, even if the whole module is marked as ``@pytest.mark.db_test``, parsing the file and collecting
+tests will fail when ``--skip-db-tests`` is used because some of the imports or objects created in the
 module will read the database.
 
 Usually what helps is to move such initialization code to inside the tests or pytest fixtures (and pass
@@ -1086,9 +1086,9 @@ directly to the container.
 Implementing compatibility for provider tests for older Airflow versions
 ........................................................................
 
-When you implement tests for providers, you should make sure that they are compatible with older
+When you implement tests for providers, you should make sure that they are compatible with older Airflow versions.
 
-Note that some of the tests if written without taking care about the compatibility, might not work with older
+Note that some of the tests, if written without taking care about the compatibility, might not work with older
 versions of Airflow - this is because of refactorings, renames, and tests relying on internals of Airflow that
 are not part of the public API. We deal with it in one of the following ways:
 
