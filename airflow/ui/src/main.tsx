@@ -19,6 +19,7 @@
 import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import axios, { type AxiosError } from "axios";
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
 
@@ -61,13 +62,15 @@ axios.interceptors.response.use(
 );
 
 createRoot(document.querySelector("#root") as HTMLDivElement).render(
-  <ChakraProvider value={defaultSystem}>
-    <ColorModeProvider>
-      <QueryClientProvider client={queryClient}>
-        <TimezoneProvider>
-          <RouterProvider router={router} />
-        </TimezoneProvider>
-      </QueryClientProvider>
-    </ColorModeProvider>
-  </ChakraProvider>,
+  <StrictMode>
+    <ChakraProvider value={defaultSystem}>
+      <ColorModeProvider>
+        <QueryClientProvider client={queryClient}>
+          <TimezoneProvider>
+            <RouterProvider router={router} />
+          </TimezoneProvider>
+        </QueryClientProvider>
+      </ColorModeProvider>
+    </ChakraProvider>
+  </StrictMode>,
 );

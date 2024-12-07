@@ -64,11 +64,6 @@ integrations:
     logo: /integration-logos/vertica/Vertica.png
     tags: [software]
 
-operators:
-  - integration-name: Vertica
-    python-modules:
-      - airflow.providers.vertica.operators.vertica
-
 hooks:
   - integration-name: Vertica
     python-modules:

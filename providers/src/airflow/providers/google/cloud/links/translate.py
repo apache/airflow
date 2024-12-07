@@ -50,6 +50,12 @@ TRANSLATION_NATIVE_DATASET_LINK = (
 )
 TRANSLATION_NATIVE_LIST_LINK = TRANSLATION_BASE_LINK + "/datasets?project={project_id}"
 
+TRANSLATION_NATIVE_MODEL_LINK = (
+    TRANSLATION_BASE_LINK
+    + "/locations/{location}/datasets/{dataset_id}/evaluate;modelId={model_id}?project={project_id}"
+)
+TRANSLATION_MODELS_LIST_LINK = TRANSLATION_BASE_LINK + "/models/list?project={project_id}"
+
 
 class TranslationLegacyDatasetLink(BaseGoogleLink):
     """
@@ -266,6 +272,63 @@ class TranslationDatasetsListLink(BaseGoogleLink):
         task_instance.xcom_push(
             context,
             key=TranslationDatasetsListLink.key,
+            value={
+                "project_id": project_id,
+            },
+        )
+
+
+class TranslationModelLink(BaseGoogleLink):
+    """
+    Helper class for constructing Translation Model link.
+
+    Link for legacy and native models.
+    """
+
+    name = "Translation Model"
+    key = "translation_model"
+    format_str = TRANSLATION_NATIVE_MODEL_LINK
+
+    @staticmethod
+    def persist(
+        context: Context,
+        task_instance,
+        dataset_id: str,
+        model_id: str,
+        project_id: str,
+    ):
+        task_instance.xcom_push(
+            context,
+            key=TranslationLegacyModelLink.key,
+            value={
+                "location": task_instance.location,
+                "dataset_id": dataset_id,
+                "model_id": model_id,
+                "project_id": project_id,
+            },
+        )
+
+
+class TranslationModelsListLink(BaseGoogleLink):
+    """
+    Helper class for constructing Translation Models List link.
+
+    Both legacy and native models are available under this link.
+    """
+
+    name = "Translation Models List"
+    key = "translation_models_list"
+    format_str = TRANSLATION_MODELS_LIST_LINK
+
+    @staticmethod
+    def persist(
+        context: Context,
+        task_instance,
+        project_id: str,
+    ):
+        task_instance.xcom_push(
+            context,
+            key=TranslationModelsListLink.key,
             value={
                 "project_id": project_id,
             },
