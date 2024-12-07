@@ -454,7 +454,7 @@ If you have pre-commit installed, pre-commit will be run automatically on commit
 manually after commit, you can run it via ``breeze static-checks --last-commit`` some of the tests might fail
 because suspension of the provider might cause changes in the dependencies, so if you see errors about
 missing dependencies imports, non-usable classes etc., you will need to build the CI image locally
-via ``breeze build-image --python 3.8 --upgrade-to-newer-dependencies`` after the first pre-commit run
+via ``breeze build-image --python 3.9 --upgrade-to-newer-dependencies`` after the first pre-commit run
 and then run the static checks again.
 
 If you want to be absolutely sure to run all static checks you can always do this via

@@ -24,11 +24,12 @@ import signal
 import sys
 import time
 from abc import abstractmethod
+from collections.abc import Generator
 from csv import DictWriter
 from dataclasses import dataclass
 from multiprocessing.pool import Pool
 from pathlib import Path
-from typing import Any, Generator
+from typing import Any
 
 import yaml
 
@@ -277,9 +278,6 @@ def build_all_airflow_versions_base_image(
     main new commit. Tags used are:
 
     main_ci_images_fixed_tags = {
-        "3.6": "latest",
-        "3.7": "latest",
-        "3.8": "e698dbfe25da10d09c5810938f586535633928a4",
         "3.9": "e698dbfe25da10d09c5810938f586535633928a4",
         "3.10": "e698dbfe25da10d09c5810938f586535633928a4",
         "3.11": "e698dbfe25da10d09c5810938f586535633928a4",
