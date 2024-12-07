@@ -458,7 +458,7 @@ Do this:
 Problems with Non-DB test collection
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Sometimes, even if whole module is marked as ``@pytest.mark.db_test`` even parsing the file and collecting
+Sometimes, even if the whole module is marked as ``@pytest.mark.db_test``, parsing the file and collecting
 tests will fail when ``--skip-db-tests`` is used because some of the imports or objects created in the
 module will read the database.
 
