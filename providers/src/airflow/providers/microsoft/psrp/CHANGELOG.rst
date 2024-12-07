@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+main
+....
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the Microsoft.PSRP provider package.
+  The following breaking changes were introduced:
+
+  * Passing kwargs to ``invoke_cmdlet`` was removed. Please use ``parameters`` instead.
+
 2.8.0
 .....
 

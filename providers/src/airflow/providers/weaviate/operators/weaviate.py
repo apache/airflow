@@ -17,12 +17,10 @@
 
 from __future__ import annotations
 
-import warnings
 from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
 
@@ -51,11 +49,9 @@ class WeaviateIngestOperator(BaseOperator):
     :param vector_col: key/column name in which the vectors are stored.
     :param hook_params: Optional config params to be passed to the underlying hook.
         Should match the desired hook constructor params.
-    :param input_json: (Deprecated) The JSON representing Weaviate data objects to generate embeddings on
-        (or provides custom vectors) and store them in the Weaviate class.
     """
 
-    template_fields: Sequence[str] = ("input_json", "input_data")
+    template_fields: Sequence[str] = ("input_data",)
 
     def __init__(
         self,
@@ -66,29 +62,19 @@ class WeaviateIngestOperator(BaseOperator):
         uuid_column: str = "id",
         tenant: str | None = None,
         hook_params: dict | None = None,
-        input_json: list[dict[str, Any]] | pd.DataFrame | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         self.collection_name = collection_name
         self.conn_id = conn_id
         self.vector_col = vector_col
-        self.input_json = input_json
         self.uuid_column = uuid_column
         self.tenant = tenant
         self.input_data = input_data
         self.hook_params = hook_params or {}
 
-        if (self.input_data is None) and (input_json is not None):
-            warnings.warn(
-                "Passing 'input_json' to WeaviateIngestOperator is deprecated and"
-                " you should use 'input_data' instead",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            self.input_data = input_json
-        elif self.input_data is None and input_json is None:
-            raise TypeError("Either input_json or input_data is required")
+        if self.input_data is None:
+            raise TypeError("input_data is required")
 
     @cached_property
     def hook(self) -> WeaviateHook:
