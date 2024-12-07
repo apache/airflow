@@ -341,7 +341,7 @@ How to verify if DB test is correctly classified
 If you want to see if your DB test is correctly classified, you can run the test or group
 of tests with ``--skip-db-tests`` flag.
 
-You can run the all (or subset of) test types if you want to make sure all ot the problems are fixed
+You can run the all (or subset of) test types if you want to make sure all of the problems are fixed
 
   .. code-block:: bash
 
