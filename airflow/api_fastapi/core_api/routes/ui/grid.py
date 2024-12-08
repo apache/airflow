@@ -41,7 +41,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.grid import (
     GridResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.routes.ui.service.grid import (
+from airflow.api_fastapi.core_api.services.ui.grid import (
     fill_task_instance_summaries,
     get_dag_run_sort_param,
     get_task_group_map,
@@ -67,8 +67,8 @@ def grid_data(
     offset: QueryOffset,
     request: Request,
     num_runs: QueryLimit,
-    include_upstream: QueryIncludeUpstream,
-    include_downstream: QueryIncludeDownstream,
+    include_upstream: QueryIncludeUpstream = False,
+    include_downstream: QueryIncludeDownstream = False,
     base_date: OptionalDateTimeQuery = None,
     root: str | None = None,
 ) -> GridResponse:
@@ -76,10 +76,6 @@ def grid_data(
     dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
-    if root:
-        dag = dag.partial_subset(
-            task_ids_or_regex=root, include_upstream=include_upstream, include_downstream=include_downstream
-        )
 
     current_time = timezone.utcnow()
     # Retrieve, sort and encode the previous DAG Runs
@@ -141,16 +137,32 @@ def grid_data(
     task_instances = session.execute(tis_of_dag_runs)
 
     # Generate Grouped Task Instances
+    task_node_map_exclude = None
+    if root:
+        task_node_map_exclude = get_task_group_map(
+            dag=dag.partial_subset(
+                task_ids_or_regex=root,
+                include_upstream=include_upstream,
+                include_downstream=include_downstream,
+            )
+        )
+
     task_node_map = get_task_group_map(dag=dag)
     parent_tis: dict[tuple[str, str], list] = collections.defaultdict(list)
     all_tis: dict[tuple[str, str], list] = collections.defaultdict(list)
     for ti in task_instances:
+        if task_node_map_exclude and ti.task_id not in task_node_map_exclude.keys():
+            continue
         all_tis[(ti.task_id, ti.run_id)].append(ti)
         parent_id = task_node_map[ti.task_id]["parent_id"]
         if not parent_id and task_node_map[ti.task_id]["is_group"]:
             parent_tis[(ti.task_id, ti.run_id)].append(ti)
         elif parent_id and task_node_map[parent_id]["is_group"]:
             parent_tis[(parent_id, ti.run_id)].append(ti)
+
+    # Clear task_node_map_exclude to free up memory
+    if task_node_map_exclude:
+        task_node_map_exclude.clear()
 
     # Extend subgroup task instances to parent task instances to calculate the aggregates states
     task_group_map = {k: v for k, v in task_node_map.items() if v["is_group"]}
@@ -163,7 +175,6 @@ def grid_data(
             if task_id_parent == task_map["parent_id"]
         }
     )
-
     # Create the Task Instance Summaries to be used in the Grid Response
     task_instance_summaries: dict[str, list] = {
         run_id: [] for (_, run_id), _ in itertools.chain(parent_tis.items(), all_tis.items())

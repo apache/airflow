@@ -54,13 +54,15 @@ def get_dag_run_sort_param(dag: DAG) -> BaseParam:
 
     :return: Sort Param
     """
+    sort_param = SortParam(
+        allowed_attrs=["logical_date", "data_interval_start", "data_interval_end"], model=DagRun
+    )
+
     for name in dag.timetable.run_ordering:
         if name in ("data_interval_start", "data_interval_end"):
-            return SortParam(
-                allowed_attrs=["logical_date", "data_interval_start", "data_interval_end"], model=DagRun
-            ).set_value(name)
+            return sort_param.set_value(name)
         else:
-            return SortParam(allowed_attrs=["logical_date"], model=DagRun).set_value("logical_date")
+            return sort_param.set_value("logical_date")
 
     raise AirflowConfigException(f"No valid sort column found in run_ordering for {dag.dag_id}")
 
@@ -96,15 +98,17 @@ def get_task_group_map(dag: DAG) -> dict[str, dict[str, Any]]:
         """Recursively fill the Task Group Map."""
         if task_node is None:
             return
-
         if isinstance(task_node, MappedOperator):
             task_nodes[task_node.node_id] = {
                 "is_group": False,
                 "parent_id": parent_node.node_id if parent_node else None,
-                "task_count": task_nodes[parent_node.node_id]["task_count"]
-                if _is_task_node_mapped_task_group(parent_node) and parent_node
-                else task_node,
+                "task_count": [task_node],
             }
+            if isinstance(parent_node, TaskGroup):
+                # Remove the regular task counted in parent_node
+                task_nodes[parent_node.node_id]["task_count"].append(-1)
+                # Add the mapped task to the parent_node
+                task_nodes[parent_node.node_id]["task_count"].append(task_node)
             return
         elif isinstance(task_node, BaseOperator):
             task_nodes[task_node.task_id] = {
@@ -112,16 +116,16 @@ def get_task_group_map(dag: DAG) -> dict[str, dict[str, Any]]:
                 "parent_id": parent_node.node_id if parent_node else None,
                 "task_count": task_nodes[parent_node.node_id]["task_count"]
                 if _is_task_node_mapped_task_group(parent_node) and parent_node
-                else 1,
+                else [1],
             }
             return
         elif isinstance(task_node, TaskGroup):
             task_nodes[task_node.node_id] = {
                 "is_group": True,
                 "parent_id": parent_node.node_id if parent_node else None,
-                "task_count": task_node
+                "task_count": [task_node]
                 if _is_task_node_mapped_task_group(task_node)
-                else len([child for child in get_task_group_children_getter()(task_node)]),
+                else [len([child for child in get_task_group_children_getter()(task_node)])],
             }
             return [
                 _fill_task_group_map(task_node=child, parent_node=task_node)
@@ -188,6 +192,11 @@ def fill_task_instance_summaries(
         )
         # Task Count is either integer or a TaskGroup to get the task count
         task_count = task_node_map[task_id]["task_count"]
+        final_task_count = sum(
+            node if isinstance(node, int) else node.get_mapped_ti_count(run_id=run_id, session=session)
+            for node in task_count
+        )
+
         task_instance_summaries_to_fill[run_id].append(
             GridTaskInstanceSummary(
                 task_id=task_id,
@@ -196,9 +205,7 @@ def fill_task_instance_summaries(
                 end_date=ti_end_date,
                 queued_dttm=ti_queued_dttm,
                 states=all_states,
-                task_count=task_count
-                if type(task_count) is int
-                else task_count.get_mapped_ti_count(run_id=run_id, session=session),
+                task_count=final_task_count,
                 overall_state=overall_state,
                 note=ti_note,
             )

@@ -39,8 +39,8 @@ def structure_data(
     session: SessionDep,
     dag_id: str,
     request: Request,
-    include_upstream: QueryIncludeUpstream,
-    include_downstream: QueryIncludeDownstream,
+    include_upstream: QueryIncludeUpstream = False,
+    include_downstream: QueryIncludeDownstream = False,
     root: str | None = None,
     external_dependencies: bool = False,
 ) -> StructureDataResponse:
