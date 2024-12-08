@@ -338,6 +338,11 @@ class WatchedSubprocess:
             client=client,
         )
 
+        log.debug("Started subprocess", pid=pid, ti_id=ti.id, supervisor_pid=os.getpid())
+
+        # Set up signal handlers for the Supervisor process
+        proc._setup_signal_handlers()
+
         # We've forked, but the task won't start until we send it the StartupDetails message. But before we do
         # that, we need to tell the server it's started (so it has the chance to tell us "no, stop!" for any
         # reason)
@@ -365,6 +370,26 @@ class WatchedSubprocess:
         # other end of the pair open
         proc._close_unused_sockets(child_stdin, child_stdout, child_stderr, child_comms, child_logs)
         return proc
+
+    def _setup_signal_handlers(self):
+        """
+        Set up signal handlers for the **supervisor process**.
+
+        These handlers catch signals like SIGTERM or SIGSEGV sent to the supervisor,
+        allowing it to terminate the task process (child process) gracefully.
+        """
+
+        def signal_handler(signum, frame):
+            """Handle termination signals sent to the supervisor."""
+            log.error(
+                "Received termination signal in supervisor. Terminating watched subprocess",
+                signal=signum,
+                process_pid=self.pid,
+                supervisor_pid=os.getpid(),
+            )
+            self.kill(signal.SIGTERM, force=True)
+
+        signal.signal(signal.SIGTERM, signal_handler)
 
     def _register_pipe_readers(
         self, logger: FilteringBoundLogger, stdout: socket, stderr: socket, requests: socket, logs: socket
