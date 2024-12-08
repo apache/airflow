@@ -349,7 +349,7 @@ class TestPostPool(TestPoolsEndpoint):
                     "deferred_slots": 0,
                 },
                 409,
-                {"detail": "Unique constraint violation"},
+                {"detail": "Unique constraint violation: slot_pool with pool=my_pool already exists"},
             ),
         ],
     )
@@ -425,7 +425,7 @@ class TestPostPools(TestPoolsEndpoint):
                     ]
                 },
                 409,
-                {"detail": "Unique constraint violation"},
+                {"detail": "Unique constraint violation: slot_pool with pool=pool1 already exists"},
             ),
             (
                 {
@@ -435,7 +435,7 @@ class TestPostPools(TestPoolsEndpoint):
                     ]
                 },
                 409,
-                {"detail": "Unique constraint violation"},
+                {"detail": "Unique constraint violation: slot_pool with pool=pool1 already exists"},
             ),
             (
                 {
@@ -445,7 +445,7 @@ class TestPostPools(TestPoolsEndpoint):
                     ]
                 },
                 409,
-                {"detail": "Unique constraint violation"},
+                {"detail": "Unique constraint violation: slot_pool with pool=my_pool already exists"},
             ),
         ],
     )
