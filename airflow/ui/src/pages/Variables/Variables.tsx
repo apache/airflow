@@ -30,19 +30,18 @@ const columns: Array<ColumnDef<VariableResponse>> = [
     accessorKey: "key",
     header: "Key",
     meta: {
-      skeletonWidth: 20,
+      skeletonWidth: 25,
     },
   },
   {
     accessorKey: "value",
     header: "Value",
     meta: {
-      skeletonWidth: 20,
+      skeletonWidth: 25,
     },
   },
   {
     accessorKey: "description",
-    enableSorting: false,
     header: "Description",
     meta: {
       skeletonWidth: 50,
