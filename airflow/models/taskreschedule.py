@@ -22,6 +22,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc, desc, select, text
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
 
@@ -42,7 +43,7 @@ class TaskReschedule(TaskInstanceDependencies):
     __tablename__ = "task_reschedule"
 
     id = Column(Integer, primary_key=True)
-    ti_id = Column(String(36), nullable=False)
+    ti_id = Column(postgresql.UUID(as_uuid=True), nullable=False)
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     run_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)

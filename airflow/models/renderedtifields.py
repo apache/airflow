@@ -33,6 +33,7 @@ from sqlalchemy import (
     select,
     text,
 )
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
 
@@ -69,6 +70,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
     __tablename__ = "rendered_task_instance_fields"
 
+    ti_id = Column(postgresql.UUID(as_uuid=True), nullable=False)
     dag_id = Column(StringID(), primary_key=True)
     task_id = Column(StringID(), primary_key=True)
     run_id = Column(StringID(), primary_key=True)
@@ -93,6 +95,12 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
                 "task_instance.map_index",
             ],
             name="rtif_ti_fkey",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            [dag_id, run_id],
+            ["dag_run.dag_id", "dag_run.run_id"],
+            name="rtif_ti_fkey2",
             ondelete="CASCADE",
         ),
     )

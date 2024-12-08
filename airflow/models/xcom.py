@@ -71,6 +71,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
 
     __tablename__ = "xcom"
 
+    ti_id = Column(postgresql.UUID(as_uuid=True), nullable=False)
     dag_run_id = Column(Integer(), nullable=False, primary_key=True)
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False, primary_key=True)
     map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
@@ -98,7 +99,13 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
                 "task_instance.run_id",
                 "task_instance.map_index",
             ],
-            name="xcom_task_instance_fkey",
+            name="xcom_task_instance_fkey1",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            [ti_id],
+            ["task_instance.id"],
+            name="xcom_task_instance_fkey2",
             ondelete="CASCADE",
         ),
     )
