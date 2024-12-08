@@ -2027,6 +2027,7 @@ export type PatchVariableData = {
 export type PatchVariableResponse = VariableResponse;
 
 export type GetVariablesData = {
+  filters?: Array<string> | null;
   limit?: number;
   offset?: number;
   orderBy?: string;

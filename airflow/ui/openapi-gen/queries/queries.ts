@@ -2503,6 +2503,7 @@ export const useVariableServiceGetVariable = <
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
+ * @param data.filters
  * @returns VariableCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -2512,10 +2513,12 @@ export const useVariableServiceGetVariables = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
+    filters,
     limit,
     offset,
     orderBy,
   }: {
+    filters?: string[];
     limit?: number;
     offset?: number;
     orderBy?: string;
@@ -2525,11 +2528,16 @@ export const useVariableServiceGetVariables = <
 ) =>
   useQuery<TData, TError>({
     queryKey: Common.UseVariableServiceGetVariablesKeyFn(
-      { limit, offset, orderBy },
+      { filters, limit, offset, orderBy },
       queryKey,
     ),
     queryFn: () =>
-      VariableService.getVariables({ limit, offset, orderBy }) as TData,
+      VariableService.getVariables({
+        filters,
+        limit,
+        offset,
+        orderBy,
+      }) as TData,
     ...options,
   });
 /**
