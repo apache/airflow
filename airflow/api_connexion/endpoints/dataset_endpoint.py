@@ -114,7 +114,13 @@ def get_datasets(
 
 @security.requires_access_dataset("GET")
 @provide_session
-@format_parameters({"limit": check_limit})
+@format_parameters(
+    {
+        "timestamp_gte": format_datetime,
+        "timestamp_lte": format_datetime,
+        "limit": check_limit,
+    }
+)
 def get_dataset_events(
     *,
     limit: int,
@@ -125,6 +131,9 @@ def get_dataset_events(
     source_task_id: str | None = None,
     source_run_id: str | None = None,
     source_map_index: int | None = None,
+    timestamp_gte: str | None = None,
+    timestamp_lte: str | None = None,
+
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get dataset events."""
@@ -142,6 +151,11 @@ def get_dataset_events(
         query = query.where(DatasetEvent.source_run_id == source_run_id)
     if source_map_index:
         query = query.where(DatasetEvent.source_map_index == source_map_index)
+    # filter timestamp
+    if timestamp_gte:
+        query = query.filter(DatasetEvent.timestamp >= timestamp_gte)
+    if timestamp_lte:
+        query = query.filter(DatasetEvent.timestamp <= timestamp_lte)
 
     query = query.options(subqueryload(DatasetEvent.created_dagruns))
 
