@@ -33,7 +33,7 @@ from pydantic import (
 
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.configuration import conf
-from airflow.serialization.pydantic.dag import DagTagPydantic
+from airflow.models import DagTag
 
 
 class DAGResponse(BaseModel):
@@ -50,7 +50,7 @@ class DAGResponse(BaseModel):
     description: str | None
     timetable_summary: str | None
     timetable_description: str | None
-    tags: list[DagTagPydantic]
+    tags: list[DagTag]
     max_active_tasks: int
     max_active_runs: int | None
     max_consecutive_failed_dag_runs: int

@@ -100,7 +100,7 @@ sequenceDiagram
     DB --> Internal API: Close Session
     deactivate DB
 
-    Internal API->>CLI component: JobPydantic object
+    Internal API->>CLI component: Job object
 
     CLI component->>JobRunner: Create Job Runner
     JobRunner ->> CLI component: JobRunner object
@@ -109,7 +109,7 @@ sequenceDiagram
 
     activate JobRunner
 
-    JobRunner->>Internal API: prepare_for_execution [JobPydantic]
+    JobRunner->>Internal API: prepare_for_execution [Job]
 
     Internal API-->>DB: Create Session
     activate DB
@@ -131,7 +131,7 @@ sequenceDiagram
         deactivate DB
         Internal API ->> JobRunner: returned data
     and
-        JobRunner->>Internal API: perform_heartbeat <br> [Job Pydantic]
+        JobRunner->>Internal API: perform_heartbeat <br> [Job]
         Internal API-->>DB: Create Session
         activate DB
         Internal API->>DB: perform_heartbeat [Job]
@@ -142,7 +142,7 @@ sequenceDiagram
         deactivate DB
     end
 
-    JobRunner->>Internal API: complete_execution  <br> [Job Pydantic]
+    JobRunner->>Internal API: complete_execution  <br> [Job]
     Internal API-->>DB: Create Session
     Internal API->>DB: complete_execution [Job]
     activate DB
