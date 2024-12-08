@@ -249,6 +249,7 @@ class FilterParam(BaseParam[T]):
             return select
         if self.value is None and self.skip_none:
             return select
+
         if isinstance(self.value, list):
             if self.filter_option == FilterOptionEnum.IN:
                 return select.where(self.attribute.in_(self.value))
