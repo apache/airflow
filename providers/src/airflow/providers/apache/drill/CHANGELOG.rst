@@ -26,6 +26,16 @@
 Changelog
 ---------
 
+main
+.....
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the Apache Drill provider package.
+  The following breaking changes were introduced:
+
+  * Operators
+
+    * Removed ``DrillOperator``. Please use ``airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`` instead.
 
 2.8.1
 .....
