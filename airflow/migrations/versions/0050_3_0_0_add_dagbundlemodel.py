@@ -28,9 +28,11 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.orm import Session
 from sqlalchemy_utils import UUIDType
 
 from airflow.models.base import StringID
+from airflow.utils.db import add_dags_folder_dag_bundle
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 
 revision = "e229247a6cb1"
@@ -57,6 +59,10 @@ def upgrade():
         batch_op.add_column(sa.Column("bundle_id", UUIDType(binary=False), nullable=True))
         batch_op.add_column(sa.Column("latest_bundle_version", sa.String(length=200), nullable=True))
         batch_op.create_foreign_key(batch_op.f("dag_bundle_id_fkey"), "dag_bundle", ["bundle_id"], ["id"])
+
+    with Session(bind=op.get_bind()) as session:
+        add_dags_folder_dag_bundle(session=session)
+        session.commit()
 
 
 def downgrade():

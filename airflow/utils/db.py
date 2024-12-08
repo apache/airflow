@@ -765,6 +765,19 @@ def _create_db_from_orm(session):
         log.info("Airflow database tables created")
 
 
+def add_dags_folder_dag_bundle(*, session: Session):
+    from airflow.models.dagbundle import DagBundleModel
+
+    if not session.query(DagBundleModel).filter(DagBundleModel.name == "dags_folder").count() > 0:
+        dag_folder_bundle = DagBundleModel(
+            name="dags_folder",
+            classpath="airflow.dag_processing.bundles.dagfolder.DagsFolderDagBundle",
+            kwargs=None,
+            refresh_interval=conf.getint("scheduler", "dag_dir_list_interval"),
+        )
+        session.add(dag_folder_bundle)
+
+
 @provide_session
 def initdb(session: Session = NEW_SESSION, load_connections: bool = True):
     """Initialize Airflow database."""
@@ -783,9 +796,10 @@ def initdb(session: Session = NEW_SESSION, load_connections: bool = True):
     external_db_manager.initdb(session)
     if conf.getboolean("database", "LOAD_DEFAULT_CONNECTIONS") and load_connections:
         create_default_connections(session=session)
-    # Add default pool & sync log_template
+    # Add default pool & sync log_template & dags folder dag bundle
     add_default_pool_if_not_exists(session=session)
     synchronize_log_template(session=session)
+    add_dags_folder_dag_bundle(session=session)
 
 
 def _get_alembic_config():
