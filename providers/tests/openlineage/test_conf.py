@@ -39,7 +39,7 @@ from airflow.providers.openlineage.conf import (
     transport,
 )
 
-from dev.tests_common.test_utils.config import conf_vars, env_vars
+from tests_common.test_utils.config import conf_vars, env_vars
 
 _CONFIG_SECTION = "openlineage"
 _VAR_CONFIG_PATH = "OPENLINEAGE_CONFIG"

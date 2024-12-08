@@ -17,12 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from types import GeneratorType
-from typing import TYPE_CHECKING, Iterable, Sequence
+from typing import TYPE_CHECKING
 
 from sqlalchemy import update
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
@@ -36,9 +36,8 @@ if TYPE_CHECKING:
 
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
-    from airflow.models.taskmixin import DAGNode
+    from airflow.sdk.definitions.node import DAGNode
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
-    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 # The key used by SkipMixin to store XCom data.
 XCOM_SKIPMIXIN_KEY = "skipmixin_key"
@@ -93,26 +92,13 @@ class SkipMixin(LoggingMixin):
                     .execution_options(synchronize_session=False)
                 )
 
+    @provide_session
     def skip(
         self,
         dag_run: DagRun | DagRunPydantic,
         tasks: Iterable[DAGNode],
         map_index: int = -1,
-    ):
-        """Facade for compatibility for call to internal API."""
-        # SkipMixin may not necessarily have a task_id attribute. Only store to XCom if one is available.
-        task_id: str | None = getattr(self, "task_id", None)
-        SkipMixin._skip(dag_run=dag_run, task_id=task_id, tasks=tasks, map_index=map_index)
-
-    @staticmethod
-    @internal_api_call
-    @provide_session
-    def _skip(
-        dag_run: DagRun | DagRunPydantic,
-        task_id: str | None,
-        tasks: Iterable[DAGNode],
         session: Session = NEW_SESSION,
-        map_index: int = -1,
     ):
         """
         Set tasks instances to skipped from the same dag run.
@@ -126,6 +112,8 @@ class SkipMixin(LoggingMixin):
         :param session: db session to use
         :param map_index: map_index of the current task instance
         """
+        # SkipMixin may not necessarily have a task_id attribute. Only store to XCom if one is available.
+        task_id: str | None = getattr(self, "task_id", None)
         task_list = _ensure_tasks(tasks)
         if not task_list:
             return
@@ -150,23 +138,10 @@ class SkipMixin(LoggingMixin):
                 session=session,
             )
 
+    @provide_session
     def skip_all_except(
         self,
-        ti: TaskInstance | TaskInstancePydantic,
-        branch_task_ids: None | str | Iterable[str],
-    ):
-        """Facade for compatibility for call to internal API."""
-        # Ensure we don't serialize a generator object
-        if branch_task_ids and isinstance(branch_task_ids, GeneratorType):
-            branch_task_ids = list(branch_task_ids)
-        SkipMixin._skip_all_except(ti=ti, branch_task_ids=branch_task_ids)
-
-    @classmethod
-    @internal_api_call
-    @provide_session
-    def _skip_all_except(
-        cls,
-        ti: TaskInstance | TaskInstancePydantic,
+        ti: TaskInstance,
         branch_task_ids: None | str | Iterable[str],
         session: Session = NEW_SESSION,
     ):
@@ -179,7 +154,10 @@ class SkipMixin(LoggingMixin):
         branch_task_ids is stored to XCom so that NotPreviouslySkippedDep knows skipped tasks or
         newly added tasks should be skipped when they are cleared.
         """
-        log = cls().log  # Note: need to catch logger form instance, static logger breaks pytest
+        # Ensure we don't serialize a generator object
+        if branch_task_ids and isinstance(branch_task_ids, GeneratorType):
+            branch_task_ids = list(branch_task_ids)
+        log = self.log  # Note: need to catch logger form instance, static logger breaks pytest
         if isinstance(branch_task_ids, str):
             branch_task_id_set = {branch_task_ids}
         elif isinstance(branch_task_ids, Iterable):

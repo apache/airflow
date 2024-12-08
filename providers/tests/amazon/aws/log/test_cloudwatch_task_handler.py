@@ -36,7 +36,8 @@ from airflow.providers.amazon.aws.utils import datetime_to_epoch_utc_ms
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.config import conf_vars
 
 
 def get_time_str(time_in_milliseconds):
@@ -58,7 +59,10 @@ class TestCloudwatchTaskHandler:
         self.remote_log_group = "log_group_name"
         self.region_name = "us-west-2"
         self.local_log_location = str(tmp_path_factory.mktemp("local-cloudwatch-log-location"))
-        create_log_template("{dag_id}/{task_id}/{execution_date}/{try_number}.log")
+        if AIRFLOW_V_3_0_PLUS:
+            create_log_template("{dag_id}/{task_id}/{logical_date}/{try_number}.log")
+        else:
+            create_log_template("{dag_id}/{task_id}/{execution_date}/{try_number}.log")
         self.cloudwatch_task_handler = CloudwatchTaskHandler(
             self.local_log_location,
             f"arn:aws:logs:{self.region_name}:11111111:log-group:{self.remote_log_group}",
@@ -69,7 +73,10 @@ class TestCloudwatchTaskHandler:
         task_id = "task_for_testing_cloudwatch_log_handler"
         self.dag = DAG(dag_id=dag_id, schedule=None, start_date=date)
         task = EmptyOperator(task_id=task_id, dag=self.dag)
-        dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=date, run_id="test", run_type="scheduled")
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = DagRun(dag_id=self.dag.dag_id, logical_date=date, run_id="test", run_type="scheduled")
+        else:
+            dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=date, run_id="test", run_type="scheduled")
         session.add(dag_run)
         session.commit()
         session.refresh(dag_run)

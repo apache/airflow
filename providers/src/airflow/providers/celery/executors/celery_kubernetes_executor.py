@@ -17,18 +17,20 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
+
+from deprecated import deprecated
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 
 try:
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
 except ImportError as e:
-    from airflow.exceptions import AirflowOptionalProviderFeatureException
-
     raise AirflowOptionalProviderFeatureException(e)
 
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -56,6 +58,7 @@ class CeleryKubernetesExecutor(BaseExecutor):
     """
 
     supports_ad_hoc_ti_run: bool = True
+    # TODO: Remove this flag once providers depend on Airflow 3.0
     supports_pickling: bool = True
     supports_sentry: bool = False
 
@@ -159,7 +162,6 @@ class CeleryKubernetesExecutor(BaseExecutor):
         self,
         task_instance: TaskInstance,
         mark_success: bool = False,
-        pickle_id: int | None = None,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
         wait_for_past_depends_before_skipping: bool = False,
@@ -167,6 +169,7 @@ class CeleryKubernetesExecutor(BaseExecutor):
         ignore_ti_state: bool = False,
         pool: str | None = None,
         cfg_path: str | None = None,
+        **kwargs,
     ) -> None:
         """Queues task instance via celery or kubernetes executor."""
         from airflow.models.taskinstance import SimpleTaskInstance
@@ -175,10 +178,14 @@ class CeleryKubernetesExecutor(BaseExecutor):
         self.log.debug(
             "Using executor: %s to queue_task_instance for %s", executor.__class__.__name__, task_instance.key
         )
+
+        # TODO: Remove this once providers depend on Airflow 3.0
+        if not hasattr(task_instance, "pickle_id"):
+            del kwargs["pickle_id"]
+
         executor.queue_task_instance(
             task_instance=task_instance,
             mark_success=mark_success,
-            pickle_id=pickle_id,
             ignore_all_deps=ignore_all_deps,
             ignore_depends_on_past=ignore_depends_on_past,
             wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
@@ -186,6 +193,7 @@ class CeleryKubernetesExecutor(BaseExecutor):
             ignore_ti_state=ignore_ti_state,
             pool=pool,
             cfg_path=cfg_path,
+            **kwargs,
         )
 
     def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
@@ -240,6 +248,11 @@ class CeleryKubernetesExecutor(BaseExecutor):
             *self.kubernetes_executor.try_adopt_task_instances(kubernetes_tis),
         ]
 
+    @deprecated(
+        reason="Replaced by function `revoke_task`. Upgrade airflow core to make this go away.",
+        category=AirflowProviderDeprecationWarning,
+        action="ignore",  # ignoring since will get warning from the nested executors
+    )
     def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
         celery_tis = [ti for ti in tis if ti.queue != self.kubernetes_queue]
         kubernetes_tis = [ti for ti in tis if ti.queue == self.kubernetes_queue]
@@ -247,6 +260,25 @@ class CeleryKubernetesExecutor(BaseExecutor):
             *self.celery_executor.cleanup_stuck_queued_tasks(celery_tis),
             *self.kubernetes_executor.cleanup_stuck_queued_tasks(kubernetes_tis),
         ]
+
+    def revoke_task(self, *, ti: TaskInstance):
+        if ti.queue == self.kubernetes_queue:
+            try:
+                self.kubernetes_executor.revoke_task(ti=ti)
+            except NotImplementedError:
+                self.log.warning(
+                    "Your kubernetes provider version is old. Falling back to deprecated "
+                    "function, `cleanup_stuck_queued_tasks`. You must upgrade k8s "
+                    "provider to enable 'stuck in queue' retries and stuck in queue "
+                    "event logging."
+                )
+                for ti_repr in self.kubernetes_executor.cleanup_stuck_queued_tasks(tis=[ti]):
+                    self.log.info(
+                        "task stuck in queued and will be marked failed. task_instance=%s",
+                        ti_repr,
+                    )
+        else:
+            self.celery_executor.revoke_task(ti=ti)
 
     def end(self) -> None:
         """End celery and kubernetes executor."""

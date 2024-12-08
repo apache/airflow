@@ -31,19 +31,18 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel
 from airflow.models.errors import ParseImportError
 from airflow.utils import timezone
-from tests.listeners import dag_import_error_listener
 
-from dev.tests_common.test_utils.config import conf_vars, env_vars
-from dev.tests_common.test_utils.db import (
+from tests.listeners import dag_import_error_listener
+from tests_common.test_utils.config import conf_vars, env_vars
+from tests_common.test_utils.db import (
     clear_db_dags,
     clear_db_import_errors,
     clear_db_jobs,
     clear_db_pools,
     clear_db_runs,
     clear_db_serialized_dags,
-    clear_db_sla_miss,
 )
-from dev.tests_common.test_utils.mock_executor import MockExecutor
+from tests_common.test_utils.mock_executor import MockExecutor
 
 pytestmark = pytest.mark.db_test
 
@@ -76,7 +75,6 @@ class TestDagFileProcessor:
         clear_db_runs()
         clear_db_pools()
         clear_db_dags()
-        clear_db_sla_miss()
         clear_db_import_errors()
         clear_db_jobs()
         clear_db_serialized_dags()
@@ -101,9 +99,8 @@ class TestDagFileProcessor:
             dag_ids=[], dag_directory=str(dag_directory), log=mock.MagicMock()
         )
 
-        dag_file_processor.process_file(file_path, [], False)
+        dag_file_processor.process_file(file_path, [])
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_newly_added_import_error(self, tmp_path, session):
         dag_import_error_listener.clear()
         get_listener_manager().add_listener(dag_import_error_listener)
@@ -136,7 +133,6 @@ class TestDagFileProcessor:
         assert len(dag_import_error_listener.new) == 1
         assert dag_import_error_listener.new["filename"] == import_error.stacktrace
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_already_existing_import_error(self, tmp_path):
         dag_import_error_listener.clear()
         get_listener_manager().add_listener(dag_import_error_listener)

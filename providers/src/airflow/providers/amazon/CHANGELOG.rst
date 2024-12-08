@@ -26,6 +26,52 @@
 Changelog
 ---------
 
+9.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: add OpenLineage support for RedshiftToS3Operator (#41632)``
+* ``Add 'SageMakerProcessingSensor' (#43144)``
+* ``Make 'RedshiftDataOperator'  handle multiple queries (#42900)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/amazon): alias is_authorized_dataset to is_authorized_asset (#43470)``
+* ``Remove returns in final clause of athena hooks (#43426)``
+* ``fix: replace \s with space in EksHook (#43849)``
+* ``Fix 'HttpToS3Operator' throws exception if s3_bucket parameter is not passed (#43828)``
+* ``Add 'container_name' and update 'awslogs_stream_prefix' pattern (#43138)``
+* ``Check if awslogs_stream_prefix already ends with container_name (#43724)``
+* ``bugfix description should be optional for openlineage integration with 'AthenaOperator' (#43576)``
+* ``(bugfix): 'EcsRunTaskOperator' decouple 'volume_configurations' from 'capacity_provider_strategy' (#43047)``
+* ``GlueJobOperator: add option to wait for cleanup before returning job status (#43688)``
+* ``Resolve 'GlueJobTrigger' serialization bug causing verbose to always be True (#43622)``
+* ``Remove returns in final clause of S3ToDynamoDBOperator (#43456)``
+
+Misc
+~~~~
+
+* ``Remove sqlalchemy-redshift dependency (#43271)``
+* ``feat(providers/amazon): Use asset in common provider (#43110)``
+* ``Restrict looker-sdk version 24.18.0 and microsoft-kiota-http 1.3.4 (#42954)``
+* ``Limit mypy-boto3-appflow (#43436)``
+* ``Move PythonOperator to Standard provider (#42081)``
+* ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+* ``Remove deprecations from cncf.kubernetes provider (#43689)``
+* ``Fix docstring for AthenaTrigger (#43616)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove TaskContextLogger (#43183)``
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+   * ``Start porting DAG definition code to the Task SDK (#43076)``
+   * ``Prepare docs for Oct 2nd wave of providers (#43409)``
+   * ``Prepare docs for Oct 2nd wave of providers RC2 (#43540)``
+   * ``Prepare docs for Oct 2nd wave of providers rc3 (#43613)``
+
 9.0.0
 .....
 

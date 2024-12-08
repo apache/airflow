@@ -20,9 +20,9 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.assets import Asset, AssetAlias, AssetAliasEvent
 from airflow.models.asset import AssetAliasModel, AssetModel
-from airflow.utils.context import OutletEventAccessor, OutletEventAccessors
+from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.utils.context import AssetAliasEvent, OutletEventAccessor, OutletEventAccessors
 
 
 class TestOutletEventAccessor:

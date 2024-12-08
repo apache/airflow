@@ -28,7 +28,7 @@ import NotesAccordion from "src/dag/details/NotesAccordion";
 import TaskNav from "./Nav";
 import ExtraLinks from "./ExtraLinks";
 import Details from "./Details";
-import DatasetUpdateEvents from "./DatasetUpdateEvents";
+import AssetUpdateEvents from "./AssetUpdateEvents";
 import TriggererInfo from "./TriggererInfo";
 import TaskFailedDependency from "./TaskFailedDependency";
 import TaskDocumentation from "./TaskDocumentation";
@@ -83,12 +83,12 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
       ref={taskInstanceRef}
       overflowY="auto"
     >
-      {!isGroup && run?.executionDate && (
+      {!isGroup && run?.logicalDate && (
         <TaskNav
           taskId={taskId}
           isMapped={isMapped}
           mapIndex={mapIndex}
-          executionDate={run?.executionDate}
+          logicalDate={run?.logicalDate}
         />
       )}
       {!isGroupOrMappedTaskSummary && <TaskDocumentation taskId={taskId} />}
@@ -105,18 +105,18 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
       )}
       {!!group?.extraLinks?.length &&
         !isGroupOrMappedTaskSummary &&
-        run?.executionDate && (
+        run?.logicalDate && (
           <ExtraLinks
             taskId={taskId}
             dagId={dagId}
             mapIndex={isMapped && isMapIndexDefined ? mapIndex : undefined}
-            executionDate={run.executionDate}
+            logicalDate={run.logicalDate}
             extraLinks={group.extraLinks}
             tryNumber={taskInstance?.tryNumber || gridInstance?.tryNumber || 1}
           />
         )}
-      {group?.hasOutletDatasets && (
-        <DatasetUpdateEvents taskId={taskId} runId={runId} />
+      {group?.hasOutletAssets && (
+        <AssetUpdateEvents taskId={taskId} runId={runId} />
       )}
       <TriggererInfo taskInstance={taskInstance} />
       {showTaskSchedulingDependencies && (

@@ -30,17 +30,17 @@ from airflow.models import DagBag, TaskInstance
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import provide_session
 
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.db import clear_db_connections, clear_db_runs
-from dev.tests_common.test_utils.gcp_system_helpers import (
+from providers.tests.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_connections, clear_db_runs
+from tests_common.test_utils.gcp_system_helpers import (
     GoogleSystemTest,
     provide_gcp_context,
     resolve_full_gcp_key_path,
 )
-from providers.tests.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
 
 
-@pytest.mark.system("google")
+@pytest.mark.system
 @pytest.mark.credential_file(GCP_GCS_KEY)
 class TestGCSTaskHandlerSystem(GoogleSystemTest):
     @classmethod
@@ -75,8 +75,8 @@ class TestGCSTaskHandlerSystem(GoogleSystemTest):
             AIRFLOW__CORE__DAGS_FOLDER=example_complex.__file__,
             GOOGLE_APPLICATION_CREDENTIALS=resolve_full_gcp_key_path(GCP_GCS_KEY),
         ):
-            assert 0 == subprocess.Popen(["airflow", "dags", "trigger", "example_complex"]).wait()
-            assert 0 == subprocess.Popen(["airflow", "scheduler", "--num-runs", "1"]).wait()
+            assert subprocess.Popen(["airflow", "dags", "trigger", "example_complex"]).wait() == 0
+            assert subprocess.Popen(["airflow", "scheduler", "--num-runs", "1"]).wait() == 0
 
         ti = session.query(TaskInstance).filter(TaskInstance.task_id == "create_entry_group").first()
         dag = DagBag(dag_folder=example_complex.__file__).dags["example_complex"]

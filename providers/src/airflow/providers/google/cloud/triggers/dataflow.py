@@ -18,8 +18,9 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from google.cloud.dataflow_v1beta3 import JobState
 from google.cloud.dataflow_v1beta3.types import (

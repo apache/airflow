@@ -41,7 +41,7 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
 )
 from airflow.www.app import create_app
 
-from dev.tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
+from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 
 DAG_ID = "test_dag"
 TASK_ID = "test_task"

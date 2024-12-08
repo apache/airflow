@@ -20,9 +20,11 @@ name: Microsoft Azure
 description: |
   `Microsoft Azure <https://azure.microsoft.com/>`__
 state: ready
-source-date-epoch: 1728485226
+source-date-epoch: 1731570356
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 11.1.0
+  - 11.0.0
   - 10.5.1
   - 10.5.0
   - 10.4.0
@@ -111,9 +113,14 @@ dependencies:
   # msgraph-core has transient import failures with microsoft-kiota-http==1.3.4
   # See https://github.com/microsoftgraph/msgraph-sdk-python-core/issues/706
   - microsoft-kiota-http>=1.3.0,!=1.3.4
+  - microsoft-kiota-serialization-json==1.0.0
+  - microsoft-kiota-serialization-text==1.0.0
+  # microsoft-kiota-abstractions 1.4.0 breaks MyPy static checks on main
+  # see https://github.com/apache/airflow/issues/43036
+  - microsoft-kiota-abstractions<1.4.0
 
 devel-dependencies:
-  - pywinrm
+  - pywinrm>=0.4
 
 integrations:
   - integration-name: Microsoft Azure Batch
@@ -185,6 +192,8 @@ integrations:
     tags: [azure]
   - integration-name: Microsoft Power BI
     external-doc-url: https://learn.microsoft.com/en-us/rest/api/power-bi/
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-azure/operators/powerbi.rst
     tags: [azure]
 
 operators:
@@ -319,10 +328,7 @@ transfers:
     target-integration-name: Microsoft Azure Blob Storage
     how-to-guide: /docs/apache-airflow-providers-microsoft-azure/transfer/s3_to_wasb.rst
     python-module: airflow.providers.microsoft.azure.transfers.s3_to_wasb
-  - source-integration-name: Microsoft Azure Blob Storage
-    target-integration-name: Google Cloud Storage (GCS)
-    how-to-guide: /docs/apache-airflow-providers-microsoft-azure/transfer/azure_blob_to_gcs.rst
-    python-module: airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs
+
 
 connection-types:
   - hook-class-name: airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook

@@ -82,7 +82,7 @@ class TestGitSyncSchedulerTest:
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert {
+        assert jmespath.search("spec.template.spec.containers[1]", docs[0]) == {
             "name": "git-sync-test",
             "securityContext": {"runAsUser": 65533},
             "image": "test-registry/test-repo:test-tag",
@@ -96,11 +96,76 @@ class TestGitSyncSchedulerTest:
                 {"name": "GITSYNC_LINK", "value": "repo"},
                 {"name": "GITSYNC_ADD_USER", "value": "true"},
                 {"name": "GITSYNC_PERIOD", "value": "66s"},
+
+                {"name": "GIT_SYNC_MAX_SYNC_FAILURES", "value": "70"},
                 {"name": "GITSYNC_MAX_FAILURES", "value": "70"},
             ],
             "volumeMounts": [{"mountPath": "/git", "name": "dags"}],
             "resources": {},
-        } == jmespath.search("spec.template.spec.containers[1]", docs[0])
+        }
+
+    def test_validate_the_git_sync_container_spec_if_wait_specified(self):
+        docs = render_chart(
+            values={
+                "images": {
+                    "gitSync": {
+                        "repository": "test-registry/test-repo",
+                        "tag": "test-tag",
+                        "pullPolicy": "Always",
+                    }
+                },
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "containerName": "git-sync-test",
+                        "wait": 66,
+                        "period": "66s",
+                        "maxFailures": 70,
+                        "subPath": "path1/path2",
+                        "rev": "HEAD",
+                        "ref": "test-branch",
+                        "depth": 1,
+                        "repo": "https://github.com/apache/airflow.git",
+                        "branch": "test-branch",
+                        "sshKeySecret": None,
+                        "credentialsSecret": None,
+                        "knownHosts": None,
+                        "envFrom": "- secretRef:\n    name: 'proxy-config'\n",
+                    },
+                    "persistence": {"enabled": True},
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.containers[1]", docs[0]) == {
+            "name": "git-sync-test",
+            "securityContext": {"runAsUser": 65533},
+            "image": "test-registry/test-repo:test-tag",
+            "imagePullPolicy": "Always",
+            "envFrom": [{"secretRef": {"name": "proxy-config"}}],
+            "env": [
+                {"name": "GIT_SYNC_REV", "value": "HEAD"},
+                {"name": "GITSYNC_REF", "value": "test-branch"},
+                {"name": "GIT_SYNC_BRANCH", "value": "test-branch"},
+                {"name": "GIT_SYNC_REPO", "value": "https://github.com/apache/airflow.git"},
+                {"name": "GITSYNC_REPO", "value": "https://github.com/apache/airflow.git"},
+                {"name": "GIT_SYNC_DEPTH", "value": "1"},
+                {"name": "GITSYNC_DEPTH", "value": "1"},
+                {"name": "GIT_SYNC_ROOT", "value": "/git"},
+                {"name": "GITSYNC_ROOT", "value": "/git"},
+                {"name": "GIT_SYNC_DEST", "value": "repo"},
+                {"name": "GITSYNC_LINK", "value": "repo"},
+                {"name": "GIT_SYNC_ADD_USER", "value": "true"},
+                {"name": "GITSYNC_ADD_USER", "value": "true"},
+                {"name": "GIT_SYNC_WAIT", "value": "66"},
+                {"name": "GITSYNC_PERIOD", "value": "66s"},
+                {"name": "GIT_SYNC_MAX_SYNC_FAILURES", "value": "70"},
+                {"name": "GITSYNC_MAX_FAILURES", "value": "70"},
+            ],
+            "volumeMounts": [{"mountPath": "/git", "name": "dags"}],
+            "resources": {},
+        }
 
     def test_validate_if_ssh_params_are_added(self):
         docs = render_chart(
@@ -288,8 +353,8 @@ class TestGitSyncSchedulerTest:
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
-        assert "128Mi" == jmespath.search("spec.template.spec.containers[1].resources.limits.memory", docs[0])
-        assert "169Mi" == jmespath.search(
-            "spec.template.spec.containers[1].resources.requests.memory", docs[0]
+        assert jmespath.search("spec.template.spec.containers[1].resources.limits.memory", docs[0]) == "128Mi"
+        assert (
+            jmespath.search("spec.template.spec.containers[1].resources.requests.memory", docs[0]) == "169Mi"
         )
-        assert "300m" == jmespath.search("spec.template.spec.containers[1].resources.requests.cpu", docs[0])
+        assert jmespath.search("spec.template.spec.containers[1].resources.requests.cpu", docs[0]) == "300m"

@@ -19,7 +19,8 @@
 from __future__ import annotations
 
 from collections import namedtuple
-from typing import Any, List, Sequence, cast
+from collections.abc import Sequence
+from typing import Any, cast
 from urllib.parse import quote_plus
 
 from pyodbc import Connection, Row, connect
@@ -180,6 +181,19 @@ class OdbcHook(DbApiHook):
 
         return merged_connect_kwargs
 
+    def get_sqlalchemy_engine(self, engine_kwargs=None):
+        """
+        Get an sqlalchemy_engine object.
+
+        :param engine_kwargs: Kwargs used in :func:`~sqlalchemy.create_engine`.
+        :return: the created engine.
+        """
+        if engine_kwargs is None:
+            engine_kwargs = {}
+        engine_kwargs["creator"] = self.get_conn
+
+        return super().get_sqlalchemy_engine(engine_kwargs)
+
     def get_conn(self) -> Connection:
         """Return ``pyodbc`` connection object."""
         conn = connect(self.odbc_connection_string, **self.connect_kwargs)
@@ -209,7 +223,7 @@ class OdbcHook(DbApiHook):
         if isinstance(result, Sequence):
             field_names = [col[0] for col in result[0].cursor_description]
             row_object = namedtuple("Row", field_names, rename=True)  # type: ignore
-            return cast(List[tuple], [row_object(*row) for row in result])
+            return cast(list[tuple], [row_object(*row) for row in result])
         else:
             field_names = [col[0] for col in result.cursor_description]
             return cast(tuple, namedtuple("Row", field_names, rename=True)(*result))  # type: ignore

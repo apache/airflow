@@ -280,7 +280,7 @@ class TestS3FileTransformOperator:
         with pytest.raises(AirflowException) as ctx:
             op.execute(None)
 
-        assert "Transform script failed: 42" == str(ctx.value)
+        assert str(ctx.value) == "Transform script failed: 42"
 
     @mock.patch("subprocess.Popen")
     @mock_aws
@@ -642,7 +642,7 @@ class TestS3DeleteObjectsOperator:
         for k in keys:
             conn.upload_fileobj(Bucket=bucket, Key=k, Fileobj=BytesIO(b"input"))
 
-        execution_date = utcnow()
+        logical_date = utcnow()
         dag = DAG("test_dag", start_date=datetime(2020, 1, 1), schedule=timedelta(days=1))
         # use macros.ds_add since it returns a string, not a date
         op = S3DeleteObjectsOperator(
@@ -652,10 +652,14 @@ class TestS3DeleteObjectsOperator:
             to_datetime="{{ macros.ds_add(ds, 1) }}",
             dag=dag,
         )
-
-        dag_run = DagRun(
-            dag_id=dag.dag_id, execution_date=execution_date, run_id="test", run_type=DagRunType.MANUAL
-        )
+        if hasattr(DagRun, "execution_date"):  # Airflow 2.x.
+            dag_run = DagRun(
+                dag_id=dag.dag_id, execution_date=logical_date, run_id="test", run_type=DagRunType.MANUAL
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=dag.dag_id, logical_date=logical_date, run_id="test", run_type=DagRunType.MANUAL
+            )
         ti = TaskInstance(task=op)
         ti.dag_run = dag_run
         session.add(ti)

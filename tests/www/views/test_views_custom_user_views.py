@@ -28,14 +28,14 @@ from airflow import settings
 from airflow.security import permissions
 from airflow.www import app as application
 
-from dev.tests_common.test_utils.www import (
-    check_content_in_response,
-    check_content_not_in_response,
-    client_with_login,
-)
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
     delete_role,
+)
+from tests_common.test_utils.www import (
+    check_content_in_response,
+    check_content_not_in_response,
+    client_with_login,
 )
 
 pytestmark = pytest.mark.db_test

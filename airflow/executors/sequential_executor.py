@@ -48,8 +48,6 @@ class SequentialExecutor(BaseExecutor):
     SequentialExecutor alongside sqlite as you first install it.
     """
 
-    supports_pickling: bool = False
-
     is_local: bool = True
     is_single_threaded: bool = True
     is_production: bool = False
@@ -73,11 +71,15 @@ class SequentialExecutor(BaseExecutor):
 
         span = Trace.get_current_span()
         if span.is_recording():
-            span.set_attribute("dag_id", key.dag_id)
-            span.set_attribute("run_id", key.run_id)
-            span.set_attribute("task_id", key.task_id)
-            span.set_attribute("try_number", key.try_number)
-            span.set_attribute("commands_to_run", str(self.commands_to_run))
+            span.set_attributes(
+                {
+                    "dag_id": key.dag_id,
+                    "run_id": key.run_id,
+                    "task_id": key.task_id,
+                    "try_number": key.try_number,
+                    "commands_to_run": str(self.commands_to_run),
+                }
+            )
 
     def sync(self) -> None:
         for key, command in self.commands_to_run:

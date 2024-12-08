@@ -32,7 +32,7 @@ from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils.timezone import datetime
 from airflow.utils.types import NOTSET
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
@@ -66,7 +66,7 @@ class TestSSHOperator:
 
     # Make sure nothing in this test actually connects to SSH -- that's for hook tests.
     @pytest.fixture(autouse=True)
-    def _patch_exec_ssh_client(self):
+    def patch_exec_ssh_client(self):
         with mock.patch.object(self.hook, "exec_ssh_client_command") as exec_ssh_client_command:
             self.exec_ssh_client_command = exec_ssh_client_command
             exec_ssh_client_command.return_value = (0, b"airflow", "")
@@ -95,7 +95,7 @@ class TestSSHOperator:
             )
         assert conn_timeout == task.hook.conn_timeout
         assert cmd_timeout_expected == task.hook.cmd_timeout
-        assert "ssh_default" == task.hook.ssh_conn_id
+        assert task.hook.ssh_conn_id == "ssh_default"
 
     @pytest.mark.parametrize(
         ("enable_xcom_pickling", "output", "expected"),

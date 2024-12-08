@@ -40,7 +40,7 @@ class TestPigOperator:
         # converts when pigparams_jinja_translate = true
         operator = PigOperator(pig=pig, task_id=task_id, pigparams_jinja_translate=True)
         operator.prepare_template()
-        assert "sh echo {{ DATE }};" == operator.pig
+        assert operator.pig == "sh echo {{ DATE }};"
 
     @pytest.mark.db_test
     @mock.patch.object(PigCliHook, "run_cli")

@@ -27,7 +27,6 @@ from airflow.configuration import conf
 from airflow.utils.usage_data_collection import (
     get_database_version,
     get_python_version,
-    to_bucket,
     usage_data_collection,
 )
 
@@ -35,8 +34,9 @@ from airflow.utils.usage_data_collection import (
 @pytest.mark.parametrize("is_enabled, is_prerelease", [(False, True), (True, True)])
 @mock.patch("httpx.get")
 def test_scarf_analytics_disabled(mock_get, is_enabled, is_prerelease):
-    with mock.patch("airflow.settings.is_usage_data_collection_enabled", return_value=is_enabled), mock.patch(
-        "airflow.utils.usage_data_collection._version_is_prerelease", return_value=is_prerelease
+    with (
+        mock.patch("airflow.settings.is_usage_data_collection_enabled", return_value=is_enabled),
+        mock.patch("airflow.utils.usage_data_collection._version_is_prerelease", return_value=is_prerelease),
     ):
         usage_data_collection()
     mock_get.assert_not_called()
@@ -44,12 +44,14 @@ def test_scarf_analytics_disabled(mock_get, is_enabled, is_prerelease):
 
 @mock.patch("airflow.settings.is_usage_data_collection_enabled", return_value=True)
 @mock.patch("airflow.utils.usage_data_collection._version_is_prerelease", return_value=False)
+@mock.patch("airflow.utils.usage_data_collection._is_ci_environ", return_value=False)
 @mock.patch("airflow.utils.usage_data_collection.get_database_version", return_value="12.3")
 @mock.patch("airflow.utils.usage_data_collection.get_database_name", return_value="postgres")
 @mock.patch("httpx.get")
 def test_scarf_analytics(
     mock_get,
     mock_is_usage_data_collection_enabled,
+    mock_version_is_ci,
     mock_version_is_prerelease,
     get_database_version,
     get_database_name,
@@ -74,7 +76,6 @@ def test_scarf_analytics(
     mock_get.assert_called_once_with(expected_scarf_url, timeout=5.0)
 
 
-@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 @pytest.mark.parametrize(
     "version_info, expected_version",
@@ -101,20 +102,3 @@ def test_get_database_version(version_info, expected_version):
 def test_get_python_version(version_info, expected_version):
     with mock.patch("platform.python_version", return_value=version_info):
         assert get_python_version() == expected_version
-
-
-@pytest.mark.parametrize(
-    "counter, expected_bucket",
-    [
-        (0, "0"),
-        (1, "1-5"),
-        (5, "1-5"),
-        (6, "6-10"),
-        (11, "11-20"),
-        (20, "11-20"),
-        (21, "21-50"),
-        (10000, "2000+"),
-    ],
-)
-def test_to_bucket(counter, expected_bucket):
-    assert to_bucket(counter) == expected_bucket

@@ -24,7 +24,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from google.cloud.dataform_v1beta1 import WorkflowInvocation
+from google.cloud.dataform_v1beta1 import WorkflowInvocation, WorkflowInvocationAction
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import BigQueryDeleteDatasetOperator
@@ -45,7 +45,10 @@ from airflow.providers.google.cloud.operators.dataform import (
     DataformRemoveFileOperator,
     DataformWriteFileOperator,
 )
-from airflow.providers.google.cloud.sensors.dataform import DataformWorkflowInvocationStateSensor
+from airflow.providers.google.cloud.sensors.dataform import (
+    DataformWorkflowInvocationActionStateSensor,
+    DataformWorkflowInvocationStateSensor,
+)
 from airflow.providers.google.cloud.utils.dataform import make_initialization_workspace_flow
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -168,11 +171,31 @@ with DAG(
         region=REGION,
         repository_id=REPOSITORY_ID,
         workflow_invocation_id=(
-            "{{ task_instance.xcom_pull('create-workflow-invocation')['name'].split('/')[-1] }}"
+            "{{ task_instance.xcom_pull('create-workflow-invocation-async')['name'].split('/')[-1] }}"
         ),
         expected_statuses={WorkflowInvocation.State.SUCCEEDED},
     )
     # [END howto_operator_create_workflow_invocation_async]
+
+    # [START howto_operator_create_workflow_invocation_action_async]
+    is_workflow_invocation_action_done = DataformWorkflowInvocationActionStateSensor(
+        task_id="is-workflow-invocation-action-done",
+        project_id=PROJECT_ID,
+        region=REGION,
+        repository_id=REPOSITORY_ID,
+        workflow_invocation_id=(
+            "{{ task_instance.xcom_pull('create-workflow-invocation-async')['name'].split('/')[-1] }}"
+        ),
+        target_name="first_view",
+        expected_statuses={WorkflowInvocationAction.State.SUCCEEDED},
+        failure_statuses={
+            WorkflowInvocationAction.State.SKIPPED,
+            WorkflowInvocationAction.State.DISABLED,
+            WorkflowInvocationAction.State.CANCELLED,
+            WorkflowInvocationAction.State.FAILED,
+        },
+    )
+    # [END howto_operator_create_workflow_invocation_action_async]
 
     # [START howto_operator_get_workflow_invocation]
     get_workflow_invocation = DataformGetWorkflowInvocationOperator(
@@ -306,35 +329,48 @@ with DAG(
     )
     (
         last_initialization_step
-        >> install_npm_packages
-        >> create_compilation_result
-        >> get_compilation_result
-        >> create_workflow_invocation
-        >> get_workflow_invocation
-        >> query_workflow_invocation_actions
-        >> create_workflow_invocation_async
-        >> is_workflow_invocation_done
-        >> create_workflow_invocation_for_cancel
-        >> cancel_workflow_invocation
         >> make_test_directory
         >> write_test_file
-        # TEST TEARDOWN
         >> remove_test_file
         >> remove_test_directory
         >> delete_dataset
-        >> delete_workspace
-        >> delete_repository
+    )
+    (
+        last_initialization_step
+        >> install_npm_packages
+        >> create_compilation_result
+        >> [
+            get_compilation_result,
+            create_workflow_invocation,
+            create_workflow_invocation_async,
+            create_workflow_invocation_for_cancel,
+        ]
+    )
+    (
+        create_workflow_invocation
+        >> [get_workflow_invocation, query_workflow_invocation_actions]
+        >> delete_dataset
+    )
+    (
+        create_workflow_invocation_async
+        >> [is_workflow_invocation_done, is_workflow_invocation_action_done]
+        >> delete_dataset
+    )
+    create_workflow_invocation_for_cancel >> cancel_workflow_invocation >> delete_dataset
+    (
+        # TEST TEARDOWN
+        delete_dataset >> delete_workspace >> delete_repository
     )
 
     # ### Everything below this line is not part of example ###
     # ### Just for system tests purpose ###
-    from dev.tests_common.test_utils.watcher import watcher
+    from tests_common.test_utils.watcher import watcher
 
     # This test needs watcher in order to properly mark success/failure
     # when "tearDown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
 
-from dev.tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

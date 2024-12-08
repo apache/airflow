@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This DAG will use Papermill to run the notebook "hello_world", based on the execution date
+This DAG will use Papermill to run the notebook "hello_world", based on the logical date
 it will create an output notebook "out-<date>". All fields, including the keys in the parameters, are
 templated.
 """
@@ -52,7 +52,7 @@ with DAG(
     )
     # [END howto_operator_papermill]
 
-from dev.tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

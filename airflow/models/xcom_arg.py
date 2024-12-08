@@ -20,31 +20,30 @@ from __future__ import annotations
 import contextlib
 import inspect
 import itertools
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Mapping, Sequence, Union, overload
+from collections.abc import Iterable, Iterator, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Union, overload
 
 from sqlalchemy import func, or_, select
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.exceptions import AirflowException, XComNotFound
 from airflow.models import MappedOperator, TaskInstance
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.taskmixin import DependencyMixin
+from airflow.sdk.types import NOTSET, ArgNotSet
 from airflow.utils.db import exists_query
 from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import NOTSET, ArgNotSet
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.baseoperator import BaseOperator
-    from airflow.models.dag import DAG
     from airflow.models.operator import Operator
-    from airflow.models.taskmixin import DAGNode
+    from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.definitions.dag import DAG
     from airflow.utils.context import Context
     from airflow.utils.edgemodifier import EdgeModifier
 
@@ -122,7 +121,7 @@ class XComArg(ResolveMixin, DependencyMixin):
                 yield from XComArg.iter_xcom_references(getattr(arg, attr))
 
     @staticmethod
-    def apply_upstream_relationship(op: Operator, arg: Any):
+    def apply_upstream_relationship(op: DependencyMixin, arg: Any):
         """
         Set dependency for XComArgs.
 
@@ -134,12 +133,12 @@ class XComArg(ResolveMixin, DependencyMixin):
             op.set_upstream(operator)
 
     @property
-    def roots(self) -> list[DAGNode]:
+    def roots(self) -> list[Operator]:
         """Required by DependencyMixin."""
         return [op for op, _ in self.iter_references()]
 
     @property
-    def leaves(self) -> list[DAGNode]:
+    def leaves(self) -> list[Operator]:
         """Required by DependencyMixin."""
         return [op for op, _ in self.iter_references()]
 
@@ -230,53 +229,6 @@ class XComArg(ResolveMixin, DependencyMixin):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         SetupTeardownContext.set_work_task_roots_and_leaves()
-
-
-@internal_api_call
-@provide_session
-def _get_task_map_length(
-    *,
-    dag_id: str,
-    task_id: str,
-    run_id: str,
-    is_mapped: bool,
-    session: Session = NEW_SESSION,
-) -> int | None:
-    from airflow.models.taskinstance import TaskInstance
-    from airflow.models.taskmap import TaskMap
-    from airflow.models.xcom import XCom
-
-    if is_mapped:
-        unfinished_ti_exists = exists_query(
-            TaskInstance.dag_id == dag_id,
-            TaskInstance.run_id == run_id,
-            TaskInstance.task_id == task_id,
-            # Special NULL treatment is needed because 'state' can be NULL.
-            # The "IN" part would produce "NULL NOT IN ..." and eventually
-            # "NULl = NULL", which is a big no-no in SQL.
-            or_(
-                TaskInstance.state.is_(None),
-                TaskInstance.state.in_(s.value for s in State.unfinished if s is not None),
-            ),
-            session=session,
-        )
-        if unfinished_ti_exists:
-            return None  # Not all of the expanded tis are done yet.
-        query = select(func.count(XCom.map_index)).where(
-            XCom.dag_id == dag_id,
-            XCom.run_id == run_id,
-            XCom.task_id == task_id,
-            XCom.map_index >= 0,
-            XCom.key == XCOM_RETURN_KEY,
-        )
-    else:
-        query = select(TaskMap.length).where(
-            TaskMap.dag_id == dag_id,
-            TaskMap.run_id == run_id,
-            TaskMap.task_id == task_id,
-            TaskMap.map_index < 0,
-        )
-    return session.scalar(query)
 
 
 class PlainXComArg(XComArg):
@@ -394,15 +346,15 @@ class PlainXComArg(XComArg):
     def as_teardown(
         self,
         *,
-        setups: BaseOperator | Iterable[BaseOperator] | ArgNotSet = NOTSET,
-        on_failure_fail_dagrun=NOTSET,
+        setups: BaseOperator | Iterable[BaseOperator] | None = None,
+        on_failure_fail_dagrun: bool | None = None,
     ):
         for operator, _ in self.iter_references():
             operator.is_teardown = True
             operator.trigger_rule = TriggerRule.ALL_DONE_SETUP_SUCCESS
-            if on_failure_fail_dagrun is not NOTSET:
+            if on_failure_fail_dagrun is not None:
                 operator.on_failure_fail_dagrun = on_failure_fail_dagrun
-            if not isinstance(setups, ArgNotSet):
+            if setups is not None:
                 setups = [setups] if isinstance(setups, DependencyMixin) else setups
                 for s in setups:
                     s.is_setup = True
@@ -428,13 +380,45 @@ class PlainXComArg(XComArg):
         return super().concat(*others)
 
     def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
-        return _get_task_map_length(
-            dag_id=self.operator.dag_id,
-            task_id=self.operator.task_id,
-            is_mapped=isinstance(self.operator, MappedOperator),
-            run_id=run_id,
-            session=session,
-        )
+        from airflow.models.taskinstance import TaskInstance
+        from airflow.models.taskmap import TaskMap
+        from airflow.models.xcom import XCom
+
+        dag_id = self.operator.dag_id
+        task_id = self.operator.task_id
+        is_mapped = isinstance(self.operator, MappedOperator)
+
+        if is_mapped:
+            unfinished_ti_exists = exists_query(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.run_id == run_id,
+                TaskInstance.task_id == task_id,
+                # Special NULL treatment is needed because 'state' can be NULL.
+                # The "IN" part would produce "NULL NOT IN ..." and eventually
+                # "NULl = NULL", which is a big no-no in SQL.
+                or_(
+                    TaskInstance.state.is_(None),
+                    TaskInstance.state.in_(s.value for s in State.unfinished if s is not None),
+                ),
+                session=session,
+            )
+            if unfinished_ti_exists:
+                return None  # Not all of the expanded tis are done yet.
+            query = select(func.count(XCom.map_index)).where(
+                XCom.dag_id == dag_id,
+                XCom.run_id == run_id,
+                XCom.task_id == task_id,
+                XCom.map_index >= 0,
+                XCom.key == XCOM_RETURN_KEY,
+            )
+        else:
+            query = select(TaskMap.length).where(
+                TaskMap.dag_id == dag_id,
+                TaskMap.run_id == run_id,
+                TaskMap.task_id == task_id,
+                TaskMap.map_index < 0,
+            )
+        return session.scalar(query)
 
     @provide_session
     def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:

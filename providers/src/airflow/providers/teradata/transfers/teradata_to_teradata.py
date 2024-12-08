@@ -17,8 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
 from airflow.providers.teradata.hooks.teradata import TeradataHook
@@ -90,7 +91,7 @@ class TeradataToTeradataOperator(BaseOperator):
             rows_total = 0
             if len(target_fields) != 0:
                 for rows in iter(lambda: cursor.fetchmany(self.rows_chunk), []):
-                    dest_hook.bulk_insert_rows(
+                    dest_hook.insert_rows(
                         self.destination_table,
                         rows,
                         target_fields=target_fields,

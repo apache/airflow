@@ -29,17 +29,16 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from dev.tests_common.test_utils.db import clear_db_runs, clear_db_sla_miss, clear_rendered_ti_fields
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
     delete_roles,
     delete_user,
 )
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.db import clear_db_runs, clear_rendered_ti_fields
 
 pytestmark = [
     pytest.mark.db_test,
-    pytest.mark.skip_if_database_isolation_mode,
     pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3.0+"),
 ]
 
@@ -109,7 +108,7 @@ class TestTaskInstanceEndpoint:
     def setup_attrs(self, configured_app, dagbag) -> None:
         self.default_time = DEFAULT_DATETIME_1
         self.ti_init = {
-            "execution_date": self.default_time,
+            "logical_date": self.default_time,
             "state": State.RUNNING,
         }
         self.ti_extras = {
@@ -124,7 +123,6 @@ class TestTaskInstanceEndpoint:
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
         clear_db_runs()
-        clear_db_sla_miss()
         clear_rendered_ti_fields()
         self.dagbag = dagbag
 
@@ -146,7 +144,7 @@ class TestTaskInstanceEndpoint:
             counter = min(len(task_instances), counter)
 
         run_id = "TEST_DAG_RUN_ID"
-        execution_date = self.ti_init.pop("execution_date", self.default_time)
+        logical_date = self.ti_init.pop("logical_date", self.default_time)
         dr = None
 
         tis = []
@@ -158,16 +156,16 @@ class TestTaskInstanceEndpoint:
             else:
                 self.ti_init.update(task_instances[i])
 
-            if "execution_date" in self.ti_init:
+            if "logical_date" in self.ti_init:
                 run_id = f"TEST_DAG_RUN_ID_{i}"
-                execution_date = self.ti_init.pop("execution_date")
+                logical_date = self.ti_init.pop("logical_date")
                 dr = None
 
             if not dr:
                 dr = DagRun(
                     run_id=run_id,
                     dag_id=dag_id,
-                    execution_date=execution_date,
+                    logical_date=logical_date,
                     run_type=DagRunType.MANUAL,
                     state=dag_run_state,
                 )
@@ -248,7 +246,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             self.create_task_instances(
                 session,
                 task_instances=[
-                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=i)}
+                    {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=i)}
                     for i in range(task_instances[dag_id])
                 ],
                 dag_id=dag_id,
@@ -380,7 +378,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
             json={
                 "dry_run": True,
                 "task_id": "print_the_context",
-                "execution_date": DEFAULT_DATETIME_1.isoformat(),
+                "logical_date": DEFAULT_DATETIME_1.isoformat(),
                 "include_upstream": True,
                 "include_downstream": True,
                 "include_future": True,

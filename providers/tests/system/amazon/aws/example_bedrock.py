@@ -63,7 +63,7 @@ SKIP_LONG_TASKS = environ.get("SKIP_LONG_SYSTEM_TEST_TASKS", default=True)
 SKIP_PROVISION_THROUGHPUT = environ.get("SKIP_RESTRICTED_SYSTEM_TEST_TASKS", default=True)
 
 
-LLAMA_SHORT_MODEL_ID = "meta.llama2-13b-chat-v1"
+LLAMA_SHORT_MODEL_ID = "meta.llama3-8b-instruct-v1:0"
 TITAN_MODEL_ID = "amazon.titan-text-express-v1:0:8k"
 TITAN_SHORT_MODEL_ID = TITAN_MODEL_ID.split(":")[0]
 
@@ -218,14 +218,14 @@ with DAG(
         delete_bucket,
     )
 
-    from dev.tests_common.test_utils.watcher import watcher
+    from tests_common.test_utils.watcher import watcher
 
     # This test needs watcher in order to properly mark success/failure
     # when "tearDown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
 
 
-from dev.tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

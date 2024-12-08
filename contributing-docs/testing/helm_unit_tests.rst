@@ -25,8 +25,7 @@ add them in ``helm_tests``.
 
 .. code-block:: python
 
-    class TestBaseChartTest:
-        ...
+    class TestBaseChartTest: ...
 
 To render the chart create a YAML string with the nested dictionary of options you wish to test. You can then
 use our ``render_chart`` function to render the object of interest into a testable Python dictionary. Once the chart
@@ -71,7 +70,7 @@ so rather than running all tests, you can run only tests from a selected package
 
 .. code-block:: bash
 
-    breeze testing helm-tests --helm-test-package basic
+    breeze testing helm-tests --test-type basic
 
 Will run all tests from ``tests-charts/basic`` package.
 

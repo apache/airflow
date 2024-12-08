@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from dev.tests_common.test_utils.compat import ignore_provider_compatibility_error
+from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.security_manager.constants import EXISTING_ROLES
@@ -24,10 +24,10 @@ with ignore_provider_compatibility_error("2.9.0+", __file__):
 
 class TestFbSecurityManagerConstants:
     def test_existing_roles(self):
-        assert EXISTING_ROLES == {
+        assert {
             "Admin",
             "Viewer",
             "User",
             "Op",
             "Public",
-        }
+        } == EXISTING_ROLES

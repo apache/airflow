@@ -157,7 +157,7 @@ task_get_paginated = HttpOperator(
 task_get_op_response_filter >> task_put_op >> task_del_op >> task_post_op_formenc
 task_post_op_formenc >> task_get_paginated
 
-from dev.tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

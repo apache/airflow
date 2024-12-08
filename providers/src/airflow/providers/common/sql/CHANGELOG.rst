@@ -25,6 +25,49 @@
 Changelog
 ---------
 
+main
+.....
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the Common SQL provider package.
+  The following breaking changes were introduced:
+
+  * Hooks
+      * Remove ``_make_serializable`` method from ``DbApiHook``. Use ``_make_common_data_structure`` instead.
+
+1.20.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Start porting DAG definition code to the Task SDK (#43076)``
+
+1.19.0
+......
+
+Features
+~~~~~~~~
+
+* ``Feature: Added fast_executemany parameter to insert_rows of DbApiHook (#43357)``
+* ``Make conn id parameters templated in GenericTransfer and also allow passing hook parameters like in BaseSQLOperator (#42891)``
+* ``Allow capture of replication lag in SqlSensor (#43107)``
+
+Misc
+~~~~
+
+* ``fix mypy failure (#43206)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+
 1.18.0
 ......
 

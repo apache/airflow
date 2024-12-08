@@ -40,8 +40,8 @@ from airflow.providers.amazon.aws.transfers.s3_to_sql import S3ToSqlOperator
 from airflow.providers.common.sql.operators.sql import SQLTableCheckOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-from dev.tests_common.test_utils.watcher import watcher
 from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from tests_common.test_utils.watcher import watcher
 
 # Externally fetched variables:
 SECURITY_GROUP_KEY = "SECURITY_GROUP"
@@ -254,7 +254,7 @@ with DAG(
 
     list(dag.tasks) >> watcher()
 
-from dev.tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

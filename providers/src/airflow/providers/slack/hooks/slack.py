@@ -19,16 +19,16 @@ from __future__ import annotations
 
 import json
 import warnings
+from collections.abc import Sequence
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Sequence, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 
-from deprecated import deprecated
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from typing_extensions import NotRequired
 
-from airflow.exceptions import AirflowNotFoundException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.providers.slack.utils import ConnectionExtraConfig
 from airflow.utils.helpers import exactly_one
@@ -185,66 +185,6 @@ class SlackHook(BaseHook):
         """
         return self.client.api_call(api_method, **kwargs)
 
-    @deprecated(
-        reason=(
-            "This method utilise `files.upload` Slack API method which is being sunset on March 11, 2025. "
-            "Beginning May 8, 2024, newly-created apps will be unable to 'files.upload' Slack API. "
-            "Please use `send_file_v2` or `send_file_v1_to_v2` instead."
-        ),
-        category=AirflowProviderDeprecationWarning,
-    )
-    def send_file(
-        self,
-        *,
-        channels: str | Sequence[str] | None = None,
-        file: str | Path | None = None,
-        content: str | None = None,
-        filename: str | None = None,
-        filetype: str | None = None,
-        initial_comment: str | None = None,
-        title: str | None = None,
-    ) -> SlackResponse:
-        """
-        Create or upload an existing file.
-
-        :param channels: Comma-separated list of channel names or IDs where the file will be shared.
-            If omitting this parameter, then file will send to workspace.
-        :param file: Path to file which need to be sent.
-        :param content: File contents. If omitting this parameter, you must provide a file.
-        :param filename: Displayed filename.
-        :param filetype: A file type identifier.
-        :param initial_comment: The message text introducing the file in specified ``channels``.
-        :param title: Title of file.
-
-        .. seealso::
-            - `Slack API files.upload method <https://api.slack.com/methods/files.upload>`_
-            - `File types <https://api.slack.com/types/file#file_types>`_
-        """
-        if not exactly_one(file, content):
-            raise ValueError("Either `file` or `content` must be provided, not both.")
-        elif file:
-            file = Path(file)
-            with open(file, "rb") as fp:
-                if not filename:
-                    filename = file.name
-                return self.client.files_upload(
-                    file=fp,
-                    filename=filename,
-                    filetype=filetype,
-                    initial_comment=initial_comment,
-                    title=title,
-                    channels=channels,
-                )
-
-        return self.client.files_upload(
-            content=content,
-            filename=filename,
-            filetype=filetype,
-            initial_comment=initial_comment,
-            title=title,
-            channels=channels,
-        )
-
     def send_file_v2(
         self,
         *,
@@ -295,7 +235,8 @@ class SlackHook(BaseHook):
         filename: str | None = None,
         initial_comment: str | None = None,
         title: str | None = None,
-        filetype: str | None = None,
+        snippet_type: str | None = None,
+        **kwargs,
     ) -> list[SlackResponse]:
         """
         Smooth transition between ``send_file`` and ``send_file_v2`` methods.
@@ -308,7 +249,7 @@ class SlackHook(BaseHook):
         :param filename: Displayed filename.
         :param initial_comment: The message text introducing the file in specified ``channels``.
         :param title: Title of the file.
-        :param filetype: A file type identifier.
+        :param snippet_type: Syntax type for the content being uploaded.
         """
         if not exactly_one(file, content):
             raise ValueError("Either `file` or `content` must be provided, not both.")
@@ -318,7 +259,7 @@ class SlackHook(BaseHook):
         else:
             file_uploads = {"content": content, "filename": filename}
 
-        file_uploads.update({"title": title, "snippet_type": filetype})
+        file_uploads.update({"title": title, "snippet_type": snippet_type})
 
         if channels:
             if isinstance(channels, str):

@@ -26,14 +26,13 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     set_task_instance_state_form,
     task_instance_schema,
 )
-from airflow.models import RenderedTaskInstanceFields as RTIF, SlaMiss, TaskInstance as TI
+from airflow.models import TaskInstance as TI
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.platform import getuser
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
 
-@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 class TestTaskInstanceSchema:
     @pytest.fixture(autouse=True)
@@ -42,7 +41,7 @@ class TestTaskInstanceSchema:
         with dag_maker(dag_id="TEST_DAG_ID", session=session):
             self.task = EmptyOperator(task_id="TEST_TASK_ID", start_date=self.default_time)
 
-        self.dr = dag_maker.create_dagrun(execution_date=self.default_time)
+        self.dr = dag_maker.create_dagrun(logical_date=self.default_time)
         session.flush()
 
         self.default_ti_init = {
@@ -64,17 +63,17 @@ class TestTaskInstanceSchema:
 
         session.rollback()
 
-    def test_task_instance_schema_without_sla_and_rendered(self, session):
+    def test_task_instance_schema_without_rendered(self, session):
         ti = TI(task=self.task, **self.default_ti_init)
         session.add(ti)
         for key, value in self.default_ti_extras.items():
             setattr(ti, key, value)
-        serialized_ti = task_instance_schema.dump((ti, None, None))
+        serialized_ti = task_instance_schema.dump(ti)
         expected_json = {
             "dag_id": "TEST_DAG_ID",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
-            "execution_date": "2020-01-01T00:00:00+00:00",
+            "logical_date": "2020-01-01T00:00:00+00:00",
             "executor": None,
             "executor_config": "{}",
             "hostname": "",
@@ -88,7 +87,6 @@ class TestTaskInstanceSchema:
             "priority_weight": 1,
             "queue": "default_queue",
             "queued_when": None,
-            "sla_miss": None,
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "running",
             "task_id": "TEST_TASK_ID",
@@ -97,63 +95,6 @@ class TestTaskInstanceSchema:
             "unixname": getuser(),
             "dag_run_id": None,
             "rendered_fields": {},
-            "rendered_map_index": None,
-            "trigger": None,
-            "triggerer_job": None,
-        }
-        assert serialized_ti == expected_json
-
-    def test_task_instance_schema_with_sla_and_rendered(self, session):
-        sla_miss = SlaMiss(
-            task_id="TEST_TASK_ID",
-            dag_id="TEST_DAG_ID",
-            execution_date=self.default_time,
-        )
-        session.add(sla_miss)
-        session.flush()
-        ti = TI(task=self.task, **self.default_ti_init)
-        session.add(ti)
-        for key, value in self.default_ti_extras.items():
-            setattr(ti, key, value)
-        self.task.template_fields = ["partitions"]
-        setattr(self.task, "partitions", "data/ds=2022-02-17")
-        ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
-        serialized_ti = task_instance_schema.dump((ti, sla_miss))
-        expected_json = {
-            "dag_id": "TEST_DAG_ID",
-            "duration": 10000.0,
-            "end_date": "2020-01-03T00:00:00+00:00",
-            "execution_date": "2020-01-01T00:00:00+00:00",
-            "executor": None,
-            "executor_config": "{}",
-            "hostname": "",
-            "map_index": -1,
-            "max_tries": 0,
-            "note": "added some notes",
-            "operator": "EmptyOperator",
-            "pid": 100,
-            "pool": "default_pool",
-            "pool_slots": 1,
-            "priority_weight": 1,
-            "queue": "default_queue",
-            "queued_when": None,
-            "sla_miss": {
-                "dag_id": "TEST_DAG_ID",
-                "description": None,
-                "email_sent": False,
-                "execution_date": "2020-01-01T00:00:00+00:00",
-                "notification_sent": False,
-                "task_id": "TEST_TASK_ID",
-                "timestamp": None,
-            },
-            "start_date": "2020-01-02T00:00:00+00:00",
-            "state": "running",
-            "task_id": "TEST_TASK_ID",
-            "task_display_name": "TEST_TASK_ID",
-            "try_number": 0,
-            "unixname": getuser(),
-            "dag_run_id": None,
-            "rendered_fields": {"partitions": "data/ds=2022-02-17"},
             "rendered_map_index": None,
             "trigger": None,
             "triggerer_job": None,
@@ -224,7 +165,7 @@ class TestSetTaskInstanceStateFormSchema:
     current_input = {
         "dry_run": True,
         "task_id": "print_the_context",
-        "execution_date": "2020-01-01T00:00:00+00:00",
+        "dag_run_id": "test_run_id",
         "include_upstream": True,
         "include_downstream": True,
         "include_future": True,
@@ -236,7 +177,7 @@ class TestSetTaskInstanceStateFormSchema:
         result = set_task_instance_state_form.load(self.current_input)
         expected_result = {
             "dry_run": True,
-            "execution_date": dt.datetime(2020, 1, 1, 0, 0, tzinfo=dt.timezone(dt.timedelta(0), "+0000")),
+            "dag_run_id": "test_run_id",
             "include_downstream": True,
             "include_future": True,
             "include_past": True,
@@ -252,7 +193,7 @@ class TestSetTaskInstanceStateFormSchema:
         result = set_task_instance_state_form.load(self.current_input)
         expected_result = {
             "dry_run": True,
-            "execution_date": dt.datetime(2020, 1, 1, 0, 0, tzinfo=dt.timezone(dt.timedelta(0), "+0000")),
+            "dag_run_id": "test_run_id",
             "include_downstream": True,
             "include_future": True,
             "include_past": True,
@@ -267,9 +208,8 @@ class TestSetTaskInstanceStateFormSchema:
         [
             {"task_id": None},
             {"include_future": "foo"},
-            {"execution_date": "NOW"},
             {"new_state": "INVALID_STATE"},
-            {"execution_date": "2020-01-01T00:00:00+00:00", "dag_run_id": "some-run-id"},
+            {"logical_date": "2020-01-01T00:00:00+00:00", "dag_run_id": "some-run-id"},
         ],
     )
     def test_validation_error(self, override_data):

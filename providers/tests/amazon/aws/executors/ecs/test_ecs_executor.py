@@ -57,9 +57,9 @@ from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import utcnow
 from airflow.version import version as airflow_version_str
 
-from dev.tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
-from dev.tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
+from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
@@ -172,9 +172,9 @@ def mock_executor(set_env_vars) -> AwsEcsExecutor:
 class TestEcsTaskCollection:
     """Tests EcsTaskCollection Class."""
 
-    # You can't use a fixture in setup_method unless you declare setup_method to be a fixture itself.
+    # You can't use a fixture in _setup_method unless you declare _setup_method to be a fixture itself.
     @pytest.fixture(autouse=True)
-    def setup_method(self, mock_airflow_key):
+    def _setup_method(self, mock_airflow_key):
         # Create a new Collection and verify it is empty.
         self.collection = EcsTaskCollection()
         assert len(self.collection) == 0
@@ -304,21 +304,21 @@ class TestEcsExecutorTask:
             ),
         ]
         for task in queued_tasks:
-            assert State.QUEUED == task.get_task_state()
+            assert task.get_task_state() == State.QUEUED
 
     def test_running_tasks(self):
         """Tasks that have been launched are identified as 'running'."""
         running_task = EcsExecutorTask(
             task_arn=ARN1, last_status="RUNNING", desired_status="RUNNING", containers=[{}]
         )
-        assert State.RUNNING == running_task.get_task_state()
+        assert running_task.get_task_state() == State.RUNNING
 
     def test_running_tasks_edge_cases(self):
         """Tasks that are not finished have been launched are identified as 'running'."""
         running_task = EcsExecutorTask(
             task_arn=ARN1, last_status="QUEUED", desired_status="SUCCESS", containers=[{}]
         )
-        assert State.RUNNING == running_task.get_task_state()
+        assert running_task.get_task_state() == State.RUNNING
 
     def test_removed_tasks(self):
         """Tasks that failed to launch are identified as 'removed'."""
@@ -332,7 +332,7 @@ class TestEcsExecutorTask:
             ),
         ]
         for task in deprovisioning_tasks:
-            assert State.REMOVED == task.get_task_state()
+            assert task.get_task_state() == State.REMOVED
 
         removed_task = EcsExecutorTask(
             task_arn="DEAD",
@@ -341,7 +341,7 @@ class TestEcsExecutorTask:
             containers=[{}],
             stopped_reason="Timeout waiting for network interface provisioning to complete.",
         )
-        assert State.REMOVED == removed_task.get_task_state()
+        assert removed_task.get_task_state() == State.REMOVED
 
     def test_stopped_tasks(self):
         """Tasks that have terminated are identified as either 'success' or 'failure'."""
@@ -357,7 +357,7 @@ class TestEcsExecutorTask:
                 started_at=dt.datetime.now(),
                 containers=[successful_container],
             )
-            assert State.SUCCESS == success_task.get_task_state()
+            assert success_task.get_task_state() == State.SUCCESS
 
         for status in ("DEACTIVATING", "STOPPING", "DEPROVISIONING", "STOPPED"):
             failed_task = EcsExecutorTask(
@@ -368,7 +368,7 @@ class TestEcsExecutorTask:
                 started_at=dt.datetime.now(),
                 containers=[successful_container, successful_container, error_container],
             )
-            assert State.FAILED == failed_task.get_task_state()
+            assert failed_task.get_task_state() == State.FAILED
 
 
 class TestAwsEcsExecutor:
@@ -392,15 +392,15 @@ class TestAwsEcsExecutor:
             "failures": [],
         }
 
-        assert 0 == len(mock_executor.pending_tasks)
+        assert len(mock_executor.pending_tasks) == 0
         mock_executor.execute_async(airflow_key, mock_cmd)
-        assert 1 == len(mock_executor.pending_tasks)
+        assert len(mock_executor.pending_tasks) == 1
 
         mock_executor.attempt_task_runs()
         mock_executor.ecs.run_task.assert_called_once()
 
         # Task is stored in active worker.
-        assert 1 == len(mock_executor.active_workers)
+        assert len(mock_executor.active_workers) == 1
         assert ARN1 in mock_executor.active_workers.task_by_key(airflow_key).task_arn
         change_state_mock.assert_called_once_with(
             airflow_key, TaskInstanceState.RUNNING, ARN1, remove_running=False
@@ -1004,7 +1004,7 @@ class TestAwsEcsExecutor:
             mock_executor.execute_async(mock_airflow_key, mock_cmd, executor_config=bad_config)
 
         assert raised.match('Executor Config should never override "name" or "command"')
-        assert 0 == len(mock_executor.pending_tasks)
+        assert len(mock_executor.pending_tasks) == 0
 
     @mock.patch.object(ecs_executor_config, "build_task_kwargs")
     def test_container_not_found(self, mock_build_task_kwargs, mock_executor):
@@ -1018,7 +1018,7 @@ class TestAwsEcsExecutor:
                 '"overrides[containerOverrides][containers][x][command]"'
             )
         )
-        assert 0 == len(mock_executor.pending_tasks)
+        assert len(mock_executor.pending_tasks) == 0
 
     def _mock_sync(
         self,
@@ -1190,7 +1190,7 @@ class TestAwsEcsExecutor:
         # Two of the three tasks should be adopted.
         assert len(orphaned_tasks) - 1 == len(mock_executor.active_workers)
         # The remaining one task is unable to be adopted.
-        assert 1 == len(not_adopted_tasks)
+        assert len(not_adopted_tasks) == 1
 
 
 class TestEcsExecutorConfig:

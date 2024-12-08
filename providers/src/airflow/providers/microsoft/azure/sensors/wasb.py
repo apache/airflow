@@ -17,13 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Sequence
-
-from deprecated import deprecated
+from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.providers.microsoft.azure.triggers.wasb import WasbBlobSensorTrigger, WasbPrefixSensorTrigger
 from airflow.sensors.base import BaseSensorOperator
@@ -108,36 +107,6 @@ class WasbBlobSensor(BaseSensorOperator):
             self.log.info(event["message"])
         else:
             raise AirflowException("Did not receive valid event from the triggerer")
-
-
-@deprecated(
-    reason=(
-        "Class `WasbBlobAsyncSensor` is deprecated and "
-        "will be removed in a future release. "
-        "Please use `WasbBlobSensor` and "
-        "set `deferrable` attribute to `True` instead"
-    ),
-    category=AirflowProviderDeprecationWarning,
-)
-class WasbBlobAsyncSensor(WasbBlobSensor):
-    """
-    Poll asynchronously for the existence of a blob in a WASB container.
-
-    This class is deprecated and will be removed in a future release.
-
-    Please use :class:`airflow.providers.microsoft.azure.sensors.wasb.WasbBlobSensor`
-    and set *deferrable* attribute to *True* instead.
-
-    :param container_name: name of the container in which the blob should be searched for
-    :param blob_name: name of the blob to check existence for
-    :param wasb_conn_id: the connection identifier for connecting to Azure WASB
-    :param poke_interval:  polling period in seconds to check for the status
-    :param public_read: whether an anonymous public read access should be used. Default is False
-    :param timeout: Time, in seconds before the task times out and fails.
-    """
-
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs, deferrable=True)
 
 
 class WasbPrefixSensor(BaseSensorOperator):

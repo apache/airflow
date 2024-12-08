@@ -24,7 +24,6 @@ from unittest import mock
 import pytest
 from sqlalchemy import delete
 
-from airflow.assets import Asset, AssetAlias
 from airflow.assets.manager import AssetManager
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import (
@@ -37,7 +36,9 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
+from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
+
 from tests.listeners import asset_listener
 
 pytestmark = pytest.mark.db_test
@@ -48,7 +49,7 @@ pytest.importorskip("pydantic", minversion="2.0.0")
 
 @pytest.fixture
 def clear_assets():
-    from dev.tests_common.test_utils.db import clear_db_assets
+    from tests_common.test_utils.db import clear_db_assets
 
     clear_db_assets()
     yield
@@ -58,13 +59,14 @@ def clear_assets():
 @pytest.fixture
 def mock_task_instance():
     return TaskInstancePydantic(
+        id="1",
         task_id="5",
         dag_id="7",
         run_id="11",
         map_index="13",
         start_date=datetime.now(),
         end_date=datetime.now(),
-        execution_date=datetime.now(),
+        logical_date=datetime.now(),
         duration=0.1,
         state="success",
         try_number=1,
@@ -90,6 +92,7 @@ def mock_task_instance():
         trigger_timeout=datetime.now(),
         next_method="bla",
         next_kwargs=None,
+        dag_version_id=None,
         run_as_user=None,
         task=None,
         test_mode=False,
@@ -109,7 +112,7 @@ def create_mock_dag():
 
 class TestAssetManager:
     def test_register_asset_change_asset_doesnt_exist(self, mock_task_instance):
-        asset = Asset(uri="asset_doesnt_exist")
+        asset = Asset(uri="asset_doesnt_exist", name="not exist")
 
         mock_session = mock.Mock()
         # Gotta mock up the query results
@@ -120,7 +123,7 @@ class TestAssetManager:
             task_instance=mock_task_instance, asset=asset, session=mock_session
         )
 
-        # Ensure that we have ignored the asset and _not_ created a AssetEvent or
+        # Ensure that we have ignored the asset and _not_ created an AssetEvent or
         # AssetDagRunQueue rows
         mock_session.add.assert_not_called()
         mock_session.merge.assert_not_called()
@@ -128,12 +131,12 @@ class TestAssetManager:
     def test_register_asset_change(self, session, dag_maker, mock_task_instance):
         asset_manager = AssetManager()
 
-        asset = Asset(uri="test_asset_uri")
+        asset = Asset(uri="test://asset1", name="test_asset_uri", group="asset")
         dag1 = DagModel(dag_id="dag1", is_active=True)
         dag2 = DagModel(dag_id="dag2", is_active=True)
         session.add_all([dag1, dag2])
 
-        asm = AssetModel(uri="test_asset_uri")
+        asm = AssetModel(uri="test://asset1/", name="test_asset_uri", group="asset")
         session.add(asm)
         asm.consuming_dags = [DagScheduleAssetReference(dag_id=dag.dag_id) for dag in (dag1, dag2)]
         session.execute(delete(AssetDagRunQueue))
@@ -143,7 +146,7 @@ class TestAssetManager:
         session.flush()
 
         # Ensure we've created an asset
-        assert session.query(AssetEvent).filter_by(dataset_id=asm.id).count() == 1
+        assert session.query(AssetEvent).filter_by(asset_id=asm.id).count() == 1
         assert session.query(AssetDagRunQueue).count() == 2
 
     @pytest.mark.usefixtures("clear_assets")
@@ -152,10 +155,10 @@ class TestAssetManager:
         consumer_dag_2 = DagModel(dag_id="conumser_2", is_active=True, fileloc="dag2.py")
         session.add_all([consumer_dag_1, consumer_dag_2])
 
-        asm = AssetModel(uri="test_asset_uri")
+        asm = AssetModel(uri="test://asset1/", name="test_asset_uri", group="asset")
         session.add(asm)
 
-        asam = AssetAliasModel(name="test_alias_name")
+        asam = AssetAliasModel(name="test_alias_name", group="test")
         session.add(asam)
         asam.consuming_dags = [
             DagScheduleAssetAliasReference(alias_id=asam.id, dag_id=dag.dag_id)
@@ -164,8 +167,8 @@ class TestAssetManager:
         session.execute(delete(AssetDagRunQueue))
         session.flush()
 
-        asset = Asset(uri="test_asset_uri")
-        asset_alias = AssetAlias(name="test_alias_name")
+        asset = Asset(uri="test://asset1", name="test_asset_uri")
+        asset_alias = AssetAlias(name="test_alias_name", group="test")
         asset_manager = AssetManager()
         asset_manager.register_asset_change(
             task_instance=mock_task_instance,
@@ -177,15 +180,15 @@ class TestAssetManager:
         session.flush()
 
         # Ensure we've created an asset
-        assert session.query(AssetEvent).filter_by(dataset_id=asm.id).count() == 1
+        assert session.query(AssetEvent).filter_by(asset_id=asm.id).count() == 1
         assert session.query(AssetDagRunQueue).count() == 2
         assert session.query(DagPriorityParsingRequest).count() == 2
 
     def test_register_asset_change_no_downstreams(self, session, mock_task_instance):
         asset_manager = AssetManager()
 
-        asset = Asset(uri="never_consumed")
-        asm = AssetModel(uri="never_consumed")
+        asset = Asset(uri="test://asset1", name="never_consumed")
+        asm = AssetModel(uri="test://asset1/", name="never_consumed", group="asset")
         session.add(asm)
         session.execute(delete(AssetDagRunQueue))
         session.flush()
@@ -194,20 +197,19 @@ class TestAssetManager:
         session.flush()
 
         # Ensure we've created an asset
-        assert session.query(AssetEvent).filter_by(dataset_id=asm.id).count() == 1
+        assert session.query(AssetEvent).filter_by(asset_id=asm.id).count() == 1
         assert session.query(AssetDagRunQueue).count() == 0
 
-    @pytest.mark.skip_if_database_isolation_mode
     def test_register_asset_change_notifies_asset_listener(self, session, mock_task_instance):
         asset_manager = AssetManager()
         asset_listener.clear()
         get_listener_manager().add_listener(asset_listener)
 
-        asset = Asset(uri="test_asset_uri_2")
+        asset = Asset(uri="test://asset1", name="test_asset_1")
         dag1 = DagModel(dag_id="dag3")
         session.add(dag1)
 
-        asm = AssetModel(uri="test_asset_uri_2")
+        asm = AssetModel(uri="test://asset1/", name="test_asset_1", group="asset")
         session.add(asm)
         asm.consuming_dags = [DagScheduleAssetReference(dag_id=dag1.dag_id)]
         session.flush()
@@ -219,13 +221,12 @@ class TestAssetManager:
         assert len(asset_listener.changed) == 1
         assert asset_listener.changed[0].uri == asset.uri
 
-    @pytest.mark.skip_if_database_isolation_mode
     def test_create_assets_notifies_asset_listener(self, session):
         asset_manager = AssetManager()
         asset_listener.clear()
         get_listener_manager().add_listener(asset_listener)
 
-        asset = Asset(uri="test_asset_uri_3")
+        asset = Asset(uri="test://asset1", name="test_asset_1")
 
         asms = asset_manager.create_assets([asset], session=session)
 

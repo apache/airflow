@@ -19,17 +19,21 @@ from __future__ import annotations
 
 import os
 import shutil
-import warnings
+import tempfile
+from collections.abc import Container, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Container, Sequence, cast
+from typing import TYPE_CHECKING, Any, Callable, cast
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models.baseoperator import BaseOperator
-from airflow.providers.standard.hooks.subprocess import SubprocessHook
+from airflow.providers.standard.hooks.subprocess import SubprocessHook, SubprocessResult, working_directory
 from airflow.utils.operator_helpers import context_to_airflow_vars
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.types import ArgNotSet
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session as SASession
+
     from airflow.models.taskinstance import TaskInstance
     from airflow.utils.context import Context
 
@@ -63,6 +67,9 @@ class BashOperator(BaseOperator):
         If None (default), the command is run in a temporary directory.
         To use current DAG folder as the working directory,
         you might set template ``{{ dag_run.dag.folder }}``.
+        When bash_command is a '.sh' or '.bash' file, Airflow must have write
+        access to the working directory. The script will be rendered (Jinja
+        template) into a new temporary file in this directory.
     :param output_processor: Function to further process the output of the bash script
         (default is lambda output: output).
 
@@ -93,14 +100,18 @@ class BashOperator(BaseOperator):
 
         .. code-block:: python
 
-            bash_command = "set -e; python3 script.py '{{ next_execution_date }}'"
+            bash_command = "set -e; python3 script.py '{{ data_interval_end }}'"
 
     .. note::
 
-        Add a space after the script name when directly calling a ``.sh`` script with the
-        ``bash_command`` argument -- for example ``bash_command="my_script.sh "``.  This
-        is because Airflow tries to apply load this file and process it as a Jinja template to
-        it ends with ``.sh``, which will likely not be what most users want.
+        To simply execute a ``.sh`` or ``.bash`` script (without any Jinja template), add a space after the
+        script name ``bash_command`` argument -- for example ``bash_command="my_script.sh "``. This
+        is because Airflow tries to load this file and process it as a Jinja template when
+        it ends with ``.sh`` or ``.bash``.
+
+        If you have Jinja template in your script, do not put any blank space. And add the script's directory
+        in the DAG's ``template_searchpath``. If you specify a ``cwd``, Airflow must have write access to
+        this directory. The script will be rendered (Jinja template) into a new temporary file in this directory.
 
     .. warning::
 
@@ -149,7 +160,6 @@ class BashOperator(BaseOperator):
         env: dict[str, str] | None = None,
         append_env: bool = False,
         output_encoding: str = "utf-8",
-        skip_exit_code: int | None = None,
         skip_on_exit_code: int | Container[int] | None = 99,
         cwd: str | None = None,
         output_processor: Callable[[str], Any] = lambda result: result,
@@ -159,11 +169,6 @@ class BashOperator(BaseOperator):
         self.bash_command = bash_command
         self.env = env
         self.output_encoding = output_encoding
-        if skip_exit_code is not None:
-            warnings.warn(
-                "skip_exit_code is deprecated. Please use skip_on_exit_code", DeprecationWarning, stacklevel=2
-            )
-            skip_on_exit_code = skip_exit_code
         self.skip_on_exit_code = (
             skip_on_exit_code
             if isinstance(skip_on_exit_code, Container)
@@ -180,13 +185,20 @@ class BashOperator(BaseOperator):
         # determine whether the bash_command value needs to re-rendered.
         self._init_bash_command_not_set = isinstance(self.bash_command, ArgNotSet)
 
+        # Keep a copy of the original bash_command, without the Jinja template rendered.
+        # This is later used to determine if the bash_command is a script or an inline string command.
+        # We do this later, because the bash_command is not available in __init__ when using @task.bash.
+        self._unrendered_bash_command: str | ArgNotSet = bash_command
+
     @cached_property
     def subprocess_hook(self):
         """Returns hook for running the bash command."""
         return SubprocessHook()
 
+    # TODO: This should be replaced with Task SDK API call
     @staticmethod
-    def refresh_bash_command(ti: TaskInstance) -> None:
+    @provide_session
+    def refresh_bash_command(ti: TaskInstance, session: SASession = NEW_SESSION) -> None:
         """
         Rewrite the underlying rendered bash_command value for a task instance in the metadatabase.
 
@@ -198,9 +210,18 @@ class BashOperator(BaseOperator):
         """
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
-        RenderedTaskInstanceFields._update_runtime_evaluated_template_fields(ti)
+        """Update rendered task instance fields for cases where runtime evaluated, not templated."""
+        # Note: Need lazy import to break the partly loaded class loop
+        from airflow.models.taskinstance import TaskInstance
 
-    def get_env(self, context):
+        # If called via remote API the DAG needs to be re-loaded
+        TaskInstance.ensure_dag(ti, session=session)
+
+        rtif = RenderedTaskInstanceFields(ti)
+        RenderedTaskInstanceFields.write(rtif, session=session)
+        RenderedTaskInstanceFields.delete_old_records(ti.task_id, ti.dag_id, session=session)
+
+    def get_env(self, context) -> dict:
         """Build the set of environment variables to be exposed for the bash command."""
         system_env = os.environ.copy()
         env = self.env
@@ -220,7 +241,7 @@ class BashOperator(BaseOperator):
         return env
 
     def execute(self, context: Context):
-        bash_path = shutil.which("bash") or "bash"
+        bash_path: str = shutil.which("bash") or "bash"
         if self.cwd is not None:
             if not os.path.exists(self.cwd):
                 raise AirflowException(f"Can not find the cwd: {self.cwd}")
@@ -234,15 +255,17 @@ class BashOperator(BaseOperator):
         # Both will ensure the correct Bash command is executed and that the Rendered Template view in the UI
         # displays the executed command (otherwise it will display as an ArgNotSet type).
         if self._init_bash_command_not_set:
-            ti = cast("TaskInstance", context["ti"])
+            is_inline_command = self._is_inline_command(bash_command=cast(str, self.bash_command))
+            ti = context["ti"]
             self.refresh_bash_command(ti)
+        else:
+            is_inline_command = self._is_inline_command(bash_command=cast(str, self._unrendered_bash_command))
 
-        result = self.subprocess_hook.run_command(
-            command=[bash_path, "-c", self.bash_command],
-            env=env,
-            output_encoding=self.output_encoding,
-            cwd=self.cwd,
-        )
+        if is_inline_command:
+            result = self._run_inline_command(bash_path=bash_path, env=env)
+        else:
+            result = self._run_rendered_script_file(bash_path=bash_path, env=env)
+
         if result.exit_code in self.skip_on_exit_code:
             raise AirflowSkipException(f"Bash command returned exit code {result.exit_code}. Skipping.")
         elif result.exit_code != 0:
@@ -251,6 +274,39 @@ class BashOperator(BaseOperator):
             )
 
         return self.output_processor(result.output)
+
+    def _run_inline_command(self, bash_path: str, env: dict) -> SubprocessResult:
+        """Pass the bash command as string directly in the subprocess."""
+        return self.subprocess_hook.run_command(
+            command=[bash_path, "-c", self.bash_command],
+            env=env,
+            output_encoding=self.output_encoding,
+            cwd=self.cwd,
+        )
+
+    def _run_rendered_script_file(self, bash_path: str, env: dict) -> SubprocessResult:
+        """
+        Save the bash command into a file and execute this file.
+
+        This allows for longer commands, and prevents "Argument list too long error".
+        """
+        with working_directory(cwd=self.cwd) as cwd:
+            with tempfile.NamedTemporaryFile(mode="w", dir=cwd, suffix=".sh") as file:
+                file.write(cast(str, self.bash_command))
+                file.flush()
+
+                bash_script = os.path.basename(file.name)
+                return self.subprocess_hook.run_command(
+                    command=[bash_path, bash_script],
+                    env=env,
+                    output_encoding=self.output_encoding,
+                    cwd=cwd,
+                )
+
+    @classmethod
+    def _is_inline_command(cls, bash_command: str) -> bool:
+        """Return True if the bash command is an inline string. False if it's a bash script file."""
+        return not bash_command.endswith(tuple(cls.template_ext))
 
     def on_kill(self) -> None:
         self.subprocess_hook.send_sigterm()

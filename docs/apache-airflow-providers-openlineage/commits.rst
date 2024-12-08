@@ -35,6 +35,40 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.14.0
+......
+
+Latest change: 2024-11-14
+
+=================================================================================================  ===========  ================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================================
+`f60886cf36 <https://github.com/apache/airflow/commit/f60886cf368b943120af20889b83704ccdbb8c91>`_  2024-11-14   ``add ProcessingEngineRunFacet to OL DAG Start event (#43213)``
+`e7194dff6a <https://github.com/apache/airflow/commit/e7194dff6a816bf3a721cbf579ceac19c11cd111>`_  2024-11-13   ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+`c7c6547481 <https://github.com/apache/airflow/commit/c7c65474810a1d4a22320b9064fa1374e38129c9>`_  2024-11-06   ``OpenLineage: accept whole config when instantiating OpenLineageClient. (#43740)``
+`80727d42ab <https://github.com/apache/airflow/commit/80727d42ab2f2cfcc8f4a85d8a6b4f27ac4b3341>`_  2024-11-06   ``Temporarily limit openlineage to <1.24.0 (#43732)``
+`73f2eab680 <https://github.com/apache/airflow/commit/73f2eab68081e966fd808bfaca923eed1f81bc43>`_  2024-11-05   ``serialize asset/dataset timetable conditions in OpenLineage info also for Airflow 2 (#43434)``
+`06088a3abc <https://github.com/apache/airflow/commit/06088a3abcbb46533e74de360746db766d50cf66>`_  2024-10-31   ``Standard provider python operator (#42081)``
+=================================================================================================  ===========  ================================================================================================
+
+1.13.0
+......
+
+Latest change: 2024-10-27
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`78ff0a9970 <https://github.com/apache/airflow/commit/78ff0a99700125121b7f0647023503750f14a11b>`_  2024-10-27   ``Prepare docs for Oct 2nd wave of providers (#43409)``
+`0c4ed7a58e <https://github.com/apache/airflow/commit/0c4ed7a58eeb5904b6fa06120532f9f0f344cd3f>`_  2024-10-23   ``Ignore attr-defined for compat import (#43301)``
+`07fdfd7ddb <https://github.com/apache/airflow/commit/07fdfd7ddbd44a773cd30f46f88c2a83cfaf3de2>`_  2024-10-23   ``Bump ''black'' to ''24.10.0'' (#43285)``
+`15b41b458c <https://github.com/apache/airflow/commit/15b41b458c66ae89dc691ddbc2481a1fb6a7d2a4>`_  2024-10-22   ``feat: Add supported hooks to OpenLineage docs (#41958)``
+`e7d83ddcc4 <https://github.com/apache/airflow/commit/e7d83ddcc41541beedbddc2da54f708542dd8c7a>`_  2024-10-22   ``nit: remove taskgroup's tooltip from OL's AirflowJobFacet (#43152)``
+`1f0bba2e13 <https://github.com/apache/airflow/commit/1f0bba2e13a6e656ac65498ef8e07ff24677fa98>`_  2024-10-18   ``feat(providers/openlineage): Use asset in common provider (#43111)``
+`59cf3efb8b <https://github.com/apache/airflow/commit/59cf3efb8b27812cd384fd1cb69f46e4312309aa>`_  2024-10-15   ``require 1.2.1 common.compat for openlineage provider (#43039)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  ========================================================================================
+
 1.12.2
 ......
 
@@ -43,6 +77,7 @@ Latest change: 2024-10-09
 =================================================================================================  ===========  ==================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================
+`2bb8628463 <https://github.com/apache/airflow/commit/2bb862846358d1c5a59b354adb39bc68d5aeae5e>`_  2024-10-09   ``Prepare docs for Oct 1st adhoc wave of providers (#42862)``
 `a5ffbbda17 <https://github.com/apache/airflow/commit/a5ffbbda17450a5c99037b292844087119b5676a>`_  2024-10-09   ``Standard provider bash operator (#42252)``
 `63ff22f403 <https://github.com/apache/airflow/commit/63ff22f4038f34354dc5807036d1bf10653c2ecd>`_  2024-10-08   ``Drop python3.8 support core and providers (#42766)``
 `ede7cb27fd <https://github.com/apache/airflow/commit/ede7cb27fd39e233889d127490a2255df8c5d27d>`_  2024-09-30   ``Rename dataset related python variable names to asset (#41348)``
@@ -109,6 +144,8 @@ Commit                                                                          
 `d23881c648 <https://github.com/apache/airflow/commit/d23881c6489916113921dcedf85077441b44aaf3>`_  2024-08-03   ``Prepare docs for Aug 1st wave of providers (#41230)``
 `4d27069d9c <https://github.com/apache/airflow/commit/4d27069d9ceedfb45f74e5d9b05bd643174b7197>`_  2024-08-02   ``Adjust default extractor's on_failure detection for airflow 2.10 fix (#41094)``
 `4ab0183cfa <https://github.com/apache/airflow/commit/4ab0183cfad9a4afc8543970b8910da0ef1f3b19>`_  2024-07-28   ``Add AirflowRun on COMPLETE/FAIL events (#40996)``
+`277e746fa4 <https://github.com/apache/airflow/commit/277e746fa4658377c562386fa5685c3f14b70655>`_  2024-07-26   ``openlineage: update docs on openlineage methods (#41051)``
+`592eafa82a <https://github.com/apache/airflow/commit/592eafa82af5c39c2268b590c2216c82c39b8a3b>`_  2024-07-26   ``openlineage, docs: add missing execution_timeout conf value (#41042)``
 `10f250347d <https://github.com/apache/airflow/commit/10f250347d17e8f1362e8fffc3dddce655a11cf7>`_  2024-07-24   ``openlineage: make value of slots in attrs.define consistent across all OL usages (#40992)``
 `eca05550d3 <https://github.com/apache/airflow/commit/eca05550d39ad41dce4949101afdc8b578cffdc9>`_  2024-07-24   ``Set 'slots' to True for facets used in DagRun (#40972)``
 `579a8b87fc <https://github.com/apache/airflow/commit/579a8b87fc3d4a737bae11049c0607aaf2a8b8fb>`_  2024-07-23   ``openlineage: extend custom_run_facets to also be executed on complete and fail (#40953)``
@@ -201,6 +238,7 @@ Commit                                                                          
 =================================================================================================  ===========  ==============================================================================
 `fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
 `ecc5af70eb <https://github.com/apache/airflow/commit/ecc5af70ebd845c873f30fa7ef85790edbf3351c>`_  2024-04-22   ``openlineage, snowflake: do not run external queries for Snowflake (#39113)``
+`09e938a2a7 <https://github.com/apache/airflow/commit/09e938a2a76428016747162e53b9e39ecd2ccfbe>`_  2024-04-16   ``Fix OpenLineage provide plugin examples (#39029)``
 =================================================================================================  ===========  ==============================================================================
 
 1.7.0
@@ -218,6 +256,7 @@ Commit                                                                          
 `a2f5307fd0 <https://github.com/apache/airflow/commit/a2f5307fd0ec54b34b8c753a53024a2629a56fd8>`_  2024-03-29   ``Brings back mypy-checks (#38597)``
 `714a933479 <https://github.com/apache/airflow/commit/714a933479f9dc1c3ef5916e43292efc182a0857>`_  2024-03-26   ``openlineage: add 'opt-in' option (#37725)``
 `9c4e333f5b <https://github.com/apache/airflow/commit/9c4e333f5b7cc6f950f6791500ecd4bad41ba2f9>`_  2024-03-25   ``fix: disabled_for_operators now stops whole event emission (#38033)``
+`87faf3144f <https://github.com/apache/airflow/commit/87faf3144f3d6058b30db347ae24212fa05c1163>`_  2024-03-22   ``docs(openlineage): fix quotation around openlineage transport value (#38378)``
 `c6bc052980 <https://github.com/apache/airflow/commit/c6bc0529805be98cffbf336070abee32b93ca39a>`_  2024-03-19   ``Add default for 'task' on TaskInstance / fix attrs on TaskInstancePydantic (#37854)``
 `0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``
 `c0b849ad2b <https://github.com/apache/airflow/commit/c0b849ad2b3f7015f7cb2a45aefd1fa3828bda31>`_  2024-03-11   ``Avoid use of 'assert' outside of the tests (#37718)``
@@ -244,6 +283,8 @@ Commit                                                                          
 `5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
 `61f0adf0c7 <https://github.com/apache/airflow/commit/61f0adf0c7c2f93ade27686571992e3ef2a65e35>`_  2024-02-14   ``fix: Check if operator is disabled in DefaultExtractor.extract_on_complete (#37392)``
 `326f9789cd <https://github.com/apache/airflow/commit/326f9789cd0b255956be0b547f0463da44e6439f>`_  2024-02-10   ``Follow D401 style in openlineage, slack, and tableau providers (#37312)``
+`674ea5dd9e <https://github.com/apache/airflow/commit/674ea5dd9e6704203a98b4031c0dd5f248ca0407>`_  2024-01-30   ``fix static checks for openlineage provider (#37092)``
+`c81be6f78c <https://github.com/apache/airflow/commit/c81be6f78cc1a866170c98e3bc5f0c26d0fa7c02>`_  2024-01-30   ``Fix macros jinja template example (#36222)``
 =================================================================================================  ===========  =======================================================================================
 
 1.5.0
@@ -264,13 +305,14 @@ Commit                                                                          
 
 Latest change: 2024-01-07
 
-=================================================================================================  ===========  ============================================================================
+=================================================================================================  ===========  =======================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ============================================================================
+=================================================================================================  ===========  =======================================================================================
 `19ebcac239 <https://github.com/apache/airflow/commit/19ebcac2395ef9a6b6ded3a2faa29dc960c1e635>`_  2024-01-07   ``Prepare docs 1st wave of Providers January 2024 (#36640)``
 `44b97e1687 <https://github.com/apache/airflow/commit/44b97e168733b08b308f16b2738b6c15e8a35862>`_  2024-01-04   ``Add OpenLineage support for Redshift SQL. (#35794)``
+`f0e3e612ba <https://github.com/apache/airflow/commit/f0e3e612ba96d86e8122d702e1b51a46ecbd414c>`_  2024-01-03   ``feat: Add openlineage docs ext with list of supported operators and hooks. (#36311)``
 `6937ae7647 <https://github.com/apache/airflow/commit/6937ae76476b3bc869ef912d000bcc94ad642db1>`_  2023-12-30   ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
-=================================================================================================  ===========  ============================================================================
+=================================================================================================  ===========  =======================================================================================
 
 1.3.1
 .....
@@ -313,6 +355,8 @@ Commit                                                                          
 =================================================================================================  ===========  ==========================================================================
 `1b059c57d6 <https://github.com/apache/airflow/commit/1b059c57d6d57d198463e5388138bee8a08591b1>`_  2023-11-08   ``Prepare docs 1st wave of Providers November 2023 (#35537)``
 `59b32dc0a0 <https://github.com/apache/airflow/commit/59b32dc0a0bcdffd124b82d92428f334646cd8cd>`_  2023-11-06   ``Fix bad regexp in mypy-providers specification in pre-commits (#35465)``
+`706878ec35 <https://github.com/apache/airflow/commit/706878ec354cf867440c367a95c85753c19e54de>`_  2023-11-04   ``Remove empty lines in generated changelog (#35436)``
+`052e26ad47 <https://github.com/apache/airflow/commit/052e26ad473a9d50f0b96456ed094f2087ee4434>`_  2023-11-04   ``Change security.rst to use includes in providers (#35435)``
 `6858ea46eb <https://github.com/apache/airflow/commit/6858ea46eb5282034b0695720d797dcb7ef91100>`_  2023-11-04   ``Make schema filter uppercase in 'create_filter_clauses' (#35428)``
 `63cc915cd3 <https://github.com/apache/airflow/commit/63cc915cd38a5034df6bf9c618e12f8690eeade0>`_  2023-10-31   ``Switch from Black to Ruff formatter (#35287)``
 =================================================================================================  ===========  ==========================================================================
@@ -370,6 +414,7 @@ Commit                                                                          
 =================================================================================================  ===========  ===================================================================================
 `c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
 `626d3daa9b <https://github.com/apache/airflow/commit/626d3daa9b5348fec6dfb4d29edcff97bba20298>`_  2023-08-24   ``Add OpenLineage support for Trino. (#32910)``
+`ed5e70c6d6 <https://github.com/apache/airflow/commit/ed5e70c6d6c88882bf856af9ad6e831b6d6ec717>`_  2023-08-22   ``openlineage: finish user guide (#33610)``
 `1cdd82391e <https://github.com/apache/airflow/commit/1cdd82391e0f7a24ab7f0badbe8f44a54f51d757>`_  2023-08-21   ``Simplify conditions on len() in other providers (#33569)``
 `abef61ff3d <https://github.com/apache/airflow/commit/abef61ff3d6b9ae8dcb7f9dbbea78a9648a0c50b>`_  2023-08-20   ``Replace repr() with proper formatting (#33520)``
 `6d3b71c333 <https://github.com/apache/airflow/commit/6d3b71c33390c8063502acfe0fc2cd936db74814>`_  2023-08-19   ``openlineage: don't run task instance listener in executor (#33366)``
@@ -390,6 +435,7 @@ Commit                                                                          
 `11ff650e1b <https://github.com/apache/airflow/commit/11ff650e1b122aadebcea462adfae5492a76ed94>`_  2023-08-04   ``openlineage: disable running listener if not configured (#33120)``
 `e10aa6ae6a <https://github.com/apache/airflow/commit/e10aa6ae6ad07830cbf5ec59d977654c52012c22>`_  2023-08-04   ``openlineage, bigquery: add openlineage method support for BigQueryExecuteQueryOperator (#31293)``
 `2a39914cbd <https://github.com/apache/airflow/commit/2a39914cbd091fb7b19de80197afcaf82c8ec240>`_  2023-08-01   ``Don't use database as fallback when no schema parsed. (#32959)``
+`f9cddf332d <https://github.com/apache/airflow/commit/f9cddf332db712ce2121d355dd94c78b392a7bb9>`_  2023-07-31   ``openlineage,gcs: use proper name for openlineage methods (#32956)``
 =================================================================================================  ===========  ===================================================================================================
 
 1.0.0
@@ -406,11 +452,13 @@ Commit                                                                          
 `8a0f410010 <https://github.com/apache/airflow/commit/8a0f410010cc39ce8d31ee7b64a352fbd2ad19ef>`_  2023-07-28   ``Update openlineage provider to min version of airflow 2.7.0 (#32882)``
 `b73366799d <https://github.com/apache/airflow/commit/b73366799d98195a5ccc49a2008932186c4763b5>`_  2023-07-27   ``openlineage, gcs: add openlineage methods for GcsToGcsOperator (#31350)``
 `9194144dab <https://github.com/apache/airflow/commit/9194144dab01d1898877215379e1c019fe6f10cd>`_  2023-07-27   ``Replace Ruff setting known-third-party with namespace-packages (#32873)``
+`73b90c48b1 <https://github.com/apache/airflow/commit/73b90c48b1933b49086d34176527947bd727ec85>`_  2023-07-21   ``Allow configuration to be contributed by providers (#32604)``
 `3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
 `ee4a838d49 <https://github.com/apache/airflow/commit/ee4a838d49461b3b053a9cbe660dbff06a17fff5>`_  2023-07-05   ``Pass SQLAlchemy engine to construct information schema query. (#32371)``
 `1240dcc167 <https://github.com/apache/airflow/commit/1240dcc167c4b47331db81deff61fc688df118c2>`_  2023-07-05   ``D205 Support - Providers: GRPC to Oracle (inclusive) (#32357)``
 `65fad4affc <https://github.com/apache/airflow/commit/65fad4affc24b33c4499ad0fbcdfff535fbae3bf>`_  2023-07-04   ``Change default schema behaviour in SQLParser. (#32347)``
 `f2e2125b07 <https://github.com/apache/airflow/commit/f2e2125b070794b6a66fb3e2840ca14d07054cf2>`_  2023-06-29   ``openlineage, common.sql:  provide OL SQL parser as internal OpenLineage provider API (#31398)``
+`3d8e214e90 <https://github.com/apache/airflow/commit/3d8e214e9027221c1f1e9bffdd2756860e60bcfd>`_  2023-06-28   ``openlineage, docs: tips for OpenLineage method implementation (#31817)``
 `09d4718d3a <https://github.com/apache/airflow/commit/09d4718d3a46aecf3355d14d3d23022002f4a818>`_  2023-06-27   ``Improve provider documentation and README structure (#32125)``
 `1d564adc1c <https://github.com/apache/airflow/commit/1d564adc1c5dc31d0c9717d608250b60f9742acb>`_  2023-06-20   ``set contributor note in CHANGELOG.rst openlienage (#32018)``
 `ebd7b0eb53 <https://github.com/apache/airflow/commit/ebd7b0eb5353428e0345d67a98298292f1804897>`_  2023-06-13   ``openlineage: fix typing errors produced by bumping version, bump minimum version to 0.28, remove outdated warnings (#31874)``

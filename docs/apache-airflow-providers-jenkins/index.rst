@@ -55,7 +55,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-jenkins/|version|/providers/tests/system/jenkins>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-jenkins/|version|/tests/system/providers/jenkins>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-jenkins/>
     Installing from sources <installing-providers-from-sources>
 
@@ -76,7 +76,7 @@ apache-airflow-providers-jenkins package
 `Jenkins <https://jenkins.io/>`__
 
 
-Release: 3.7.1
+Release: 3.7.2
 
 Provider package
 ----------------

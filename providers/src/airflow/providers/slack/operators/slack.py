@@ -18,16 +18,14 @@
 from __future__ import annotations
 
 import json
-import warnings
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from typing_extensions import Literal
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack import SlackHook
-from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from slack_sdk.http_retry import RetryHandler
@@ -54,7 +52,7 @@ class SlackAPIOperator(BaseOperator):
         self,
         *,
         slack_conn_id: str = SlackHook.default_conn_name,
-        method: str | None = None,
+        method: str,
         api_params: dict | None = None,
         base_url: str | None = None,
         proxy: str | None = None,
@@ -62,13 +60,6 @@ class SlackAPIOperator(BaseOperator):
         retry_handlers: list[RetryHandler] | None = None,
         **kwargs,
     ) -> None:
-        if not method:
-            warnings.warn(
-                "Define `method` parameter as empty string or None is deprecated. "
-                "In the future it will raise an error on task initialisation.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
         super().__init__(**kwargs)
         self.slack_conn_id = slack_conn_id
         self.method = method
@@ -209,6 +200,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
     :param filetype: slack filetype. (templated) See: https://api.slack.com/types/file#file_types
     :param content: file content. (templated)
     :param title: title of file. (templated)
+    :param snippet_type: Syntax type for the snippet being uploaded.(templated)
     :param method_version: The version of the method of Slack SDK Client to be used, either "v1" or "v2".
     """
 
@@ -219,6 +211,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         "filetype",
         "content",
         "title",
+        "snippet_type",
     )
     ui_color = "#44BEDF"
 
@@ -231,20 +224,9 @@ class SlackAPIFileOperator(SlackAPIOperator):
         content: str | None = None,
         title: str | None = None,
         method_version: Literal["v1", "v2"] = "v2",
-        channel: str | Sequence[str] | None | ArgNotSet = NOTSET,
+        snippet_type: str | None = None,
         **kwargs,
     ) -> None:
-        if channel is not NOTSET:
-            warnings.warn(
-                "Argument `channel` is deprecated and will removed in a future releases. "
-                "Please use `channels` instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            if channels:
-                raise ValueError(f"Cannot set both arguments: channel={channel!r} and channels={channels!r}.")
-            channels = channel  # type: ignore[assignment]
-
         super().__init__(method="files.upload", **kwargs)
         self.channels = channels
         self.initial_comment = initial_comment
@@ -253,6 +235,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         self.content = content
         self.title = title
         self.method_version = method_version
+        self.snippet_type = snippet_type
 
     @property
     def _method_resolver(self):
@@ -265,7 +248,9 @@ class SlackAPIFileOperator(SlackAPIOperator):
             channels=self.channels,
             # For historical reason SlackAPIFileOperator use filename as reference to file
             file=self.filename,
+            filetype=self.filetype,
             content=self.content,
             initial_comment=self.initial_comment,
             title=self.title,
+            snippet_type=self.snippet_type,
         )

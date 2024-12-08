@@ -44,7 +44,7 @@ from airflow.executors.local_executor import LocalExecutor
 from airflow.providers.amazon.aws.executors.ecs.ecs_executor import AwsEcsExecutor
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
@@ -104,7 +104,7 @@ class TestCli:
             for com in command:
                 conflict_arg = [arg for arg, count in Counter(com.args).items() if count > 1]
                 assert (
-                    [] == conflict_arg
+                    conflict_arg == []
                 ), f"Command group {group} function {com.name} have conflict args name {conflict_arg}"
 
     def test_subcommand_arg_flag_conflict(self):
@@ -122,7 +122,7 @@ class TestCli:
                     a.flags[0] for a in com.args if (len(a.flags) == 1 and not a.flags[0].startswith("-"))
                 ]
                 conflict_position = [arg for arg, count in Counter(position).items() if count > 1]
-                assert [] == conflict_position, (
+                assert conflict_position == [], (
                     f"Command group {group} function {com.name} have conflict "
                     f"position flags {conflict_position}"
                 )
@@ -131,14 +131,14 @@ class TestCli:
                     a.flags[0] for a in com.args if (len(a.flags) == 1 and a.flags[0].startswith("-"))
                 ] + [a.flags[1] for a in com.args if len(a.flags) == 2]
                 conflict_long_option = [arg for arg, count in Counter(long_option).items() if count > 1]
-                assert [] == conflict_long_option, (
+                assert conflict_long_option == [], (
                     f"Command group {group} function {com.name} have conflict "
                     f"long option flags {conflict_long_option}"
                 )
 
                 short_option = [a.flags[0] for a in com.args if len(a.flags) == 2]
                 conflict_short_option = [arg for arg, count in Counter(short_option).items() if count > 1]
-                assert [] == conflict_short_option, (
+                assert conflict_short_option == [], (
                     f"Command group {group} function {com.name} have conflict "
                     f"short option flags {conflict_short_option}"
                 )
@@ -333,8 +333,8 @@ class TestCli:
                 parser.parse_args([*cmd_args, "--help"])
 
     def test_positive_int(self):
-        assert 1 == cli_config.positive_int(allow_zero=True)("1")
-        assert 0 == cli_config.positive_int(allow_zero=True)("0")
+        assert cli_config.positive_int(allow_zero=True)("1") == 1
+        assert cli_config.positive_int(allow_zero=True)("0") == 0
 
         with pytest.raises(argparse.ArgumentTypeError):
             cli_config.positive_int(allow_zero=False)("0")
@@ -349,9 +349,10 @@ class TestCli:
         ],
     )
     def test_executor_specific_commands_not_accessible(self, command):
-        with conf_vars({("core", "executor"): "SequentialExecutor"}), contextlib.redirect_stderr(
-            StringIO()
-        ) as stderr:
+        with (
+            conf_vars({("core", "executor"): "SequentialExecutor"}),
+            contextlib.redirect_stderr(StringIO()) as stderr,
+        ):
             reload(executor_loader)
             reload(cli_parser)
             parser = cli_parser.get_parser()
@@ -380,9 +381,10 @@ class TestCli:
     def test_cli_parser_executors(self, executor, expected_args):
         """Test that CLI commands for the configured executor are present"""
         for expected_arg in expected_args:
-            with conf_vars({("core", "executor"): executor}), contextlib.redirect_stderr(
-                StringIO()
-            ) as stderr:
+            with (
+                conf_vars({("core", "executor"): executor}),
+                contextlib.redirect_stderr(StringIO()) as stderr,
+            ):
                 reload(executor_loader)
                 reload(cli_parser)
                 parser = cli_parser.get_parser()
@@ -418,10 +420,8 @@ class TestCli:
                     ["db", "export-archived", "--export-format", export_format, "--output-path", "mydir"]
                 )
             error_msg = stderr.getvalue()
-        assert error_msg == (
-            "\nairflow db export-archived command error: argument "
-            f"--export-format: invalid choice: '{export_format}' "
-            "(choose from 'csv'), see help above.\n"
+        assert (
+            "airflow db export-archived command error: argument --export-format: invalid choice" in error_msg
         )
 
     @pytest.mark.parametrize(

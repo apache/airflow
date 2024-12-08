@@ -23,30 +23,28 @@ import ast
 import os
 import pickle
 import tarfile
-import warnings
-from collections.abc import Container
+from collections.abc import Container, Iterable, Sequence
 from functools import cached_property
 from io import BytesIO, StringIO
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Iterable, Sequence
+from typing import TYPE_CHECKING
 
-from deprecated.classic import deprecated
 from docker.constants import DEFAULT_TIMEOUT_SECONDS
 from docker.errors import APIError
 from docker.types import LogConfig, Mount, Ulimit
 from dotenv import dotenv_values
 from typing_extensions import Literal
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.docker.exceptions import (
     DockerContainerFailedException,
     DockerContainerFailedSkipException,
 )
 from airflow.providers.docker.hooks.docker import DockerHook
-from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
+    from logging import Logger
+
     from docker import APIClient
     from docker.types import DeviceRequest
 
@@ -60,6 +58,16 @@ def stringify(line: str | bytes):
         return decode_method(encoding="utf-8", errors="surrogateescape")
     else:
         return line
+
+
+def fetch_logs(log_stream, log: Logger):
+    log_lines = []
+    for log_chunk in log_stream:
+        log_chunk = stringify(log_chunk).rstrip()
+        log_lines.append(log_chunk)
+        for log_chunk_line in log_chunk.split("\n"):
+            log.info("%s", log_chunk_line)
+    return log_lines
 
 
 class DockerOperator(BaseOperator):
@@ -243,33 +251,8 @@ class DockerOperator(BaseOperator):
         skip_on_exit_code: int | Container[int] | None = None,
         port_bindings: dict | None = None,
         ulimits: list[Ulimit] | None = None,
-        # deprecated, no need to include into docstring
-        skip_exit_code: int | Container[int] | ArgNotSet = NOTSET,
         **kwargs,
     ) -> None:
-        if skip_exit_code is not NOTSET:
-            warnings.warn(
-                "`skip_exit_code` is deprecated and will be removed in the future. "
-                "Please use `skip_on_exit_code` instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            if skip_on_exit_code is not None and skip_exit_code != skip_on_exit_code:
-                msg = (
-                    f"Conflicting `skip_on_exit_code` provided, "
-                    f"skip_on_exit_code={skip_on_exit_code!r}, skip_exit_code={skip_exit_code!r}."
-                )
-                raise ValueError(msg)
-            skip_on_exit_code = skip_exit_code  # type: ignore[assignment]
-        if isinstance(auto_remove, bool):
-            warnings.warn(
-                "bool value for `auto_remove` is deprecated and will be removed in the future. "
-                "Please use 'never', 'success', or 'force' instead",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            auto_remove = "success" if auto_remove else "never"
-
         super().__init__(**kwargs)
         self.api_version = api_version
         if not auto_remove or auto_remove not in ("never", "success", "force"):
@@ -353,11 +336,6 @@ class DockerOperator(BaseOperator):
             timeout=self.timeout,
         )
 
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
-    def get_hook(self) -> DockerHook:
-        """Create and return an DockerHook (cached)."""
-        return self.hook
-
     @property
     def cli(self) -> APIClient:
         return self.hook.api_client
@@ -426,16 +404,11 @@ class DockerOperator(BaseOperator):
             tty=self.tty,
             hostname=self.hostname,
         )
-        logstream = self.cli.attach(container=self.container["Id"], stdout=True, stderr=True, stream=True)
+        log_stream = self.cli.attach(container=self.container["Id"], stdout=True, stderr=True, stream=True)
         try:
             self.cli.start(self.container["Id"])
 
-            log_lines = []
-            for log_chunk in logstream:
-                log_chunk = stringify(log_chunk).strip()
-                log_lines.append(log_chunk)
-                for log_chunk_line in log_chunk.split("\n"):
-                    self.log.info("%s", log_chunk_line)
+            log_lines = fetch_logs(log_stream, self.log)
 
             result = self.cli.wait(self.container["Id"])
             if result["StatusCode"] in self.skip_on_exit_code:

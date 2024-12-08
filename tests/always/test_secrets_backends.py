@@ -29,7 +29,7 @@ from airflow.secrets.environment_variables import EnvironmentVariablesBackend
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.session import create_session
 
-from dev.tests_common.test_utils.db import clear_db_connections, clear_db_variables
+from tests_common.test_utils.db import clear_db_connections, clear_db_variables
 
 pytestmark = pytest.mark.db_test
 
@@ -91,15 +91,15 @@ class TestBaseSecretsBackend:
     def test_variable_env_secrets_backend(self):
         env_secrets_backend = EnvironmentVariablesBackend()
         variable_value = env_secrets_backend.get_variable(key="hello")
-        assert "World" == variable_value
+        assert variable_value == "World"
         assert env_secrets_backend.get_variable(key="non_existent_key") is None
-        assert "" == env_secrets_backend.get_variable(key="empty_str")
+        assert env_secrets_backend.get_variable(key="empty_str") == ""
 
     def test_variable_metastore_secrets_backend(self):
         Variable.set(key="hello", value="World")
         Variable.set(key="empty_str", value="")
         metastore_backend = MetastoreBackend()
         variable_value = metastore_backend.get_variable(key="hello")
-        assert "World" == variable_value
+        assert variable_value == "World"
         assert metastore_backend.get_variable(key="non_existent_key") is None
-        assert "" == metastore_backend.get_variable(key="empty_str")
+        assert metastore_backend.get_variable(key="empty_str") == ""

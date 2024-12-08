@@ -23,18 +23,22 @@ description: |
   Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites
 
 state: not-ready
-source-date-epoch: 1720863625
+source-date-epoch: 1729683247
+
 # note that those versions are maintained by release manager - do not update them manually
 versions:
-  - 0.1.0pre0
+  - 0.9.1pre0
 
 dependencies:
   - apache-airflow>=2.10.0
-  - pydantic>=2.6.4
+  - pydantic>=2.10.2
 
 plugins:
   - name: edge_executor
     plugin-class: airflow.providers.edge.plugins.edge_executor_plugin.EdgeExecutorPlugin
+
+executors:
+  - airflow.providers.edge.executors.EdgeExecutor
 
 config:
   edge:
@@ -76,10 +80,10 @@ config:
         default: "30"
       worker_concurrency:
         description: |
-          The concurrency that will be used when starting workers with the
-          ``airflow edge worker`` command. This defines the number of task instances that
-          a worker will take, so size up your workers based on the resources on
-          your worker box and the nature of your tasks
+          The concurrency defines the default max parallel running task instances and can also be set during
+          start of worker with the ``airflow edge worker`` command parameter. The size of the workers
+          and the resources must support the nature of your tasks. The parameter
+          works together with the concurrency_slots parameter of a task.
         version_added: ~
         type: integer
         example: ~
@@ -98,3 +102,15 @@ config:
         type: integer
         example: ~
         default: "60"
+      push_log_chunk_size:
+        description: |
+          Edge Worker uploads log files in chunks. If the log file part which is uploaded
+          exceeds the chunk size it creates a new request. The application gateway can
+          limit the max body size see:
+          https://nginx.org/en/docs/http/ngx_http_core_module.html#client_max_body_size
+          A HTTP 413 issue can point to this value to fix the issue.
+          This value must be defined in Bytes.
+        version_added: ~
+        type: integer
+        example: ~
+        default: "524288"

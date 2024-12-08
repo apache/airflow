@@ -26,16 +26,16 @@ import time_machine
 from sentry_sdk import configure_scope
 from sentry_sdk.transport import Transport
 
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils import timezone
 from airflow.utils.module_loading import import_string
 from airflow.utils.state import State
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
-EXECUTION_DATE = timezone.utcnow()
+LOGICAL_DATE = timezone.utcnow()
 SCHEDULE_INTERVAL = datetime.timedelta(days=1)
-DATA_INTERVAL = (EXECUTION_DATE, EXECUTION_DATE + SCHEDULE_INTERVAL)
+DATA_INTERVAL = (LOGICAL_DATE, LOGICAL_DATE + SCHEDULE_INTERVAL)
 DAG_ID = "test_dag"
 TASK_ID = "test_task"
 OPERATOR = "PythonOperator"
@@ -46,7 +46,7 @@ TEST_SCOPE = {
     "task_id": TASK_ID,
     "data_interval_start": DATA_INTERVAL[0],
     "data_interval_end": DATA_INTERVAL[1],
-    "execution_date": EXECUTION_DATE,
+    "logical_date": LOGICAL_DATE,
     "operator": OPERATOR,
     "try_number": TRY_NUMBER,
 }
@@ -82,7 +82,7 @@ class TestSentryHook:
         with dag_maker(DAG_ID, schedule=SCHEDULE_INTERVAL, serialized=True):
             task = PythonOperator(task_id=TASK_ID, python_callable=int)
 
-        dr = dag_maker.create_dagrun(data_interval=DATA_INTERVAL, execution_date=EXECUTION_DATE)
+        dr = dag_maker.create_dagrun(data_interval=DATA_INTERVAL, logical_date=LOGICAL_DATE)
         ti = dr.task_instances[0]
         ti.state = STATE
         ti.task = task
@@ -142,7 +142,6 @@ class TestSentryHook:
 
         importlib.reload(sentry)
 
-    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.db_test
     def test_add_tagging(self, sentry, task_instance):
         """
@@ -153,7 +152,6 @@ class TestSentryHook:
             for key, value in scope._tags.items():
                 assert value == TEST_SCOPE[key]
 
-    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.db_test
     @time_machine.travel(CRUMB_DATE)
     def test_add_breadcrumbs(self, sentry, task_instance):

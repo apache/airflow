@@ -16,15 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ChakraProvider } from "@chakra-ui/react";
+import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import axios, { type AxiosError } from "axios";
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
+import { RouterProvider } from "react-router-dom";
 
-import { App } from "src/App";
-
-import theme from "./theme";
+import { ColorModeProvider } from "src/context/colorMode";
+import { TimezoneProvider } from "src/context/timezone";
+import { router } from "src/router";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,25 +48,29 @@ const queryClient = new QueryClient({
 axios.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    if (error.response?.status === 403 || error.response?.status === 401) {
+    if (error.response?.status === 401) {
       const params = new URLSearchParams();
 
       params.set("next", globalThis.location.href);
-      globalThis.location.replace(`/login?${params.toString()}`);
+      globalThis.location.replace(
+        `${import.meta.env.VITE_LEGACY_API_URL}/login?${params.toString()}`,
+      );
     }
 
     return Promise.reject(error);
   },
 );
 
-const root = createRoot(document.querySelector("#root") as HTMLDivElement);
-
-root.render(
-  <BrowserRouter basename="/webapp">
-    <ChakraProvider theme={theme}>
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
+createRoot(document.querySelector("#root") as HTMLDivElement).render(
+  <StrictMode>
+    <ChakraProvider value={defaultSystem}>
+      <ColorModeProvider>
+        <QueryClientProvider client={queryClient}>
+          <TimezoneProvider>
+            <RouterProvider router={router} />
+          </TimezoneProvider>
+        </QueryClientProvider>
+      </ColorModeProvider>
     </ChakraProvider>
-  </BrowserRouter>,
+  </StrictMode>,
 );

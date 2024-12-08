@@ -25,16 +25,17 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from vertexai.generative_models import HarmBlockThreshold, HarmCategory, Tool, grounding
+from vertexai.generative_models import HarmBlockThreshold, HarmCategory, Part, Tool, grounding
 from vertexai.preview.evaluation import MetricPromptTemplateExamples
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
     CountTokensOperator,
+    CreateCachedContentOperator,
+    GenerateFromCachedContentOperator,
     GenerativeModelGenerateContentOperator,
     RunEvaluationOperator,
     TextEmbeddingModelGetEmbeddingsOperator,
-    TextGenerationModelPredictOperator,
 )
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
@@ -42,7 +43,6 @@ DAG_ID = "vertex_ai_generative_model_dag"
 REGION = "us-central1"
 PROMPT = "In 10 words or less, why is Apache Airflow amazing?"
 CONTENTS = [PROMPT]
-LANGUAGE_MODEL = "text-bison"
 TEXT_EMBEDDING_MODEL = "textembedding-gecko"
 MULTIMODAL_MODEL = "gemini-pro"
 MULTIMODAL_VISION_MODEL = "gemini-pro-vision"
@@ -90,6 +90,23 @@ EXPERIMENT_NAME = "eval-experiment-airflow-operator"
 EXPERIMENT_RUN_NAME = "eval-experiment-airflow-operator-run"
 PROMPT_TEMPLATE = "{instruction}. Article: {context}. Summary:"
 
+CACHED_MODEL = "gemini-1.5-pro-002"
+CACHED_SYSTEM_INSTRUCTION = """
+You are an expert researcher. You always stick to the facts in the sources provided, and never make up new facts.
+Now look at these research papers, and answer the following questions.
+"""
+
+CACHED_CONTENTS = [
+    Part.from_uri(
+        "gs://cloud-samples-data/generative-ai/pdf/2312.11805v3.pdf",
+        mime_type="application/pdf",
+    ),
+    Part.from_uri(
+        "gs://cloud-samples-data/generative-ai/pdf/2403.05530.pdf",
+        mime_type="application/pdf",
+    ),
+]
+
 with DAG(
     dag_id=DAG_ID,
     description="Sample DAG with generative models.",
@@ -98,16 +115,6 @@ with DAG(
     catchup=False,
     tags=["example", "vertex_ai", "generative_model"],
 ) as dag:
-    # [START how_to_cloud_vertex_ai_text_generation_model_predict_operator]
-    predict_task = TextGenerationModelPredictOperator(
-        task_id="predict_task",
-        project_id=PROJECT_ID,
-        location=REGION,
-        prompt=PROMPT,
-        pretrained_model=LANGUAGE_MODEL,
-    )
-    # [END how_to_cloud_vertex_ai_text_generation_model_predict_operator]
-
     # [START how_to_cloud_vertex_ai_text_embedding_model_get_embeddings_operator]
     generate_embeddings_task = TextEmbeddingModelGetEmbeddingsOperator(
         task_id="generate_embeddings_task",
@@ -155,14 +162,41 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_run_evaluation_operator]
 
-    from dev.tests_common.test_utils.watcher import watcher
+    # [START how_to_cloud_vertex_ai_create_cached_content_operator]
+    create_cached_content_task = CreateCachedContentOperator(
+        task_id="create_cached_content_task",
+        project_id=PROJECT_ID,
+        location=REGION,
+        model_name=CACHED_MODEL,
+        system_instruction=CACHED_SYSTEM_INSTRUCTION,
+        contents=CACHED_CONTENTS,
+        ttl_hours=1,
+        display_name="example-cache",
+    )
+    # [END how_to_cloud_vertex_ai_create_cached_content_operator]
+
+    # [START how_to_cloud_vertex_ai_generate_from_cached_content_operator]
+    generate_from_cached_content_task = GenerateFromCachedContentOperator(
+        task_id="generate_from_cached_content_task",
+        project_id=PROJECT_ID,
+        location=REGION,
+        cached_content_name="{{ task_instance.xcom_pull(task_ids='create_cached_content_task', key='return_value') }}",
+        contents=["What are the papers about?"],
+        generation_config=GENERATION_CONFIG,
+        safety_settings=SAFETY_SETTINGS,
+    )
+    # [END how_to_cloud_vertex_ai_generate_from_cached_content_operator]
+
+    create_cached_content_task >> generate_from_cached_content_task
+
+    from tests_common.test_utils.watcher import watcher
 
     # This test needs watcher in order to properly mark success/failure
     # when "tearDown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
 
 
-from dev.tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

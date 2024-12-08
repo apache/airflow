@@ -27,7 +27,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from airflow.traces import TRACEPARENT, TRACESTATE, otel_tracer, utils
 from airflow.traces.tracer import Trace
 
-from dev.tests_common.test_utils.config import env_vars
+from tests_common.test_utils.config import env_vars
 
 
 @pytest.fixture

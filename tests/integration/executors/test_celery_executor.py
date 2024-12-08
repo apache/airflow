@@ -46,7 +46,7 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.state import State, TaskInstanceState
 
-from dev.tests_common.test_utils import db
+from tests_common.test_utils import db
 
 logger = logging.getLogger(__name__)
 
@@ -227,18 +227,22 @@ class TestCeleryExecutor:
             executor.queued_tasks[key] = value_tuple
             executor.task_publish_retries[key] = 1
             executor.heartbeat()
-        assert 0 == len(executor.queued_tasks), "Task should no longer be queued"
+        assert len(executor.queued_tasks) == 0, "Task should no longer be queued"
         assert executor.event_buffer[("fail", "fake_simple_ti", when, 0)][0] == State.FAILED
 
     def test_retry_on_error_sending_task(self, caplog):
         """Test that Airflow retries publishing tasks to Celery Broker at least 3 times"""
         from airflow.providers.celery.executors import celery_executor, celery_executor_utils
 
-        with _prepare_app(), caplog.at_level(logging.INFO), mock.patch.object(
-            # Mock `with timeout()` to _instantly_ fail.
-            celery_executor_utils.timeout,
-            "__enter__",
-            side_effect=AirflowTaskTimeout,
+        with (
+            _prepare_app(),
+            caplog.at_level(logging.INFO),
+            mock.patch.object(
+                # Mock `with timeout()` to _instantly_ fail.
+                celery_executor_utils.timeout,
+                "__enter__",
+                side_effect=AirflowTaskTimeout,
+            ),
         ):
             executor = celery_executor.CeleryExecutor()
             assert executor.task_publish_retries == {}
@@ -263,25 +267,25 @@ class TestCeleryExecutor:
             # Test that when heartbeat is called again, task is published again to Celery Queue
             executor.heartbeat()
             assert dict(executor.task_publish_retries) == {key: 1}
-            assert 1 == len(executor.queued_tasks), "Task should remain in queue"
+            assert len(executor.queued_tasks) == 1, "Task should remain in queue"
             assert executor.event_buffer == {}
             assert f"[Try 1 of 3] Task Timeout Error for Task: ({key})." in caplog.text
 
             executor.heartbeat()
             assert dict(executor.task_publish_retries) == {key: 2}
-            assert 1 == len(executor.queued_tasks), "Task should remain in queue"
+            assert len(executor.queued_tasks) == 1, "Task should remain in queue"
             assert executor.event_buffer == {}
             assert f"[Try 2 of 3] Task Timeout Error for Task: ({key})." in caplog.text
 
             executor.heartbeat()
             assert dict(executor.task_publish_retries) == {key: 3}
-            assert 1 == len(executor.queued_tasks), "Task should remain in queue"
+            assert len(executor.queued_tasks) == 1, "Task should remain in queue"
             assert executor.event_buffer == {}
             assert f"[Try 3 of 3] Task Timeout Error for Task: ({key})." in caplog.text
 
             executor.heartbeat()
             assert dict(executor.task_publish_retries) == {}
-            assert 0 == len(executor.queued_tasks), "Task should no longer be in queue"
+            assert len(executor.queued_tasks) == 0, "Task should no longer be in queue"
             assert executor.event_buffer[("fail", "fake_simple_ti", when, 0)][0] == State.FAILED
 
 

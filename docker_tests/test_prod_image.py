@@ -57,13 +57,13 @@ class TestCommands:
         """Checking the image without a command. It should return non-zero exit code."""
         with pytest.raises(DockerException) as ctx:
             run_cmd_in_docker(image=default_docker_image)
-        assert 2 == ctx.value.return_code
+        assert ctx.value.return_code == 2
 
     def test_airflow_command(self, default_docker_image):
         """Checking 'airflow' command. It should return non-zero exit code."""
         with pytest.raises(DockerException) as ctx:
             run_airflow_cmd_in_docker(image=default_docker_image)
-        assert 2 == ctx.value.return_code
+        assert ctx.value.return_code == 2
 
     def test_airflow_version(self, default_docker_image):
         """Checking 'airflow version' command. It should return zero exit code."""
@@ -90,7 +90,11 @@ class TestPythonPackages:
             packages_to_install = set(REGULAR_IMAGE_PROVIDERS)
             package_file = PROD_IMAGE_PROVIDERS_FILE_PATH
         assert len(packages_to_install) != 0
-        output = run_bash_in_docker("airflow providers list --output json", image=default_docker_image)
+        output = run_bash_in_docker(
+            "airflow providers list --output json",
+            image=default_docker_image,
+            envs={"AIRFLOW__LOGGING__LOGGING_LEVEL": "ERROR"},
+        )
         providers = json.loads(output)
         packages_installed = set(d["package_name"] for d in providers)
         assert len(packages_installed) != 0
@@ -167,7 +171,6 @@ class TestPythonPackages:
         "sftp/ssh": ["paramiko", "sshtunnel"],
         "slack": ["slack_sdk"],
         "statsd": ["statsd"],
-        "virtualenv": ["virtualenv"],
     }
 
     @pytest.mark.skipif(os.environ.get("TEST_SLIM_IMAGE") == "true", reason="Skipped with slim image")

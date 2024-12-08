@@ -22,9 +22,10 @@ import pytest
 from airflow.security import permissions
 from airflow.www import app as application
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
-from dev.tests_common.test_utils.www import client_with_login
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
+from providers.tests.fab.auth_manager.views import _assert_dataset_deprecation_warning
+from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
+from tests_common.test_utils.www import client_with_login
 
 pytestmark = [
     pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Tests for Airflow 2.9.0+ only"),
@@ -63,6 +64,8 @@ def client_roles_reader(fab_app, user_roles_reader):
 
 @pytest.mark.db_test
 class TestRolesListView:
-    def test_role_model_view(self, client_roles_reader):
+    def test_role_model_view(self, client_roles_reader, recwarn):
         resp = client_roles_reader.get("/roles/list/", follow_redirects=True)
+
+        _assert_dataset_deprecation_warning(recwarn)
         assert resp.status_code == 200

@@ -9,7 +9,7 @@
         "Ports",
         "Database",
         "PgBouncer",
-        "RPC Server",
+        "API Server",
         "Scheduler",
         "Webserver",
         "Workers",
@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.10.2",
+            "default": "2.10.3",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.10.2",
+            "default": "2.10.3",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -687,15 +687,7 @@
             "type": "string",
             "x-docsSection": "Common",
             "default": "CeleryExecutor",
-            "enum": [
-                "LocalExecutor",
-                "LocalKubernetesExecutor",
-                "CeleryExecutor",
-                "KubernetesExecutor",
-                "CeleryKubernetesExecutor",
-                "airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor",
-                "airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor"
-            ]
+            "pattern": "^(LocalExecutor|LocalKubernetesExecutor|CeleryExecutor|KubernetesExecutor|CeleryKubernetesExecutor|airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor|airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor)(,(LocalExecutor|LocalKubernetesExecutor|CeleryExecutor|KubernetesExecutor|CeleryKubernetesExecutor|airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor|airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor))*$"
         },
         "allowPodLaunching": {
             "description": "Whether various Airflow components launch pods.",
@@ -841,7 +833,7 @@
                         "tag": {
                             "description": "The StatsD image tag.",
                             "type": "string",
-                            "default": "v0.27.2"
+                            "default": "v0.28.0"
                         },
                         "pullPolicy": {
                             "description": "The StatsD image pull policy.",
@@ -895,7 +887,7 @@
                         "tag": {
                             "description": "The PgBouncer image tag.",
                             "type": "string",
-                            "default": "airflow-pgbouncer-2024.01.19-1.21.0"
+                            "default": "airflow-pgbouncer-2024.09.19-1.22.1"
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer image pull policy.",
@@ -949,7 +941,7 @@
                         "tag": {
                             "description": "The gitSync image tag.",
                             "type": "string",
-                            "default": "v4.1.0"
+                            "default": "v4.3.0"
                         },
                         "pullPolicy": {
                             "description": "The gitSync image pull policy.",
@@ -1717,7 +1709,7 @@
                         "query": {
                             "description": "Query to use for KEDA autoscaling. Must return a single integer.",
                             "type": "string",
-                            "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') {{- if eq .Values.executor \"CeleryKubernetesExecutor\" }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- end }}"
+                            "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') {{- if or (contains \"CeleryKubernetesExecutor\" .Values.executor) (contains \"KubernetesExecutor\" .Values.executor) }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- end }}"
                         },
                         "usePgbouncer": {
                             "description": "Weather to use PGBouncer to connect to the database or not when it is enabled. This configuration will be ignored if PGBouncer is not enabled.",
@@ -4676,19 +4668,14 @@
                 }
             }
         },
-        "_rpcServer": {
-            "description": "Airflow RPC server settings (AIP-44). Experimental / for dev purpose only.",
+        "apiServer": {
+            "description": "Airflow API server settings.",
             "type": "object",
-            "x-docsSection": "RPC Server",
+            "x-docsSection": "API Server",
             "additionalProperties": false,
             "properties": {
-                "enabled": {
-                    "description": "Enable RPC server",
-                    "type": "boolean",
-                    "default": false
-                },
                 "configMapAnnotations": {
-                    "description": "Extra annotations to apply to the RPC server configmap.",
+                    "description": "Extra annotations to apply to the API server configmap.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -4696,7 +4683,7 @@
                     }
                 },
                 "hostAliases": {
-                    "description": "HostAliases for the RPC server pod.",
+                    "description": "HostAliases for the API server pod.",
                     "items": {
                         "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
                     },
@@ -4718,7 +4705,7 @@
                     ]
                 },
                 "allowPodLogReading": {
-                    "description": "Allow RPC server to read k8s pod logs. Useful when you don't have an external log store.",
+                    "description": "Allow API server to read k8s pod logs. Useful when you don't have an external log store.",
                     "type": "boolean",
                     "default": true
                 },
@@ -4728,27 +4715,27 @@
                     "additionalProperties": false,
                     "properties": {
                         "initialDelaySeconds": {
-                            "description": "RPC server Liveness probe initial delay.",
+                            "description": "API server Liveness probe initial delay.",
                             "type": "integer",
                             "default": 15
                         },
                         "timeoutSeconds": {
-                            "description": "RPC server Liveness probe timeout seconds.",
+                            "description": "API server Liveness probe timeout seconds.",
                             "type": "integer",
                             "default": 5
                         },
                         "failureThreshold": {
-                            "description": "RPC server Liveness probe failure threshold.",
+                            "description": "API server Liveness probe failure threshold.",
                             "type": "integer",
                             "default": 5
                         },
                         "periodSeconds": {
-                            "description": "RPC server Liveness probe period seconds.",
+                            "description": "API server Liveness probe period seconds.",
                             "type": "integer",
                             "default": 10
                         },
                         "scheme": {
-                            "description": "RPC server Liveness probe scheme.",
+                            "description": "API server Liveness probe scheme.",
                             "type": "string",
                             "default": "HTTP"
                         }
@@ -4760,27 +4747,27 @@
                     "additionalProperties": false,
                     "properties": {
                         "initialDelaySeconds": {
-                            "description": "RPC server Readiness probe initial delay.",
+                            "description": "API server Readiness probe initial delay.",
                             "type": "integer",
                             "default": 15
                         },
                         "timeoutSeconds": {
-                            "description": "RPC server Readiness probe timeout seconds.",
+                            "description": "API server Readiness probe timeout seconds.",
                             "type": "integer",
                             "default": 5
                         },
                         "failureThreshold": {
-                            "description": "RPC server Readiness probe failure threshold.",
+                            "description": "API server Readiness probe failure threshold.",
                             "type": "integer",
                             "default": 5
                         },
                         "periodSeconds": {
-                            "description": "RPC server Readiness probe period seconds.",
+                            "description": "API server Readiness probe period seconds.",
                             "type": "integer",
                             "default": 10
                         },
                         "scheme": {
-                            "description": "RPC server Readiness probe scheme.",
+                            "description": "API server Readiness probe scheme.",
                             "type": "string",
                             "default": "HTTP"
                         }
@@ -4792,29 +4779,29 @@
                     "additionalProperties": false,
                     "properties": {
                         "timeoutSeconds": {
-                            "description": "RPC server Startup probe timeout seconds.",
+                            "description": "API server Startup probe timeout seconds.",
                             "type": "integer",
                             "default": 20
                         },
                         "failureThreshold": {
-                            "description": "RPC server Startup probe failure threshold.",
+                            "description": "API server Startup probe failure threshold.",
                             "type": "integer",
                             "default": 6
                         },
                         "periodSeconds": {
-                            "description": "RPC server Startup probe period seconds.",
+                            "description": "API server Startup probe period seconds.",
                             "type": "integer",
                             "default": 10
                         },
                         "scheme": {
-                            "description": "RPC server Startup probe scheme.",
+                            "description": "API server Startup probe scheme.",
                             "type": "string",
                             "default": "HTTP"
                         }
                     }
                 },
                 "replicas": {
-                    "description": "How many Airflow RPC server replicas should run.",
+                    "description": "How many Airflow API server replicas should run.",
                     "type": "integer",
                     "default": 1
                 },
@@ -4828,7 +4815,7 @@
                     "x-docsSection": null
                 },
                 "command": {
-                    "description": "Command to use when running the Airflow RPC server (templated).",
+                    "description": "Command to use when running the Airflow API server (templated).",
                     "type": [
                         "array",
                         "null"
@@ -4836,12 +4823,10 @@
                     "items": {
                         "type": "string"
                     },
-                    "default": [
-                        "bash"
-                    ]
+                    "default": null
                 },
                 "args": {
-                    "description": "Args to use when running the Airflow RPC server (templated).",
+                    "description": "Args to use when running the Airflow API server (templated).",
                     "type": [
                         "array",
                         "null"
@@ -4850,8 +4835,9 @@
                         "type": "string"
                     },
                     "default": [
+                        "bash",
                         "-c",
-                        "exec airflow internal-api"
+                        "exec airflow fastapi-api"
                     ]
                 },
                 "strategy": {
@@ -4885,7 +4871,7 @@
                             "default": null
                         },
                         "annotations": {
-                            "description": "Annotations to add to the RPC server Kubernetes ServiceAccount.",
+                            "description": "Annotations to add to the API server Kubernetes ServiceAccount.",
                             "type": "object",
                             "default": {},
                             "additionalProperties": {
@@ -4895,7 +4881,7 @@
                     }
                 },
                 "podDisruptionBudget": {
-                    "description": "RPC server pod disruption budget.",
+                    "description": "API server pod disruption budget.",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
@@ -4910,7 +4896,7 @@
                             "additionalProperties": false,
                             "properties": {
                                 "maxUnavailable": {
-                                    "description": "Max unavailable pods for RPC server.",
+                                    "description": "Max unavailable pods for API server.",
                                     "type": [
                                         "integer",
                                         "string"
@@ -4918,7 +4904,7 @@
                                     "default": 1
                                 },
                                 "minAvailable": {
-                                    "description": "Min available pods for RPC server.",
+                                    "description": "Min available pods for API server.",
                                     "type": [
                                         "integer",
                                         "string"
@@ -4929,27 +4915,18 @@
                         }
                     }
                 },
-                "extraNetworkPolicies": {
-                    "description": "Additional NetworkPolicies as needed (Deprecated - renamed to `RPC server.networkPolicy.ingress.from`).",
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "$ref": "#/definitions/io.k8s.api.networking.v1.NetworkPolicyPeer"
-                    },
-                    "default": []
-                },
                 "networkPolicy": {
-                    "description": "RPC server NetworkPolicy configuration",
+                    "description": "API server NetworkPolicy configuration",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
                         "ingress": {
-                            "description": "RPC server NetworkPolicyingress configuration",
+                            "description": "API server NetworkPolicyingress configuration",
                             "type": "object",
                             "additionalProperties": false,
                             "properties": {
                                 "from": {
-                                    "description": "Peers for RPC server NetworkPolicyingress.",
+                                    "description": "Peers for API server NetworkPolicyingress.",
                                     "type": "array",
                                     "default": [],
                                     "items": {
@@ -4957,19 +4934,19 @@
                                     }
                                 },
                                 "ports": {
-                                    "description": "Ports for RPC server NetworkPolicyingress (if `from` is set).",
+                                    "description": "Ports for API server NetworkPolicyingress (if `from` is set).",
                                     "type": "array",
                                     "items": {
                                         "$ref": "#/definitions/io.k8s.api.networking.v1.NetworkPolicyPort"
                                     },
                                     "default": [
                                         {
-                                            "port": "{{ .Values.ports._rpcServer }}"
+                                            "port": "{{ .Values.ports.apiServer }}"
                                         }
                                     ],
                                     "examples": [
                                         {
-                                            "port": 9080
+                                            "port": 9091
                                         }
                                     ]
                                 }
@@ -4978,7 +4955,7 @@
                     }
                 },
                 "containerLifecycleHooks": {
-                    "description": "Container Lifecycle Hooks definition for the RPC server. If not set, the values from global `containerLifecycleHooks` will be used.",
+                    "description": "Container Lifecycle Hooks definition for the API server. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
                     "default": {},
@@ -5007,12 +4984,12 @@
                     ]
                 },
                 "securityContexts": {
-                    "description": "Security context definition for the RPC server. If not set, the values from global `securityContexts` will be used.",
+                    "description": "Security context definition for the API server. If not set, the values from global `securityContexts` will be used.",
                     "type": "object",
                     "x-docsSection": "Kubernetes",
                     "properties": {
                         "pod": {
-                            "description": "Pod security context definition for the RPC server.",
+                            "description": "Pod security context definition for the API server.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                             "default": {},
@@ -5026,7 +5003,7 @@
                             ]
                         },
                         "container": {
-                            "description": "Container security context definition for the RPC server.",
+                            "description": "Container security context definition for the API server.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                             "default": {},
@@ -5045,7 +5022,7 @@
                     }
                 },
                 "resources": {
-                    "description": "Resources for RPC server pods.",
+                    "description": "Resources for API server pods.",
                     "type": "object",
                     "default": {},
                     "examples": [
@@ -5106,7 +5083,7 @@
                     }
                 },
                 "extraContainers": {
-                    "description": "Launch additional containers into RPC server.",
+                    "description": "Launch additional containers into API server.",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -5114,7 +5091,7 @@
                     }
                 },
                 "extraInitContainers": {
-                    "description": "Add additional init containers into RPC server.",
+                    "description": "Add additional init containers into API server.",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -5122,7 +5099,7 @@
                     }
                 },
                 "extraVolumes": {
-                    "description": "Mount additional volumes into RPC server.",
+                    "description": "Mount additional volumes into API server.",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -5130,49 +5107,25 @@
                     }
                 },
                 "extraVolumeMounts": {
-                    "description": "Mount additional volumes into RPC server.",
+                    "description": "Mount additional volumes into API server.",
                     "type": "array",
                     "default": [],
                     "items": {
                         "$ref": "#/definitions/io.k8s.api.core.v1.VolumeMount"
                     }
                 },
-                "RPC serverConfig": {
-                    "description": "This string (can be templated) will be mounted into the Airflow RPC server as a custom `RPC server_config.py`. You can bake a `RPC server_config.py` in to your image instead or specify a configmap containing the RPC server_config.py.",
-                    "type": [
-                        "string",
-                        "null"
-                    ],
-                    "x-docsSection": "Common",
-                    "default": null,
-                    "examples": [
-                        "from airflow import configuration as conf\n\n# The SQLAlchemy connection string.\nSQLALCHEMY_DATABASE_URI = conf.get('database', 'SQL_ALCHEMY_CONN')\n\n# Flask-WTF flag for CSRF\nCSRF_ENABLED = True"
-                    ]
-                },
-                "RPC serverConfigConfigMapName": {
-                    "description": "The configmap name containing the RPC server_config.py.",
-                    "type": [
-                        "string",
-                        "null"
-                    ],
-                    "x-docsSection": "Common",
-                    "default": null,
-                    "examples": [
-                        "my-RPC server-configmap"
-                    ]
-                },
                 "service": {
-                    "description": "RPC server Service configuration.",
+                    "description": "API server Service configuration.",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
                         "type": {
-                            "description": "RPC server Service type.",
+                            "description": "API server Service type.",
                             "type": "string",
                             "default": "ClusterIP"
                         },
                         "annotations": {
-                            "description": "Annotations for the RPC server Service.",
+                            "description": "Annotations for the API server Service.",
                             "type": "object",
                             "default": {},
                             "additionalProperties": {
@@ -5180,7 +5133,7 @@
                             }
                         },
                         "ports": {
-                            "description": "Ports for the RPC server Service.",
+                            "description": "Ports for the API server Service.",
                             "type": "array",
                             "items": {
                                 "type": "object",
@@ -5214,15 +5167,15 @@
                             },
                             "default": [
                                 {
-                                    "name": "rpc-server",
-                                    "port": "{{ .Values.ports._rpcServer }}"
+                                    "name": "api-server",
+                                    "port": "{{ .Values.ports.apiServer }}"
                                 }
                             ],
                             "examples": [
                                 {
-                                    "name": "rpc-server",
-                                    "port": 9080,
-                                    "targetPort": "rpc-server"
+                                    "name": "api-server",
+                                    "port": 9091,
+                                    "targetPort": "api-server"
                                 },
                                 {
                                     "name": "only_sidecar",
@@ -5232,7 +5185,7 @@
                             ]
                         },
                         "loadBalancerIP": {
-                            "description": "RPC server Service loadBalancerIP.",
+                            "description": "API server Service loadBalancerIP.",
                             "type": [
                                 "string",
                                 "null"
@@ -5240,7 +5193,7 @@
                             "default": null
                         },
                         "loadBalancerSourceRanges": {
-                            "description": "RPC server Service ``loadBalancerSourceRanges``.",
+                            "description": "API server Service ``loadBalancerSourceRanges``.",
                             "type": "array",
                             "items": {
                                 "type": "string"
@@ -5253,7 +5206,7 @@
                     }
                 },
                 "nodeSelector": {
-                    "description": "Select certain nodes for RPC server pods.",
+                    "description": "Select certain nodes for API server pods.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -5261,7 +5214,7 @@
                     }
                 },
                 "priorityClassName": {
-                    "description": "Specify priority for RPC server pods.",
+                    "description": "Specify priority for API server pods.",
                     "type": [
                         "string",
                         "null"
@@ -5269,13 +5222,13 @@
                     "default": null
                 },
                 "affinity": {
-                    "description": "Specify scheduling constraints for RPC server pods.",
+                    "description": "Specify scheduling constraints for API server pods.",
                     "type": "object",
                     "default": "See values.yaml",
                     "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
                 },
                 "tolerations": {
-                    "description": "Specify Tolerations for RPC server pods.",
+                    "description": "Specify Tolerations for API server pods.",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -5284,7 +5237,7 @@
                     }
                 },
                 "topologySpreadConstraints": {
-                    "description": "Specify topology spread constraints for RPC server pods.",
+                    "description": "Specify topology spread constraints for API server pods.",
                     "type": "array",
                     "default": [],
                     "x-docsSection": "Kubernetes",
@@ -5294,7 +5247,7 @@
                     }
                 },
                 "annotations": {
-                    "description": "Annotations to add to the RPC server deployment",
+                    "description": "Annotations to add to the API server deployment",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -5302,7 +5255,7 @@
                     }
                 },
                 "podAnnotations": {
-                    "description": "Annotations to add to the RPC server pods.",
+                    "description": "Annotations to add to the API server pods.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -5310,7 +5263,7 @@
                     }
                 },
                 "labels": {
-                    "description": "Labels to add to the RPC server objects and pods.",
+                    "description": "Labels to add to the API server objects and pods.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -5375,7 +5328,7 @@
                     }
                 },
                 "env": {
-                    "description": "Add additional env vars to RPC server.",
+                    "description": "Add additional env vars to API server.",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -7983,7 +7936,7 @@
             "additionalProperties": false,
             "properties": {
                 "secretName": {
-                    "description": "Registry connection string secret.",
+                    "description": "Name of the Kubernetes secret containing Base64 encoded credentials to connect to a private registry (will get passed to imagePullSecrets).",
                     "type": [
                         "string",
                         "null"
@@ -7991,7 +7944,7 @@
                     "default": null
                 },
                 "connection": {
-                    "description": "Registry connection configuration.",
+                    "description": "Credentials to connect to a private registry, these will get Base64 encoded and stored in a secret (will get passed to imagePullSecrets).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": false,
@@ -8007,12 +7960,12 @@
                             "default": ""
                         },
                         "host": {
-                            "description": "Host",
+                            "description": "Registry Server URL (e.g. https://index.docker.io/v1/ for DockerHub)",
                             "type": "string",
                             "default": ""
                         },
                         "email": {
-                            "description": "Email",
+                            "description": "Email Address",
                             "type": "string",
                             "default": ""
                         }
@@ -8107,10 +8060,10 @@
                     "type": "integer",
                     "default": 8080
                 },
-                "_rpcServer": {
-                    "description": "RPC server port (AIP-44). Experimental / dev purpose only.",
+                "apiServer": {
+                    "description": "API server port.",
                     "type": "integer",
-                    "default": 9080
+                    "default": 9091
                 },
                 "workerLogs": {
                     "description": "Worker logs port.",

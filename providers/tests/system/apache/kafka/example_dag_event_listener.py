@@ -26,12 +26,12 @@ from airflow import DAG
 
 # Connections needed for this example dag to finish
 from airflow.models import Connection
+from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOperator
+from airflow.providers.apache.kafka.sensors.kafka import AwaitMessageTriggerFunctionSensor
 
 # This is just for setting up connections in the demo - you should use standard
 # methods for setting these connections in production
-from airflow.operators.python import PythonOperator
-from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOperator
-from airflow.providers.apache.kafka.sensors.kafka import AwaitMessageTriggerFunctionSensor
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils import db
 
 
@@ -120,7 +120,7 @@ with DAG(
     t0 >> t1
 
 
-from dev.tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

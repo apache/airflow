@@ -28,14 +28,14 @@ from airflow.utils.state import State
 from airflow.www.utils import UIAlert
 from airflow.www.views import FILTER_LASTRUN_COOKIE, FILTER_STATUS_COOKIE, FILTER_TAGS_COOKIE
 
-from dev.tests_common.test_utils.db import clear_db_dags, clear_db_import_errors, clear_db_serialized_dags
-from dev.tests_common.test_utils.permissions import _resource_name
-from dev.tests_common.test_utils.www import (
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user
+from tests_common.test_utils.db import clear_db_dags, clear_db_import_errors, clear_db_serialized_dags
+from tests_common.test_utils.permissions import _resource_name
+from tests_common.test_utils.www import (
     check_content_in_response,
     check_content_not_in_response,
     client_with_login,
 )
-from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user
 
 pytestmark = pytest.mark.db_test
 
@@ -98,25 +98,25 @@ def test_home_dags_count(render_template_mock, admin_client, _working_dags, sess
 def test_home_status_filter_cookie(admin_client):
     with admin_client:
         admin_client.get("home", follow_redirects=True)
-        assert "all" == flask.session[FILTER_STATUS_COOKIE]
+        assert flask.session[FILTER_STATUS_COOKIE] == "all"
 
         admin_client.get("home?status=active", follow_redirects=True)
-        assert "active" == flask.session[FILTER_STATUS_COOKIE]
+        assert flask.session[FILTER_STATUS_COOKIE] == "active"
 
         admin_client.get("home?status=paused", follow_redirects=True)
-        assert "paused" == flask.session[FILTER_STATUS_COOKIE]
+        assert flask.session[FILTER_STATUS_COOKIE] == "paused"
 
         admin_client.get("home?status=all", follow_redirects=True)
-        assert "all" == flask.session[FILTER_STATUS_COOKIE]
+        assert flask.session[FILTER_STATUS_COOKIE] == "all"
 
         admin_client.get("home?lastrun=running", follow_redirects=True)
-        assert "running" == flask.session[FILTER_LASTRUN_COOKIE]
+        assert flask.session[FILTER_LASTRUN_COOKIE] == "running"
 
         admin_client.get("home?lastrun=failed", follow_redirects=True)
-        assert "failed" == flask.session[FILTER_LASTRUN_COOKIE]
+        assert flask.session[FILTER_LASTRUN_COOKIE] == "failed"
 
         admin_client.get("home?lastrun=all_states", follow_redirects=True)
-        assert "all_states" == flask.session[FILTER_LASTRUN_COOKIE]
+        assert flask.session[FILTER_LASTRUN_COOKIE] == "all_states"
 
 
 @pytest.fixture(scope="module")
@@ -205,7 +205,7 @@ TEST_TAGS = ["example", "test", "team", "group"]
 
 def _process_file(file_path):
     dag_file_processor = DagFileProcessor(dag_ids=[], dag_directory="/tmp", log=mock.MagicMock())
-    dag_file_processor.process_file(file_path, [], False)
+    dag_file_processor.process_file(file_path, [])
 
 
 @pytest.fixture
@@ -283,7 +283,7 @@ def _broken_dags_after_working(tmp_path):
 def test_home_filter_tags(_working_dags, admin_client):
     with admin_client:
         admin_client.get("home?tags=example&tags=data", follow_redirects=True)
-        assert "example,data" == flask.session[FILTER_TAGS_COOKIE]
+        assert flask.session[FILTER_TAGS_COOKIE] == "example,data"
 
         admin_client.get("home?reset_tags", follow_redirects=True)
         assert flask.session[FILTER_TAGS_COOKIE] is None
@@ -457,20 +457,6 @@ def test_sorting_home_view(url, lower_key, greater_key, user_client, _working_da
     lower_index = resp_html.find(lower_key)
     greater_index = resp_html.find(greater_key)
     assert lower_index < greater_index
-
-
-@pytest.mark.parametrize("is_enabled, should_have_pixel", [(False, False), (True, True)])
-def test_analytics_pixel(user_client, is_enabled, should_have_pixel):
-    """
-    Test that the analytics pixel is not included when the feature is disabled
-    """
-    with mock.patch("airflow.settings.is_usage_data_collection_enabled", return_value=is_enabled):
-        resp = user_client.get("home", follow_redirects=True)
-
-    if should_have_pixel:
-        check_content_in_response("apacheairflow.gateway.scarf.sh", resp)
-    else:
-        check_content_not_in_response("apacheairflow.gateway.scarf.sh", resp)
 
 
 @pytest.mark.parametrize(

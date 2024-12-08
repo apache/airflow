@@ -56,12 +56,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run only latest version checks (true/false)"
         required: true
         type: string
-      enable-aip-44:
-        description: "Whether to enable AIP-44 (true/false)"
-        required: true
-        type: string
-env:
-  AIRFLOW_ENABLE_AIP_44: "${{ inputs.enable-aip-44 }}"
 jobs:
   run-breeze-tests:
     timeout-minutes: 10
@@ -153,103 +147,6 @@ jobs:
         env:
           FORCE_COLOR: 2
 
-  test-openapi-client:
-    timeout-minutes: 10
-    name: "Test OpenAPI client"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
-    if: inputs.needs-api-codegen == 'true'
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-          persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          repository: "apache/airflow-client-python"
-          fetch-depth: 1
-          persist-credentials: false
-          path: ./airflow-client-python
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-      - name: "Generate client with breeze"
-        run: >
-          breeze release-management prepare-python-client --package-format both
-          --version-suffix-for-pypi dev0 --python-client-repo ./airflow-client-python
-      - name: "Show diff"
-        run: git diff --color HEAD
-        working-directory: ./airflow-client-python
-      - name: Install hatch
-        run: |
-          python -m pip install --upgrade pipx
-          pipx ensurepath
-          pipx install hatch --force
-      - name: Run tests
-        run: hatch run run-coverage
-        env:
-          HATCH_ENV: "test"
-        working-directory: ./clients/python
-      - name: "Prepare FAB+standard provider packages: wheel"
-        run: >
-            breeze release-management prepare-provider-packages fab standard \
-              --package-format wheel --skip-tag-check
-      - name: "Install Airflow with fab for webserver tests"
-        run: pip install . dist/apache_airflow_providers_fab-*.whl
-      - name: "Prepare Standard provider packages: wheel"
-        run: >
-          breeze release-management prepare-provider-packages standard --package-format wheel --skip-tag-check
-      - name: "Install Airflow with standard provider for webserver tests"
-        run: pip install . dist/apache_airflow_providers_standard-*.whl
-      - name: "Install Python client"
-        run: pip install ./dist/apache_airflow_client-*.whl
-      - name: "Initialize Airflow DB and start webserver"
-        run: |
-          airflow db init
-          # Let scheduler runs a few loops and get all DAG files from example DAGs serialized to DB
-          airflow scheduler --num-runs 100
-          airflow users create --username admin --password admin --firstname Admin --lastname Admin \
-             --role Admin --email admin@example.org
-          killall python || true  # just in case there is a webserver running in the background
-          nohup airflow webserver --port 8080 &
-          echo "Started webserver"
-        env:
-          AIRFLOW__API__AUTH_BACKENDS: >-
-            airflow.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
-          AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "True"
-          AIRFLOW__CORE__LOAD_EXAMPLES: "True"
-          AIRFLOW_HOME: "${{ github.workspace }}/airflow_home"
-      - name: "Waiting for the webserver to be available"
-        run: |
-          timeout 30 bash -c 'until nc -z $0 $1; do echo "sleeping"; sleep 1; done' localhost 8080
-          sleep 5
-      - name: "Run test python client"
-        run: python ./clients/python/test_python_client.py
-        env:
-          FORCE_COLOR: "standard"
-      - name: "Stop running webserver"
-        run: killall python || true  # just in case there is a webserver running in the background
-        if: always()
-      - name: "Upload python client packages"
-        uses: actions/upload-artifact@v4
-        with:
-          name: python-client-packages
-          path: ./dist/apache_airflow_client-*
-          retention-days: 7
-          if-no-files-found: error
-      - name: "Upload logs from failed tests"
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: python-client-failed-logs
-          path: "${{ github.workspace }}/airflow_home/logs"
-          retention-days: 7
-
   # Those checks are run if no image needs to be built for checks. This is for simple changes that
   # Do not touch any of the python code or any of the important files that might require building
   # The CI Docker image and they can be run entirely using the pre-commit virtual environments on host
@@ -283,16 +180,11 @@ jobs:
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         id: breeze
-      - name: Cache pre-commit envs
-        uses: actions/cache@v4
+      - name: "Install pre-commit"
+        uses: ./.github/actions/install-pre-commit
+        id: pre-commit
         with:
-          path: ~/.cache/pre-commit
-          # yamllint disable-line rule:line-length
-          key: "pre-commit-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: "\
-            pre-commit-${{steps.breeze.outputs.host-python-version}}-\
-            ${{ hashFiles('.pre-commit-config.yaml') }}\n
-            pre-commit-${{steps.breeze.outputs.host-python-version}}-"
+          python-version: ${{steps.breeze.outputs.host-python-version}}
       - name: Fetch incoming commit ${{ github.sha }} with its parent
         uses: actions/checkout@v4
         with:
@@ -359,6 +251,8 @@ jobs:
           --hook-stage manual
           update-build-dependencies
         if: always()
+        env:
+          SKIP_TROVE_CLASSIFIERS_ONLY: "true"
       - name: "Run automated upgrade for chart dependencies"
         run: >
           pre-commit run

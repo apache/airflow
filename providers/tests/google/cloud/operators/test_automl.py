@@ -46,7 +46,6 @@ from airflow.providers.google.cloud.operators.automl import (
     AutoMLTablesUpdateDatasetOperator,
     AutoMLTrainModelOperator,
 )
-from airflow.utils import timezone
 
 CREDENTIALS = "test-creds"
 TASK_ID = "test-automl-hook"
@@ -129,7 +128,6 @@ class TestAutoMLTrainModelOperator:
             # Other parameters
             dag_id="test_template_body_templating_dag",
             task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
         session.add(ti)
         session.commit()
@@ -147,6 +145,7 @@ class TestAutoMLBatchPredictOperator:
         mock_hook.return_value.batch_predict.return_value.result.return_value = BatchPredictResult()
         mock_hook.return_value.extract_object_id = extract_object_id
         mock_hook.return_value.wait_for_operation.return_value = BatchPredictResult()
+        mock_hook.return_value.get_model.return_value = mock.MagicMock(**MODEL)
         mock_context = {"ti": mock.MagicMock()}
         with pytest.warns(AirflowProviderDeprecationWarning):
             op = AutoMLBatchPredictOperator(
@@ -175,6 +174,7 @@ class TestAutoMLBatchPredictOperator:
             task_instance=op,
             model_id=MODEL_ID,
             project_id=GCP_PROJECT_ID,
+            dataset_id=DATASET_ID,
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
@@ -224,7 +224,6 @@ class TestAutoMLBatchPredictOperator:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
         session.add(ti)
         session.commit()
@@ -243,6 +242,7 @@ class TestAutoMLPredictOperator:
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
     def test_execute(self, mock_hook, mock_link_persist):
         mock_hook.return_value.predict.return_value = PredictResponse()
+        mock_hook.return_value.get_model.return_value = mock.MagicMock(**MODEL)
         mock_context = {"ti": mock.MagicMock()}
         op = AutoMLPredictOperator(
             model_id=MODEL_ID,
@@ -268,6 +268,7 @@ class TestAutoMLPredictOperator:
             task_instance=op,
             model_id=MODEL_ID,
             project_id=GCP_PROJECT_ID,
+            dataset_id=DATASET_ID,
         )
 
     @pytest.mark.db_test
@@ -282,7 +283,6 @@ class TestAutoMLPredictOperator:
             # Other parameters
             dag_id="test_template_body_templating_dag",
             task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             payload={},
         )
         session.add(ti)
@@ -391,7 +391,6 @@ class TestAutoMLCreateImportOperator:
             # Other parameters
             dag_id="test_template_body_templating_dag",
             task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
         session.add(ti)
         session.commit()
@@ -445,7 +444,6 @@ class TestAutoMLTablesListColumnsSpecsOperator:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
 
 
@@ -486,7 +484,6 @@ class TestAutoMLTablesUpdateDatasetOperator:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
 
 
@@ -551,7 +548,6 @@ class TestAutoMLGetModelOperator:
             # Other parameters
             dag_id="test_template_body_templating_dag",
             task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
         session.add(ti)
         session.commit()
@@ -622,7 +618,6 @@ class TestAutoMLDeleteModelOperator:
             # Other parameters
             dag_id="test_template_body_templating_dag",
             task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
         session.add(ti)
         session.commit()
@@ -671,7 +666,6 @@ class TestAutoMLDeployModelOperator:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
 
 
@@ -738,7 +732,6 @@ class TestAutoMLDatasetImportOperator:
             # Other parameters
             dag_id="test_template_body_templating_dag",
             task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
         session.add(ti)
         session.commit()
@@ -788,7 +781,6 @@ class TestAutoMLTablesListTableSpecsOperator:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
 
 
@@ -837,7 +829,6 @@ class TestAutoMLDatasetListOperator:
             # Other parameters
             dag_id="test_template_body_templating_dag",
             task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
         session.add(ti)
         session.commit()
@@ -907,7 +898,6 @@ class TestAutoMLDatasetDeleteOperator:
             # Other parameters
             dag_id="test_template_body_templating_dag",
             task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
         session.add(ti)
         session.commit()

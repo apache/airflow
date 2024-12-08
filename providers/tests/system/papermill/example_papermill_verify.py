@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This DAG will use Papermill to run the notebook "hello_world", based on the execution date
+This DAG will use Papermill to run the notebook "hello_world", based on the logical date
 it will create an output notebook "out-<date>". All fields, including the keys in the parameters, are
 templated.
 """
@@ -42,15 +42,15 @@ DAG_ID = "example_papermill_operator_verify"
 
 # [START howto_verify_operator_papermill]
 @task
-def check_notebook(inlets, execution_date):
+def check_notebook(inlets, logical_date):
     """
     Verify the message in the notebook
     """
     notebook = sb.read_notebook(inlets[0].url)
     message = notebook.scraps["message"]
-    print(f"Message in notebook {message} for {execution_date}")
+    print(f"Message in notebook {message} for {logical_date}")
 
-    if message.data != f"Ran from Airflow at {execution_date}!":
+    if message.data != f"Ran from Airflow at {logical_date}!":
         return False
 
     return True
@@ -66,14 +66,14 @@ with DAG(
     run_this = PapermillOperator(
         task_id="run_example_notebook",
         input_nb=os.path.join(os.path.dirname(os.path.realpath(__file__)), "input_notebook.ipynb"),
-        output_nb="/tmp/out-{{ execution_date }}.ipynb",
-        parameters={"msgs": "Ran from Airflow at {{ execution_date }}!"},
+        output_nb="/tmp/out-{{ logical_date }}.ipynb",
+        parameters={"msgs": "Ran from Airflow at {{ logical_date }}!"},
     )
 
-    run_this >> check_notebook(inlets=AUTO, execution_date="{{ execution_date }}")
+    run_this >> check_notebook(inlets=AUTO, logical_date="{{ logical_date }}")
 # [END howto_verify_operator_papermill]
 
-from dev.tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

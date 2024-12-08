@@ -28,20 +28,28 @@ Airflow 2.0 is split into core and providers. They are delivered as separate pac
 Where providers are kept in our repository
 ------------------------------------------
 
-Airflow Providers are stored in the same source tree as Airflow Core (under ``airflow.providers``) package. This
-means that Airflow's repository is a monorepo, that keeps multiple packages in a single repository. This has a number
+Airflow Providers are stored in a separate tree other than the Airflow Core (under ``providers`` directory).
+Airflow's repository is a monorepo, that keeps multiple packages in a single repository. This has a number
 of advantages, because code and CI infrastructure and tests can be shared. Also contributions are happening to a
 single repository - so no matter if you contribute to Airflow or Providers, you are contributing to the same
 repository and project.
 
 It has also some disadvantages as this introduces some coupling between those - so contributing to providers might
 interfere with contributing to Airflow. Python ecosystem does not yet have proper monorepo support for keeping
-several packages in one repository and being able to work on multiple of them at the same time, but we have
-high hopes Hatch project that use as our recommended packaging frontend
-will `solve this problem in the future <https://github.com/pypa/hatch/issues/233>`__
+several packages in one repository and being able to work on more than one of them at the same time. The tool ``uv`` is
+recommended to help manage this through it's ``workspace`` feature. While developing, dependencies and extras for a
+provider can be installed using ``uv``'s ``sync`` command. Here is an example for the microsoft.azure provider:
+
+.. code:: bash
+
+    uv sync --extra devel --extra devel-tests --extra microsoft.azure
+
+This will synchronize all extras that you need for development and testing of Airflow and the Microsoft Azure provider
+dependencies including runtime dependencies. See `local virtualenv <../07_local_virtualenv.rst>`_ or the uv project
+for more information.
 
 Therefore, until we can introduce multiple ``pyproject.toml`` for providers information/meta-data about the providers
-is kept in ``provider.yaml`` file in the right sub-directory of ``airflow\providers``. This file contains:
+is kept in ``provider.yaml`` file in the right sub-directory of ``providers``. This file contains:
 
 * package name (``apache-airflow-provider-*``)
 * user-facing name of the provider package
@@ -81,6 +89,19 @@ and pre-commit will generate new entry in ``generated/provider_dependencies.json
 ``pyproject.toml`` so that the package extra dependencies are properly handled when package
 might be installed when breeze is restarted or by your IDE or by running ``pip install -e ".[devel]"``.
 
+Chicken-egg providers
+---------------------
+
+Sometimes, when a provider depends on another provider, and you want to add a new feature that spans across
+two providers, you might need to add a new feature to the "dependent" provider, you need
+to add a new feature to the "dependency" provider as well. This is a chicken-egg problem and by default
+some CI jobs (like generating PyPI constraints) will fail because they cannot use the source version of
+the provider package. This is handled by adding the "dependent" provider to the chicken-egg list of
+"providers" in ``dev/breeze/src/airflow_breeze/global_constants.py``. By doing this, the provider is build
+locally from sources rather than downloaded from PyPI when generating constraints.
+
+More information about the chicken-egg providers and how release is handled can be found in
+the `Release Provider Packages documentation <../dev/README_RELEASE_PROVIDER_PACKAGES.md#chicken-egg-providers>`_
 
 Developing community managed provider packages
 ----------------------------------------------
@@ -117,6 +138,63 @@ as a sub-folder of the ``airflow.providers`` package, add the ``provider.yaml`` 
 in development mode - then capabilities of your provider will be discovered by airflow and you will see
 the provider among other providers in ``airflow providers`` command output.
 
+
+Local Release of a Specific Provider
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When you develop a provider, you can release it locally and test it in your Airflow environment. This should
+be accomplished using breeze. Choose a suffix for the release such as "patch.asb.1" and run the breeze build for
+that provider. Remember Provider IDs use a dot ('.') for directory separators so the Provider ID for the
+Microsoft Azure provider is 'microsoft.azure'. The provider IDs to build can be provided in the PACKAGE_LIST
+environment variable or passed on the command line.
+
+.. code-block:: bash
+
+     export PACKAGE_LIST=microsoft.azure
+
+Then build the provider (you don't need to pass the package ID if you set the environment variable above):
+
+.. code-block:: bash
+
+    breeze release-management prepare-provider-packages \
+        --package-format both \
+        --version-suffix-for-local=patch.asb.1 \
+        microsoft.azure
+
+
+Finally, copy the wheel file from the dist directory to the a directory your airflow deployment can use.
+If this is ~/airflow/test-airflow/local_providers, you can use the following command:
+
+``cp dist/apache_airflow_providers_microsoft_azure-10.5.2+patch.asb.1-none-any.whl ~/airflow/test-airflow/local_providers/``
+
+If you want to build a local version of a version already released to PyPI, such as rc1, then you can combine
+the PyPI suffix flag --version-suffix-for-pypi with the local suffix flag --version-suffix-for-local. For example:
+
+.. code-block:: bash
+
+    breeze release-management prepare-provider-packages \
+        --package-format both \
+        --version-suffix-for-pypi rc1 \
+        --version-suffix-for-local=patch.asb.1 \
+        microsoft.azure
+
+
+The above would result in a wheel file
+
+    apache_airflow_providers_microsoft_azure-10.5.2rc1+patch.asb.1-py3-none-any.whl
+
+Builds using a local suffix will not check to see if a release has already been made. This is useful for testing.
+
+Local versions can also be built using the version-suffix-for-pypi flag although using the version-suffix-for-local
+flag is preferred. To build with the version-suffix-for-pypi flag, use the following command:
+
+.. code-block:: bash
+
+    breeze release-management prepare-provider-packages \
+        --package-format both --version-suffix-for-pypi=dev1 \
+        --skip-tag-check microsoft.azure
+
+
 Naming Conventions for provider packages
 ----------------------------------------
 
@@ -133,6 +211,7 @@ The rules are as follows:
   further split into sub-packages (for example 'apache' package has 'cassandra', 'druid' ... providers ) out
   of which several different provider packages are produced (apache.cassandra, apache.druid). This is
   case when the providers are connected under common umbrella but very loosely coupled on the code level.
+  Please note the separator of the provider-package ID is a period, not a dash like the package names in PyPI(microsoft.azure vs apache-airflow-providers-microsoft-azure).
 
 * In some cases the package can have sub-packages but they are all delivered as single provider
   package (for example 'google' package contains 'ads', 'cloud' etc. sub-packages). This is in case
@@ -243,9 +322,8 @@ backward compatible with future versions of Airflow, so you can upgrade Airflow 
 at the same version.
 
 When you introduce a breaking change in the provider, you have to make sure that you communicate it
-properly. You have to update ``CHANGELOG.rst`` file in the provider package and you have to make sure that
-you update the ``provider.yaml`` file with the new (breaking) version of the provider. Ideally in the
-``CHANGELOG.rst`` you should also provide a migration path for the users to follow.
+properly. You have to update ``CHANGELOG.rst`` file in the provider package. Ideally you should provide
+a migration path for the users to follow in the``CHANGELOG.rst``.
 
 If in doubt, you can always look at ``CHANGELOG.rst``  in other providers to see how we communicate
 breaking changes in the providers.

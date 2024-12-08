@@ -50,7 +50,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import (
 )
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 pytest.importorskip("aiobotocore")
 
@@ -1074,7 +1074,7 @@ def _non_retryable_test(thing):
 class TestRetryDecorator:  # ptlint: disable=invalid-name
     def test_do_nothing_on_non_exception(self):
         result = _retryable_test(lambda: 42)
-        assert result, 42
+        assert result == 42
 
     @mock.patch("time.sleep", return_value=0)
     def test_retry_on_exception(self, _):

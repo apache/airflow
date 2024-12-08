@@ -17,7 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
+from typing import ClassVar
 
 from deprecated import deprecated
 
@@ -46,7 +47,7 @@ class DrillOperator(SQLExecuteQueryOperator):
     """
 
     template_fields: Sequence[str] = ("sql",)
-    template_fields_renderers = {"sql": "sql"}
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
     template_ext: Sequence[str] = (".sql",)
     ui_color = "#ededed"
 

@@ -22,13 +22,13 @@ import functools
 import hashlib
 import time
 import traceback
+from collections.abc import Iterable
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Callable, Iterable
+from typing import TYPE_CHECKING, Any, Callable
 
 from sqlalchemy import select
 
 from airflow import settings
-from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
@@ -38,6 +38,7 @@ from airflow.exceptions import (
     AirflowSkipException,
     AirflowTaskTimeout,
     TaskDeferralError,
+    TaskDeferralTimeout,
 )
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.baseoperator import BaseOperator
@@ -45,7 +46,7 @@ from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
@@ -56,10 +57,8 @@ if TYPE_CHECKING:
 _MYSQL_TIMESTAMP_MAX = datetime.datetime(2038, 1, 19, 3, 14, 7, tzinfo=timezone.utc)
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _is_metadatabase_mysql() -> bool:
-    if InternalApiConfig.get_use_internal_api():
-        return False
     if settings.engine is None:
         raise AirflowException("Must initialize ORM first")
     return settings.engine.url.get_backend_name() == "mysql"
@@ -84,7 +83,6 @@ class PokeReturnValue:
         return self.is_done
 
 
-@internal_api_call
 @provide_session
 def _orig_start_date(
     dag_id: str, task_id: str, run_id: str, map_index: int, try_number: int, session: Session = NEW_SESSION
@@ -177,7 +175,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         super().__init__(**kwargs)
         self.poke_interval = self._coerce_poke_interval(poke_interval).total_seconds()
         self.soft_fail = soft_fail
-        self.timeout = self._coerce_timeout(timeout).total_seconds()
+        self.timeout: int | float = self._coerce_timeout(timeout).total_seconds()
         self.mode = mode
         self.exponential_backoff = exponential_backoff
         self.max_wait = self._coerce_max_wait(max_wait)
@@ -250,13 +248,20 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             # If reschedule, use the start date of the first try (first try can be either the very
             # first execution of the task, or the first execution after the task was cleared.)
             first_try_number = max_tries - retries + 1
-            start_date = _orig_start_date(
-                dag_id=ti.dag_id,
-                task_id=ti.task_id,
-                run_id=ti.run_id,
-                map_index=ti.map_index,
-                try_number=first_try_number,
-            )
+            with create_session() as session:
+                start_date = session.scalar(
+                    select(TaskReschedule)
+                    .where(
+                        TaskReschedule.dag_id == ti.dag_id,
+                        TaskReschedule.task_id == ti.task_id,
+                        TaskReschedule.run_id == ti.run_id,
+                        TaskReschedule.map_index == ti.map_index,
+                        TaskReschedule.try_number == first_try_number,
+                    )
+                    .order_by(TaskReschedule.id.asc())
+                    .with_only_columns(TaskReschedule.start_date)
+                    .limit(1)
+                )
             if not start_date:
                 start_date = timezone.utcnow()
             started_at = start_date
@@ -334,6 +339,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
         try:
             return super().resume_execution(next_method, next_kwargs, context)
+        except TaskDeferralTimeout as e:
+            raise AirflowSensorTimeout(*e.args) from e
         except (AirflowException, TaskDeferralError) as e:
             if self.soft_fail:
                 raise AirflowSkipException(str(e)) from e
@@ -365,7 +372,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 # Calculate the jitter
                 run_hash = int(
                     hashlib.sha1(
-                        f"{self.dag_id}#{self.task_id}#{started_at}#{estimated_poke_count}".encode()
+                        f"{self.dag_id}#{self.task_id}#{started_at}#{estimated_poke_count}".encode(),
+                        usedforsecurity=False,
                     ).hexdigest(),
                     16,
                 )
@@ -384,7 +392,9 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         min_backoff = max(int(self.poke_interval * (2 ** (poke_count - 2))), 1)
 
         run_hash = int(
-            hashlib.sha1(f"{self.dag_id}#{self.task_id}#{started_at}#{poke_count}".encode()).hexdigest(),
+            hashlib.sha1(
+                f"{self.dag_id}#{self.task_id}#{started_at}#{poke_count}".encode(), usedforsecurity=False
+            ).hexdigest(),
             16,
         )
         modded_hash = min_backoff + run_hash % min_backoff

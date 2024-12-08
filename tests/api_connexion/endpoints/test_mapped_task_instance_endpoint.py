@@ -33,11 +33,11 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import datetime
 
-from dev.tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
-from dev.tests_common.test_utils.db import clear_db_runs, clear_db_sla_miss, clear_rendered_ti_fields
-from dev.tests_common.test_utils.mock_operators import MockOperator
+from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests_common.test_utils.db import clear_db_runs, clear_rendered_ti_fields
+from tests_common.test_utils.mock_operators import MockOperator
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 DEFAULT_DATETIME_1 = datetime(2020, 1, 1)
 DEFAULT_DATETIME_STR_1 = "2020-01-01T00:00:00+00:00"
@@ -67,7 +67,7 @@ class TestMappedTaskInstanceEndpoint:
     def setup_attrs(self, configured_app) -> None:
         self.default_time = DEFAULT_DATETIME_1
         self.ti_init = {
-            "execution_date": self.default_time,
+            "logical_date": self.default_time,
             "state": State.RUNNING,
         }
         self.ti_extras = {
@@ -77,12 +77,10 @@ class TestMappedTaskInstanceEndpoint:
             "duration": 10000,
             "pool": "default_pool",
             "queue": "default_queue",
-            "job_id": 0,
         }
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
         clear_db_runs()
-        clear_db_sla_miss()
         clear_rendered_ti_fields()
 
     def create_dag_runs_with_mapped_tasks(self, dag_maker, session, dags=None):
@@ -212,7 +210,7 @@ class TestGetMappedTaskInstance(TestMappedTaskInstanceEndpoint):
             "dag_run_id": "run_mapped_tis",
             "duration": None,
             "end_date": None,
-            "execution_date": "2020-01-01T00:00:00+00:00",
+            "logical_date": "2020-01-01T00:00:00+00:00",
             "executor": "default",
             "executor_config": "{}",
             "hostname": "",
@@ -228,7 +226,6 @@ class TestGetMappedTaskInstance(TestMappedTaskInstanceEndpoint):
             "queued_when": None,
             "rendered_fields": {},
             "rendered_map_index": None,
-            "sla_miss": None,
             "start_date": "2020-01-01T00:00:00+00:00",
             "state": "success",
             "task_id": "task_2",

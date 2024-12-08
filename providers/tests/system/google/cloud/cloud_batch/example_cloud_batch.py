@@ -27,13 +27,13 @@ from datetime import datetime
 from google.cloud import batch_v1
 
 from airflow.models.dag import DAG
-from airflow.operators.python import PythonOperator
 from airflow.providers.google.cloud.operators.cloud_batch import (
     CloudBatchDeleteJobOperator,
     CloudBatchListJobsOperator,
     CloudBatchListTasksOperator,
     CloudBatchSubmitJobOperator,
 )
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
@@ -187,13 +187,13 @@ with DAG(
 
     ([submit1, submit2] >> list_tasks >> assert_tasks >> list_jobs >> get_name >> [delete_job1, delete_job2])
 
-    from dev.tests_common.test_utils.watcher import watcher
+    from tests_common.test_utils.watcher import watcher
 
     # This test needs watcher in order to properly mark success/failure
     # when "tearDown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
 
-from dev.tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

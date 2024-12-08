@@ -20,9 +20,9 @@ from __future__ import annotations
 import inspect
 import json
 import warnings
+from collections.abc import Iterator
 from datetime import datetime, timedelta
 from importlib import import_module
-from typing import Iterator
 
 import pendulum
 import pytest
@@ -31,7 +31,6 @@ from kubernetes.client import models as k8s
 from pendulum.tz.timezone import Timezone
 from pydantic import BaseModel
 
-from airflow.assets import Asset, AssetAlias, AssetAliasEvent
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -49,7 +48,8 @@ from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.tasklog import LogTemplate
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.pydantic.asset import AssetEventPydantic, AssetPydantic
 from airflow.serialization.pydantic.dag import DagModelPydantic, DagTagPydantic
@@ -58,15 +58,15 @@ from airflow.serialization.pydantic.job import JobPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
 from airflow.serialization.serialized_objects import BaseSerialization
-from airflow.settings import _ENABLE_AIP_44
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
-from airflow.utils.context import OutletEventAccessor, OutletEventAccessors
+from airflow.utils.context import AssetAliasEvent, OutletEventAccessor, OutletEventAccessors
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.operator_resources import Resources
 from airflow.utils.state import DagRunState, State
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
+
 from tests import REPO_ROOT
 
 
@@ -142,7 +142,7 @@ DAG_RUN = DagRun(
     dag_id="test_dag_id",
     run_id="test_dag_run_id",
     run_type=DagRunType.MANUAL,
-    execution_date=timezone.utcnow(),
+    logical_date=timezone.utcnow(),
     start_date=timezone.utcnow(),
     external_trigger=True,
     state=DagRunState.SUCCESS,
@@ -187,7 +187,11 @@ class MockLazySelectSequence(LazySelectSequence):
         (timezone.utcnow(), DAT.DATETIME, equal_time),
         (timedelta(minutes=2), DAT.TIMEDELTA, equals),
         (Timezone("UTC"), DAT.TIMEZONE, lambda a, b: a.name == b.name),
-        (relativedelta.relativedelta(hours=+1), DAT.RELATIVEDELTA, lambda a, b: a.hours == b.hours),
+        (
+            relativedelta.relativedelta(hours=+1),
+            DAT.RELATIVEDELTA,
+            lambda a, b: a.hours == b.hours,
+        ),
         ({"test": "dict", "test-1": 1}, None, equals),
         (["array_item", 2], None, equals),
         (("tuple_item", 3), DAT.TUPLE, equals),
@@ -195,7 +199,9 @@ class MockLazySelectSequence(LazySelectSequence):
         (
             k8s.V1Pod(
                 metadata=k8s.V1ObjectMeta(
-                    name="test", annotations={"test": "annotation"}, creation_timestamp=timezone.utcnow()
+                    name="test",
+                    annotations={"test": "annotation"},
+                    creation_timestamp=timezone.utcnow(),
                 )
             ),
             DAT.POD,
@@ -214,7 +220,14 @@ class MockLazySelectSequence(LazySelectSequence):
         ),
         (Resources(cpus=0.1, ram=2048), None, None),
         (EmptyOperator(task_id="test-task"), None, None),
-        (TaskGroup(group_id="test-group", dag=DAG(dag_id="test_dag", start_date=datetime.now())), None, None),
+        (
+            TaskGroup(
+                group_id="test-group",
+                dag=DAG(dag_id="test_dag", start_date=datetime.now()),
+            ),
+            None,
+            None,
+        ),
         (
             Param("test", "desc"),
             DAT.PARAM,
@@ -231,8 +244,12 @@ class MockLazySelectSequence(LazySelectSequence):
             DAT.XCOM_REF,
             None,
         ),
-        (MockLazySelectSequence(), None, lambda a, b: len(a) == len(b) and isinstance(b, list)),
-        (Asset(uri="test"), DAT.ASSET, equals),
+        (
+            MockLazySelectSequence(),
+            None,
+            lambda a, b: len(a) == len(b) and isinstance(b, list),
+        ),
+        (Asset(uri="test://asset1", name="test"), DAT.ASSET, equals),
         (SimpleTaskInstance.from_ti(ti=TI), DAT.SIMPLE_TASK_INSTANCE, equals),
         (
             Connection(conn_id="TEST_ID", uri="mysql://"),
@@ -240,16 +257,24 @@ class MockLazySelectSequence(LazySelectSequence):
             lambda a, b: a.get_uri() == b.get_uri(),
         ),
         (
-            OutletEventAccessor(raw_key=Asset(uri="test"), extra={"key": "value"}, asset_alias_events=[]),
+            OutletEventAccessor(
+                raw_key=Asset(uri="test://asset1", name="test", group="test-group"),
+                extra={"key": "value"},
+                asset_alias_events=[],
+            ),
             DAT.ASSET_EVENT_ACCESSOR,
             equal_outlet_event_accessor,
         ),
         (
             OutletEventAccessor(
-                raw_key=AssetAlias(name="test_alias"),
+                raw_key=AssetAlias(name="test_alias", group="test-alias-group"),
                 extra={"key": "value"},
                 asset_alias_events=[
-                    AssetAliasEvent(source_alias_name="test_alias", dest_asset_uri="test_uri", extra={})
+                    AssetAliasEvent(
+                        source_alias_name="test_alias",
+                        dest_asset_uri="test_uri",
+                        extra={},
+                    )
                 ],
             ),
             DAT.ASSET_EVENT_ACCESSOR,
@@ -295,7 +320,10 @@ def test_serialize_deserialize(input, encoded_type, cmp_func):
     "conn_uri",
     [
         pytest.param("aws://", id="only-conn-type"),
-        pytest.param("postgres://username:password@ec2.compute.com:5432/the_database", id="all-non-extra"),
+        pytest.param(
+            "postgres://username:password@ec2.compute.com:5432/the_database",
+            id="all-non-extra",
+        ),
         pytest.param(
             "///?__extra__=%7B%22foo%22%3A+%22bar%22%2C+%22answer%22%3A+42%2C+%22"
             "nullable%22%3A+null%2C+%22empty%22%3A+%22%22%2C+%22zero%22%3A+0%7D",
@@ -307,7 +335,10 @@ def test_backcompat_deserialize_connection(conn_uri):
     """Test deserialize connection which serialised by previous serializer implementation."""
     from airflow.serialization.serialized_objects import BaseSerialization
 
-    conn_obj = {Encoding.TYPE: DAT.CONNECTION, Encoding.VAR: {"conn_id": "TEST_ID", "uri": conn_uri}}
+    conn_obj = {
+        Encoding.TYPE: DAT.CONNECTION,
+        Encoding.VAR: {"conn_id": "TEST_ID", "uri": conn_uri},
+    }
     deserialized = BaseSerialization.deserialize(conn_obj)
     assert deserialized.get_uri() == conn_uri
 
@@ -323,15 +354,17 @@ sample_objects = {
         is_paused=True,
     ),
     LogTemplatePydantic: LogTemplate(
-        id=1, filename="test_file", elasticsearch_id="test_id", created_at=datetime.now()
+        id=1,
+        filename="test_file",
+        elasticsearch_id="test_id",
+        created_at=datetime.now(),
     ),
     DagTagPydantic: DagTag(),
-    AssetPydantic: Asset("uri", {}),
+    AssetPydantic: Asset(name="test", uri="test://asset1", extra={}),
     AssetEventPydantic: AssetEvent(),
 }
 
 
-@pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 @pytest.mark.parametrize(
     "input, pydantic_class, encoded_type, cmp_func",
     [
@@ -351,7 +384,7 @@ sample_objects = {
             sample_objects.get(DagRunPydantic),
             DagRunPydantic,
             DAT.DAG_RUN,
-            lambda a, b: equal_time(a.execution_date, b.execution_date)
+            lambda a, b: equal_time(a.logical_date, b.logical_date)
             and equal_time(a.start_date, b.start_date),
         ),
         # Asset is already serialized by non-Pydantic serialization. Is AssetPydantic needed then?
@@ -414,8 +447,6 @@ def test_serialize_deserialize_pydantic(input, pydantic_class, encoded_type, cmp
 
 def test_all_pydantic_models_round_trip():
     pytest.importorskip("pydantic", minversion="2.0.0")
-    if not _ENABLE_AIP_44:
-        pytest.skip("AIP-44 is disabled")
     classes = set()
     mods_folder = REPO_ROOT / "airflow/serialization/pydantic"
     for p in mods_folder.iterdir():
@@ -472,7 +503,7 @@ def test_all_pydantic_models_round_trip():
 def test_serialized_mapped_operator_unmap(dag_maker):
     from airflow.serialization.serialized_objects import SerializedDAG
 
-    from dev.tests_common.test_utils.mock_operators import MockOperator
+    from tests_common.test_utils.mock_operators import MockOperator
 
     with dag_maker(dag_id="dag") as dag:
         MockOperator(task_id="task1", arg1="x")

@@ -21,14 +21,14 @@ import pytest
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.security import permissions
 
-from dev.tests_common.test_utils.api_connexion_utils import assert_401
-from dev.tests_common.test_utils.compat import ignore_provider_compatibility_error
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_role,
     create_user,
     delete_role,
     delete_user,
 )
+from tests_common.test_utils.api_connexion_utils import assert_401
+from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.models import Role
@@ -89,12 +89,12 @@ class TestGetRoleEndpoint(TestRoleEndpoint):
             "/auth/fab/v1/roles/invalid-role", environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "Role with name 'invalid-role' was not found",
             "status": 404,
             "title": "Role not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get("/auth/fab/v1/roles/Admin")

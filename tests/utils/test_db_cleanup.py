@@ -32,7 +32,7 @@ from sqlalchemy.ext.declarative import DeclarativeMeta
 
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils import timezone
 from airflow.utils.db_cleanup import (
     ARCHIVE_TABLE_PREFIX,
@@ -49,14 +49,14 @@ from airflow.utils.db_cleanup import (
 )
 from airflow.utils.session import create_session
 
-from dev.tests_common.test_utils.db import (
+from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_dags,
     clear_db_runs,
     drop_tables_with_prefix,
 )
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(autouse=True)
@@ -277,11 +277,13 @@ class TestDBCleanup:
 
     @pytest.mark.parametrize(
         "skip_archive, expected_archives",
-        [pytest.param(True, 0, id="skip_archive"), pytest.param(False, 1, id="do_archive")],
+        [pytest.param(True, 1, id="skip_archive"), pytest.param(False, 2, id="do_archive")],
     )
     def test__skip_archive(self, skip_archive, expected_archives):
         """
         Verify that running cleanup_table with drops the archives when requested.
+
+        Archived tables from DB migration should be kept when skip_archive is True.
         """
         base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
         num_tis = 10
@@ -330,28 +332,29 @@ class TestDBCleanup:
             "backfill_dag_run",  # todo: AIP-78
             "ab_user",
             "variable",  # leave alone
-            "dataset",  # not good way to know if "stale"
-            "dataset_alias",  # not good way to know if "stale"
+            "asset_active",  # not good way to know if "stale"
+            "asset",  # not good way to know if "stale"
+            "asset_alias",  # not good way to know if "stale"
             "task_map",  # keys to TI, so no need
             "serialized_dag",  # handled through FK to Dag
             "log_template",  # not a significant source of data; age not indicative of staleness
             "dag_tag",  # not a significant source of data; age not indicative of staleness,
             "dag_owner_attributes",  # not a significant source of data; age not indicative of staleness,
-            "dag_pickle",  # unsure of consequences
             "dag_code",  # self-maintaining
             "dag_warning",  # self-maintaining
             "connection",  # leave alone
             "slot_pool",  # leave alone
-            "dag_schedule_dataset_reference",  # leave alone for now
-            "dag_schedule_dataset_alias_reference",  # leave alone for now
-            "task_outlet_dataset_reference",  # leave alone for now
-            "dataset_dag_run_queue",  # self-managed
-            "dataset_event_dag_run",  # foreign keys
+            "dag_schedule_asset_reference",  # leave alone for now
+            "dag_schedule_asset_alias_reference",  # leave alone for now
+            "task_outlet_asset_reference",  # leave alone for now
+            "asset_dag_run_queue",  # self-managed
+            "asset_event_dag_run",  # foreign keys
             "task_instance_note",  # foreign keys
             "dag_run_note",  # foreign keys
             "rendered_task_instance_fields",  # foreign key with TI
             "dag_priority_parsing_request",  # Records are purged once per DAG Processing loop, not a
             # significant source of data.
+            "dag_bundle",  # leave alone - not appropriate for cleanup
         }
 
         from airflow.utils.db_cleanup import config_dict
@@ -420,8 +423,9 @@ class TestDBCleanup:
                 expected += f"\n  {table}"
 
         mock_ask_yesno.return_value = True
-        with patch("sys.stdout", new=StringIO()) as fake_out, patch(
-            "builtins.input", side_effect=["drop archived tables"]
+        with (
+            patch("sys.stdout", new=StringIO()) as fake_out,
+            patch("builtins.input", side_effect=["drop archived tables"]),
         ):
             _confirm_drop_archives(tables=tables)
             output = fake_out.getvalue().strip()
@@ -430,8 +434,9 @@ class TestDBCleanup:
 
     def test_user_did_not_confirm(self):
         tables = ["table1", "table2"]
-        with pytest.raises(SystemExit) as cm, patch(
-            "builtins.input", side_effect=["not drop archived tables"]
+        with (
+            pytest.raises(SystemExit) as cm,
+            patch("builtins.input", side_effect=["not drop archived tables"]),
         ):
             _confirm_drop_archives(tables=tables)
         assert str(cm.value) == "User did not confirm; exiting."

@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
+from operator import itemgetter
+from typing import TYPE_CHECKING, Any, Callable
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -46,10 +48,12 @@ class SqlSensor(BaseSensorOperator):
     :param sql: The SQL to run. To pass, it needs to return at least one cell
         that contains a non-zero / empty string value.
     :param parameters: The parameters to render the SQL query with (optional).
-    :param success: Success criteria for the sensor is a Callable that takes the first_cell's value
-        as the only argument, and returns a boolean (optional).
-    :param failure: Failure criteria for the sensor is a Callable that takes the first_cell's value
-        as the only argument and returns a boolean (optional).
+    :param success: Success criteria for the sensor is a Callable that takes the output
+        of selector as the only argument, and returns a boolean (optional).
+    :param failure: Failure criteria for the sensor is a Callable that takes the output
+        of selector as the only argument and returns a boolean (optional).
+    :param selector: Function which takes the resulting row and transforms it before
+        it is passed to success or failure (optional). Takes the first cell by default.
     :param fail_on_empty: Explicitly fail on no rows returned.
     :param hook_params: Extra config params to be passed to the underlying hook.
             Should match the desired hook constructor params.
@@ -67,6 +71,7 @@ class SqlSensor(BaseSensorOperator):
         parameters: Mapping[str, Any] | None = None,
         success: Callable[[Any], bool] | None = None,
         failure: Callable[[Any], bool] | None = None,
+        selector: Callable[[tuple[Any]], Any] = itemgetter(0),
         fail_on_empty: bool = False,
         hook_params: Mapping[str, Any] | None = None,
         **kwargs,
@@ -76,6 +81,7 @@ class SqlSensor(BaseSensorOperator):
         self.parameters = parameters
         self.success = success
         self.failure = failure
+        self.selector = selector
         self.fail_on_empty = fail_on_empty
         self.hook_params = hook_params
         super().__init__(**kwargs)
@@ -102,11 +108,11 @@ class SqlSensor(BaseSensorOperator):
             else:
                 return False
 
-        first_cell = records[0][0]
+        condition = self.selector(records[0])
         if self.failure is not None:
             if callable(self.failure):
-                if self.failure(first_cell):
-                    message = f"Failure criteria met. self.failure({first_cell}) returned True"
+                if self.failure(condition):
+                    message = f"Failure criteria met. self.failure({condition}) returned True"
                     raise AirflowException(message)
             else:
                 message = f"self.failure is present, but not callable -> {self.failure}"
@@ -114,8 +120,8 @@ class SqlSensor(BaseSensorOperator):
 
         if self.success is not None:
             if callable(self.success):
-                return self.success(first_cell)
+                return self.success(condition)
             else:
                 message = f"self.success is present, but not callable -> {self.success}"
                 raise AirflowException(message)
-        return bool(first_cell)
+        return bool(condition)

@@ -28,11 +28,11 @@ interface Props {
 }
 
 export default function useAsset({ uri }: Props) {
-  return useQuery(["dataset", uri], () => {
-    const datasetUrl = getMetaValue("asset_api").replace(
+  return useQuery(["asset", uri], () => {
+    const assetUrl = getMetaValue("asset_api").replace(
       "__URI__",
       encodeURIComponent(uri)
     );
-    return axios.get<AxiosResponse, API.Asset>(datasetUrl);
+    return axios.get<AxiosResponse, API.Asset>(assetUrl);
   });
 }

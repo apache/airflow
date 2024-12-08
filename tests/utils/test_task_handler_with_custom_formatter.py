@@ -29,9 +29,9 @@ from airflow.utils.state import DagRunState
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.db import clear_db_runs
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_runs
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -69,7 +69,7 @@ def task_instance(dag_maker):
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dagrun = dag_maker.create_dagrun(
         state=DagRunState.RUNNING,
-        execution_date=DEFAULT_DATE,
+        logical_date=DEFAULT_DATE,
         run_type=DagRunType.MANUAL,
         data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
         **triggered_by_kwargs,
@@ -109,7 +109,6 @@ def test_custom_formatter_default_format(task_instance):
     assert_prefix_once(task_instance, "")
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 @conf_vars({("logging", "task_log_prefix_template"): "{{ ti.dag_id }}-{{ ti.task_id }}"})
 def test_custom_formatter_custom_format_not_affected_by_config(task_instance):
     """Certifies that the prefix is only added once, even after repeated calls"""

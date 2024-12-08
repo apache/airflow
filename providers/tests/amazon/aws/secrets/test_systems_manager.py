@@ -25,7 +25,7 @@ from moto import mock_aws
 from airflow.configuration import initialize_secrets_backends
 from airflow.providers.amazon.aws.secrets.systems_manager import SystemsManagerParameterStoreBackend
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 URI_CONNECTION = pytest.param(
     "postgres://my-login:my-pass@my-host:5432/my-schema?param1=val1&param2=val2", id="uri-connection"
@@ -108,7 +108,7 @@ class TestSsmSecrets:
         ssm_backend.client.put_parameter(**param)
 
         returned_uri = ssm_backend.get_variable("hello")
-        assert "world" == returned_uri
+        assert returned_uri == "world"
 
     @mock_aws
     def test_get_config(self):
@@ -122,7 +122,7 @@ class TestSsmSecrets:
         ssm_backend.client.put_parameter(**param)
 
         returned_uri = ssm_backend.get_config("sql_alchemy_conn")
-        assert "sqlite:///Users/test_user/airflow.db" == returned_uri
+        assert returned_uri == "sqlite:///Users/test_user/airflow.db"
 
     @mock_aws
     def test_get_variable_secret_string(self):
@@ -130,7 +130,7 @@ class TestSsmSecrets:
         ssm_backend = SystemsManagerParameterStoreBackend()
         ssm_backend.client.put_parameter(**param)
         returned_uri = ssm_backend.get_variable("hello")
-        assert "world" == returned_uri
+        assert returned_uri == "world"
 
     @mock_aws
     def test_get_variable_non_existent_key(self):

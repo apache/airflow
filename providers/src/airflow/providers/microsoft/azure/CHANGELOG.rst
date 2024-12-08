@@ -27,6 +27,84 @@
 Changelog
 ---------
 
+main
+....
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the microsoft azure provider package.
+  The following breaking changes were introduced:
+
+    * Removed deprecated ``extra__azure_data_explorer__foo`` in azure connection extra.
+    * Removed deprecated ``extra__azure__tenantId`` in azure connection extra. Use ``tenantId`` instead.
+    * Removed deprecated ``get_state_exitcode_details`` method. Use ``get_state`` instead.
+    * Removed deprecated ``get_messages`` method. Use ``get_state`` instead.
+    * Removed deprecated ``extra__azure_data_factory__foo`` in azure connection extra.
+    * Usage of `default_conn_name=azure_synapse_connection` is deprecated in ``AzureSynapsePipelineHook``. Use ``default_conn_name=azure_synapse_default`` instead.
+    * Removed deprecated method ``get_hook`` to get instance of ``AzureDataExplorerHook``. Use ``hook`` property instead.
+    * Removed deprecated method ``get_hook`` to get instance of ``AzureBatchHook``. Use ``hook`` property instead.
+    * Removed deprecated method ``AzureKeyVaultBackend.get_conn_uri``. Use ``get_conn_value`` instead.
+    * Removed deprecated class ``WasbBlobAsyncSensor``. Use ``WasbBlobSensor`` with ``deferrable=True`` instead.
+    * Removed deprecated operator `AzureBlobStorageToGCSOperator`. Use ``airflow.providers.google.cloud.transfers.azure_blob_to_gcs.AzureBlobStorageToGCSOperator`` instead.
+
+
+
+
+
+
+
+
+
+11.1.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add copy_object functionality for wasbhook (#43037)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Power BI trigger fetch status (#43494)``
+
+Misc
+~~~~
+
+* ``Add min version to ipykernel,scrapbook, pywinrm (#43603)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+11.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+   * We changed the message callback for Azure Service Bus messages to take two parameters, the message and the context, rather than just the message. This allows pushing message information into XComs. To upgrade from the previous version, which only took the message, please update your callback to take the context as a second parameter.
+
+
+* ``Add context to Azure Service Bus Message callback (#43370)``
+
+Features
+~~~~~~~~
+
+* ``Feature: Added event_handler parameter in MSGraphAsyncOperator (#42539)``
+
+Misc
+~~~~
+
+* ``Add documentation for the PowerBIDatasetRefresh Operator. (#42754)``
+* ``Add upperbound to microsoft-kiota-abstractions (#43021)``
+* ``Restrict looker-sdk version 24.18.0 and microsoft-kiota-http 1.3.4 (#42954)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+
 10.5.1
 ......
 

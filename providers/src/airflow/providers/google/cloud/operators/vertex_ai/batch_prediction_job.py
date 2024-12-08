@@ -20,16 +20,16 @@
 
 from __future__ import annotations
 
-import warnings
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform_v1.types import BatchPredictionJob
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job import BatchPredictionJobHook
 from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIBatchPredictionJobLink,
@@ -136,9 +136,6 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
         If this is set, then all resources created by the BatchPredictionJob will be encrypted with the
         provided encryption key.
         Overrides encryption_spec_key_name set in aiplatform.init.
-    :param sync: (Deprecated) Whether to execute this method synchronously. If False, this method will be executed in
-        concurrent Future and any downstream object will be immediately returned and synced when the
-        Future has completed.
     :param create_request_timeout: Optional. The timeout for the create request in seconds.
     :param batch_size: Optional. The number of the records (e.g. instances)
         of the operation given in each batch
@@ -163,7 +160,7 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
     :param poll_interval: Interval size which defines how often job status is checked in deferrable mode.
     """
 
-    template_fields = ("region", "project_id", "model_name", "impersonation_chain")
+    template_fields = ("region", "project_id", "model_name", "impersonation_chain", "job_display_name")
     operator_extra_links = (VertexAIBatchPredictionJobLink(),)
 
     def __init__(
@@ -190,7 +187,6 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
         explanation_parameters: explain.ExplanationParameters | None = None,
         labels: dict[str, str] | None = None,
         encryption_spec_key_name: str | None = None,
-        sync: bool = True,
         create_request_timeout: float | None = None,
         batch_size: int | None = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -221,7 +217,6 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
         self.explanation_parameters = explanation_parameters
         self.labels = labels
         self.encryption_spec_key_name = encryption_spec_key_name
-        self.sync = sync
         self.create_request_timeout = create_request_timeout
         self.batch_size = batch_size
         self.gcp_conn_id = gcp_conn_id
@@ -237,11 +232,6 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
         )
 
     def execute(self, context: Context):
-        warnings.warn(
-            "The 'sync' parameter is deprecated and will be removed after 28.08.2024.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         self.log.info("Creating Batch prediction job")
         batch_prediction_job: BatchPredictionJobObject = self.hook.submit_batch_prediction_job(
             region=self.region,

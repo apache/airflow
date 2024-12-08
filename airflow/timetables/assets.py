@@ -19,8 +19,8 @@ from __future__ import annotations
 
 import typing
 
-from airflow.assets import AssetAll, BaseAsset
 from airflow.exceptions import AirflowTimetableInvalid
+from airflow.sdk.definitions.asset import AssetAll, BaseAsset
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.utils.types import DagRunType
 
@@ -29,7 +29,7 @@ if typing.TYPE_CHECKING:
 
     import pendulum
 
-    from airflow.assets import Asset
+    from airflow.sdk.definitions.asset import Asset
     from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 
 
@@ -92,6 +92,6 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
         )
 
     def generate_run_id(self, *, run_type: DagRunType, **kwargs: typing.Any) -> str:
-        if run_type != DagRunType.DATASET_TRIGGERED:
+        if run_type != DagRunType.ASSET_TRIGGERED:
             return self.timetable.generate_run_id(run_type=run_type, **kwargs)
         return super().generate_run_id(run_type=run_type, **kwargs)

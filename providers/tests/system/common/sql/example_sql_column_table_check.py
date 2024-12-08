@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from airflow import DAG
 from airflow.providers.common.sql.operators.sql import SQLColumnCheckOperator, SQLTableCheckOperator
-from airflow.utils.dates import datetime
+from airflow.utils import timezone
 
 AIRFLOW_DB_METADATA_TABLE = "ab_role"
 connection_args = {
@@ -36,7 +36,7 @@ with DAG(
     "example_sql_column_table_check",
     description="Example DAG for SQLColumnCheckOperator and SQLTableCheckOperator.",
     default_args=connection_args,
-    start_date=datetime(2021, 1, 1),
+    start_date=timezone.datetime(2021, 1, 1),
     schedule=None,
     catchup=False,
 ) as dag:
@@ -79,7 +79,7 @@ with DAG(
     column_check >> row_count_check
 
 
-from dev.tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

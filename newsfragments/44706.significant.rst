@@ -1,0 +1,15 @@
+Deprecated cli commands under ``db`` group removed
+
+The ``db init`` and ``db upgrade`` commands have been removed. Use ``db migrate`` instead to initialize or migrate the metadata database.
+
+If you would like to create default connections use ``airflow connections create-default-connections``.
+
+* Types of change
+
+  * [ ] DAG changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [x] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency change

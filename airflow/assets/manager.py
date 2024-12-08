@@ -23,8 +23,6 @@ from typing import TYPE_CHECKING
 from sqlalchemy import exc, select
 from sqlalchemy.orm import joinedload
 
-from airflow.api_internal.internal_api_call import internal_api_call
-from airflow.assets import Asset
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import (
@@ -42,9 +40,9 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
-    from airflow.assets import Asset, AssetAlias
     from airflow.models.dag import DagModel
     from airflow.models.taskinstance import TaskInstance
+    from airflow.sdk.definitions.asset import Asset, AssetAlias
 
 
 class AssetManager(LoggingMixin):
@@ -88,23 +86,22 @@ class AssetManager(LoggingMixin):
     def _add_asset_alias_association(
         cls,
         alias_names: Collection[str],
-        asset: AssetModel,
+        asset_model: AssetModel,
         *,
         session: Session,
     ) -> None:
-        already_related = {m.name for m in asset.aliases}
+        already_related = {m.name for m in asset_model.aliases}
         existing_aliases = {
             m.name: m
             for m in session.scalars(select(AssetAliasModel).where(AssetAliasModel.name.in_(alias_names)))
         }
-        asset.aliases.extend(
+        asset_model.aliases.extend(
             existing_aliases.get(name, AssetAliasModel(name=name))
             for name in alias_names
             if name not in already_related
         )
 
     @classmethod
-    @internal_api_call
     def register_asset_change(
         cls,
         *,
@@ -122,10 +119,9 @@ class AssetManager(LoggingMixin):
         For local assets, look them up, record the asset event, queue dagruns, and broadcast
         the asset event
         """
-        # todo: add test so that all usages of internal_api_call are added to rpc endpoint
         asset_model = session.scalar(
             select(AssetModel)
-            .where(AssetModel.uri == asset.uri)
+            .where(AssetModel.name == asset.name, AssetModel.uri == asset.uri)
             .options(
                 joinedload(AssetModel.aliases),
                 joinedload(AssetModel.consuming_dags).joinedload(DagScheduleAssetReference.dag),
@@ -135,10 +131,12 @@ class AssetManager(LoggingMixin):
             cls.logger().warning("AssetModel %s not found", asset)
             return None
 
-        cls._add_asset_alias_association({alias.name for alias in aliases}, asset_model, session=session)
+        cls._add_asset_alias_association(
+            alias_names={alias.name for alias in aliases}, asset_model=asset_model, session=session
+        )
 
         event_kwargs = {
-            "dataset_id": asset_model.id,
+            "asset_id": asset_model.id,
             "extra": extra,
         }
         if task_instance:
@@ -167,7 +165,7 @@ class AssetManager(LoggingMixin):
             ).unique()
 
             for asset_alias_model in asset_alias_models:
-                asset_alias_model.dataset_events.append(asset_event)
+                asset_alias_model.asset_events.append(asset_event)
                 session.add(asset_alias_model)
 
                 dags_to_queue_from_asset_alias |= {
@@ -224,7 +222,7 @@ class AssetManager(LoggingMixin):
     @classmethod
     def _slow_path_queue_dagruns(cls, asset_id: int, dags_to_queue: set[DagModel], session: Session) -> None:
         def _queue_dagrun_if_needed(dag: DagModel) -> str | None:
-            item = AssetDagRunQueue(target_dag_id=dag.dag_id, dataset_id=asset_id)
+            item = AssetDagRunQueue(target_dag_id=dag.dag_id, asset_id=asset_id)
             # Don't error whole transaction when a single RunQueue item conflicts.
             # https://docs.sqlalchemy.org/en/14/orm/session_transaction.html#using-savepoint
             try:
@@ -243,7 +241,7 @@ class AssetManager(LoggingMixin):
         from sqlalchemy.dialects.postgresql import insert
 
         values = [{"target_dag_id": dag.dag_id} for dag in dags_to_queue]
-        stmt = insert(AssetDagRunQueue).values(dataset_id=asset_id).on_conflict_do_nothing()
+        stmt = insert(AssetDagRunQueue).values(asset_id=asset_id).on_conflict_do_nothing()
         session.execute(stmt, values)
 
     @classmethod

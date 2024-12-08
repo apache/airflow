@@ -22,19 +22,20 @@ import inspect
 import logging
 import sys
 import time
-import warnings
 from collections import defaultdict
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, Callable, List, Literal, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Literal
 from urllib.parse import quote, urlparse
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
 import elasticsearch
 import pendulum
 from elasticsearch.exceptions import NotFoundError
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit
@@ -44,6 +45,9 @@ from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import create_session
 
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
+
 if TYPE_CHECKING:
     from datetime import datetime
 
@@ -52,7 +56,7 @@ if TYPE_CHECKING:
 
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
 # Elasticsearch hosted log type
-EsLogMsgType = List[Tuple[str, str]]
+EsLogMsgType = list[tuple[str, str]]
 
 # Compatibility: Airflow 2.3.3 and up uses this method, which accesses the
 # LogTemplate model to record the log ID template used. If this function does
@@ -72,20 +76,6 @@ def get_es_kwargs_from_config() -> dict[str, Any]:
         if elastic_search_config
         else {}
     )
-    # TODO: Remove in next major release (drop support for elasticsearch<8 parameters)
-    if (
-        elastic_search_config
-        and "retry_timeout" in elastic_search_config
-        and not kwargs_dict.get("retry_on_timeout")
-    ):
-        warnings.warn(
-            "retry_timeout is not supported with elasticsearch>=8. Please use `retry_on_timeout`.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-        retry_timeout = elastic_search_config.get("retry_timeout")
-        if retry_timeout is not None:
-            kwargs_dict["retry_on_timeout"] = retry_timeout
     return kwargs_dict
 
 
@@ -126,7 +116,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
     To efficiently query and sort Elasticsearch results, this handler assumes each
     log message has a field `log_id` consists of ti primary keys:
-    `log_id = {dag_id}-{task_id}-{execution_date}-{try_number}`
+    `log_id = {dag_id}-{task_id}-{logical_date}-{try_number}`
     Log messages with specific log_id are sorted based on `offset`,
     which is a unique integer indicates log message's order.
     Timestamps here are unreliable because multiple log messages
@@ -157,8 +147,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         index_patterns: str = conf.get("elasticsearch", "index_patterns"),
         index_patterns_callable: str = conf.get("elasticsearch", "index_patterns_callable", fallback=""),
         es_kwargs: dict | None | Literal["default_es_kwargs"] = "default_es_kwargs",
-        *,
-        log_id_template: str | None = None,
         **kwargs,
     ):
         es_kwargs = es_kwargs or {}
@@ -170,14 +158,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         self.client = elasticsearch.Elasticsearch(host, **es_kwargs)
         # in airflow.cfg, host of elasticsearch has to be http://dockerhostXxxx:9200
-        if USE_PER_RUN_LOG_ID and log_id_template is not None:
-            warnings.warn(
-                "Passing log_id_template to ElasticsearchTaskHandler is deprecated and has no effect",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
 
-        self.log_id_template = log_id_template  # Only used on Airflow < 2.3.2.
         self.frontend = frontend
         self.mark_end_on_close = True
         self.end_of_log_mark = end_of_log_mark.strip()
@@ -239,8 +220,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             dag_run = ti.get_dagrun(session=session)
             if USE_PER_RUN_LOG_ID:
                 log_id_template = dag_run.get_log_template(session=session).elasticsearch_id
-            else:
-                log_id_template = self.log_id_template
 
         if TYPE_CHECKING:
             assert ti.task
@@ -256,7 +235,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         if self.json_format:
             data_interval_start = self._clean_date(data_interval[0])
             data_interval_end = self._clean_date(data_interval[1])
-            execution_date = self._clean_date(dag_run.execution_date)
+            logical_date = self._clean_date(dag_run.logical_date)
         else:
             if data_interval[0]:
                 data_interval_start = data_interval[0].isoformat()
@@ -266,7 +245,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 data_interval_end = data_interval[1].isoformat()
             else:
                 data_interval_end = ""
-            execution_date = dag_run.execution_date.isoformat()
+            logical_date = dag_run.logical_date.isoformat()
 
         return log_id_template.format(
             dag_id=ti.dag_id,
@@ -274,7 +253,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             run_id=getattr(ti, "run_id", ""),
             data_interval_start=data_interval_start,
             data_interval_end=data_interval_end,
-            execution_date=execution_date,
+            logical_date=logical_date,
+            execution_date=logical_date,
             try_number=try_number,
             map_index=getattr(ti, "map_index", ""),
         )
@@ -444,7 +424,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         is_trigger_log_context = getattr(ti, "is_trigger_log_context", None)
         is_ti_raw = getattr(ti, "raw", None)
         self.mark_end_on_close = not is_ti_raw and not is_trigger_log_context
-
+        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         if self.json_format:
             self.formatter = ElasticsearchJSONFormatter(
                 fmt=self.formatter._fmt,
@@ -452,7 +432,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 extras={
                     "dag_id": str(ti.dag_id),
                     "task_id": str(ti.task_id),
-                    "execution_date": self._clean_date(ti.execution_date),
+                    date_key: self._clean_date(ti.logical_date)
+                    if AIRFLOW_V_3_0_PLUS
+                    else self._clean_date(ti.execution_date),
                     "try_number": str(ti.try_number),
                     "log_id": self._render_log_id(ti, ti.try_number),
                 },
@@ -580,7 +562,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                      'container': {'id': 'airflow'},
                      'dag_id': 'example_bash_operator',
                      'ecs': {'version': '8.0.0'},
-                     'execution_date': '2023_07_09T07_47_32_000000',
+                     'logical_date': '2023_07_09T07_47_32_000000',
                      'filename': 'taskinstance.py',
                      'input': {'type': 'log'},
                      'levelname': 'INFO',

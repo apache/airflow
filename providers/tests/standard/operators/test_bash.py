@@ -23,6 +23,7 @@ import signal
 from datetime import datetime, timedelta
 from pathlib import Path
 from time import sleep
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
@@ -33,10 +34,10 @@ from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
+if TYPE_CHECKING:
+    from airflow.models import TaskInstance
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 END_DATE = datetime(2016, 1, 2, tzinfo=timezone.utc)
@@ -60,6 +61,7 @@ class TestBashOperator:
         assert op.skip_on_exit_code == [99]
         assert op.cwd is None
         assert op._init_bash_command_not_set is False
+        assert op._unrendered_bash_command == "echo"
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
@@ -84,7 +86,7 @@ class TestBashOperator:
             f"{utc_now.isoformat()}\n"
             f"manual__{utc_now.isoformat()}\n"
         )
-
+        date_env_name = "$AIRFLOW_CTX_LOGICAL_DATE" if AIRFLOW_V_3_0_PLUS else "$AIRFLOW_CTX_EXECUTION_DATE"
         with dag_maker(
             "bash_op_test",
             default_args={"owner": "airflow", "retries": 100, "start_date": DEFAULT_DATE},
@@ -99,22 +101,20 @@ class TestBashOperator:
                 f"echo $PYTHONPATH>> {tmp_file};"
                 f"echo $AIRFLOW_CTX_DAG_ID >> {tmp_file};"
                 f"echo $AIRFLOW_CTX_TASK_ID>> {tmp_file};"
-                f"echo $AIRFLOW_CTX_EXECUTION_DATE>> {tmp_file};"
+                f"echo {date_env_name}>> {tmp_file};"
                 f"echo $AIRFLOW_CTX_DAG_RUN_ID>> {tmp_file};",
                 append_env=append_env,
                 env=user_defined_env,
             )
 
-        execution_date = utc_now
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        logical_date = utc_now
         dag_maker.create_dagrun(
             run_type=DagRunType.MANUAL,
-            execution_date=execution_date,
+            logical_date=logical_date,
             start_date=utc_now,
             state=State.RUNNING,
             external_trigger=False,
-            data_interval=(execution_date, execution_date),
-            **triggered_by_kwargs,
+            data_interval=(logical_date, logical_date),
         )
 
         with mock.patch.dict(
@@ -277,10 +277,32 @@ class TestBashOperator:
             # Other parameters
             dag_id="test_templated_fields_dag",
             task_id="test_templated_fields_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
         ti.render_templates()
         task: BashOperator = ti.task
         assert task.bash_command == 'echo "test_templated_fields_dag"'
-        assert task.env == {"FOO": "2024-02-01"}
         assert task.cwd == Path(__file__).absolute().parent.as_posix()
+
+    @pytest.mark.db_test
+    def test_templated_bash_script(self, dag_maker, tmp_path, session):
+        """
+        Creates a .sh script with Jinja template.
+        Pass it to the BashOperator and ensure it gets correctly rendered and executed.
+        """
+        bash_script: str = "sample.sh"
+        path: Path = tmp_path / bash_script
+        path.write_text('echo "{{ ti.task_id }}"')
+
+        with dag_maker(
+            dag_id="test_templated_bash_script", session=session, template_searchpath=os.fspath(path.parent)
+        ):
+            BashOperator(task_id="test_templated_fields_task", bash_command=bash_script)
+        ti: TaskInstance = dag_maker.create_dagrun().task_instances[0]
+        session.add(ti)
+        session.commit()
+        context = ti.get_template_context(session=session)
+        ti.render_templates(context=context)
+
+        task: BashOperator = ti.task
+        result = task.execute(context=context)
+        assert result == "test_templated_fields_task"

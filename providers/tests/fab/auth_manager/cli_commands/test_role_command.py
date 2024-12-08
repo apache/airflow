@@ -26,8 +26,8 @@ import pytest
 
 from airflow.cli import cli_parser
 
-from dev.tests_common.test_utils.compat import ignore_provider_compatibility_error
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.compat import ignore_provider_compatibility_error
+from tests_common.test_utils.config import conf_vars
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.cli_commands import role_command

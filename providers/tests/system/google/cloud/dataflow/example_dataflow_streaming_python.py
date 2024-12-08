@@ -82,7 +82,7 @@ with DAG(
             "output_topic": f"projects/{PROJECT_ID}/topics/{TOPIC_ID}",
             "streaming": True,
         },
-        py_requirements=["apache-beam[gcp]==2.47.0"],
+        py_requirements=["apache-beam[gcp]==2.59.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
         dataflow_config={"location": LOCATION, "job_name": "start_python_job_streaming"},
@@ -114,14 +114,14 @@ with DAG(
         >> delete_bucket
     )
 
-    from dev.tests_common.test_utils.watcher import watcher
+    from tests_common.test_utils.watcher import watcher
 
     # This test needs watcher in order to properly mark success/failure
     # when "teardown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
 
 
-from dev.tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

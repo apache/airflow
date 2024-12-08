@@ -17,11 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Generator
 from contextlib import contextmanager
 from copy import copy
 from logging import DEBUG, ERROR, INFO, WARNING
-from typing import TYPE_CHECKING, Any, Callable, Generator
-from warnings import warn
+from typing import TYPE_CHECKING, Any, Callable
 from weakref import WeakKeyDictionary
 
 from pypsrp.host import PSHost
@@ -29,7 +29,7 @@ from pypsrp.messages import MessageType
 from pypsrp.powershell import PowerShell, PSInvocationState, RunspacePool
 from pypsrp.wsman import WSMan
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
 INFORMATIONAL_RECORD_LEVEL_MAP = {
@@ -228,21 +228,8 @@ class PsrpHook(BaseHook):
         use_local_scope: bool | None = None,
         arguments: list[str] | None = None,
         parameters: dict[str, str] | None = None,
-        **kwargs: str,
     ) -> PowerShell:
         """Invoke a PowerShell cmdlet and return session."""
-        if kwargs:
-            if parameters:
-                raise ValueError("**kwargs not allowed when 'parameters' is used at the same time.")
-            warn(
-                "Passing **kwargs to 'invoke_cmdlet' is deprecated "
-                "and will be removed in a future release. Please use 'parameters' "
-                "instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            parameters = kwargs
-
         with self.invoke() as ps:
             ps.add_cmdlet(name, use_local_scope=use_local_scope)
             for argument in arguments or ():

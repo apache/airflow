@@ -32,10 +32,10 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+
 from tests.listeners import lifecycle_listener
 from tests.utils.test_helpers import MockJobRunner, SchedulerJobRunner, TriggererJobRunner
-
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
     from airflow.serialization.pydantic.job import JobPydantic
@@ -228,11 +228,13 @@ class TestJob:
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
         assert job.is_alive() is False, "Completed jobs even with recent heartbeat should not be alive"
 
-    @pytest.mark.skip_if_database_isolation_mode
-    def test_heartbeat_failed(self, caplog):
+    @patch("airflow.jobs.job.create_session")
+    def test_heartbeat_failed(self, mock_create_session, caplog):
         when = timezone.utcnow() - datetime.timedelta(seconds=60)
-        mock_session = Mock(name="MockSession")
-        mock_session.commit.side_effect = OperationalError("Force fail", {}, None)
+        with create_session() as session:
+            mock_session = Mock(spec_set=session, name="MockSession")
+            mock_create_session.return_value.__enter__.return_value = mock_session
+            mock_session.commit.side_effect = OperationalError("Force fail", {}, None)
         job = Job(heartrate=10, state=State.RUNNING)
         job.latest_heartbeat = when
         with caplog.at_level(logging.ERROR):
@@ -268,7 +270,6 @@ class TestJob:
         assert test_job.executor == mock_sequential_executor
         assert test_job.executors == [mock_sequential_executor]
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_heartbeat(self, frozen_sleep, monkeypatch):
         monkeypatch.setattr("airflow.jobs.job.sleep", frozen_sleep)
         with create_session() as session:

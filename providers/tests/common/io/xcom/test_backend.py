@@ -19,8 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS, ignore_provider_compatibility_error
-from dev.tests_common.test_utils.db import is_db_isolation_mode
+from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS, ignore_provider_compatibility_error
 
 pytestmark = [
     pytest.mark.db_test,
@@ -38,8 +37,8 @@ with ignore_provider_compatibility_error("2.8.0", __file__):
 from airflow.utils import timezone
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
-from dev.tests_common.test_utils import db
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils import db
+from tests_common.test_utils.config import conf_vars
 
 
 @pytest.fixture(autouse=True)
@@ -71,7 +70,7 @@ def task_instance(create_task_instance_of_operator, session):
         EmptyOperator,
         dag_id="test-dag-id",
         task_id="test-task-id",
-        execution_date=timezone.datetime(2021, 12, 3, 4, 56),
+        logical_date=timezone.datetime(2021, 12, 3, 4, 56),
         session=session,
     )
 
@@ -112,15 +111,14 @@ class TestXComObjectStorageBackend:
         )
         assert value == {"key": "value"}
 
-        if not is_db_isolation_mode():
-            qry = XCom.get_many(
-                key=XCOM_RETURN_KEY,
-                dag_ids=task_instance.dag_id,
-                task_ids=task_instance.task_id,
-                run_id=task_instance.run_id,
-                session=session,
-            )
-            assert qry.first().value == {"key": "value"}
+        qry = XCom.get_many(
+            key=XCOM_RETURN_KEY,
+            dag_ids=task_instance.dag_id,
+            task_ids=task_instance.task_id,
+            run_id=task_instance.run_id,
+            session=session,
+        )
+        assert qry.first().value == {"key": "value"}
 
     def test_value_storage(self, task_instance, session):
         session.add(task_instance)
@@ -137,22 +135,21 @@ class TestXComObjectStorageBackend:
             session=session,
         )
 
-        if not is_db_isolation_mode():
-            res = (
-                XCom.get_many(
-                    key=XCOM_RETURN_KEY,
-                    dag_ids=task_instance.dag_id,
-                    task_ids=task_instance.task_id,
-                    run_id=task_instance.run_id,
-                    session=session,
-                )
-                .with_entities(BaseXCom.value)
-                .first()
+        res = (
+            XCom.get_many(
+                key=XCOM_RETURN_KEY,
+                dag_ids=task_instance.dag_id,
+                task_ids=task_instance.task_id,
+                run_id=task_instance.run_id,
+                session=session,
             )
+            .with_entities(BaseXCom.value)
+            .first()
+        )
 
-            data = BaseXCom.deserialize_value(res)
-            p = XComObjectStorageBackend._get_full_path(data)
-            assert p.exists() is True
+        data = BaseXCom.deserialize_value(res)
+        p = XComObjectStorageBackend._get_full_path(data)
+        assert p.exists() is True
 
         value = XCom.get_value(
             key=XCOM_RETURN_KEY,
@@ -161,15 +158,14 @@ class TestXComObjectStorageBackend:
         )
         assert value == {"key": "bigvaluebigvaluebigvalue" * 100}
 
-        if not is_db_isolation_mode():
-            qry = XCom.get_many(
-                key=XCOM_RETURN_KEY,
-                dag_ids=task_instance.dag_id,
-                task_ids=task_instance.task_id,
-                run_id=task_instance.run_id,
-                session=session,
-            )
-            assert str(p) == qry.first().value
+        qry = XCom.get_many(
+            key=XCOM_RETURN_KEY,
+            dag_ids=task_instance.dag_id,
+            task_ids=task_instance.task_id,
+            run_id=task_instance.run_id,
+            session=session,
+        )
+        assert str(p) == qry.first().value
 
     def test_clear(self, task_instance, session):
         session.add(task_instance)
@@ -186,22 +182,21 @@ class TestXComObjectStorageBackend:
             session=session,
         )
 
-        if not is_db_isolation_mode():
-            res = (
-                XCom.get_many(
-                    key=XCOM_RETURN_KEY,
-                    dag_ids=task_instance.dag_id,
-                    task_ids=task_instance.task_id,
-                    run_id=task_instance.run_id,
-                    session=session,
-                )
-                .with_entities(BaseXCom.value)
-                .first()
+        res = (
+            XCom.get_many(
+                key=XCOM_RETURN_KEY,
+                dag_ids=task_instance.dag_id,
+                task_ids=task_instance.task_id,
+                run_id=task_instance.run_id,
+                session=session,
             )
+            .with_entities(BaseXCom.value)
+            .first()
+        )
 
-            data = BaseXCom.deserialize_value(res)
-            p = XComObjectStorageBackend._get_full_path(data)
-            assert p.exists() is True
+        data = BaseXCom.deserialize_value(res)
+        p = XComObjectStorageBackend._get_full_path(data)
+        assert p.exists() is True
 
         value = XCom.get_value(
             key=XCOM_RETURN_KEY,
@@ -217,8 +212,7 @@ class TestXComObjectStorageBackend:
             session=session,
         )
 
-        if not is_db_isolation_mode():
-            assert p.exists() is False
+        assert p.exists() is False
 
         value = XCom.get_value(
             key=XCOM_RETURN_KEY,
@@ -243,23 +237,22 @@ class TestXComObjectStorageBackend:
             session=session,
         )
 
-        if not is_db_isolation_mode():
-            res = (
-                XCom.get_many(
-                    key=XCOM_RETURN_KEY,
-                    dag_ids=task_instance.dag_id,
-                    task_ids=task_instance.task_id,
-                    run_id=task_instance.run_id,
-                    session=session,
-                )
-                .with_entities(BaseXCom.value)
-                .first()
+        res = (
+            XCom.get_many(
+                key=XCOM_RETURN_KEY,
+                dag_ids=task_instance.dag_id,
+                task_ids=task_instance.task_id,
+                run_id=task_instance.run_id,
+                session=session,
             )
+            .with_entities(BaseXCom.value)
+            .first()
+        )
 
-            data = BaseXCom.deserialize_value(res)
-            p = XComObjectStorageBackend._get_full_path(data)
-            assert p.exists() is True
-            assert p.suffix == ".gz"
+        data = BaseXCom.deserialize_value(res)
+        p = XComObjectStorageBackend._get_full_path(data)
+        assert p.exists() is True
+        assert p.suffix == ".gz"
 
         value = XCom.get_value(
             key=XCOM_RETURN_KEY,

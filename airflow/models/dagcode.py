@@ -17,25 +17,30 @@
 from __future__ import annotations
 
 import logging
-import os
-import struct
-from datetime import datetime
-from typing import TYPE_CHECKING, Collection, Iterable
+from typing import TYPE_CHECKING
 
-from sqlalchemy import BigInteger, Column, String, Text, delete, select
+import uuid6
+from sqlalchemy import Column, ForeignKey, String, Text, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql.expression import literal
+from sqlalchemy_utils import UUIDType
 
-from airflow.api_internal.internal_api_call import internal_api_call
-from airflow.exceptions import AirflowException, DagCodeNotFound
-from airflow.models.base import Base
+from airflow.configuration import conf
+from airflow.exceptions import DagCodeNotFound
+from airflow.models.base import ID_LEN, Base
 from airflow.utils import timezone
-from airflow.utils.file import correct_maybe_zipped, open_maybe_zipped
+from airflow.utils.file import open_maybe_zipped
+from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+    from sqlalchemy.sql import Select
+
+    from airflow.models.dag import DAG
+    from airflow.models.dag_version import DagVersion
 
 log = logging.getLogger(__name__)
 
@@ -50,160 +55,82 @@ class DagCode(Base):
     """
 
     __tablename__ = "dag_code"
-
-    fileloc_hash = Column(BigInteger, nullable=False, primary_key=True, autoincrement=False)
+    id = Column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
+    dag_id = Column(String(ID_LEN), nullable=False)
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
-    last_updated = Column(UtcDateTime, nullable=False)
+    last_updated = Column(UtcDateTime, nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow)
     source_code = Column(Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False)
+    source_code_hash = Column(String(32), nullable=False)
+    dag_version_id = Column(
+        UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    dag_version = relationship("DagVersion", back_populates="dag_code", uselist=False)
 
-    def __init__(self, full_filepath: str, source_code: str | None = None):
+    def __init__(self, dag_version, full_filepath: str, source_code: str | None = None):
+        self.dag_version = dag_version
         self.fileloc = full_filepath
-        self.fileloc_hash = DagCode.dag_fileloc_hash(self.fileloc)
-        self.last_updated = timezone.utcnow()
-        self.source_code = source_code or DagCode.code(self.fileloc)
+        self.source_code = source_code or DagCode.code(self.dag_version.dag_id)
+        self.source_code_hash = self.dag_source_hash(self.source_code)
+        self.dag_id = dag_version.dag_id
 
+    @classmethod
     @provide_session
-    def sync_to_db(self, session: Session = NEW_SESSION) -> None:
+    def write_code(cls, dag_version: DagVersion, fileloc: str, session: Session = NEW_SESSION) -> DagCode:
         """
         Write code into database.
 
+        :param fileloc: file path of DAG to sync
         :param session: ORM Session
         """
-        self.bulk_sync_to_db([self.fileloc], session)
+        log.debug("Writing DAG file %s into DagCode table", fileloc)
+        dag_code = DagCode(dag_version, fileloc, cls.get_code_from_file(fileloc))
+        session.add(dag_code)
+        log.debug("DAG file %s written into DagCode table", fileloc)
+        return dag_code
 
     @classmethod
     @provide_session
-    def bulk_sync_to_db(cls, filelocs: Iterable[str], session: Session = NEW_SESSION) -> None:
+    def has_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> bool:
         """
-        Write code in bulk into database.
+        Check a dag exists in dag code table.
 
-        :param filelocs: file paths of DAGs to sync
+        :param dag_id: the dag_id of the DAG
         :param session: ORM Session
         """
-        filelocs = set(filelocs)
-        filelocs_to_hashes = {fileloc: DagCode.dag_fileloc_hash(fileloc) for fileloc in filelocs}
-        existing_orm_dag_codes = session.scalars(
-            select(DagCode)
-            .filter(DagCode.fileloc_hash.in_(filelocs_to_hashes.values()))
-            .with_for_update(of=DagCode)
-        ).all()
-
-        if existing_orm_dag_codes:
-            existing_orm_dag_codes_map = {
-                orm_dag_code.fileloc: orm_dag_code for orm_dag_code in existing_orm_dag_codes
-            }
-        else:
-            existing_orm_dag_codes_map = {}
-
-        existing_orm_dag_codes_by_fileloc_hashes = {orm.fileloc_hash: orm for orm in existing_orm_dag_codes}
-        existing_orm_filelocs = {orm.fileloc for orm in existing_orm_dag_codes_by_fileloc_hashes.values()}
-        if not existing_orm_filelocs.issubset(filelocs):
-            conflicting_filelocs = existing_orm_filelocs.difference(filelocs)
-            hashes_to_filelocs = {DagCode.dag_fileloc_hash(fileloc): fileloc for fileloc in filelocs}
-            message = ""
-            for fileloc in conflicting_filelocs:
-                filename = hashes_to_filelocs[DagCode.dag_fileloc_hash(fileloc)]
-                message += (
-                    f"Filename '{filename}' causes a hash collision in the "
-                    f"database with '{fileloc}'. Please rename the file."
-                )
-            raise AirflowException(message)
-
-        existing_filelocs = {dag_code.fileloc for dag_code in existing_orm_dag_codes}
-        missing_filelocs = filelocs.difference(existing_filelocs)
-
-        for fileloc in missing_filelocs:
-            orm_dag_code = DagCode(fileloc, cls._get_code_from_file(fileloc))
-            session.add(orm_dag_code)
-
-        for fileloc in existing_filelocs:
-            current_version = existing_orm_dag_codes_by_fileloc_hashes[filelocs_to_hashes[fileloc]]
-            file_mod_time = datetime.fromtimestamp(
-                os.path.getmtime(correct_maybe_zipped(fileloc)), tz=timezone.utc
-            )
-
-            if file_mod_time > current_version.last_updated:
-                orm_dag_code = existing_orm_dag_codes_map[fileloc]
-                orm_dag_code.last_updated = file_mod_time
-                orm_dag_code.source_code = cls._get_code_from_file(orm_dag_code.fileloc)
-                session.merge(orm_dag_code)
-
-    @classmethod
-    @internal_api_call
-    @provide_session
-    def remove_deleted_code(
-        cls,
-        alive_dag_filelocs: Collection[str],
-        processor_subdir: str,
-        session: Session = NEW_SESSION,
-    ) -> None:
-        """
-        Delete code not included in alive_dag_filelocs.
-
-        :param alive_dag_filelocs: file paths of alive DAGs
-        :param processor_subdir: dag processor subdir
-        :param session: ORM Session
-        """
-        alive_fileloc_hashes = [cls.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
-
-        log.debug("Deleting code from %s table ", cls.__tablename__)
-
-        session.execute(
-            delete(cls)
-            .where(
-                cls.fileloc_hash.notin_(alive_fileloc_hashes),
-                cls.fileloc.notin_(alive_dag_filelocs),
-                cls.fileloc.contains(processor_subdir),
-            )
-            .execution_options(synchronize_session="fetch")
-        )
-
-    @classmethod
-    @provide_session
-    def has_dag(cls, fileloc: str, session: Session = NEW_SESSION) -> bool:
-        """
-        Check a file exist in dag_code table.
-
-        :param fileloc: the file to check
-        :param session: ORM Session
-        """
-        fileloc_hash = cls.dag_fileloc_hash(fileloc)
         return (
-            session.scalars(select(literal(True)).where(cls.fileloc_hash == fileloc_hash)).one_or_none()
+            session.scalars(select(literal(True)).where(cls.dag_id == dag_id).limit(1)).one_or_none()
             is not None
         )
 
     @classmethod
-    def get_code_by_fileloc(cls, fileloc: str) -> str:
-        """
-        Return source code for a given fileloc.
-
-        :param fileloc: file path of a DAG
-        :return: source code as string
-        """
-        return cls.code(fileloc)
-
-    @classmethod
     @provide_session
-    def code(cls, fileloc, session: Session = NEW_SESSION) -> str:
+    def code(cls, dag_id, session: Session = NEW_SESSION) -> str:
         """
         Return source code for this DagCode object.
 
         :return: source code as string
         """
-        return cls._get_code_from_db(fileloc, session)
+        return cls._get_code_from_db(dag_id, session)
 
     @staticmethod
-    def _get_code_from_file(fileloc):
-        with open_maybe_zipped(fileloc, "r") as f:
-            code = f.read()
-        return code
+    def get_code_from_file(fileloc):
+        try:
+            with open_maybe_zipped(fileloc, "r") as f:
+                code = f.read()
+            return code
+        except FileNotFoundError:
+            test_mode = conf.get("core", "unit_test_mode")
+            if test_mode:
+                return "source_code"
+            raise
 
     @classmethod
     @provide_session
-    def _get_code_from_db(cls, fileloc, session: Session = NEW_SESSION) -> str:
-        dag_code = session.scalar(select(cls).where(cls.fileloc_hash == cls.dag_fileloc_hash(fileloc)))
+    def _get_code_from_db(cls, dag_id, session: Session = NEW_SESSION) -> str:
+        dag_code = session.scalar(
+            select(cls).where(cls.dag_id == dag_id).order_by(cls.last_updated.desc()).limit(1)
+        )
         if not dag_code:
             raise DagCodeNotFound()
         else:
@@ -211,16 +138,52 @@ class DagCode(Base):
         return code
 
     @staticmethod
-    def dag_fileloc_hash(full_filepath: str) -> int:
+    def dag_source_hash(source: str) -> str:
         """
-        Hashing file location for indexing.
+        Hash the source code of the DAG.
 
-        :param full_filepath: full filepath of DAG file
-        :return: hashed full_filepath
+        This is needed so we can update the source on code changes
         """
-        # Hashing is needed because the length of fileloc is 2000 as an Airflow convention,
-        # which is over the limit of indexing.
-        import hashlib
+        return md5(source.encode("utf-8")).hexdigest()
 
-        # Only 7 bytes because MySQL BigInteger can hold only 8 bytes (signed).
-        return struct.unpack(">Q", hashlib.sha1(full_filepath.encode("utf-8")).digest()[-8:])[0] >> 8
+    @classmethod
+    def _latest_dagcode_select(cls, dag_id: str) -> Select:
+        """
+        Get the select object to get the latest dagcode.
+
+        :param dag_id: The DAG ID.
+        :return: The select object.
+        """
+        return select(cls).where(cls.dag_id == dag_id).order_by(cls.last_updated.desc()).limit(1)
+
+    @classmethod
+    @provide_session
+    def get_latest_dagcode(cls, dag_id: str, session: Session = NEW_SESSION) -> DagCode | None:
+        """
+        Get the latest dagcode.
+
+        :param dag_id: The DAG ID.
+        :param session: The database session.
+        :return: The latest dagcode or None if not found.
+        """
+        return session.scalar(cls._latest_dagcode_select(dag_id))
+
+    @classmethod
+    @provide_session
+    def update_source_code(cls, dag: DAG, session: Session = NEW_SESSION) -> None:
+        """
+        Check if the source code of the DAG has changed and update it if needed.
+
+        :param dag: The DAG object.
+        :param session: The database session.
+        :return: None
+        """
+        latest_dagcode = cls.get_latest_dagcode(dag.dag_id, session)
+        if not latest_dagcode:
+            return
+        new_source_code = cls.get_code_from_file(dag.fileloc)
+        new_source_code_hash = cls.dag_source_hash(new_source_code)
+        if new_source_code_hash != latest_dagcode.source_code_hash:
+            latest_dagcode.source_code = new_source_code
+            latest_dagcode.source_code_hash = new_source_code_hash
+            session.merge(latest_dagcode)

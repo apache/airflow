@@ -33,7 +33,7 @@ class TestSalesforceBulkOperator:
         """
         Test execute missing operation
         """
-        with pytest.raises(AirflowException):
+        with pytest.raises((TypeError, AirflowException), match="missing keyword argument 'operation'"):
             SalesforceBulkOperator(
                 task_id="no_missing_operation_arg",
                 object_name="Account",
@@ -52,7 +52,7 @@ class TestSalesforceBulkOperator:
         """
         Test execute missing object_name
         """
-        with pytest.raises(AirflowException):
+        with pytest.raises((TypeError, AirflowException), match="missing keyword argument 'object_name'"):
             SalesforceBulkOperator(
                 task_id="no_object_name_arg",
                 operation="insert",

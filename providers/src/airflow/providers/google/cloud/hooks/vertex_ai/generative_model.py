@@ -20,12 +20,15 @@
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Sequence
+from datetime import timedelta
+from typing import TYPE_CHECKING
 
 import vertexai
 from vertexai.generative_models import GenerativeModel, Part
 from vertexai.language_models import TextEmbeddingModel, TextGenerationModel
+from vertexai.preview.caching import CachedContent
 from vertexai.preview.evaluation import EvalResult, EvalTask
+from vertexai.preview.generative_models import GenerativeModel as preview_generative_model
 from vertexai.preview.tuning import sft
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -40,19 +43,11 @@ if TYPE_CHECKING:
 class GenerativeModelHook(GoogleBaseHook):
     """Hook for Google Cloud Vertex AI Generative Model APIs."""
 
-    def __init__(
-        self,
-        gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
-    ):
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
-        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
-
+    @deprecated(
+        planned_removal_date="April 09, 2025",
+        use_instead="GenerativeModelHook.get_generative_model",
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_text_generation_model(self, pretrained_model: str):
         """Return a Model Garden Model object based on Text Generation."""
         model = TextGenerationModel.from_pretrained(pretrained_model)
@@ -94,6 +89,16 @@ class GenerativeModelHook(GoogleBaseHook):
             experiment=experiment,
         )
         return eval_task
+
+    def get_cached_context_model(
+        self,
+        cached_content_name: str,
+    ) -> preview_generative_model:
+        """Return a Generative Model with Cached Context."""
+        cached_content = CachedContent(cached_content_name=cached_content_name)
+
+        cached_context_model = preview_generative_model.from_cached_content(cached_content)
+        return cached_context_model
 
     @deprecated(
         planned_removal_date="January 01, 2025",
@@ -275,6 +280,11 @@ class GenerativeModelHook(GoogleBaseHook):
 
         return response.text
 
+    @deprecated(
+        planned_removal_date="April 09, 2025",
+        use_instead="GenerativeModelHook.generative_model_generate_content",
+        category=AirflowProviderDeprecationWarning,
+    )
     @GoogleBaseHook.fallback_to_default_project_id
     def text_generation_model_predict(
         self,
@@ -528,3 +538,69 @@ class GenerativeModelHook(GoogleBaseHook):
         )
 
         return eval_result
+
+    def create_cached_content(
+        self,
+        model_name: str,
+        location: str,
+        ttl_hours: float = 1,
+        system_instruction: str | None = None,
+        contents: list | None = None,
+        display_name: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+    ) -> str:
+        """
+        Create CachedContent to reduce the cost of requests that contain repeat content with high input token counts.
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
+        :param model_name: Required. The name of the publisher model to use for cached content.
+        :param system_instruction: Developer set system instruction.
+        :param contents: The content to cache.
+        :param ttl_hours: The TTL for this resource in hours. The expiration time is computed: now + TTL.
+            Defaults to one hour.
+        :param display_name: The user-generated meaningful display name of the cached content
+        """
+        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
+
+        response = CachedContent.create(
+            model_name=model_name,
+            system_instruction=system_instruction,
+            contents=contents,
+            ttl=timedelta(hours=ttl_hours),
+            display_name=display_name,
+        )
+
+        return response.name
+
+    def generate_from_cached_content(
+        self,
+        location: str,
+        cached_content_name: str,
+        contents: list,
+        generation_config: dict | None = None,
+        safety_settings: dict | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+    ) -> str:
+        """
+        Generate a response from CachedContent.
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
+        :param cached_content_name: Required. The name of the cached content resource.
+        :param contents: Required. The multi-part content of a message that a user or a program
+            gives to the generative model, in order to elicit a specific response.
+        :param generation_config: Optional. Generation configuration settings.
+        :param safety_settings: Optional. Per request settings for blocking unsafe content.
+        """
+        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
+
+        cached_context_model = self.get_cached_context_model(cached_content_name=cached_content_name)
+
+        response = cached_context_model.generate_content(
+            contents=contents,
+            generation_config=generation_config,
+            safety_settings=safety_settings,
+        )
+
+        return response.text

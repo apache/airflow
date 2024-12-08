@@ -104,9 +104,6 @@ def init_appbuilder_views(app):
         views.ConnectionModelView, permissions.RESOURCE_CONNECTION, category=permissions.RESOURCE_ADMIN_MENU
     )
     appbuilder.add_view(
-        views.SlaMissModelView, permissions.RESOURCE_SLA_MISS, category=permissions.RESOURCE_BROWSE_MENU
-    )
-    appbuilder.add_view(
         views.PluginView, permissions.RESOURCE_PLUGIN, category=permissions.RESOURCE_ADMIN_MENU
     )
     appbuilder.add_view(
@@ -135,7 +132,7 @@ def init_plugins(app):
     """Integrate Flask and FAB with plugins."""
     from airflow import plugins_manager
 
-    plugins_manager.initialize_web_ui_plugins()
+    plugins_manager.initialize_flask_plugins()
 
     appbuilder = app.appbuilder
 

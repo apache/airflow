@@ -25,7 +25,7 @@ from flask_appbuilder.const import AUTH_LDAP
 from airflow.providers.fab.auth_manager.api.auth.backend.basic_auth import requires_authentication
 from airflow.www import app as application
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
+from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
 
 pytestmark = [
     pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Tests for Airflow 2.9.0+ only"),

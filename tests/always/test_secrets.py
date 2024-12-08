@@ -25,8 +25,8 @@ from airflow.configuration import ensure_secrets_loaded, initialize_secrets_back
 from airflow.models import Connection, Variable
 from airflow.secrets.cache import SecretCache
 
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.db import clear_db_variables
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_variables
 
 
 class TestConnectionsFromSecrets:
@@ -62,7 +62,7 @@ class TestConnectionsFromSecrets:
         backends = initialize_secrets_backends()
         backend_classes = [backend.__class__.__name__ for backend in backends]
 
-        assert 3 == len(backends)
+        assert len(backends) == 3
         assert "SystemsManagerParameterStoreBackend" in backend_classes
 
     @conf_vars(
@@ -115,7 +115,7 @@ class TestConnectionsFromSecrets:
         # Assert that SystemsManagerParameterStoreBackend.get_conn_uri was called
         mock_get_connection.assert_called_once_with(conn_id="test_mysql")
 
-        assert "mysql://airflow:airflow@host:5432/airflow" == conn.get_uri()
+        assert conn.get_uri() == "mysql://airflow:airflow@host:5432/airflow"
 
 
 @pytest.mark.db_test
@@ -160,7 +160,7 @@ class TestVariableFromSecrets:
         the value returned is default_var
         """
         variable_value = Variable.get(key="test_var", default_var="new")
-        assert "new" == variable_value
+        assert variable_value == "new"
 
     @conf_vars(
         {
@@ -190,14 +190,14 @@ class TestVariableFromSecrets:
         mock_secret_get.return_value = None
         mock_meta_get.return_value = None
 
-        assert "a_venv_value" == Variable.get(key="MYVAR")
+        assert Variable.get(key="MYVAR") == "a_venv_value"
         mock_secret_get.assert_called_with(key="MYVAR")
         mock_meta_get.assert_not_called()
 
         mock_secret_get.return_value = None
         mock_meta_get.return_value = "a_metastore_value"
-        assert "a_metastore_value" == Variable.get(key="not_myvar")
+        assert Variable.get(key="not_myvar") == "a_metastore_value"
         mock_meta_get.assert_called_once_with(key="not_myvar")
 
         mock_secret_get.return_value = "a_secret_value"
-        assert "a_secret_value" == Variable.get(key="not_myvar")
+        assert Variable.get(key="not_myvar") == "a_secret_value"

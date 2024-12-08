@@ -37,15 +37,9 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 
-pytestmark = pytest.mark.skip_if_database_isolation_mode
-
 
 def test_supports_sentry():
     assert not BaseExecutor.supports_sentry
-
-
-def test_supports_pickling():
-    assert BaseExecutor.supports_pickling
 
 
 def test_is_local_default_value():
@@ -206,7 +200,7 @@ def setup_dagrun(dag_maker):
         BaseOperator(task_id="task_2", start_date=start_date)
         BaseOperator(task_id="task_3", start_date=start_date)
 
-    return dag_maker.create_dagrun(execution_date=date)
+    return dag_maker.create_dagrun(logical_date=date)
 
 
 @pytest.mark.db_test

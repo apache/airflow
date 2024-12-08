@@ -44,9 +44,10 @@ from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.timezone import datetime
 
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs
 from providers.tests.opensearch.conftest import MockClient
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 pytestmark = pytest.mark.db_test
 
@@ -54,11 +55,11 @@ AIRFLOW_SOURCES_ROOT_DIR = Path(__file__).parents[4].resolve()
 ES_PROVIDER_YAML_FILE = AIRFLOW_SOURCES_ROOT_DIR / "airflow" / "providers" / "opensearch" / "provider.yaml"
 
 
-def get_ti(dag_id, task_id, execution_date, create_task_instance):
+def get_ti(dag_id, task_id, logical_date, create_task_instance):
     ti = create_task_instance(
         dag_id=dag_id,
         task_id=task_id,
-        execution_date=execution_date,
+        logical_date=logical_date,
         dagrun_state=DagRunState.RUNNING,
         state=TaskInstanceState.RUNNING,
     )
@@ -70,18 +71,21 @@ def get_ti(dag_id, task_id, execution_date, create_task_instance):
 class TestOpensearchTaskHandler:
     DAG_ID = "dag_for_testing_os_task_handler"
     TASK_ID = "task_for_testing_os_log_handler"
-    EXECUTION_DATE = datetime(2016, 1, 1)
+    LOGICAL_DATE = datetime(2016, 1, 1)
     LOG_ID = f"{DAG_ID}-{TASK_ID}-2016-01-01T00:00:00+00:00-1"
-    JSON_LOG_ID = f"{DAG_ID}-{TASK_ID}-{OpensearchTaskHandler._clean_date(EXECUTION_DATE)}-1"
+    JSON_LOG_ID = f"{DAG_ID}-{TASK_ID}-{OpensearchTaskHandler._clean_date(LOGICAL_DATE)}-1"
     FILENAME_TEMPLATE = "{try_number}.log"
 
     @pytest.fixture
     def ti(self, create_task_instance, create_log_template):
-        create_log_template(self.FILENAME_TEMPLATE, "{dag_id}-{task_id}-{execution_date}-{try_number}")
+        if AIRFLOW_V_3_0_PLUS:
+            create_log_template(self.FILENAME_TEMPLATE, "{dag_id}-{task_id}-{logical_date}-{try_number}")
+        else:
+            create_log_template(self.FILENAME_TEMPLATE, "{dag_id}-{task_id}-{execution_date}-{try_number}")
         yield get_ti(
             dag_id=self.DAG_ID,
             task_id=self.TASK_ID,
-            execution_date=self.EXECUTION_DATE,
+            logical_date=self.LOGICAL_DATE,
             create_task_instance=create_task_instance,
         )
         clear_db_runs()
@@ -192,7 +196,7 @@ class TestOpensearchTaskHandler:
             ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
         )
 
-        assert 1 == len(logs)
+        assert len(logs) == 1
         assert len(logs) == len(metadatas)
         assert len(logs[0]) == 1
         assert (
@@ -211,7 +215,7 @@ class TestOpensearchTaskHandler:
                 ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
             )
 
-        assert 1 == len(logs)
+        assert len(logs) == 1
         assert len(logs) == len(metadatas)
         assert len(logs[0]) == 1
         assert (
@@ -240,11 +244,11 @@ class TestOpensearchTaskHandler:
                     ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
                 )
 
-        assert 1 == len(logs)
+        assert len(logs) == 1
         assert len(logs) == len(metadatas)
-        assert [[]] == logs
+        assert logs == [[]]
         assert not metadatas[0]["end_of_log"]
-        assert "0" == metadatas[0]["offset"]
+        assert metadatas[0]["offset"] == "0"
         # last_log_timestamp won't change if no log lines read.
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
 
@@ -268,7 +272,7 @@ class TestOpensearchTaskHandler:
         ti = get_ti(
             self.DAG_ID,
             self.TASK_ID,
-            pendulum.instance(self.EXECUTION_DATE).add(days=1),  # so logs are not found
+            pendulum.instance(self.LOGICAL_DATE).add(days=1),  # so logs are not found
             create_task_instance=create_task_instance,
         )
         ts = pendulum.now().add(seconds=-seconds)
@@ -284,7 +288,7 @@ class TestOpensearchTaskHandler:
         ):
             logs, metadatas = self.os_task_handler.read(ti, 1, {"offset": 0, "last_log_timestamp": str(ts)})
 
-        assert 1 == len(logs)
+        assert len(logs) == 1
         if seconds > 5:
             # we expect a log not found message when checking began more than 5 seconds ago
             assert len(logs[0]) == 1
@@ -298,12 +302,12 @@ class TestOpensearchTaskHandler:
             assert logs == [[]]
             assert metadatas[0]["end_of_log"] is False
         assert len(logs) == len(metadatas)
-        assert "0" == metadatas[0]["offset"]
+        assert metadatas[0]["offset"] == "0"
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
 
     def test_read_with_none_metadata(self, ti):
         logs, metadatas = self.os_task_handler.read(ti, 1)
-        assert 1 == len(logs)
+        assert len(logs) == 1
         assert len(logs) == len(metadatas)
         assert (
             logs[0][0][-1] == "Dependencies all met for dep_context=non-requeueable"
@@ -358,7 +362,7 @@ class TestOpensearchTaskHandler:
         with open(
             os.path.join(self.local_log_location, self.FILENAME_TEMPLATE.format(try_number=1))
         ) as log_file:
-            assert 0 == len(log_file.read())
+            assert len(log_file.read()) == 0
 
     def test_close_with_no_handler(self, ti):
         self.os_task_handler.set_context(ti)
@@ -367,7 +371,7 @@ class TestOpensearchTaskHandler:
         with open(
             os.path.join(self.local_log_location, self.FILENAME_TEMPLATE.format(try_number=1))
         ) as log_file:
-            assert 0 == len(log_file.read())
+            assert len(log_file.read()) == 0
         assert self.os_task_handler.closed
 
     def test_close_with_no_stream(self, ti):
@@ -390,15 +394,15 @@ class TestOpensearchTaskHandler:
         assert self.os_task_handler.closed
 
     def test_render_log_id(self, ti):
-        assert self.LOG_ID == self.os_task_handler._render_log_id(ti, 1)
+        assert self.os_task_handler._render_log_id(ti, 1) == self.LOG_ID
 
         self.os_task_handler.json_format = True
-        assert self.JSON_LOG_ID == self.os_task_handler._render_log_id(ti, 1)
+        assert self.os_task_handler._render_log_id(ti, 1) == self.JSON_LOG_ID
 
     #
     def test_clean_date(self):
         clean_execution_date = self.os_task_handler._clean_date(datetime(2016, 7, 8, 9, 10, 11, 12))
-        assert "2016_07_08T09_10_11_000012" == clean_execution_date
+        assert clean_execution_date == "2016_07_08T09_10_11_000012"
 
     @mock.patch("sys.__stdout__", new_callable=StringIO)
     def test_dynamic_offset(self, stdout_mock, ti, time_machine):

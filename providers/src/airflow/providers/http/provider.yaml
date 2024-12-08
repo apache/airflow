@@ -22,9 +22,11 @@ description: |
     `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 
 state: ready
-source-date-epoch: 1726860926
+source-date-epoch: 1731570291
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.13.3
+  - 4.13.2
   - 4.13.1
   - 4.13.0
   - 4.12.0
@@ -65,9 +67,10 @@ dependencies:
   # The 2.26.0 release of requests got rid of the chardet LGPL mandatory dependency, allowing us to
   # release it as a requirement for airflow
   - requests>=2.27.0,<3
-  - requests_toolbelt
-  - aiohttp>=3.9.2
-  - asgiref
+  - requests-toolbelt>=0.4.0
+  # aiohttp 3.11.0 had incompatible change: https://github.com/aio-libs/aiohttp/issues/9866
+  - aiohttp>=3.9.2,!=3.11.0
+  - asgiref>=2.3.0
 
 integrations:
   - integration-name: Hypertext Transfer Protocol (HTTP)

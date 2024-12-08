@@ -63,7 +63,7 @@ In the output of the CI jobs, you will find both - the flags passed and
 environment variables set.
 
 You can read more about it in [Breeze](../README.rst) and
-[Testing](contributing-docs/09_testing.rst)
+[Testing](../../../../contributing-docs/09_testing.rst)
 
 Since we store images from every CI run, you should be able easily
 reproduce any of the CI tests problems locally. You can do it by pulling
@@ -119,7 +119,7 @@ passed to `breeze shell` command.
 | In container environment initialization |                    |                        |              |                                                                                |
 | SKIP_ENVIRONMENT_INITIALIZATION         | false*             | false*                 | false*       | Skip initialization of test environment * set to true in pre-commits           |
 | SKIP_IMAGE_UPGRADE_CHECK                | false*             | false*                 | false*       | Skip checking if image should be upgraded * set to true in pre-commits         |
-| SKIP_PROVIDER_TESTS                     | false*             | false*                 | false*       | Skip running provider integration tests                                        |
+| SKIP_PROVIDERS_TESTS                    | false*             | false*                 | false*       | Skip running provider integration tests                                        |
 | SKIP_SSH_SETUP                          | false*             | false*                 | false*       | Skip setting up SSH server for tests. * set to true in GitHub CodeSpaces       |
 | VERBOSE_COMMANDS                        | false              | false                  | false        | Determines whether every command executed in docker should be printed.         |
 | Image build variables                   |                    |                        |              |                                                                                |

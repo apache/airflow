@@ -20,20 +20,19 @@
 from __future__ import annotations
 
 import os
-import warnings
 from base64 import decodebytes
+from collections.abc import Sequence
 from functools import cached_property
 from io import StringIO
 from select import select
-from typing import Any, Sequence
+from typing import Any
 
 import paramiko
-from deprecated import deprecated
 from paramiko.config import SSH_PORT
 from sshtunnel import SSHTunnelForwarder
 from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.utils.platform import getuser
 from airflow.utils.types import NOTSET, ArgNotSet
@@ -62,8 +61,6 @@ class SSHHook(BaseHook):
     :param conn_timeout: timeout (in seconds) for the attempt to connect to the remote_host.
         The default is 10 seconds. If provided, it will replace the `conn_timeout` which was
         predefined in the connection of `ssh_conn_id`.
-    :param timeout: (Deprecated). timeout for the attempt to connect to the remote_host.
-        Use conn_timeout instead.
     :param cmd_timeout: timeout (in seconds) for executing the command. The default is 10 seconds.
         Nullable, `None` means no timeout. If provided, it will replace the `cmd_timeout`
         which was predefined in the connection of `ssh_conn_id`.
@@ -74,6 +71,7 @@ class SSHHook(BaseHook):
         iterable of algorithm identifiers, which will be disabled for the
         lifetime of the transport
     :param ciphers: list of ciphers to use in order of preference
+    :param auth_timeout: timeout (in seconds) for the attempt to authenticate with the remote_host
     """
 
     # List of classes to try loading private keys as, ordered (roughly) by most common to least common
@@ -114,13 +112,14 @@ class SSHHook(BaseHook):
         password: str | None = None,
         key_file: str | None = None,
         port: int | None = None,
-        timeout: int | None = None,
         conn_timeout: int | None = None,
         cmd_timeout: int | ArgNotSet | None = NOTSET,
         keepalive_interval: int = 30,
         banner_timeout: float = 30.0,
         disabled_algorithms: dict | None = None,
         ciphers: list[str] | None = None,
+        auth_timeout: int | None = None,
+        host_proxy_cmd: str | None = None,
     ) -> None:
         super().__init__()
         self.ssh_conn_id = ssh_conn_id
@@ -130,14 +129,14 @@ class SSHHook(BaseHook):
         self.key_file = key_file
         self.pkey = None
         self.port = port
-        self.timeout = timeout
         self.conn_timeout = conn_timeout
         self.cmd_timeout = cmd_timeout
         self.keepalive_interval = keepalive_interval
         self.banner_timeout = banner_timeout
         self.disabled_algorithms = disabled_algorithms
         self.ciphers = ciphers
-        self.host_proxy_cmd = None
+        self.host_proxy_cmd = host_proxy_cmd
+        self.auth_timeout = auth_timeout
 
         # Default values, overridable from Connection
         self.compress = True
@@ -146,7 +145,7 @@ class SSHHook(BaseHook):
         self.host_key = None
         self.look_for_keys = True
 
-        # Placeholder for deprecated __enter__
+        # Placeholder for future cached connection
         self.client: paramiko.SSHClient | None = None
 
         # Use connection to override defaults
@@ -170,16 +169,6 @@ class SSHHook(BaseHook):
                 private_key_passphrase = extra_options.get("private_key_passphrase")
                 if private_key:
                     self.pkey = self._pkey_from_private_key(private_key, passphrase=private_key_passphrase)
-
-                if "timeout" in extra_options:
-                    warnings.warn(
-                        "Extra option `timeout` is deprecated."
-                        "Please use `conn_timeout` instead."
-                        "The old option `timeout` will be removed in a future version.",
-                        category=AirflowProviderDeprecationWarning,
-                        stacklevel=2,
-                    )
-                    self.timeout = int(extra_options["timeout"])
 
                 if "conn_timeout" in extra_options and self.conn_timeout is None:
                     self.conn_timeout = int(extra_options["conn_timeout"])
@@ -231,18 +220,6 @@ class SSHHook(BaseHook):
                     self.host_key = key_constructor(data=decoded_host_key)
                     self.no_host_key_check = False
 
-        if self.timeout:
-            warnings.warn(
-                "Parameter `timeout` is deprecated."
-                "Please use `conn_timeout` instead."
-                "The old option `timeout` will be removed in a future version.",
-                category=AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-
-        if self.conn_timeout is None:
-            self.conn_timeout = self.timeout if self.timeout else TIMEOUT_DEFAULT
-
         if self.cmd_timeout is NOTSET:
             self.cmd_timeout = CMD_TIMEOUT
 
@@ -270,7 +247,7 @@ class SSHHook(BaseHook):
             with open(user_ssh_config_filename) as config_fd:
                 ssh_conf.parse(config_fd)
             host_info = ssh_conf.lookup(self.remote_host)
-            if host_info and host_info.get("proxycommand"):
+            if host_info and host_info.get("proxycommand") and not self.host_proxy_cmd:
                 self.host_proxy_cmd = host_info["proxycommand"]
 
             if not (self.password or self.key_file):
@@ -332,6 +309,7 @@ class SSHHook(BaseHook):
             "sock": self.host_proxy,
             "look_for_keys": self.look_for_keys,
             "banner_timeout": self.banner_timeout,
+            "auth_timeout": self.auth_timeout,
         }
 
         if self.password:
@@ -373,24 +351,6 @@ class SSHHook(BaseHook):
 
         self.client = client
         return client
-
-    @deprecated(
-        reason=(
-            "The contextmanager of SSHHook is deprecated."
-            "Please use get_conn() as a contextmanager instead."
-            "This method will be removed in Airflow 2.0"
-        ),
-        category=AirflowProviderDeprecationWarning,
-    )
-    def __enter__(self) -> SSHHook:
-        """Return an instance of SSHHook when the `with` statement is used."""
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        """Clear ssh client after exiting the `with` statement block."""
-        if self.client is not None:
-            self.client.close()
-            self.client = None
 
     def get_tunnel(
         self, remote_port: int, remote_host: str = "localhost", local_port: int | None = None
@@ -434,27 +394,6 @@ class SSHHook(BaseHook):
         client = SSHTunnelForwarder(self.remote_host, **tunnel_kwargs)
 
         return client
-
-    @deprecated(
-        reason=(
-            "SSHHook.create_tunnel is deprecated, Please "
-            "use get_tunnel() instead. But please note that the "
-            "order of the parameters have changed. "
-            "This method will be removed in Airflow 2.0"
-        ),
-        category=AirflowProviderDeprecationWarning,
-    )
-    def create_tunnel(
-        self, local_port: int, remote_port: int, remote_host: str = "localhost"
-    ) -> SSHTunnelForwarder:
-        """
-        Create a tunnel for SSH connection [Deprecated].
-
-        :param local_port: local port number
-        :param remote_port: remote port number
-        :param remote_host: remote host
-        """
-        return self.get_tunnel(remote_port, remote_host, local_port)
 
     def _pkey_from_private_key(self, private_key: str, passphrase: str | None = None) -> paramiko.PKey:
         """

@@ -27,6 +27,30 @@
 Changelog
 ---------
 
+main
+.....
+
+.. warning::
+   All deprecated classes, parameters and features have been removed from the MongoDB provider package.
+   The following breaking changes were introduced:
+
+   * Hooks
+
+      * Removed ``conn_id`` parameter from ``MongoHook``. Use ``mongo_conn_id`` instead
+
+4.2.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/mongo): prevent applying lower method on boolean field (#43024)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+
 4.2.1
 .....
 

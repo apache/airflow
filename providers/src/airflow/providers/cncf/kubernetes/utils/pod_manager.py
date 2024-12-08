@@ -22,15 +22,14 @@ import enum
 import json
 import math
 import time
-from collections.abc import Iterable
+from collections.abc import Generator, Iterable
 from contextlib import closing, suppress
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Callable, Generator, Protocol, cast
+from typing import TYPE_CHECKING, Protocol, cast
 
 import pendulum
 import tenacity
-from deprecated import deprecated
 from kubernetes import client, watch
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
@@ -39,7 +38,7 @@ from pendulum.parsing.exceptions import ParserError
 from typing_extensions import Literal
 from urllib3.exceptions import HTTPError, TimeoutError
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, KubernetesPodOperatorCallback
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -302,19 +301,15 @@ class PodManager(LoggingMixin):
         self,
         kube_client: client.CoreV1Api,
         callbacks: type[KubernetesPodOperatorCallback] | None = None,
-        progress_callback: Callable[[str], None] | None = None,
     ):
         """
         Create the launcher.
 
         :param kube_client: kubernetes client
         :param callbacks:
-        :param progress_callback: Callback function invoked when fetching container log.
-            This parameter is deprecated, please use ````
         """
         super().__init__()
         self._client = kube_client
-        self._progress_callback = progress_callback
         self._watch = watch.Watch()
         self._callbacks = callbacks
 
@@ -382,16 +377,6 @@ class PodManager(LoggingMixin):
                 )
                 raise PodLaunchFailedException(msg)
             time.sleep(startup_check_interval)
-
-    @deprecated(
-        reason=(
-            "Method `follow_container_logs` is deprecated.  Use `fetch_container_logs` instead "
-            "with option `follow=True`."
-        ),
-        category=AirflowProviderDeprecationWarning,
-    )
-    def follow_container_logs(self, pod: V1Pod, container_name: str) -> PodLoggingStatus:
-        return self.fetch_container_logs(pod=pod, container_name=container_name, follow=True)
 
     def fetch_container_logs(
         self,
@@ -461,14 +446,15 @@ class PodManager(LoggingMixin):
                                 progress_callback_lines.append(line)
                             else:  # previous log line is complete
                                 for line in progress_callback_lines:
-                                    if self._progress_callback:
-                                        self._progress_callback(line)
                                     if self._callbacks:
                                         self._callbacks.progress_callback(
                                             line=line, client=self._client, mode=ExecutionMode.SYNC
                                         )
                                 if message_to_log is not None:
-                                    self.log.info("[%s] %s", container_name, message_to_log)
+                                    if is_log_group_marker(message_to_log):
+                                        print(message_to_log)
+                                    else:
+                                        self.log.info("[%s] %s", container_name, message_to_log)
                                 last_captured_timestamp = message_timestamp
                                 message_to_log = message
                                 message_timestamp = line_timestamp
@@ -479,14 +465,15 @@ class PodManager(LoggingMixin):
                 finally:
                     # log the last line and update the last_captured_timestamp
                     for line in progress_callback_lines:
-                        if self._progress_callback:
-                            self._progress_callback(line)
                         if self._callbacks:
                             self._callbacks.progress_callback(
                                 line=line, client=self._client, mode=ExecutionMode.SYNC
                             )
                     if message_to_log is not None:
-                        self.log.info("[%s] %s", container_name, message_to_log)
+                        if is_log_group_marker(message_to_log):
+                            print(message_to_log)
+                        else:
+                            self.log.info("[%s] %s", container_name, message_to_log)
                     last_captured_timestamp = message_timestamp
             except TimeoutError as e:
                 # in case of timeout, increment return time by 2 seconds to avoid
@@ -839,3 +826,8 @@ class OnFinishAction(str, enum.Enum):
     KEEP_POD = "keep_pod"
     DELETE_POD = "delete_pod"
     DELETE_SUCCEEDED_POD = "delete_succeeded_pod"
+
+
+def is_log_group_marker(line: str) -> bool:
+    """Check if the line is a log group marker like `::group::` or `::endgroup::`."""
+    return line.startswith("::group::") or line.startswith("::endgroup::")

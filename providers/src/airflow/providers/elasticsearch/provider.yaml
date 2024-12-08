@@ -22,9 +22,10 @@ description: |
     `Elasticsearch <https://www.elastic.co/elasticsearch>`__
 
 state: ready
-source-date-epoch: 1728485068
+source-date-epoch: 1731570065
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 5.5.3
   - 5.5.2
   - 5.5.1
   - 5.5.0
@@ -70,7 +71,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.8.0
-  - apache-airflow-providers-common-sql>=1.17.0
+  - apache-airflow-providers-common-sql>=1.20.0
   - elasticsearch>=8.10,<9
 
 integrations:
@@ -85,7 +86,7 @@ hooks:
       - airflow.providers.elasticsearch.hooks.elasticsearch
 
 connection-types:
-  - hook-class-name: airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook
+  - hook-class-name: airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchSQLHook
     connection-type: elasticsearch
 
 logging:

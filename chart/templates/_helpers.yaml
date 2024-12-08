@@ -98,7 +98,7 @@ If release name contains chart name it will be used as a full name.
         name: {{ template "webserver_secret_key_secret" . }}
         key: webserver-secret-key
   {{- end }}
-  {{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
+  {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
     {{- if or (semverCompare "<2.4.0" .Values.airflowVersion) (.Values.data.resultBackendSecretName) (.Values.data.resultBackendConnection) }}
     {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__CELERY_RESULT_BACKEND }}
   # (Airflow 1.10.* variant)
@@ -150,7 +150,7 @@ If release name contains chart name it will be used as a full name.
   {{- range $i, $config := .Values.env }}
   - name: {{ $config.name }}
     value: {{ $config.value | quote }}
-    {{- if or (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "LocalKubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
+    {{- if or (contains "KubernetesExecutor" $.Values.executor) (contains "LocalKubernetesExecutor" $.Values.executor) (contains "CeleryKubernetesExecutor" $.Values.executor) }}
   - name: AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__{{ $config.name }}
     value: {{ $config.value | quote }}
     {{- end }}
@@ -163,7 +163,7 @@ If release name contains chart name it will be used as a full name.
         name: {{ $config.secretName }}
         key: {{ default "value" $config.secretKey }}
   {{- end }}
-  {{- if or (eq $.Values.executor "LocalKubernetesExecutor") (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
+  {{- if or (contains "LocalKubernetesExecutor" $.Values.executor) (contains "KubernetesExecutor" $.Values.executor) (contains "CeleryKubernetesExecutor" $.Values.executor) }}
     {{- range $i, $config := .Values.secret }}
   - name: AIRFLOW__KUBERNETES_SECRETS__{{ $config.envName }}
     value: {{ printf "%s=%s" $config.secretName $config.secretKey }}
@@ -546,122 +546,80 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- end }}
 {{- end }}
 
-{{/* Create the name of the webserver service account to use */}}
-{{- define "webserver.serviceAccountName" -}}
-  {{- if .Values.webserver.serviceAccount.create }}
-    {{- default (printf "%s-webserver" (include "airflow.serviceAccountName" .)) .Values.webserver.serviceAccount.name }}
+{{/* Helper to generate service account name respecting .Values.$section.serviceAccount flags */}}
+{{- define "_serviceAccountName" -}}
+  {{- $sa := get (get .Values .key) "serviceAccount" }}
+  {{- if $sa.create }}
+    {{- default (printf "%s-%s" (include "airflow.serviceAccountName" .) (default .key .nameSuffix )) $sa.name | quote }}
   {{- else }}
-    {{- default "default" .Values.webserver.serviceAccount.name }}
+    {{- default "default" $sa.name | quote }}
   {{- end }}
 {{- end }}
 
+{{/* Create the name of the webserver service account to use */}}
+{{- define "webserver.serviceAccountName" -}}
+  {{- include "_serviceAccountName" (merge (dict "key" "webserver") .) -}}
+{{- end }}
 
-{{/* Create the name of the RPC server service account to use */}}
-{{- define "rpcServer.serviceAccountName" -}}
-  {{- if .Values._rpcServer.serviceAccount.create }}
-    {{- default (printf "%s-rpc-server" (include "airflow.serviceAccountName" .)) .Values._rpcServer.serviceAccount.name }}
-  {{- else }}
-    {{- default "default" .Values._rpcServer.serviceAccount.name }}
-  {{- end }}
+
+{{/* Create the name of the API server service account to use */}}
+{{- define "apiServer.serviceAccountName" -}}
+  {{- include "_serviceAccountName" (merge (dict "key" "apiServer" "nameSuffix" "api-server" ) .) -}}
 {{- end }}
 
 {{/* Create the name of the redis service account to use */}}
 {{- define "redis.serviceAccountName" -}}
-  {{- if .Values.redis.serviceAccount.create }}
-    {{- default (printf "%s-redis" (include "airflow.serviceAccountName" .)) .Values.redis.serviceAccount.name }}
-  {{- else }}
-    {{- default "default" .Values.redis.serviceAccount.name }}
-  {{- end }}
+  {{- include "_serviceAccountName" (merge (dict "key" "redis") .) -}}
 {{- end }}
 
 {{/* Create the name of the flower service account to use */}}
 {{- define "flower.serviceAccountName" -}}
-  {{- if .Values.flower.serviceAccount.create }}
-    {{- default (printf "%s-flower" (include "airflow.serviceAccountName" .)) .Values.flower.serviceAccount.name }}
-  {{- else }}
-    {{- default "default" .Values.flower.serviceAccount.name }}
-  {{- end }}
+  {{- include "_serviceAccountName" (merge (dict "key" "flower") .) -}}
 {{- end }}
 
 {{/* Create the name of the scheduler service account to use */}}
 {{- define "scheduler.serviceAccountName" -}}
-  {{- if .Values.scheduler.serviceAccount.create }}
-    {{- default (printf "%s-scheduler" (include "airflow.serviceAccountName" .)) .Values.scheduler.serviceAccount.name }}
-  {{- else }}
-    {{- default "default" .Values.scheduler.serviceAccount.name }}
-  {{- end }}
+  {{- include "_serviceAccountName" (merge (dict "key" "scheduler") .) -}}
 {{- end }}
 
 {{/* Create the name of the StatsD service account to use */}}
 {{- define "statsd.serviceAccountName" -}}
-  {{- if .Values.statsd.serviceAccount.create }}
-    {{- default (printf "%s-statsd" (include "airflow.serviceAccountName" .)) .Values.statsd.serviceAccount.name }}
-  {{- else }}
-    {{- default "default" .Values.statsd.serviceAccount.name }}
-  {{- end }}
+  {{- include "_serviceAccountName" (merge (dict "key" "statsd") .) -}}
 {{- end }}
 
 {{/* Create the name of the create user job service account to use */}}
 {{- define "createUserJob.serviceAccountName" -}}
-  {{- if .Values.createUserJob.serviceAccount.create }}
-    {{- default (printf "%s-create-user-job" (include "airflow.serviceAccountName" .)) .Values.createUserJob.serviceAccount.name }}
-  {{- else }}
-    {{- default "default" .Values.createUserJob.serviceAccount.name }}
-  {{- end }}
+  {{- include "_serviceAccountName" (merge (dict "key" "createUserJob" "nameSuffix" "create-user-job") .) -}}
 {{- end }}
 
 {{/* Create the name of the migrate database job service account to use */}}
 {{- define "migrateDatabaseJob.serviceAccountName" -}}
-  {{- if .Values.migrateDatabaseJob.serviceAccount.create }}
-    {{- default (printf "%s-migrate-database-job" (include "airflow.serviceAccountName" .)) .Values.migrateDatabaseJob.serviceAccount.name }}
-  {{- else }}
-    {{- default "default" .Values.migrateDatabaseJob.serviceAccount.name }}
-  {{- end }}
+  {{- include "_serviceAccountName" (merge (dict "key" "migrateDatabaseJob" "nameSuffix" "migrate-database-job") .) -}}
 {{- end }}
 
 {{/* Create the name of the worker service account to use */}}
 {{- define "worker.serviceAccountName" -}}
-  {{- if .Values.workers.serviceAccount.create }}
-    {{- default (printf "%s-worker" (include "airflow.serviceAccountName" .)) .Values.workers.serviceAccount.name }}
-  {{- else }}
-    {{- default "default" .Values.workers.serviceAccount.name }}
-  {{- end }}
+  {{- include "_serviceAccountName" (merge (dict "key" "workers" "nameSuffix" "worker") .) -}}
 {{- end }}
 
 {{/* Create the name of the triggerer service account to use */}}
 {{- define "triggerer.serviceAccountName" -}}
-  {{- if .Values.triggerer.serviceAccount.create }}
-    {{- default (printf "%s-triggerer" (include "airflow.serviceAccountName" .)) .Values.triggerer.serviceAccount.name }}
-  {{- else }}
-    {{- default "default" .Values.triggerer.serviceAccount.name }}
-  {{- end }}
+  {{- include "_serviceAccountName" (merge (dict "key" "triggerer") .) -}}
 {{- end }}
 
 {{/* Create the name of the dag processor service account to use */}}
 {{- define "dagProcessor.serviceAccountName" -}}
-  {{- if .Values.dagProcessor.serviceAccount.create }}
-    {{- default (printf "%s-dag-processor" (include "airflow.serviceAccountName" .)) .Values.dagProcessor.serviceAccount.name }}
-  {{- else }}
-    {{- default "default" .Values.dagProcessor.serviceAccount.name }}
-  {{- end }}
+  {{- include "_serviceAccountName" (merge (dict "key" "dagProcessor" "nameSuffix" "dag-processor") .) -}}
 {{- end }}
 
 {{/* Create the name of the pgbouncer service account to use */}}
 {{- define "pgbouncer.serviceAccountName" -}}
-  {{- if .Values.pgbouncer.serviceAccount.create }}
-    {{- default (printf "%s-pgbouncer" (include "airflow.serviceAccountName" .)) .Values.pgbouncer.serviceAccount.name }}
-  {{- else }}
-    {{- default "default" .Values.pgbouncer.serviceAccount.name }}
-  {{- end }}
+  {{- include "_serviceAccountName" (merge (dict "key" "pgbouncer") .) -}}
 {{- end }}
 
 {{/* Create the name of the cleanup service account to use */}}
 {{- define "cleanup.serviceAccountName" -}}
-  {{- if .Values.cleanup.serviceAccount.create }}
-    {{- default (printf "%s-cleanup" (include "airflow.serviceAccountName" .)) .Values.cleanup.serviceAccount.name }}
-  {{- else }}
-    {{- default "default" .Values.cleanup.serviceAccount.name }}
-  {{- end }}
+  {{- include "_serviceAccountName" (merge (dict "key" "cleanup") .) -}}
 {{- end }}
 
 {{- define "wait-for-migrations-command" -}}
@@ -1012,7 +970,7 @@ capabilities:
         key: {{ $config.valueFrom.configMapKeyRef.key }}
       {{- end }}
     {{- end }}
-    {{- if or (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "LocalKubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
+    {{- if or (contains "KubernetesExecutor" $.Values.executor) (contains "LocalKubernetesExecutor" $.Values.executor) (contains "CeleryKubernetesExecutor" $.Values.executor) }}
   - name: AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__{{ $config.name }}
     {{- if $config.value }}
     value: {{ $config.value | quote }}

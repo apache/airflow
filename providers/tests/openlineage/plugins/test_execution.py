@@ -23,7 +23,6 @@ import random
 import shutil
 import tempfile
 from pathlib import Path
-from unittest import mock
 
 import pytest
 
@@ -33,18 +32,16 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagBag, TaskInstance
 from airflow.providers.google.cloud.openlineage.utils import get_from_nullable_chain
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
-from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
 from airflow.utils import timezone
 from airflow.utils.state import State
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.config import conf_vars
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
 # TODO(potiuk): Document that openlineage is not supported in DB isolation mode
-pytestmark = pytest.mark.skip_if_database_isolation_mode
 
 TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -65,7 +62,6 @@ def get_sorted_events(event_dir: str) -> list[str]:
 
 def has_value_in_events(events, chain, value):
     x = [get_from_nullable_chain(event, chain) for event in events]
-    log.error(x)
     y = [z == value for z in x]
     return any(y)
 
@@ -108,11 +104,9 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             ti = TaskInstance(task=task, run_id=run_id)
             job = Job(id=random.randint(0, 23478197), dag_id=ti.dag_id)
             job_runner = LocalTaskJobRunner(job=job, task_instance=ti, ignore_ti_state=True)
-            task_runner = StandardTaskRunner(job_runner)
-            with mock.patch("airflow.task.task_runner.get_task_runner", return_value=task_runner):
-                job_runner._execute()
+            job_runner._execute()
 
-            return task_runner.return_code(timeout=60)
+            return job_runner.task_runner.return_code(timeout=60)
 
         @pytest.mark.db_test
         @conf_vars({("openlineage", "transport"): f'{{"type": "file", "log_file_path": "{listener_path}"}}'})
@@ -181,7 +175,9 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             }
         )
         @pytest.mark.db_test
-        def test_long_stalled_task_is_killed_by_listener_overtime_if_ol_timeout_long_enough(self):
+        def test_success_overtime_kills_tasks(self):
+            # This test checks whether LocalTaskJobRunner kills OL listener which take
+            # longer time than permitted by core.task_success_overtime setting
             dirpath = Path(tmp_dir)
             if dirpath.exists():
                 shutil.rmtree(dirpath)
@@ -208,7 +204,7 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
                 task=task,
                 run_id="test_long_stalled_task_is_killed_by_listener_overtime_if_ol_timeout_long_enough",
             )
-            job = Job(id="1", dag_id=ti.dag_id)
+            job = Job(dag_id=ti.dag_id)
             job_runner = LocalTaskJobRunner(job=job, task_instance=ti, ignore_ti_state=True)
             job_runner._execute()
 

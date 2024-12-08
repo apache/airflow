@@ -19,7 +19,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -361,8 +362,9 @@ class UploadModelOperator(GoogleCloudBaseOperator):
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
-    :param model: Required. The Model to create.
-    :param parent_model: The name of the parent model to create a new version under.
+    :param model: Required. The Model to create. Creating model with the name that already
+        exists leads to creating new version of existing model.
+    :param parent_model: The ID of the parent model to create a new version under.
     :param retry: Designation of what errors, if any, should be retried.
     :param timeout: The timeout for this request.
     :param metadata: Strings which should be sent along with the request as metadata.
@@ -377,7 +379,7 @@ class UploadModelOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("region", "project_id", "model", "impersonation_chain")
+    template_fields = ("region", "project_id", "model", "parent_model", "impersonation_chain")
     operator_extra_links = (VertexAIModelLink(),)
 
     def __init__(

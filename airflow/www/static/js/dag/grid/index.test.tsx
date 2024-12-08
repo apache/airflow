@@ -148,7 +148,7 @@ const mockGridData = {
       endDate: "2021-11-08T21:17:13.206426+00:00",
       state: "failed",
       runType: "scheduled",
-      executionDate: "2021-11-08T21:14:19.704433+00:00",
+      logicalDate: "2021-11-08T21:14:19.704433+00:00",
       lastSchedulingDecision: "2021-11-08T21:14:19.704433+00:00",
       note: "myCoolDagRun",
       externalTrigger: false,

@@ -29,6 +29,45 @@
 Changelog
 ---------
 
+main
+.....
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the Apache Spark provider package.
+  The following breaking changes were introduced:
+
+  * Operators
+
+    * Removed ``_sql()`` support for SparkSqlOperator. Please use ``sql`` attribute instead. ``_sql`` was
+      introduced in 2016 and since it was listed as templated field, which is no longer the case, we
+      handled it as public api despite the ``_`` prefix that marked it as private.
+
+
+4.11.3
+......
+
+Misc
+~~~~
+
+* ``Move python operator to Standard provider (#42081)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.11.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Changed conf property from str to dict in SparkSqlOperator (#42835)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+
 4.11.1
 ......
 

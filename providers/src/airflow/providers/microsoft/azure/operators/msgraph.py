@@ -17,12 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from copy import deepcopy
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Sequence,
 )
 
 from airflow.exceptions import AirflowException, TaskDeferred
@@ -42,6 +42,14 @@ if TYPE_CHECKING:
     from msgraph_core import APIVersion
 
     from airflow.utils.context import Context
+
+
+def default_event_handler(context: Context, event: dict[Any, Any] | None = None) -> Any:
+    if event:
+        if event.get("status") == "failure":
+            raise AirflowException(event.get("message"))
+
+        return event.get("response")
 
 
 class MSGraphAsyncOperator(BaseOperator):
@@ -69,6 +77,9 @@ class MSGraphAsyncOperator(BaseOperator):
     :param result_processor: Function to further process the response from MS Graph API
         (default is lambda: context, response: response).  When the response returned by the
         `KiotaRequestAdapterHook` are bytes, then those will be base64 encoded into a string.
+    :param event_handler: Function to process the event returned from `MSGraphTrigger`.  By default, when the
+        event returned by the `MSGraphTrigger` has a failed status, an AirflowException is being raised with
+        the message from the event, otherwise the response from the event payload is returned.
     :param serializer: Class which handles response serialization (default is ResponseSerializer).
         Bytes will be base64 encoded into a string, so it can be stored as an XCom.
     """
@@ -102,6 +113,7 @@ class MSGraphAsyncOperator(BaseOperator):
         api_version: APIVersion | str | None = None,
         pagination_function: Callable[[MSGraphAsyncOperator, dict, Context], tuple[str, dict]] | None = None,
         result_processor: Callable[[Context, Any], Any] = lambda context, result: result,
+        event_handler: Callable[[Context, dict[Any, Any] | None], Any] | None = None,
         serializer: type[ResponseSerializer] = ResponseSerializer,
         **kwargs: Any,
     ):
@@ -121,6 +133,7 @@ class MSGraphAsyncOperator(BaseOperator):
         self.api_version = api_version
         self.pagination_function = pagination_function or self.paginate
         self.result_processor = result_processor
+        self.event_handler = event_handler or default_event_handler
         self.serializer: ResponseSerializer = serializer()
 
     def execute(self, context: Context) -> None:
@@ -158,10 +171,7 @@ class MSGraphAsyncOperator(BaseOperator):
         if event:
             self.log.debug("%s completed with %s: %s", self.task_id, event.get("status"), event)
 
-            if event.get("status") == "failure":
-                raise AirflowException(event.get("message"))
-
-            response = event.get("response")
+            response = self.event_handler(context, event)
 
             self.log.debug("response: %s", response)
 
@@ -270,7 +280,7 @@ class MSGraphAsyncOperator(BaseOperator):
             if top and odata_count:
                 if len(response.get("value", [])) == top and context:
                     results = operator.pull_xcom(context=context)
-                    skip = sum(map(lambda result: len(result["value"]), results)) + top if results else top
+                    skip = sum([len(result["value"]) for result in results]) + top if results else top  # type: ignore
                     query_parameters["$skip"] = skip
                     return operator.url, query_parameters
         return response.get("@odata.nextLink"), operator.query_parameters

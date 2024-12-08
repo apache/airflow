@@ -28,7 +28,6 @@ from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.sensors.gcs import (
-    GCSObjectExistenceAsyncSensor,
     GCSObjectExistenceSensor,
     GCSObjectsWithPrefixExistenceSensor,
     GCSObjectUpdateSensor,
@@ -142,14 +141,6 @@ with DAG(
     )
     # [END howto_sensor_object_exists_task]
 
-    # [START howto_sensor_object_exists_task_async]
-    gcs_object_exists_async = GCSObjectExistenceAsyncSensor(
-        bucket=DESTINATION_BUCKET_NAME,
-        object=FILE_NAME,
-        task_id="gcs_object_exists_task_async",
-    )
-    # [END howto_sensor_object_exists_task_async]
-
     # [START howto_sensor_object_exists_task_defered]
     gcs_object_exists_defered = GCSObjectExistenceSensor(
         bucket=DESTINATION_BUCKET_NAME, object=FILE_NAME, task_id="gcs_object_exists_defered", deferrable=True
@@ -185,7 +176,6 @@ with DAG(
         [
             gcs_object_exists,
             gcs_object_exists_defered,
-            gcs_object_exists_async,
             gcs_object_with_prefix_exists,
             gcs_object_with_prefix_exists_async,
         ],
@@ -201,14 +191,14 @@ with DAG(
         delete_bucket,
     )
 
-    from dev.tests_common.test_utils.watcher import watcher
+    from tests_common.test_utils.watcher import watcher
 
     # This test needs watcher in order to properly mark success/failure
     # when "tearDown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
 
 
-from dev.tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

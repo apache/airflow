@@ -225,6 +225,11 @@ labelPRBasedOnFilePath:
     - providers/tests/docker/**/*
     - providers/tests/system/docker/**/*
 
+  provider:edge:
+    - providers/src/airflow/providers/edge/**/*
+    - docs/apache-airflow-providers-edge/**/*
+    - providers/tests/edge/**/*
+
   provider:elasticsearch:
     - providers/src/airflow/providers/elasticsearch/**/*
     - docs/apache-airflow-providers-elasticsearch/**/*
@@ -581,9 +586,9 @@ labelPRBasedOnFilePath:
     - docs/helm-chart/**
 
   area:Webserver:
-    - airflow/cli/commands/webserver_command.py
+    - airflow/cli/commands/local_commands/webserver_command.py
     - airflow/www/**/*
-    - tests/cli/commands/test_webserver_command.py
+    - tests/cli/commands/local_commands/test_webserver_command.py
     - tests/www/**/*
 
   area:UI:
@@ -618,15 +623,15 @@ labelPRBasedOnFilePath:
     - tests/utils/log/**/*
 
   area:Plugins:
-    - airflow/cli/commands/plugins_command.py
+    - airflow/cli/commands/local_commands/plugins_command.py
     - airflow/plugins_manager.py
-    - tests/cli/commands/test_plugins_command.py
+    - tests/cli/commands/local_commands/test_plugins_command.py
     - tests/plugins/**/*
     - docs/apache-airflow/authoring-and-scheduling/plugins.rst
 
   area:Scheduler:
     - airflow/jobs/**/*
-    - airflow/task/task_runner/**/*
+    - airflow/task/standard_task_runner.py
     - airflow/dag_processing/**/*
     - docs/apache-airflow/administration-and-deployment/scheduler.rst
     - tests/jobs/**/*
@@ -644,15 +649,15 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow/security/secrets/**/*
 
   area:Triggerer:
-    - airflow/cli/commands/triggerer_command.py
+    - airflow/cli/commands/local_commands/triggerer_command.py
     - airflow/jobs/triggerer_job_runner.py
     - airflow/models/trigger.py
-    - airflow/triggers/**/*
-    - tests/cli/commands/test_triggerer_command.py
+    - providers/src/airflow/providers/standard/triggers/**/*
+    - tests/cli/commands/local_commands/test_triggerer_command.py
     - tests/jobs/test_triggerer_job.py
     - tests/models/test_trigger.py
     - tests/jobs/test_triggerer_job_logging.py
-    - tests/triggers/**/*
+    - providers/tests/standard/triggers/**/*
 
   area:Serialization:
     - airflow/serialization/**/*

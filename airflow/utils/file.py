@@ -22,9 +22,11 @@ import hashlib
 import logging
 import os
 import zipfile
+from collections.abc import Generator
 from io import TextIOWrapper
 from pathlib import Path
-from typing import Generator, NamedTuple, Pattern, Protocol, overload
+from re import Pattern
+from typing import NamedTuple, Protocol, overload
 
 import re2
 from pathspec.patterns import GitWildMatchPattern
@@ -328,7 +330,9 @@ def might_contain_dag_via_default_heuristic(file_path: str, zip_file: zipfile.Zi
         with open(file_path, "rb") as dag_file:
             content = dag_file.read()
     content = content.lower()
-    return all(s in content for s in (b"dag", b"airflow"))
+    if b"airflow" not in content:
+        return False
+    return any(s in content for s in (b"dag", b"asset"))
 
 
 def _find_imported_modules(module: ast.Module) -> Generator[str, None, None]:
@@ -354,7 +358,7 @@ def iter_airflow_imports(file_path: str) -> Generator[str, None, None]:
 def get_unique_dag_module_name(file_path: str) -> str:
     """Return a unique module name in the format unusual_prefix_{sha1 of module's file path}_{original module name}."""
     if isinstance(file_path, str):
-        path_hash = hashlib.sha1(file_path.encode("utf-8")).hexdigest()
+        path_hash = hashlib.sha1(file_path.encode("utf-8"), usedforsecurity=False).hexdigest()
         org_mod_name = re2.sub(r"[.-]", "_", Path(file_path).stem)
         return MODIFIED_DAG_MODULE_NAME.format(path_hash=path_hash, module_name=org_mod_name)
     raise ValueError("file_path should be a string to generate unique module name")

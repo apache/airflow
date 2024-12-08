@@ -24,18 +24,22 @@ import pytest
 
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import PythonOperator
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.utils import dot_renderer, timezone
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
 
-from dev.tests_common.test_utils.compat import BashOperator
-from dev.tests_common.test_utils.db import clear_db_dags
+from tests_common.test_utils.compat import BashOperator
+from tests_common.test_utils.db import clear_db_dags
+
+try:
+    from airflow.providers.standard.operators.python import PythonOperator
+except ImportError:
+    from airflow.operators.python import PythonOperator  # type: ignore[no-redef,attr-defined]
 
 START_DATE = timezone.utcnow()
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 class TestDotRenderer:
@@ -94,7 +98,7 @@ class TestDotRenderer:
             task_1 >> task_2
             task_1 >> task_3
 
-        tis = {ti.task_id: ti for ti in dag_maker.create_dagrun(execution_date=START_DATE).task_instances}
+        tis = {ti.task_id: ti for ti in dag_maker.create_dagrun(logical_date=START_DATE).task_instances}
         tis["first"].state = State.SCHEDULED
         tis["second"].state = State.SUCCESS
         tis["third"].state = State.RUNNING
@@ -138,7 +142,7 @@ class TestDotRenderer:
             task_1 >> task_2
             task_1 >> task_3
 
-        tis = dag_maker.create_dagrun(execution_date=START_DATE).task_instances
+        tis = dag_maker.create_dagrun(logical_date=START_DATE).task_instances
         tis[0].state = State.SCHEDULED
         tis[1].state = State.SUCCESS
         tis[2].state = State.RUNNING

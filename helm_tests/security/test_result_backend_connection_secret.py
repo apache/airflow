@@ -54,7 +54,7 @@ class TestResultBackendConnectionSecret:
             show_only=["templates/secrets/result-backend-connection-secret.yaml"],
         )
 
-        assert 0 == len(docs)
+        assert len(docs) == 0
 
     @pytest.mark.parametrize(
         "executor, expected_doc_count",
@@ -140,8 +140,8 @@ class TestResultBackendConnectionSecret:
 
         # host, port, dbname still get overridden even with an non-chart db
         assert (
-            "db+postgresql://someuser:somepass@release-name-pgbouncer:6543"
-            "/release-name-result-backend?sslmode=allow" == connection
+            connection == "db+postgresql://someuser:somepass@release-name-pgbouncer:6543"
+            "/release-name-result-backend?sslmode=allow"
         )
 
     @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
@@ -160,7 +160,7 @@ class TestResultBackendConnectionSecret:
         values = {"data": {"resultBackendConnection": {**self.non_chart_database_values}}}
         connection = self._get_connection(values)
 
-        assert "db+postgresql://someuser:somepass@somehost:7777/somedb?sslmode=allow" == connection
+        assert connection == "db+postgresql://someuser:somepass@somehost:7777/somedb?sslmode=allow"
 
     def test_should_support_non_postgres_db(self):
         values = {
@@ -174,7 +174,7 @@ class TestResultBackendConnectionSecret:
         connection = self._get_connection(values)
 
         # sslmode is only added for postgresql
-        assert "db+mysql://someuser:somepass@somehost:7777/somedb" == connection
+        assert connection == "db+mysql://someuser:somepass@somehost:7777/somedb"
 
     def test_should_correctly_use_non_chart_database_when_both_db_are_external(self):
         values = {
@@ -189,7 +189,7 @@ class TestResultBackendConnectionSecret:
         }
         connection = self._get_connection(values)
 
-        assert "db+postgresql://anotheruser:anotherpass@somehost:7777/somedb?sslmode=allow" == connection
+        assert connection == "db+postgresql://anotheruser:anotherpass@somehost:7777/somedb?sslmode=allow"
 
     def test_should_correctly_handle_password_with_special_characters(self):
         values = {
@@ -204,6 +204,7 @@ class TestResultBackendConnectionSecret:
         connection = self._get_connection(values)
 
         assert (
-            "db+postgresql://username%40123123:password%40%21%40%23$%5E&%2A%28%29@somehost:7777/"
-            "somedb?sslmode=allow" == connection
+            connection
+            == "db+postgresql://username%40123123:password%40%21%40%23$%5E&%2A%28%29@somehost:7777/"
+            "somedb?sslmode=allow"
         )

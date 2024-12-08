@@ -81,14 +81,14 @@ def _retryable_test_with_temporary_quota_retry(thing):
 class TestQuotaRetry:
     def test_do_nothing_on_non_error(self):
         result = _retryable_test_with_temporary_quota_retry(lambda: 42)
-        assert result, 42
+        assert result == 42
 
     def test_retry_on_exception(self):
         message = "POST https://translation.googleapis.com/language/translate/v2: User Rate Limit Exceeded"
         errors = [mock.MagicMock(details=mock.PropertyMock(return_value="userRateLimitExceeded"))]
         custom_fn = NoForbiddenAfterCount(count=5, message=message, errors=errors)
         _retryable_test_with_temporary_quota_retry(custom_fn)
-        assert 5 == custom_fn.counter
+        assert custom_fn.counter == 5
 
     def test_raise_exception_on_non_quota_exception(self):
         message = "POST https://translation.googleapis.com/language/translate/v2: Daily Limit Exceeded"
@@ -410,7 +410,6 @@ class TestGoogleBaseHook:
             key_secret_name=None,
             key_secret_project_id=None,
             scopes=self.instance.scopes,
-            delegate_to=None,
             target_principal=None,
             delegates=None,
             is_anonymous=None,
@@ -419,7 +418,7 @@ class TestGoogleBaseHook:
             client_secret=None,
             idp_extra_params_dict=None,
         )
-        assert ("CREDENTIALS", "PROJECT_ID") == result
+        assert result == ("CREDENTIALS", "PROJECT_ID")
 
     @mock.patch("requests.post")
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
@@ -452,7 +451,6 @@ class TestGoogleBaseHook:
             key_secret_name=None,
             key_secret_project_id=None,
             scopes=self.instance.scopes,
-            delegate_to=None,
             target_principal=None,
             delegates=None,
             is_anonymous=None,
@@ -487,7 +485,6 @@ class TestGoogleBaseHook:
             key_secret_name=None,
             key_secret_project_id=None,
             scopes=self.instance.scopes,
-            delegate_to=None,
             target_principal=None,
             delegates=None,
             is_anonymous=None,
@@ -503,7 +500,6 @@ class TestGoogleBaseHook:
         mock_credentials = mock.MagicMock()
         mock_get_creds_and_proj_id.return_value = (mock_credentials, "PROJECT_ID")
         self.instance.extras = {}
-        self.instance.delegate_to = "USER"
         result = self.instance.get_credentials_and_project_id()
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path=None,
@@ -512,7 +508,6 @@ class TestGoogleBaseHook:
             key_secret_name=None,
             key_secret_project_id=None,
             scopes=self.instance.scopes,
-            delegate_to="USER",
             target_principal=None,
             delegates=None,
             is_anonymous=None,
@@ -522,23 +517,6 @@ class TestGoogleBaseHook:
             idp_extra_params_dict=None,
         )
         assert (mock_credentials, "PROJECT_ID") == result
-
-    @mock.patch("google.auth.default")
-    def test_get_credentials_and_project_id_with_default_auth_and_unsupported_delegate(
-        self, mock_auth_default
-    ):
-        self.instance.delegate_to = "TEST_DELEGATE_TO"
-        mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
-        mock_auth_default.return_value = (mock_credentials, "PROJECT_ID")
-
-        with pytest.raises(
-            AirflowException,
-            match=re.escape(
-                "The `delegate_to` parameter cannot be used here as the current authentication method "
-                "does not support account impersonate. Please use service-account for authorization."
-            ),
-        ):
-            self.instance.get_credentials_and_project_id()
 
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id", return_value=("CREDENTIALS", "PROJECT_ID"))
     def test_get_credentials_and_project_id_with_default_auth_and_overridden_project_id(
@@ -553,7 +531,6 @@ class TestGoogleBaseHook:
             key_secret_name=None,
             key_secret_project_id=None,
             scopes=self.instance.scopes,
-            delegate_to=None,
             target_principal=None,
             delegates=None,
             is_anonymous=None,
@@ -562,7 +539,7 @@ class TestGoogleBaseHook:
             client_secret=None,
             idp_extra_params_dict=None,
         )
-        assert ("CREDENTIALS", "SECOND_PROJECT_ID") == result
+        assert result == ("CREDENTIALS", "SECOND_PROJECT_ID")
 
     def test_get_credentials_and_project_id_with_mutually_exclusive_configuration(self):
         self.instance.extras = {
@@ -593,7 +570,6 @@ class TestGoogleBaseHook:
             key_secret_name=None,
             key_secret_project_id=None,
             scopes=self.instance.scopes,
-            delegate_to=None,
             target_principal=None,
             delegates=None,
             is_anonymous=True,
@@ -805,7 +781,6 @@ class TestGoogleBaseHook:
             key_secret_name=None,
             key_secret_project_id=None,
             scopes=self.instance.scopes,
-            delegate_to=None,
             target_principal=target_principal,
             delegates=delegates,
             is_anonymous=None,
@@ -937,7 +912,7 @@ class TestNumRetry:
         }
 
         assert isinstance(instance.num_retries, int)
-        assert 10 == instance.num_retries
+        assert instance.num_retries == 10
 
     @mock.patch.dict(
         "os.environ",
@@ -963,7 +938,7 @@ class TestNumRetry:
     def test_should_fallback_when_empty_string_in_env_var(self):
         instance = hook.GoogleBaseHook(gcp_conn_id="google_cloud_default")
         assert isinstance(instance.num_retries, int)
-        assert 5 == instance.num_retries
+        assert instance.num_retries == 5
 
 
 class TestCredentialsToken:
@@ -1022,6 +997,7 @@ class TestGoogleBaseAsyncHook:
     async def test_get_token_impersonation(self, mock_auth_default, monkeypatch, requests_mock) -> None:
         mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
         mock_credentials.token = "ACCESS_TOKEN"
+        mock_credentials.universe_domain = "googleapis.com"
         mock_auth_default.return_value = (mock_credentials, "PROJECT_ID")
         monkeypatch.setenv(
             "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT",
@@ -1045,6 +1021,7 @@ class TestGoogleBaseAsyncHook:
     @mock.patch("google.auth.default")
     async def test_get_token_impersonation_conn(self, mock_auth_default, monkeypatch, requests_mock) -> None:
         mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
+        mock_credentials.universe_domain = "googleapis.com"
         mock_auth_default.return_value = (mock_credentials, "PROJECT_ID")
         monkeypatch.setenv(
             "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT",

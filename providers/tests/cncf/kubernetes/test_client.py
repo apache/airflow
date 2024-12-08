@@ -29,7 +29,7 @@ from airflow.providers.cncf.kubernetes.kube_client import (
     get_kube_client,
 )
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 
 class TestClient:

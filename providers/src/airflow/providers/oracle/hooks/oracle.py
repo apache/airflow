@@ -23,7 +23,6 @@ from datetime import datetime
 
 import oracledb
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 PARAM_TYPES = {bool, float, int, str}
@@ -197,14 +196,6 @@ class OracleHook(DbApiHook):
                     dsn += f":{conn.port}"
                 if service_name:
                     dsn += f"/{service_name}"
-                elif conn.schema:
-                    warnings.warn(
-                        """Using conn.schema to pass the Oracle Service Name is deprecated.
-                        Please use conn.extra.service_name instead.""",
-                        AirflowProviderDeprecationWarning,
-                        stacklevel=2,
-                    )
-                    dsn += f"/{conn.schema}"
             conn_config["dsn"] = dsn
 
         if "events" in conn.extra_dejson:
@@ -328,6 +319,8 @@ class OracleHook(DbApiHook):
         rows: list[tuple],
         target_fields: list[str] | None = None,
         commit_every: int = 5000,
+        sequence_column: str | None = None,
+        sequence_name: str | None = None,
     ):
         """
         Perform bulk inserts efficiently for Oracle DB.
@@ -342,6 +335,8 @@ class OracleHook(DbApiHook):
             If None, each rows should have some order as table columns name
         :param commit_every: the maximum number of rows to insert in one transaction
             Default 5000. Set greater than 0. Set 1 to insert each row in each transaction
+        :param sequence_column: the column name to which the sequence will be applied, default None.
+        :param sequence_name: the names of the sequence_name in the table, default None.
         """
         if not rows:
             raise ValueError("parameter rows could not be None or empty iterable")
@@ -350,11 +345,28 @@ class OracleHook(DbApiHook):
             self.set_autocommit(conn, False)
         cursor = conn.cursor()  # type: ignore[attr-defined]
         values_base = target_fields or rows[0]
-        prepared_stm = "insert into {tablename} {columns} values ({values})".format(
-            tablename=table,
-            columns="({})".format(", ".join(target_fields)) if target_fields else "",
-            values=", ".join(f":{i}" for i in range(1, len(values_base) + 1)),
-        )
+
+        if bool(sequence_column) ^ bool(sequence_name):
+            raise ValueError(
+                "Parameters 'sequence_column' and 'sequence_name' must be provided together or not at all."
+            )
+
+        if sequence_column and sequence_name:
+            prepared_stm = "insert into {tablename} {columns} values ({values})".format(
+                tablename=table,
+                columns="({})".format(", ".join([sequence_column] + target_fields))
+                if target_fields
+                else f"({sequence_column})",
+                values=", ".join(
+                    [f"{sequence_name}.NEXTVAL"] + [f":{i}" for i in range(1, len(values_base) + 1)]
+                ),
+            )
+        else:
+            prepared_stm = "insert into {tablename} {columns} values ({values})".format(
+                tablename=table,
+                columns="({})".format(", ".join(target_fields)) if target_fields else "",
+                values=", ".join(f":{i}" for i in range(1, len(values_base) + 1)),
+            )
         row_count = 0
         # Chunk the rows
         row_chunk = []
@@ -369,10 +381,11 @@ class OracleHook(DbApiHook):
                 # Empty chunk
                 row_chunk = []
         # Commit the leftover chunk
-        cursor.prepare(prepared_stm)
-        cursor.executemany(None, row_chunk)
-        conn.commit()  # type: ignore[attr-defined]
-        self.log.info("[%s] inserted %s rows", table, row_count)
+        if row_chunk:
+            cursor.prepare(prepared_stm)
+            cursor.executemany(None, row_chunk)
+            conn.commit()  # type: ignore[attr-defined]
+            self.log.info("[%s] inserted %s rows", table, row_count)
         cursor.close()
         conn.close()  # type: ignore[attr-defined]
 

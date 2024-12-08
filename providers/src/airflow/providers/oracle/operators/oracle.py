@@ -18,53 +18,16 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import oracledb
-from deprecated import deprecated
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
-from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-
-@deprecated(
-    reason="Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.",
-    category=AirflowProviderDeprecationWarning,
-)
-class OracleOperator(SQLExecuteQueryOperator):
-    """
-    Executes sql code in a specific Oracle database.
-
-    This class is deprecated.
-
-    Please use :class:`airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
-
-    :param sql: the sql code to be executed. Can receive a str representing a sql statement,
-        a list of str (sql statements), or reference to a template file.
-        Template reference are recognized by str ending in '.sql'
-        (templated)
-    :param oracle_conn_id: The :ref:`Oracle connection id <howto/connection:oracle>`
-        reference to a specific Oracle database.
-    :param parameters: (optional, templated) the parameters to render the SQL query with.
-    :param autocommit: if True, each command is automatically committed.
-        (default value: False)
-    """
-
-    template_fields: Sequence[str] = (
-        "parameters",
-        "sql",
-    )
-    template_ext: Sequence[str] = (".sql",)
-    template_fields_renderers = {"sql": "sql"}
-    ui_color = "#ededed"
-
-    def __init__(self, *, oracle_conn_id: str = "oracle_default", **kwargs) -> None:
-        super().__init__(conn_id=oracle_conn_id, **kwargs)
 
 
 class OracleStoredProcedureOperator(BaseOperator):

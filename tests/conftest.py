@@ -16,24 +16,27 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import os
 import sys
 from typing import TYPE_CHECKING
 
 import pytest
 
+from tests_common.test_utils.log_handlers import non_pytest_handlers
+
 # We should set these before loading _any_ of the rest of airflow so that the
 # unit test mode config is set as early as possible.
 assert "airflow" not in sys.modules, "No airflow module can be imported before these lines"
 
-pytest_plugins = "dev.tests_common.pytest_plugin"
+pytest_plugins = "tests_common.pytest_plugin"
 
 # Ignore files that are really test dags to be ignored by pytest
 collect_ignore = [
     "tests/dags/subdir1/test_ignore_this.py",
     "tests/dags/test_invalid_dup_task.py",
     "tests/dags_corrupted/test_impersonation_custom.py",
-    "dev.tests_common.test_utils/perf/dags/elastic_dag.py",
+    "tests_common.test_utils/perf/dags/elastic_dag.py",
 ]
 
 
@@ -56,6 +59,26 @@ def reset_environment():
             del os.environ[key]
         else:
             os.environ[key] = init_env[key]
+
+
+def remove_non_pytest_log_handlers(logger, *classes):
+    for handler in non_pytest_handlers(logger.handlers):
+        logger.removeHandler(handler)
+
+
+def remove_all_non_pytest_log_handlers():
+    # Remove handlers from the root logger
+    remove_non_pytest_log_handlers(logging.getLogger())
+    # Remove handlers from all other loggers
+    for logger_name in logging.root.manager.loggerDict:
+        remove_non_pytest_log_handlers(logging.getLogger(logger_name))
+
+
+@pytest.fixture
+def clear_all_logger_handlers():
+    remove_all_non_pytest_log_handlers()
+    yield
+    remove_all_non_pytest_log_handlers()
 
 
 if TYPE_CHECKING:

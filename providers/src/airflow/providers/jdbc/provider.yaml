@@ -22,9 +22,10 @@ description: |
     `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
 
 state: ready
-source-date-epoch: 1728485176
+source-date-epoch: 1731570308
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.5.3
   - 4.5.2
   - 4.5.1
   - 4.5.0
@@ -55,7 +56,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.8.0
-  - apache-airflow-providers-common-sql>=1.17.0
+  - apache-airflow-providers-common-sql>=1.20.0
   - jaydebeapi>=1.1.1
 
 integrations:
@@ -66,10 +67,6 @@ integrations:
     logo: /integration-logos/jdbc/JDBC.png
     tags: [protocol]
 
-operators:
-  - integration-name: Java Database Connectivity (JDBC)
-    python-modules:
-      - airflow.providers.jdbc.operators.jdbc
 hooks:
   - integration-name: Java Database Connectivity (JDBC)
     python-modules:

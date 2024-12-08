@@ -29,8 +29,9 @@ import sys
 import textwrap
 import warnings
 from collections import Counter
+from collections.abc import Iterable
 from enum import Enum
-from typing import Any, Callable, Iterable
+from typing import Any, Callable
 
 import jsonschema
 import yaml
@@ -38,7 +39,7 @@ from jsonpath_ng.ext import parse
 from rich.console import Console
 from tabulate import tabulate
 
-from airflow.cli.commands.info_command import Architecture
+from airflow.cli.commands.local_commands.info_command import Architecture
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers_manager import ProvidersManager
 
@@ -48,8 +49,6 @@ from airflow.providers_manager import ProvidersManager
 DEPRECATED_MODULES = [
     "airflow.providers.apache.hdfs.sensors.hdfs",
     "airflow.providers.apache.hdfs.hooks.hdfs",
-    "airflow.providers.cncf.kubernetes.triggers.kubernetes_pod",
-    "airflow.providers.cncf.kubernetes.operators.kubernetes_pod",
     "airflow.providers.tabular.hooks.tabular",
     "airflow.providers.yandex.hooks.yandexcloud_dataproc",
     "airflow.providers.yandex.operators.yandexcloud_dataproc",

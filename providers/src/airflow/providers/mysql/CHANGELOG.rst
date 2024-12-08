@@ -26,6 +26,47 @@
 Changelog
 ---------
 
+main
+....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the MySQL provider package.
+  The following breaking changes were introduced:
+
+  * Operators
+     * Remove ``airflow.providers.mysql.operators.mysql.MySqlOperator``. Please use ``airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator``.
+       Also, you can provide `hook_params={'schema': <database>}`.
+
+5.7.4
+.....
+
+Misc
+~~~~
+
+* ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+* ``Explain how to use uv with airflow virtualenv and make it works (#43604)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Start porting DAG definition code to the Task SDK (#43076)``
+
+5.7.3
+.....
+
+Misc
+~~~~
+
+* ``Improve the cursor type definition of mysql (#43376)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+
 5.7.2
 .....
 

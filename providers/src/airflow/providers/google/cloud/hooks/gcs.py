@@ -26,11 +26,12 @@ import os
 import shutil
 import time
 import warnings
+from collections.abc import Generator, Sequence
 from contextlib import contextmanager
 from functools import partial
 from io import BytesIO
 from tempfile import NamedTemporaryFile
-from typing import IO, TYPE_CHECKING, Any, Callable, Generator, Sequence, TypeVar, cast, overload
+from typing import IO, TYPE_CHECKING, Any, Callable, TypeVar, cast, overload
 from urllib.parse import urlsplit
 
 from gcloud.aio.storage import Storage
@@ -43,6 +44,7 @@ from google.cloud.storage.retry import DEFAULT_RETRY
 from requests import Session
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import (
@@ -150,23 +152,6 @@ class GCSHook(GoogleBaseHook):
 
     _conn: storage.Client | None = None
 
-    def __init__(
-        self,
-        gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
-    ) -> None:
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
-
-        super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            impersonation_chain=impersonation_chain,
-        )
-
     def get_conn(self) -> storage.Client:
         """Return a Google Cloud Storage service object."""
         if not self._conn:
@@ -213,6 +198,16 @@ class GCSHook(GoogleBaseHook):
         destination_bucket = client.bucket(destination_bucket)
         destination_object = source_bucket.copy_blob(  # type: ignore[attr-defined]
             blob=source_object, destination_bucket=destination_bucket, new_name=destination_object
+        )
+        get_hook_lineage_collector().add_input_asset(
+            context=self,
+            scheme="gs",
+            asset_kwargs={"bucket": source_bucket.name, "key": source_object.name},  # type: ignore[attr-defined]
+        )
+        get_hook_lineage_collector().add_output_asset(
+            context=self,
+            scheme="gs",
+            asset_kwargs={"bucket": destination_bucket.name, "key": destination_object.name},  # type: ignore[union-attr]
         )
 
         self.log.info(
@@ -267,6 +262,16 @@ class GCSHook(GoogleBaseHook):
             ).rewrite(source=source_object, token=token)
 
             self.log.info("Total Bytes: %s | Bytes Written: %s", total_bytes, bytes_rewritten)
+        get_hook_lineage_collector().add_input_asset(
+            context=self,
+            scheme="gs",
+            asset_kwargs={"bucket": source_bucket.name, "key": source_object.name},  # type: ignore[attr-defined]
+        )
+        get_hook_lineage_collector().add_output_asset(
+            context=self,
+            scheme="gs",
+            asset_kwargs={"bucket": destination_bucket.name, "key": destination_object},  # type: ignore[attr-defined]
+        )
         self.log.info(
             "Object %s in bucket %s rewritten to object %s in bucket %s",
             source_object.name,  # type: ignore[attr-defined]
@@ -345,9 +350,18 @@ class GCSHook(GoogleBaseHook):
 
                 if filename:
                     blob.download_to_filename(filename, timeout=timeout)
+                    get_hook_lineage_collector().add_input_asset(
+                        context=self, scheme="gs", asset_kwargs={"bucket": bucket.name, "key": blob.name}
+                    )
+                    get_hook_lineage_collector().add_output_asset(
+                        context=self, scheme="file", asset_kwargs={"path": filename}
+                    )
                     self.log.info("File downloaded to %s", filename)
                     return filename
                 else:
+                    get_hook_lineage_collector().add_input_asset(
+                        context=self, scheme="gs", asset_kwargs={"bucket": bucket.name, "key": blob.name}
+                    )
                     return blob.download_as_bytes()
 
             except GoogleCloudError:
@@ -555,6 +569,9 @@ class GCSHook(GoogleBaseHook):
             _call_with_retry(
                 partial(blob.upload_from_filename, filename=filename, content_type=mime_type, timeout=timeout)
             )
+            get_hook_lineage_collector().add_input_asset(
+                context=self, scheme="file", asset_kwargs={"path": filename}
+            )
 
             if gzip:
                 os.remove(filename)
@@ -575,6 +592,10 @@ class GCSHook(GoogleBaseHook):
             self.log.info("Data stream uploaded to %s in %s bucket", object_name, bucket_name)
         else:
             raise ValueError("'filename' and 'data' parameter missing. One is required to upload to gcs.")
+
+        get_hook_lineage_collector().add_output_asset(
+            context=self, scheme="gs", asset_kwargs={"bucket": bucket.name, "key": blob.name}
+        )
 
     def exists(self, bucket_name: str, object_name: str, retry: Retry = DEFAULT_RETRY) -> bool:
         """
@@ -691,6 +712,9 @@ class GCSHook(GoogleBaseHook):
         bucket = client.bucket(bucket_name)
         blob = bucket.blob(blob_name=object_name)
         blob.delete()
+        get_hook_lineage_collector().add_input_asset(
+            context=self, scheme="gs", asset_kwargs={"bucket": bucket.name, "key": blob.name}
+        )
 
         self.log.info("Blob %s deleted.", object_name)
 
@@ -1198,9 +1222,17 @@ class GCSHook(GoogleBaseHook):
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
         destination_blob = bucket.blob(destination_object)
-        destination_blob.compose(
-            sources=[bucket.blob(blob_name=source_object) for source_object in source_objects]
+        source_blobs = [bucket.blob(blob_name=source_object) for source_object in source_objects]
+        destination_blob.compose(sources=source_blobs)
+        get_hook_lineage_collector().add_output_asset(
+            context=self, scheme="gs", asset_kwargs={"bucket": bucket.name, "key": destination_blob.name}
         )
+        for single_source_blob in source_blobs:
+            get_hook_lineage_collector().add_input_asset(
+                context=self,
+                scheme="gs",
+                asset_kwargs={"bucket": bucket.name, "key": single_source_blob.name},
+            )
 
         self.log.info("Completed successfully.")
 

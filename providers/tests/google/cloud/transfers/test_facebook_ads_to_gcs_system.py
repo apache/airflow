@@ -28,12 +28,12 @@ from airflow.models import Connection
 from airflow.providers.google.cloud.example_dags import example_facebook_ads_to_gcs
 from airflow.utils.process_utils import patch_environ
 
-from dev.tests_common.test_utils.gcp_system_helpers import (
+from providers.tests.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY
+from tests_common.test_utils.gcp_system_helpers import (
     GoogleSystemTest,
     provide_gcp_context,
 )
-from dev.tests_common.test_utils.system_tests import get_test_run
-from providers.tests.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY
+from tests_common.test_utils.system_tests import get_test_run
 
 CREDENTIALS_DIR = os.environ.get("CREDENTIALS_DIR", "/files/airflow-breeze-config/keys")
 FACEBOOK_KEY = "facebook.json"
@@ -67,7 +67,7 @@ def provide_facebook_connection(key_file_path: str):
 
 @pytest.mark.credential_file(FACEBOOK_KEY)
 @pytest.mark.credential_file(GCP_BIGQUERY_KEY)
-@pytest.mark.system("google.cloud")
+@pytest.mark.system
 class TestFacebookAdsToGcsExampleDagsSystem(GoogleSystemTest):
     @provide_gcp_context(GCP_BIGQUERY_KEY)
     @provide_facebook_connection(FACEBOOK_CREDENTIALS_PATH)

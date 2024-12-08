@@ -29,7 +29,6 @@ import statsd
 
 import airflow
 from airflow.exceptions import AirflowConfigException, InvalidStatsNameException
-from airflow.metrics import datadog_logger, protocols
 from airflow.metrics.datadog_logger import SafeDogStatsdLogger
 from airflow.metrics.statsd_logger import SafeStatsdLogger
 from airflow.metrics.validators import (
@@ -37,7 +36,7 @@ from airflow.metrics.validators import (
     PatternBlockListValidator,
 )
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 
 class CustomStatsd(statsd.StatsClient):
@@ -221,20 +220,12 @@ class TestDogStats:
             metric="empty_key", sample_rate=1, tags=[], value=1
         )
 
-    @pytest.mark.parametrize(
-        "metrics_consistency_on",
-        [True, False],
-    )
     @mock.patch.object(time, "perf_counter", side_effect=[0.0, 100.0])
-    def test_timer(self, time_mock, metrics_consistency_on):
-        protocols.metrics_consistency_on = metrics_consistency_on
-
+    def test_timer(self, time_mock):
         with self.dogstatsd.timer("empty_timer") as timer:
             pass
         self.dogstatsd_client.timed.assert_called_once_with("empty_timer", tags=[])
-        expected_duration = 100.0
-        if metrics_consistency_on:
-            expected_duration = 1000.0 * 100.0
+        expected_duration = 1000.0 * 100.0
         assert expected_duration == timer.duration
         assert time_mock.call_count == 2
 
@@ -243,22 +234,14 @@ class TestDogStats:
             pass
         self.dogstatsd_client.timed.assert_not_called()
 
-    @pytest.mark.parametrize(
-        "metrics_consistency_on",
-        [True, False],
-    )
-    def test_timing(self, metrics_consistency_on):
+    def test_timing(self):
         import datetime
-
-        datadog_logger.metrics_consistency_on = metrics_consistency_on
 
         self.dogstatsd.timing("empty_timer", 123)
         self.dogstatsd_client.timing.assert_called_once_with(metric="empty_timer", value=123, tags=[])
 
         self.dogstatsd.timing("empty_timer", datetime.timedelta(seconds=123))
-        self.dogstatsd_client.timing.assert_called_with(
-            metric="empty_timer", value=123000.0 if metrics_consistency_on else 123.0, tags=[]
-        )
+        self.dogstatsd_client.timing.assert_called_with(metric="empty_timer", value=123000.0, tags=[])
 
     def test_gauge(self):
         self.dogstatsd.gauge("empty", 123)
@@ -488,6 +471,10 @@ class TestStatsWithInfluxDBEnabled:
             tags={"key0": 0, "key1": "val1", "key2": "val2"},
         )
         self.statsd_client.incr.assert_called_once_with("test_stats_run.delay,key0=0,key1=val1", 1, 1)
+
+    def test_increment_counter_with_tags_and_forward_slash(self):
+        self.stats.incr("test_stats_run.dag", tags={"path": "/some/path/dag.py"})
+        self.statsd_client.incr.assert_called_once_with("test_stats_run.dag,path=/some/path/dag.py", 1, 1)
 
     def test_does_not_increment_counter_drops_invalid_tags(self):
         self.stats.incr(

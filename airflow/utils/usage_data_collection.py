@@ -25,6 +25,7 @@ This module is not part of the public interface and is subject to change at any 
 
 from __future__ import annotations
 
+import os
 import platform
 from urllib.parse import urlencode
 
@@ -33,7 +34,6 @@ from packaging.version import parse
 
 from airflow import __version__ as airflow_version, settings
 from airflow.configuration import conf
-from airflow.plugins_manager import get_plugin_info
 
 
 def usage_data_collection():
@@ -42,6 +42,10 @@ def usage_data_collection():
 
     # Exclude pre-releases and dev versions
     if _version_is_prerelease(airflow_version):
+        return
+
+    # Exclude CI environments
+    if _is_ci_environ():
         return
 
     scarf_domain = "https://apacheairflow.gateway.scarf.sh/scheduler"
@@ -71,6 +75,26 @@ def _version_is_prerelease(version: str) -> bool:
     return parse(version).is_prerelease
 
 
+def _is_ci_environ() -> bool:
+    """Return True if running in any known CI environment."""
+    if os.getenv("CI") == "true":
+        # Generic CI variable set by many CI systems (GH Actions, Travis, GitLab, CircleCI, Jenkins, Heroku)
+        return True
+
+    # Other CI variables set by specific CI systems
+    ci_env_vars = {
+        "CIRCLECI",  # CircleCI
+        "CODEBUILD_BUILD_ID",  # AWS CodeBuild
+        "GITHUB_ACTIONS",  # GitHub Actions
+        "GITLAB_CI",  # GitLab CI
+        "JENKINS_URL",  # Jenkins
+        "TF_BUILD",  # Azure Pipelines
+        "TRAVIS",  # Travis CI
+    }
+
+    return any(var in os.environ for var in ci_env_vars)
+
+
 def get_platform_info() -> tuple[str, str]:
     return platform.system(), platform.machine()
 
@@ -97,26 +121,3 @@ def get_executor() -> str:
 def get_python_version() -> str:
     # Cut only major+minor from the python version string (e.g. 3.10.12 --> 3.10)
     return ".".join(platform.python_version().split(".")[0:2])
-
-
-def get_plugin_counts() -> dict[str, int]:
-    plugin_info = get_plugin_info()
-
-    return {
-        "plugins": len(plugin_info),
-        "flask_blueprints": sum(len(x["flask_blueprints"]) for x in plugin_info),
-        "appbuilder_views": sum(len(x["appbuilder_views"]) for x in plugin_info),
-        "appbuilder_menu_items": sum(len(x["appbuilder_menu_items"]) for x in plugin_info),
-        "timetables": sum(len(x["timetables"]) for x in plugin_info),
-    }
-
-
-def to_bucket(counter: int) -> str:
-    """As we don't want to have preceise numbers, make number into a bucket."""
-    if counter == 0:
-        return "0"
-    buckets = [0, 5, 10, 20, 50, 100, 200, 500, 1000, 2000]
-    for idx, val in enumerate(buckets[1:]):
-        if buckets[idx] < counter and counter <= val:
-            return f"{buckets[idx] + 1}-{val}"
-    return f"{buckets[-1]}+"

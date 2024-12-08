@@ -19,7 +19,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import Conflict
 from google.cloud.bigquery import DEFAULT_RETRY, UnknownJob
@@ -231,17 +232,21 @@ class BigQueryToGCSOperator(BaseOperator):
                 location=self.location,
                 job_id=self.job_id,
             )
-            if job.state in self.reattach_states:
-                # We are reattaching to a job
-                job.result(timeout=self.result_timeout, retry=self.result_retry)
-                self._handle_job_error(job)
-            else:
-                # Same job configuration so we need force_rerun
+            if job.state not in self.reattach_states:
+                # Same job configuration, so we need force_rerun
                 raise AirflowException(
                     f"Job with id: {self.job_id} already exists and is in {job.state} state. If you "
                     f"want to force rerun it consider setting `force_rerun=True`."
                     f"Or, if you want to reattach in this scenario add {job.state} to `reattach_states`"
                 )
+            else:
+                # Job already reached state DONE
+                if job.state == "DONE":
+                    raise AirflowException("Job is already in state DONE. Can not reattach to this job.")
+
+                # We are reattaching to a job
+                self.log.info("Reattaching to existing Job in state %s", job.state)
+                self._handle_job_error(job)
 
         self.job_id = job.job_id
         conf = job.to_api_repr()["configuration"]["extract"]["sourceTable"]
@@ -287,9 +292,8 @@ class BigQueryToGCSOperator(BaseOperator):
 
     def get_openlineage_facets_on_complete(self, task_instance):
         """Implement on_complete as we will include final BQ job id."""
-        from pathlib import Path
-
         from airflow.providers.common.compat.openlineage.facet import (
+            BaseFacet,
             Dataset,
             ExternalQueryRunFacet,
             Identifier,
@@ -297,6 +301,8 @@ class BigQueryToGCSOperator(BaseOperator):
         )
         from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
         from airflow.providers.google.cloud.openlineage.utils import (
+            WILDCARD,
+            extract_ds_name_from_gcs_path,
             get_facets_from_bq_table,
             get_identity_column_lineage_facet,
         )
@@ -318,33 +324,28 @@ class BigQueryToGCSOperator(BaseOperator):
             facets=get_facets_from_bq_table(table_object),
         )
 
-        output_dataset_facets = {
-            "schema": input_dataset.facets["schema"],
-            "columnLineage": get_identity_column_lineage_facet(
-                field_names=[field.name for field in table_object.schema], input_datasets=[input_dataset]
-            ),
-        }
+        output_dataset_facets: dict[str, BaseFacet] = get_identity_column_lineage_facet(
+            dest_field_names=[field.name for field in table_object.schema], input_datasets=[input_dataset]
+        )
+        if "schema" in input_dataset.facets:
+            output_dataset_facets["schema"] = input_dataset.facets["schema"]
+
         output_datasets = []
         for uri in sorted(self.destination_cloud_storage_uris):
             bucket, blob = _parse_gcs_url(uri)
-            additional_facets = {}
 
-            if "*" in blob:
-                # If wildcard ("*") is used in gcs path, we want the name of dataset to be directory name,
-                # but we create a symlink to the full object path with wildcard.
+            additional_facets = {}
+            if WILDCARD in blob:
+                # For path with wildcard we attach a symlink with unmodified path.
                 additional_facets = {
                     "symlink": SymlinksDatasetFacet(
                         identifiers=[Identifier(namespace=f"gs://{bucket}", name=blob, type="file")]
                     ),
                 }
-                blob = Path(blob).parent.as_posix()
-                if blob == ".":
-                    # blob path does not have leading slash, but we need root dataset name to be "/"
-                    blob = "/"
 
             dataset = Dataset(
                 namespace=f"gs://{bucket}",
-                name=blob,
+                name=extract_ds_name_from_gcs_path(blob),
                 facets=merge_dicts(output_dataset_facets, additional_facets),
             )
             output_datasets.append(dataset)

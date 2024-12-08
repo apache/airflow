@@ -438,7 +438,7 @@ Adding dependencies between decorated and traditional tasks
 -----------------------------------------------------------
 The above tutorial shows how to create dependencies between TaskFlow functions. However, dependencies can also
 be set between traditional tasks (such as :class:`~airflow.providers.standard.operators.bash.BashOperator`
-or :class:`~airflow.sensors.filesystem.FileSensor`) and TaskFlow functions.
+or :class:`~airflow.providers.standard.sensors.filesystem.FileSensor`) and TaskFlow functions.
 
 Building this dependency is shown in the code below:
 
@@ -619,7 +619,7 @@ method.
 
 .. code-block:: python
 
-    from airflow.operators.python import get_current_context
+    from airflow.providers.standard.operators.python import get_current_context
 
 
     def some_function_in_your_library():

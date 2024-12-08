@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.apache.livy.hooks.livy import BatchState
@@ -417,12 +417,6 @@ class TestLivyOperator:
         mock_delete.assert_called_once_with(BATCH_ID)
         self.mock_context["ti"].xcom_push.assert_not_called()
 
-    def test_deprecated_get_hook(self):
-        op = LivyOperator(task_id="livy_example", file="sparkapp")
-        with pytest.warns(AirflowProviderDeprecationWarning, match="use `hook` property instead"):
-            hook = op.get_hook()
-        assert hook is op.hook
-
 
 @pytest.mark.db_test
 def test_spark_params_templating(create_task_instance_of_operator, session):
@@ -448,7 +442,6 @@ def test_spark_params_templating(create_task_instance_of_operator, session):
         # Other parameters
         dag_id="test_template_body_templating_dag",
         task_id="test_template_body_templating_task",
-        execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
     )
     session.add(ti)
     session.commit()

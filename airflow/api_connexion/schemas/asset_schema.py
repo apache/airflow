@@ -70,6 +70,7 @@ class AssetAliasSchema(SQLAlchemySchema):
 
     id = auto_field()
     name = auto_field()
+    group = auto_field()
 
 
 class AssetSchema(SQLAlchemySchema):
@@ -82,6 +83,8 @@ class AssetSchema(SQLAlchemySchema):
 
     id = auto_field()
     uri = auto_field()
+    name = auto_field()
+    group = auto_field()
     extra = JsonObjectField()
     created_at = auto_field()
     updated_at = auto_field()
@@ -119,7 +122,7 @@ class BasicDAGRunSchema(SQLAlchemySchema):
 
     run_id = auto_field(data_key="dag_run_id")
     dag_id = auto_field(dump_only=True)
-    execution_date = auto_field(data_key="logical_date", dump_only=True)
+    logical_date = auto_field(data_key="logical_date", dump_only=True)
     start_date = auto_field(dump_only=True)
     end_date = auto_field(dump_only=True)
     state = auto_field(dump_only=True)
@@ -136,8 +139,8 @@ class AssetEventSchema(SQLAlchemySchema):
         model = AssetEvent
 
     id = auto_field()
-    dataset_id = auto_field()
-    dataset_uri = fields.String(attribute="dataset.uri", dump_only=True)
+    asset_id = auto_field()
+    asset_uri = fields.String(attribute="asset.uri", dump_only=True)
     extra = JsonObjectField()
     source_task_id = auto_field()
     source_dag_id = auto_field()

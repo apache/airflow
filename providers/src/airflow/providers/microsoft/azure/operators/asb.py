@@ -16,7 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, Callable
 
 from azure.core.exceptions import ResourceNotFoundError
 
@@ -31,7 +32,7 @@ if TYPE_CHECKING:
 
     from airflow.utils.context import Context
 
-    MessageCallback = Callable[[ServiceBusMessage], None]
+    MessageCallback = Callable[[ServiceBusMessage, Context], None]
 
 
 class AzureServiceBusCreateQueueOperator(BaseOperator):
@@ -176,6 +177,7 @@ class AzureServiceBusReceiveMessageOperator(BaseOperator):
         # Receive message
         hook.receive_message(
             self.queue_name,
+            context,
             max_message_count=self.max_message_count,
             max_wait_time=self.max_wait_time,
             message_callback=self.message_callback,
@@ -562,6 +564,7 @@ class ASBReceiveSubscriptionMessageOperator(BaseOperator):
         hook.receive_subscription_message(
             self.topic_name,
             self.subscription_name,
+            context,
             self.max_message_count,
             self.max_wait_time,
             message_callback=self.message_callback,

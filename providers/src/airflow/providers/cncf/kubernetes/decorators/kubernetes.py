@@ -20,9 +20,10 @@ import base64
 import os
 import pickle
 import uuid
+from collections.abc import Sequence
 from shlex import quote
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Callable, Sequence
+from typing import TYPE_CHECKING, Callable
 
 import dill
 from kubernetes.client import models as k8s
@@ -65,7 +66,7 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
     # there are some cases we can't deepcopy the objects (e.g protobuf).
     shallow_copy_attrs: Sequence[str] = ("python_callable",)
 
-    def __init__(self, namespace: str = "default", use_dill: bool = False, **kwargs) -> None:
+    def __init__(self, namespace: str | None = None, use_dill: bool = False, **kwargs) -> None:
         self.use_dill = use_dill
         super().__init__(
             namespace=namespace,

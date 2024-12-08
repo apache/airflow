@@ -27,6 +27,46 @@
 Changelog
 ---------
 
+main
+....
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the slack provider package.
+  The following breaking changes were introduced:
+
+  * Removed deprecated ``SqlToSlackOperator``. Use ``SqlToSlackWebhookOperator`` instead.
+  * Removed deprecated ``send_file`` method from hooks. Use ``send_file_v2`` or ``send_file_v1_to_v2`` instead.
+  * Removed deprecated module lack_notifier.py. Use ``airflow.providers.slack.notifications.slack`` instead.
+  * Define method parameter as empty string or None is deprecated.
+  * Removed deprecated parameter ``slack_conn_id`` from ``SqlToSlackWebhookOperator``. Use ``slack_webhook_conn_id`` instead.
+
+
+8.9.2
+.....
+
+Misc
+~~~~
+
+* ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+8.9.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``adding support for snippet type in slack api (#43305)``
+* ``passing the filetype for SlackAPIFileOperator (#43069)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+
 8.9.0
 .....
 

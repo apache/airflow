@@ -48,7 +48,7 @@ pytestmark = pytest.mark.db_test
 
 class EcsBaseTestCase:
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self, monkeypatch, request, create_task_instance_of_operator, session):
+    def _setup_test_cases(self, monkeypatch, request, create_task_instance_of_operator, session):
         self.dag_id = f"dag-{slugify(request.cls.__name__)}"
         self.task_id = f"task-{slugify(request.node.name, max_length=40)}"
         self.fake_client = boto3.client("ecs", region_name="eu-west-3")
@@ -66,7 +66,7 @@ class EcsBaseTestCase:
             operator_class,
             dag_id=self.dag_id,
             task_id=self.task_id,
-            execution_date=timezone.datetime(2021, 12, 21),
+            logical_date=timezone.datetime(2021, 12, 21),
             **kwargs,
         )
         self.session.add(ti)
@@ -115,7 +115,7 @@ class TestEcsClusterStateSensor(EcsBaseTestCase):
             m.assert_called_once_with(cluster_name=TEST_CLUSTER_NAME)
 
     @pytest.mark.parametrize("return_state", ["FAILED", "INACTIVE"])
-    def test_default_values_terminal_state(self, create_task_of_operator, return_state):
+    def test_default_values_terminal_state(self, return_state):
         task = self.create_rendered_task(EcsClusterStateSensor, cluster_name=TEST_CLUSTER_NAME)
         with mock.patch.object(task.hook, "get_cluster_state") as m:
             m.return_value = return_state

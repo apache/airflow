@@ -28,7 +28,6 @@ from airflow.models.dagrun import DagRun
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import PythonOperator
 from airflow.providers.openlineage.plugins.facets import AirflowDagRunFacet, AirflowJobFacet
 from airflow.providers.openlineage.utils.utils import (
     _get_task_groups_details,
@@ -44,12 +43,11 @@ from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS, BashOperator
-from dev.tests_common.test_utils.mock_operators import MockOperator
+from tests_common.test_utils.compat import BashOperator, PythonOperator
+from tests_common.test_utils.mock_operators import MockOperator
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
-if not AIRFLOW_V_2_10_PLUS:
-    BASH_OPERATOR_PATH = "airflow.operators.bash"
+PYTHON_OPERATOR_PATH = "airflow.providers.standard.operators.python"
 
 
 class CustomOperatorForTest(BashOperator):
@@ -79,7 +77,6 @@ def test_get_airflow_job_facet():
             taskGroups={
                 "section_1": {
                     "parent_group": None,
-                    "tooltip": "",
                     "ui_color": "CornflowerBlue",
                     "ui_fgcolor": "#000",
                     "ui_label": "section_1",
@@ -98,7 +95,7 @@ def test_get_airflow_job_facet():
                     "downstream_task_ids": ["section_1.task_3"],
                 },
                 "section_1.task_3": {
-                    "operator": "airflow.operators.python.PythonOperator",
+                    "operator": f"{PYTHON_OPERATOR_PATH}.PythonOperator",
                     "task_group": "section_1",
                     "emits_ol_events": True,
                     "ui_color": "#ffefeb",
@@ -191,7 +188,7 @@ def test_get_fully_qualified_class_name_mapped_operator():
     mapped = MockOperator.partial(task_id="task_2").expand(arg2=["a", "b", "c"])
     assert isinstance(mapped, MappedOperator)
     mapped_op_path = get_fully_qualified_class_name(mapped)
-    assert mapped_op_path == "dev.tests_common.test_utils.mock_operators.MockOperator"
+    assert mapped_op_path == "tests_common.test_utils.mock_operators.MockOperator"
 
 
 def test_get_fully_qualified_class_name_bash_operator():
@@ -352,7 +349,7 @@ def test_get_tasks_details():
             ],
         },
         "task_2": {
-            "operator": "airflow.operators.python.PythonOperator",
+            "operator": f"{PYTHON_OPERATOR_PATH}.PythonOperator",
             "task_group": None,
             "emits_ol_events": True,
             "ui_color": PythonOperator.ui_color,
@@ -417,7 +414,7 @@ def test_get_tasks_details():
             ],
         },
         "section_1.task_3": {
-            "operator": "airflow.operators.python.PythonOperator",
+            "operator": f"{PYTHON_OPERATOR_PATH}.PythonOperator",
             "task_group": "section_1",
             "emits_ol_events": True,
             "ui_color": PythonOperator.ui_color,
@@ -441,7 +438,7 @@ def test_get_tasks_details():
             "downstream_task_ids": [],
         },
         "section_1.section_2.section_3.task_12": {
-            "operator": "airflow.operators.python.PythonOperator",
+            "operator": f"{PYTHON_OPERATOR_PATH}.PythonOperator",
             "task_group": "section_1.section_2.section_3",
             "emits_ol_events": True,
             "ui_color": PythonOperator.ui_color,
@@ -516,21 +513,18 @@ def test_get_task_groups_details():
     expected = {
         "tg1": {
             "parent_group": None,
-            "tooltip": "",
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
             "ui_label": "tg1",
         },
         "tg2": {
             "parent_group": None,
-            "tooltip": "",
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
             "ui_label": "tg2",
         },
         "tg3": {
             "parent_group": None,
-            "tooltip": "",
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
             "ui_label": "tg3",
@@ -551,21 +545,18 @@ def test_get_task_groups_details_nested():
     expected = {
         "tg1": {
             "parent_group": None,
-            "tooltip": "",
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
             "ui_label": "tg1",
         },
         "tg1.tg2": {
             "parent_group": "tg1",
-            "tooltip": "",
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
             "ui_label": "tg2",
         },
         "tg1.tg2.tg3": {
             "parent_group": "tg1.tg2",
-            "tooltip": "",
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
             "ui_label": "tg3",

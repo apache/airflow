@@ -64,6 +64,17 @@ EXPLICIT_ACCOUNT_JOB_RUN_RESPONSE = {
         ),
     }
 }
+JOB_RUN_ERROR_RESPONSE = {
+    "data": [
+        {
+            "id": RUN_ID,
+            "href": EXPECTED_JOB_RUN_OP_EXTRA_LINK.format(
+                account_id=ACCOUNT_ID, project_id=PROJECT_ID, run_id=RUN_ID
+            ),
+            "status": DbtCloudJobRunStatus.ERROR.value,
+        }
+    ]
+}
 
 
 def mock_response_json(response: dict):
@@ -421,6 +432,73 @@ class TestDbtCloudRunJobOperator:
             additional_run_config=self.config["additional_run_config"],
         )
 
+    @patch.object(DbtCloudHook, "_run_and_get_response")
+    @pytest.mark.parametrize(
+        "conn_id, account_id",
+        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        ids=["default_account", "explicit_account"],
+    )
+    def test_execute_retry_from_failure_run(self, mock_run_req, conn_id, account_id):
+        operator = DbtCloudRunJobOperator(
+            task_id=TASK_ID,
+            dbt_cloud_conn_id=conn_id,
+            account_id=account_id,
+            trigger_reason=None,
+            dag=self.dag,
+            retry_from_failure=True,
+            **self.config,
+        )
+        self.mock_context["ti"].try_number = 1
+
+        assert operator.dbt_cloud_conn_id == conn_id
+        assert operator.job_id == self.config["job_id"]
+        assert operator.account_id == account_id
+        assert operator.check_interval == self.config["check_interval"]
+        assert operator.timeout == self.config["timeout"]
+        assert operator.retry_from_failure
+        assert operator.steps_override == self.config["steps_override"]
+        assert operator.schema_override == self.config["schema_override"]
+        assert operator.additional_run_config == self.config["additional_run_config"]
+
+        operator.execute(context=self.mock_context)
+
+        mock_run_req.assert_called()
+
+    @patch.object(
+        DbtCloudHook, "_run_and_get_response", return_value=mock_response_json(JOB_RUN_ERROR_RESPONSE)
+    )
+    @patch.object(DbtCloudHook, "retry_failed_job_run")
+    @pytest.mark.parametrize(
+        "conn_id, account_id",
+        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        ids=["default_account", "explicit_account"],
+    )
+    def test_execute_retry_from_failure_rerun(self, mock_run_req, mock_rerun_req, conn_id, account_id):
+        operator = DbtCloudRunJobOperator(
+            task_id=TASK_ID,
+            dbt_cloud_conn_id=conn_id,
+            account_id=account_id,
+            trigger_reason=None,
+            dag=self.dag,
+            retry_from_failure=True,
+            **self.config,
+        )
+        self.mock_context["ti"].try_number = 2
+
+        assert operator.dbt_cloud_conn_id == conn_id
+        assert operator.job_id == self.config["job_id"]
+        assert operator.account_id == account_id
+        assert operator.check_interval == self.config["check_interval"]
+        assert operator.timeout == self.config["timeout"]
+        assert operator.retry_from_failure
+        assert operator.steps_override == self.config["steps_override"]
+        assert operator.schema_override == self.config["schema_override"]
+        assert operator.additional_run_config == self.config["additional_run_config"]
+
+        operator.execute(context=self.mock_context)
+
+        mock_rerun_req.assert_called_once()
+
     @patch.object(DbtCloudHook, "trigger_job_run")
     @pytest.mark.parametrize(
         "conn_id, account_id",
@@ -466,7 +544,6 @@ class TestDbtCloudRunJobOperator:
         ti = create_task_instance_of_operator(
             DbtCloudRunJobOperator,
             dag_id="test_dbt_cloud_run_job_op_link",
-            execution_date=DEFAULT_DATE,
             task_id="trigger_dbt_cloud_job",
             dbt_cloud_conn_id=conn_id,
             job_id=JOB_ID,

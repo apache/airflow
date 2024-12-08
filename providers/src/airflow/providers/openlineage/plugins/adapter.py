@@ -32,7 +32,6 @@ from openlineage.client.facet_v2 import (
     nominal_time_run,
     ownership_job,
     parent_run,
-    processing_engine_run,
     source_code_location_job,
 )
 from openlineage.client.uuid import generate_static_uuid
@@ -42,6 +41,7 @@ from airflow.providers.openlineage.utils.utils import (
     OpenLineageRedactor,
     get_airflow_debug_facet,
     get_airflow_state_run_facet,
+    get_processing_engine_facet,
 )
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -84,7 +84,7 @@ class OpenLineageAdapter(LoggingMixin):
                     "OpenLineage configuration found. Transport type: `%s`",
                     config.get("type", "no type provided"),
                 )
-                self._client = OpenLineageClient.from_dict(config=config)
+                self._client = OpenLineageClient(config=config)  # type: ignore[call-arg]
             else:
                 self.log.debug(
                     "OpenLineage configuration not found directly in Airflow. "
@@ -98,9 +98,7 @@ class OpenLineageAdapter(LoggingMixin):
         openlineage_config_path = conf.config_path(check_legacy_env_var=False)
         if openlineage_config_path:
             config = self._read_yaml_config(openlineage_config_path)
-            if config:
-                return config.get("transport", None)
-            self.log.debug("OpenLineage config file is empty: `%s`", openlineage_config_path)
+            return config
         else:
             self.log.debug("OpenLineage config_path configuration not found.")
 
@@ -109,7 +107,7 @@ class OpenLineageAdapter(LoggingMixin):
         if not transport_config:
             self.log.debug("OpenLineage transport configuration not found.")
             return None
-        return transport_config
+        return {"transport": transport_config}
 
     @staticmethod
     def _read_yaml_config(path: str) -> dict | None:
@@ -117,11 +115,11 @@ class OpenLineageAdapter(LoggingMixin):
             return yaml.safe_load(config_file)
 
     @staticmethod
-    def build_dag_run_id(dag_id: str, logical_date: datetime) -> str:
+    def build_dag_run_id(dag_id: str, logical_date: datetime, clear_number: int) -> str:
         return str(
             generate_static_uuid(
                 instant=logical_date,
-                data=f"{conf.namespace()}.{dag_id}".encode(),
+                data=f"{conf.namespace()}.{dag_id}.{clear_number}".encode(),
             )
         )
 
@@ -130,12 +128,13 @@ class OpenLineageAdapter(LoggingMixin):
         dag_id: str,
         task_id: str,
         try_number: int,
-        execution_date: datetime,
+        logical_date: datetime,
+        map_index: int,
     ):
         return str(
             generate_static_uuid(
-                instant=execution_date,
-                data=f"{conf.namespace()}.{dag_id}.{task_id}.{try_number}".encode(),
+                instant=logical_date,
+                data=f"{conf.namespace()}.{dag_id}.{task_id}.{try_number}.{map_index}".encode(),
             )
         )
 
@@ -158,10 +157,10 @@ class OpenLineageAdapter(LoggingMixin):
                 stack.enter_context(Stats.timer("ol.emit.attempts"))
                 self._client.emit(redacted_event)
                 self.log.debug("Successfully emitted OpenLineage event of id %s", event.run.runId)
-        except Exception as e:
+        except Exception:
             Stats.incr("ol.emit.failed")
             self.log.warning("Failed to emit OpenLineage event of id %s", event.run.runId)
-            self.log.debug("OpenLineage emission failure: %s", e)
+            self.log.debug("OpenLineage emission failure: %s", exc_info=True)
 
         return redacted_event
 
@@ -197,18 +196,10 @@ class OpenLineageAdapter(LoggingMixin):
         :param task: metadata container with information extracted from operator
         :param run_facets: custom run facets
         """
-        from airflow.version import version as AIRFLOW_VERSION
-
-        processing_engine_version_facet = processing_engine_run.ProcessingEngineRunFacet(
-            version=AIRFLOW_VERSION,
-            name="Airflow",
-            openlineageAdapterVersion=OPENLINEAGE_PROVIDER_VERSION,
-        )
-
         run_facets = run_facets or {}
         if task:
             run_facets = {**task.run_facets, **run_facets}
-        run_facets["processing_engine"] = processing_engine_version_facet  # type: ignore
+        run_facets = {**run_facets, **get_processing_engine_facet()}  # type: ignore
         event = RunEvent(
             eventType=RunState.START,
             eventTime=event_time,
@@ -342,6 +333,7 @@ class OpenLineageAdapter(LoggingMixin):
         nominal_end_time: str,
         owners: list[str],
         run_facets: dict[str, RunFacet],
+        clear_number: int,
         description: str | None = None,
         job_facets: dict[str, JobFacet] | None = None,  # Custom job facets
     ):
@@ -358,13 +350,12 @@ class OpenLineageAdapter(LoggingMixin):
                 ),
                 run=self._build_run(
                     run_id=self.build_dag_run_id(
-                        dag_id=dag_id,
-                        logical_date=logical_date,
+                        dag_id=dag_id, logical_date=logical_date, clear_number=clear_number
                     ),
                     job_name=dag_id,
                     nominal_start_time=nominal_start_time,
                     nominal_end_time=nominal_end_time,
-                    run_facets={**run_facets, **get_airflow_debug_facet()},
+                    run_facets={**run_facets, **get_airflow_debug_facet(), **get_processing_engine_facet()},
                 ),
                 inputs=[],
                 outputs=[],
@@ -383,6 +374,7 @@ class OpenLineageAdapter(LoggingMixin):
         run_id: str,
         end_date: datetime,
         logical_date: datetime,
+        clear_number: int,
         dag_run_state: DagRunState,
         task_ids: list[str],
     ):
@@ -393,8 +385,7 @@ class OpenLineageAdapter(LoggingMixin):
                 job=self._build_job(job_name=dag_id, job_type=_JOB_TYPE_DAG),
                 run=Run(
                     runId=self.build_dag_run_id(
-                        dag_id=dag_id,
-                        logical_date=logical_date,
+                        dag_id=dag_id, logical_date=logical_date, clear_number=clear_number
                     ),
                     facets={
                         **get_airflow_state_run_facet(dag_id, run_id, task_ids, dag_run_state),
@@ -418,6 +409,7 @@ class OpenLineageAdapter(LoggingMixin):
         run_id: str,
         end_date: datetime,
         logical_date: datetime,
+        clear_number: int,
         dag_run_state: DagRunState,
         task_ids: list[str],
         msg: str,
@@ -431,6 +423,7 @@ class OpenLineageAdapter(LoggingMixin):
                     runId=self.build_dag_run_id(
                         dag_id=dag_id,
                         logical_date=logical_date,
+                        clear_number=clear_number,
                     ),
                     facets={
                         "errorMessage": error_message_run.ErrorMessageRunFacet(

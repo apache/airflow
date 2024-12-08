@@ -87,13 +87,18 @@ You can read more about the command line tools used to generate the packages in 
 the versions of Airflow that are not applicable anymore.
 
 2. Check if Breeze unit tests in `dev/breeze/tests/test_packages.py` need adjustments. This is done by simply
-searching and replacing old version occurrences with newer one. For example 2.5.0 to 2.6.0
+searching and replacing old version occurrences with newer one. For example 2.8.0 to 2.9.0
 
 3. Update minimum airflow version for all packages, you should modify `MIN_AIRFLOW_VERSION`
 in `src/airflow_breeze/utils/packages.py` and run the `prepare-provider-documentation`
 command with the `--only-min-version-update` flag. This will only update the min version in
 the `__init__.py` files and package documentation without bumping the provider versions.
 
+4. Remove `AIRFLOW_V_2_X_PLUS` in all tests (review and update skipif and other conditional
+   behaviour and test_compat.py, where X is the TARGET version we change to. For example
+   when we update min Airflow version to 2.9.0, we should remove all references to AIRFLOW_V_2_9_PLUS
+   simply because "everything" in our tests is already 2.9.0+ and there is no need to exclude or
+   modify tests for earlier versions of Airflow.
 
 Note: Sometimes we are releasing a subset of providers and would not want to add the
 list of these providers to every breeze command we run, specifically:
@@ -111,7 +116,7 @@ branch="update-min-airflow-version"
 git checkout -b "${branch}"
 breeze release-management prepare-provider-documentation --only-min-version-update
 git add .
-git commit -m "Bump minimum Airflow version in providers to Airflow 2.6.0"
+git commit -m "Bump minimum Airflow version in providers to Airflow 2.9.0"
 git push --set-upstream origin "${branch}"
 ```
 
@@ -197,6 +202,15 @@ release should get it changed to `>= x.y.z`. This is a rare case and should be h
 
 We call such case chicken-egg providers as it's not clear who should be released first - the provider or
 the Airflow.
+
+Similar case is when provider depends on another provider (usually `common.*`) that is not yet released
+because you it contains new feature and you want to release the providers together.
+
+In such case the "common" provider should be added to the list of "chicken-egg" providers in the
+`./dev/breeze/src/airflow_breeze/global_constants.py` file and version of the provider should be bumped
+in the PR by author of the PR that adds both the functionality. This will make sure that the
+provider is build in CI from sources, when CI jobs are run rather than latest version downloaded from PyPI
+when constraints are generated.
 
 # Prepare Regular Provider packages (RC)
 
@@ -348,7 +362,6 @@ generates corresponding .asc and .sha512 files for each file to sign.
 export AIRFLOW_REPO_ROOT=$(pwd -P)
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 ```
-
 
 * Release candidate packages:
 
@@ -820,10 +833,12 @@ cd "${AIRFLOW_REPO_ROOT}"
 ```
 
 2) Check out one of the tags for the release. Pick one of the provider-specific tags that are part
-   of the release wave. For example:
+   of the release wave. Assume your remote to apache repo is `apache` - then the right set of
+   commands are:
 
 ```shell
-git checkout tags/providers-amazon-1.0.0rc1
+git fetch apache --tags
+git checkout providers-amazon/9.1.0rc1
 ```
 
 3) Remove all the packages you have in dist folder
@@ -1371,9 +1386,10 @@ Example for special cases:
 ------------------------------------------------------------------------------------------------------------
 Announcement is done from official Apache-Airflow accounts.
 
-* Twitter: https://twitter.com/ApacheAirflow
-* Linkedin: https://www.linkedin.com/company/apache-airflow/
+* X: https://x.com/ApacheAirflow
+* LinkedIn: https://www.linkedin.com/company/apache-airflow/
 * Fosstodon: https://fosstodon.org/@airflow
+* Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
 
 Make sure attach the release image generated with Figma to the post.
 If you don't have access to the account ask a PMC member to post.

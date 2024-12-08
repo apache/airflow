@@ -19,13 +19,12 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence
-
-from deprecated.classic import deprecated
+from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
 from airflow.providers.apache.livy.triggers.livy import LivyTrigger
@@ -141,11 +140,6 @@ class LivyOperator(BaseOperator):
             extra_options=self._extra_options,
             auth_type=self._livy_conn_auth_type,
         )
-
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
-    def get_hook(self) -> LivyHook:
-        """Get valid hook."""
-        return self.hook
 
     def execute(self, context: Context) -> Any:
         self._batch_id = self.hook.post_batch(**self.spark_params)

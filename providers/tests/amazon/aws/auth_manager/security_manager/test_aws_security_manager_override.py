@@ -21,7 +21,7 @@ from unittest.mock import Mock, patch
 import pytest
 from flask import Flask
 
-from dev.tests_common.test_utils.compat import ignore_provider_compatibility_error
+from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
 python3_saml = pytest.importorskip("python3-saml")
 
@@ -30,8 +30,6 @@ with ignore_provider_compatibility_error("2.8.0", __file__):
         AwsSecurityManagerOverride,
     )
 from airflow.www.extensions.init_appbuilder import init_appbuilder
-
-pytestmark = pytest.mark.skip_if_database_isolation_mode
 
 
 @pytest.fixture

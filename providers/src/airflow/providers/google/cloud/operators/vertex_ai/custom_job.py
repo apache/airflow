@@ -19,9 +19,9 @@
 
 from __future__ import annotations
 
-import warnings
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -111,7 +111,6 @@ class CustomTrainingJobBaseOperator(GoogleCloudBaseOperator):
         predefined_split_column_name: str | None = None,
         timestamp_split_column_name: str | None = None,
         tensorboard: str | None = None,
-        sync=True,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -168,17 +167,9 @@ class CustomTrainingJobBaseOperator(GoogleCloudBaseOperator):
         self.predefined_split_column_name = predefined_split_column_name
         self.timestamp_split_column_name = timestamp_split_column_name
         self.tensorboard = tensorboard
-        self.sync = sync
         # END Run param
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-
-    def execute(self, context: Context) -> None:
-        warnings.warn(
-            "The 'sync' parameter is deprecated and will be removed after 01.10.2024.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> dict[str, Any] | None:
         if event["status"] == "error":
@@ -496,6 +487,8 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         "parent_model",
         "dataset_id",
         "impersonation_chain",
+        "display_name",
+        "model_display_name",
     )
     operator_extra_links = (
         VertexAIModelLink(),
@@ -507,6 +500,8 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         *,
         command: Sequence[str] = [],
         region: str,
+        display_name: str,
+        model_display_name: str | None = None,
         parent_model: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         dataset_id: str | None = None,
@@ -515,6 +510,8 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(
+            display_name=display_name,
+            model_display_name=model_display_name,
             region=region,
             parent_model=parent_model,
             impersonation_chain=impersonation_chain,
@@ -526,8 +523,6 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         self.poll_interval = poll_interval
 
     def execute(self, context: Context):
-        super().execute(context)
-
         self.parent_model = self.parent_model.split("@")[0] if self.parent_model else None
 
         if self.deferrable:
@@ -949,6 +944,8 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         "region",
         "dataset_id",
         "impersonation_chain",
+        "display_name",
+        "model_display_name",
     )
     operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
 
@@ -958,6 +955,8 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         python_package_gcs_uri: str,
         python_module_name: str,
         region: str,
+        display_name: str,
+        model_display_name: str | None = None,
         parent_model: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         dataset_id: str | None = None,
@@ -966,6 +965,8 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         **kwargs,
     ) -> None:
         super().__init__(
+            display_name=display_name,
+            model_display_name=model_display_name,
             region=region,
             parent_model=parent_model,
             impersonation_chain=impersonation_chain,
@@ -978,8 +979,6 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         self.poll_interval = poll_interval
 
     def execute(self, context: Context):
-        super().execute(context)
-
         self.parent_model = self.parent_model.split("@")[0] if self.parent_model else None
 
         if self.deferrable:
@@ -1405,6 +1404,8 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         "requirements",
         "dataset_id",
         "impersonation_chain",
+        "display_name",
+        "model_display_name",
     )
     operator_extra_links = (
         VertexAIModelLink(),
@@ -1417,6 +1418,8 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         script_path: str,
         requirements: Sequence[str] | None = None,
         region: str,
+        display_name: str,
+        model_display_name: str | None = None,
         parent_model: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         dataset_id: str | None = None,
@@ -1425,6 +1428,8 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(
+            display_name=display_name,
+            model_display_name=model_display_name,
             region=region,
             parent_model=parent_model,
             impersonation_chain=impersonation_chain,
@@ -1437,8 +1442,6 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         self.poll_interval = poll_interval
 
     def execute(self, context: Context):
-        super().execute(context)
-
         self.parent_model = self.parent_model.split("@")[0] if self.parent_model else None
 
         if self.deferrable:

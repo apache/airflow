@@ -26,7 +26,8 @@ This module contains a Google Cloud Vertex AI hook.
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -62,6 +63,7 @@ class PipelineJobHook(GoogleBaseHook):
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,
+            **kwargs,
         )
         self._pipeline_job: PipelineJob | None = None
 

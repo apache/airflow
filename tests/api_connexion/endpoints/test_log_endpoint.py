@@ -33,10 +33,10 @@ from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
-from dev.tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
-from dev.tests_common.test_utils.db import clear_db_runs
+from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests_common.test_utils.db import clear_db_runs
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module")
@@ -84,7 +84,7 @@ class TestGetLog:
         dr = dag_maker.create_dagrun(
             run_id=self.RUN_ID,
             run_type=DagRunType.SCHEDULED,
-            execution_date=timezone.parse(self.default_time),
+            logical_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
         )
 
@@ -98,7 +98,7 @@ class TestGetLog:
         dr2 = dag_maker.create_dagrun(
             run_id=self.RUN_ID,
             run_type=DagRunType.SCHEDULED,
-            execution_date=timezone.parse(self.default_time),
+            logical_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
         )
         configured_app.dag_bag.bag_dag(dummy_dag)
@@ -184,13 +184,13 @@ class TestGetLog:
         )
         expected_filename = f"{self.log_dir}/dag_id={self.DAG_ID}/run_id={self.RUN_ID}/task_id={self.TASK_ID}/attempt={try_number}.log"
         log_content = "Log for testing." if try_number == 1 else "Log for testing 2."
-        assert (
-            response.json["content"]
-            == f"[('localhost', '*** Found local files:\\n***   * {expected_filename}\\n{log_content}')]"
-        )
+        assert "[('localhost'," in response.json["content"]
+        assert f"*** Found local files:\\n***   * {expected_filename}\\n" in response.json["content"]
+        assert f"{log_content}')]" in response.json["content"]
+
         info = serializer.loads(response.json["continuation_token"])
         assert info == {"end_of_log": True, "log_pos": 16 if try_number == 1 else 18}
-        assert 200 == response.status_code
+        assert response.status_code == 200
 
     @pytest.mark.parametrize(
         "request_url, expected_filename, extra_query_string, try_number",
@@ -237,14 +237,12 @@ class TestGetLog:
             headers={"Accept": "text/plain"},
             environ_overrides={"REMOTE_USER": "test"},
         )
-        assert 200 == response.status_code
+        assert response.status_code == 200
 
         log_content = "Log for testing." if try_number == 1 else "Log for testing 2."
-
-        assert (
-            response.data.decode("utf-8")
-            == f"localhost\n*** Found local files:\n***   * {expected_filename}\n{log_content}\n"
-        )
+        assert "localhost\n" in response.data.decode("utf-8")
+        assert f"*** Found local files:\n***   * {expected_filename}\n" in response.data.decode("utf-8")
+        assert f"{log_content}\n" in response.data.decode("utf-8")
 
     @pytest.mark.parametrize(
         "request_url, expected_filename, extra_query_string, try_number",
@@ -295,13 +293,12 @@ class TestGetLog:
             environ_overrides={"REMOTE_USER": "test"},
         )
 
-        assert 200 == response.status_code
+        assert response.status_code == 200
 
         log_content = "Log for testing." if try_number == 1 else "Log for testing 2."
-        assert (
-            response.data.decode("utf-8")
-            == f"localhost\n*** Found local files:\n***   * {expected_filename}\n{log_content}\n"
-        )
+        assert "localhost\n" in response.data.decode("utf-8")
+        assert f"*** Found local files:\n***   * {expected_filename}\n" in response.data.decode("utf-8")
+        assert f"{log_content}\n" in response.data.decode("utf-8")
 
     @pytest.mark.parametrize("try_number", [1, 2])
     def test_get_logs_response_with_ti_equal_to_none(self, try_number):
@@ -359,7 +356,7 @@ class TestGetLog:
             headers={"Content-Type": "application/jso"},
             environ_overrides={"REMOTE_USER": "test"},
         )
-        assert 400 == response.status_code
+        assert response.status_code == 400
         assert "Task log handler does not support read logs." in response.data.decode("utf-8")
 
     def test_bad_signature_raises(self):

@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import locale
 from base64 import b64encode
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -34,6 +35,10 @@ from providers.tests.microsoft.conftest import (
     mock_json_response,
     mock_response,
 )
+from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class TestMSGraphAsyncOperator(Base):
@@ -102,6 +107,32 @@ class TestMSGraphAsyncOperator(Base):
                 self.execute_operator(operator)
 
     @pytest.mark.db_test
+    def test_execute_when_an_exception_occurs_on_custom_event_handler(self):
+        with self.patch_hook_and_request_adapter(AirflowException("An error occurred")):
+
+            def custom_event_handler(context: Context, event: dict[Any, Any] | None = None):
+                if event:
+                    if event.get("status") == "failure":
+                        return None
+
+                    return event.get("response")
+
+            operator = MSGraphAsyncOperator(
+                task_id="users_delta",
+                conn_id="msgraph_api",
+                url="users/delta",
+                event_handler=custom_event_handler,
+            )
+
+            results, events = self.execute_operator(operator)
+
+            assert not results
+            assert len(events) == 1
+            assert isinstance(events[0], TriggerEvent)
+            assert events[0].payload["status"] == "failure"
+            assert events[0].payload["message"] == "An error occurred"
+
+    @pytest.mark.db_test
     def test_execute_when_response_is_bytes(self):
         content = load_file("resources", "dummy.pdf", mode="rb", encoding=None)
         base64_encoded_content = b64encode(content).decode(locale.getpreferredencoding())
@@ -113,11 +144,40 @@ class TestMSGraphAsyncOperator(Base):
                 task_id="drive_item_content",
                 conn_id="msgraph_api",
                 response_type="bytes",
-                url=f"/drives/{drive_id}/root/content",
+                url="/drives/{drive_id}/root/content",
+                path_parameters={"drive_id": drive_id},
             )
 
             results, events = self.execute_operator(operator)
 
+            assert operator.path_parameters == {"drive_id": drive_id}
+            assert results == base64_encoded_content
+            assert len(events) == 1
+            assert isinstance(events[0], TriggerEvent)
+            assert events[0].payload["status"] == "success"
+            assert events[0].payload["type"] == "builtins.bytes"
+            assert events[0].payload["response"] == base64_encoded_content
+
+    @pytest.mark.db_test
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Lambda parameters works in Airflow >= 2.10.0")
+    def test_execute_with_lambda_parameter_when_response_is_bytes(self):
+        content = load_file("resources", "dummy.pdf", mode="rb", encoding=None)
+        base64_encoded_content = b64encode(content).decode(locale.getpreferredencoding())
+        drive_id = "82f9d24d-6891-4790-8b6d-f1b2a1d0ca22"
+        response = mock_response(200, content)
+
+        with self.patch_hook_and_request_adapter(response):
+            operator = MSGraphAsyncOperator(
+                task_id="drive_item_content",
+                conn_id="msgraph_api",
+                response_type="bytes",
+                url="/drives/{drive_id}/root/content",
+                path_parameters=lambda context, jinja_env: {"drive_id": drive_id},
+            )
+
+            results, events = self.execute_operator(operator)
+
+            assert operator.path_parameters == {"drive_id": drive_id}
             assert results == base64_encoded_content
             assert len(events) == 1
             assert isinstance(events[0], TriggerEvent)

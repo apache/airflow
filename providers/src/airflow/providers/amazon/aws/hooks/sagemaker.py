@@ -23,9 +23,10 @@ import tarfile
 import tempfile
 import time
 from collections import Counter, namedtuple
+from collections.abc import AsyncGenerator, Generator
 from datetime import datetime
 from functools import partial
-from typing import Any, AsyncGenerator, Callable, Generator, cast
+from typing import Any, Callable, cast
 
 from asgiref.sync import sync_to_async
 from botocore.exceptions import ClientError
@@ -153,7 +154,9 @@ class SageMakerHook(AwsBaseHook):
     non_terminal_states = {"InProgress", "Stopping"}
     endpoint_non_terminal_states = {"Creating", "Updating", "SystemUpdating", "RollingBack", "Deleting"}
     pipeline_non_terminal_states = {"Executing", "Stopping"}
+    processing_job_non_terminal_states = {"InProgress", "Stopping"}
     failed_states = {"Failed"}
+    processing_job_failed_states = {*failed_states, "Stopped"}
     training_failed_states = {*failed_states, "Stopped"}
 
     def __init__(self, *args, **kwargs):

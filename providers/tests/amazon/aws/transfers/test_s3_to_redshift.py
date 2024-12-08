@@ -34,7 +34,7 @@ from airflow.providers.common.compat.openlineage.facet import (
     SchemaDatasetFacetFields,
 )
 
-from dev.tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
+from tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 
 class TestS3ToRedshiftTransfer:

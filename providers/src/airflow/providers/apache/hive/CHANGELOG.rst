@@ -26,6 +26,29 @@
 
 Changelog
 ---------
+main
+....
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the {provider_name} provider package.
+  The following breaking changes were introduced:
+
+  * Removed deprecated ``GSSAPI`` for ``auth_mechanism.`` Use ``KERBEROS`` instead.
+
+8.2.1
+.....
+
+Misc
+~~~~
+
+* ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+* ``Explain how to use uv with airflow virtualenv and make it works (#43604)``
+* ``Move 'uncompress_file' function from 'airflow.utils' to Hive provider (#43526)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
 
 8.2.0
 .....

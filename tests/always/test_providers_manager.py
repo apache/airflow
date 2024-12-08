@@ -32,6 +32,7 @@ from wtforms import BooleanField, Field, StringField
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers_manager import (
+    DialectInfo,
     HookClassProvider,
     LazyDictWithCache,
     PluginInfo,
@@ -70,7 +71,7 @@ class TestProviderManager:
             # just a coherence check - no exact number as otherwise we would have to update
             # several tests if we add new connections/provider which is not ideal
             assert len(provider_list) > 65
-            assert [] == self._caplog.records
+            assert self._caplog.records == []
 
     def test_hooks_deprecation_warnings_generated(self):
         with pytest.warns(expected_warning=DeprecationWarning, match="hook-class-names") as warning_records:
@@ -100,7 +101,7 @@ class TestProviderManager:
                 package_or_source="package",
             )
             providers_manager._discover_hooks()
-        assert [] == [w.message for w in warning_records if "hook-class-names" in str(w.message)]
+        assert [w.message for w in warning_records if "hook-class-names" in str(w.message)] == []
 
     def test_warning_logs_generated(self):
         providers_manager = ProvidersManager()
@@ -197,6 +198,32 @@ class TestProviderManager:
             provider_name="apache-airflow-providers-apache-hive",
         )
 
+    def test_providers_manager_register_dialects(self):
+        providers_manager = ProvidersManager()
+        providers_manager._provider_dict = LazyDictWithCache()
+        providers_manager._provider_dict["airflow.providers.common.sql"] = ProviderInfo(
+            version="1.19.0",
+            data={
+                "dialects": [
+                    {
+                        "dialect-type": "default",
+                        "dialect-class-name": "airflow.providers.common.sql.dialects.dialect.Dialect",
+                    }
+                ]
+            },
+            package_or_source="package",
+        )
+        providers_manager._discover_hooks()
+        assert len(providers_manager._dialect_provider_dict) == 1
+        assert providers_manager._dialect_provider_dict.popitem() == (
+            "default",
+            DialectInfo(
+                name="default",
+                dialect_class_name="airflow.providers.common.sql.dialects.dialect.Dialect",
+                provider_name="airflow.providers.common.sql",
+            ),
+        )
+
     def test_hooks(self):
         with warnings.catch_warnings(record=True) as warning_records:
             with self._caplog.at_level(logging.WARNING):
@@ -208,7 +235,7 @@ class TestProviderManager:
                 print(record.message, file=sys.stderr)
                 print(record.exc_info, file=sys.stderr)
             raise AssertionError("There are warnings generated during hook imports. Please fix them")
-        assert [] == [w.message for w in warning_records if "hook-class-names" in str(w.message)]
+        assert [w.message for w in warning_records if "hook-class-names" in str(w.message)] == []
 
     @pytest.mark.execution_timeout(150)
     def test_hook_values(self):
@@ -237,7 +264,7 @@ class TestProviderManager:
                     real_warning_count += 1
             if real_warning_count:
                 raise AssertionError("There are warnings generated during hook imports. Please fix them")
-        assert [] == [w.message for w in warning_records if "hook-class-names" in str(w.message)]
+        assert [w.message for w in warning_records if "hook-class-names" in str(w.message)] == []
 
     def test_connection_form_widgets(self):
         provider_manager = ProvidersManager()
@@ -416,6 +443,11 @@ class TestProviderManager:
         auth_manager_class_names = list(provider_manager.auth_managers)
         assert len(auth_manager_class_names) > 0
 
+    def test_dialects(self):
+        provider_manager = ProvidersManager()
+        dialect_class_names = list(provider_manager.dialects)
+        assert len(dialect_class_names) == 0
+
     @patch("airflow.providers_manager.import_string")
     def test_optional_feature_no_warning(self, mock_importlib_import_string):
         with self._caplog.at_level(logging.WARNING):
@@ -427,7 +459,7 @@ class TestProviderManager:
             providers_manager._import_hook(
                 hook_class_name=None, provider_info=None, package_name=None, connection_type="test_connection"
             )
-            assert [] == self._caplog.messages
+            assert self._caplog.messages == []
 
     @patch("airflow.providers_manager.import_string")
     def test_optional_feature_debug(self, mock_importlib_import_string):
@@ -440,9 +472,9 @@ class TestProviderManager:
             providers_manager._import_hook(
                 hook_class_name=None, provider_info=None, package_name=None, connection_type="test_connection"
             )
-            assert [
+            assert self._caplog.messages == [
                 "Optional provider feature disabled when importing 'HookClass' from 'test_package' package"
-            ] == self._caplog.messages
+            ]
 
 
 @pytest.mark.parametrize(

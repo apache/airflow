@@ -30,7 +30,7 @@ import pytest
 
 from airflow.configuration import conf
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 SETTINGS_FILE_VALID = """
 LOGGING_CONFIG = {
@@ -243,7 +243,7 @@ class TestLoggingSettings:
         with conf_vars({("logging", "logging_config_class"): None}):
             with patch.object(logging_config.log, "debug") as mock_debug:
                 logging_config.configure_logging()
-                mock_debug.assert_any_call("Could not find key logging_config_class in config")
+                mock_debug.assert_any_call("Unable to load custom logging, using default config instead")
 
     # Just default
     def test_loading_local_settings_without_logging_config(self):

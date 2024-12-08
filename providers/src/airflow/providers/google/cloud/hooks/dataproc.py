@@ -19,10 +19,12 @@
 
 from __future__ import annotations
 
+import shlex
+import subprocess
 import time
 import uuid
-from collections.abc import MutableSequence
-from typing import TYPE_CHECKING, Any, Sequence
+from collections.abc import MutableSequence, Sequence
+from typing import TYPE_CHECKING, Any
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.exceptions import ServerError
@@ -217,19 +219,6 @@ class DataprocHook(GoogleBaseHook):
     keyword arguments rather than positional.
     """
 
-    def __init__(
-        self,
-        gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
-    ) -> None:
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
-        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
-
     def get_cluster_client(self, region: str | None = None) -> ClusterControllerClient:
         """Create a ClusterControllerClient."""
         client_options = None
@@ -274,6 +263,49 @@ class DataprocHook(GoogleBaseHook):
         """Create a OperationsClient."""
         return self.get_batch_client(region=region).transport.operations_client
 
+    def dataproc_options_to_args(self, options: dict) -> list[str]:
+        """
+        Return a formatted cluster parameters from a dictionary of arguments.
+
+        :param options: Dictionary with options
+        :return: List of arguments
+        """
+        if not options:
+            return []
+
+        args: list[str] = []
+        for attr, value in options.items():
+            if value is None or (isinstance(value, bool) and value):
+                args.append(f"--{attr}")
+            elif isinstance(value, bool) and not value:
+                continue
+            elif isinstance(value, list):
+                args.extend([f"--{attr}={v}" for v in value])
+            else:
+                args.append(f"--{attr}={value}")
+        return args
+
+    def _build_gcloud_command(self, command: list[str], parameters: dict[str, str]) -> list[str]:
+        return [*command, *(self.dataproc_options_to_args(parameters))]
+
+    def _create_dataproc_cluster_with_gcloud(self, cmd: list[str]) -> str:
+        """Create a Dataproc cluster with a gcloud command and return the job's ID."""
+        self.log.info("Executing command: %s", " ".join(shlex.quote(c) for c in cmd))
+        success_code = 0
+
+        with self.provide_authorized_gcloud():
+            proc = subprocess.run(cmd, capture_output=True)
+
+        if proc.returncode != success_code:
+            stderr_last_20_lines = "\n".join(proc.stderr.decode().strip().splitlines()[-20:])
+            raise AirflowException(
+                f"Process exit with non-zero exit code. Exit code: {proc.returncode}. Error Details : "
+                f"{stderr_last_20_lines}"
+            )
+
+        response = proc.stdout.decode().strip()
+        return response
+
     def wait_for_operation(
         self,
         operation: Operation,
@@ -302,7 +334,7 @@ class DataprocHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
-    ) -> Operation:
+    ) -> Operation | str:
         """
         Create a cluster in a specified project.
 
@@ -339,6 +371,34 @@ class DataprocHook(GoogleBaseHook):
             "project_id": project_id,
             "cluster_name": cluster_name,
         }
+
+        if virtual_cluster_config and "kubernetes_cluster_config" in virtual_cluster_config:
+            kube_config = virtual_cluster_config["kubernetes_cluster_config"]["gke_cluster_config"]
+            try:
+                spark_engine_version = virtual_cluster_config["kubernetes_cluster_config"][
+                    "kubernetes_software_config"
+                ]["component_version"]["SPARK"]
+            except KeyError:
+                spark_engine_version = "latest"
+            gke_cluster_name = kube_config["gke_cluster_target"].rsplit("/", 1)[1]
+            gke_pools = kube_config["node_pool_target"][0]
+            gke_pool_name = gke_pools["node_pool"].rsplit("/", 1)[1]
+            gke_pool_role = gke_pools["roles"][0]
+            gke_pool_machine_type = gke_pools["node_pool_config"]["config"]["machine_type"]
+            gcp_flags = {
+                "region": region,
+                "gke-cluster": gke_cluster_name,
+                "spark-engine-version": spark_engine_version,
+                "pools": f"name={gke_pool_name},roles={gke_pool_role.lower()},machineType={gke_pool_machine_type},min=1,max=10",
+                "setup-workload-identity": None,
+            }
+            cmd = self._build_gcloud_command(
+                command=["gcloud", "dataproc", "clusters", "gke", "create", cluster_name],
+                parameters=gcp_flags,
+            )
+            response = self._create_dataproc_cluster_with_gcloud(cmd=cmd)
+            return response
+
         if virtual_cluster_config is not None:
             cluster["virtual_cluster_config"] = virtual_cluster_config  # type: ignore
         if cluster_config is not None:
@@ -999,6 +1059,7 @@ class DataprocHook(GoogleBaseHook):
             individual attempt.
         :param metadata: Additional metadata that is provided to the method.
         """
+        self.log.debug("Creating batch: %s", batch)
         client = self.get_batch_client(region)
         parent = f"projects/{project_id}/regions/{region}"
 
@@ -1218,12 +1279,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
-        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
+        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
         self._cached_client: JobControllerAsyncClient | None = None
 
     def get_cluster_client(self, region: str | None = None) -> ClusterControllerAsyncClient:

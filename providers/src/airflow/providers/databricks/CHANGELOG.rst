@@ -26,6 +26,58 @@
 Changelog
 ---------
 
+main
+.....
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the databricks provider package.
+  The following breaking changes were introduced:
+
+  * ``Removed deprecated DatabricksRunNowDeferrableOperator. Use DatabricksRunNowOperator with deferrable=True instead.``
+  * ``Removed deprecated DatabricksSubmitRunDeferrableOperator. Use DatabricksSubmitRunOperator with deferrable=True instead.``
+  * ``Removed deprecated return_tuple parameter from DatabricksSqlHook. Now namedtuple will always returned.``
+
+
+6.13.0
+......
+
+Features
+~~~~~~~~
+
+* ``Allow Databricks SQL hook to cancel timed out queries (#42668)``
+* ``Added support for job_parameters and dbt_commands in DatabricksRunNowOperator (#43895)``
+* ``Enable workload identity authentication for the Databricks provider (#41639)``
+
+Misc
+~~~~
+
+* ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Start porting DAG definition code to the Task SDK (#43076)``
+
+6.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add TimeoutError to be a retryable error in databricks provider (#43137)``
+* ``Add ClientConnectorError to be a retryable error in databricks provider (#43091)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``DatabricksHook: fix status property to work with ClientResponse used in async mode (#43333)``
+* ``[DatabricksHook] Respect connection settings (#42618)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+
 6.11.0
 ......
 

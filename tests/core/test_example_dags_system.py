@@ -24,13 +24,13 @@ import pytest
 from sqlalchemy import select
 
 from airflow.models import DagRun
-from airflow.operators.python import PythonOperator
 from airflow.utils.module_loading import import_string
 from airflow.utils.state import DagRunState
 from airflow.utils.trigger_rule import TriggerRule
 
-from dev.tests_common.test_utils.system_tests import get_test_run
-from dev.tests_common.test_utils.system_tests_class import SystemTest
+from tests_common.test_utils.compat import PythonOperator
+from tests_common.test_utils.system_tests import get_test_run
+from tests_common.test_utils.system_tests_class import SystemTest
 
 
 def fail():
@@ -77,7 +77,7 @@ def get_dag_fail_root(dag_maker):
     return dag
 
 
-@pytest.mark.system("core")
+@pytest.mark.system
 class TestExampleDagsSystem(SystemTest):
     @pytest.mark.parametrize(
         "module",
@@ -135,7 +135,7 @@ class TestExampleDagsSystem(SystemTest):
                 python_callable=lambda: print("hello"),
                 start_date=fut_start_date,
             )
-        run = get_test_run(dag, execution_date=exec_date)
+        run = get_test_run(dag, logical_date=exec_date)
         run()
         dr = session.scalar(select(DagRun))
         tis = dr.task_instances

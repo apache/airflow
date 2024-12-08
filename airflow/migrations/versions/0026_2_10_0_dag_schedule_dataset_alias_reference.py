@@ -45,7 +45,7 @@ def upgrade():
     """Add dag_schedule_dataset_alias_reference table."""
     op.create_table(
         "dag_schedule_dataset_alias_reference",
-        sa.Column("alias_id", sa.Integer(), nullable=False),
+        sa.Column("alias_id", sa.Integer(), primary_key=True, nullable=False),
         sa.Column("dag_id", StringID(), primary_key=True, nullable=False),
         sa.Column("created_at", airflow.utils.sqlalchemy.UtcDateTime(timezone=True), nullable=False),
         sa.Column("updated_at", airflow.utils.sqlalchemy.UtcDateTime(timezone=True), nullable=False),
@@ -58,7 +58,7 @@ def upgrade():
         sa.ForeignKeyConstraint(
             columns=("dag_id",),
             refcolumns=["dag.dag_id"],
-            name="dsdar_dag_id_fkey",
+            name="dsdar_dag_fkey",
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("alias_id", "dag_id", name="dsdar_pkey"),

@@ -24,13 +24,13 @@
 requires = [
     "GitPython==3.1.43",
     "gitdb==4.0.11",
-    "hatchling==1.25.0",
-    "packaging==24.1",
+    "hatchling==1.26.3",
+    "packaging==24.2",
     "pathspec==0.12.1",
     "pluggy==1.5.0",
     "smmap==5.0.1",
-    "tomli==2.0.2; python_version < '3.11'",
-    "trove-classifiers==2024.10.13",
+    "tomli==2.2.1; python_version < '3.11'",
+    "trove-classifiers==2024.10.21.16",
 ]
 build-backend = "hatchling.build"
 
@@ -78,8 +78,7 @@ dynamic = ["version", "optional-dependencies", "dependencies"]
 # START CORE EXTRAS HERE
 #
 # aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, github-enterprise, google-
-# auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, sentry, statsd, uv,
-# virtualenv
+# auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, sentry, statsd, uv
 #
 # END CORE EXTRAS HERE
 #
@@ -153,39 +152,11 @@ Homepage = "https://airflow.apache.org/"
 "Release Notes" = "https://airflow.apache.org/docs/apache-airflow/stable/release_notes.html"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
 "Source Code" = "https://github.com/apache/airflow"
-Twitter = "https://twitter.com/ApacheAirflow"
+X = "https://x.com/ApacheAirflow"
+LinkedIn = "https://www.linkedin.com/company/apache-airflow/"
+Mastodon = "https://fosstodon.org/@airflow"
+Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
 YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
-
-[tool.hatch.envs.default]
-python = "3.9"
-platforms = ["linux", "macos"]
-description = "Default environment with Python 3.9 for maximum compatibility"
-features = []
-
-[tool.hatch.envs.airflow-39]
-python = "3.9"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.9. No devel installed."
-features = []
-
-[tool.hatch.envs.airflow-310]
-python = "3.10"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.10. No devel installed."
-features = []
-
-[tool.hatch.envs.airflow-311]
-python = "3.11"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.11. No devel installed"
-features = []
-
-[tool.hatch.envs.airflow-312]
-python = "3.12"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.12. No devel installed"
-features = []
-
 
 [tool.hatch.version]
 path = "airflow/__init__.py"
@@ -213,7 +184,6 @@ artifacts = [
     "/generated/",
 ]
 
-
 [tool.hatch.build.targets.wheel]
 include = [
     "/airflow",
@@ -224,14 +194,16 @@ artifacts = [
 ]
 
 ## black settings ##
+# Used to format code examples inside .rst doc files
+# Needed until https://github.com/astral-sh/ruff/issues/8237 is available.
 [tool.black]
 line-length = 110
-target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+target-version = ['py39', 'py310', 'py311', 'py312']
 
 
 ## ruff settings ##
 [tool.ruff]
-target-version = "py38"
+target-version = "py39"
 line-length = 110
 extend-exclude = [
     ".eggs",
@@ -249,7 +221,7 @@ extend-select = [
     "UP", # Pyupgrade
     "ASYNC", # subset of flake8-async rules
     "ISC",  # Checks for implicit literal string concatenation (auto-fixable)
-    "TCH", # Rules around TYPE_CHECKING blocks
+    "TC", # Rules around TYPE_CHECKING blocks
     "G", # flake8-logging-format rules
     "LOG", # flake8-logging rules, most of them autofixable
     "PT", # flake8-pytest-style rules
@@ -275,6 +247,8 @@ extend-select = [
     "PGH004",  # Use specific rule codes when using noqa
     "PGH005", # Invalid unittest.mock.Mock methods/attributes/properties
     "S101", # Checks use `assert` outside the test cases, test cases should be added into the exclusions
+    "SIM300", # Checks for conditions that position a constant on the left-hand side of the comparison
+              # operator, rather than the right-hand side.
     "B004", # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
     "B006", # Checks for uses of mutable objects as function argument defaults.
     "B007", # Checks for unused variables in the loop
@@ -293,11 +267,10 @@ ignore = [
     "D203",
     "D212", # Conflicts with D213.  Both can not be enabled.
     "E731", # Do not assign a lambda expression, use a def
-    "TCH003", # Do not move imports from stdlib to TYPE_CHECKING block
-    "PT004", # Fixture does not return anything, add leading underscore
-    "PT005", # Fixture returns a value, remove leading underscore
+    "TC003", # Do not move imports from stdlib to TYPE_CHECKING block
     "PT006", # Wrong type of names in @pytest.mark.parametrize
     "PT007", # Wrong type of values in @pytest.mark.parametrize
+    "PT013", # silly rule prohibiting e.g. `from pytest import param`
     "PT011", # pytest.raises() is too broad, set the match parameter
     "PT019", # fixture without value is injected as parameter, use @pytest.mark.usefixtures instead
     # Rules below explicitly set off which could overlap with Ruff's formatter
@@ -316,6 +289,7 @@ ignore = [
     "COM812",
     "COM819",
     "E501", # Formatted code may exceed the line length, leading to line-too-long (E501) errors.
+    "ASYNC110", # TODO: Use `anyio.Event` instead of awaiting `anyio.sleep` in a `while` loop
 ]
 unfixable = [
     # PT022 replace empty `yield` to empty `return`. Might be fixed with a combination of PLR1711
@@ -342,12 +316,14 @@ section-order = [
 
 # Make sure we put the "dev" imports at the end, not as a third-party module
 [tool.ruff.lint.isort.sections]
-testing = ["dev", "providers.tests", "task_sdk.tests"]
+testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 
 [tool.ruff.lint.extend-per-file-ignores]
-"airflow/__init__.py" = ["F401", "TCH004"]
-"airflow/models/__init__.py" = ["F401", "TCH004"]
+"airflow/__init__.py" = ["F401", "TC004", "I002"]
+"airflow/models/__init__.py" = ["F401", "TC004"]
 "airflow/models/sqla_models.py" = ["F401"]
+"providers/src/airflow/providers/__init__.py" = ["I002"]
+"providers/src/airflow/__init__.py" = ["I002"]
 
 # The test_python.py is needed because adding __future__.annotations breaks runtime checks that are
 # needed for the test to work
@@ -356,12 +332,12 @@ testing = ["dev", "providers.tests", "task_sdk.tests"]
 # The Pydantic representations of SqlAlchemy Models are not parsed well with Pydantic
 # when __future__.annotations is used so we need to skip them from upgrading
 # Pydantic also require models to be imported during execution
-"airflow/serialization/pydantic/*.py" = ["I002", "UP007", "TCH001"]
+"airflow/serialization/pydantic/*.py" = ["I002", "UP007", "TC001"]
 
 # Failing to detect types and functions used in `Annotated[...]` syntax as required at runtime.
 # Annotated is central for FastAPI dependency injection, skipping rules for FastAPI folders.
-"airflow/api_fastapi/*" = ["TCH001", "TCH002"]
-"tests/api_fastapi/*" = ["TCH001", "TCH002"]
+"airflow/api_fastapi/*" = ["TC001", "TC002"]
+"tests/api_fastapi/*" = ["T001", "TC002"]
 
 # Ignore pydoc style from these
 "*.pyi" = ["D"]
@@ -377,7 +353,7 @@ testing = ["dev", "providers.tests", "task_sdk.tests"]
 # TRY002: Use `raise Exception`
 "dev/perf/*" = ["TID253"]
 "dev/check_files.py" = ["S101"]
-"dev/tests_common/*" = ["S101", "TRY002"]
+"tests_common/*" = ["S101", "TRY002"]
 "dev/breeze/tests/*" = ["TID253", "S101", "TRY002"]
 "tests/*" = ["D", "TID253", "S101", "TRY002"]
 "docker_tests/*" = ["D", "TID253", "S101", "TRY002"]
@@ -395,7 +371,7 @@ testing = ["dev", "providers.tests", "task_sdk.tests"]
 "helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
 
 # Test compat imports banned imports to allow testing against older airflow versions
-"dev/tests_common/test_utils/compat.py" = ["TID251", "F401"]
+"tests_common/test_utils/compat.py" = ["TID251", "F401"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
@@ -408,13 +384,6 @@ banned-module-level-imports = ["numpy", "pandas"]
 # Direct import from the airflow package modules and constraints
 "airflow.AirflowException".msg = "Use airflow.exceptions.AirflowException instead."
 "airflow.Dataset".msg = "Use airflow.datasets.Dataset instead."
-"airflow.PY36".msg = "Use sys.version_info >= (3, 6) instead."
-"airflow.PY37".msg = "Use sys.version_info >= (3, 7) instead."
-"airflow.PY38".msg = "Use sys.version_info >= (3, 8) instead."
-"airflow.PY39".msg = "Use sys.version_info >= (3, 9) instead."
-"airflow.PY310".msg = "Use sys.version_info >= (3, 10) instead."
-"airflow.PY311".msg = "Use sys.version_info >= (3, 11) instead."
-"airflow.PY312".msg = "Use sys.version_info >= (3, 12) instead."
 # Deprecated imports
 "airflow.models.baseoperator.BaseOperatorLink".msg = "Use airflow.models.baseoperatorlink.BaseOperatorLink"
 "airflow.models.errors.ImportError".msg = "Use airflow.models.errors.ParseImportError"
@@ -468,6 +437,7 @@ fixture-parentheses = false
 ## pytest settings ##
 [tool.pytest.ini_options]
 addopts = [
+    "--tb=short",
     "-rasl",
     "--verbosity=2",
     # Disable `flaky` plugin for pytest. This plugin conflicts with `rerunfailures` because provide the same marker.
@@ -590,6 +560,7 @@ explicit_package_bases = true
 mypy_path = [
   "$MYPY_CONFIG_FILE_DIR",
   "$MYPY_CONFIG_FILE_DIR/providers/src",
+  "$MYPY_CONFIG_FILE_DIR/task_sdk/src",
 ]
 
 [[tool.mypy.overrides]]

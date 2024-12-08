@@ -25,8 +25,9 @@ from __future__ import annotations
 import os
 import re
 import textwrap
+from collections.abc import Iterable
 from pathlib import Path
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING
 
 import re2
 from alembic.script import ScriptDirectory
@@ -213,8 +214,8 @@ def ensure_filenames_are_sorted(revisions, app):
 
 
 def correct_mismatching_revision_nums(revisions: Iterable[Script]):
-    revision_pattern = r'revision = "([a-fA-F0-9]+)"'
-    down_revision_pattern = r'down_revision = "([a-fA-F0-9]+)"'
+    revision_pattern = r'revision = ["\']([a-fA-F0-9]+)["\']'
+    down_revision_pattern = r'down_revision = ["\']([a-fA-F0-9]+)["\']'
     revision_id_pattern = r"Revision ID: ([a-fA-F0-9]+)"
     revises_id_pattern = r"Revises: ([a-fA-F0-9]+)"
     for rev in revisions:

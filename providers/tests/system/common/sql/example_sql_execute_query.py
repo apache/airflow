@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from airflow import DAG
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
-from airflow.utils.dates import datetime
+from airflow.utils.timezone import datetime
 
 AIRFLOW_DB_METADATA_TABLE = "ab_role"
 connection_args = {
@@ -56,7 +56,7 @@ with DAG(
     # [END howto_operator_sql_execute_query]
 
 
-from dev.tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

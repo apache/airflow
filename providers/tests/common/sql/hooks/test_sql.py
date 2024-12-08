@@ -20,23 +20,16 @@ from __future__ import annotations
 
 import logging
 import logging.config
-import warnings
 from unittest.mock import MagicMock
 
 import pytest
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
 from airflow.utils.session import provide_session
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS
 from providers.tests.common.sql.test_utils import mock_hook
-
-pytestmark = [
-    pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="Tests for Airflow 2.8.0+ only"),
-]
 
 TASK_ID = "sql-operator"
 HOST = "host"
@@ -244,23 +237,6 @@ class TestDbApiHook:
         assert err.value.args[0] == "List of SQL statements is empty"
 
     @pytest.mark.db_test
-    def test_make_common_data_structure_hook_has_deprecated_method(self):
-        """If hook implements ``_make_serializable`` warning should be raised on call."""
-        hook = mock_hook(DbApiHook)
-        hook._make_serializable = lambda result: result
-        with pytest.warns(
-            AirflowProviderDeprecationWarning, match="`_make_serializable` method is deprecated"
-        ):
-            hook._make_common_data_structure(["foo", "bar", "baz"])
-
-    @pytest.mark.db_test
-    def test_make_common_data_structure_no_deprecated_method(self):
-        """If hook not implements ``_make_serializable`` there is no warning should be raised on call."""
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", AirflowProviderDeprecationWarning)
-            mock_hook(DbApiHook)._make_common_data_structure(["foo", "bar", "baz"])
-
-    @pytest.mark.db_test
     def test_placeholder_config_from_extra(self):
         dbapi_hook = mock_hook(DbApiHook, conn_params={"extra": {"placeholder": "?"}})
         assert dbapi_hook.placeholder == "?"
@@ -282,3 +258,13 @@ class TestDbApiHook:
         for _ in range(10):
             assert dbapi_hook.placeholder == "%s"
         assert dbapi_hook.connection_invocations == 1
+
+    @pytest.mark.db_test
+    def test_uri(self):
+        dbapi_hook = mock_hook(DbApiHook)
+        assert dbapi_hook.get_uri() == "//login:password@host:1234/schema"
+
+    @pytest.mark.db_test
+    def test_uri_with_schema(self):
+        dbapi_hook = mock_hook(DbApiHook, conn_params={"schema": "other_schema"})
+        assert dbapi_hook.get_uri() == "//login:password@host:1234/other_schema"

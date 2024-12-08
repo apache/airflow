@@ -134,7 +134,7 @@ class TestCloudBuildOperator:
     @mock.patch(CLOUD_BUILD_HOOK_PATH)
     def test_create_build_with_missing_build(self, mock_hook):
         mock_hook.return_value.create_build_without_waiting_for_result.return_value = Build()
-        with pytest.raises(AirflowException, match="missing keyword argument 'build'"):
+        with pytest.raises((TypeError, AirflowException), match="missing keyword argument 'build'"):
             CloudBuildCreateBuildOperator(task_id="id")
 
     @pytest.mark.parametrize(
@@ -404,18 +404,29 @@ class TestBuildProcessor:
         assert body == expected_body
 
 
+def set_execute_complete(session, ti, **next_kwargs):
+    ti.next_method = "execute_complete"
+    ti.next_kwargs = next_kwargs
+    session.flush()
+
+
+@pytest.mark.db_test
 @mock.patch(CLOUD_BUILD_HOOK_PATH)
-def test_async_create_build_fires_correct_trigger_should_execute_successfully(mock_hook):
+def test_async_create_build_fires_correct_trigger_should_execute_successfully(
+    mock_hook, create_task_instance_of_operator, session
+):
     mock_hook.return_value.create_build_without_waiting_for_result.return_value = (BUILD, BUILD_ID)
 
-    operator = CloudBuildCreateBuildOperator(
+    ti = create_task_instance_of_operator(
         build=BUILD,
         task_id="id",
         deferrable=True,
+        operator_class=CloudBuildCreateBuildOperator,
+        dag_id="cloud_build_create_build_job",
     )
 
     with pytest.raises(TaskDeferred) as exc:
-        operator.execute(create_context(operator))
+        ti.task.execute({"ti": ti})
 
     assert isinstance(
         exc.value.trigger, CloudBuildCreateBuildTrigger
@@ -443,19 +454,25 @@ def test_async_create_build_without_wait_should_execute_successfully(mock_hook):
     mock_hook.return_value.get_build.assert_called_once_with(id_=BUILD_ID, project_id=None, location="global")
 
 
+@pytest.mark.db_test
 @mock.patch(CLOUD_BUILD_HOOK_PATH)
-def test_async_create_build_correct_logging_should_execute_successfully(mock_hook):
+def test_async_create_build_correct_logging_should_execute_successfully(
+    mock_hook, create_task_instance_of_operator, session
+):
     mock_hook.return_value.create_build_without_waiting_for_result.return_value = (BUILD, BUILD_ID)
     mock_hook.return_value.get_build.return_value = Build()
 
-    operator = CloudBuildCreateBuildOperator(
+    ti = create_task_instance_of_operator(
         build=BUILD,
         task_id="id",
         deferrable=True,
+        operator_class=CloudBuildCreateBuildOperator,
+        dag_id="cloud_build_create_build_logging",
     )
-    with mock.patch.object(operator.log, "info") as mock_log_info:
-        operator.execute_complete(
-            context=create_context(operator),
+
+    with mock.patch.object(ti.task.log, "info") as mock_log_info:
+        ti.task.execute_complete(
+            context={"ti": ti},
             event={
                 "instance": TEST_BUILD_INSTANCE,
                 "status": "success",
@@ -463,6 +480,7 @@ def test_async_create_build_correct_logging_should_execute_successfully(mock_hoo
                 "id_": BUILD_ID,
             },
         )
+
     mock_log_info.assert_called_with("Cloud Build completed with response %s ", "Build completed")
 
 
@@ -479,7 +497,7 @@ def test_async_create_build_error_event_should_throw_exception():
 @mock.patch(CLOUD_BUILD_HOOK_PATH)
 def test_async_create_build_with_missing_build_should_throw_exception(mock_hook):
     mock_hook.return_value.create_build.return_value = Build()
-    with pytest.raises(AirflowException, match="missing keyword argument 'build'"):
+    with pytest.raises((TypeError, AirflowException), match="missing keyword argument 'build'"):
         CloudBuildCreateBuildOperator(task_id="id")
 
 
@@ -521,7 +539,7 @@ def create_context(task):
     logical_date = datetime(2022, 1, 1, 0, 0, 0)
     dag_run = DagRun(
         dag_id=dag.dag_id,
-        execution_date=logical_date,
+        logical_date=logical_date,
         run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
     )
     task_instance = TaskInstance(task=task)

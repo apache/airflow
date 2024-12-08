@@ -18,19 +18,20 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from functools import wraps
-from typing import Callable, Sequence, TypeVar, cast
+from typing import Callable, TypeVar, cast
 
 from flask import current_app, render_template, request
 
 from airflow.api_connexion.exceptions import PermissionDenied
 from airflow.api_connexion.security import check_authentication
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.configuration import conf
 from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.utils.airflow_flask_app import AirflowApp
 from airflow.utils.net import get_hostname
 from airflow.www.auth import _has_access
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 T = TypeVar("T", bound=Callable)
 

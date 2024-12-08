@@ -24,9 +24,9 @@ from unittest import mock
 import pytest
 
 from airflow.security import kerberos
-from airflow.security.kerberos import get_kerberos_principle, renew_from_kt
+from airflow.security.kerberos import get_kerberos_principal, renew_from_kt
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
@@ -285,13 +285,13 @@ class TestKerberos:
             mock.call("test-principal", "/tmp/keytab"),
         ]
 
-    def test_get_kerberos_principle(self):
+    def test_get_kerberos_principal(self):
         expected_principal = "test-principal"
-        principal = get_kerberos_principle(expected_principal)
+        principal = get_kerberos_principal(expected_principal)
         assert principal == expected_principal
 
     @mock.patch("airflow.security.kerberos.get_hostname", return_value="REPLACEMENT_HOST")
     @mock.patch("airflow.security.kerberos.conf.get_mandatory_value", return_value="test-principal/_HOST")
-    def test_get_kerberos_principle_resolve_null_principal(self, get_madantory_value_mock, get_hostname_mock):
-        principal = get_kerberos_principle(principal=None)
+    def test_get_kerberos_principal_resolve_null_principal(self, get_madantory_value_mock, get_hostname_mock):
+        principal = get_kerberos_principal(principal=None)
         assert principal == "test-principal/REPLACEMENT_HOST"

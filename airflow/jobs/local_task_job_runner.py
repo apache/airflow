@@ -42,7 +42,6 @@ if TYPE_CHECKING:
 
     from airflow.jobs.job import Job
     from airflow.models.taskinstance import TaskInstance
-    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 SIGSEGV_MESSAGE = """
 ******************************************* Received SIGSEGV *******************************************
@@ -83,14 +82,13 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
     def __init__(
         self,
         job: Job,
-        task_instance: TaskInstance | TaskInstancePydantic,
+        task_instance: TaskInstance,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
         wait_for_past_depends_before_skipping: bool = False,
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         mark_success: bool = False,
-        pickle_id: int | None = None,
         pool: str | None = None,
         external_executor_id: str | None = None,
     ):
@@ -103,7 +101,6 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
         self.ignore_task_deps = ignore_task_deps
         self.ignore_ti_state = ignore_ti_state
         self.pool = pool
-        self.pickle_id = pickle_id
         self.mark_success = mark_success
         self.external_executor_id = external_executor_id
         # terminating state is used so that a job don't try to
@@ -115,9 +112,9 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
         self._overtime = 0.0
 
     def _execute(self) -> int | None:
-        from airflow.task.task_runner import get_task_runner
+        from airflow.task.standard_task_runner import StandardTaskRunner
 
-        self.task_runner = get_task_runner(self)
+        self.task_runner = StandardTaskRunner(self)
 
         # Print a marker post execution for internals of post task processing
         self.log.info("::group::Pre task execution logs")
@@ -159,7 +156,6 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
             wait_for_past_depends_before_skipping=self.wait_for_past_depends_before_skipping,
             ignore_task_deps=self.ignore_task_deps,
             ignore_ti_state=self.ignore_ti_state,
-            job_id=str(self.job.id),
             pool=self.pool,
             external_executor_id=self.external_executor_id,
         ):
@@ -256,7 +252,7 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
         self.terminating = True
         self._log_return_code_metric(return_code)
 
-        if is_deferral := return_code == TaskReturnCode.DEFERRED.value:
+        if return_code == TaskReturnCode.DEFERRED.value:
             self.log.info("Task exited with return code %s (task deferral)", return_code)
             _set_task_deferred_context_var()
         else:
@@ -264,10 +260,6 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
             if not IS_WINDOWS and return_code == -signal.SIGKILL:
                 message += ". For more information, see https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#LocalTaskJob-killed"
             self.log.info(message)
-
-        if not (self.task_instance.test_mode or is_deferral):
-            if conf.getboolean("scheduler", "schedule_after_task_execution", fallback=True):
-                self.task_instance.schedule_downstream_tasks(max_tis_per_query=self.job.max_tis_per_query)
 
     def on_kill(self):
         self.task_runner.terminate()
@@ -319,6 +311,8 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
                     "Recorded pid %s does not match the current pid %s", recorded_pid, current_pid
                 )
                 raise AirflowException("PID of job runner does not match")
+            ti.update_heartbeat()
+
         elif self.task_runner.return_code() is None and hasattr(self.task_runner, "process"):
             self._overtime = (timezone.utcnow() - (ti.end_date or timezone.utcnow())).total_seconds()
             if ti.state == TaskInstanceState.SKIPPED:

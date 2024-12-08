@@ -28,6 +28,7 @@ import os
 import re
 import shutil
 import time
+from collections.abc import AsyncIterator
 from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime
@@ -36,19 +37,21 @@ from inspect import signature
 from io import BytesIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile, gettempdir
-from typing import TYPE_CHECKING, Any, AsyncIterator, Callable
+from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import urlsplit
 from uuid import uuid4
 
 if TYPE_CHECKING:
-    from mypy_boto3_s3.service_resource import Bucket as S3Bucket, Object as S3ResourceObject
+    from mypy_boto3_s3.service_resource import (
+        Bucket as S3Bucket,
+        Object as S3ResourceObject,
+    )
 
     from airflow.utils.types import ArgNotSet
 
     with suppress(ImportError):
         from aiobotocore.client import AioBaseClient
 
-from importlib.util import find_spec
 
 from asgiref.sync import sync_to_async
 from boto3.s3.transfer import S3Transfer, TransferConfig
@@ -58,14 +61,8 @@ from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.tags import format_tags
+from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 from airflow.utils.helpers import chunks
-
-if find_spec("airflow.assets"):
-    from airflow.lineage.hook import get_hook_lineage_collector
-else:
-    # TODO: import from common.compat directly after common.compat providers with
-    # asset_compat_lineage_collector released
-    from airflow.providers.amazon.aws.utils.asset_compat_lineage_collector import get_hook_lineage_collector
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +87,7 @@ def provide_bucket_name(func: Callable) -> Callable:
     async def maybe_add_bucket_name(*args, **kwargs):
         bound_args = function_signature.bind(*args, **kwargs)
 
-        if "bucket_name" not in bound_args.arguments:
+        if not bound_args.arguments.get("bucket_name"):
             self = args[0]
             if self.aws_conn_id:
                 connection = await sync_to_async(self.get_connection)(self.aws_conn_id)
@@ -120,7 +117,7 @@ def provide_bucket_name(func: Callable) -> Callable:
         def wrapper(*args, **kwargs) -> Callable:
             bound_args = function_signature.bind(*args, **kwargs)
 
-            if "bucket_name" not in bound_args.arguments:
+            if not bound_args.arguments.get("bucket_name"):
                 self = args[0]
 
                 if "bucket_name" in self.service_config:
@@ -148,9 +145,10 @@ def unify_bucket_name_and_key(func: Callable) -> Callable:
 
         if "bucket_name" not in bound_args.arguments:
             with suppress(S3HookUriParseFailure):
-                bound_args.arguments["bucket_name"], bound_args.arguments[key_name] = S3Hook.parse_s3_url(
-                    bound_args.arguments[key_name]
-                )
+                (
+                    bound_args.arguments["bucket_name"],
+                    bound_args.arguments[key_name],
+                ) = S3Hook.parse_s3_url(bound_args.arguments[key_name])
 
         return func(*bound_args.args, **bound_args.kwargs)
 
@@ -318,7 +316,8 @@ class S3Hook(AwsBaseHook):
                 self.log.info('Bucket "%s" does not exist', bucket_name)
             elif return_code == 403:
                 self.log.error(
-                    'Access to bucket "%s" is forbidden or there was an error with the request', bucket_name
+                    'Access to bucket "%s" is forbidden or there was an error with the request',
+                    bucket_name,
                 )
                 self.log.error(e)
             return False
@@ -359,7 +358,8 @@ class S3Hook(AwsBaseHook):
             self.get_conn().create_bucket(Bucket=bucket_name)
         else:
             self.get_conn().create_bucket(
-                Bucket=bucket_name, CreateBucketConfiguration={"LocationConstraint": region_name}
+                Bucket=bucket_name,
+                CreateBucketConfiguration={"LocationConstraint": region_name},
             )
 
     @provide_bucket_name
@@ -410,7 +410,10 @@ class S3Hook(AwsBaseHook):
 
         paginator = self.get_conn().get_paginator("list_objects_v2")
         response = paginator.paginate(
-            Bucket=bucket_name, Prefix=prefix, Delimiter=delimiter, PaginationConfig=config
+            Bucket=bucket_name,
+            Prefix=prefix,
+            Delimiter=delimiter,
+            PaginationConfig=config,
         )
 
         prefixes: list[str] = []
@@ -471,7 +474,10 @@ class S3Hook(AwsBaseHook):
 
         paginator = client.get_paginator("list_objects_v2")
         response = paginator.paginate(
-            Bucket=bucket_name, Prefix=prefix, Delimiter=delimiter, PaginationConfig=config
+            Bucket=bucket_name,
+            Prefix=prefix,
+            Delimiter=delimiter,
+            PaginationConfig=config,
         )
 
         prefixes = []
@@ -569,7 +575,11 @@ class S3Hook(AwsBaseHook):
         return await self._check_key_async(client, bucket, wildcard_match, bucket_keys, use_regex)
 
     async def check_for_prefix_async(
-        self, client: AioBaseClient, prefix: str, delimiter: str, bucket_name: str | None = None
+        self,
+        client: AioBaseClient,
+        prefix: str,
+        delimiter: str,
+        bucket_name: str | None = None,
     ) -> bool:
         """
         Check that a prefix exists in a bucket.
@@ -587,7 +597,11 @@ class S3Hook(AwsBaseHook):
         return prefix in plist
 
     async def _check_for_prefix_async(
-        self, client: AioBaseClient, prefix: str, delimiter: str, bucket_name: str | None = None
+        self,
+        client: AioBaseClient,
+        prefix: str,
+        delimiter: str,
+        bucket_name: str | None = None,
     ) -> bool:
         return await self.check_for_prefix_async(
             client, prefix=prefix, delimiter=delimiter, bucket_name=bucket_name
@@ -643,7 +657,10 @@ class S3Hook(AwsBaseHook):
 
         paginator = client.get_paginator("list_objects_v2")
         response = paginator.paginate(
-            Bucket=bucket_name, Prefix=prefix, Delimiter=delimiter, PaginationConfig=config
+            Bucket=bucket_name,
+            Prefix=prefix,
+            Delimiter=delimiter,
+            PaginationConfig=config,
         )
 
         keys = []
@@ -655,7 +672,10 @@ class S3Hook(AwsBaseHook):
         return keys
 
     def _list_key_object_filter(
-        self, keys: list, from_datetime: datetime | None = None, to_datetime: datetime | None = None
+        self,
+        keys: list,
+        from_datetime: datetime | None = None,
+        to_datetime: datetime | None = None,
     ) -> list:
         def _is_in_period(input_date: datetime) -> bool:
             if from_datetime is not None and input_date <= from_datetime:
@@ -766,7 +786,10 @@ class S3Hook(AwsBaseHook):
                     "message": success_message,
                 }
 
-            self.log.error("FAILURE: Inactivity Period passed, not enough objects found in %s", path)
+            self.log.error(
+                "FAILURE: Inactivity Period passed, not enough objects found in %s",
+                path,
+            )
             return {
                 "status": "error",
                 "message": f"FAILURE: Inactivity Period passed, not enough objects found in {path}",
@@ -1109,7 +1132,13 @@ class S3Hook(AwsBaseHook):
             extra_args["ACL"] = acl_policy
 
         client = self.get_conn()
-        client.upload_file(filename, bucket_name, key, ExtraArgs=extra_args, Config=self.transfer_config)
+        client.upload_file(
+            filename,
+            bucket_name,
+            key,
+            ExtraArgs=extra_args,
+            Config=self.transfer_config,
+        )
         get_hook_lineage_collector().add_input_asset(
             context=self, scheme="file", asset_kwargs={"path": filename}
         )
@@ -1269,6 +1298,7 @@ class S3Hook(AwsBaseHook):
         dest_bucket_name: str | None = None,
         source_version_id: str | None = None,
         acl_policy: str | None = None,
+        meta_data_directive: str | None = None,
         **kwargs,
     ) -> None:
         """
@@ -1298,28 +1328,46 @@ class S3Hook(AwsBaseHook):
         :param source_version_id: Version ID of the source object (OPTIONAL)
         :param acl_policy: The string to specify the canned ACL policy for the
             object to be copied which is private by default.
+        :param meta_data_directive: Whether to `COPY` the metadata from the source object or `REPLACE` it
+            with metadata that's provided in the request.
         """
         acl_policy = acl_policy or "private"
         if acl_policy != NO_ACL:
             kwargs["ACL"] = acl_policy
+        if meta_data_directive:
+            kwargs["MetadataDirective"] = meta_data_directive
 
         dest_bucket_name, dest_bucket_key = self.get_s3_bucket_key(
             dest_bucket_name, dest_bucket_key, "dest_bucket_name", "dest_bucket_key"
         )
 
         source_bucket_name, source_bucket_key = self.get_s3_bucket_key(
-            source_bucket_name, source_bucket_key, "source_bucket_name", "source_bucket_key"
+            source_bucket_name,
+            source_bucket_key,
+            "source_bucket_name",
+            "source_bucket_key",
         )
 
-        copy_source = {"Bucket": source_bucket_name, "Key": source_bucket_key, "VersionId": source_version_id}
+        copy_source = {
+            "Bucket": source_bucket_name,
+            "Key": source_bucket_key,
+            "VersionId": source_version_id,
+        }
         response = self.get_conn().copy_object(
-            Bucket=dest_bucket_name, Key=dest_bucket_key, CopySource=copy_source, **kwargs
+            Bucket=dest_bucket_name,
+            Key=dest_bucket_key,
+            CopySource=copy_source,
+            **kwargs,
         )
         get_hook_lineage_collector().add_input_asset(
-            context=self, scheme="s3", asset_kwargs={"bucket": source_bucket_name, "key": source_bucket_key}
+            context=self,
+            scheme="s3",
+            asset_kwargs={"bucket": source_bucket_name, "key": source_bucket_key},
         )
         get_hook_lineage_collector().add_output_asset(
-            context=self, scheme="s3", asset_kwargs={"bucket": dest_bucket_name, "key": dest_bucket_key}
+            context=self,
+            scheme="s3",
+            asset_kwargs={"bucket": dest_bucket_name, "key": dest_bucket_key},
         )
         return response
 
@@ -1435,7 +1483,10 @@ class S3Hook(AwsBaseHook):
             file_path = Path(local_dir, subdir, filename_in_s3)
 
             if file_path.is_file():
-                self.log.error("file '%s' already exists. Failing the task and not overwriting it", file_path)
+                self.log.error(
+                    "file '%s' already exists. Failing the task and not overwriting it",
+                    file_path,
+                )
                 raise FileExistsError
 
             file_path.parent.mkdir(exist_ok=True, parents=True)
@@ -1484,7 +1535,10 @@ class S3Hook(AwsBaseHook):
         s3_client = self.get_conn()
         try:
             return s3_client.generate_presigned_url(
-                ClientMethod=client_method, Params=params, ExpiresIn=expires_in, HttpMethod=http_method
+                ClientMethod=client_method,
+                Params=params,
+                ExpiresIn=expires_in,
+                HttpMethod=http_method,
             )
 
         except ClientError as e:

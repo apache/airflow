@@ -18,21 +18,38 @@
  */
 import { Box, Button, type ButtonProps } from "@chakra-ui/react";
 import type { ReactElement } from "react";
-import { Link as RouterLink } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 
-import { navButtonProps } from "./navButtonProps";
+const styles = {
+  alignItems: "center",
+  borderRadius: "none",
+  colorPalette: "blue",
+  flexDir: "column",
+  height: 20,
+  variant: "ghost",
+  whiteSpace: "wrap",
+  width: 20,
+} satisfies ButtonProps;
 
 type NavButtonProps = {
-  readonly href?: string;
   readonly icon: ReactElement;
-  readonly target?: string;
   readonly title?: string;
   readonly to?: string;
 } & ButtonProps;
 
-export const NavButton = ({ icon, title, to, ...rest }: NavButtonProps) => (
-  <Button as={RouterLink} to={to} {...navButtonProps} {...rest}>
-    <Box alignSelf="center">{icon}</Box>
-    <Box fontSize="xs">{title}</Box>
-  </Button>
-);
+export const NavButton = ({ icon, title, to, ...rest }: NavButtonProps) =>
+  to === undefined ? (
+    <Button {...styles} {...rest}>
+      <Box alignSelf="center">{icon}</Box>
+      <Box fontSize="xs">{title}</Box>
+    </Button>
+  ) : (
+    <NavLink to={to}>
+      {({ isActive }: { readonly isActive: boolean }) => (
+        <Button {...styles} variant={isActive ? "solid" : "ghost"} {...rest}>
+          <Box alignSelf="center">{icon}</Box>
+          <Box fontSize="xs">{title}</Box>
+        </Button>
+      )}
+    </NavLink>
+  );

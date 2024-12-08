@@ -29,14 +29,13 @@ from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils.session import provide_session
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
-from dev.tests_common.test_utils.www import _check_last_log
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.www import _check_last_log
 
 pytestmark = [
     pytest.mark.db_test,
-    pytest.mark.skip_if_database_isolation_mode,
     pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3.0+"),
 ]
 
@@ -144,14 +143,14 @@ class TestDagEndpoint:
         session.add(dag_model)
 
     @provide_session
-    def _create_dag_model_for_details_endpoint_with_dataset_expression(self, dag_id, session=None):
+    def _create_dag_model_for_details_endpoint_with_asset_expression(self, dag_id, session=None):
         dag_model = DagModel(
             dag_id=dag_id,
             fileloc="/tmp/dag.py",
             timetable_summary="2 2 * * *",
             is_active=True,
             is_paused=False,
-            dataset_expression={
+            asset_expression={
                 "any": [
                     "s3://dag1/output_1.txt",
                     {"all": ["s3://dag2/output_1.txt", "s3://dag3/output_3.txt"]},
@@ -217,7 +216,7 @@ class TestPatchDag(TestDagEndpoint):
             environ_overrides={"REMOTE_USER": "test_granular_permissions"},
         )
         assert response.status_code == 200
-        _check_last_log(session, dag_id="TEST_DAG_1", event="api.patch_dag", execution_date=None)
+        _check_last_log(session, dag_id="TEST_DAG_1", event="api.patch_dag", logical_date=None)
 
     def test_validation_error_raises_400(self):
         patch_body = {

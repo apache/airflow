@@ -20,10 +20,7 @@ import os
 
 import pytest
 
-from airflow.providers.google.cloud.hooks.secret_manager import SecretsManagerHook
-
-from dev.tests_common.test_utils.gcp_system_helpers import GoogleSystemTest, provide_gcp_context
-from providers.tests.google.cloud.utils.gcp_authenticator import GCP_SECRET_MANAGER_KEY
+from tests_common.test_utils.gcp_system_helpers import GoogleSystemTest
 
 TEST_SECRET_ID = os.environ.get("GCP_SECRET_MANAGER_SECRET_ID", "test-secret")
 TEST_SECRET_VALUE = os.environ.get("GCP_SECRET_MANAGER_SECRET_VALUE", "test-secret-value")
@@ -46,32 +43,3 @@ def helper_two_versions():
     GoogleSystemTest.update_secret(TEST_SECRET_ID, TEST_SECRET_VALUE_UPDATED)
     yield
     GoogleSystemTest.delete_secret(TEST_SECRET_ID)
-
-
-@pytest.mark.system("google.secret_manager")
-@pytest.mark.credential_file(GCP_SECRET_MANAGER_KEY)
-class TestSecretsManagerSystem(GoogleSystemTest):
-    @pytest.mark.usefixtures("helper_one_version")
-    @provide_gcp_context(GCP_SECRET_MANAGER_KEY)
-    def test_read_secret_from_secret_manager(self):
-        hook = SecretsManagerHook()
-        secret = hook.get_secret(secret_id=TEST_SECRET_ID)
-        assert TEST_SECRET_VALUE == secret
-
-    @pytest.mark.usefixtures("helper_one_version")
-    @provide_gcp_context(GCP_SECRET_MANAGER_KEY)
-    def test_read_missing_secret_from_secret_manager(self):
-        hook = SecretsManagerHook()
-        secret = hook.get_secret(secret_id=TEST_MISSING_SECRET_ID)
-        assert secret is None
-
-    @pytest.mark.usefixtures("helper_two_versions")
-    @provide_gcp_context(GCP_SECRET_MANAGER_KEY)
-    def test_read_secret_different_versions_from_secret_manager(self):
-        hook = SecretsManagerHook()
-        secret = hook.get_secret(secret_id=TEST_SECRET_ID)
-        assert TEST_SECRET_VALUE_UPDATED == secret
-        secret = hook.get_secret(secret_id=TEST_SECRET_ID, secret_version="1")
-        assert TEST_SECRET_VALUE == secret
-        secret = hook.get_secret(secret_id=TEST_SECRET_ID, secret_version="2")
-        assert TEST_SECRET_VALUE_UPDATED == secret

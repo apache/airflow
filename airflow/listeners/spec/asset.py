@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 from pluggy import HookspecMarker
 
 if TYPE_CHECKING:
-    from airflow.assets import Asset, AssetAlias
+    from airflow.sdk.definitions.asset import Asset, AssetAlias
 
 hookspec = HookspecMarker("airflow")
 
@@ -33,8 +33,8 @@ def on_asset_created(asset: Asset):
 
 
 @hookspec
-def on_asset_alias_created(dataset_alias: AssetAlias):
-    """Execute when a new dataset alias is created."""
+def on_asset_alias_created(asset_alias: AssetAlias):
+    """Execute when a new asset alias is created."""
 
 
 @hookspec

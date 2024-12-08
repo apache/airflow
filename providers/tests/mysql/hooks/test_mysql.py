@@ -38,7 +38,7 @@ except ImportError:
 
 from airflow.utils import timezone
 
-from dev.tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
+from tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 SSL_DICT = {"cert": "/tmp/client-cert.pem", "ca": "/tmp/server-ca.pem", "key": "/tmp/client-key.pem"}
 
@@ -305,7 +305,7 @@ class TestMySqlHook:
         self.cur.execute.assert_called_once_with("SELECT * INTO OUTFILE %s FROM table", ("/tmp/file",))
 
     def test_serialize_cell(self):
-        assert "foo" == self.db_hook._serialize_cell("foo", None)
+        assert self.db_hook._serialize_cell("foo", None) == "foo"
 
     def test_bulk_load_custom(self):
         self.db_hook.bulk_load_custom(

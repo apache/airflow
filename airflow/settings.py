@@ -23,7 +23,6 @@ import json
 import logging
 import os
 import sys
-import traceback
 import warnings
 from importlib import metadata
 from typing import TYPE_CHECKING, Any, Callable
@@ -31,6 +30,7 @@ from typing import TYPE_CHECKING, Any, Callable
 import pluggy
 from packaging.version import Version
 from sqlalchemy import create_engine, exc, text
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession as SAAsyncSession, create_async_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
@@ -95,8 +95,22 @@ LOGGING_CLASS_PATH: str | None = None
 DONOT_MODIFY_HANDLERS: bool | None = None
 DAGS_FOLDER: str = os.path.expanduser(conf.get_mandatory_value("core", "DAGS_FOLDER"))
 
+AIO_LIBS_MAPPING = {"sqlite": "aiosqlite", "postgresql": "asyncpg", "mysql": "aiomysql"}
+"""
+Mapping of sync scheme to async scheme.
+
+:meta private:
+"""
+
 engine: Engine
 Session: Callable[..., SASession]
+# NonScopedSession creates global sessions and is not safe to use in multi-threaded environment without
+# additional precautions. The only use case is when the session lifecycle needs
+# custom handling. Most of the time we only want one unique thread local session object,
+# this is achieved by the Session factory above.
+NonScopedSession: Callable[..., SASession]
+async_engine: AsyncEngine
+AsyncSession: Callable[..., SAAsyncSession]
 
 # The JSON library to use for DAG Serialization and De-Serialization
 json = json
@@ -119,7 +133,7 @@ STATE_COLORS = {
 }
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _get_rich_console(file):
     # Delay imports until we need it
     import rich.console
@@ -199,13 +213,25 @@ def load_policy_plugins(pm: pluggy.PluginManager):
     pm.load_setuptools_entrypoints("airflow.policy")
 
 
+def _get_async_conn_uri_from_sync(sync_uri):
+    scheme, rest = sync_uri.split(":", maxsplit=1)
+    scheme = scheme.split("+", maxsplit=1)[0]
+    aiolib = AIO_LIBS_MAPPING.get(scheme)
+    if aiolib:
+        return f"{scheme}+{aiolib}:{rest}"
+    else:
+        return sync_uri
+
+
 def configure_vars():
     """Configure Global Variables from airflow.cfg."""
     global SQL_ALCHEMY_CONN
+    global SQL_ALCHEMY_CONN_ASYNC
     global DAGS_FOLDER
     global PLUGINS_FOLDER
     global DONOT_MODIFY_HANDLERS
     SQL_ALCHEMY_CONN = conf.get("database", "SQL_ALCHEMY_CONN")
+    SQL_ALCHEMY_CONN_ASYNC = _get_async_conn_uri_from_sync(sync_uri=SQL_ALCHEMY_CONN)
 
     DAGS_FOLDER = os.path.expanduser(conf.get("core", "DAGS_FOLDER"))
 
@@ -274,138 +300,11 @@ class SkipDBTestsSession:
         pass
 
 
-def get_cleaned_traceback(stack_summary: traceback.StackSummary) -> str:
-    clened_traceback = [
-        frame
-        for frame in stack_summary[:-2]
-        if "/_pytest" not in frame.filename and "/pluggy" not in frame.filename
-    ]
-    return "".join(traceback.format_list(clened_traceback))
-
-
-class TracebackSession:
-    """
-    Session that throws error when you try to use it.
-
-    Also stores stack at instantiation call site.
-
-    :meta private:
-    """
-
-    def __init__(self):
-        self.traceback = traceback.extract_stack()
-
-    def __getattr__(self, item):
-        raise RuntimeError(
-            "TracebackSession object was used but internal API is enabled. "
-            "You'll need to ensure you are making only RPC calls with this object. "
-            "The stack list below will show where the TracebackSession object was created."
-            + get_cleaned_traceback(self.traceback)
-        )
-
-    def remove(*args, **kwargs):
-        pass
-
-
 AIRFLOW_PATH = os.path.dirname(os.path.dirname(__file__))
 AIRFLOW_TESTS_PATH = os.path.join(AIRFLOW_PATH, "tests")
 AIRFLOW_SETTINGS_PATH = os.path.join(AIRFLOW_PATH, "airflow", "settings.py")
 AIRFLOW_UTILS_SESSION_PATH = os.path.join(AIRFLOW_PATH, "airflow", "utils", "session.py")
 AIRFLOW_MODELS_BASEOPERATOR_PATH = os.path.join(AIRFLOW_PATH, "airflow", "models", "baseoperator.py")
-
-
-class TracebackSessionForTests:
-    """
-    Session that throws error when you try to create a session outside of the test code.
-
-    When we run our tests in "db isolation" mode we expect that "airflow" code will never create
-    a session on its own and internal_api server is used for all calls but the test code might use
-    the session to setup and teardown in the DB so that the internal API server accesses it.
-
-    :meta private:
-    """
-
-    db_session_class = None
-    allow_db_access = False
-    """For pytests to create/prepare stuff where explicit DB access it needed"""
-
-    def __init__(self):
-        self.current_db_session = TracebackSessionForTests.db_session_class()
-        self.created_traceback = traceback.extract_stack()
-
-    def __getattr__(self, item):
-        test_code, frame_summary = self.is_called_from_test_code()
-        if self.allow_db_access or test_code:
-            return getattr(self.current_db_session, item)
-        raise RuntimeError(
-            "TracebackSessionForTests object was used but internal API is enabled. "
-            "Only test code is allowed to use this object.\n"
-            f"Called from:\n    {frame_summary.filename}: {frame_summary.lineno}\n"
-            f"     {frame_summary.line}\n\n"
-            "You'll need to ensure you are making only RPC calls with this object. "
-            "The stack list below will show where the TracebackSession object was called:\n"
-            + get_cleaned_traceback(self.traceback)
-            + "\n\nThe stack list below will show where the TracebackSession object was created:\n"
-            + get_cleaned_traceback(self.created_traceback)
-        )
-
-    def remove(*args, **kwargs):
-        pass
-
-    @staticmethod
-    def set_allow_db_access(session, flag: bool):
-        """Temporarily, e.g. for pytests allow access to DB to prepare stuff."""
-        if isinstance(session, TracebackSessionForTests):
-            session.allow_db_access = flag
-
-    def is_called_from_test_code(self) -> tuple[bool, traceback.FrameSummary | None]:
-        """
-        Check if the traceback session was used from the test code.
-
-        This is done by checking if the first "airflow" filename in the traceback
-        is "airflow/tests" or "regular airflow".
-
-        :meta: private
-        :return: True if the object was created from test code, False otherwise.
-        """
-        self.traceback = traceback.extract_stack()
-        airflow_frames = [
-            tb
-            for tb in self.traceback
-            if tb.filename.startswith(AIRFLOW_PATH)
-            and not tb.filename == AIRFLOW_SETTINGS_PATH
-            and not tb.filename == AIRFLOW_UTILS_SESSION_PATH
-        ]
-        if any(
-            filename.endswith("conftest.py")
-            or filename.endswith("dev/airflow_common_pytest/test_utils/db.py")
-            for filename, _, _, _ in airflow_frames
-        ):
-            # This is a fixture call or testing utilities
-            return True, None
-        if (
-            len(airflow_frames) >= 2
-            and airflow_frames[-2].filename.startswith(AIRFLOW_TESTS_PATH)
-            and airflow_frames[-1].filename == AIRFLOW_MODELS_BASEOPERATOR_PATH
-            and airflow_frames[-1].name == "run"
-        ):
-            # This is baseoperator run method that is called directly from the test code and this is
-            # usual pattern where we create a session in the test code to create dag_runs for tests.
-            # If `run` code will be run inside a real "airflow" code the stack trace would be longer
-            # and it would not be directly called from the test code. Also if subsequently any of the
-            # run_task() method called later from the task code will attempt to execute any DB
-            # method, the stack trace will be longer and we will catch it as "illegal" call.
-            return True, None
-        for tb in airflow_frames[::-1]:
-            if tb.filename.startswith(AIRFLOW_PATH):
-                if tb.filename.startswith(AIRFLOW_TESTS_PATH):
-                    # this is a session created directly in the test code
-                    return True, None
-                else:
-                    return False, tb
-        # if it is from elsewhere.... Why???? We should return False in order to crash to find out
-        # The traceback line will be always 3rd (two bottom ones are Airflow)
-        return False, self.traceback[-2]
 
 
 def _is_sqlite_db_path_relative(sqla_conn_str: str) -> bool:
@@ -441,15 +340,14 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
 
     global Session
     global engine
+    global async_engine
+    global AsyncSession
+    global NonScopedSession
+
     if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
         # Skip DB initialization in unit tests, if DB tests are skipped
         Session = SkipDBTestsSession
         engine = None
-        return
-    if conf.get("database", "sql_alchemy_conn") == "none://":
-        from airflow.api_internal.internal_api_call import InternalApiConfig
-
-        InternalApiConfig.set_use_internal_api("ORM reconfigured in forked process.")
         return
     log.debug("Setting up DB connection pool (PID %s)", os.getpid())
     engine_args = prepare_engine_args(disable_connection_pool, pool_class)
@@ -459,8 +357,21 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     else:
         connect_args = {}
 
-    engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args, future=True)
+    if SQL_ALCHEMY_CONN.startswith("sqlite"):
+        # FastAPI runs sync endpoints in a separate thread. SQLite does not allow
+        # to use objects created in another threads by default. Allowing that in test
+        # to so the `test` thread and the tested endpoints can use common objects.
+        connect_args["check_same_thread"] = False
 
+    engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args, future=True)
+    async_engine = create_async_engine(SQL_ALCHEMY_CONN_ASYNC, future=True)
+    AsyncSession = sessionmaker(
+        bind=async_engine,
+        autocommit=False,
+        autoflush=False,
+        class_=SAAsyncSession,
+        expire_on_commit=False,
+    )
     mask_secret(engine.url.password)
 
     setup_event_handlers(engine)
@@ -477,26 +388,8 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
                 expire_on_commit=False,
             )
 
-    Session = scoped_session(_session_maker(engine))
-
-
-def force_traceback_session_for_untrusted_components(allow_tests_to_use_db=False):
-    log.info("Forcing TracebackSession for untrusted components.")
-    global Session
-    global engine
-    if allow_tests_to_use_db:
-        old_session_class = Session
-        Session = TracebackSessionForTests
-        TracebackSessionForTests.db_session_class = old_session_class
-    else:
-        try:
-            dispose_orm()
-        except NameError:
-            # This exception might be thrown in case the ORM has not been initialized yet.
-            pass
-        else:
-            Session = TracebackSession
-        engine = None
+    NonScopedSession = _session_maker(engine)
+    Session = scoped_session(NonScopedSession)
 
 
 DEFAULT_ENGINE_ARGS = {
@@ -617,7 +510,15 @@ def configure_adapters():
 
     if SQL_ALCHEMY_CONN.startswith("mysql"):
         try:
-            import MySQLdb.converters
+            try:
+                import MySQLdb.converters
+            except ImportError:
+                raise RuntimeError(
+                    "You do not have `mysqlclient` package installed. "
+                    "Please install it with `pip install mysqlclient` and make sure you have system "
+                    "mysql libraries installed, as well as well as `pkg-config` system package "
+                    "installed in case you see compilation error during installation."
+                )
 
             MySQLdb.converters.conversions[Pendulum] = MySQLdb.converters.DateTime2literal
         except ImportError:
@@ -741,6 +642,9 @@ def initialize():
     configure_orm()
     configure_action_logging()
 
+    # mask the sensitive_config_values
+    conf.mask_secrets()
+
     # Run any custom runtime checks that needs to be executed for providers
     run_providers_custom_runtime_checks()
 
@@ -780,7 +684,7 @@ EXECUTE_TASKS_NEW_PYTHON_INTERPRETER = not CAN_FORK or conf.getboolean(
     fallback=False,
 )
 
-ALLOW_FUTURE_EXEC_DATES = conf.getboolean("scheduler", "allow_trigger_in_future", fallback=False)
+ALLOW_FUTURE_LOGICAL_DATES = conf.getboolean("scheduler", "allow_trigger_in_future", fallback=False)
 
 USE_JOB_SCHEDULE = conf.getboolean("scheduler", "use_job_schedule", fallback=True)
 
@@ -831,13 +735,3 @@ DASHBOARD_UIALERTS: list[UIAlert] = []
 AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"
 
 DAEMON_UMASK: str = conf.get("core", "daemon_umask", fallback="0o077")
-
-# AIP-44: internal_api (experimental)
-# This feature is not complete yet, so we disable it by default.
-_ENABLE_AIP_44: bool = os.environ.get("AIRFLOW_ENABLE_AIP_44", "false").lower() in {
-    "true",
-    "t",
-    "yes",
-    "y",
-    "1",
-}

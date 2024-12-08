@@ -21,11 +21,10 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.atlassian.jira.hooks.jira import JiraHook
 
-from dev.tests_common.test_utils.compat import connection_as_json
+from tests_common.test_utils.compat import connection_as_json
 
 
 @pytest.fixture
@@ -39,7 +38,6 @@ class TestJiraHook:
     @pytest.fixture(autouse=True)
     def setup_test_cases(self, monkeypatch):
         self.conn_id = "jira_default"
-        self.conn_id_with_str_verify = "jira_default_with_str"
         self.host = "https://localhost/jira/"
         self.port = 443
         self.login = "user"
@@ -60,39 +58,9 @@ class TestJiraHook:
                 )
             ),
         )
-        monkeypatch.setenv(
-            f"AIRFLOW_CONN_{self.conn_id_with_str_verify}".upper(),
-            connection_as_json(
-                Connection(
-                    conn_id=self.conn_id_with_str_verify,
-                    conn_type="jira",
-                    host="https://localhost/jira/",
-                    port=443,
-                    login="user",
-                    password="password",
-                    extra='{"verify": "False", "project": "AIRFLOW"}',
-                )
-            ),
-        )
 
     def test_jira_client_connection(self, mocked_jira_client):
         jira_hook = JiraHook(proxies=self.proxies)
-
-        mocked_jira_client.assert_called_once_with(
-            url=self.host,
-            username=self.login,
-            password=self.password,
-            verify_ssl=False,
-            proxies=self.proxies,
-        )
-        assert isinstance(jira_hook.client, mock.Mock)
-        assert jira_hook.client.name == mocked_jira_client.return_value.name
-
-    def test_jira_client_connection_with_str(self, mocked_jira_client):
-        warning_message = "Extra parameter `verify` using str is deprecated and will be removed"
-
-        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
-            jira_hook = JiraHook(jira_conn_id=self.conn_id_with_str_verify, proxies=self.proxies)
 
         mocked_jira_client.assert_called_once_with(
             url=self.host,

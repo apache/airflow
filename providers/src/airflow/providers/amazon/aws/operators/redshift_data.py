@@ -28,7 +28,10 @@ from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
-    from mypy_boto3_redshift_data.type_defs import GetStatementResultResponseTypeDef
+    from mypy_boto3_redshift_data.type_defs import (
+        DescribeStatementResponseTypeDef,
+        GetStatementResultResponseTypeDef,
+    )
 
     from airflow.utils.context import Context
 
@@ -37,7 +40,7 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
     """
     Executes SQL Statements against an Amazon Redshift cluster using Redshift Data.
 
-    .. seealso::
+    ... see also::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:RedshiftDataOperator`
 
@@ -84,7 +87,6 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
     )
     template_ext = (".sql",)
     template_fields_renderers = {"sql": "sql"}
-    statement_id: str | None
 
     def __init__(
         self,
@@ -124,12 +126,11 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
                 poll_interval,
             )
         self.return_sql_result = return_sql_result
-        self.statement_id: str | None = None
         self.deferrable = deferrable
         self.session_id = session_id
         self.session_keep_alive_seconds = session_keep_alive_seconds
 
-    def execute(self, context: Context) -> GetStatementResultResponseTypeDef | str:
+    def execute(self, context: Context) -> list[GetStatementResultResponseTypeDef] | list[str]:
         """Execute a statement against Amazon Redshift."""
         self.log.info("Executing statement: %s", self.sql)
 
@@ -154,13 +155,14 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
             session_keep_alive_seconds=self.session_keep_alive_seconds,
         )
 
-        self.statement_id = query_execution_output.statement_id
+        # Pull the statement ID, session ID
+        self.statement_id: str = query_execution_output.statement_id
 
         if query_execution_output.session_id:
             self.xcom_push(context, key="session_id", value=query_execution_output.session_id)
 
         if self.deferrable and self.wait_for_completion:
-            is_finished = self.hook.check_query_is_finished(self.statement_id)
+            is_finished: bool = self.hook.check_query_is_finished(self.statement_id)
             if not is_finished:
                 self.defer(
                     timeout=self.execution_timeout,
@@ -176,16 +178,13 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
                     method_name="execute_complete",
                 )
 
-        if self.return_sql_result:
-            result = self.hook.conn.get_statement_result(Id=self.statement_id)
-            self.log.debug("Statement result: %s", result)
-            return result
-        else:
-            return self.statement_id
+        # Use the get_sql_results method to return the results of the SQL query, or the statement_ids,
+        # depending on the value of self.return_sql_result
+        return self.get_sql_results(statement_id=self.statement_id, return_sql_result=self.return_sql_result)
 
     def execute_complete(
         self, context: Context, event: dict[str, Any] | None = None
-    ) -> GetStatementResultResponseTypeDef | str:
+    ) -> list[GetStatementResultResponseTypeDef] | list[str]:
         event = validate_execute_complete_event(event)
 
         if event["status"] == "error":
@@ -197,16 +196,40 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
             raise AirflowException("statement_id should not be empty.")
 
         self.log.info("%s completed successfully.", self.task_id)
-        if self.return_sql_result:
-            result = self.hook.conn.get_statement_result(Id=statement_id)
-            self.log.debug("Statement result: %s", result)
-            return result
 
-        return statement_id
+        # Use the get_sql_results method to return the results of the SQL query, or the statement_ids,
+        # depending on the value of self.return_sql_result
+        return self.get_sql_results(statement_id=statement_id, return_sql_result=self.return_sql_result)
+
+    def get_sql_results(
+        self, statement_id: str, return_sql_result: bool
+    ) -> list[GetStatementResultResponseTypeDef] | list[str]:
+        """
+        Retrieve either the result of the SQL query, or the statement ID(s).
+
+        :param statement_id: Statement ID of the running queries
+        :param return_sql_result: Boolean, true if results should be returned
+        """
+        # ISSUE-40427: Pull the statement, and check to see if there are sub-statements. If that is the
+        # case, pull each of the sub-statement ID's, and grab the results. Otherwise, just use statement_id
+        statement: DescribeStatementResponseTypeDef = self.hook.conn.describe_statement(Id=statement_id)
+        statement_ids: list[str] = (
+            [sub_statement["Id"] for sub_statement in statement["SubStatements"]]
+            if len(statement.get("SubStatements", [])) > 0
+            else [statement_id]
+        )
+
+        # If returning the SQL result, use get_statement_result to return the records for each query
+        if return_sql_result:
+            results: list = [self.hook.conn.get_statement_result(Id=sid) for sid in statement_ids]
+            self.log.debug("Statement result(s): %s", results)
+            return results
+        else:
+            return statement_ids
 
     def on_kill(self) -> None:
         """Cancel the submitted redshift query."""
-        if self.statement_id:
+        if hasattr(self, "statement_id"):
             self.log.info("Received a kill signal.")
             self.log.info("Stopping Query with statementId - %s", self.statement_id)
 

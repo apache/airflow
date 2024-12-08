@@ -65,7 +65,7 @@ with DAG(
         df.write.save_as_table(table_name, mode="overwrite")
         return table_name
 
-    table_name = setup_data()  # type: ignore[call-arg]
+    table_name = setup_data()  # type: ignore[call-arg, misc]
 
     @task.snowpark
     def check_num_rows(table_name: str):
@@ -80,7 +80,7 @@ with DAG(
     # [END howto_decorator_snowpark]
 
 
-from dev.tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

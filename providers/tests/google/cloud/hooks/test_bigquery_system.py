@@ -23,11 +23,11 @@ import pytest
 
 from airflow.providers.google.cloud.hooks import bigquery as hook
 
-from dev.tests_common.test_utils.gcp_system_helpers import GoogleSystemTest
 from providers.tests.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY
+from tests_common.test_utils.gcp_system_helpers import GoogleSystemTest
 
 
-@pytest.mark.system("google.cloud")
+@pytest.mark.system
 @pytest.mark.credential_file(GCP_BIGQUERY_KEY)
 class TestBigQueryDataframeResultsSystem(GoogleSystemTest):
     def setup_method(self):

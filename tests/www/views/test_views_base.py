@@ -28,9 +28,9 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.www import app as application
 
-from dev.tests_common.test_utils.asserts import assert_queries_count
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.www import check_content_in_response, check_content_not_in_response
+from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.www import check_content_in_response, check_content_not_in_response
 
 pytestmark = pytest.mark.db_test
 
@@ -124,7 +124,7 @@ def test_health(request, admin_client, heartbeat):
     scheduler_status, last_scheduler_heartbeat = request.getfixturevalue(heartbeat)
     resp = admin_client.get("health", follow_redirects=True)
     resp_json = json.loads(resp.data.decode("utf-8"))
-    assert "healthy" == resp_json["metadatabase"]["status"]
+    assert resp_json["metadatabase"]["status"] == "healthy"
     assert scheduler_status == resp_json["scheduler"]["status"]
     assert last_scheduler_heartbeat == resp_json["scheduler"]["latest_scheduler_heartbeat"]
 

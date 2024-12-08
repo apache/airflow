@@ -18,7 +18,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Generator
+from collections.abc import Generator
+from typing import Any, Callable
 
 import grpc
 from google import auth as google_auth

@@ -28,9 +28,9 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.version import version
 
-from dev.tests_common.test_utils.compat import BashOperator
+from tests_common.test_utils.compat import BashOperator
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 9)
 
@@ -42,7 +42,7 @@ def test_render_k8s_pod_yaml(pod_mutation_hook, create_task_instance):
         dag_id="test_render_k8s_pod_yaml",
         run_id="test_run_id",
         task_id="op1",
-        execution_date=DEFAULT_DATE,
+        logical_date=DEFAULT_DATE,
     )
 
     expected_pod_spec = {

@@ -19,8 +19,9 @@ from __future__ import annotations
 import datetime
 import json
 import time
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, ClassVar
 
 from botocore.exceptions import ClientError
 
@@ -65,7 +66,7 @@ class SageMakerBaseOperator(BaseOperator):
 
     template_fields: Sequence[str] = ("config",)
     template_ext: Sequence[str] = ()
-    template_fields_renderers: dict = {"config": "json"}
+    template_fields_renderers: ClassVar[dict] = {"config": "json"}
     ui_color: str = "#ededed"
     integer_fields: list[list[Any]] = []
 

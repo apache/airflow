@@ -91,21 +91,32 @@ or
 It means that your pre-commit hook is installed with (already End-Of-Life) Python 3.8 and you should reinstall
 it and clean pre-commit cache.
 
-This can be done (if you use ``pipx`` to install ``pre-commit``):
+This can be done with ``uv tool`` to install ``pre-commit``)
+
+.. code-block:: bash
+
+    uv tool uninstall pre-commit
+    uv tool install pre-commit --python 3.9 --force --with pre-commit-uv
+    pre-commit clean
+    pre-commit install
+
+You can also use ``pipx``
 
 .. code-block:: bash
 
     pipx uninstall pre-commit
     pipx install pre-commit --python $(which python3.9) --force
+    # This one allows pre-commit to use uv for venvs installed by pre-commit
+    pipx inject pre-commit pre-commit-uv  # optionally if you want to use uv to install virtualenvs
     pre-commit clean
     pre-commit install
 
 If you installed ``pre-commit`` differently, you should remove and reinstall
-it (and clean cache) in the way you installed it.
+it (and clean cache) following the way you installed it.
 
 
-Bad Interpreter Error
----------------------
+Bad Interpreter Error with ``pipx``
+-----------------------------------
 
 If you are experiencing bad interpreter errors
 ``zsh: /Users/eladkal/.local/bin/breeze: bad interpreter: /Users/eladkal/.local/pipx/venvs/apache-airflow-breeze/bin/python: no such file or directory``

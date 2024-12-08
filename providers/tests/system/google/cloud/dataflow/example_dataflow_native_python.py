@@ -68,7 +68,7 @@ with DAG(
         pipeline_options={
             "output": GCS_OUTPUT,
         },
-        py_requirements=["apache-beam[gcp]==2.47.0"],
+        py_requirements=["apache-beam[gcp]==2.59.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
         dataflow_config={"location": LOCATION, "job_name": "start_python_job"},
@@ -82,9 +82,24 @@ with DAG(
         pipeline_options={
             "output": GCS_OUTPUT,
         },
-        py_requirements=["apache-beam[gcp]==2.47.0"],
+        py_requirements=["apache-beam[gcp]==2.59.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
+    )
+
+    start_python_deferrable = BeamRunPythonPipelineOperator(
+        runner=BeamRunnerType.DataflowRunner,
+        task_id="start_python_job_deferrable",
+        py_file=GCS_PYTHON_SCRIPT,
+        py_options=[],
+        pipeline_options={
+            "output": GCS_OUTPUT,
+        },
+        py_requirements=["apache-beam[gcp]==2.59.0"],
+        py_interpreter="python3",
+        py_system_site_packages=False,
+        dataflow_config={"location": LOCATION, "job_name": "start_python_deferrable"},
+        deferrable=True,
     )
 
     # [START howto_operator_stop_dataflow_job]
@@ -103,21 +118,20 @@ with DAG(
         # TEST SETUP
         create_bucket
         # TEST BODY
-        >> start_python_job
-        >> start_python_job_local
+        >> [start_python_job, start_python_job_local, start_python_deferrable]
         >> stop_dataflow_job
         # TEST TEARDOWN
         >> delete_bucket
     )
 
-    from dev.tests_common.test_utils.watcher import watcher
+    from tests_common.test_utils.watcher import watcher
 
     # This test needs watcher in order to properly mark success/failure
     # when "teardown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
 
 
-from dev.tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

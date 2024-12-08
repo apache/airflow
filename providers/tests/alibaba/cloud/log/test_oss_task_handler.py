@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import PropertyMock
 
@@ -27,8 +28,11 @@ from airflow.providers.alibaba.cloud.log.oss_task_handler import OSSTaskHandler
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import datetime
 
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+
+if TYPE_CHECKING:
+    from tests_common.pytest_plugin import CreateTaskInstance, DagMaker
 
 pytestmark = pytest.mark.db_test
 
@@ -48,11 +52,11 @@ class TestOSSTaskHandler:
         self.oss_task_handler = OSSTaskHandler(self.base_log_folder, self.oss_log_folder)
 
     @pytest.fixture(autouse=True)
-    def task_instance(self, create_task_instance, dag_maker):
+    def task_instance(self, create_task_instance: CreateTaskInstance, dag_maker: DagMaker):
         self.ti = ti = create_task_instance(
             dag_id="dag_for_testing_oss_task_handler",
             task_id="task_for_testing_oss_task_handler",
-            execution_date=datetime(2020, 1, 1),
+            logical_date=datetime(2020, 1, 1),
             state=TaskInstanceState.RUNNING,
         )
         ti.try_number = 1

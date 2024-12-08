@@ -17,8 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any, Generator, NamedTuple
+from typing import Any, NamedTuple
 
 import flask
 import jinja2
@@ -28,10 +29,10 @@ from airflow import settings
 from airflow.models import DagBag
 from airflow.www.app import create_app
 
-from dev.tests_common.test_utils.api_connexion_utils import delete_user
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
-from dev.tests_common.test_utils.www import (
+from tests_common.test_utils.api_connexion_utils import delete_user
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
+from tests_common.test_utils.www import (
     client_with_login,
     client_without_login,
     client_without_login_as_admin,
@@ -186,9 +187,11 @@ class _TemplateWithContext(NamedTuple):
             # airflow.www.views.AirflowBaseView.extra_args
             "macros",
             "auth_manager",
+            "triggerer_job",
         ]
         for key in keys_to_delete:
-            del result[key]
+            if key in result:
+                del result[key]
 
         return result
 

@@ -18,13 +18,12 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Iterable, List, Mapping, Sequence, SupportsAbs, cast
-
-from deprecated import deprecated
+from typing import TYPE_CHECKING, Any, SupportsAbs, cast
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.operators.sql import (
     SQLCheckOperator,
     SQLExecuteQueryOperator,
@@ -36,105 +35,6 @@ from airflow.providers.snowflake.triggers.snowflake_trigger import SnowflakeSqlA
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-
-@deprecated(
-    reason=(
-        "This class is deprecated. Please use "
-        "`airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`. "
-        "Also, you can provide `hook_params={'warehouse': <warehouse>, 'database': <database>, "
-        "'role': <role>, 'schema': <schema>, 'authenticator': <authenticator>,"
-        "'session_parameters': <session_parameters>}`."
-    ),
-    category=AirflowProviderDeprecationWarning,
-)
-class SnowflakeOperator(SQLExecuteQueryOperator):
-    """
-    Executes SQL code in a Snowflake database.
-
-    This class is deprecated.
-
-    Please use :class:`airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:SnowflakeOperator`
-
-    :param snowflake_conn_id: Reference to
-        :ref:`Snowflake connection id<howto/connection:snowflake>`
-    :param sql: the SQL code to be executed as a single string, or
-        a list of str (sql statements), or a reference to a template file.
-        Template references are recognized by str ending in '.sql'
-    :param parameters: (optional) the parameters to render the SQL query with.
-    :param warehouse: name of warehouse (will overwrite any warehouse
-        defined in the connection's extra JSON)
-    :param database: name of database (will overwrite database defined
-        in connection)
-    :param schema: name of schema (will overwrite schema defined in
-        connection)
-    :param role: name of role (will overwrite any role defined in
-        connection's extra JSON)
-    :param authenticator: authenticator for Snowflake.
-        'snowflake' (default) to use the internal Snowflake authenticator
-        'externalbrowser' to authenticate using your web browser and
-        Okta, ADFS or any other SAML 2.0-compliant identify provider
-        (IdP) that has been defined for your account
-        'https://<your_okta_account_name>.okta.com' to authenticate
-        through native Okta.
-    :param session_parameters: You can set session-level parameters at
-        the time you connect to Snowflake
-    :return Returns list of dictionaries in { 'column': 'value', 'column2': 'value2' } form.
-    """
-
-    template_fields: Sequence[str] = ("sql",)
-    template_ext: Sequence[str] = (".sql",)
-    template_fields_renderers = {"sql": "sql"}
-    ui_color = "#ededed"
-
-    def __init__(
-        self,
-        *,
-        snowflake_conn_id: str = "snowflake_default",
-        warehouse: str | None = None,
-        database: str | None = None,
-        role: str | None = None,
-        schema: str | None = None,
-        authenticator: str | None = None,
-        session_parameters: dict | None = None,
-        **kwargs,
-    ) -> None:
-        if any([warehouse, database, role, schema, authenticator, session_parameters]):
-            hook_params = kwargs.pop("hook_params", {})
-            kwargs["hook_params"] = {
-                "warehouse": warehouse,
-                "database": database,
-                "role": role,
-                "schema": schema,
-                "authenticator": authenticator,
-                "session_parameters": session_parameters,
-                **hook_params,
-            }
-        super().__init__(conn_id=snowflake_conn_id, **kwargs)
-
-    def _process_output(self, results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any]:
-        validated_descriptions: list[Sequence[Sequence]] = []
-        for idx, description in enumerate(descriptions):
-            if not description:
-                raise RuntimeError(
-                    f"The query did not return descriptions of the cursor for query number {idx}. "
-                    "Cannot return values in a form of dictionary for that query."
-                )
-            validated_descriptions.append(description)
-        returned_results = []
-        for result_id, result_list in enumerate(results):
-            current_processed_result = []
-            for row in result_list:
-                dict_result: dict[Any, Any] = {}
-                for idx, description in enumerate(validated_descriptions[result_id]):
-                    dict_result[description[0]] = row[idx]
-                current_processed_result.append(dict_result)
-            returned_results.append(current_processed_result)
-        return returned_results
 
 
 class SnowflakeCheckOperator(SQLCheckOperator):
@@ -391,7 +291,7 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
 class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
     """
     Implemented Snowflake SQL API Operator to support multiple SQL statements sequentially,
-    which is the behavior of the SnowflakeOperator, the Snowflake SQL API allows submitting
+    which is the behavior of the SQLExecuteQueryOperator, the Snowflake SQL API allows submitting
     multiple SQL statements in a single request. It make post request to submit SQL
     statements for execution, poll to check the status of the execution of a statement. Fetch query results
     concurrently.
@@ -584,7 +484,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
                 raise AirflowException(msg)
             elif "status" in event and event["status"] == "success":
                 hook = SnowflakeSqlApiHook(snowflake_conn_id=self.snowflake_conn_id)
-                query_ids = cast(List[str], event["statement_query_ids"])
+                query_ids = cast(list[str], event["statement_query_ids"])
                 hook.check_query_output(query_ids)
                 self.log.info("%s completed successfully.", self.task_id)
         else:

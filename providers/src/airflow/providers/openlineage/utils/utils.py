@@ -23,17 +23,18 @@ import logging
 from contextlib import suppress
 from functools import wraps
 from importlib import metadata
-from typing import TYPE_CHECKING, Any, Callable, Iterable
+from typing import TYPE_CHECKING, Any, Callable
 
 import attrs
-from deprecated import deprecated
 from openlineage.client.utils import RedactMixin
 from packaging.version import Version
+from sqlalchemy import exists
 
 from airflow import __version__ as AIRFLOW_VERSION
-from airflow.exceptions import AirflowProviderDeprecationWarning  # TODO: move this maybe to Airflow's logic?
-from airflow.models import DAG, BaseOperator, DagRun, MappedOperator
-from airflow.providers.openlineage import conf
+
+# TODO: move this maybe to Airflow's logic?
+from airflow.models import DAG, BaseOperator, DagRun, MappedOperator, TaskReschedule
+from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
 from airflow.providers.openlineage.plugins.facets import (
     AirflowDagRunFacet,
     AirflowDebugRunFacet,
@@ -48,22 +49,41 @@ from airflow.providers.openlineage.utils.selective_enable import (
     is_dag_lineage_enabled,
     is_task_lineage_enabled,
 )
+from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.context import AirflowContextDeprecationWarning
-from airflow.utils.log.secrets_masker import Redactable, Redacted, SecretsMasker, should_hide_value_for_key
+from airflow.utils.log.secrets_masker import (
+    Redactable,
+    Redacted,
+    SecretsMasker,
+    should_hide_value_for_key,
+)
 from airflow.utils.module_loading import import_string
-
-try:
-    from airflow.assets import Asset
-except ModuleNotFoundError:
-    from airflow.datasets import Dataset as Asset  # type: ignore[no-redef]
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from openlineage.client.event_v2 import Dataset as OpenLineageDataset
-    from openlineage.client.facet_v2 import RunFacet
+    from openlineage.client.facet_v2 import RunFacet, processing_engine_run
 
     from airflow.models import TaskInstance
+    from airflow.providers.common.compat.assets import Asset
     from airflow.utils.state import DagRunState, TaskInstanceState
+else:
+    # TODO: Remove this try-exception block after bumping common provider to 1.3.0
+    # This is due to common provider AssetDetails import error handling
+    try:
+        from airflow.providers.common.compat.assets import Asset
+    except ImportError:
+        from packaging.version import Version
+
+        from airflow import __version__ as AIRFLOW_VERSION
+
+        AIRFLOW_V_3_0_PLUS = Version(Version(AIRFLOW_VERSION).base_version) >= Version("3.0.0")
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.sdk.definitions.asset import Asset
+        else:
+            # dataset is renamed to asset since Airflow 3.0
+            from airflow.datasets import Dataset as Asset
 
 log = logging.getLogger(__name__)
 _NOMINAL_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
@@ -162,6 +182,28 @@ def is_selective_lineage_enabled(obj: DAG | BaseOperator | MappedOperator) -> bo
         raise TypeError("is_selective_lineage_enabled can only be used on DAG or Operator objects")
 
 
+@provide_session
+def is_ti_rescheduled_already(ti: TaskInstance, session=NEW_SESSION):
+    if not isinstance(ti.task, BaseSensorOperator):
+        return False
+
+    if not ti.task.reschedule:
+        return False
+
+    return (
+        session.query(
+            exists().where(
+                TaskReschedule.dag_id == ti.dag_id,
+                TaskReschedule.task_id == ti.task_id,
+                TaskReschedule.run_id == ti.run_id,
+                TaskReschedule.map_index == ti.map_index,
+                TaskReschedule.try_number == ti.try_number,
+            )
+        ).scalar()
+        is True
+    )
+
+
 class InfoJsonEncodable(dict):
     """
     Airflow objects might not be json-encodable overall.
@@ -195,6 +237,7 @@ class InfoJsonEncodable(dict):
             self,
             **{field: InfoJsonEncodable._cast_basic_types(getattr(self, field)) for field in self._fields},
         )
+        del self.obj
 
     @staticmethod
     def _cast_basic_types(value):
@@ -257,8 +300,30 @@ class DagInfo(InfoJsonEncodable):
         "start_date",
         "tags",
     ]
-    casts = {"timetable": lambda dag: dag.timetable.serialize() if getattr(dag, "timetable", None) else None}
+    casts = {"timetable": lambda dag: DagInfo.serialize_timetable(dag)}
     renames = {"_dag_id": "dag_id"}
+
+    @classmethod
+    def serialize_timetable(cls, dag: DAG) -> dict[str, Any]:
+        serialized = dag.timetable.serialize()
+        if serialized != {} and serialized is not None:
+            return serialized
+        if (
+            hasattr(dag, "dataset_triggers")
+            and isinstance(dag.dataset_triggers, list)
+            and len(dag.dataset_triggers)
+        ):
+            triggers = dag.dataset_triggers
+            return {
+                "dataset_condition": {
+                    "__type": "dataset_all",
+                    "objects": [
+                        {"__type": "dataset", "uri": trigger.uri, "extra": trigger.extra}
+                        for trigger in triggers
+                    ],
+                }
+            }
+        return {}
 
 
 class DagRunInfo(InfoJsonEncodable):
@@ -401,6 +466,18 @@ def _get_all_packages_installed() -> dict[str, str]:
     return {dist.metadata["Name"]: dist.version for dist in metadata.distributions()}
 
 
+def get_processing_engine_facet() -> dict[str, processing_engine_run.ProcessingEngineRunFacet]:
+    from openlineage.client.facet_v2 import processing_engine_run
+
+    return {
+        "processing_engine": processing_engine_run.ProcessingEngineRunFacet(
+            version=AIRFLOW_VERSION,
+            name="Airflow",
+            openlineageAdapterVersion=OPENLINEAGE_PROVIDER_VERSION,
+        )
+    }
+
+
 def get_airflow_debug_facet() -> dict[str, AirflowDebugRunFacet]:
     if not conf.debug_mode():
         return {}
@@ -477,7 +554,6 @@ def _get_task_groups_details(dag: DAG) -> dict:
     return {
         tg_id: {
             "parent_group": tg.parent_group.group_id,
-            "tooltip": tg.tooltip,
             "ui_color": tg.ui_color,
             "ui_fgcolor": tg.ui_fgcolor,
             "ui_label": tg.label,
@@ -501,7 +577,11 @@ def _emits_ol_events(task: BaseOperator | MappedOperator) -> bool:
     )
 
     emits_ol_events = all(
-        (config_selective_enabled, not config_disabled_for_operators, not is_skipped_as_empty_operator)
+        (
+            config_selective_enabled,
+            not config_disabled_for_operators,
+            not is_skipped_as_empty_operator,
+        )
     )
     return emits_ol_events
 
@@ -567,7 +647,12 @@ class OpenLineageRedactor(SecretsMasker):
                             setattr(
                                 item,
                                 dict_key,
-                                self._redact(subval, name=dict_key, depth=(depth + 1), max_depth=max_depth),
+                                self._redact(
+                                    subval,
+                                    name=dict_key,
+                                    depth=(depth + 1),
+                                    max_depth=max_depth,
+                                ),
                             )
                     return item
                 elif is_json_serializable(item) and hasattr(item, "__dict__"):
@@ -578,7 +663,12 @@ class OpenLineageRedactor(SecretsMasker):
                             setattr(
                                 item,
                                 dict_key,
-                                self._redact(subval, name=dict_key, depth=(depth + 1), max_depth=max_depth),
+                                self._redact(
+                                    subval,
+                                    name=dict_key,
+                                    depth=(depth + 1),
+                                    max_depth=max_depth,
+                                ),
                             )
                     return item
                 else:
@@ -608,11 +698,11 @@ def print_warning(log):
         def wrapper(*args, **kwargs):
             try:
                 return f(*args, **kwargs)
-            except Exception as e:
+            except Exception:
                 log.warning(
-                    "Note: exception below is being caught: it's printed for visibility. However OpenLineage events aren't being emitted. If you see that, task has completed successfully despite not getting OL events."
+                    "OpenLineage event emission failed. Exception below is being caught: it's printed for visibility. This has no impact on actual task execution status.",
+                    exc_info=True,
                 )
-                log.warning(e)
 
         return wrapper
 
@@ -624,39 +714,35 @@ def get_filtered_unknown_operator_keys(operator: BaseOperator) -> dict:
     return {attr: value for attr, value in operator.__dict__.items() if attr not in not_required_keys}
 
 
-@deprecated(
-    reason=(
-        "`airflow.providers.openlineage.utils.utils.normalize_sql` "
-        "has been deprecated and will be removed in future"
-    ),
-    category=AirflowProviderDeprecationWarning,
-)
-def normalize_sql(sql: str | Iterable[str]):
-    if isinstance(sql, str):
-        sql = [stmt for stmt in sql.split(";") if stmt != ""]
-    sql = [obj for stmt in sql for obj in stmt.split(";") if obj != ""]
-    return ";\n".join(sql)
-
-
 def should_use_external_connection(hook) -> bool:
     # If we're at Airflow 2.10, the execution is process-isolated, so we can safely run those again.
     if not IS_AIRFLOW_2_10_OR_HIGHER:
-        return hook.__class__.__name__ not in ["SnowflakeHook", "SnowflakeSqlApiHook", "RedshiftSQLHook"]
+        return hook.__class__.__name__ not in [
+            "SnowflakeHook",
+            "SnowflakeSqlApiHook",
+            "RedshiftSQLHook",
+        ]
     return True
 
 
 def translate_airflow_asset(asset: Asset, lineage_context) -> OpenLineageDataset | None:
     """
-    Convert a Asset with an AIP-60 compliant URI to an OpenLineageDataset.
+    Convert an Asset with an AIP-60 compliant URI to an OpenLineageDataset.
 
     This function returns None if no URI normalizer is defined, no asset converter is found or
     some core Airflow changes are missing and ImportError is raised.
     """
-    try:
-        from airflow.assets import _get_normalized_scheme
-    except ModuleNotFoundError:
+    # TODO: Remove version check block after bumping common provider to 1.3.0
+    from packaging.version import Version
+
+    from airflow import __version__ as AIRFLOW_VERSION
+
+    AIRFLOW_V_3_0_PLUS = Version(Version(AIRFLOW_VERSION).base_version) >= Version("3.0.0")
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.sdk.definitions.asset import _get_normalized_scheme
+    else:
         try:
-            from airflow.datasets import _get_normalized_scheme  # type: ignore[no-redef]
+            from airflow.datasets import _get_normalized_scheme  # type: ignore[no-redef, attr-defined]
         except ImportError:
             return None
 

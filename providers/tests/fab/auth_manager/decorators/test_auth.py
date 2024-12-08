@@ -22,7 +22,7 @@ import pytest
 
 from airflow.security.permissions import ACTION_CAN_READ, RESOURCE_DAG
 
-from dev.tests_common.test_utils.compat import ignore_provider_compatibility_error
+from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
 permissions = [(ACTION_CAN_READ, RESOURCE_DAG)]
 

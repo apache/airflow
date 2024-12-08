@@ -29,8 +29,9 @@ import os
 import subprocess
 import traceback
 import warnings
+from collections.abc import Mapping, MutableMapping
 from concurrent.futures import ProcessPoolExecutor
-from typing import TYPE_CHECKING, Any, Mapping, MutableMapping, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Optional
 
 from celery import Celery, Task, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
@@ -40,7 +41,6 @@ from setproctitle import setproctitle
 from sqlalchemy import select
 
 import airflow.settings as settings
-from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
@@ -59,7 +59,7 @@ if TYPE_CHECKING:
     from airflow.executors.base_executor import CommandType, EventBufferValueType
     from airflow.models.taskinstance import TaskInstanceKey
 
-    TaskInstanceInCelery = Tuple[TaskInstanceKey, CommandType, Optional[str], Task]
+    TaskInstanceInCelery = tuple[TaskInstanceKey, CommandType, Optional[str], Task]
 
 OPERATION_TIMEOUT = conf.getfloat("celery", "operation_timeout")
 
@@ -111,12 +111,13 @@ def on_celery_import_modules(*args, **kwargs):
 
     import airflow.jobs.local_task_job_runner
     import airflow.macros
-    import airflow.operators.python
 
     try:
         import airflow.providers.standard.operators.bash
+        import airflow.providers.standard.operators.python
     except ImportError:
-        import airflow.operators.bash  # noqa: F401
+        import airflow.operators.bash
+        import airflow.operators.python  # noqa: F401
 
     with contextlib.suppress(ImportError):
         import numpy  # noqa: F401
@@ -158,10 +159,6 @@ def _execute_in_fork(command_to_exec: CommandType, celery_task_id: str | None = 
     ret = 1
     try:
         from airflow.cli.cli_parser import get_parser
-
-        if not InternalApiConfig.get_use_internal_api():
-            settings.engine.pool.dispose()
-            settings.engine.dispose()
 
         parser = get_parser()
         # [1:] - remove "airflow" from the start of the command

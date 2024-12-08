@@ -24,7 +24,7 @@ import ydb
 from airflow import DAG
 from airflow.decorators import task
 from airflow.providers.ydb.hooks.ydb import YDBHook
-from airflow.providers.ydb.operators.ydb import YDBExecuteQueryOperator, YDBScanQueryOperator
+from airflow.providers.ydb.operators.ydb import YDBExecuteQueryOperator
 
 # [START ydb_operator_howto_guide]
 
@@ -101,31 +101,22 @@ with DAG(
     )
     # [END ydb_operator_howto_guide_get_birth_date]
 
-    # [START ydb_operator_howto_guide_get_birth_date_scan]
-    get_birth_date_scan = YDBScanQueryOperator(
-        task_id="get_birth_date_scan",
-        sql="SELECT * FROM pet WHERE birth_date BETWEEN '{{params.begin_date}}' AND '{{params.end_date}}'",
-        params={"begin_date": "2020-01-01", "end_date": "2020-12-31"},
-    )
-    # [END ydb_operator_howto_guide_get_birth_date_scan]
-
     (
         create_pet_table
         >> populate_pet_table
         >> populate_pet_table_via_bulk_upsert()
         >> get_all_pets
         >> get_birth_date
-        >> get_birth_date_scan
     )
     # [END ydb_operator_howto_guide]
 
-    from dev.tests_common.test_utils.watcher import watcher
+    from tests_common.test_utils.watcher import watcher
 
     # This test needs watcher in order to properly mark success/failure
     # when "tearDown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
 
-from dev.tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

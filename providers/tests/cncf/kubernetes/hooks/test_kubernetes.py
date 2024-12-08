@@ -37,8 +37,8 @@ from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHo
 from airflow.utils import db
 from airflow.utils.db import merge_conn
 
-from dev.tests_common.test_utils.db import clear_db_connections
-from dev.tests_common.test_utils.providers import get_provider_min_airflow_version
+from tests_common.test_utils.db import clear_db_connections
+from tests_common.test_utils.providers import get_provider_min_airflow_version
 
 pytestmark = pytest.mark.db_test
 

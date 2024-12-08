@@ -16,7 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Sequence
+from collections.abc import Iterable, Sequence
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -241,7 +242,7 @@ class S3ToRedshiftOperator(BaseOperator):
 
         output_dataset = Dataset(
             namespace=f"redshift://{authority}",
-            name=f"{database}.{self.schema}.{self.table}",
+            name=f"{database}.{self.schema}.{self.table}" if database else f"{self.schema}.{self.table}",
             facets=output_dataset_facets,
         )
 

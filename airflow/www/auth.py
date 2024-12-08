@@ -18,8 +18,9 @@ from __future__ import annotations
 
 import functools
 import logging
+from collections.abc import Sequence
 from functools import wraps
-from typing import TYPE_CHECKING, Callable, Sequence, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
 from flask import flash, redirect, render_template, request, url_for
 from flask_appbuilder._compat import as_unicode
@@ -49,7 +50,7 @@ if TYPE_CHECKING:
         IsAuthorizedPoolRequest,
         IsAuthorizedVariableRequest,
     )
-    from airflow.models import DagRun, Pool, SlaMiss, TaskInstance, Variable
+    from airflow.models import DagRun, Pool, TaskInstance, Variable
     from airflow.models.connection import Connection
     from airflow.models.xcom import BaseXCom
 
@@ -239,7 +240,7 @@ def has_access_dag_entities(method: ResourceMethod, access_entity: DagAccessEnti
     def has_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
-            items: set[SlaMiss | BaseXCom | DagRun | TaskInstance] = set(args[1])
+            items: set[BaseXCom | DagRun | TaskInstance] = set(args[1])
             requests: Sequence[IsAuthorizedDagRequest] = [
                 {
                     "method": method,

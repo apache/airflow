@@ -22,7 +22,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow import plugins_manager
-from airflow.assets import Asset
 from airflow.hooks.base import BaseHook
 from airflow.lineage import hook
 from airflow.lineage.hook import (
@@ -33,8 +32,9 @@ from airflow.lineage.hook import (
     NoOpCollector,
     get_hook_lineage_collector,
 )
+from airflow.sdk.definitions.asset import Asset
 
-from dev.tests_common.test_utils.mock_plugins import mock_plugin_manager
+from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
 
 class TestHookLineageCollector:
@@ -46,13 +46,26 @@ class TestHookLineageCollector:
         assert self.collector.collected_assets == HookLineage()
         input_hook = BaseHook()
         output_hook = BaseHook()
-        self.collector.add_input_asset(input_hook, uri="s3://in_bucket/file")
-        self.collector.add_output_asset(output_hook, uri="postgres://example.com:5432/database/default/table")
+        self.collector.add_input_asset(input_hook, uri="s3://in_bucket/file", name="asset-1", group="test")
+        self.collector.add_output_asset(
+            output_hook,
+            uri="postgres://example.com:5432/database/default/table",
+        )
         assert self.collector.collected_assets == HookLineage(
-            [AssetLineageInfo(asset=Asset("s3://in_bucket/file"), count=1, context=input_hook)],
             [
                 AssetLineageInfo(
-                    asset=Asset("postgres://example.com:5432/database/default/table"),
+                    asset=Asset(uri="s3://in_bucket/file", name="asset-1", group="test"),
+                    count=1,
+                    context=input_hook,
+                )
+            ],
+            [
+                AssetLineageInfo(
+                    asset=Asset(
+                        uri="postgres://example.com:5432/database/default/table",
+                        name="postgres://example.com:5432/database/default/table",
+                        group="asset",
+                    ),
                     count=1,
                     context=output_hook,
                 )
@@ -68,7 +81,7 @@ class TestHookLineageCollector:
         self.collector.add_input_asset(hook, uri="test_uri")
 
         assert next(iter(self.collector._inputs.values())) == (asset, hook)
-        mock_asset.assert_called_once_with(uri="test_uri", extra=None)
+        mock_asset.assert_called_once_with(uri="test_uri")
 
     def test_grouping_assets(self):
         hook_1 = MagicMock()
@@ -95,18 +108,29 @@ class TestHookLineageCollector:
     @patch("airflow.lineage.hook.ProvidersManager")
     def test_create_asset(self, mock_providers_manager):
         def create_asset(arg1, arg2="default", extra=None):
-            return Asset(uri=f"myscheme://{arg1}/{arg2}", extra=extra or {})
+            return Asset(
+                uri=f"myscheme://{arg1}/{arg2}", name=f"asset-{arg1}", group="test", extra=extra or {}
+            )
 
         mock_providers_manager.return_value.asset_factories = {"myscheme": create_asset}
         assert self.collector.create_asset(
-            scheme="myscheme", uri=None, asset_kwargs={"arg1": "value_1"}, asset_extra=None
-        ) == Asset("myscheme://value_1/default")
+            scheme="myscheme",
+            uri=None,
+            name=None,
+            group=None,
+            asset_kwargs={"arg1": "value_1"},
+            asset_extra=None,
+        ) == Asset(uri="myscheme://value_1/default", name="asset-value_1", group="test")
         assert self.collector.create_asset(
             scheme="myscheme",
             uri=None,
+            name=None,
+            group=None,
             asset_kwargs={"arg1": "value_1", "arg2": "value_2"},
             asset_extra={"key": "value"},
-        ) == Asset("myscheme://value_1/value_2", extra={"key": "value"})
+        ) == Asset(
+            uri="myscheme://value_1/value_2", name="asset-value_1", group="test", extra={"key": "value"}
+        )
 
     @patch("airflow.lineage.hook.ProvidersManager")
     def test_create_asset_no_factory(self, mock_providers_manager):
@@ -117,7 +141,12 @@ class TestHookLineageCollector:
 
         assert (
             self.collector.create_asset(
-                scheme=test_scheme, uri=None, asset_kwargs=test_kwargs, asset_extra=None
+                scheme=test_scheme,
+                uri=None,
+                name=None,
+                group=None,
+                asset_kwargs=test_kwargs,
+                asset_extra=None,
             )
             is None
         )

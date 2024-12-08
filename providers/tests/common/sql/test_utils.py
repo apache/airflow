@@ -20,16 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest import mock
 
-import pytest
-
 from airflow.models import Connection
-
-from dev.tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS
-
-pytestmark = [
-    pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="Tests for Airflow 2.8.0+ only"),
-]
-
 
 if TYPE_CHECKING:
     from airflow.hooks.base import BaseHook

@@ -27,6 +27,32 @@
 Changelog
 ---------
 
+main
+.....
+
+.. warning::
+   All deprecated classes, parameters and features have been removed from the ElasticSearch provider package.
+   The following breaking changes were introduced:
+
+   * Hooks
+      * Remove ``airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook``. Use ``airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchSQLHook`` instead.
+   * Log
+      * Removed ``log_id_template`` parameter from ``ElasticsearchTaskHandler``.
+      * Removed ``retry_timeout`` parameter from ``ElasticsearchTaskHandler``. Use ``retry_on_timeout`` instead
+
+5.5.3
+.....
+
+Misc
+~~~~
+
+* ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+
 5.5.2
 .....
 

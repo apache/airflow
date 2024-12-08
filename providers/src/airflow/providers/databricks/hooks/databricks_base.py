@@ -28,12 +28,14 @@ from __future__ import annotations
 import copy
 import platform
 import time
+from asyncio.exceptions import TimeoutError
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
 import aiohttp
 import requests
+from aiohttp.client_exceptions import ClientConnectorError
 from requests import PreparedRequest, exceptions as requests_exceptions
 from requests.auth import AuthBase, HTTPBasicAuth
 from requests.exceptions import JSONDecodeError
@@ -63,6 +65,8 @@ AZURE_MANAGEMENT_ENDPOINT = "https://management.core.windows.net/"
 DEFAULT_DATABRICKS_SCOPE = "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d"
 OIDC_TOKEN_SERVICE_URL = "{}/oidc/v1/token"
 
+DEFAULT_AZURE_CREDENTIAL_SETTING_KEY = "use_default_azure_credential"
+
 
 class BaseDatabricksHook(BaseHook):
     """
@@ -87,6 +91,7 @@ class BaseDatabricksHook(BaseHook):
         "token",
         "host",
         "use_azure_managed_identity",
+        DEFAULT_AZURE_CREDENTIAL_SETTING_KEY,
         "azure_ad_endpoint",
         "azure_resource_id",
         "azure_tenant_id",
@@ -374,6 +379,94 @@ class BaseDatabricksHook(BaseHook):
 
         return jsn["access_token"]
 
+    def _get_aad_token_for_default_az_credential(self, resource: str) -> str:
+        """
+        Get AAD token for given resource for workload identity.
+
+        Supports managed identity or service principal auth.
+        :param resource: resource to issue token to
+        :return: AAD token, or raise an exception
+        """
+        aad_token = self.oauth_tokens.get(resource)
+        if aad_token and self._is_oauth_token_valid(aad_token):
+            return aad_token["access_token"]
+
+        self.log.info("Existing AAD token is expired, or going to expire soon. Refreshing...")
+        try:
+            from azure.identity import DefaultAzureCredential
+
+            for attempt in self._get_retry_object():
+                with attempt:
+                    # This only works in an Azure Kubernetes Service Cluster given the following environment variables:
+                    # AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_FEDERATED_TOKEN_FILE
+                    #
+                    # While there is a WorkloadIdentityCredential class, the below class is advised by Microsoft
+                    # https://learn.microsoft.com/en-us/azure/aks/workload-identity-overview
+                    token = DefaultAzureCredential().get_token(f"{resource}/.default")
+
+                    jsn = {
+                        "access_token": token.token,
+                        "token_type": "Bearer",
+                        "expires_on": token.expires_on,
+                    }
+                    self._is_oauth_token_valid(jsn)
+                    self.oauth_tokens[resource] = jsn
+                    break
+        except ImportError as e:
+            raise AirflowOptionalProviderFeatureException(e)
+        except RetryError:
+            raise AirflowException(f"API requests to Azure failed {self.retry_limit} times. Giving up.")
+        except requests_exceptions.HTTPError as e:
+            msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
+            raise AirflowException(msg)
+
+        return token.token
+
+    async def _a_get_aad_token_for_default_az_credential(self, resource: str) -> str:
+        """
+        Get AAD token for given resource for workload identity.
+
+        Supports managed identity or service principal auth.
+        :param resource: resource to issue token to
+        :return: AAD token, or raise an exception
+        """
+        aad_token = self.oauth_tokens.get(resource)
+        if aad_token and self._is_oauth_token_valid(aad_token):
+            return aad_token["access_token"]
+
+        self.log.info("Existing AAD token is expired, or going to expire soon. Refreshing...")
+        try:
+            from azure.identity.aio import (
+                DefaultAzureCredential as AsyncDefaultAzureCredential,
+            )
+
+            for attempt in self._get_retry_object():
+                with attempt:
+                    # This only works in an Azure Kubernetes Service Cluster given the following environment variables:
+                    # AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_FEDERATED_TOKEN_FILE
+                    #
+                    # While there is a WorkloadIdentityCredential class, the below class is advised by Microsoft
+                    # https://learn.microsoft.com/en-us/azure/aks/workload-identity-overview
+                    token = await AsyncDefaultAzureCredential().get_token(f"{resource}/.default")
+
+                    jsn = {
+                        "access_token": token.token,
+                        "token_type": "Bearer",
+                        "expires_on": token.expires_on,
+                    }
+                    self._is_oauth_token_valid(jsn)
+                    self.oauth_tokens[resource] = jsn
+                    break
+        except ImportError as e:
+            raise AirflowOptionalProviderFeatureException(e)
+        except RetryError:
+            raise AirflowException(f"API requests to Azure failed {self.retry_limit} times. Giving up.")
+        except requests_exceptions.HTTPError as e:
+            msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
+            raise AirflowException(msg)
+
+        return token.token
+
     def _get_aad_headers(self) -> dict:
         """
         Fill AAD headers if necessary (SPN is outside of the workspace).
@@ -474,6 +567,9 @@ class BaseDatabricksHook(BaseHook):
             self.log.debug("Using AAD Token for managed identity.")
             self._check_azure_metadata_service()
             return self._get_aad_token(DEFAULT_DATABRICKS_SCOPE)
+        elif self.databricks_conn.extra_dejson.get(DEFAULT_AZURE_CREDENTIAL_SETTING_KEY, False):
+            self.log.debug("Using default Azure Credential authentication.")
+            return self._get_aad_token_for_default_az_credential(DEFAULT_DATABRICKS_SCOPE)
         elif self.databricks_conn.extra_dejson.get("service_principal_oauth", False):
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
@@ -502,6 +598,10 @@ class BaseDatabricksHook(BaseHook):
             self.log.debug("Using AAD Token for managed identity.")
             await self._a_check_azure_metadata_service()
             return await self._a_get_aad_token(DEFAULT_DATABRICKS_SCOPE)
+        elif self.databricks_conn.extra_dejson.get(DEFAULT_AZURE_CREDENTIAL_SETTING_KEY, False):
+            self.log.debug("Using AzureDefaultCredential for authentication.")
+
+            return await self._a_get_aad_token_for_default_az_credential(DEFAULT_DATABRICKS_SCOPE)
         elif self.databricks_conn.extra_dejson.get("service_principal_oauth", False):
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
@@ -514,6 +614,11 @@ class BaseDatabricksHook(BaseHook):
 
     def _log_request_error(self, attempt_num: int, error: str) -> None:
         self.log.error("Attempt %s API Request to Databricks failed with reason: %s", attempt_num, error)
+
+    def _endpoint_url(self, endpoint):
+        port = f":{self.databricks_conn.port}" if self.databricks_conn.port else ""
+        schema = self.databricks_conn.schema or "https"
+        return f"{schema}://{self.host}{port}/{endpoint}"
 
     def _do_api_call(
         self,
@@ -533,7 +638,7 @@ class BaseDatabricksHook(BaseHook):
         method, endpoint = endpoint_info
 
         # TODO: get rid of explicit 'api/' in the endpoint specification
-        url = f"https://{self.host}/{endpoint}"
+        url = self._endpoint_url(endpoint)
 
         aad_headers = self._get_aad_headers()
         headers = {**self.user_agent_header, **aad_headers}
@@ -599,7 +704,7 @@ class BaseDatabricksHook(BaseHook):
         """
         method, endpoint = endpoint_info
 
-        url = f"https://{self.host}/{endpoint}"
+        url = self._endpoint_url(endpoint)
 
         aad_headers = await self._a_get_aad_headers()
         headers = {**self.user_agent_header, **aad_headers}
@@ -638,7 +743,7 @@ class BaseDatabricksHook(BaseHook):
                         headers={**headers, **self.user_agent_header},
                         timeout=self.timeout_seconds,
                     ) as response:
-                        self.log.debug("Response Status Code: %s", response.status_code)
+                        self.log.debug("Response Status Code: %s", response.status)
                         self.log.debug("Response text: %s", response.text)
                         response.raise_for_status()
                         return await response.json()
@@ -677,6 +782,9 @@ class BaseDatabricksHook(BaseHook):
         if isinstance(exception, aiohttp.ClientResponseError):
             if exception.status >= 500 or exception.status == 429:
                 return True
+
+        if isinstance(exception, (ClientConnectorError, TimeoutError)):
+            return True
 
         return False
 

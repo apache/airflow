@@ -39,7 +39,7 @@ from airflow.utils.log.secrets_masker import (
 )
 from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.enable_redact
 p = "password"

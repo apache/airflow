@@ -60,47 +60,57 @@ triggers (and the list changes continuously).
 
   .. code-block:: bash
 
-      airflow/
-             ├── providers/<NEW_PROVIDER>/
-             │              ├── __init__.py
-             │              ├── executors/
-             │              │   ├── __init__.py
-             │              │   └── *.py
-             │              ├── hooks/
-             │              │   ├── __init__.py
-             │              │   └── *.py
-             │              ├── operators/
-             │              │   ├── __init__.py
-             │              │   └── *.py
-             │              ├── transfers/
-             │              │   ├── __init__.py
-             │              │   └── *.py
-             │              └── triggers/
-             │                  ├── __init__.py
-             │                  └── *.py
-             └── tests
-                     ├── providers/<NEW_PROVIDER>/
-                     │              ├── __init__.py
-                     │              ├── executors/
-                     │              │   ├── __init__.py
-                     │              │   └── test_*.py
-                     │              ├── hooks/
-                     │              │   ├── __init__.py
-                     │              │   └── test_*>.py
-                     │              ├── operators/
-                     │              │   ├── __init__.py
-                     │              │   ├── test_*.py
-                     │              ...
-                     │              ├── transfers/
-                     │              │   ├── __init__.py
-                     │              │   └── test_*.py
-                     │              └── triggers/
-                     │                  ├── __init__.py
-                     │                  └── test_*.py
-                     └── system/providers/<NEW_PROVIDER>/
-                                           ├── __init__.py
-                                           └── example_*.py
+    GIT apache/airflow/
+    └── providers/
+        ├── src/
+        │   └── airflow/
+        │       └── providers/<NEW_PROVIDER>/
+        │           ├── __init__.py
+        │           ├── executors/
+        │           │   ├── __init__.py
+        │           │   └── *.py
+        │           ├── hooks/
+        │           │   ├── __init__.py
+        │           │   └── *.py
+        │           ├── notifications/
+        │           │   ├── __init__.py
+        │           │   └── *.py
+        │           ├── operators/
+        │           │   ├── __init__.py
+        │           │   └── *.py
+        │           ├── transfers/
+        │           │   ├── __init__.py
+        │           │   └── *.py
+        │           └── triggers/
+        │               ├── __init__.py
+        │               └── *.py
+        └── tests/
+            ├── <NEW_PROVIDER>/
+            |   ├── __init__.py
+            |   ├── executors/
+            |   │   ├── __init__.py
+            |   │   └── test_*.py
+            |   ├── hooks/
+            |   │   ├── __init__.py
+            |   │   └── test_*.py
+            |   ├── notifications/
+            |   │   ├── __init__.py
+            |   │   └── test_*.py
+            |   ├── operators/
+            |   │   ├── __init__.py
+            |   │   └── test_*.py
+            |   ├── transfers/
+            |   │   ├── __init__.py
+            |   │   └── test_*.py
+            |   └── triggers/
+            |       ├── __init__.py
+            |       └── test_*.py
+            └── system/<NEW_PROVIDER>/
+                ├── __init__.py
+                └── example_*.py
 
+.. note::
+      The above structure is work in progress and subject to change till Task SDK feature is complete.
 
 Considering that you have already transferred your provider's code to the above structure, it will now be necessary
 to create unit tests for each component you created. The example below I have already set up an environment using
@@ -207,11 +217,10 @@ by ``breeze release-management`` command by release manager when providers are r
   .. code-block:: bash
 
      ├── pyproject.toml
-     ├── airflow/
-     │   └── providers/
-     │       └── <NEW_PROVIDER>/
-     │           ├── provider.yaml
-     │           └── CHANGELOG.rst
+     ├── providers/src/airflow/providers/
+     │   └── <NEW_PROVIDER>/
+     │       ├── provider.yaml
+     │       └── CHANGELOG.rst
      │
      └── docs/
          ├── apache-airflow/
@@ -256,7 +265,7 @@ Operator has extra-parameters.
       The NewProviderOperator requires a ``connection_id`` and this other awesome parameter.
       You can see an example below:
 
-      .. exampleinclude:: /../../airflow/providers/<NEW_PROVIDER>/example_dags/example_<NEW_PROVIDER>.py
+      .. exampleinclude:: /../../providers/src/airflow/providers/<NEW_PROVIDER>/example_dags/example_<NEW_PROVIDER>.py
           :language: python
           :start-after: [START howto_operator_<NEW_PROVIDER>]
           :end-before: [END howto_operator_<NEW_PROVIDER>]
@@ -276,7 +285,7 @@ At least those docs should be present
 
 Make sure to update/add all information that are specific for the new provider.
 
-In the ``airflow/providers/<NEW_PROVIDER>/provider.yaml`` add information of your provider:
+In the ``providers/src/airflow/providers/<NEW_PROVIDER>/provider.yaml`` add information of your provider:
 
   .. code-block:: yaml
 

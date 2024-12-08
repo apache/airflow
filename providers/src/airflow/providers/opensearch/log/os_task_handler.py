@@ -24,12 +24,14 @@ import time
 from collections import defaultdict
 from datetime import datetime
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, Callable, List, Literal, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Literal
 
 import pendulum
 from opensearchpy import OpenSearch
 from opensearchpy.exceptions import NotFoundError
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import DagRun
@@ -41,10 +43,13 @@ from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import create_session
 
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
+
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
-OsLogMsgType = List[Tuple[str, str]]
+OsLogMsgType = list[tuple[str, str]]
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
 
 
@@ -108,7 +113,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
 
     To efficiently query and sort Elasticsearch results, this handler assumes each
     log message has a field `log_id` consists of ti primary keys:
-    `log_id = {dag_id}-{task_id}-{execution_date}-{try_number}`
+    `log_id = {dag_id}-{task_id}-{logical_date}-{try_number}`
     Log messages with specific log_id are sorted based on `offset`,
     which is a unique integer indicates log message's order.
     Timestamps here are unreliable because multiple log messages
@@ -191,7 +196,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         is_trigger_log_context = getattr(ti, "is_trigger_log_context", None)
         is_ti_raw = getattr(ti, "raw", None)
         self.mark_end_on_close = not is_ti_raw and not is_trigger_log_context
-
+        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         if self.json_format:
             self.formatter = OpensearchJSONFormatter(
                 fmt=self.formatter._fmt,
@@ -199,7 +204,9 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                 extras={
                     "dag_id": str(ti.dag_id),
                     "task_id": str(ti.task_id),
-                    "execution_date": self._clean_date(ti.execution_date),
+                    date_key: self._clean_date(ti.logical_date)
+                    if AIRFLOW_V_3_0_PLUS
+                    else self._clean_date(ti.execution_date),
                     "try_number": str(ti.try_number),
                     "log_id": self._render_log_id(ti, ti.try_number),
                 },
@@ -296,7 +303,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         if self.json_format:
             data_interval_start = self._clean_date(data_interval[0])
             data_interval_end = self._clean_date(data_interval[1])
-            execution_date = self._clean_date(dag_run.execution_date)
+            logical_date = self._clean_date(dag_run.logical_date)
         else:
             if data_interval[0]:
                 data_interval_start = data_interval[0].isoformat()
@@ -306,15 +313,15 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                 data_interval_end = data_interval[1].isoformat()
             else:
                 data_interval_end = ""
-            execution_date = dag_run.execution_date.isoformat()
-
+            logical_date = dag_run.logical_date.isoformat()
         return log_id_template.format(
             dag_id=ti.dag_id,
             task_id=ti.task_id,
             run_id=getattr(ti, "run_id", ""),
             data_interval_start=data_interval_start,
             data_interval_end=data_interval_end,
-            execution_date=execution_date,
+            logical_date=logical_date,
+            execution_date=logical_date,
             try_number=try_number,
             map_index=getattr(ti, "map_index", ""),
         )
@@ -474,7 +481,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                      'container': {'id': 'airflow'},
                      'dag_id': 'example_bash_operator',
                      'ecs': {'version': '8.0.0'},
-                     'execution_date': '2023_07_09T07_47_32_000000',
+                     'logical_date': '2023_07_09T07_47_32_000000',
                      'filename': 'taskinstance.py',
                      'input': {'type': 'log'},
                      'levelname': 'INFO',

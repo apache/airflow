@@ -28,7 +28,8 @@ from __future__ import annotations
 import functools
 import inspect
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, Mapping, Sequence, TypeVar, overload
+from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, TypeVar, overload
 
 import attr
 
@@ -38,8 +39,8 @@ from airflow.models.expandinput import (
     ListOfDictsExpandInput,
     MappedArgument,
 )
-from airflow.models.taskmixin import DAGNode
 from airflow.models.xcom_arg import XComArg
+from airflow.sdk.definitions.node import DAGNode
 from airflow.typing_compat import ParamSpec
 from airflow.utils.helpers import prevent_duplicates
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup

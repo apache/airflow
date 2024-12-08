@@ -23,9 +23,10 @@ import datetime
 import subprocess
 import sys
 import warnings
+from collections.abc import Sequence
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 import pendulum
 
@@ -342,6 +343,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
             LifecycleStateChangeDatasetFacet,
             PreviousIdentifier,
         )
+        from airflow.providers.google.cloud.openlineage.utils import extract_ds_name_from_gcs_path
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         objects = []
@@ -349,12 +351,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
             objects = self.objects
         elif self.prefix is not None:
             prefixes = [self.prefix] if isinstance(self.prefix, str) else self.prefix
-            for pref in prefixes:
-                # Use parent if not a file (dot not in name) and not a dir (ends with slash)
-                if "." not in pref.split("/")[-1] and not pref.endswith("/"):
-                    pref = Path(pref).parent.as_posix()
-                pref = "/" if pref in (".", "", "/") else pref.rstrip("/")
-                objects.append(pref)
+            objects = [extract_ds_name_from_gcs_path(pref) for pref in prefixes]
 
         bucket_url = f"gs://{self.bucket_name}"
         input_datasets = [
@@ -683,7 +680,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
     :param source_bucket: The bucket to fetch data from. (templated)
     :param source_prefix: Prefix string which filters objects whose name begin with
-           this prefix. Can interpolate execution date and time components. (templated)
+           this prefix. Can interpolate logical date and time components. (templated)
     :param source_gcp_conn_id: The connection ID to use connecting to Google Cloud
            to download files to be processed.
     :param source_impersonation_chain: Optional service account to impersonate using short-term
@@ -697,7 +694,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
     :param destination_bucket: The bucket to write data to. (templated)
     :param destination_prefix: Prefix string for the upload location.
-        Can interpolate execution date and time components. (templated)
+        Can interpolate logical date and time components. (templated)
     :param destination_gcp_conn_id: The connection ID to use connecting to Google Cloud
            to upload processed files.
     :param destination_impersonation_chain: Optional service account to impersonate using short-term
@@ -794,7 +791,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
             orig_start = context["data_interval_start"]
             orig_end = context["data_interval_end"]
         except KeyError:
-            orig_start = pendulum.instance(context["execution_date"])
+            orig_start = pendulum.instance(context["logical_date"])
             next_dagrun = context["dag"].next_dagrun_info(last_automated_dagrun=None, restricted=False)
             if next_dagrun and next_dagrun.data_interval and next_dagrun.data_interval.end:
                 orig_end = next_dagrun.data_interval.end
@@ -920,20 +917,15 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
     def get_openlineage_facets_on_complete(self, task_instance):
         """Implement on_complete as execute() resolves object prefixes."""
         from airflow.providers.common.compat.openlineage.facet import Dataset
+        from airflow.providers.google.cloud.openlineage.utils import extract_ds_name_from_gcs_path
         from airflow.providers.openlineage.extractors import OperatorLineage
-
-        def _parse_prefix(pref):
-            # Use parent if not a file (dot not in name) and not a dir (ends with slash)
-            if "." not in pref.split("/")[-1] and not pref.endswith("/"):
-                pref = Path(pref).parent.as_posix()
-            return "/" if pref in (".", "/", "") else pref.rstrip("/")
 
         input_prefix, output_prefix = "/", "/"
         if self._source_prefix_interp is not None:
-            input_prefix = _parse_prefix(self._source_prefix_interp)
+            input_prefix = extract_ds_name_from_gcs_path(self._source_prefix_interp)
 
         if self._destination_prefix_interp is not None:
-            output_prefix = _parse_prefix(self._destination_prefix_interp)
+            output_prefix = extract_ds_name_from_gcs_path(self._destination_prefix_interp)
 
         return OperatorLineage(
             inputs=[

@@ -159,7 +159,7 @@ exit
 The minimum version of Kubernetes should be updated according to
 https://github.com/apache/airflow/blob/main/README.md#requirements in two places:
 
-* [../helm-chart/README.md](../helm-chart/README.md)
+* [../../helm-chart/README.md](../chart/README.md)
 * [../docs/helm-chart/index.rst](../docs/helm-chart/index.rst)
 
 
@@ -837,9 +837,10 @@ EOF
 ------------------------------------------------------------------------------------------------------------
 Announcement is done from official Apache-Airflow accounts.
 
-* Twitter: https://twitter.com/ApacheAirflow
-* Linkedin: https://www.linkedin.com/company/apache-airflow/
+* X: https://x.com/ApacheAirflow
+* LinkedIn: https://www.linkedin.com/company/apache-airflow/
 * Fosstodon: https://fosstodon.org/@airflow
+* Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
 
 Make sure attach the release image generated with Figma to the post.
 If you don't have access to the account ask a PMC member to post.

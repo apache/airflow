@@ -43,13 +43,13 @@ export default function useTIHistory({
   return useQuery<TaskInstanceCollection>(
     ["tiHistory", dagId, dagRunId, taskId, mapIndex],
     () => {
-      const tiHistoryUrl = getMetaValue("task_tries_api")
+      let tiHistoryUrl = getMetaValue("task_tries_api")
         .replace("_DAG_ID_", dagId)
         .replace("_DAG_RUN_ID_", dagRunId)
         .replace("_TASK_ID_", taskId);
 
-      if (mapIndex && mapIndex > -1) {
-        tiHistoryUrl.replace("/tries", `/${mapIndex}/tries`);
+      if (mapIndex !== undefined && mapIndex > -1) {
+        tiHistoryUrl = tiHistoryUrl.replace("/tries", `/${mapIndex}/tries`);
       }
 
       return axios.get(tiHistoryUrl);

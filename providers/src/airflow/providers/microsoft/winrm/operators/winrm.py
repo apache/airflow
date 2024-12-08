@@ -19,9 +19,8 @@ from __future__ import annotations
 
 import logging
 from base64 import b64encode
-from typing import TYPE_CHECKING, Sequence
-
-from winrm.exceptions import WinRMOperationTimeoutError
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -90,68 +89,22 @@ class WinRMOperator(BaseOperator):
         if not self.command:
             raise AirflowException("No command specified so nothing to execute here.")
 
-        winrm_client = self.winrm_hook.get_conn()
-
-        try:
-            if self.ps_path is not None:
-                self.log.info("Running command as powershell script: '%s'...", self.command)
-                encoded_ps = b64encode(self.command.encode("utf_16_le")).decode("ascii")
-                command_id = self.winrm_hook.winrm_protocol.run_command(  # type: ignore[attr-defined]
-                    winrm_client, f"{self.ps_path} -encodedcommand {encoded_ps}"
-                )
-            else:
-                self.log.info("Running command: '%s'...", self.command)
-                command_id = self.winrm_hook.winrm_protocol.run_command(  # type: ignore[attr-defined]
-                    winrm_client, self.command
-                )
-
-            # See: https://github.com/diyan/pywinrm/blob/master/winrm/protocol.py
-            stdout_buffer = []
-            stderr_buffer = []
-            command_done = False
-            while not command_done:
-                try:
-                    (
-                        stdout,
-                        stderr,
-                        return_code,
-                        command_done,
-                    ) = self.winrm_hook.winrm_protocol._raw_get_command_output(  # type: ignore[attr-defined]
-                        winrm_client, command_id
-                    )
-
-                    # Only buffer stdout if we need to so that we minimize memory usage.
-                    if self.do_xcom_push:
-                        stdout_buffer.append(stdout)
-                    stderr_buffer.append(stderr)
-
-                    for line in stdout.decode(self.output_encoding).splitlines():
-                        self.log.info(line)
-                    for line in stderr.decode(self.output_encoding).splitlines():
-                        self.log.warning(line)
-                except WinRMOperationTimeoutError:
-                    # this is an expected error when waiting for a
-                    # long-running process, just silently retry
-                    pass
-
-            self.winrm_hook.winrm_protocol.cleanup_command(  # type: ignore[attr-defined]
-                winrm_client, command_id
-            )
-            self.winrm_hook.winrm_protocol.close_shell(winrm_client)  # type: ignore[attr-defined]
-
-        except Exception as e:
-            raise AirflowException(f"WinRM operator error: {e}")
+        return_code, stdout_buffer, stderr_buffer = self.winrm_hook.run(
+            command=self.command,
+            ps_path=self.ps_path,
+            output_encoding=self.output_encoding,
+            return_output=self.do_xcom_push,
+        )
 
         if return_code == 0:
             # returning output if do_xcom_push is set
-            enable_pickling = conf.getboolean("core", "enable_xcom_pickling")
+            # TODO: Remove this after minimum Airflow version is 3.0
+            enable_pickling = conf.getboolean("core", "enable_xcom_pickling", fallback=False)
+
             if enable_pickling:
                 return stdout_buffer
-            else:
-                return b64encode(b"".join(stdout_buffer)).decode(self.output_encoding)
-        else:
-            stderr_output = b"".join(stderr_buffer).decode(self.output_encoding)
-            error_msg = (
-                f"Error running cmd: {self.command}, return code: {return_code}, error: {stderr_output}"
-            )
-            raise AirflowException(error_msg)
+            return b64encode(b"".join(stdout_buffer)).decode(self.output_encoding)
+
+        stderr_output = b"".join(stderr_buffer).decode(self.output_encoding)
+        error_msg = f"Error running cmd: {self.command}, return code: {return_code}, error: {stderr_output}"
+        raise AirflowException(error_msg)

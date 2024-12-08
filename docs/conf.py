@@ -761,10 +761,12 @@ autoapi_ignore = [
     "*/conftest.py",
     "*/tests/__init__.py",
     "*/tests/system/__init__.py",
+    "*/tests/system/example_empty.py",
     "*/test_aws_auth_manager.py",
     # These sub-folders aren't really providers, but we need __init__.py files else various tools (ruff, mypy)
     # get confused by providers/tests/systems/cncf/kubernetes and think that folder is the top level
     # kubernetes module!
+    "*/providers/src/airflow/providers/__init__.py",
     "*/providers/tests/__init__.py",
     "*/providers/tests/cncf/__init__.py",
     "*/providers/tests/common/__init__.py",

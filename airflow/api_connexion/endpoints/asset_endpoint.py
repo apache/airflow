@@ -43,10 +43,10 @@ from airflow.api_connexion.schemas.asset_schema import (
     queued_event_collection_schema,
     queued_event_schema,
 )
-from airflow.assets import Asset
 from airflow.assets.manager import asset_manager
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.utils import timezone
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.decorators import action_logging
@@ -60,6 +60,7 @@ if TYPE_CHECKING:
 RESOURCE_EVENT_PREFIX = "asset"
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("GET")
 @provide_session
 def get_asset(*, uri: str, session: Session = NEW_SESSION) -> APIResponse:
@@ -77,6 +78,7 @@ def get_asset(*, uri: str, session: Session = NEW_SESSION) -> APIResponse:
     return asset_schema.dump(asset)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("GET")
 @format_parameters({"limit": check_limit})
 @provide_session
@@ -112,6 +114,7 @@ def get_assets(
     return asset_collection_schema.dump(AssetCollection(assets=assets, total_entries=total_entries))
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("GET")
 @provide_session
 @format_parameters({"limit": check_limit})
@@ -133,7 +136,7 @@ def get_asset_events(
     query = select(AssetEvent)
 
     if asset_id:
-        query = query.where(AssetEvent.dataset_id == asset_id)
+        query = query.where(AssetEvent.asset_id == asset_id)
     if source_dag_id:
         query = query.where(AssetEvent.source_dag_id == source_dag_id)
     if source_task_id:
@@ -166,7 +169,7 @@ def _generate_queued_event_where_clause(
         where_clause.append(AssetDagRunQueue.target_dag_id == dag_id)
     if uri is not None:
         where_clause.append(
-            AssetDagRunQueue.dataset_id.in_(
+            AssetDagRunQueue.asset_id.in_(
                 select(AssetModel.id).where(AssetModel.uri == uri),
             ),
         )
@@ -177,6 +180,7 @@ def _generate_queued_event_where_clause(
     return where_clause
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("GET")
 @security.requires_access_dag("GET")
 @provide_session
@@ -187,7 +191,7 @@ def get_dag_asset_queued_event(
     where_clause = _generate_queued_event_where_clause(dag_id=dag_id, uri=uri, before=before)
     adrq = session.scalar(
         select(AssetDagRunQueue)
-        .join(AssetModel, AssetDagRunQueue.dataset_id == AssetModel.id)
+        .join(AssetModel, AssetDagRunQueue.asset_id == AssetModel.id)
         .where(*where_clause)
     )
     if adrq is None:
@@ -199,6 +203,7 @@ def get_dag_asset_queued_event(
     return queued_event_schema.dump(queued_event)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("DELETE")
 @security.requires_access_dag("GET")
 @provide_session
@@ -218,6 +223,7 @@ def delete_dag_asset_queued_event(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("GET")
 @security.requires_access_dag("GET")
 @provide_session
@@ -228,7 +234,7 @@ def get_dag_asset_queued_events(
     where_clause = _generate_queued_event_where_clause(dag_id=dag_id, before=before)
     query = (
         select(AssetDagRunQueue, AssetModel.uri)
-        .join(AssetModel, AssetDagRunQueue.dataset_id == AssetModel.id)
+        .join(AssetModel, AssetDagRunQueue.asset_id == AssetModel.id)
         .where(*where_clause)
     )
     result = session.execute(query).all()
@@ -246,6 +252,7 @@ def get_dag_asset_queued_events(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("DELETE")
 @security.requires_access_dag("GET")
 @action_logging
@@ -266,6 +273,7 @@ def delete_dag_asset_queued_events(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("GET")
 @provide_session
 def get_asset_queued_events(
@@ -278,7 +286,7 @@ def get_asset_queued_events(
     )
     query = (
         select(AssetDagRunQueue, AssetModel.uri)
-        .join(AssetModel, AssetDagRunQueue.dataset_id == AssetModel.id)
+        .join(AssetModel, AssetDagRunQueue.asset_id == AssetModel.id)
         .where(*where_clause)
     )
     total_entries = get_query_count(query, session=session)
@@ -297,6 +305,7 @@ def get_asset_queued_events(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("DELETE")
 @action_logging
 @provide_session
@@ -319,6 +328,7 @@ def delete_asset_queued_events(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("POST")
 @provide_session
 @action_logging
@@ -330,15 +340,16 @@ def create_asset_event(session: Session = NEW_SESSION) -> APIResponse:
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
+    # TODO: handle name
     uri = json_body["asset_uri"]
-    asset = session.scalar(select(AssetModel).where(AssetModel.uri == uri).limit(1))
-    if not asset:
+    asset_model = session.scalar(select(AssetModel).where(AssetModel.uri == uri).limit(1))
+    if not asset_model:
         raise NotFound(title="Asset not found", detail=f"Asset with uri: '{uri}' not found")
     timestamp = timezone.utcnow()
     extra = json_body.get("extra", {})
     extra["from_rest_api"] = True
     asset_event = asset_manager.register_asset_change(
-        asset=Asset(uri=uri),
+        asset=asset_model.to_public(),
         timestamp=timestamp,
         extra=extra,
         session=session,

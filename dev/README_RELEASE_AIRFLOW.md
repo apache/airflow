@@ -214,35 +214,39 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
 - Set environment variables
 
-    ```shell script
+```shell script
 
-    # You can avoid repeating this command for every release if you will set it in .zshrc
-    # see https://unix.stackexchange.com/questions/608842/zshrc-export-gpg-tty-tty-says-not-a-tty
-    export GPG_TTY=$(tty)
+# You can avoid repeating this command for every release if you will set it in .zshrc
+# see https://unix.stackexchange.com/questions/608842/zshrc-export-gpg-tty-tty-says-not-a-tty
+export GPG_TTY=$(tty)
 
-    # Set Version
-    export VERSION=2.1.2rc3
-    export VERSION_SUFFIX=rc3
-    export VERSION_BRANCH=2-1
-    export VERSION_WITHOUT_RC=${VERSION/rc?/}
+# Set Version
+export VERSION=2.1.2rc3
+export VERSION_SUFFIX=rc3
+export VERSION_BRANCH=2-1
+export VERSION_WITHOUT_RC=${VERSION/rc?/}
 
-    # Set AIRFLOW_REPO_ROOT to the path of your git repo
-    export AIRFLOW_REPO_ROOT=$(pwd)
+# Set AIRFLOW_REPO_ROOT to the path of your git repo
+export AIRFLOW_REPO_ROOT=$(pwd)
 
 
-    # Example after cloning
-    git clone https://github.com/apache/airflow.git airflow
-    cd airflow
-    export AIRFLOW_REPO_ROOT=$(pwd)
-    ```
+# Example after cloning
+git clone https://github.com/apache/airflow.git airflow
+cd airflow
+export AIRFLOW_REPO_ROOT=$(pwd)
+```
 
 - Install `breeze` command:
 
-    ```shell script
-    pipx install -e ./dev/breeze
-    ```
+```shell script
+uv tool install -e ./dev/breeze
+```
 
+or (if you prefer to use pipx):
 
+```shell script
+pipx install -e ./dev/breeze
+```
 
 - For major/minor version release, run the following commands to create the 'test' and 'stable' branches.
 
@@ -1006,9 +1010,10 @@ EOF
 ------------------------------------------------------------------------------------------------------------
 Announcement is done from official Apache-Airflow accounts.
 
-* Twitter: https://twitter.com/ApacheAirflow
-* Linkedin: https://www.linkedin.com/company/apache-airflow/
+* X: https://x.com/ApacheAirflow
+* LinkedIn: https://www.linkedin.com/company/apache-airflow/
 * Fosstodon: https://fosstodon.org/@airflow
+* Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
 
 Make sure attach the release image generated with Figma to the post.
 If you don't have access to the account ask a PMC member to post.

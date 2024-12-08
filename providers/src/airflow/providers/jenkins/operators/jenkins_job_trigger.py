@@ -21,16 +21,16 @@ import ast
 import json
 import socket
 import time
+from collections.abc import Iterable, Mapping, Sequence
 from functools import cached_property
-from typing import Any, Iterable, Mapping, Sequence, Union
+from typing import Any, Union
 from urllib.error import HTTPError, URLError
 
 import jenkins
-from deprecated.classic import deprecated
 from jenkins import Jenkins, JenkinsException
 from requests import Request
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 
@@ -38,7 +38,7 @@ JenkinsRequest = Mapping[str, Any]
 ParamType = Union[str, dict, list, None]
 
 
-def jenkins_request_with_headers(jenkins_server: Jenkins, req: Request) -> JenkinsRequest | None:
+def jenkins_request_with_headers(jenkins_server: Jenkins, req: Request) -> JenkinsRequest:
     """
     Create a Jenkins request from a raw request.
 
@@ -72,7 +72,6 @@ def jenkins_request_with_headers(jenkins_server: Jenkins, req: Request) -> Jenki
         raise jenkins.TimeoutException(f"Error in request: {e}")
     except URLError as e:
         raise JenkinsException(f"Error in request: {e.reason}")
-    return None
 
 
 class JenkinsJobTriggerOperator(BaseOperator):
@@ -117,7 +116,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         self.max_try_before_job_appears = max_try_before_job_appears
         self.allowed_jenkins_states = list(allowed_jenkins_states) if allowed_jenkins_states else ["SUCCESS"]
 
-    def build_job(self, jenkins_server: Jenkins, params: ParamType = None) -> JenkinsRequest | None:
+    def build_job(self, jenkins_server: Jenkins, params: ParamType = None) -> JenkinsRequest:
         """
         Trigger a build job.
 
@@ -193,11 +192,6 @@ class JenkinsJobTriggerOperator(BaseOperator):
         """Instantiate the Jenkins hook."""
         return JenkinsHook(self.jenkins_connection_id)
 
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
-    def get_hook(self) -> JenkinsHook:
-        """Instantiate the Jenkins hook."""
-        return self.hook
-
     def execute(self, context: Mapping[Any, Any]) -> str | None:
         self.log.info(
             "Triggering the job %s on the jenkins : %s with the parameters : %s",
@@ -207,8 +201,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         )
         jenkins_server = self.hook.get_jenkins_server()
         jenkins_response = self.build_job(jenkins_server, self.parameters)
-        if jenkins_response:
-            build_number = self.poll_job_in_queue(jenkins_response["headers"]["Location"], jenkins_server)
+        build_number = self.poll_job_in_queue(jenkins_response["headers"]["Location"], jenkins_server)
 
         time.sleep(self.sleep_time)
         keep_polling_job = True

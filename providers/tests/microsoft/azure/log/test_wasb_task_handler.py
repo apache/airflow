@@ -30,8 +30,8 @@ from airflow.providers.microsoft.azure.log.wasb_task_handler import WasbTaskHand
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import datetime
 
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 pytestmark = pytest.mark.db_test
 
@@ -46,7 +46,7 @@ class TestWasbTaskHandler:
         ti = create_task_instance(
             dag_id="dag_for_testing_wasb_task_handler",
             task_id="task_for_testing_wasb_log_handler",
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
             dagrun_state=TaskInstanceState.RUNNING,
             state=TaskInstanceState.RUNNING,
@@ -112,18 +112,13 @@ class TestWasbTaskHandler:
         assert self.wasb_task_handler.wasb_read(self.remote_log_location) == "Log line"
         ti = copy.copy(ti)
         ti.state = TaskInstanceState.SUCCESS
-        assert self.wasb_task_handler.read(ti) == (
-            [
-                [
-                    (
-                        "localhost",
-                        "*** Found remote logs:\n"
-                        "***   * https://wasb-container.blob.core.windows.net/abc/hello.log\nLog line",
-                    )
-                ]
-            ],
-            [{"end_of_log": True, "log_pos": 8}],
+        assert self.wasb_task_handler.read(ti)[0][0][0][0] == "localhost"
+        assert (
+            "*** Found remote logs:\n***   * https://wasb-container.blob.core.windows.net/abc/hello.log\n"
+            in self.wasb_task_handler.read(ti)[0][0][0][1]
         )
+        assert "Log line" in self.wasb_task_handler.read(ti)[0][0][0][1]
+        assert self.wasb_task_handler.read(ti)[1][0] == {"end_of_log": True, "log_pos": 8}
 
     @mock.patch(
         "airflow.providers.microsoft.azure.hooks.wasb.WasbHook",

@@ -70,6 +70,7 @@ def get_variable(*, variable_key: str, session: Session = NEW_SESSION) -> Respon
     return variable_schema.dump(var)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_variable("GET")
 @format_parameters({"limit": check_limit})
 @provide_session
@@ -95,6 +96,7 @@ def get_variables(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_variable("PUT")
 @provide_session
 @action_logging(
@@ -129,6 +131,7 @@ def patch_variable(
     return variable_schema.dump(variable)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_variable("POST")
 @action_logging(
     event=action_event_from_permission(

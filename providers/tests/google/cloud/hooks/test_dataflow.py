@@ -210,10 +210,6 @@ class TestFallbackToVariables:
 
 @pytest.mark.db_test
 class TestDataflowHook:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            DataflowHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
-
     def setup_method(self):
         self.dataflow_hook = DataflowHook(gcp_conn_id="google_cloud_default")
         self.dataflow_hook.beam_hook = MagicMock()
@@ -1398,7 +1394,7 @@ class TestDataflowJob:
         )
         dataflow_job.wait_for_done()
 
-        assert 1 == mock_jobs_list.call_count
+        assert mock_jobs_list.call_count == 1
 
     def test_dataflow_job_wait_for_single_jobs(self):
         job = {
@@ -2268,10 +2264,6 @@ def make_mock_awaitable():
 
 
 class TestAsyncDataflowHook:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            AsyncDataflowHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
-
     @pytest.fixture
     def hook(self):
         return AsyncDataflowHook(

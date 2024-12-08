@@ -24,9 +24,9 @@ import pytest
 
 from airflow.www import app as application
 
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.www import check_content_in_response
 from providers.tests.system.amazon.aws.utils import set_env_id
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.www import check_content_in_response
 
 SAML_METADATA_URL = "/saml/metadata"
 SAML_METADATA_PARSED = {
@@ -70,7 +70,9 @@ def create_avp_policy_store(env_id):
     schema_path = (
         Path(__file__)
         .parents[6]
-        .joinpath("airflow", "providers", "amazon", "aws", "auth_manager", "avp", "schema.json")
+        .joinpath(
+            "providers", "src", "airflow", "providers", "amazon", "aws", "auth_manager", "avp", "schema.json"
+        )
         .resolve()
     )
     with open(schema_path) as schema_file:
@@ -165,7 +167,7 @@ def client_admin_permissions(base_app):
     return application.create_app(testing=True)
 
 
-@pytest.mark.system("amazon")
+@pytest.mark.system
 class TestAwsAuthManager:
     """
     Run tests on Airflow using AWS auth manager with real credentials
