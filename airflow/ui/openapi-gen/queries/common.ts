@@ -340,13 +340,20 @@ export const useStructureServiceStructureDataKey =
 export const UseStructureServiceStructureDataKeyFn = (
   {
     dagId,
+    includeDownstream,
+    includeUpstream,
     root,
   }: {
     dagId: string;
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
     root?: string;
   },
   queryKey?: Array<unknown>,
-) => [useStructureServiceStructureDataKey, ...(queryKey ?? [{ dagId, root }])];
+) => [
+  useStructureServiceStructureDataKey,
+  ...(queryKey ?? [{ dagId, includeDownstream, includeUpstream, root }]),
+];
 export type GridServiceGridDataDefaultResponse = Awaited<
   ReturnType<typeof GridService.gridData>
 >;
@@ -359,24 +366,40 @@ export const UseGridServiceGridDataKeyFn = (
   {
     baseDate,
     dagId,
+    includeDownstream,
+    includeUpstream,
     limit,
     offset,
     root,
-    runTypes,
+    runType,
     state,
   }: {
     baseDate?: string;
     dagId: string;
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
     limit?: number;
     offset?: number;
     root?: string;
-    runTypes?: string[];
+    runType?: string[];
     state?: string[];
   },
   queryKey?: Array<unknown>,
 ) => [
   useGridServiceGridDataKey,
-  ...(queryKey ?? [{ baseDate, dagId, limit, offset, root, runTypes, state }]),
+  ...(queryKey ?? [
+    {
+      baseDate,
+      dagId,
+      includeDownstream,
+      includeUpstream,
+      limit,
+      offset,
+      root,
+      runType,
+      state,
+    },
+  ]),
 ];
 export type BackfillServiceListBackfillsDefaultResponse = Awaited<
   ReturnType<typeof BackfillService.listBackfills>
