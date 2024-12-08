@@ -709,6 +709,8 @@ export class StructureService {
    * Get Structure Data.
    * @param data The data for the request.
    * @param data.dagId
+   * @param data.includeUpstream
+   * @param data.includeDownstream
    * @param data.root
    * @returns StructureDataResponse Successful Response
    * @throws ApiError
@@ -721,6 +723,8 @@ export class StructureService {
       url: "/ui/structure/structure_data",
       query: {
         dag_id: data.dagId,
+        include_upstream: data.includeUpstream,
+        include_downstream: data.includeDownstream,
         root: data.root,
       },
       errors: {
@@ -737,9 +741,11 @@ export class GridService {
    * Return grid data.
    * @param data The data for the request.
    * @param data.dagId
+   * @param data.includeUpstream
+   * @param data.includeDownstream
    * @param data.baseDate
    * @param data.root
-   * @param data.runTypes
+   * @param data.runType
    * @param data.state
    * @param data.offset
    * @param data.limit
@@ -756,9 +762,11 @@ export class GridService {
         dag_id: data.dagId,
       },
       query: {
+        include_upstream: data.includeUpstream,
+        include_downstream: data.includeDownstream,
         base_date: data.baseDate,
         root: data.root,
-        run_types: data.runTypes,
+        run_type: data.runType,
         state: data.state,
         offset: data.offset,
         limit: data.limit,

@@ -208,6 +208,24 @@ paths:
         schema:
           type: string
           title: Dag Id
+      - name: include_upstream
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          default: false
+          title: Include Upstream
+      - name: include_downstream
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          default: false
+          title: Include Downstream
       - name: root
         in: query
         required: false
@@ -249,6 +267,24 @@ paths:
         schema:
           type: string
           title: Dag Id
+      - name: include_upstream
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          default: false
+          title: Include Upstream
+      - name: include_downstream
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          default: false
+          title: Include Downstream
       - name: base_date
         in: query
         required: false
@@ -265,14 +301,14 @@ paths:
           - type: string
           - type: 'null'
           title: Root
-      - name: run_types
+      - name: run_type
         in: query
         required: false
         schema:
           type: array
           items:
             type: string
-          title: Run Types
+          title: Run Type
       - name: state
         in: query
         required: false

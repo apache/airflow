@@ -1478,6 +1478,8 @@ export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
 
 export type StructureDataData = {
   dagId: string;
+  includeDownstream?: boolean | null;
+  includeUpstream?: boolean | null;
   root?: string | null;
 };
 
@@ -1486,10 +1488,12 @@ export type StructureDataResponse2 = StructureDataResponse;
 export type GridDataData = {
   baseDate?: string | null;
   dagId: string;
+  includeDownstream?: boolean | null;
+  includeUpstream?: boolean | null;
   limit?: number;
   offset?: number;
   root?: string | null;
-  runTypes?: Array<string>;
+  runType?: Array<string>;
   state?: Array<string>;
 };
 
