@@ -29,6 +29,7 @@ import { Run } from "src/pages/DagsList/Run";
 import { Dashboard } from "src/pages/Dashboard";
 import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
+
 import { Variables } from "./pages/Variables";
 
 export const router = createBrowserRouter(

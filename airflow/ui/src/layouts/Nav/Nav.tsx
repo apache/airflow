@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box, Flex, VStack, Link } from "@chakra-ui/react";
-import { FiCornerUpLeft, FiDatabase, FiHome, FiSettings } from "react-icons/fi";
+import { FiCornerUpLeft, FiDatabase, FiHome } from "react-icons/fi";
 
 import { useVersionServiceGetVersion } from "openapi/queries";
 import { AirflowPin } from "src/assets/AirflowPin";
