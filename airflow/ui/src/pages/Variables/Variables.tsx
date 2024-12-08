@@ -45,18 +45,20 @@ const columns: Array<ColumnDef<VariableResponse>> = [
     enableSorting: false,
     header: "Description",
     meta: {
-      skeletonWidth: 60,
+      skeletonWidth: 50,
     },
   },
 ];
 
 export const Variables = () => {
   const { setTableURLState, tableURLState } = useTableURLState({
-    sorting: [{ desc: true, id: "key" }],
+    sorting: [{ desc: false, id: "key" }],
   });
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
+  const orderBy = sort
+    ? `${sort.desc ? "-" : ""}${sort.id === "value" ? "_val" : sort.id}`
+    : undefined;
 
   const { data, error, isFetching, isLoading } = useVariableServiceGetVariables(
     {

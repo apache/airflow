@@ -80,7 +80,7 @@ def get_variables(
         SortParam,
         Depends(
             SortParam(
-                ["key", "id"],
+                ["key", "id", "_val"],
                 Variable,
             ).dynamic_depends()
         ),
