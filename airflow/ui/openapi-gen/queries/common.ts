@@ -1099,6 +1099,8 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     startDateGte,
     startDateLte,
     state,
+    taskDisplayNamePattern,
+    taskId,
     updatedAtGte,
     updatedAtLte,
   }: {
@@ -1119,6 +1121,8 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
+    taskDisplayNamePattern?: string;
+    taskId?: string;
     updatedAtGte?: string;
     updatedAtLte?: string;
   },
@@ -1144,6 +1148,8 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
       startDateGte,
       startDateLte,
       state,
+      taskDisplayNamePattern,
+      taskId,
       updatedAtGte,
       updatedAtLte,
     },
