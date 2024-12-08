@@ -134,6 +134,14 @@ class TaskInstanceOperations:
         # Create a deferred state payload from msg
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
+    def set_rtif(self, id: uuid.UUID, body: dict[str, str]) -> dict[str, bool]:
+        """Set Rendered Task Instance Fields via the API server."""
+        self.client.put(f"task-instances/{id}/rtif", json=body)
+        # Any error from the server will anyway be propagated down to the supervisor,
+        # so we choose to send a generic response to the supervisor over the server response to
+        # decouple from the server response string
+        return {"ok": True}
+
 
 class ConnectionOperations:
     __slots__ = ("client",)
