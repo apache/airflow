@@ -26,6 +26,8 @@ from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 
@@ -100,3 +102,7 @@ class Log(Base):
 
     def __str__(self) -> str:
         return f"Log({self.event}, {self.task_id}, {self.owner}, {self.owner_display_name}, {self.extra})"
+
+    @property
+    def logical_date(self) -> datetime:
+        return self.execution_date

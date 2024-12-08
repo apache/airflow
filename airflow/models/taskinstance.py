@@ -1901,6 +1901,7 @@ class TaskInstance(Base, LoggingMixin):
     dag_run = relationship("DagRun", back_populates="task_instances", lazy="joined", innerjoin=True)
     rendered_task_instance_fields = relationship("RenderedTaskInstanceFields", lazy="noload", uselist=False)
     execution_date = association_proxy("dag_run", "execution_date")
+    logical_date = association_proxy("dag_run", "execution_date")
     task_instance_note = relationship(
         "TaskInstanceNote",
         back_populates="task_instance",
