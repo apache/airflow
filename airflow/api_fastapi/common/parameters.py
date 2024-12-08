@@ -53,6 +53,7 @@ from airflow.models.variable import Variable
 from airflow.typing_compat import Self
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from sqlalchemy.sql import ColumnElement, Select
@@ -116,69 +117,6 @@ class _OnlyActiveFilter(BaseParam[bool]):
 
     def depends(self, only_active: bool = True) -> _OnlyActiveFilter:
         return self.set_value(only_active)
-
-
-class DagIdsFilter(BaseParam[list[str]]):
-    """Filter on dag ids."""
-
-    def __init__(self, model: Base, value: list[str] | None = None, skip_none: bool = True) -> None:
-        super().__init__(value, skip_none)
-        self.model = model
-
-    def to_orm(self, select: Select) -> Select:
-        if self.value and self.skip_none:
-            return select.where(self.model.dag_id.in_(self.value))
-        return select
-
-    def depends(self, dag_ids: list[str] = Query(None)) -> DagIdsFilter:
-        return self.set_value(dag_ids)
-
-
-class DagRunIdsFilter(BaseParam[list[str]]):
-    """Filter on dag run ids."""
-
-    def __init__(self, model: Base, value: list[str] | None = None, skip_none: bool = True) -> None:
-        super().__init__(value, skip_none)
-        self.model = model
-
-    def to_orm(self, select: Select) -> Select:
-        if self.value and self.skip_none:
-            return select.where(self.model.run_id.in_(self.value))
-        return select
-
-    def depends(self, dag_run_ids: list[str] = Query(None)) -> DagRunIdsFilter:
-        return self.set_value(dag_run_ids)
-
-
-class DagRunRunTypesFilter(BaseParam[Optional[list[str]]]):
-    """Filter on dag run run_types."""
-
-    def __init__(self, value: list[str] | None = None, skip_none: bool = True) -> None:
-        super().__init__(value, skip_none)
-
-    def to_orm(self, select: Select) -> Select:
-        if self.value and self.skip_none:
-            return select.where(DagRun.run_type.in_(self.value))
-        return select
-
-    def depends(self, run_types: list[str] = Query(None)) -> DagRunRunTypesFilter:
-        return self.set_value(run_types)
-
-
-class TaskIdsFilter(BaseParam[list[str]]):
-    """Filter on task ids."""
-
-    def __init__(self, model: Base, value: list[str] | None = None, skip_none: bool = True) -> None:
-        super().__init__(value, skip_none)
-        self.model = model
-
-    def to_orm(self, select: Select) -> Select:
-        if self.value and self.skip_none:
-            return select.where(self.model.task_id.in_(self.value))
-        return select
-
-    def depends(self, task_ids: list[str] = Query(None)) -> TaskIdsFilter:
-        return self.set_value(task_ids)
 
 
 class _SearchParam(BaseParam[str]):
@@ -561,10 +499,9 @@ QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter().depends)]
 
 # DagRun
 QueryLastDagRunStateFilter = Annotated[
-    FilterParam[Optional[DagRunState]],
+    FilterParam[Union[DagRunState, None]],
     Depends(filter_param_factory(DagRun.state, Optional[DagRunState], filter_name="last_dag_run_state")),
 ]
-QueryDagRunRunTypesFilter = Annotated[DagRunRunTypesFilter, Depends(DagRunRunTypesFilter().depends)]
 
 
 def _transform_dag_run_states(states: Iterable[str] | None) -> list[DagRunState | None] | None:
@@ -588,6 +525,32 @@ QueryDagRunStateFilter = Annotated[
             FilterOptionEnum.ANY_EQUAL,
             default_factory=list,
             transform_callable=_transform_dag_run_states,
+        )
+    ),
+]
+
+
+def _transform_dag_run_types(types: list[str] | None) -> list[DagRunType | None] | None:
+    try:
+        if not types:
+            return None
+        return [None if run_type in ("none", None) else DagRunType(run_type) for run_type in types]
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid value for state. Valid values are {', '.join(DagRunType)}",
+        )
+
+
+QueryDagRunRunTypesFilter = Annotated[
+    FilterParam[list[str]],
+    Depends(
+        filter_param_factory(
+            attribute=DagRun.run_type,
+            _type=list[str],
+            filter_option=FilterOptionEnum.ANY_EQUAL,
+            default_factory=list,
+            transform_callable=_transform_dag_run_types,
         )
     ),
 ]
@@ -669,3 +632,11 @@ QueryVariableKeyPatternSearch = Annotated[
 # UI Shared
 QueryIncludeUpstream = Annotated[Union[bool, None], Depends(lambda: False)]
 QueryIncludeDownstream = Annotated[Union[bool, None], Depends(lambda: False)]
+
+# DAG Filter Upstream|Downstream
+def _optional_boolean(value: bool | None) -> bool | None:
+    return value if value is not None else False
+
+
+QueryIncludeUpstream = Annotated[Union[bool, None], AfterValidator(_optional_boolean)]
+QueryIncludeDownstream = Annotated[Union[bool, None], AfterValidator(_optional_boolean)]
