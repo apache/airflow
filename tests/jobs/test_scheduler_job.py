@@ -79,7 +79,6 @@ from tests.listeners.test_listeners import get_listener_manager
 from tests.models import TEST_DAGS_FOLDER
 from tests.utils.test_timezone import UTC
 from tests_common.test_utils.asserts import assert_queries_count
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars, env_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
@@ -94,6 +93,7 @@ from tests_common.test_utils.db import (
 )
 from tests_common.test_utils.mock_executor import MockExecutor
 from tests_common.test_utils.mock_operators import CustomOperator
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
