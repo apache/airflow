@@ -499,7 +499,7 @@ QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter().depends)]
 
 # DagRun
 QueryLastDagRunStateFilter = Annotated[
-    FilterParam[Union[DagRunState, None]],
+    FilterParam[Optional[DagRunState]],
     Depends(filter_param_factory(DagRun.state, Optional[DagRunState], filter_name="last_dag_run_state")),
 ]
 
