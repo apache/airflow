@@ -30,6 +30,8 @@ import { Dashboard } from "src/pages/Dashboard";
 import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
 
+import { Variables } from "./pages/Variables";
+
 export const router = createBrowserRouter(
   [
     {
@@ -45,6 +47,10 @@ export const router = createBrowserRouter(
         {
           element: <Events />,
           path: "events",
+        },
+        {
+          element: <Variables />,
+          path: "variables",
         },
         {
           children: [
