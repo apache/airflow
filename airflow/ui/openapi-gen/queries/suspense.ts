@@ -15,6 +15,7 @@ import {
   DashboardService,
   EventLogService,
   ExtraLinksService,
+  GridService,
   ImportErrorService,
   JobService,
   MonitorService,
@@ -502,9 +503,9 @@ export const useDashboardServiceHistoricalMetricsSuspense = <
  * Get Structure Data.
  * @param data The data for the request.
  * @param data.dagId
- * @param data.root
  * @param data.includeUpstream
  * @param data.includeDownstream
+ * @param data.root
  * @returns StructureDataResponse Successful Response
  * @throws ApiError
  */
@@ -538,6 +539,80 @@ export const useStructureServiceStructureDataSuspense = <
         includeDownstream,
         includeUpstream,
         root,
+      }) as TData,
+    ...options,
+  });
+/**
+ * Grid Data
+ * Return grid data.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.includeUpstream
+ * @param data.includeDownstream
+ * @param data.baseDate
+ * @param data.root
+ * @param data.runType
+ * @param data.state
+ * @param data.offset
+ * @param data.limit
+ * @returns GridResponse Successful Response
+ * @throws ApiError
+ */
+export const useGridServiceGridDataSuspense = <
+  TData = Common.GridServiceGridDataDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    baseDate,
+    dagId,
+    includeDownstream,
+    includeUpstream,
+    limit,
+    offset,
+    root,
+    runType,
+    state,
+  }: {
+    baseDate?: string;
+    dagId: string;
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
+    limit?: number;
+    offset?: number;
+    root?: string;
+    runType?: string[];
+    state?: string[];
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseGridServiceGridDataKeyFn(
+      {
+        baseDate,
+        dagId,
+        includeDownstream,
+        includeUpstream,
+        limit,
+        offset,
+        root,
+        runType,
+        state,
+      },
+      queryKey,
+    ),
+    queryFn: () =>
+      GridService.gridData({
+        baseDate,
+        dagId,
+        includeDownstream,
+        includeUpstream,
+        limit,
+        offset,
+        root,
+        runType,
+        state,
       }) as TData,
     ...options,
   });

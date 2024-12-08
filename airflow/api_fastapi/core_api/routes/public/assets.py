@@ -208,7 +208,6 @@ def get_asset_queued_events(
     before: OptionalDateTimeQuery = None,
 ) -> QueuedEventCollectionResponse:
     """Get queued asset events for an asset."""
-    print(f"uri: {uri}")
     where_clause = _generate_queued_event_where_clause(uri=uri, before=before)
     query = (
         select(AssetDagRunQueue, AssetModel.uri)

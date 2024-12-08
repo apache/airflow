@@ -15,6 +15,7 @@ import {
   DashboardService,
   EventLogService,
   ExtraLinksService,
+  GridService,
   ImportErrorService,
   JobService,
   MonitorService,
@@ -411,9 +412,9 @@ export const prefetchUseDashboardServiceHistoricalMetrics = (
  * Get Structure Data.
  * @param data The data for the request.
  * @param data.dagId
- * @param data.root
  * @param data.includeUpstream
  * @param data.includeDownstream
+ * @param data.root
  * @returns StructureDataResponse Successful Response
  * @throws ApiError
  */
@@ -444,6 +445,71 @@ export const prefetchUseStructureServiceStructureData = (
         includeDownstream,
         includeUpstream,
         root,
+      }),
+  });
+/**
+ * Grid Data
+ * Return grid data.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.includeUpstream
+ * @param data.includeDownstream
+ * @param data.baseDate
+ * @param data.root
+ * @param data.runType
+ * @param data.state
+ * @param data.offset
+ * @param data.limit
+ * @returns GridResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseGridServiceGridData = (
+  queryClient: QueryClient,
+  {
+    baseDate,
+    dagId,
+    includeDownstream,
+    includeUpstream,
+    limit,
+    offset,
+    root,
+    runType,
+    state,
+  }: {
+    baseDate?: string;
+    dagId: string;
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
+    limit?: number;
+    offset?: number;
+    root?: string;
+    runType?: string[];
+    state?: string[];
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseGridServiceGridDataKeyFn({
+      baseDate,
+      dagId,
+      includeDownstream,
+      includeUpstream,
+      limit,
+      offset,
+      root,
+      runType,
+      state,
+    }),
+    queryFn: () =>
+      GridService.gridData({
+        baseDate,
+        dagId,
+        includeDownstream,
+        includeUpstream,
+        limit,
+        offset,
+        root,
+        runType,
+        state,
       }),
   });
 /**

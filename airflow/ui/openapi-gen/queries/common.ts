@@ -16,6 +16,7 @@ import {
   DashboardService,
   EventLogService,
   ExtraLinksService,
+  GridService,
   ImportErrorService,
   JobService,
   MonitorService,
@@ -352,6 +353,53 @@ export const UseStructureServiceStructureDataKeyFn = (
 ) => [
   useStructureServiceStructureDataKey,
   ...(queryKey ?? [{ dagId, includeDownstream, includeUpstream, root }]),
+];
+export type GridServiceGridDataDefaultResponse = Awaited<
+  ReturnType<typeof GridService.gridData>
+>;
+export type GridServiceGridDataQueryResult<
+  TData = GridServiceGridDataDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useGridServiceGridDataKey = "GridServiceGridData";
+export const UseGridServiceGridDataKeyFn = (
+  {
+    baseDate,
+    dagId,
+    includeDownstream,
+    includeUpstream,
+    limit,
+    offset,
+    root,
+    runType,
+    state,
+  }: {
+    baseDate?: string;
+    dagId: string;
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
+    limit?: number;
+    offset?: number;
+    root?: string;
+    runType?: string[];
+    state?: string[];
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useGridServiceGridDataKey,
+  ...(queryKey ?? [
+    {
+      baseDate,
+      dagId,
+      includeDownstream,
+      includeUpstream,
+      limit,
+      offset,
+      root,
+      runType,
+      state,
+    },
+  ]),
 ];
 export type BackfillServiceListBackfillsDefaultResponse = Awaited<
   ReturnType<typeof BackfillService.listBackfills>

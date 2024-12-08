@@ -36,6 +36,8 @@ import type {
   HistoricalMetricsResponse,
   StructureDataData,
   StructureDataResponse2,
+  GridDataData,
+  GridDataResponse,
   ListBackfillsData,
   ListBackfillsResponse,
   CreateBackfillData,
@@ -671,9 +673,9 @@ export class StructureService {
    * Get Structure Data.
    * @param data The data for the request.
    * @param data.dagId
-   * @param data.root
    * @param data.includeUpstream
    * @param data.includeDownstream
+   * @param data.root
    * @returns StructureDataResponse Successful Response
    * @throws ApiError
    */
@@ -685,11 +687,56 @@ export class StructureService {
       url: "/ui/structure/structure_data",
       query: {
         dag_id: data.dagId,
-        root: data.root,
         include_upstream: data.includeUpstream,
         include_downstream: data.includeDownstream,
+        root: data.root,
       },
       errors: {
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class GridService {
+  /**
+   * Grid Data
+   * Return grid data.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.includeUpstream
+   * @param data.includeDownstream
+   * @param data.baseDate
+   * @param data.root
+   * @param data.runType
+   * @param data.state
+   * @param data.offset
+   * @param data.limit
+   * @returns GridResponse Successful Response
+   * @throws ApiError
+   */
+  public static gridData(
+    data: GridDataData,
+  ): CancelablePromise<GridDataResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/grid/{dag_id}",
+      path: {
+        dag_id: data.dagId,
+      },
+      query: {
+        include_upstream: data.includeUpstream,
+        include_downstream: data.includeDownstream,
+        base_date: data.baseDate,
+        root: data.root,
+        run_type: data.runType,
+        state: data.state,
+        offset: data.offset,
+        limit: data.limit,
+      },
+      errors: {
+        400: "Bad Request",
         404: "Not Found",
         422: "Validation Error",
       },
