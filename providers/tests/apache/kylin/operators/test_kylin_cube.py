@@ -29,7 +29,7 @@ from airflow.providers.apache.kylin.operators.kylin_cube import KylinCubeOperato
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 DEFAULT_DATE = timezone.datetime(2020, 1, 1)
 
