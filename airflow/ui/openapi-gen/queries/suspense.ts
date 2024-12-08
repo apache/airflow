@@ -562,11 +562,11 @@ export const useBackfillServiceListBackfillsSuspense = <
     offset,
     orderBy,
   }: {
-    dagId: string;
+    dagId?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
-  },
+  } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
@@ -577,6 +577,49 @@ export const useBackfillServiceListBackfillsSuspense = <
     ),
     queryFn: () =>
       BackfillService.listBackfills({ dagId, limit, offset, orderBy }) as TData,
+    ...options,
+  });
+/**
+ * List Backfills
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns BackfillCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useBackfillServiceListBackfills1Suspense = <
+  TData = Common.BackfillServiceListBackfills1DefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    limit,
+    offset,
+    orderBy,
+  }: {
+    dagId: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseBackfillServiceListBackfills1KeyFn(
+      { dagId, limit, offset, orderBy },
+      queryKey,
+    ),
+    queryFn: () =>
+      BackfillService.listBackfills1({
+        dagId,
+        limit,
+        offset,
+        orderBy,
+      }) as TData,
     ...options,
   });
 /**

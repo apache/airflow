@@ -464,11 +464,11 @@ export const prefetchUseBackfillServiceListBackfills = (
     offset,
     orderBy,
   }: {
-    dagId: string;
+    dagId?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
-  },
+  } = {},
 ) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseBackfillServiceListBackfillsKeyFn({
@@ -479,6 +479,40 @@ export const prefetchUseBackfillServiceListBackfills = (
     }),
     queryFn: () =>
       BackfillService.listBackfills({ dagId, limit, offset, orderBy }),
+  });
+/**
+ * List Backfills
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns BackfillCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseBackfillServiceListBackfills1 = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    limit,
+    offset,
+    orderBy,
+  }: {
+    dagId: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseBackfillServiceListBackfills1KeyFn({
+      dagId,
+      limit,
+      offset,
+      orderBy,
+    }),
+    queryFn: () =>
+      BackfillService.listBackfills1({ dagId, limit, offset, orderBy }),
   });
 /**
  * Get Backfill
