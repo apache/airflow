@@ -230,6 +230,13 @@ paths:
           type: boolean
           default: false
           title: Include Downstream
+      - name: external_dependencies
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: External Dependencies
       responses:
         '200':
           description: Successful Response
@@ -7810,7 +7817,12 @@ components:
           enum:
           - join
           - task
-          - asset_condition
+          - asset-condition
+          - asset
+          - asset-alias
+          - dag
+          - sensor
+          - trigger
           title: Type
         operator:
           anyOf:
