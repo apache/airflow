@@ -1,0 +1,26 @@
+Provider configuration fallbacks removed from core
+
+Around ~2.7, we moved provider config from core into the providers themselves.
+However, if providers that were released before that change was used on 2.7+,
+there could be failures because the config wouldn't be in those providers!
+So, we added a fallback for all of the configs that were moved. These fallbacks
+have now been removed. You must use providers that contain their own config.
+
+TODO: It's unlikely this will be the change that sets the "lowest" min provider version
+for compatibility with Airflow 3. But, it is possible, and if it is we will need to
+then determine what those versions are.
+
+Note: This changes doesn't really fix in any of the following "types", but I've marked
+dependency change so there is something checked.
+
+.. Check the type of change that applies to this change
+
+* Types of change
+
+  * [ ] DAG changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [x] Dependency change
