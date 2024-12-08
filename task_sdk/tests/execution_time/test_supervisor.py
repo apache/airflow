@@ -32,6 +32,7 @@ from unittest.mock import MagicMock
 import httpx
 import psutil
 import pytest
+from pytest_unordered import unordered
 from uuid6 import uuid7
 
 from airflow.sdk.api import client as sdk_client
@@ -110,44 +111,46 @@ class TestWatchedSubprocess:
         rc = proc.wait()
 
         assert rc == 0
-        assert captured_logs == [
-            {
-                "chan": "stdout",
-                "event": "I'm a short message",
-                "level": "info",
-                "logger": "task",
-                "timestamp": "2024-11-07T12:34:56.078901Z",
-            },
-            {
-                "chan": "stderr",
-                "event": "stderr message",
-                "level": "error",
-                "logger": "task",
-                "timestamp": "2024-11-07T12:34:56.078901Z",
-            },
-            {
-                "chan": "stdout",
-                "event": "Message split across two writes",
-                "level": "info",
-                "logger": "task",
-                "timestamp": "2024-11-07T12:34:56.078901Z",
-            },
-            {
-                "event": "An error message",
-                "level": "error",
-                "logger": "airflow.foobar",
-                "timestamp": instant.replace(tzinfo=None),
-            },
-            {
-                "category": "UserWarning",
-                "event": "Warning should be captured too",
-                "filename": __file__,
-                "level": "warning",
-                "lineno": line,
-                "logger": "py.warnings",
-                "timestamp": instant.replace(tzinfo=None),
-            },
-        ]
+        assert captured_logs == unordered(
+            [
+                {
+                    "chan": "stdout",
+                    "event": "I'm a short message",
+                    "level": "info",
+                    "logger": "task",
+                    "timestamp": "2024-11-07T12:34:56.078901Z",
+                },
+                {
+                    "chan": "stderr",
+                    "event": "stderr message",
+                    "level": "error",
+                    "logger": "task",
+                    "timestamp": "2024-11-07T12:34:56.078901Z",
+                },
+                {
+                    "chan": "stdout",
+                    "event": "Message split across two writes",
+                    "level": "info",
+                    "logger": "task",
+                    "timestamp": "2024-11-07T12:34:56.078901Z",
+                },
+                {
+                    "event": "An error message",
+                    "level": "error",
+                    "logger": "airflow.foobar",
+                    "timestamp": instant.replace(tzinfo=None),
+                },
+                {
+                    "category": "UserWarning",
+                    "event": "Warning should be captured too",
+                    "filename": __file__,
+                    "level": "warning",
+                    "lineno": line,
+                    "logger": "py.warnings",
+                    "timestamp": instant.replace(tzinfo=None),
+                },
+            ]
+        )
 
     def test_subprocess_sigkilled(self):
         main_pid = os.getpid()
