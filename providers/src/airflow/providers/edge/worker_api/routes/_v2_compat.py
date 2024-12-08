@@ -18,12 +18,7 @@
 
 from __future__ import annotations
 
-from packaging.version import Version
-
-from airflow import __version__ as airflow_version
-
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
+from airflow.providers.edge.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     # Just re-import the types from FastAPI and Airflow Core
