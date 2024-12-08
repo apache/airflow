@@ -61,10 +61,8 @@ def get_dag_run_sort_param(dag: DAG) -> BaseParam:
     for name in dag.timetable.run_ordering:
         if name in ("data_interval_start", "data_interval_end"):
             return sort_param.set_value(name)
-        else:
-            return sort_param.set_value("logical_date")
 
-    raise AirflowConfigException(f"No valid sort column found in run_ordering for {dag.dag_id}")
+    return sort_param.set_value("logical_date")
 
 
 @cache
