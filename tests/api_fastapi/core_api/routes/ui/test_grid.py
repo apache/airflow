@@ -40,6 +40,9 @@ DAG_ID = "test_dag"
 DAG_ID_2 = "test_dag_2"
 TASK_ID = "task"
 TASK_ID_2 = "task2"
+SUB_TASK_ID = "subtask"
+MAPPED_TASK_ID = "mapped_task"
+TASK_GROUP_ID = "task_group"
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -60,11 +63,11 @@ def setup(dag_maker, session=None):
 
         @task_group
         def mapped_task_group(arg1):
-            return MockOperator(task_id="subtask", arg1=arg1)
+            return MockOperator(task_id=SUB_TASK_ID, arg1=arg1)
 
         mapped_task_group.expand(arg1=["a", "b", "c"])
-        with TaskGroup(group_id="task_group"):
-            MockOperator.partial(task_id="mapped_task").expand(arg1=["a", "b", "c", "d"])
+        with TaskGroup(group_id=TASK_GROUP_ID):
+            MockOperator.partial(task_id=MAPPED_TASK_ID).expand(arg1=["a", "b", "c", "d"])
 
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST}
     logical_date = timezone.datetime(2024, 11, 30)
@@ -187,7 +190,7 @@ class TestGetGridDataEndpoint:
                                 "up_for_retry": 0,
                                 "upstream_failed": 0,
                             },
-                            "task_count": 1,
+                            "task_count": 4,
                             "task_id": "task_group",
                             "try_number": 0,
                         },
@@ -326,7 +329,7 @@ class TestGetGridDataEndpoint:
                                 "up_for_retry": 0,
                                 "upstream_failed": 0,
                             },
-                            "task_count": 1,
+                            "task_count": 4,
                             "task_id": "task_group",
                             "try_number": 0,
                         },
@@ -403,6 +406,284 @@ class TestGetGridDataEndpoint:
                             },
                             "task_count": 4,
                             "task_id": "task_group.mapped_task",
+                            "try_number": 0,
+                        },
+                    ],
+                    "version_number": None,
+                },
+            ],
+        }
+
+    def test_should_response_200_include_upstream(self, test_client):
+        response = test_client.get(
+            f"/ui/grid/{DAG_ID}?root={SUB_TASK_ID}&include_upstream=true&include_downstream=false"
+        )
+        assert response.status_code == 200
+        print(response.json())
+        assert response.json() == {
+            "dag_runs": [
+                {
+                    "data_interval_end": "2024-11-30T00:00:00Z",
+                    "data_interval_start": "2024-11-29T00:00:00Z",
+                    "end_date": "2024-12-01T00:00:00Z",
+                    "note": None,
+                    "queued_at": None,
+                    "run_id": "run_1",
+                    "run_type": "scheduled",
+                    "start_date": "2016-01-01T00:00:00Z",
+                    "state": "success",
+                    "task_instances": [
+                        {
+                            "end_date": None,
+                            "note": None,
+                            "overall_state": "success",
+                            "queued_dttm": None,
+                            "start_date": None,
+                            "states": {
+                                "deferred": 0,
+                                "failed": 0,
+                                "no_status": 0,
+                                "queued": 0,
+                                "removed": 0,
+                                "restarting": 0,
+                                "running": 0,
+                                "scheduled": 0,
+                                "skipped": 0,
+                                "success": 3,
+                                "up_for_reschedule": 0,
+                                "up_for_retry": 0,
+                                "upstream_failed": 0,
+                            },
+                            "task_count": 3,
+                            "task_id": "mapped_task_group",
+                            "try_number": 0,
+                        },
+                        {
+                            "end_date": None,
+                            "note": None,
+                            "overall_state": "success",
+                            "queued_dttm": None,
+                            "start_date": None,
+                            "states": {
+                                "deferred": 0,
+                                "failed": 0,
+                                "no_status": 0,
+                                "queued": 0,
+                                "removed": 0,
+                                "restarting": 0,
+                                "running": 0,
+                                "scheduled": 0,
+                                "skipped": 0,
+                                "success": 3,
+                                "up_for_reschedule": 0,
+                                "up_for_retry": 0,
+                                "upstream_failed": 0,
+                            },
+                            "task_count": 3,
+                            "task_id": "mapped_task_group.subtask",
+                            "try_number": 0,
+                        },
+                    ],
+                    "version_number": None,
+                },
+                {
+                    "data_interval_end": "2024-11-30T00:00:00Z",
+                    "data_interval_start": "2024-11-29T00:00:00Z",
+                    "end_date": "2024-12-01T00:00:00Z",
+                    "note": None,
+                    "queued_at": None,
+                    "run_id": "run_2",
+                    "run_type": "manual",
+                    "start_date": "2016-01-01T00:00:00Z",
+                    "state": "failed",
+                    "task_instances": [
+                        {
+                            "end_date": None,
+                            "note": None,
+                            "overall_state": None,
+                            "queued_dttm": None,
+                            "start_date": None,
+                            "states": {
+                                "deferred": 0,
+                                "failed": 0,
+                                "no_status": 3,
+                                "queued": 0,
+                                "removed": 0,
+                                "restarting": 0,
+                                "running": 0,
+                                "scheduled": 0,
+                                "skipped": 0,
+                                "success": 0,
+                                "up_for_reschedule": 0,
+                                "up_for_retry": 0,
+                                "upstream_failed": 0,
+                            },
+                            "task_count": 3,
+                            "task_id": "mapped_task_group",
+                            "try_number": 0,
+                        },
+                        {
+                            "end_date": None,
+                            "note": None,
+                            "overall_state": None,
+                            "queued_dttm": None,
+                            "start_date": None,
+                            "states": {
+                                "deferred": 0,
+                                "failed": 0,
+                                "no_status": 3,
+                                "queued": 0,
+                                "removed": 0,
+                                "restarting": 0,
+                                "running": 0,
+                                "scheduled": 0,
+                                "skipped": 0,
+                                "success": 0,
+                                "up_for_reschedule": 0,
+                                "up_for_retry": 0,
+                                "upstream_failed": 0,
+                            },
+                            "task_count": 3,
+                            "task_id": "mapped_task_group.subtask",
+                            "try_number": 0,
+                        },
+                    ],
+                    "version_number": None,
+                },
+            ],
+        }
+
+    def test_should_response_200_include_downstream(self, test_client):
+        response = test_client.get(
+            f"/ui/grid/{DAG_ID}?root={SUB_TASK_ID}&include_upstream=false&include_downstream=true"
+        )
+        assert response.status_code == 200
+        print(response.json())
+        assert response.json() == {
+            "dag_runs": [
+                {
+                    "data_interval_end": "2024-11-30T00:00:00Z",
+                    "data_interval_start": "2024-11-29T00:00:00Z",
+                    "end_date": "2024-12-01T00:00:00Z",
+                    "note": None,
+                    "queued_at": None,
+                    "run_id": "run_1",
+                    "run_type": "scheduled",
+                    "start_date": "2016-01-01T00:00:00Z",
+                    "state": "success",
+                    "task_instances": [
+                        {
+                            "end_date": None,
+                            "note": None,
+                            "overall_state": "success",
+                            "queued_dttm": None,
+                            "start_date": None,
+                            "states": {
+                                "deferred": 0,
+                                "failed": 0,
+                                "no_status": 0,
+                                "queued": 0,
+                                "removed": 0,
+                                "restarting": 0,
+                                "running": 0,
+                                "scheduled": 0,
+                                "skipped": 0,
+                                "success": 3,
+                                "up_for_reschedule": 0,
+                                "up_for_retry": 0,
+                                "upstream_failed": 0,
+                            },
+                            "task_count": 3,
+                            "task_id": "mapped_task_group",
+                            "try_number": 0,
+                        },
+                        {
+                            "end_date": None,
+                            "note": None,
+                            "overall_state": "success",
+                            "queued_dttm": None,
+                            "start_date": None,
+                            "states": {
+                                "deferred": 0,
+                                "failed": 0,
+                                "no_status": 0,
+                                "queued": 0,
+                                "removed": 0,
+                                "restarting": 0,
+                                "running": 0,
+                                "scheduled": 0,
+                                "skipped": 0,
+                                "success": 3,
+                                "up_for_reschedule": 0,
+                                "up_for_retry": 0,
+                                "upstream_failed": 0,
+                            },
+                            "task_count": 3,
+                            "task_id": "mapped_task_group.subtask",
+                            "try_number": 0,
+                        },
+                    ],
+                    "version_number": None,
+                },
+                {
+                    "data_interval_end": "2024-11-30T00:00:00Z",
+                    "data_interval_start": "2024-11-29T00:00:00Z",
+                    "end_date": "2024-12-01T00:00:00Z",
+                    "note": None,
+                    "queued_at": None,
+                    "run_id": "run_2",
+                    "run_type": "manual",
+                    "start_date": "2016-01-01T00:00:00Z",
+                    "state": "failed",
+                    "task_instances": [
+                        {
+                            "end_date": None,
+                            "note": None,
+                            "overall_state": None,
+                            "queued_dttm": None,
+                            "start_date": None,
+                            "states": {
+                                "deferred": 0,
+                                "failed": 0,
+                                "no_status": 3,
+                                "queued": 0,
+                                "removed": 0,
+                                "restarting": 0,
+                                "running": 0,
+                                "scheduled": 0,
+                                "skipped": 0,
+                                "success": 0,
+                                "up_for_reschedule": 0,
+                                "up_for_retry": 0,
+                                "upstream_failed": 0,
+                            },
+                            "task_count": 3,
+                            "task_id": "mapped_task_group",
+                            "try_number": 0,
+                        },
+                        {
+                            "end_date": None,
+                            "note": None,
+                            "overall_state": None,
+                            "queued_dttm": None,
+                            "start_date": None,
+                            "states": {
+                                "deferred": 0,
+                                "failed": 0,
+                                "no_status": 3,
+                                "queued": 0,
+                                "removed": 0,
+                                "restarting": 0,
+                                "running": 0,
+                                "scheduled": 0,
+                                "skipped": 0,
+                                "success": 0,
+                                "up_for_reschedule": 0,
+                                "up_for_retry": 0,
+                                "upstream_failed": 0,
+                            },
+                            "task_count": 3,
+                            "task_id": "mapped_task_group.subtask",
                             "try_number": 0,
                         },
                     ],

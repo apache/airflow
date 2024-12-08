@@ -487,6 +487,8 @@ export const prefetchUseDashboardServiceHistoricalMetrics = (
  * Get Structure Data.
  * @param data The data for the request.
  * @param data.dagId
+ * @param data.includeUpstream
+ * @param data.includeDownstream
  * @param data.root
  * @returns StructureDataResponse Successful Response
  * @throws ApiError
@@ -495,24 +497,41 @@ export const prefetchUseStructureServiceStructureData = (
   queryClient: QueryClient,
   {
     dagId,
+    includeDownstream,
+    includeUpstream,
     root,
   }: {
     dagId: string;
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
     root?: string;
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseStructureServiceStructureDataKeyFn({ dagId, root }),
-    queryFn: () => StructureService.structureData({ dagId, root }),
+    queryKey: Common.UseStructureServiceStructureDataKeyFn({
+      dagId,
+      includeDownstream,
+      includeUpstream,
+      root,
+    }),
+    queryFn: () =>
+      StructureService.structureData({
+        dagId,
+        includeDownstream,
+        includeUpstream,
+        root,
+      }),
   });
 /**
  * Grid Data
  * Return grid data.
  * @param data The data for the request.
  * @param data.dagId
+ * @param data.includeUpstream
+ * @param data.includeDownstream
  * @param data.baseDate
  * @param data.root
- * @param data.runTypes
+ * @param data.runType
  * @param data.state
  * @param data.offset
  * @param data.limit
@@ -524,18 +543,22 @@ export const prefetchUseGridServiceGridData = (
   {
     baseDate,
     dagId,
+    includeDownstream,
+    includeUpstream,
     limit,
     offset,
     root,
-    runTypes,
+    runType,
     state,
   }: {
     baseDate?: string;
     dagId: string;
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
     limit?: number;
     offset?: number;
     root?: string;
-    runTypes?: string[];
+    runType?: string[];
     state?: string[];
   },
 ) =>
@@ -543,20 +566,24 @@ export const prefetchUseGridServiceGridData = (
     queryKey: Common.UseGridServiceGridDataKeyFn({
       baseDate,
       dagId,
+      includeDownstream,
+      includeUpstream,
       limit,
       offset,
       root,
-      runTypes,
+      runType,
       state,
     }),
     queryFn: () =>
       GridService.gridData({
         baseDate,
         dagId,
+        includeDownstream,
+        includeUpstream,
         limit,
         offset,
         root,
-        runTypes,
+        runType,
         state,
       }),
   });

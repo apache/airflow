@@ -586,6 +586,8 @@ export const useDashboardServiceHistoricalMetricsSuspense = <
  * Get Structure Data.
  * @param data The data for the request.
  * @param data.dagId
+ * @param data.includeUpstream
+ * @param data.includeDownstream
  * @param data.root
  * @returns StructureDataResponse Successful Response
  * @throws ApiError
@@ -597,9 +599,13 @@ export const useStructureServiceStructureDataSuspense = <
 >(
   {
     dagId,
+    includeDownstream,
+    includeUpstream,
     root,
   }: {
     dagId: string;
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
     root?: string;
   },
   queryKey?: TQueryKey,
@@ -607,10 +613,16 @@ export const useStructureServiceStructureDataSuspense = <
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseStructureServiceStructureDataKeyFn(
-      { dagId, root },
+      { dagId, includeDownstream, includeUpstream, root },
       queryKey,
     ),
-    queryFn: () => StructureService.structureData({ dagId, root }) as TData,
+    queryFn: () =>
+      StructureService.structureData({
+        dagId,
+        includeDownstream,
+        includeUpstream,
+        root,
+      }) as TData,
     ...options,
   });
 /**
@@ -618,9 +630,11 @@ export const useStructureServiceStructureDataSuspense = <
  * Return grid data.
  * @param data The data for the request.
  * @param data.dagId
+ * @param data.includeUpstream
+ * @param data.includeDownstream
  * @param data.baseDate
  * @param data.root
- * @param data.runTypes
+ * @param data.runType
  * @param data.state
  * @param data.offset
  * @param data.limit
@@ -635,18 +649,22 @@ export const useGridServiceGridDataSuspense = <
   {
     baseDate,
     dagId,
+    includeDownstream,
+    includeUpstream,
     limit,
     offset,
     root,
-    runTypes,
+    runType,
     state,
   }: {
     baseDate?: string;
     dagId: string;
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
     limit?: number;
     offset?: number;
     root?: string;
-    runTypes?: string[];
+    runType?: string[];
     state?: string[];
   },
   queryKey?: TQueryKey,
@@ -654,17 +672,29 @@ export const useGridServiceGridDataSuspense = <
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseGridServiceGridDataKeyFn(
-      { baseDate, dagId, limit, offset, root, runTypes, state },
+      {
+        baseDate,
+        dagId,
+        includeDownstream,
+        includeUpstream,
+        limit,
+        offset,
+        root,
+        runType,
+        state,
+      },
       queryKey,
     ),
     queryFn: () =>
       GridService.gridData({
         baseDate,
         dagId,
+        includeDownstream,
+        includeUpstream,
         limit,
         offset,
         root,
-        runTypes,
+        runType,
         state,
       }) as TData,
     ...options,
