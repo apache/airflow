@@ -76,10 +76,15 @@ class TestListBackfills(TestBackfillEndpoint):
     @pytest.mark.parametrize(
         "test_params, response_params, total_entries",
         [
+            ({}, ["backfill1", "backfill2", "backfill3"], 3),
+            ({"only_active": True}, ["backfill2", "backfill3"], 2),
+            ({"only_active": False}, ["backfill1", "backfill2", "backfill3"], 3),
             ({"dag_id": "", "only_active": True}, ["backfill2", "backfill3"], 2),
             ({"dag_id": "", "only_active": False}, ["backfill1", "backfill2", "backfill3"], 3),
+            ({"dag_id": ""}, ["backfill1", "backfill2", "backfill3"], 3),
             ({"dag_id": "TEST_DAG_1", "only_active": True}, [], 0),
             ({"dag_id": "TEST_DAG_1", "only_active": False}, ["backfill1"], 1),
+            ({"dag_id": "TEST_DAG_1"}, ["backfill1"], 1),
         ],
     )
     @provide_session

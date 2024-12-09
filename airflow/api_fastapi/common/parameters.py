@@ -131,9 +131,10 @@ class _NoneFilter(BaseParam[bool]):
 
 def none_param_factory(
     attribute: ColumnElement,
+    none_filter_name: str,
     skip_none: bool = True,
 ) -> Callable[[bool | None], _NoneFilter]:
-    def depends_none(value: bool | None = Query(default=None)) -> _NoneFilter:
+    def depends_none(value: bool | None = Query(alias=none_filter_name, default=None)) -> _NoneFilter:
         return _NoneFilter(attribute, value, skip_none)
 
     return depends_none

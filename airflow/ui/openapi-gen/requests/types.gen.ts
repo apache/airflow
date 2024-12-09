@@ -1430,8 +1430,8 @@ export type ListBackfillsData = {
   dagId?: string | null;
   limit?: number;
   offset?: number;
+  onlyActive?: boolean | null;
   orderBy?: string;
-  value?: boolean | null;
 };
 
 export type ListBackfillsResponse = BackfillCollectionResponse;

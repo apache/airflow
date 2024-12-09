@@ -707,7 +707,7 @@ export class BackfillService {
    * @param data.offset
    * @param data.orderBy
    * @param data.dagId
-   * @param data.value
+   * @param data.onlyActive
    * @returns BackfillCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -722,7 +722,7 @@ export class BackfillService {
         offset: data.offset,
         order_by: data.orderBy,
         dag_id: data.dagId,
-        value: data.value,
+        only_active: data.onlyActive,
       },
       errors: {
         404: "Not Found",
