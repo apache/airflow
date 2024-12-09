@@ -21,10 +21,8 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 from urllib import parse
 
-from deprecated import deprecated
 from elasticsearch import Elasticsearch
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
@@ -140,21 +138,6 @@ class ElasticsearchSQLHook(DbApiHook):
                 uri += "&"
 
         return uri
-
-
-@deprecated(
-    reason="Please use `airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchSQLHook`.",
-    category=AirflowProviderDeprecationWarning,
-)
-class ElasticsearchHook(ElasticsearchSQLHook):
-    """
-    This class is deprecated and was renamed to ElasticsearchSQLHook.
-
-    Please use :class:`airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchSQLHook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
 
 
 class ElasticsearchPythonHook(BaseHook):

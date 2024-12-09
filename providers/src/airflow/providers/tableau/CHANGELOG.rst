@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+main
+....
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the tableau provider package.
+  The following breaking changes were introduced:
+
+  * Removed deprecated Authentication via ``personal access token``.  Use ``password`` authentication instead.
+
 4.6.1
 .....
 

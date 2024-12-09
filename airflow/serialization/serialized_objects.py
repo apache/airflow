@@ -59,7 +59,6 @@ from airflow.providers_manager import ProvidersManager
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
-    AssetAliasCondition,
     AssetAll,
     AssetAny,
     AssetRef,
@@ -86,6 +85,7 @@ from airflow.task.priority_strategy import (
 from airflow.triggers.base import BaseTrigger, StartTriggerArgs
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.context import (
+    AssetAliasEvent,
     ConnectionAccessor,
     Context,
     OutletEventAccessor,
@@ -306,7 +306,7 @@ def encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
     raw_key = var.raw_key
     return {
         "extra": var.extra,
-        "asset_alias_events": var.asset_alias_events,
+        "asset_alias_events": [attrs.asdict(cast(attrs.AttrsInstance, e)) for e in var.asset_alias_events],
         "raw_key": BaseSerialization.serialize(raw_key),
     }
 
@@ -317,7 +317,7 @@ def decode_outlet_event_accessor(var: dict[str, Any]) -> OutletEventAccessor:
     outlet_event_accessor = OutletEventAccessor(
         extra=var["extra"],
         raw_key=BaseSerialization.deserialize(var["raw_key"]),
-        asset_alias_events=asset_alias_events,
+        asset_alias_events=[AssetAliasEvent(**e) for e in asset_alias_events],
     )
     return outlet_event_accessor
 
@@ -1108,9 +1108,7 @@ class DependencyDetector:
                     )
                 )
             elif isinstance(obj, AssetAlias):
-                cond = AssetAliasCondition(name=obj.name, group=obj.group)
-
-                deps.extend(cond.iter_dag_dependencies(source=task.dag_id, target=""))
+                deps.extend(obj.iter_dag_dependencies(source=task.dag_id, target=""))
         return deps
 
     @staticmethod

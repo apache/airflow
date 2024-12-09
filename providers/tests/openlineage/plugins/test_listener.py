@@ -38,8 +38,9 @@ from airflow.providers.openlineage.plugins.listener import OpenLineageListener
 from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
 from airflow.utils.state import DagRunState, State
 
-from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS, PythonOperator
+from tests_common.test_utils.compat import PythonOperator
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -188,8 +189,8 @@ def _create_listener_and_task_instance() -> tuple[OpenLineageListener, TaskInsta
         # Now you can use listener and task_instance in your tests to simulate their interaction.
     """
 
-    def mock_dag_id(dag_id, logical_date):
-        return f"{logical_date.isoformat()}.{dag_id}"
+    def mock_dag_id(dag_id, logical_date, clear_number):
+        return f"{logical_date.isoformat()}.{dag_id}.{clear_number}"
 
     def mock_task_id(dag_id, task_id, try_number, logical_date, map_index):
         return f"{logical_date.isoformat()}.{dag_id}.{task_id}.{try_number}.{map_index}"
@@ -214,6 +215,7 @@ def _create_listener_and_task_instance() -> tuple[OpenLineageListener, TaskInsta
     task_instance.dag_run.run_id = "dag_run_run_id"
     task_instance.dag_run.data_interval_start = None
     task_instance.dag_run.data_interval_end = None
+    task_instance.dag_run.clear_number = 0
     if AIRFLOW_V_3_0_PLUS:
         task_instance.dag_run.logical_date = dt.datetime(2020, 1, 1, 1, 1, 1)
     else:
@@ -276,7 +278,7 @@ def test_adapter_start_task_is_called_with_proper_arguments(
         job_description="Test DAG Description",
         event_time="2023-01-01T13:01:01",
         parent_job_name="dag_id",
-        parent_run_id="2020-01-01T01:01:01.dag_id",
+        parent_run_id="2020-01-01T01:01:01.dag_id.0",
         code_location=None,
         nominal_start_time=None,
         nominal_end_time=None,
@@ -330,7 +332,7 @@ def test_adapter_fail_task_is_called_with_proper_arguments(
         end_time="2023-01-03T13:01:01",
         job_name="job_name",
         parent_job_name="dag_id",
-        parent_run_id="2020-01-01T01:01:01.dag_id",
+        parent_run_id="2020-01-01T01:01:01.dag_id.0",
         run_id="2020-01-01T01:01:01.dag_id.task_id.1.-1",
         task=listener.extractor_manager.extract_metadata(),
         run_facets={
@@ -379,7 +381,7 @@ def test_adapter_complete_task_is_called_with_proper_arguments(
         end_time="2023-01-03T13:01:01",
         job_name="job_name",
         parent_job_name="dag_id",
-        parent_run_id="2020-01-01T01:01:01.dag_id",
+        parent_run_id="2020-01-01T01:01:01.dag_id.0",
         run_id=f"2020-01-01T01:01:01.dag_id.task_id.{EXPECTED_TRY_NUMBER_1}.-1",
         task=listener.extractor_manager.extract_metadata(),
         run_facets={
@@ -653,6 +655,7 @@ def test_listener_logs_failed_serialization():
         run_id="",
         end_date=event_time,
         logical_date=callback_future,
+        clear_number=0,
         dag_run_state=DagRunState.FAILED,
         task_ids=["task_id"],
         msg="",
