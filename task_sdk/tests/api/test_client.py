@@ -24,7 +24,7 @@ import pytest
 import uuid6
 
 from airflow.sdk.api.client import Client, RemoteValidationError, ServerResponseError
-from airflow.sdk.api.datamodels._generated import VariableResponse
+from airflow.sdk.api.datamodels._generated import VariableResponse, XComResponse
 from airflow.sdk.execution_time.comms import DeferTask
 from airflow.utils.state import TerminalTIState
 
@@ -272,4 +272,113 @@ class TestVariableOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
 
         result = client.variables.set(key="test_key", value="test_value", description="test_description")
+        assert result == {"ok": True}
+
+
+class TestXCOMOperations:
+    """
+    Test that the XComOperations class works as expected. While the operations are simple, it
+    still catches the basic functionality of the client for xcoms including endpoint and
+    response parsing.
+    """
+
+    def test_xcom_get_success(self):
+        # Simulate a successful response from the server when getting an xcom
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/xcoms/dag_id/run_id/task_id/key":
+                return httpx.Response(
+                    status_code=201,
+                    json={"key": "test_key", "value": "test_value"},
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.xcoms.get(
+            dag_id="dag_id",
+            run_id="run_id",
+            task_id="task_id",
+            key="key",
+        )
+        assert isinstance(result, XComResponse)
+        assert result.key == "test_key"
+        assert result.value == "test_value"
+
+    def test_xcom_get_success_with_map_index(self):
+        # Simulate a successful response from the server when getting an xcom with map_index passed
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if (
+                request.url.path == "/xcoms/dag_id/run_id/task_id/key"
+                and request.url.params.get("map_index") == "2"
+            ):
+                return httpx.Response(
+                    status_code=201,
+                    json={"key": "test_key", "value": "test_value"},
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.xcoms.get(
+            dag_id="dag_id",
+            run_id="run_id",
+            task_id="task_id",
+            key="key",
+            map_index=2,
+        )
+        assert isinstance(result, XComResponse)
+        assert result.key == "test_key"
+        assert result.value == "test_value"
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            pytest.param("value1", id="string-value"),
+            pytest.param({"key1": "value1"}, id="dict-value"),
+            pytest.param(["value1", "value2"], id="list-value"),
+            pytest.param({"key": "test_key", "value": {"key2": "value2"}}, id="nested-dict-value"),
+        ],
+    )
+    def test_xcom_set_success(self, values):
+        # Simulate a successful response from the server when setting an xcom
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/xcoms/dag_id/run_id/task_id/key":
+                assert json.loads(request.read()) == values
+                return httpx.Response(
+                    status_code=201,
+                    json={"message": "XCom successfully set"},
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.xcoms.set(
+            dag_id="dag_id",
+            run_id="run_id",
+            task_id="task_id",
+            key="key",
+            value=values,
+        )
+        assert result == {"ok": True}
+
+    def test_xcom_set_with_map_index(self):
+        # Simulate a successful response from the server when setting an xcom with map_index passed
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if (
+                request.url.path == "/xcoms/dag_id/run_id/task_id/key"
+                and request.url.params.get("map_index") == "2"
+            ):
+                assert json.loads(request.read()) == "value1"
+                return httpx.Response(
+                    status_code=201,
+                    json={"message": "XCom successfully set"},
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.xcoms.set(
+            dag_id="dag_id",
+            run_id="run_id",
+            task_id="task_id",
+            key="key",
+            value="value1",
+            map_index=2,
+        )
         assert result == {"ok": True}
