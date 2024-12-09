@@ -29,13 +29,14 @@ from sqlalchemy.sql import select
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    RTIFPayload,
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
     TIStateUpdate,
     TITerminalStatePayload,
 )
-from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.taskinstance import TaskInstance as TI, _update_rtif
 from airflow.models.trigger import Trigger
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -219,3 +220,33 @@ def ti_heartbeat(
     # Update the last heartbeat time!
     session.execute(update(TI).where(TI.id == ti_id_str).values(last_heartbeat_at=timezone.utcnow()))
     log.debug("Task with %s state heartbeated", previous_state)
+
+
+@router.put(
+    "/{task_instance_id}/rtif",
+    status_code=status.HTTP_201_CREATED,
+    # TODO: Add description to the operation
+    # TODO: Add Operation ID to control the function name in the OpenAPI spec
+    # TODO: Do we need to use create_openapi_http_exception_doc here?
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
+        status.HTTP_422_UNPROCESSABLE_ENTITY: {
+            "description": "Invalid payload for the setting rendered task instance fields"
+        },
+    },
+)
+def ti_put_rtif(
+    task_instance_id: UUID,
+    put_rtif_payload: RTIFPayload,
+    session: SessionDep,
+):
+    """Add an RTIF entry for a task instance, sent by the worker."""
+    ti_id_str = str(task_instance_id)
+    task_instance = session.scalar(select(TI).where(TI.id == ti_id_str))
+    if not task_instance:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    _update_rtif(task_instance, put_rtif_payload.model_dump(), session)
+
+    return {"message": "Rendered task instance fields successfully set"}
