@@ -23,7 +23,6 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
-
 from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import Connection, DagRun, TaskInstance as TI, XCom
@@ -147,6 +146,23 @@ class TestSQLExecuteQueryOperator:
             return_last=True,
         )
         mock_process_output.assert_not_called()
+
+    @mock.patch.object(SQLExecuteQueryOperator, "get_db_hook")
+    def test_output_processor(self, mock_get_db_hook):
+        data = [(1, "Alice"), (2, "Bob")]
+
+        mock_hook = MagicMock()
+        mock_hook.run.return_value = data
+        mock_hook.descriptions = ("id", "name")
+        mock_get_db_hook.return_value = mock_hook
+
+        operator = self._construct_operator(
+            sql="SELECT * FROM users;",
+            output_processor=lambda results, descriptions: (descriptions, results),
+        )
+        result = operator.execute(context=MagicMock())
+
+        assert result == [("id", "name"), [(1, "Alice"), (2, "Bob")]]
 
 
 class TestColumnCheckOperator:
