@@ -183,4 +183,4 @@ jobs:
         if: success()
       - name: "Post Tests failure"
         uses: ./.github/actions/post_tests_failure
-        if: failure()
+        if: failure() || cancelled()
