@@ -1119,7 +1119,12 @@ def python_api_client_tests(
 def run_with_timeout(timeout: int):
     def timeout_handler(signum, frame):
         get_console().print("[error]Timeout reached. Killing the process[/]")
-        sys.exit(1)
+        run_command(
+            ["docker", "kill", "$(docker ps -q)"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
 
     signal.signal(signal.SIGALRM, timeout_handler)
     signal.alarm(timeout)
