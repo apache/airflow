@@ -43,11 +43,14 @@ airflow_version = "3.0.0"
 
 def upgrade():
     """Remove ``is_subdag`` column from DAGs table."""
+    dialect = op.get_bind().dialect.name
     with op.batch_alter_table("dag") as batch_op:
         batch_op.drop_column("is_subdag")
         batch_op.drop_column("root_dag_id")
         if op.get_bind().dialect.name == "mysql":
             mysql_drop_index_if_exists("idx_root_dag_id", "dag", op)
+        elif dialect == "sqlite":
+            op.execute("""DROP INDEX idx_root_dag_id""")
         else:
             batch_op.drop_index("idx_root_dag_id", if_exists=True)
 
