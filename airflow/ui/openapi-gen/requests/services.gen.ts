@@ -7,6 +7,8 @@ import type {
   NextRunAssetsResponse,
   GetAssetsData,
   GetAssetsResponse,
+  GetAssetAliasesData,
+  GetAssetAliasesResponse,
   GetAssetEventsData,
   GetAssetEventsResponse,
   CreateAssetEventData,
@@ -209,6 +211,7 @@ export class AssetService {
    * @param data The data for the request.
    * @param data.limit
    * @param data.offset
+   * @param data.namePattern
    * @param data.uriPattern
    * @param data.dagIds
    * @param data.orderBy
@@ -224,8 +227,41 @@ export class AssetService {
       query: {
         limit: data.limit,
         offset: data.offset,
+        name_pattern: data.namePattern,
         uri_pattern: data.uriPattern,
         dag_ids: data.dagIds,
+        order_by: data.orderBy,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Asset Aliases
+   * Get asset aliases.
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.namePattern
+   * @param data.orderBy
+   * @returns AssetAliasCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getAssetAliases(
+    data: GetAssetAliasesData = {},
+  ): CancelablePromise<GetAssetAliasesResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/assets/aliases",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+        name_pattern: data.namePattern,
         order_by: data.orderBy,
       },
       errors: {
