@@ -116,6 +116,10 @@ _MIN_SUPPORTED_PROVIDERS_VERSION = {
 }
 
 
+def default_output_processor(results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any]:
+    return results
+
+
 class BaseSQLOperator(BaseOperator):
     """
     This is a base class for generic SQL Operator to get a DB Hook.
@@ -210,6 +214,8 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     :param autocommit: (optional) if True, each command is automatically committed (default: False).
     :param parameters: (optional) the parameters to render the SQL query with.
     :param handler: (optional) the function that will be applied to the cursor (default: fetch_all_handler).
+    :param output_processor: (optional) the function that will be applied to the result
+        (default: default_output_processor).
     :param split_statements: (optional) if split single SQL string into statements. By default, defers
         to the default value in the ``run`` method of the configured hook.
     :param conn_id: the connection ID used to connect to the database
@@ -235,6 +241,13 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         autocommit: bool = False,
         parameters: Mapping | Iterable | None = None,
         handler: Callable[[Any], list[tuple] | None] = fetch_all_handler,
+        output_processor: (
+            Callable[
+                [list[Any], list[Sequence[Sequence] | None]],
+                list[Any] | tuple[list[Sequence[Sequence] | None], list],
+            ]
+            | None
+        ) = None,
         conn_id: str | None = None,
         database: str | None = None,
         split_statements: bool | None = None,
@@ -247,11 +260,14 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         self.autocommit = autocommit
         self.parameters = parameters
         self.handler = handler
+        self._output_processor = output_processor or default_output_processor
         self.split_statements = split_statements
         self.return_last = return_last
         self.show_return_value_in_logs = show_return_value_in_logs
 
-    def _process_output(self, results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any]:
+    def _process_output(
+        self, results: list[Any], descriptions: list[Sequence[Sequence] | None]
+    ) -> list[Any] | tuple[list[Sequence[Sequence] | None], list]:
         """
         Process output before it is returned by the operator.
 
@@ -270,7 +286,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         """
         if self.show_return_value_in_logs:
             self.log.info("Operator output is: %s", results)
-        return results
+        return self._output_processor(results, descriptions)
 
     def _should_run_output_processing(self) -> bool:
         return self.do_xcom_push
@@ -297,7 +313,9 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             # single query results are going to be returned, and we return the first element
             # of the list in this case from the (always) list returned by _process_output
             return self._process_output([output], hook.descriptions)[-1]
-        return self._process_output(output, hook.descriptions)
+        result = self._process_output(output, hook.descriptions)
+        self.log.info("result: %s", result)
+        return result
 
     def prepare_template(self) -> None:
         """Parse template file for attribute parameters."""
