@@ -142,8 +142,8 @@ def test_run_deferred_basic(test_dags_dir: Path, time_machine):
 def test_run_basic_skipped(test_dags_dir: Path, time_machine):
     """Test running a basic task that marks itself skipped."""
     what = StartupDetails(
-        ti=TaskInstance(id=uuid7(), task_id="skip", dag_id="super_basic_skipped", run_id="c", try_number=1),
-        file=str(test_dags_dir / "super_basic_skipped.py"),
+        ti=TaskInstance(id=uuid7(), task_id="skip", dag_id="basic_skipped", run_id="c", try_number=1),
+        file=str(test_dags_dir / "basic_skipped.py"),
         requests_fd=0,
     )
 

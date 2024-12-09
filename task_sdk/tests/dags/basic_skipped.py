@@ -23,7 +23,7 @@ from airflow.sdk.definitions.dag import dag
 
 
 @dag()
-def super_basic_skipped():
+def basic_skipped():
     def skip_task():
         raise AirflowSkipException("This task is being skipped intentionally.")
 
@@ -33,4 +33,4 @@ def super_basic_skipped():
     )
 
 
-super_basic_skipped()
+basic_skipped()
