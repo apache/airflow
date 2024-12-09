@@ -78,6 +78,7 @@ if TYPE_CHECKING:
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
+    from airflow.models.iterableoperator import IterableOperator
     from airflow.models.operator import Operator
     from airflow.models.param import ParamsDict
     from airflow.models.xcom_arg import XComArg
@@ -89,7 +90,7 @@ if TYPE_CHECKING:
 
     TaskStateChangeCallbackAttrType = Union[None, TaskStateChangeCallback, list[TaskStateChangeCallback]]
 
-ValidationSource = Union[Literal["expand"], Literal["partial"]]
+ValidationSource = Union[Literal["expand"], Literal["partial"], Literal["stream"]]
 
 
 def validate_mapping_kwargs(op: type[BaseOperator], func: ValidationSource, value: dict[str, Any]) -> None:
@@ -238,6 +239,36 @@ class OperatorPartial:
             start_from_trigger=self.operator_class.start_from_trigger,
         )
         return op
+
+    def iterate(self, **mapped_kwargs: OperatorExpandArgument) -> IterableOperator:
+        from airflow.models.iterableoperator import IterableOperator
+
+        if not mapped_kwargs:
+            raise TypeError("no arguments to expand against")
+        validate_mapping_kwargs(self.operator_class, "stream", mapped_kwargs)
+        prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="unmappable or already specified")
+
+        expand_input = DictOfListsExpandInput(mapped_kwargs)
+        ensure_xcomarg_return_value(expand_input.value)
+
+        kwargs = {}
+
+        for parameter_name in BaseOperator._comps:
+            parameter_value = self.kwargs.get(parameter_name)
+            if parameter_value:
+                kwargs[parameter_name] = parameter_value
+
+        # We don't retry the whole stream operator, we retry the individual tasks
+        kwargs["retries"] = 0
+        # We don't want to time out the whole stream operator, we only time out the individual tasks
+        kwargs["timeout"] = kwargs.pop("execution_timeout", None)
+
+        return StreamedOperator(
+            **kwargs,
+            operator_class=self.operator_class,
+            expand_input=expand_input,
+            partial_kwargs=self.kwargs,
+        )
 
 
 @attr.define(
