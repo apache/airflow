@@ -1431,6 +1431,7 @@ export type ListBackfillsData = {
   limit?: number;
   offset?: number;
   orderBy?: string;
+  value?: boolean | null;
 };
 
 export type ListBackfillsResponse = BackfillCollectionResponse;

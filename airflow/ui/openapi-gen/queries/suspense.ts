@@ -544,10 +544,11 @@ export const useStructureServiceStructureDataSuspense = <
 /**
  * List Backfills
  * @param data The data for the request.
- * @param data.dagId
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
+ * @param data.dagId
+ * @param data.value
  * @returns BackfillCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -561,22 +562,30 @@ export const useBackfillServiceListBackfillsSuspense = <
     limit,
     offset,
     orderBy,
+    value,
   }: {
     dagId?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
+    value?: boolean;
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseBackfillServiceListBackfillsKeyFn(
-      { dagId, limit, offset, orderBy },
+      { dagId, limit, offset, orderBy, value },
       queryKey,
     ),
     queryFn: () =>
-      BackfillService.listBackfills({ dagId, limit, offset, orderBy }) as TData,
+      BackfillService.listBackfills({
+        dagId,
+        limit,
+        offset,
+        orderBy,
+        value,
+      }) as TData,
     ...options,
   });
 /**

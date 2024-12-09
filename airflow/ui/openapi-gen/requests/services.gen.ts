@@ -703,10 +703,11 @@ export class BackfillService {
   /**
    * List Backfills
    * @param data The data for the request.
-   * @param data.dagId
    * @param data.limit
    * @param data.offset
    * @param data.orderBy
+   * @param data.dagId
+   * @param data.value
    * @returns BackfillCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -717,10 +718,11 @@ export class BackfillService {
       method: "GET",
       url: "/ui/backfills",
       query: {
-        dag_id: data.dagId,
         limit: data.limit,
         offset: data.offset,
         order_by: data.orderBy,
+        dag_id: data.dagId,
+        value: data.value,
       },
       errors: {
         404: "Not Found",

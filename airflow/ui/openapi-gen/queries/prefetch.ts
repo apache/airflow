@@ -449,10 +449,11 @@ export const prefetchUseStructureServiceStructureData = (
 /**
  * List Backfills
  * @param data The data for the request.
- * @param data.dagId
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
+ * @param data.dagId
+ * @param data.value
  * @returns BackfillCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -463,11 +464,13 @@ export const prefetchUseBackfillServiceListBackfills = (
     limit,
     offset,
     orderBy,
+    value,
   }: {
     dagId?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
+    value?: boolean;
   } = {},
 ) =>
   queryClient.prefetchQuery({
@@ -476,9 +479,10 @@ export const prefetchUseBackfillServiceListBackfills = (
       limit,
       offset,
       orderBy,
+      value,
     }),
     queryFn: () =>
-      BackfillService.listBackfills({ dagId, limit, offset, orderBy }),
+      BackfillService.listBackfills({ dagId, limit, offset, orderBy, value }),
   });
 /**
  * List Backfills

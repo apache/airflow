@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from unittest import mock
 
-import pendulum
 import pytest
 
 from airflow.models import DagModel
@@ -32,9 +31,9 @@ from tests_common.test_utils.db import (
     clear_db_runs,
     clear_db_serialized_dags,
 )
+from tests_common.test_utils.format_datetime import from_datetime_to_zulu
 
 pytestmark = pytest.mark.db_test
-
 
 DAG_ID = "test_dag"
 TASK_ID = "op1"
@@ -56,10 +55,6 @@ def clean_db():
     _clean_db()
 
 
-def to_iso(val):
-    return pendulum.instance(val).to_iso8601_string()
-
-
 class TestBackfillEndpoint:
     @provide_session
     def _create_dag_models(self, *, count=3, dag_id_prefix="TEST_DAG", is_paused=False, session=None):
@@ -78,49 +73,76 @@ class TestBackfillEndpoint:
 
 
 class TestListBackfills(TestBackfillEndpoint):
-    def test_list_backfill(self, test_client, session):
+    @pytest.mark.parametrize(
+        "test_params, response_params, total_entries",
+        [
+            ({"dag_id": "", "only_active": True}, ["backfill2", "backfill3"], 2),
+            ({"dag_id": "", "only_active": False}, ["backfill1", "backfill2", "backfill3"], 3),
+            ({"dag_id": "TEST_DAG_1", "only_active": True}, [], 0),
+            ({"dag_id": "TEST_DAG_1", "only_active": False}, ["backfill1"], 1),
+        ],
+    )
+    @provide_session
+    def test_list_backfill(self, test_params, response_params, total_entries, test_client, session):
         dags = self._create_dag_models()
         from_date = timezone.utcnow()
         to_date = timezone.utcnow()
+        completed_at = timezone.utcnow()
         backfill0 = Backfill(
-            dag_id=dags[0].dag_id, from_date=from_date, to_date=to_date, completed_at=timezone.utcnow()
+            dag_id=dags[0].dag_id, from_date=from_date, to_date=to_date, completed_at=completed_at
         )
         backfill1 = Backfill(dag_id=dags[1].dag_id, from_date=from_date, to_date=to_date)
         backfill2 = Backfill(dag_id=dags[2].dag_id, from_date=from_date, to_date=to_date, is_paused=True)
         backfills = [backfill0, backfill1, backfill2]
-        for backfill in backfills:
-            session.add(backfill)
-            session.commit()
-        response = test_client.get("/ui/backfills?dag_id=")
+        session.add_all(backfills)
+        session.commit()
+        backfill_responses = {
+            "backfill1": {
+                "completed_at": from_datetime_to_zulu(completed_at),
+                "created_at": mock.ANY,
+                "dag_id": "TEST_DAG_1",
+                "dag_run_conf": {},
+                "from_date": from_datetime_to_zulu(from_date),
+                "id": backfills[0].id,
+                "is_paused": False,
+                "reprocess_behavior": "none",
+                "max_active_runs": 10,
+                "to_date": from_datetime_to_zulu(to_date),
+                "updated_at": mock.ANY,
+            },
+            "backfill2": {
+                "completed_at": None,
+                "created_at": mock.ANY,
+                "dag_id": "TEST_DAG_2",
+                "dag_run_conf": {},
+                "from_date": from_datetime_to_zulu(from_date),
+                "id": backfills[1].id,
+                "is_paused": False,
+                "reprocess_behavior": "none",
+                "max_active_runs": 10,
+                "to_date": from_datetime_to_zulu(to_date),
+                "updated_at": mock.ANY,
+            },
+            "backfill3": {
+                "completed_at": None,
+                "created_at": mock.ANY,
+                "dag_id": "TEST_DAG_3",
+                "dag_run_conf": {},
+                "from_date": from_datetime_to_zulu(from_date),
+                "id": backfills[2].id,
+                "is_paused": True,
+                "reprocess_behavior": "none",
+                "max_active_runs": 10,
+                "to_date": from_datetime_to_zulu(to_date),
+                "updated_at": mock.ANY,
+            },
+        }
+        expected_response = []
+        for backfill in response_params:
+            expected_response.append(backfill_responses[backfill])
+        response = test_client.get("/ui/backfills", params=test_params)
         assert response.status_code == 200
         assert response.json() == {
-            "backfills": [
-                {
-                    "completed_at": None,
-                    "created_at": mock.ANY,
-                    "dag_id": "TEST_DAG_2",
-                    "dag_run_conf": {},
-                    "from_date": to_iso(from_date),
-                    "id": backfills[1].id,
-                    "is_paused": False,
-                    "reprocess_behavior": "none",
-                    "max_active_runs": 10,
-                    "to_date": to_iso(to_date),
-                    "updated_at": mock.ANY,
-                },
-                {
-                    "completed_at": None,
-                    "created_at": mock.ANY,
-                    "dag_id": "TEST_DAG_3",
-                    "dag_run_conf": {},
-                    "from_date": to_iso(from_date),
-                    "id": backfills[2].id,
-                    "is_paused": True,
-                    "reprocess_behavior": "none",
-                    "max_active_runs": 10,
-                    "to_date": to_iso(to_date),
-                    "updated_at": mock.ANY,
-                },
-            ],
-            "total_entries": 2,
+            "backfills": expected_response,
+            "total_entries": total_entries,
         }

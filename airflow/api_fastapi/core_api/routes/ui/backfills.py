@@ -20,10 +20,17 @@ from typing import Annotated
 
 from fastapi import Depends, status
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from airflow.api_fastapi.common.db.common import get_async_session, paginated_select_async
-from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
+from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.parameters import (
+    FilterParam,
+    QueryLimit,
+    QueryOffset,
+    SortParam,
+    _NoneFilter,
+    filter_param_factory,
+    none_param_factory,
+)
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.backfills import BackfillCollectionResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import (
@@ -38,28 +45,26 @@ backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
     path="",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
-async def list_backfills(
+def list_backfills(
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
         SortParam,
         Depends(SortParam(["id"], Backfill).dynamic_depends()),
     ],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
-    dag_id: str | None = None,
+    session: SessionDep,
+    dag_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(Backfill.dag_id, str | None))],
+    only_active: Annotated[_NoneFilter, Depends(none_param_factory(Backfill.completed_at, "only_active"))],
 ) -> BackfillCollectionResponse:
-    conditions = [Backfill.completed_at.is_(None)]  # Active dag
-    if dag_id:
-        conditions.append(Backfill.dag_id == dag_id)
-
-    select_stmt, total_entries = await paginated_select_async(
-        statement=select(Backfill).where(*conditions),
+    select_stmt, total_entries = paginated_select(
+        statement=select(Backfill),
+        filters=[dag_id, only_active],
         order_by=order_by,
         offset=offset,
         limit=limit,
         session=session,
     )
-    backfills = await session.scalars(select_stmt)
+    backfills = session.scalars(select_stmt)
     return BackfillCollectionResponse(
         backfills=backfills,
         total_entries=total_entries,
