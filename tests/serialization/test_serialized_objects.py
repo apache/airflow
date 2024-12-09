@@ -282,12 +282,6 @@ class MockLazySelectSequence(LazySelectSequence):
             DAT.ASSET_EVENT_ACCESSOR,
             equal_outlet_event_accessor,
         ),
-        # TODO: deprecate string access
-        (
-            OutletEventAccessor(key="test", extra={"key": "value"}, asset_alias_events=[]),
-            DAT.ASSET_EVENT_ACCESSOR,
-            equal_outlet_event_accessor,
-        ),
         (
             AirflowException("test123 wohoo!"),
             DAT.AIRFLOW_EXC_SER,
