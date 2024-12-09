@@ -20,6 +20,8 @@ from unittest.mock import patch
 
 import pytest
 
+pytestmark = pytest.mark.db_test
+
 mock_config_response = {
     "navbar_color": "#fff",
     "navbar_text_color": "#51504f",
