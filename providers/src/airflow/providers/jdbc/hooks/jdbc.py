@@ -25,10 +25,10 @@ from typing import TYPE_CHECKING, Any
 import jaydebeapi
 import jpype
 from sqlalchemy.engine import URL
+from wrapt import synchronized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from wrapt import synchronized
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
