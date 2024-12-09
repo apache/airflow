@@ -156,7 +156,11 @@ def test_startup_basic_templated_dag(test_dags_dir: Path):
 
         mock_supervisor_comms.send_request.assert_called_once_with(
             msg=RTIFPayload(
-                {"bash_command": "echo 'Logical date is {{ logical_date }}'", "cwd": None, "env": None}
+                rendered_fields={
+                    "bash_command": "echo 'Logical date is {{ logical_date }}'",
+                    "cwd": None,
+                    "env": None,
+                }
             ),
             log=mock.ANY,
         )

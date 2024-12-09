@@ -162,7 +162,7 @@ def startup() -> tuple[RuntimeTaskInstance, Logger]:
 
     # so that we do not call the API unnecessarily
     if payload:
-        SUPERVISOR_COMMS.send_request(log=log, msg=RTIFPayload(**payload))
+        SUPERVISOR_COMMS.send_request(log=log, msg=RTIFPayload(rendered_fields=payload))
     return ti, log
 
 

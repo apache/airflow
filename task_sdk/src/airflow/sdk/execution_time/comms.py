@@ -44,10 +44,10 @@ Execution API server is because:
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated, Literal, Optional, Union
+from typing import Annotated, Literal, Union
 
 from fastapi import Body
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, RootModel
+from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
@@ -170,7 +170,15 @@ class PutVariable(BaseModel):
     type: Literal["PutVariable"] = "PutVariable"
 
 
-RTIFPayload = RootModel[dict[str, Optional[str]]]
+class RTIFPayload(BaseModel):
+    """Payload for setting RTIF for a task instance."""
+
+    # We are using a BaseModel here compared to server using RootModel because we
+    # have a discriminator running with "type", and RootModel doesn't support type
+
+    rendered_fields: dict[str, str | None]
+    type: Literal["RTIFPayload"] = "RTIFPayload"
+
 
 ToSupervisor = Annotated[
     Union[TaskState, GetXCom, GetConnection, GetVariable, DeferTask, PutVariable, SetXCom, RTIFPayload],
