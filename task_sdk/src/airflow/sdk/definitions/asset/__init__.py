@@ -58,7 +58,7 @@ class AssetUniqueKey(NamedTuple):
     def from_asset(asset: Asset | AssetModel) -> AssetUniqueKey:
         return AssetUniqueKey(name=asset.name, uri=asset.uri)
 
-    def to_obj(self) -> Asset:
+    def to_asset(self) -> Asset:
         return Asset(name=self.name, uri=self.uri)
 
 
@@ -76,7 +76,7 @@ class AssetAliasUniqueKey:
     def from_asset_alias(asset_alias: AssetAlias) -> AssetAliasUniqueKey:
         return AssetAliasUniqueKey(name=asset_alias.name)
 
-    def to_obj(self) -> AssetAlias:
+    def to_asset_alias(self) -> AssetAlias:
         return AssetAlias(name=self.name)
 
 
