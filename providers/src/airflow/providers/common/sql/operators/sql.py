@@ -1041,6 +1041,10 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
     :param database: name of database which overwrite the defined one in connection
     :param min_threshold: numerical value or min threshold sql to be executed (templated)
     :param max_threshold: numerical value or max threshold sql to be executed (templated)
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SQLThresholdCheckOperator`
     """
 
     template_fields: Sequence[str] = (
