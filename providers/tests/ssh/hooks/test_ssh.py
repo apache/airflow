@@ -755,7 +755,7 @@ class TestSSHHook:
             transport = ssh_mock.return_value.get_transport.return_value
             assert transport.get_security_options.return_value.ciphers == TEST_CIPHERS
 
-    def test_host_proxy_cmd_in_extra():
+    def test_host_proxy_cmd_in_extra(self):
         TEST_HOST_PROXY_CMD = "ncat --proxy-auth proxy_user:**** --proxy proxy_host:port %h %p"
         session = settings.Session()
         try:
