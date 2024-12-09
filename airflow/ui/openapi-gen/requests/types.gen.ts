@@ -774,11 +774,27 @@ export type NodeResponse = {
   label: string;
   tooltip?: string | null;
   setup_teardown_type?: "setup" | "teardown" | null;
-  type: "join" | "task" | "asset_condition";
+  type:
+    | "join"
+    | "task"
+    | "asset-condition"
+    | "asset"
+    | "asset-alias"
+    | "dag"
+    | "sensor"
+    | "trigger";
   operator?: string | null;
 };
 
-export type type = "join" | "task" | "asset_condition";
+export type type =
+  | "join"
+  | "task"
+  | "asset-condition"
+  | "asset"
+  | "asset-alias"
+  | "dag"
+  | "sensor"
+  | "trigger";
 
 /**
  * Request body for Clear Task Instances endpoint.
@@ -1437,6 +1453,7 @@ export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
 
 export type StructureDataData = {
   dagId: string;
+  externalDependencies?: boolean;
   includeDownstream?: boolean;
   includeUpstream?: boolean;
   root?: string | null;
