@@ -165,7 +165,7 @@ class TestGitSyncWebserver:
                         "containerName": "git-sync-test",
                         "sshKeySecret": "ssh-secret",
                         "knownHosts": None,
-                        "branch": "test-branch",
+                        "ref": "test-branch",
                     },
                     "persistence": {"enabled": True},
                 }
