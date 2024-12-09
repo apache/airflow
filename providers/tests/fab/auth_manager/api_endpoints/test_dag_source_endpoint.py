@@ -26,8 +26,8 @@ from airflow.models import DagBag
 from airflow.security import permissions
 
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.db import clear_db_dag_code, clear_db_dags, clear_db_serialized_dags
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = [
     pytest.mark.db_test,

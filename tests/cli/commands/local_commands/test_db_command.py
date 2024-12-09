@@ -36,12 +36,6 @@ class TestCliDb:
     def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
-    @mock.patch("airflow.cli.commands.local_commands.db_command.db.initdb")
-    def test_cli_initdb(self, mock_initdb):
-        with pytest.warns(expected_warning=DeprecationWarning, match="`db init` is deprecated"):
-            db_command.initdb(self.parser.parse_args(["db", "init"]))
-        mock_initdb.assert_called_once_with()
-
     @mock.patch("airflow.cli.commands.local_commands.db_command.db.resetdb")
     def test_cli_resetdb(self, mock_resetdb):
         db_command.resetdb(self.parser.parse_args(["db", "reset", "--yes"]))
@@ -187,12 +181,6 @@ class TestCliDb:
     def test_cli_sync_failure(self, mock_upgradedb, args, pattern):
         with pytest.raises(SystemExit, match=pattern):
             db_command.migratedb(self.parser.parse_args(["db", "migrate", *args]))
-
-    @mock.patch("airflow.cli.commands.local_commands.db_command.migratedb")
-    def test_cli_upgrade(self, mock_migratedb):
-        with pytest.warns(expected_warning=DeprecationWarning, match="`db upgrade` is deprecated"):
-            db_command.upgradedb(self.parser.parse_args(["db", "upgrade"]))
-        mock_migratedb.assert_called_once()
 
     @mock.patch("airflow.cli.commands.local_commands.db_command.execute_interactive")
     @mock.patch("airflow.cli.commands.local_commands.db_command.NamedTemporaryFile")

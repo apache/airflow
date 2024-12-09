@@ -24,10 +24,13 @@ import { Dag } from "src/pages/DagsList/Dag";
 import { Code } from "src/pages/DagsList/Dag/Code";
 import { Overview } from "src/pages/DagsList/Dag/Overview";
 import { Runs } from "src/pages/DagsList/Dag/Runs";
+import { Tasks } from "src/pages/DagsList/Dag/Tasks";
 import { Run } from "src/pages/DagsList/Run";
 import { Dashboard } from "src/pages/Dashboard";
 import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
+
+import { Variables } from "./pages/Variables";
 
 export const router = createBrowserRouter(
   [
@@ -46,10 +49,14 @@ export const router = createBrowserRouter(
           path: "events",
         },
         {
+          element: <Variables />,
+          path: "variables",
+        },
+        {
           children: [
             { element: <Overview />, index: true },
             { element: <Runs />, path: "runs" },
-            { element: <div>Tasks</div>, path: "tasks" },
+            { element: <Tasks />, path: "tasks" },
             { element: <Events />, path: "events" },
             { element: <Code />, path: "code" },
           ],
