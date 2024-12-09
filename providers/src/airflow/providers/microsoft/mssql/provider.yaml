@@ -71,11 +71,6 @@ integrations:
       - /docs/apache-airflow-providers-microsoft-mssql/operators.rst
     tags: [software]
 
-operators:
-  - integration-name: Microsoft SQL Server (MSSQL)
-    python-modules:
-      - airflow.providers.microsoft.mssql.operators.mssql
-
 dialects:
   - dialect-type: mssql
     dialect-class-name: airflow.providers.microsoft.mssql.dialects.mssql.MsSqlDialect

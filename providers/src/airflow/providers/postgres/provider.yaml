@@ -85,11 +85,6 @@ integrations:
     logo: /integration-logos/postgres/Postgres.png
     tags: [software]
 
-operators:
-  - integration-name: PostgreSQL
-    python-modules:
-      - airflow.providers.postgres.operators.postgres
-
 dialects:
   - dialect-type: postgresql
     dialect-class-name: airflow.providers.postgres.dialects.postgres.PostgresDialect
