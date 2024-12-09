@@ -317,7 +317,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                     "In-memory TaskInstance state %s does not agree with executor state %s. Attempting to resolve by refreshing in-memory task instance from DB.",
                     ti,
                     state,
-                 )
+                )
                 ti.refresh_from_db(session=session)
 
             if (
