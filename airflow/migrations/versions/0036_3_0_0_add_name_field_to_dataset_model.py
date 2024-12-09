@@ -63,8 +63,9 @@ def upgrade():
         batch_op.add_column(sa.Column("name", _STRING_COLUMN_TYPE))
         batch_op.add_column(sa.Column("group", _STRING_COLUMN_TYPE))
     # Fill name from uri column, and group to 'asset'.
+    dataset_table = sa.table("dataset", sa.column("name"), sa.column("uri"), sa.column("group"))
     with Session(bind=op.get_bind()) as session:
-        session.execute(sa.text("update dataset set name=uri, group='asset'"))
+        session.execute(sa.update(dataset_table).values(name=dataset_table.c.uri, group="asset"))
         session.commit()
     # Set the name and group columns non-nullable.
     # Now with values in there, we can create the new unique constraint and index.
