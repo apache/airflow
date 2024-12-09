@@ -535,7 +535,7 @@ def validate_session():
     """Validate ORM Session."""
     global engine
 
-    worker_precheck = conf.getboolean("celery", "worker_precheck")
+    worker_precheck = conf.getboolean("celery", "worker_precheck", fallback=False)
     if not worker_precheck:
         return True
     else:

@@ -404,14 +404,6 @@ class FileTaskHandler(logging.Handler):
         out_message = logs if "log_pos" in (metadata or {}) else messages + logs
         return out_message, {"end_of_log": end_of_log, "log_pos": log_pos}
 
-    @staticmethod
-    def _get_pod_namespace(ti: TaskInstance):
-        pod_override = ti.executor_config.get("pod_override")
-        namespace = None
-        with suppress(Exception):
-            namespace = pod_override.metadata.namespace
-        return namespace or conf.get("kubernetes_executor", "namespace")
-
     def _get_log_retrieval_url(
         self, ti: TaskInstance, log_relative_path: str, log_type: LogType | None = None
     ) -> tuple[str, str]:
