@@ -1552,15 +1552,17 @@ export const UseVariableServiceGetVariablesKeyFn = (
     limit,
     offset,
     orderBy,
+    variableKeyPattern,
   }: {
     limit?: number;
     offset?: number;
     orderBy?: string;
+    variableKeyPattern?: string;
   } = {},
   queryKey?: Array<unknown>,
 ) => [
   useVariableServiceGetVariablesKey,
-  ...(queryKey ?? [{ limit, offset, orderBy }]),
+  ...(queryKey ?? [{ limit, offset, orderBy, variableKeyPattern }]),
 ];
 export type MonitorServiceGetHealthDefaultResponse = Awaited<
   ReturnType<typeof MonitorService.getHealth>

@@ -5427,6 +5427,14 @@ paths:
           type: string
           default: id
           title: Order By
+      - name: variable_key_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Variable Key Pattern
       responses:
         '200':
           description: Successful Response
