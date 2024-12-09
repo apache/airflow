@@ -340,9 +340,6 @@ class WatchedSubprocess:
 
         log.debug("Started subprocess", pid=pid, ti_id=ti.id, supervisor_pid=os.getpid())
 
-        # Set up signal handlers for the Supervisor process
-        proc._setup_signal_handlers()
-
         # We've forked, but the task won't start until we send it the StartupDetails message. But before we do
         # that, we need to tell the server it's started (so it has the chance to tell us "no, stop!" for any
         # reason)
@@ -371,23 +368,25 @@ class WatchedSubprocess:
         proc._close_unused_sockets(child_stdin, child_stdout, child_stderr, child_comms, child_logs)
         return proc
 
-    def _setup_signal_handlers(self):
+    @classmethod
+    def setup_signal_handlers(cls):
         """
         Set up signal handlers for the **supervisor process**.
 
-        These handlers catch signals like SIGTERM or SIGSEGV sent to the supervisor,
-        allowing it to terminate the task process (child process) gracefully.
+        These handlers catch signals like SIGTERM sent to the supervisor, allowing it to
+        terminate the task processes (child processes) gracefully.
         """
 
         def signal_handler(signum, frame):
             """Handle termination signals sent to the supervisor."""
             log.error(
-                "Received termination signal in supervisor. Terminating watched subprocess",
+                "Received termination signal in supervisor. Terminating all watched subprocesses",
                 signal=signum,
-                process_pid=self.pid,
+                process_pids=list(cls.procs.keys()),
                 supervisor_pid=os.getpid(),
             )
-            self.kill(signal.SIGTERM, force=True)
+            for proc in list(cls.procs.values()):
+                proc.kill(signal.SIGTERM, force=True)
 
         signal.signal(signal.SIGTERM, signal_handler)
 
@@ -498,6 +497,7 @@ class WatchedSubprocess:
 
     def wait(self) -> int:
         if self._exit_code is not None:
+            self._update_final_ti_state()
             return self._exit_code
 
         try:
@@ -509,6 +509,12 @@ class WatchedSubprocess:
         # If it hasn't, assume it's failed
         self._exit_code = self._exit_code if self._exit_code is not None else 1
 
+        self._update_final_ti_state()
+
+        return self._exit_code
+
+    def _update_final_ti_state(self):
+        """Update the TaskInstance state."""
         # If the process has finished in a terminal state, update the state of the TaskInstance
         # to reflect the final state of the process.
         # For states like `deferred`, the process will exit with 0, but the state will be updated
@@ -517,7 +523,6 @@ class WatchedSubprocess:
             self.client.task_instances.finish(
                 id=self.ti_id, state=self.final_state, when=datetime.now(tz=timezone.utc)
             )
-        return self._exit_code
 
     def _monitor_subprocess(self):
         """
@@ -869,6 +874,9 @@ def supervise(
             underlying_logger = structlog.BytesLogger(log_file.open("wb"))
         processors = logging_processors(enable_pretty_log=pretty_logs)[0]
         logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
+
+    # Set up signal handlers for the supervisor process
+    WatchedSubprocess.setup_signal_handlers()
 
     process = WatchedSubprocess.start(dag_path, ti, client=client, logger=logger)
 

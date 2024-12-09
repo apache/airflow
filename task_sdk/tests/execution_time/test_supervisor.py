@@ -23,6 +23,7 @@ import os
 import selectors
 import signal
 import sys
+import threading
 from io import BytesIO
 from operator import attrgetter
 from time import sleep
@@ -179,30 +180,57 @@ class TestWatchedSubprocess:
 
         assert rc == -9
 
-    def test_supervisor_signal_handling(self, mocker):
-        """Verify that the supervisor correctly handles signals and terminates the task process."""
-        mock_logger = mocker.patch("airflow.sdk.execution_time.supervisor.log")
-        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+    def test_supervisor_signal_handling_in_supervise(self, test_dags_dir, captured_logs, mocker):
+        """Test that `supervise` handles SIGTERM by terminating all managed subprocesses."""
 
-        proc = WatchedSubprocess(
-            ti_id=TI_ID, pid=12345, stdin=mocker.Mock(), process=mocker.Mock(), client=mocker.Mock()
+        # TODO: Optimize this test!!
+        ti = TaskInstance(
+            id=TI_ID,
+            task_id="sleep",
+            dag_id="sleeper_dag",
+            run_id="test_run",
+            try_number=1,
         )
 
-        # Send a SIGTERM signal to the supervisor
-        proc._setup_signal_handlers()
-        os.kill(os.getpid(), signal.SIGTERM)
+        # Spy on `WatchedSubprocess.kill` to track calls
+        kill_spy = mocker.spy(WatchedSubprocess, "kill")
 
-        # Verify task process termination and log messages
-        # Asserting that `proc.kill` is called with the correct signal is sufficient to verify the supervisor
-        # correctly handles the signal and terminates the task process
-        # The actual signal sent to the task process is tested in `TestWatchedSubprocessKill` class
-        mock_kill.assert_called_once_with(signal.SIGTERM, force=True)
-        mock_logger.error.assert_called_once_with(
-            "Received termination signal in supervisor. Terminating watched subprocess",
-            signal=signal.SIGTERM,
-            supervisor_pid=os.getpid(),
-            process_pid=proc.pid,
+        # Simulate sending SIGTERM to the supervisor process
+        supervisor_pid = os.getpid()
+
+        def send_sigterm():
+            sleep(1)  # Allow `supervise` to start
+            os.kill(supervisor_pid, signal.SIGTERM)
+
+        sigterm_thread = threading.Thread(target=send_sigterm)
+        sigterm_thread.start()
+
+        # Run `supervise` (expect it to handle SIGTERM gracefully)
+        exit_code = supervise(
+            ti=ti,
+            dag_path=test_dags_dir / "sleeper_dag.py",
+            token="fake_token",
+            dry_run=True,
         )
+
+        sigterm_thread.join()  # Ensure SIGTERM is processed
+
+        # Assert the process exited due to SIGTERM
+        assert exit_code in [-signal.SIGTERM, -signal.SIGKILL]
+
+        # Verify `kill` was called for all processes
+        kill_spy.assert_called_once_with(mocker.ANY, signal.SIGTERM, force=True)
+
+        # Validate logs
+        assert {
+            "signal": signal.SIGTERM,
+            "process_pids": list(WatchedSubprocess.procs.keys()),
+            "supervisor_pid": supervisor_pid,
+            "event": "Received termination signal in supervisor. Terminating all watched subprocesses",
+            "timestamp": mocker.ANY,
+            "level": "error",
+            "logger": "supervisor",
+        } in captured_logs
 
     def test_last_chance_exception_handling(self, capfd):
         def subprocess_main():
