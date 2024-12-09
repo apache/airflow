@@ -418,6 +418,7 @@ export const UseGridServiceGridDataKeyFn = (
     includeUpstream,
     limit,
     offset,
+    orderBy,
     root,
     runType,
     state,
@@ -428,6 +429,7 @@ export const UseGridServiceGridDataKeyFn = (
     includeUpstream?: boolean;
     limit?: number;
     offset?: number;
+    orderBy?: string;
     root?: string;
     runType?: string[];
     state?: string[];
@@ -443,6 +445,7 @@ export const UseGridServiceGridDataKeyFn = (
       includeUpstream,
       limit,
       offset,
+      orderBy,
       root,
       runType,
       state,

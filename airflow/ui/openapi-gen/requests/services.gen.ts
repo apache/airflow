@@ -781,6 +781,7 @@ export class GridService {
    * @param data.state
    * @param data.offset
    * @param data.limit
+   * @param data.orderBy
    * @returns GridResponse Successful Response
    * @throws ApiError
    */
@@ -802,6 +803,7 @@ export class GridService {
         state: data.state,
         offset: data.offset,
         limit: data.limit,
+        order_by: data.orderBy,
       },
       errors: {
         400: "Bad Request",
