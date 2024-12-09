@@ -850,7 +850,7 @@ class TestHandleRequest:
                 id="set_xcom_with_map_index",
             ),
             pytest.param(
-                TaskState(state="skipped", end_date=timezone.parse("2024-10-31T12:00:00Z")),
+                TaskState(state=TerminalTIState.SKIPPED, end_date=timezone.parse("2024-10-31T12:00:00Z")),
                 b"",
                 "",
                 (),
