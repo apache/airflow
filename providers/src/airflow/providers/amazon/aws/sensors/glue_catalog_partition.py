@@ -83,6 +83,7 @@ class GlueCatalogPartitionSensor(AwsBaseSensor[GlueCatalogHook]):
         expression: str = "ds='{{ ds }}'",
         database_name: str = "default",
         poke_interval: int = 60 * 3,
+        catalog_id: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
@@ -90,6 +91,7 @@ class GlueCatalogPartitionSensor(AwsBaseSensor[GlueCatalogHook]):
         self.table_name = table_name
         self.expression = expression
         self.database_name = database_name
+        self.catalog_id = catalog_id
         self.poke_interval = poke_interval
         self.deferrable = deferrable
 
@@ -100,6 +102,7 @@ class GlueCatalogPartitionSensor(AwsBaseSensor[GlueCatalogHook]):
                     database_name=self.database_name,
                     table_name=self.table_name,
                     expression=self.expression,
+                    catalog_id=self.catalog_id,
                     aws_conn_id=self.aws_conn_id,
                     region_name=self.region_name,
                     waiter_delay=int(self.poke_interval),
@@ -120,7 +123,12 @@ class GlueCatalogPartitionSensor(AwsBaseSensor[GlueCatalogHook]):
             "Poking for table %s. %s, expression %s", self.database_name, self.table_name, self.expression
         )
 
-        return self.hook.check_for_partition(self.database_name, self.table_name, self.expression)
+        return self.hook.check_for_partition(
+            self.database_name,
+            self.table_name,
+            self.expression,
+            catalog_id=self.catalog_id,
+        )
 
     def execute_complete(self, context: Context, event: dict | None = None) -> None:
         event = validate_execute_complete_event(event)
