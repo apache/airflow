@@ -313,6 +313,17 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                 state in (TaskInstanceState.FAILED, TaskInstanceState.SUCCESS)
                 and ti.state in self.STATES_COUNT_AS_RUNNING
             ):
+                self.log.debug(
+                    "In-memory TaskInstance state %s does not agree with executor state %s. Attempting to resolve by refreshing in-memory task instance from DB.",
+                    ti,
+                    state,
+                )
+                ti.refresh_from_db(session=session)
+
+            if (
+                state in (TaskInstanceState.FAILED, TaskInstanceState.SUCCESS)
+                and ti.state in self.STATES_COUNT_AS_RUNNING
+            ):
                 msg = (
                     f"The executor reported that the task instance {ti} finished with state {state}, "
                     f"but the task instance's state attribute is {ti.state}. "
