@@ -45,7 +45,7 @@ with DAG(
     Runs the SQLThresholdCheckOperator against the Airflow metadata DB.
     """
 
-    # [START howto_operator_sql_threshold_check
+    # [START howto_operator_sql_threshold_check]
     threshhold_check = SQLThresholdCheckOperator(
         task_id="threshhold_check",
         conn_id="sales_db",

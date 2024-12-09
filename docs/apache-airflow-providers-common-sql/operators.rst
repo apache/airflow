@@ -150,8 +150,8 @@ The below example demonstrates how to instantiate the SQLTableCheckOperator task
 
 .. _howto/operator:SQLThresholdCheckOperator:
 
-Check SQL values against a threshold
-~~~~~~~~~~~~~~~~~~~~~~~
+Check values against a threshold
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Use the :class:`~airflow.providers.common.sql.operators.sql.SQLThresholdCheckOperator` to compare a specific SQL query result against defined minimum and maximum thresholds.
 Both thresholds can either be a numeric value or another SQL query that evaluates to a numeric value.
