@@ -112,7 +112,7 @@ class _OnlyActiveFilter(BaseParam[bool]):
         return self.set_value(only_active)
 
 
-class SearchParam(BaseParam[str]):
+class _SearchParam(BaseParam[str]):
     """Search on attribute."""
 
     def __init__(self, attribute: ColumnElement, skip_none: bool = True) -> None:
@@ -137,9 +137,9 @@ def search_param_factory(
     attribute: ColumnElement,
     pattern_name: str,
     skip_none: bool = True,
-) -> Callable[[str | None], SearchParam]:
-    def depends_search(value: str | None = Query(alias=pattern_name, default=None)) -> SearchParam:
-        search_parm = SearchParam(attribute, skip_none)
+) -> Callable[[str | None], _SearchParam]:
+    def depends_search(value: str | None = Query(alias=pattern_name, default=None)) -> _SearchParam:
+        search_parm = _SearchParam(attribute, skip_none)
         value = search_parm.transform_aliases(value)
         return search_parm.set_value(value)
 
@@ -471,13 +471,13 @@ QueryPausedFilter = Annotated[
 ]
 QueryOnlyActiveFilter = Annotated[_OnlyActiveFilter, Depends(_OnlyActiveFilter().depends)]
 QueryDagIdPatternSearch = Annotated[
-    SearchParam, Depends(search_param_factory(DagModel.dag_id, "dag_id_pattern"))
+    _SearchParam, Depends(search_param_factory(DagModel.dag_id, "dag_id_pattern"))
 ]
 QueryDagDisplayNamePatternSearch = Annotated[
-    SearchParam, Depends(search_param_factory(DagModel.dag_display_name, "dag_display_name_pattern"))
+    _SearchParam, Depends(search_param_factory(DagModel.dag_display_name, "dag_display_name_pattern"))
 ]
 QueryDagIdPatternSearchWithNone = Annotated[
-    SearchParam, Depends(search_param_factory(DagModel.dag_id, "dag_id_pattern", False))
+    _SearchParam, Depends(search_param_factory(DagModel.dag_id, "dag_id_pattern", False))
 ]
 QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter().depends)]
 QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter().depends)]
@@ -516,7 +516,7 @@ QueryDagRunStateFilter = Annotated[
 
 # DAGTags
 QueryDagTagPatternSearch = Annotated[
-    SearchParam, Depends(search_param_factory(DagTag.name, "tag_name_pattern"))
+    _SearchParam, Depends(search_param_factory(DagTag.name, "tag_name_pattern"))
 ]
 
 
@@ -566,9 +566,12 @@ QueryTIExecutorFilter = Annotated[
         )
     ),
 ]
+QueryTITaskDisplayNamePatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(TaskInstance.task_display_name, "task_display_name_pattern"))
+]
 
 # Assets
-QueryUriPatternSearch = Annotated[SearchParam, Depends(search_param_factory(AssetModel.uri, "uri_pattern"))]
+QueryUriPatternSearch = Annotated[_SearchParam, Depends(search_param_factory(AssetModel.uri, "uri_pattern"))]
 QueryAssetDagIdPatternSearch = Annotated[
     _DagIdAssetReferenceFilter, Depends(_DagIdAssetReferenceFilter().depends)
 ]
