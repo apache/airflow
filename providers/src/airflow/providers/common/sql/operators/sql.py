@@ -243,9 +243,9 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         handler: Callable[[Any], list[tuple] | None] = fetch_all_handler,
         output_processor: (
             Callable[
-                    [list[Any], list[Sequence[Sequence] | None]],
-                    list[Any] | tuple[list[Sequence[Sequence] | None], list],
-                ]
+                [list[Any], list[Sequence[Sequence] | None]],
+                list[Any] | tuple[list[Sequence[Sequence] | None], list],
+            ]
             | None
         ) = None,
         conn_id: str | None = None,
