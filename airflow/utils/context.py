@@ -208,7 +208,7 @@ class OutletEventAccessors(Mapping[Union[Asset, AssetAlias], OutletEventAccessor
         return f"OutletEventAccessors(_dict={self._dict})"
 
     def __iter__(self) -> Iterator[Asset | AssetAlias]:
-        return iter(
+        return (
             key.to_asset() if isinstance(key, AssetUniqueKey) else key.to_asset_alias() for key in self._dict
         )
 
