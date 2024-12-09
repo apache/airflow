@@ -51,10 +51,8 @@ from airflow.sdk.definitions.asset import (
     AssetAliasUniqueKey,
     AssetRef,
     AssetUniqueKey,
-    BaseAsset,
     BaseAssetUniqueKey,
 )
-from airflow.sdk.definitions.asset.metadata import extract_event_key
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.types import NOTSET
 
@@ -178,25 +176,16 @@ class OutletEventAccessor:
     :meta private:
     """
 
-    key: str | BaseAssetUniqueKey
+    key: BaseAssetUniqueKey
     extra: dict[str, Any] = attrs.Factory(dict)
     asset_alias_events: list[AssetAliasEvent] = attrs.field(factory=list)
 
-    def add(self, asset: str | Asset, extra: dict[str, Any] | None = None) -> None:
+    def add(self, asset: Asset, extra: dict[str, Any] | None = None) -> None:
         """Add an AssetEvent to an existing Asset."""
-        if isinstance(asset, str):
-            asset = Asset(asset)
-        elif not isinstance(asset, Asset):
+        if not isinstance(self.key, AssetAliasUniqueKey):
             return
 
-        if isinstance(self.key, AssetAliasUniqueKey):
-            asset_alias_name = self.key.name
-        elif isinstance(self.key, str):
-            # TODO: deprecate string access
-            asset_alias_name = self.key
-        else:
-            return
-
+        asset_alias_name = self.key.name
         event = AssetAliasEvent(
             source_alias_name=asset_alias_name,
             dest_asset_key=AssetUniqueKey.from_asset(asset),
@@ -205,7 +194,7 @@ class OutletEventAccessor:
         self.asset_alias_events.append(event)
 
 
-class OutletEventAccessors(Mapping[Union[str, BaseAsset], OutletEventAccessor]):
+class OutletEventAccessors(Mapping[Union[Asset, AssetAlias], OutletEventAccessor]):
     """
     Lazy mapping of outlet asset event accessors.
 
@@ -213,53 +202,28 @@ class OutletEventAccessors(Mapping[Union[str, BaseAsset], OutletEventAccessor]):
     """
 
     def __init__(self) -> None:
-        self._dict: dict[str | BaseAssetUniqueKey, OutletEventAccessor] = {}
+        self._dict: dict[BaseAssetUniqueKey, OutletEventAccessor] = {}
 
     def __str__(self) -> str:
         return f"OutletEventAccessors(_dict={self._dict})"
 
-    def __iter__(self) -> Iterator[str | BaseAsset]:
+    def __iter__(self) -> Iterator[Asset | AssetAlias]:
         return iter(key.to_obj() if isinstance(key, BaseAssetUniqueKey) else key for key in self._dict)
 
     def __len__(self) -> int:
         return len(self._dict)
 
-    def __getitem__(self, key: str | BaseAsset) -> OutletEventAccessor:
-        hashable_key: str | BaseAssetUniqueKey
-        # TODO: Remove it once string accessing is deprecated.
-        # We currently still support accessing through string.
-        # Asset("abc") and "abc" returns the same thing.
-        # Thus, if an user pass Asset("abc"), we need to also check whether "abc" is in dict.
-        # Same for alias.
-        potential_equivalent_key = None
+    def __getitem__(self, key: Asset | AssetAlias) -> OutletEventAccessor:
+        hashable_key: BaseAssetUniqueKey
         if isinstance(key, Asset):
             hashable_key = AssetUniqueKey.from_asset(key)
-            # TODO: remove after deprecating string accessing
-            if key.name == key.uri and key.name in self._dict:
-                potential_equivalent_key = key.name
         elif isinstance(key, AssetAlias):
             hashable_key = AssetAliasUniqueKey.from_asset_alias(key)
-            # TODO: remove after deprecating string accessing
-            if key.name in self._dict:
-                potential_equivalent_key = key.name
-        elif isinstance(key, str):
-            # TODO: remove after deprecating string accessing
-            hashable_key = key
         else:
             raise KeyError("Key should be either an asset or an asset alias")
-            # TODO: remove after deprecating string accessing
-            if key.name in self._dict:
-                potential_equivalent_key = key.name
 
-        if (
-            hashable_key not in self._dict
-            and not potential_equivalent_key
-            and potential_equivalent_key not in self._dict
-        ):
+        if hashable_key not in self._dict:
             self._dict[hashable_key] = OutletEventAccessor(extra={}, key=hashable_key)
-        elif potential_equivalent_key:
-            # TODO: remove after deprecating string accessing
-            hashable_key = potential_equivalent_key
         return self._dict[hashable_key]
 
 
@@ -280,7 +244,7 @@ class LazyAssetEventSelectSequence(LazySelectSequence[AssetEvent]):
 
 
 @attrs.define(init=False)
-class InletEventsAccessors(Mapping[Union[str, int, BaseAsset], LazyAssetEventSelectSequence]):
+class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], LazyAssetEventSelectSequence]):
     """
     Lazy mapping for inlet asset events accessors.
 
@@ -311,13 +275,13 @@ class InletEventsAccessors(Mapping[Union[str, int, BaseAsset], LazyAssetEventSel
             for _, asset in fetch_active_assets_by_name(_asset_ref_names, self._session).items():
                 self._assets[AssetUniqueKey.from_asset(asset)] = asset
 
-    def __iter__(self) -> Iterator[BaseAsset]:
+    def __iter__(self) -> Iterator[Asset | AssetAlias]:
         return iter(self._inlets)
 
     def __len__(self) -> int:
         return len(self._inlets)
 
-    def __getitem__(self, key: int | str | BaseAsset) -> LazyAssetEventSelectSequence:
+    def __getitem__(self, key: int | Asset | AssetAlias | AssetRef) -> LazyAssetEventSelectSequence:
         if isinstance(key, int):  # Support index access; it's easier for trivial cases.
             obj = self._inlets[key]
             if not isinstance(obj, (Asset, AssetAlias, AssetRef)):
@@ -325,25 +289,19 @@ class InletEventsAccessors(Mapping[Union[str, int, BaseAsset], LazyAssetEventSel
         else:
             obj = key
 
-        if isinstance(obj, AssetAlias):
-            asset_alias = self._asset_aliases[AssetAliasUniqueKey.from_asset_alias(obj)]
-            join_clause = AssetEvent.source_aliases
-            where_clause = AssetAliasModel.name == asset_alias.name
-        elif isinstance(obj, Asset):
+        if isinstance(obj, Asset):
             asset = self._assets[AssetUniqueKey.from_asset(obj)]
             join_clause = AssetEvent.asset
             where_clause = and_(AssetModel.name == asset.name, AssetModel.uri == asset.uri)
+        elif isinstance(obj, AssetAlias):
+            asset_alias = self._asset_aliases[AssetAliasUniqueKey.from_asset_alias(obj)]
+            join_clause = AssetEvent.source_aliases
+            where_clause = AssetAliasModel.name == asset_alias.name
         elif isinstance(obj, AssetRef):
             # TODO: handle the case that Asset uri is different from name
             asset = self._assets[AssetUniqueKey.from_asset(Asset(name=obj.name))]
             join_clause = AssetEvent.asset
             where_clause = and_(AssetModel.name == asset.name, AssetModel.uri == asset.uri)
-        elif isinstance(obj, str):
-            # TODO: deprecate string access
-            asset_name = extract_event_key(obj)
-            asset = self._assets[AssetUniqueKey.from_asset(Asset(name=asset_name))]
-            join_clause = AssetEvent.asset
-            where_clause = AssetModel.name == asset.name
         else:
             raise ValueError(key)
 

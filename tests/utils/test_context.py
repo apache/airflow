@@ -51,16 +51,6 @@ class TestOutletEventAccessor:
     @pytest.mark.parametrize(
         "key, asset_alias_events",
         (
-            (
-                "test_alias",
-                [
-                    AssetAliasEvent(
-                        source_alias_name="test_alias",
-                        dest_asset_key=AssetUniqueKey(name="test-asset", uri="test://asset-uri/"),
-                        extra={},
-                    )
-                ],
-            ),
             (AssetUniqueKey.from_asset(Asset("test_uri")), []),
             (
                 AssetAliasUniqueKey.from_asset_alias(AssetAlias("test_alias")),
@@ -90,7 +80,6 @@ class TestOutletEventAccessors:
     @pytest.mark.parametrize(
         "access_key, internal_key",
         (
-            ("test", "test"),
             (Asset("test"), AssetUniqueKey.from_asset(Asset("test"))),
             (
                 Asset(name="test", uri="test://asset"),
