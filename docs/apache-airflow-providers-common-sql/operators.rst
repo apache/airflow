@@ -157,7 +157,7 @@ Use the :class:`~airflow.providers.common.sql.operators.sql.SQLThresholdCheckOpe
 Both thresholds can either be a numeric value or another SQL query that evaluates to a numeric value.
 This operator requires a connection ID, along with the SQL query to execute, and allows optional specification of a database, if the one from the connection_id should be overridden.
 The parameters are:
-- ``sql`` - the sql query to be exeuted, as a templated string.
+- ``sql`` - the sql query to be executed, as a templated string.
 - ``min_threshold`` The minimum threshold that is checked against. Either as a numeric value or templated sql query.
 - ``max_threshold`` The maximum threshold that is checked against. Either as a numeric value or templated sql query.
 - ``conn_id`` (optional) The connection ID used to connect to the database.
