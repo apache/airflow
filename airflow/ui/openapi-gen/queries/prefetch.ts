@@ -529,7 +529,8 @@ export const prefetchUseStructureServiceStructureData = (
  * @param data.dagId
  * @param data.includeUpstream
  * @param data.includeDownstream
- * @param data.baseDate
+ * @param data.logicalDateGte
+ * @param data.logicalDateLte
  * @param data.root
  * @param data.runType
  * @param data.state
@@ -542,22 +543,24 @@ export const prefetchUseStructureServiceStructureData = (
 export const prefetchUseGridServiceGridData = (
   queryClient: QueryClient,
   {
-    baseDate,
     dagId,
     includeDownstream,
     includeUpstream,
     limit,
+    logicalDateGte,
+    logicalDateLte,
     offset,
     orderBy,
     root,
     runType,
     state,
   }: {
-    baseDate?: string;
     dagId: string;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
     limit?: number;
+    logicalDateGte?: string;
+    logicalDateLte?: string;
     offset?: number;
     orderBy?: string;
     root?: string;
@@ -567,11 +570,12 @@ export const prefetchUseGridServiceGridData = (
 ) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseGridServiceGridDataKeyFn({
-      baseDate,
       dagId,
       includeDownstream,
       includeUpstream,
       limit,
+      logicalDateGte,
+      logicalDateLte,
       offset,
       orderBy,
       root,
@@ -580,11 +584,12 @@ export const prefetchUseGridServiceGridData = (
     }),
     queryFn: () =>
       GridService.gridData({
-        baseDate,
         dagId,
         includeDownstream,
         includeUpstream,
         limit,
+        logicalDateGte,
+        logicalDateLte,
         offset,
         orderBy,
         root,

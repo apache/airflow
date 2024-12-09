@@ -775,7 +775,8 @@ export class GridService {
    * @param data.dagId
    * @param data.includeUpstream
    * @param data.includeDownstream
-   * @param data.baseDate
+   * @param data.logicalDateGte
+   * @param data.logicalDateLte
    * @param data.root
    * @param data.runType
    * @param data.state
@@ -797,7 +798,8 @@ export class GridService {
       query: {
         include_upstream: data.includeUpstream,
         include_downstream: data.includeDownstream,
-        base_date: data.baseDate,
+        logical_date_gte: data.logicalDateGte,
+        logical_date_lte: data.logicalDateLte,
         root: data.root,
         run_type: data.runType,
         state: data.state,

@@ -657,7 +657,8 @@ export const useStructureServiceStructureData = <
  * @param data.dagId
  * @param data.includeUpstream
  * @param data.includeDownstream
- * @param data.baseDate
+ * @param data.logicalDateGte
+ * @param data.logicalDateLte
  * @param data.root
  * @param data.runType
  * @param data.state
@@ -673,22 +674,24 @@ export const useGridServiceGridData = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
-    baseDate,
     dagId,
     includeDownstream,
     includeUpstream,
     limit,
+    logicalDateGte,
+    logicalDateLte,
     offset,
     orderBy,
     root,
     runType,
     state,
   }: {
-    baseDate?: string;
     dagId: string;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
     limit?: number;
+    logicalDateGte?: string;
+    logicalDateLte?: string;
     offset?: number;
     orderBy?: string;
     root?: string;
@@ -701,11 +704,12 @@ export const useGridServiceGridData = <
   useQuery<TData, TError>({
     queryKey: Common.UseGridServiceGridDataKeyFn(
       {
-        baseDate,
         dagId,
         includeDownstream,
         includeUpstream,
         limit,
+        logicalDateGte,
+        logicalDateLte,
         offset,
         orderBy,
         root,
@@ -716,11 +720,12 @@ export const useGridServiceGridData = <
     ),
     queryFn: () =>
       GridService.gridData({
-        baseDate,
         dagId,
         includeDownstream,
         includeUpstream,
         limit,
+        logicalDateGte,
+        logicalDateLte,
         offset,
         orderBy,
         root,

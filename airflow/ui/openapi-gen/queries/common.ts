@@ -412,22 +412,24 @@ export type GridServiceGridDataQueryResult<
 export const useGridServiceGridDataKey = "GridServiceGridData";
 export const UseGridServiceGridDataKeyFn = (
   {
-    baseDate,
     dagId,
     includeDownstream,
     includeUpstream,
     limit,
+    logicalDateGte,
+    logicalDateLte,
     offset,
     orderBy,
     root,
     runType,
     state,
   }: {
-    baseDate?: string;
     dagId: string;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
     limit?: number;
+    logicalDateGte?: string;
+    logicalDateLte?: string;
     offset?: number;
     orderBy?: string;
     root?: string;
@@ -439,11 +441,12 @@ export const UseGridServiceGridDataKeyFn = (
   useGridServiceGridDataKey,
   ...(queryKey ?? [
     {
-      baseDate,
       dagId,
       includeDownstream,
       includeUpstream,
       limit,
+      logicalDateGte,
+      logicalDateLte,
       offset,
       orderBy,
       root,
