@@ -70,7 +70,7 @@ old_serialized_table = Table(
     sa.Column("dag_id", sa.String(ID_LEN), nullable=False, primary_key=True),
     sa.Column("fileloc", sa.String(length=2000), nullable=False),
     sa.Column("fileloc_hash", sa.BigInteger(), nullable=False),
-    sa.Column("data", sqlalchemy_jsonfield.JSONField(json=json), nullable=False),
+    sa.Column("data", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
     sa.Column("data_compressed", LargeBinary, nullable=True),
     sa.Column("dag_hash", sa.String(32), nullable=False),
     sa.Column("last_updated", UtcDateTime(), nullable=False),
