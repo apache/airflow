@@ -22,7 +22,7 @@ import itertools
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 
 from airflow import DAG
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -34,6 +34,8 @@ from airflow.api_fastapi.common.parameters import (
     QueryIncludeUpstream,
     QueryLimit,
     QueryOffset,
+    Range,
+    RangeFilter,
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -50,7 +52,6 @@ from airflow.api_fastapi.core_api.services.ui.grid import (
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dagrun import DagRunNote
 from airflow.models.taskinstance import TaskInstanceNote
-from airflow.utils import timezone
 
 grid_router = AirflowRouter(prefix="/grid", tags=["Grid"])
 
@@ -67,7 +68,7 @@ def grid_data(
     session: SessionDep,
     offset: QueryOffset,
     request: Request,
-    num_runs: QueryLimit,
+    limit: QueryLimit,
     order_by: Annotated[
         SortParam,
         Depends(
@@ -78,7 +79,8 @@ def grid_data(
     ],
     include_upstream: QueryIncludeUpstream = False,
     include_downstream: QueryIncludeDownstream = False,
-    base_date: OptionalDateTimeQuery = None,
+    logical_date_gte: OptionalDateTimeQuery = None,
+    logical_date_lte: OptionalDateTimeQuery = None,
     root: str | None = None,
 ) -> GridResponse:
     """Return grid data."""
@@ -86,7 +88,10 @@ def grid_data(
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 
-    current_time = timezone.utcnow()
+    date_filter = RangeFilter(
+        Range(lower_bound=logical_date_gte, upper_bound=logical_date_lte),
+        attribute=DagRun.logical_date,
+    )
     # Retrieve, sort and encode the previous DAG Runs
     base_query = (
         select(
@@ -103,7 +108,7 @@ def grid_data(
         )
         .join(DagRun.dag_run_note, isouter=True)
         .select_from(DagRun)
-        .where(DagRun.dag_id == dag.dag_id, DagRun.logical_date <= func.coalesce(base_date, current_time))
+        .where(DagRun.dag_id == dag.dag_id)
     )
 
     dag_runs_select_filter, _ = paginated_select(
@@ -111,10 +116,11 @@ def grid_data(
         filters=[
             run_types,
             run_states,
+            date_filter,
         ],
         order_by=get_dag_run_sort_param(dag=dag, request_order_by=order_by),
         offset=offset,
-        limit=num_runs,
+        limit=limit,
     )
 
     dag_runs = session.execute(dag_runs_select_filter)
