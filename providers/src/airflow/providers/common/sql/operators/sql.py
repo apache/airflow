@@ -286,7 +286,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         """
         if self.show_return_value_in_logs:
             self.log.info("Operator output is: %s", results)
-        return self._output_processor(results=results, descriptions=descriptions)
+        return self._output_processor(results, descriptions)
 
     def _should_run_output_processing(self) -> bool:
         return self.do_xcom_push
@@ -313,7 +313,9 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             # single query results are going to be returned, and we return the first element
             # of the list in this case from the (always) list returned by _process_output
             return self._process_output([output], hook.descriptions)[-1]
-        return self._process_output(output, hook.descriptions)
+        result = self._process_output(output, hook.descriptions)
+        self.log.info("result: %s", result)
+        return result
 
     def prepare_template(self) -> None:
         """Parse template file for attribute parameters."""

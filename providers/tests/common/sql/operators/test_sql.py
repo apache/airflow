@@ -159,10 +159,12 @@ class TestSQLExecuteQueryOperator:
         operator = self._construct_operator(
             sql="SELECT * FROM users;",
             output_processor=lambda results, descriptions: (descriptions, results),
+            return_last=False,
         )
-        result = operator.execute(context=MagicMock())
+        descriptions, result = operator.execute(context=MagicMock())
 
-        assert result == [("id", "name"), [(1, "Alice"), (2, "Bob")]]
+        assert descriptions == ("id", "name")
+        assert result == [(1, "Alice"), (2, "Bob")]
 
 
 class TestColumnCheckOperator:
