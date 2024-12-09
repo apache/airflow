@@ -58,7 +58,7 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
       row: {
         original: { state },
       },
-    }) => <Status state={state ?? undefined}>{state}</Status>,
+    }) => <Status state={state}>{state}</Status>,
     header: () => "State",
   },
   {

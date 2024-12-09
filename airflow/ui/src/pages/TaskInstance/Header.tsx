@@ -39,9 +39,7 @@ export const Header = ({
           {taskInstance.task_display_name}{" "}
           <Time datetime={taskInstance.start_date} />
         </Heading>
-        <Status state={taskInstance.state ?? undefined}>
-          {taskInstance.state}
-        </Status>
+        <Status state={taskInstance.state}>{taskInstance.state}</Status>
         <Flex>
           <div />
         </Flex>
