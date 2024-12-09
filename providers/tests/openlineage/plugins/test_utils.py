@@ -370,7 +370,7 @@ def test_serialize_timetable():
                         {
                             "__type": DagAttributeTypes.ASSET_ALIAS,
                             "name": "another",
-                            "group": "",
+                            "group": "asset",
                         },
                         {
                             "__type": DagAttributeTypes.ASSET,
