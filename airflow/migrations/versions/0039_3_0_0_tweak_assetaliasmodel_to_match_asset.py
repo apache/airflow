@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.orm import Session
 
 # Revision identifiers, used by Alembic.
 revision = "fb2d4922cd79"
@@ -59,7 +60,12 @@ def upgrade():
     """Tweak AssetAliasModel to match AssetModel."""
     with op.batch_alter_table("dataset_alias", schema=None) as batch_op:
         batch_op.alter_column("name", type_=_STRING_COLUMN_TYPE, nullable=False)
-        batch_op.add_column(sa.Column("group", _STRING_COLUMN_TYPE, default="asset", nullable=False))
+        batch_op.add_column(sa.Column("group", _STRING_COLUMN_TYPE))
+    with Session(bind=op.get_bind()) as session:
+        session.execute(sa.text("update dataset_alias set group='asset'"))
+        session.commit()
+    with op.batch_alter_table("dataset_alias", schema=None) as batch_op:
+        batch_op.alter_column("group", type_=_STRING_COLUMN_TYPE, default="asset", nullable=False)
 
 
 def downgrade():
