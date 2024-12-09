@@ -2469,18 +2469,18 @@ class TestTaskInstance:
             @task(outlets=Asset("test_outlet_asset_extra_1"))
             def write1():
                 result = "write_1 result"
-                yield Metadata("test_outlet_asset_extra_1", {"foo": "bar"})
+                yield Metadata(Asset(name="test_outlet_asset_extra_1"), {"foo": "bar"})
                 return result
 
             write1()
 
             def _write2_post_execute(context, result):
-                yield Metadata("test_outlet_asset_extra_2", {"x": 1})
+                yield Metadata(Asset(name="test_outlet_asset_extra_2", uri="test://asset-2"), extra={"x": 1})
 
             BashOperator(
                 task_id="write2",
                 bash_command=":",
-                outlets=Asset("test_outlet_asset_extra_2"),
+                outlets=Asset(name="test_outlet_asset_extra_2", uri="test://asset-2"),
                 post_execute=_write2_post_execute,
             )
 
@@ -2501,12 +2501,14 @@ class TestTaskInstance:
         assert events["write1"].source_run_id == dr.run_id
         assert events["write1"].source_task_id == "write1"
         assert events["write1"].asset.uri == "test_outlet_asset_extra_1"
+        assert events["write1"].asset.name == "test_outlet_asset_extra_1"
         assert events["write1"].extra == {"foo": "bar"}
 
         assert events["write2"].source_dag_id == dr.dag_id
         assert events["write2"].source_run_id == dr.run_id
         assert events["write2"].source_task_id == "write2"
-        assert events["write2"].asset.uri == "test_outlet_asset_extra_2"
+        assert events["write2"].asset.uri == "test://asset-2/"
+        assert events["write2"].asset.name == "test_outlet_asset_extra_2"
         assert events["write2"].extra == {"x": 1}
 
     def test_outlet_asset_alias(self, dag_maker, session):
@@ -2645,7 +2647,7 @@ class TestTaskInstance:
 
             @task(outlets=AssetAlias(asset_alias_name))
             def producer(*, outlet_events):
-                yield Metadata(asset_uri, extra={"key": "value"}, alias=asset_alias_name)
+                yield Metadata(Asset(asset_uri), extra={"key": "value"}, alias=AssetAlias(asset_alias_name))
 
             producer()
 
@@ -2893,7 +2895,7 @@ class TestTaskInstance:
             @task(inlets=Asset(asset_uri))
             def read(*, inlet_events):
                 nonlocal result
-                result = [e.extra for e in slicer(inlet_events[asset_uri])]
+                result = [e.extra for e in slicer(inlet_events[Asset(asset_uri)])]
 
             read()
 

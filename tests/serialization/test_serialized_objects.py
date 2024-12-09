@@ -522,12 +522,14 @@ def test_serialized_mapped_operator_unmap(dag_maker):
 def test_ser_of_asset_event_accessor():
     # todo: (Airflow 3.0) we should force reserialization on upgrade
     d = OutletEventAccessors()
-    d["hi"].extra = "blah1"  # todo: this should maybe be forbidden?  i.e. can extra be any json or just dict?
-    d["yo"].extra = {"this": "that", "the": "other"}
+    d[
+        Asset("hi")
+    ].extra = "blah1"  # todo: this should maybe be forbidden?  i.e. can extra be any json or just dict?
+    d[Asset(name="yo", uri="test://yo")].extra = {"this": "that", "the": "other"}
     ser = BaseSerialization.serialize(var=d)
     deser = BaseSerialization.deserialize(ser)
-    assert deser["hi"].extra == "blah1"
-    assert d["yo"].extra == {"this": "that", "the": "other"}
+    assert deser[Asset(uri="hi", name="hi")].extra == "blah1"
+    assert d[Asset(name="yo", uri="test://yo")].extra == {"this": "that", "the": "other"}
 
 
 class MyTrigger(BaseTrigger):
