@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import collections
 import itertools
+from typing import Annotated
 
-from fastapi import HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import func, select
 
 from airflow import DAG
@@ -67,6 +68,14 @@ def grid_data(
     offset: QueryOffset,
     request: Request,
     num_runs: QueryLimit,
+    order_by: Annotated[
+        SortParam,
+        Depends(
+            SortParam(
+                ["logical_date", "data_interval_start", "data_interval_end", "start_date", "end_date"], DagRun
+            ).dynamic_depends()
+        ),
+    ],
     include_upstream: QueryIncludeUpstream = False,
     include_downstream: QueryIncludeDownstream = False,
     base_date: OptionalDateTimeQuery = None,
@@ -103,7 +112,7 @@ def grid_data(
             run_types,
             run_states,
         ],
-        order_by=get_dag_run_sort_param(dag=dag),
+        order_by=get_dag_run_sort_param(dag=dag, request_order_by=order_by),
         offset=offset,
         limit=num_runs,
     )
