@@ -23,6 +23,7 @@ import os
 import selectors
 import signal
 import sys
+import threading
 from io import BytesIO
 from operator import attrgetter
 from time import sleep
@@ -178,6 +179,58 @@ class TestWatchedSubprocess:
         rc = proc.wait()
 
         assert rc == -9
+
+    def test_supervisor_signal_handling_in_supervise(self, test_dags_dir, captured_logs, mocker):
+        """Test that `supervise` handles SIGTERM by terminating all managed subprocesses."""
+
+        # TODO: Optimize this test!!
+        ti = TaskInstance(
+            id=TI_ID,
+            task_id="sleep",
+            dag_id="sleeper_dag",
+            run_id="test_run",
+            try_number=1,
+        )
+
+        # Spy on `WatchedSubprocess.kill` to track calls
+        kill_spy = mocker.spy(WatchedSubprocess, "kill")
+
+        # Simulate sending SIGTERM to the supervisor process
+        supervisor_pid = os.getpid()
+
+        def send_sigterm():
+            sleep(1)  # Allow `supervise` to start
+            os.kill(supervisor_pid, signal.SIGTERM)
+
+        sigterm_thread = threading.Thread(target=send_sigterm)
+        sigterm_thread.start()
+
+        # Run `supervise` (expect it to handle SIGTERM gracefully)
+        exit_code = supervise(
+            ti=ti,
+            dag_path=test_dags_dir / "sleeper_dag.py",
+            token="fake_token",
+            dry_run=True,
+        )
+
+        sigterm_thread.join()  # Ensure SIGTERM is processed
+
+        # Assert the process exited due to SIGTERM
+        assert exit_code in [-signal.SIGTERM, -signal.SIGKILL]
+
+        # Verify `kill` was called for all processes
+        kill_spy.assert_called_once_with(mocker.ANY, signal.SIGTERM, force=True)
+
+        # Validate logs
+        assert {
+            "signal": signal.SIGTERM,
+            "process_pids": list(WatchedSubprocess.procs.keys()),
+            "supervisor_pid": supervisor_pid,
+            "event": "Received termination signal in supervisor. Terminating all watched subprocesses",
+            "timestamp": mocker.ANY,
+            "level": "error",
+            "logger": "supervisor",
+        } in captured_logs
 
     def test_last_chance_exception_handling(self, capfd):
         def subprocess_main():
@@ -628,7 +681,7 @@ class TestWatchedSubprocessKill:
             ),
         ],
     )
-    def test_kill_escalation_path(self, signal_to_send, exit_after, mocker, captured_logs, monkeypatch):
+    def test_kill_escalation_path(self, signal_to_send, exit_after, captured_logs, monkeypatch):
         def subprocess_main():
             import signal
 
