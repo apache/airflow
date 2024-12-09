@@ -135,7 +135,7 @@ def test_expand_fail_empty():
 
 
 @pytest.mark.db_test
-def test_expand_fail_trigger_rule_always(dag_maker, session):
+def test_fail_task_generated_mapping_with_trigger_rule_always(dag_maker, session):
     @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
     def pipeline():
         @task
@@ -151,7 +151,8 @@ def test_expand_fail_trigger_rule_always(dag_maker, session):
             t1(param)
 
         with pytest.raises(
-            ValueError, match="Tasks in a mapped task group cannot have trigger_rule set to 'ALWAYS'"
+            ValueError,
+            match="Task-generated mapping within a mapped task group is not allowed with trigger rule 'always'",
         ):
             tg.expand(param=get_param())
 

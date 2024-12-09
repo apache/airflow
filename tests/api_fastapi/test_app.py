@@ -18,6 +18,10 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
+pytestmark = pytest.mark.db_test
+
 
 def test_main_app_lifespan(client):
     with client() as test_client:

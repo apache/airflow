@@ -16,10 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Heading } from "@chakra-ui/react";
+import { Box, Flex, Heading, HStack } from "@chakra-ui/react";
 import { FiClipboard } from "react-icons/fi";
 
+import { stateColor } from "src/utils/stateColor";
+
 import { DAGImportErrors } from "./DAGImportErrors";
+import { DagFilterButton } from "./DagFilterButton";
 
 export const Stats = () => (
   <Box>
@@ -29,6 +32,23 @@ export const Stats = () => (
         Stats
       </Heading>
     </Flex>
-    <DAGImportErrors />
+    <HStack>
+      <DagFilterButton
+        badgeColor={stateColor.failed}
+        filter="failed"
+        link="dags?last_dag_run_state=failed"
+      />
+      <DAGImportErrors />
+      <DagFilterButton
+        badgeColor={stateColor.running}
+        filter="running"
+        link="dags?last_dag_run_state=running"
+      />
+      <DagFilterButton
+        badgeColor="blue.solid"
+        filter="active"
+        link="dags?paused=false"
+      />
+    </HStack>
   </Box>
 );

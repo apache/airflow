@@ -38,7 +38,8 @@ from airflow.providers.openlineage.extractors.manager import ExtractorManager
 from airflow.providers.openlineage.utils.utils import Asset
 from airflow.utils.state import State
 
-from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS, PythonOperator
+from tests_common.test_utils.compat import PythonOperator
+from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

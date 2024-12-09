@@ -20,7 +20,7 @@ import { Text, type TextProps } from "@chakra-ui/react";
 import type { CSSProperties } from "react";
 import { FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
 
-import type { Node } from "./data";
+import type { NodeResponse } from "openapi/requests/types.gen";
 
 type Props = {
   readonly id: string;
@@ -29,7 +29,7 @@ type Props = {
   readonly isOpen?: boolean;
   readonly isZoomedOut?: boolean;
   readonly label: string;
-  readonly setupTeardownType?: Node["setup_teardown_type"];
+  readonly setupTeardownType?: NodeResponse["setup_teardown_type"];
 } & TextProps;
 
 export const TaskName = ({

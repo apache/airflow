@@ -24,24 +24,28 @@ import { Dialog } from "src/components/ui";
 import { Graph } from "./Graph";
 
 type TriggerDAGModalProps = {
-  dagDisplayName: DAGResponse["dag_display_name"];
+  dagDisplayName?: DAGResponse["dag_display_name"];
+  dagId?: DAGResponse["dag_id"];
   onClose: () => void;
   open: boolean;
 };
 
 export const DagVizModal: React.FC<TriggerDAGModalProps> = ({
   dagDisplayName,
+  dagId,
   onClose,
   open,
 }) => (
   <Dialog.Root onOpenChange={onClose} open={open} size="full">
     <Dialog.Content backdrop>
       <Dialog.Header bg="blue.muted">
-        <Heading size="xl">{dagDisplayName}</Heading>
+        <Heading size="xl">
+          {Boolean(dagDisplayName) ? dagDisplayName : "Dag Undefined"}
+        </Heading>
         <Dialog.CloseTrigger closeButtonProps={{ size: "xl" }} />
       </Dialog.Header>
       <Dialog.Body display="flex">
-        <Graph />
+        {dagId === undefined ? undefined : <Graph dagId={dagId} />}
       </Dialog.Body>
     </Dialog.Content>
   </Dialog.Root>

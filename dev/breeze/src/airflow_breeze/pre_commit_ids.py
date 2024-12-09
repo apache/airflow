@@ -146,6 +146,7 @@ PRE_COMMIT_LIST = [
     "update-migration-references",
     "update-openapi-spec-tags-to-be-sorted",
     "update-providers-dependencies",
+    "update-providers-init-py",
     "update-reproducible-source-date-epoch",
     "update-spelling-wordlist-to-be-sorted",
     "update-supported-versions",

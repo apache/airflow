@@ -16,13 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from typing import Any
 
 from azure.common.client_factory import get_client_from_auth_file, get_client_from_json_dict
 from azure.common.credentials import ServicePrincipalCredentials
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     AzureIdentityCredentialAdapter,
@@ -99,24 +98,7 @@ class AzureBaseHook(BaseHook):
         """
         conn = self.get_connection(self.conn_id)
         tenant = conn.extra_dejson.get("tenantId")
-        if not tenant and conn.extra_dejson.get("extra__azure__tenantId"):
-            warnings.warn(
-                "`extra__azure__tenantId` is deprecated in azure connection extra, "
-                "please use `tenantId` instead",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            tenant = conn.extra_dejson.get("extra__azure__tenantId")
         subscription_id = conn.extra_dejson.get("subscriptionId")
-        if not subscription_id and conn.extra_dejson.get("extra__azure__subscriptionId"):
-            warnings.warn(
-                "`extra__azure__subscriptionId` is deprecated in azure connection extra, "
-                "please use `subscriptionId` instead",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            subscription_id = conn.extra_dejson.get("extra__azure__subscriptionId")
-
         key_path = conn.extra_dejson.get("key_path")
         if key_path:
             if not key_path.endswith(".json"):

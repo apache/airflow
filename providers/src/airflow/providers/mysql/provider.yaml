@@ -91,12 +91,6 @@ integrations:
     logo: /integration-logos/mysql/MySQL.png
     tags: [software]
 
-operators:
-  - integration-name: MySQL
-
-    python-modules:
-      - airflow.providers.mysql.operators.mysql
-
 hooks:
   - integration-name: MySQL
     python-modules:

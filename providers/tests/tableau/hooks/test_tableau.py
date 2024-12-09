@@ -21,7 +21,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow import configuration, models
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.tableau.hooks.tableau import TableauHook, TableauJobFinishCode
 from airflow.utils import db
 
@@ -44,14 +43,6 @@ class TestTableauHook:
                 login="user",
                 password="password",
                 extra='{"site_id": "my_site"}',
-            )
-        )
-        db.merge_conn(
-            models.Connection(
-                conn_id="tableau_test_token",
-                conn_type="tableau",
-                host="tableau",
-                extra='{"token_name": "my_token", "personal_access_token": "my_personal_access_token"}',
             )
         )
         db.merge_conn(
@@ -84,14 +75,6 @@ class TestTableauHook:
                 extra='{"verify": false}',
             )
         )
-        db.merge_conn(
-            models.Connection(
-                conn_id="tableau_test_ssl_connection_default",
-                conn_type="tableau",
-                host="tableau",
-                extra='{"token_name": "my_token", "personal_access_token": "my_personal_access_token"}',
-            )
-        )
 
     @patch("airflow.providers.tableau.hooks.tableau.TableauAuth")
     @patch("airflow.providers.tableau.hooks.tableau.Server")
@@ -107,30 +90,6 @@ class TestTableauHook:
                 site_id=tableau_hook.conn.extra_dejson["site_id"],
             )
             mock_server.return_value.auth.sign_in.assert_called_once_with(mock_tableau_auth.return_value)
-        mock_server.return_value.auth.sign_out.assert_called_once_with()
-
-    @patch("airflow.providers.tableau.hooks.tableau.PersonalAccessTokenAuth")
-    @patch("airflow.providers.tableau.hooks.tableau.Server")
-    def test_get_conn_auth_via_token_and_site_in_init(self, mock_server, mock_tableau_auth):
-        """
-        Test get conn auth via token
-        """
-        with (
-            pytest.warns(
-                AirflowProviderDeprecationWarning,
-                match="Authentication via personal access token is deprecated..*",
-            ),
-            TableauHook(site_id="test", tableau_conn_id="tableau_test_token") as tableau_hook,
-        ):
-            mock_server.assert_called_once_with(tableau_hook.conn.host)
-            mock_tableau_auth.assert_called_once_with(
-                token_name=tableau_hook.conn.extra_dejson["token_name"],
-                personal_access_token=tableau_hook.conn.extra_dejson["personal_access_token"],
-                site_id=tableau_hook.site_id,
-            )
-            mock_server.return_value.auth.sign_in_with_personal_access_token.assert_called_once_with(
-                mock_tableau_auth.return_value
-            )
         mock_server.return_value.auth.sign_out.assert_called_once_with()
 
     @patch("airflow.providers.tableau.hooks.tableau.TableauAuth")
@@ -155,30 +114,23 @@ class TestTableauHook:
             mock_server.return_value.auth.sign_in.assert_called_once_with(mock_tableau_auth.return_value)
         mock_server.return_value.auth.sign_out.assert_called_once_with()
 
-    @patch("airflow.providers.tableau.hooks.tableau.PersonalAccessTokenAuth")
+    @patch("airflow.providers.tableau.hooks.tableau.TableauAuth")
     @patch("airflow.providers.tableau.hooks.tableau.Server")
     def test_get_conn_ssl_default(self, mock_server, mock_tableau_auth):
         """
         Test get conn with default SSL parameters
         """
         with (
-            pytest.warns(
-                AirflowProviderDeprecationWarning,
-                match="Authentication via personal access token is deprecated..*",
-            ),
-            TableauHook(tableau_conn_id="tableau_test_ssl_connection_default") as tableau_hook,
+            TableauHook(tableau_conn_id="tableau_test_password") as tableau_hook,
         ):
             mock_server.assert_called_once_with(tableau_hook.conn.host)
             mock_server.return_value.add_http_options.assert_called_once_with(
                 options_dict={"verify": True, "cert": None}
             )
             mock_tableau_auth.assert_called_once_with(
-                token_name=tableau_hook.conn.extra_dejson["token_name"],
-                personal_access_token=tableau_hook.conn.extra_dejson["personal_access_token"],
-                site_id="",
-            )
-            mock_server.return_value.auth.sign_in_with_personal_access_token.assert_called_once_with(
-                mock_tableau_auth.return_value
+                username=tableau_hook.conn.login,
+                password=tableau_hook.conn.password,
+                site_id=tableau_hook.conn.extra_dejson["site_id"],
             )
         mock_server.return_value.auth.sign_out.assert_called_once_with()
 

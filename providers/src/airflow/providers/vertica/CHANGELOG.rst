@@ -28,6 +28,19 @@
 Changelog
 ---------
 
+main
+....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the Vertica provider package.
+  The following breaking changes were introduced:
+
+  * Operators
+     * Remove ``airflow.providers.vertica.operators.vertica.VerticaOperator``. Please use ``airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator``.
+
 3.9.1
 .....
 

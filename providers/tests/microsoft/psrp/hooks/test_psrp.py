@@ -25,7 +25,7 @@ from pypsrp.host import PSHost
 from pypsrp.messages import MessageType
 from pypsrp.powershell import PSInvocationState
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.microsoft.psrp.hooks.psrp import PsrpHook
 
@@ -194,16 +194,6 @@ class TestPsrpHook:
             assert [call("foo", use_local_scope=None)] == ps.add_cmdlet.mock_calls
             assert [call({"bar": "1", "baz": "2"})] == ps.add_parameters.mock_calls
             assert [call(arg) for arg in arguments] == ps.add_argument.mock_calls
-
-    def test_invoke_cmdlet_deprecated_kwargs(self, *mocks):
-        with PsrpHook(CONNECTION_ID) as hook:
-            with pytest.warns(
-                AirflowProviderDeprecationWarning,
-                match=r"Passing \*\*kwargs to 'invoke_cmdlet' is deprecated and will be removed in a future release. Please use 'parameters' instead.",
-            ):
-                ps = hook.invoke_cmdlet("foo", bar="1", baz="2")
-            assert [call("foo", use_local_scope=None)] == ps.add_cmdlet.mock_calls
-            assert [call({"bar": "1", "baz": "2"})] == ps.add_parameters.mock_calls
 
     def test_invoke_powershell(self, *mocks):
         with PsrpHook(CONNECTION_ID) as hook:

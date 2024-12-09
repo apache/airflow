@@ -117,7 +117,7 @@ class TestPutVariable:
             pytest.param("var_create", 422, {"description": "description"}, id="missing-value"),
         ],
     )
-    def test_variable_missing_fields(self, client, key, status_code, payload, session):
+    def test_variable_missing_mandatory_fields(self, client, key, status_code, payload, session):
         response = client.put(
             f"/execution/variables/{key}",
             json=payload,
@@ -126,6 +126,29 @@ class TestPutVariable:
         if response.status_code == 422:
             assert response.json()["detail"][0]["type"] == "missing"
             assert response.json()["detail"][0]["msg"] == "Field required"
+
+    @pytest.mark.parametrize(
+        "key, payload",
+        [
+            pytest.param("key", {"key": "key", "value": "{}", "description": "description"}, id="adding-key"),
+            pytest.param(
+                "key", {"type": "PutVariable", "value": "{}", "description": "description"}, id="adding-type"
+            ),
+            pytest.param(
+                "key",
+                {"value": "{}", "description": "description", "lorem": "ipsum", "foo": "bar"},
+                id="adding-extra-fields",
+            ),
+        ],
+    )
+    def test_variable_adding_extra_fields(self, client, key, payload, session):
+        response = client.put(
+            f"/execution/variables/{key}",
+            json=payload,
+        )
+        assert response.status_code == 422
+        assert response.json()["detail"][0]["type"] == "extra_forbidden"
+        assert response.json()["detail"][0]["msg"] == "Extra inputs are not permitted"
 
     def test_overwriting_existing_variable(self, client, session):
         key = "var_create"

@@ -29,7 +29,7 @@ import jinja2
 import pytest
 
 from airflow.decorators import task as task_decorator
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferralTimeout
 from airflow.lineage.entities import File
 from airflow.models.baseoperator import (
     BaseOperator,
@@ -40,6 +40,7 @@ from airflow.models.baseoperator import (
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.trigger import TriggerFailureReason
 from airflow.providers.common.sql.operators import sql
 from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup
@@ -581,6 +582,15 @@ class TestBaseOperator:
         # the other case (that when we have set_context it goes to the file is harder to achieve without
         # leaking a lot of state)
         assert caplog.messages == ["test"]
+
+    def test_resume_execution(self):
+        op = BaseOperator(task_id="hi")
+        with pytest.raises(TaskDeferralTimeout):
+            op.resume_execution(
+                next_method="__fail__",
+                next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
+                context={},
+            )
 
 
 def test_deepcopy():

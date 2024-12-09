@@ -35,8 +35,10 @@ Kafka hooks and operators use ``kafka_default`` by default, this connection is v
 Configuring the Connection
 --------------------------
 
-Connections are configured as a json serializable string provided to the ``extra`` field. A full list of parameters
-are described in the `Confluent Kafka python library <https://github.com/confluentinc/librdkafka/blob/master/CONFIGURATION.md>`_.
+Connections are configured as a json serializable string provided to the ``extra`` field. The ``error_cb`` parameter can be
+used to specify a callback function by providing a path to the function. e.g ``"module.callback_func"``. A full list
+of parameters are described in the
+`Confluent Kafka python library <https://github.com/confluentinc/librdkafka/blob/master/CONFIGURATION.md>`_.
 
 If you are defining the Airflow connection from the Airflow UI, the ``extra`` field will be renamed to ``Config Dict``.
 

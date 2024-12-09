@@ -79,6 +79,7 @@ class TestStructureDataEndpoint:
                             "id": "task_1",
                             "is_mapped": None,
                             "label": "task_1",
+                            "operator": "EmptyOperator",
                             "setup_teardown_type": None,
                             "tooltip": None,
                             "type": "task",
@@ -88,6 +89,7 @@ class TestStructureDataEndpoint:
                             "id": "task_2",
                             "is_mapped": None,
                             "label": "task_2",
+                            "operator": "EmptyOperator",
                             "setup_teardown_type": None,
                             "tooltip": None,
                             "type": "task",
@@ -118,6 +120,7 @@ class TestStructureDataEndpoint:
                             "id": "task_1",
                             "is_mapped": None,
                             "label": "task_1",
+                            "operator": "EmptyOperator",
                             "setup_teardown_type": None,
                             "tooltip": None,
                             "type": "task",
@@ -128,7 +131,12 @@ class TestStructureDataEndpoint:
         ],
     )
     @pytest.mark.usefixtures("make_dag")
-    def test_historical_metrics_data(self, test_client, params, expected):
+    def test_should_return_200(self, test_client, params, expected):
         response = test_client.get("/ui/structure/structure_data", params=params)
         assert response.status_code == 200
         assert response.json() == expected
+
+    def test_should_return_404(self, test_client):
+        response = test_client.get("/ui/structure/structure_data", params={"dag_id": "not_existing"})
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Dag with id not_existing was not found"

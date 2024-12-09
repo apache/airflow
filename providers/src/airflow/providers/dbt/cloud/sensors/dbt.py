@@ -17,14 +17,11 @@
 from __future__ import annotations
 
 import time
-import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from deprecated import deprecated
-
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 from airflow.providers.dbt.cloud.utils.openlineage import generate_openlineage_events_from_dbt_cloud_run
@@ -62,17 +59,7 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
     ) -> None:
         if deferrable:
             if "poke_interval" not in kwargs:
-                # TODO: Remove once deprecated
-                if "polling_interval" in kwargs:
-                    kwargs["poke_interval"] = kwargs["polling_interval"]
-                    warnings.warn(
-                        "Argument `poll_interval` is deprecated and will be removed "
-                        "in a future release.  Please use `poke_interval` instead.",
-                        AirflowProviderDeprecationWarning,
-                        stacklevel=2,
-                    )
-                else:
-                    kwargs["poke_interval"] = 5
+                kwargs["poke_interval"] = 5
 
                 if "timeout" not in kwargs:
                     kwargs["timeout"] = 60 * 60 * 24 * 7
@@ -142,22 +129,3 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage:
         """Implement _on_complete because job_run needs to be triggered first in execute method."""
         return generate_openlineage_events_from_dbt_cloud_run(operator=self, task_instance=task_instance)
-
-
-@deprecated(
-    reason=(
-        "Class `DbtCloudJobRunAsyncSensor` is deprecated and will be removed in a future release. "
-        "Please use `DbtCloudJobRunSensor` and set `deferrable` attribute to `True` instead"
-    ),
-    category=AirflowProviderDeprecationWarning,
-)
-class DbtCloudJobRunAsyncSensor(DbtCloudJobRunSensor):
-    """
-    This class is deprecated.
-
-    Please use :class:`airflow.providers.dbt.cloud.sensor.dbt.DbtCloudJobRunSensor`
-    with ``deferrable=True``.
-    """
-
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(deferrable=True, **kwargs)

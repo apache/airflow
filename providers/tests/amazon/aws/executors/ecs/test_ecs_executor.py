@@ -58,8 +58,8 @@ from airflow.utils.timezone import utcnow
 from airflow.version import version as airflow_version_str
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
-from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
 
 pytestmark = pytest.mark.db_test
 

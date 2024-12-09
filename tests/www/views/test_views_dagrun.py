@@ -31,7 +31,7 @@ from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
     delete_user,
 )
 from tests.www.views.test_views_tasks import _get_appbuilder_pk_string
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.www import (
     check_content_in_response,
     check_content_not_in_response,

@@ -36,6 +36,7 @@ from sqlalchemy.orm import joinedload, load_only
 
 from airflow.assets.manager import asset_manager
 from airflow.models.asset import (
+    AssetActive,
     AssetAliasModel,
     AssetModel,
     DagScheduleAssetAliasReference,
@@ -60,20 +61,6 @@ if TYPE_CHECKING:
     from airflow.typing_compat import Self
 
 log = logging.getLogger(__name__)
-
-
-def _find_orm_dags(dag_ids: Iterable[str], *, session: Session) -> dict[str, DagModel]:
-    """Find existing DagModel objects from DAG objects."""
-    stmt = (
-        select(DagModel)
-        .options(joinedload(DagModel.tags, innerjoin=False))
-        .where(DagModel.dag_id.in_(dag_ids))
-        .options(joinedload(DagModel.schedule_asset_references))
-        .options(joinedload(DagModel.schedule_asset_alias_references))
-        .options(joinedload(DagModel.task_outlet_asset_references))
-    )
-    stmt = with_row_locks(stmt, of=DagModel, session=session)
-    return {dm.dag_id: dm for dm in session.scalars(stmt).unique()}
 
 
 def _create_orm_dags(dags: Iterable[DAG], *, session: Session) -> Iterator[DagModel]:
@@ -181,8 +168,21 @@ class DagModelOperation(NamedTuple):
 
     dags: dict[str, DAG]
 
+    def find_orm_dags(self, *, session: Session) -> dict[str, DagModel]:
+        """Find existing DagModel objects from DAG objects."""
+        stmt = (
+            select(DagModel)
+            .options(joinedload(DagModel.tags, innerjoin=False))
+            .where(DagModel.dag_id.in_(self.dags))
+            .options(joinedload(DagModel.schedule_asset_references))
+            .options(joinedload(DagModel.schedule_asset_alias_references))
+            .options(joinedload(DagModel.task_outlet_asset_references))
+        )
+        stmt = with_row_locks(stmt, of=DagModel, session=session)
+        return {dm.dag_id: dm for dm in session.scalars(stmt).unique()}
+
     def add_dags(self, *, session: Session) -> dict[str, DagModel]:
-        orm_dags = _find_orm_dags(self.dags, session=session)
+        orm_dags = self.find_orm_dags(session=session)
         orm_dags.update(
             (model.dag_id, model)
             for model in _create_orm_dags(
@@ -273,6 +273,26 @@ def _find_all_asset_aliases(dags: Iterable[DAG]) -> Iterator[AssetAlias]:
             for obj in itertools.chain(task.inlets, task.outlets):
                 if isinstance(obj, AssetAlias):
                     yield obj
+
+
+def _find_active_assets(name_uri_assets, session: Session):
+    active_dags = {
+        dm.dag_id
+        for dm in session.scalars(select(DagModel).where(DagModel.is_active).where(~DagModel.is_paused))
+    }
+
+    return {
+        (asset_model.name, asset_model.uri)
+        for asset_model in session.scalars(
+            select(AssetModel)
+            .join(AssetActive, (AssetActive.name == AssetModel.name) & (AssetActive.uri == AssetModel.uri))
+            .where(tuple_(AssetActive.name, AssetActive.uri).in_(name_uri_assets))
+            .where(AssetModel.consuming_dags.any(DagScheduleAssetReference.dag_id.in_(active_dags)))
+            .options(
+                joinedload(AssetModel.consuming_dags).joinedload(DagScheduleAssetReference.dag),
+            )
+        ).unique()
+    }
 
 
 class AssetModelOperation(NamedTuple):
@@ -435,14 +455,20 @@ class AssetModelOperation(NamedTuple):
         refs_to_add: dict[tuple[str, str], set[str]] = {}
         refs_to_remove: dict[tuple[str, str], set[str]] = {}
         triggers: dict[str, BaseTrigger] = {}
+
+        # Optimization: if no asset collected, skip fetching active assets
+        active_assets = _find_active_assets(self.assets.keys(), session=session) if self.assets else {}
+
         for name_uri, asset in self.assets.items():
-            asset_model = assets[name_uri]
+            # If the asset belong to a DAG not active or paused, consider there is no watcher associated to it
+            asset_watchers = asset.watchers if name_uri in active_assets else []
             trigger_repr_to_trigger_dict: dict[str, BaseTrigger] = {
-                repr(trigger): trigger for trigger in asset.watchers
+                repr(trigger): trigger for trigger in asset_watchers
             }
             triggers.update(trigger_repr_to_trigger_dict)
             trigger_repr_from_asset: set[str] = set(trigger_repr_to_trigger_dict.keys())
 
+            asset_model = assets[name_uri]
             trigger_repr_from_asset_model: set[str] = {
                 BaseTrigger.repr(trigger.classpath, trigger.kwargs) for trigger in asset_model.triggers
             }

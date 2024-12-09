@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+main
+....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the MySQL provider package.
+  The following breaking changes were introduced:
+
+  * Operators
+     * Remove ``airflow.providers.microsoft.mssql.operators.mssql.MsSqlOperator``. Please use ``airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator``.
+
 3.9.2
 .....
 

@@ -23,7 +23,6 @@ import base64
 import logging
 import mimetypes
 import os
-import warnings
 from collections.abc import Iterable
 from typing import Union
 
@@ -40,7 +39,6 @@ from sendgrid.helpers.mail import (
     SandBoxMode,
 )
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.utils.email import get_email_address_list
 
@@ -126,20 +124,8 @@ def send_email(
 
 
 def _post_sendgrid_mail(mail_data: dict, conn_id: str = "sendgrid_default") -> None:
-    api_key = None
-    try:
-        conn = BaseHook.get_connection(conn_id)
-        api_key = conn.password
-    except AirflowException:
-        pass
-    if api_key is None:
-        warnings.warn(
-            "Fetching Sendgrid credentials from environment variables will be deprecated in a future "
-            "release. Please set credentials using a connection instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-        api_key = os.environ.get("SENDGRID_API_KEY")
+    conn = BaseHook.get_connection(conn_id)
+    api_key = conn.password
     sendgrid_client = sendgrid.SendGridAPIClient(api_key=api_key)
     response = sendgrid_client.client.mail.send.post(request_body=mail_data)
     # 2xx status code.

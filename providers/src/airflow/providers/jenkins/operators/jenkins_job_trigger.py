@@ -27,11 +27,10 @@ from typing import Any, Union
 from urllib.error import HTTPError, URLError
 
 import jenkins
-from deprecated.classic import deprecated
 from jenkins import Jenkins, JenkinsException
 from requests import Request
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 
@@ -192,11 +191,6 @@ class JenkinsJobTriggerOperator(BaseOperator):
     def hook(self) -> JenkinsHook:
         """Instantiate the Jenkins hook."""
         return JenkinsHook(self.jenkins_connection_id)
-
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
-    def get_hook(self) -> JenkinsHook:
-        """Instantiate the Jenkins hook."""
-        return self.hook
 
     def execute(self, context: Mapping[Any, Any]) -> str | None:
         self.log.info(

@@ -38,6 +38,7 @@ from airflow.exceptions import (
     AirflowSkipException,
     AirflowTaskTimeout,
     TaskDeferralError,
+    TaskDeferralTimeout,
 )
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.baseoperator import BaseOperator
@@ -174,7 +175,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         super().__init__(**kwargs)
         self.poke_interval = self._coerce_poke_interval(poke_interval).total_seconds()
         self.soft_fail = soft_fail
-        self.timeout = self._coerce_timeout(timeout).total_seconds()
+        self.timeout: int | float = self._coerce_timeout(timeout).total_seconds()
         self.mode = mode
         self.exponential_backoff = exponential_backoff
         self.max_wait = self._coerce_max_wait(max_wait)
@@ -338,6 +339,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
         try:
             return super().resume_execution(next_method, next_kwargs, context)
+        except TaskDeferralTimeout as e:
+            raise AirflowSensorTimeout(*e.args) from e
         except (AirflowException, TaskDeferralError) as e:
             if self.soft_fail:
                 raise AirflowSkipException(str(e)) from e

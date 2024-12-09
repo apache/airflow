@@ -19,10 +19,8 @@ from __future__ import annotations
 
 from unittest import mock
 
-import pytest
 from azure.core.exceptions import ResourceNotFoundError
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.microsoft.azure.secrets.key_vault import AzureKeyVaultBackend
 
 KEY_VAULT_MODULE = "airflow.providers.microsoft.azure.secrets.key_vault"
@@ -34,40 +32,6 @@ class TestAzureKeyVaultBackend:
         mock_get_value.return_value = "scheme://user:pass@host:100"
         conn = AzureKeyVaultBackend().get_connection("fake_conn")
         assert conn.host == "host"
-
-    @mock.patch(f"{KEY_VAULT_MODULE}.get_sync_default_azure_credential")
-    @mock.patch(f"{KEY_VAULT_MODULE}.SecretClient")
-    def test_get_conn_uri(self, mock_secret_client, mock_azure_cred):
-        mock_cred = mock.Mock()
-        mock_sec_client = mock.Mock()
-        mock_azure_cred.return_value = mock_cred
-        mock_secret_client.return_value = mock_sec_client
-
-        mock_sec_client.get_secret.return_value = mock.Mock(
-            value="postgresql://airflow:airflow@host:5432/airflow"
-        )
-
-        backend = AzureKeyVaultBackend(vault_url="https://example-akv-resource-name.vault.azure.net/")
-        with pytest.warns(AirflowProviderDeprecationWarning, match="Method `.*get_conn_uri` is deprecated"):
-            returned_uri = backend.get_conn_uri(conn_id="hi")
-        mock_secret_client.assert_called_once_with(
-            credential=mock_cred, vault_url="https://example-akv-resource-name.vault.azure.net/"
-        )
-        assert returned_uri == "postgresql://airflow:airflow@host:5432/airflow"
-
-    @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend.client")
-    def test_get_conn_uri_non_existent_key(self, mock_client):
-        """
-        Test that if the key with connection ID is not present,
-        AzureKeyVaultBackend.get_connection should return None
-        """
-        conn_id = "test_mysql"
-        mock_client.get_secret.side_effect = ResourceNotFoundError
-        backend = AzureKeyVaultBackend(vault_url="https://example-akv-resource-name.vault.azure.net/")
-
-        with pytest.warns(AirflowProviderDeprecationWarning, match="Method `.*get_conn_uri` is deprecated"):
-            assert backend.get_conn_uri(conn_id=conn_id) is None
-        assert backend.get_connection(conn_id=conn_id) is None
 
     @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend.client")
     def test_get_variable(self, mock_client):
@@ -108,24 +72,6 @@ class TestAzureKeyVaultBackend:
         secret_val = backend._get_secret("af-secrets", "test_mysql_password")
         mock_client.get_secret.assert_called_with(name="af-secrets-test-mysql-password")
         assert secret_val == "super-secret"
-
-    @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend._get_secret")
-    def test_connection_prefix_none_value(self, mock_get_secret):
-        """
-        Test that if Connections prefix is None,
-        AzureKeyVaultBackend.get_connection should return None
-        AzureKeyVaultBackend._get_secret should not be called
-        """
-        kwargs = {"connections_prefix": None}
-
-        backend = AzureKeyVaultBackend(**kwargs)
-        assert backend.get_connection("test_mysql") is None
-        mock_get_secret.assert_not_called()
-
-        mock_get_secret.reset_mock()
-        with pytest.warns(AirflowProviderDeprecationWarning, match="Method `.*get_conn_uri` is deprecated"):
-            assert backend.get_conn_uri("test_mysql") is None
-            mock_get_secret.assert_not_called()
 
     @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend._get_secret")
     def test_variable_prefix_none_value(self, mock_get_secret):

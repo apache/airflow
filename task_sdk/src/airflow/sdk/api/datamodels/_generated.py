@@ -26,7 +26,7 @@ from enum import Enum
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ConnectionResponse(BaseModel):
@@ -114,6 +114,18 @@ class ValidationError(BaseModel):
     loc: Annotated[list[str | int], Field(title="Location")]
     msg: Annotated[str, Field(title="Message")]
     type: Annotated[str, Field(title="Error Type")]
+
+
+class VariablePostBody(BaseModel):
+    """
+    Request body schema for creating variables.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: Annotated[str | None, Field(title="Value")] = None
+    description: Annotated[str | None, Field(title="Description")] = None
 
 
 class VariableResponse(BaseModel):

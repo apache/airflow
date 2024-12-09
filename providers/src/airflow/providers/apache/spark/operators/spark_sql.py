@@ -20,9 +20,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from deprecated import deprecated
-
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.apache.spark.hooks.spark_sql import SparkSqlHook
 
@@ -93,15 +90,6 @@ class SparkSqlOperator(BaseOperator):
         self._verbose = verbose
         self._yarn_queue = yarn_queue
         self._hook: SparkSqlHook | None = None
-
-    @property
-    @deprecated(
-        reason="`_sql` is deprecated and will be removed in the future. Please use `sql` instead.",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def _sql(self):
-        """Alias for ``sql``, used for compatibility (deprecated)."""
-        return self.sql
 
     def execute(self, context: Context) -> None:
         """Call the SparkSqlHook to run the provided sql query."""

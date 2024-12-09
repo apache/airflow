@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import pytest
 
-from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS, ignore_provider_compatibility_error
+from tests_common.test_utils.compat import ignore_provider_compatibility_error
+from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS
 
 pytestmark = [
     pytest.mark.db_test,

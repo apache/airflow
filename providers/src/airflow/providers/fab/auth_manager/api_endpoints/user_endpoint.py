@@ -28,6 +28,7 @@ from werkzeug.security import generate_password_hash
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound, Unknown
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.security import requires_access_custom_view
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.providers.fab.auth_manager.models import User
 from airflow.providers.fab.auth_manager.schemas.user_schema import (
     UserCollection,
@@ -37,7 +38,6 @@ from airflow.providers.fab.auth_manager.schemas.user_schema import (
 )
 from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.security import permissions
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse, UpdateMask

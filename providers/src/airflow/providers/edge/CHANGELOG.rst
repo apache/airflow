@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.9.1pre0
+.........
+
+Misc
+~~~~
+
+* ``Make edge executor DB access is multi instance save.``
+
 0.9.0pre0
 .........
 

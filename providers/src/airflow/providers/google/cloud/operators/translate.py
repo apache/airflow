@@ -30,6 +30,8 @@ from airflow.providers.google.cloud.hooks.translate import CloudTranslateHook, T
 from airflow.providers.google.cloud.links.translate import (
     TranslateTextBatchLink,
     TranslationDatasetsListLink,
+    TranslationModelLink,
+    TranslationModelsListLink,
     TranslationNativeDatasetLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
@@ -723,3 +725,256 @@ class TranslateDeleteDatasetOperator(GoogleCloudBaseOperator):
         )
         hook.wait_for_operation_done(operation=operation, timeout=self.timeout)
         self.log.info("Dataset deletion complete!")
+
+
+class TranslateCreateModelOperator(GoogleCloudBaseOperator):
+    """
+    Creates a Google Cloud Translate model.
+
+    Creates a `native` translation model, using API V3.
+    For more information on how to use this operator, take a look at the guide:
+    :ref:`howto/operator:TranslateCreateModelOperator`.
+
+    :param dataset_id: The dataset id used for model training.
+    :param project_id: ID of the Google Cloud project where dataset is located.
+        If not provided default project_id is used.
+    :param location: The location of the project.
+    :param retry: Designation of what errors, if any, should be retried.
+    :param timeout: The timeout for this request.
+    :param metadata:  Strings which should be sent along with the request as metadata.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = (
+        "dataset_id",
+        "location",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+
+    operator_extra_links = (TranslationModelLink(),)
+
+    def __init__(
+        self,
+        *,
+        project_id: str = PROVIDE_PROJECT_ID,
+        location: str,
+        dataset_id: str,
+        display_name: str,
+        timeout: float | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        gcp_conn_id: str = "google_cloud_default",
+        metadata: Sequence[tuple[str, str]] = (),
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.dataset_id = dataset_id
+        self.display_name = display_name
+        self.metadata = metadata
+        self.timeout = timeout
+        self.retry = retry
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context) -> str:
+        hook = TranslateHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        self.log.info("Model creation started, dataset_id %s...", self.dataset_id)
+        try:
+            result_operation = hook.create_model(
+                dataset_id=self.dataset_id,
+                display_name=self.display_name,
+                location=self.location,
+                project_id=self.project_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except GoogleAPICallError as e:
+            self.log.error("Error submitting create_model operation ")
+            raise AirflowException(e)
+
+        self.log.info("Training has started")
+        hook.wait_for_operation_done(operation=result_operation)
+        result = hook.wait_for_operation_result(operation=result_operation)
+        result = type(result).to_dict(result)
+        model_id = hook.extract_object_id(result)
+        self.xcom_push(context, key="model_id", value=model_id)
+        self.log.info("Model creation complete. The model_id: %s.", model_id)
+
+        project_id = self.project_id or hook.project_id
+        TranslationModelLink.persist(
+            context=context,
+            task_instance=self,
+            dataset_id=self.dataset_id,
+            model_id=model_id,
+            project_id=project_id,
+        )
+        return result
+
+
+class TranslateModelsListOperator(GoogleCloudBaseOperator):
+    """
+    Get a list of native Google Cloud Translation models in a project.
+
+    Get project's list of `native` translation models, using API V3.
+    For more information on how to use this operator, take a look at the guide:
+    :ref:`howto/operator:TranslateModelsListOperator`.
+
+    :param project_id: ID of the Google Cloud project where dataset is located.
+        If not provided default project_id is used.
+    :param location: The location of the project.
+    :param retry: Designation of what errors, if any, should be retried.
+    :param timeout: The timeout for this request.
+    :param metadata:  Strings which should be sent along with the request as metadata.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = (
+        "location",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+
+    operator_extra_links = (TranslationModelsListLink(),)
+
+    def __init__(
+        self,
+        *,
+        project_id: str = PROVIDE_PROJECT_ID,
+        location: str,
+        metadata: Sequence[tuple[str, str]] = (),
+        timeout: float | _MethodDefault = DEFAULT,
+        retry: Retry | _MethodDefault = DEFAULT,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.metadata = metadata
+        self.timeout = timeout
+        self.retry = retry
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context):
+        hook = TranslateHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        project_id = self.project_id or hook.project_id
+        TranslationModelsListLink.persist(
+            context=context,
+            task_instance=self,
+            project_id=project_id,
+        )
+        self.log.info("Requesting models list")
+        results_pager = hook.list_models(
+            location=self.location,
+            project_id=self.project_id,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+        result_ids = []
+        for model_item in results_pager:
+            model_data = type(model_item).to_dict(model_item)
+            model_id = hook.extract_object_id(model_data)
+            result_ids.append(model_id)
+        self.log.info("Fetching the models list complete. Model id-s: %s", result_ids)
+        return result_ids
+
+
+class TranslateDeleteModelOperator(GoogleCloudBaseOperator):
+    """
+    Delete translation model and all of its contents.
+
+    Deletes the translation model and it's data, using API V3.
+    For more information on how to use this operator, take a look at the guide:
+    :ref:`howto/operator:TranslateDeleteModelOperator`.
+
+    :param model_id: The model_id of target native model to be deleted.
+    :param location: The location of the project.
+    :param retry: Designation of what errors, if any, should be retried.
+    :param timeout: The timeout for this request.
+    :param metadata:  Strings which should be sent along with the request as metadata.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = (
+        "model_id",
+        "location",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+
+    def __init__(
+        self,
+        *,
+        model_id: str,
+        location: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        metadata: Sequence[tuple[str, str]] = (),
+        timeout: float | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.model_id = model_id
+        self.project_id = project_id
+        self.location = location
+        self.metadata = metadata
+        self.timeout = timeout
+        self.retry = retry
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context):
+        hook = TranslateHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        self.log.info("Deleting the model %s...", self.model_id)
+        operation = hook.delete_model(
+            model_id=self.model_id,
+            location=self.location,
+            project_id=self.project_id,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+        hook.wait_for_operation_done(operation=operation, timeout=self.timeout)
+        self.log.info("Model deletion complete!")

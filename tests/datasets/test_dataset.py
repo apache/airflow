@@ -36,8 +36,24 @@ import pytest
             "airflow.datasets",
             "Dataset",
             (
-                "Import from the airflow.dataset module is deprecated and "
-                "will be removed in the Airflow 3.2. Please import it from 'airflow.sdk.definitions.asset'."
+                "Import 'airflow.dataset.Dataset' is deprecated and "
+                "will be removed in the Airflow 3.2. Please import it from 'airflow.sdk.definitions.asset.Asset'."
+            ),
+        ),
+        (
+            "airflow.datasets",
+            "DatasetAlias",
+            (
+                "Import 'airflow.dataset.DatasetAlias' is deprecated and "
+                "will be removed in the Airflow 3.2. Please import it from 'airflow.sdk.definitions.asset.AssetAlias'."
+            ),
+        ),
+        (
+            "airflow.datasets",
+            "expand_alias_to_datasets",
+            (
+                "Import 'airflow.dataset.expand_alias_to_datasets' is deprecated and "
+                "will be removed in the Airflow 3.2. Please import it from 'airflow.models.asset.expand_alias_to_assets'."
             ),
         ),
         (

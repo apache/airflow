@@ -34,12 +34,13 @@ class NodeResponse(BaseModel):
     """Node serializer for responses."""
 
     children: list[NodeResponse] | None = None
-    id: str | None
+    id: str
     is_mapped: bool | None = None
-    label: str | None = None
+    label: str
     tooltip: str | None = None
     setup_teardown_type: Literal["setup", "teardown"] | None = None
-    type: Literal["join", "sensor", "task", "task_group"]
+    type: Literal["join", "task", "asset_condition"]
+    operator: str | None = None
 
 
 class StructureDataResponse(BaseModel):

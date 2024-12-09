@@ -109,7 +109,7 @@ class TestTeradataToTeradataTransfer:
             mock.call(rows_chunk),
         ]
         mock_cursor.fetchmany.assert_has_calls(calls)
-        mocked_dest_hook.bulk_insert_rows.assert_called_once_with(
+        mocked_dest_hook.insert_rows.assert_called_once_with(
             self.destination_table,
             cursor_rows,
             commit_every=rows_chunk,

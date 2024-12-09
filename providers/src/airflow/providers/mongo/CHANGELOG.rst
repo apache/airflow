@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+main
+.....
+
+.. warning::
+   All deprecated classes, parameters and features have been removed from the MongoDB provider package.
+   The following breaking changes were introduced:
+
+   * Hooks
+
+      * Removed ``conn_id`` parameter from ``MongoHook``. Use ``mongo_conn_id`` instead
+
 4.2.2
 .....
 

@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+main
+....
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the {provider_name} provider package.
+  The following breaking changes were introduced:
+
+  * Hooks
+    * Parameter ``tag`` cannot be None. It is not set to MATCH_ALL_TAG as default.
+  * Notifications
+    * Parameter ``notify_type`` cannot be None. It is not set to NotifyType.INFO as default.
+    * Parameter ``body_format`` cannot be None. It is not set to NotifyFormat.TEXT as default.
+    * Parameter ``tag`` cannot be None. It is not set to MATCH_ALL_TAG as default.
+
 1.4.1
 .....
 

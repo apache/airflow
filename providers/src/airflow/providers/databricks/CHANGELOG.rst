@@ -26,6 +26,18 @@
 Changelog
 ---------
 
+main
+.....
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the databricks provider package.
+  The following breaking changes were introduced:
+
+  * ``Removed deprecated DatabricksRunNowDeferrableOperator. Use DatabricksRunNowOperator with deferrable=True instead.``
+  * ``Removed deprecated DatabricksSubmitRunDeferrableOperator. Use DatabricksSubmitRunOperator with deferrable=True instead.``
+  * ``Removed deprecated return_tuple parameter from DatabricksSqlHook. Now namedtuple will always returned.``
+
+
 6.13.0
 ......
 

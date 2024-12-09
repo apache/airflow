@@ -36,9 +36,9 @@ from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.www import _check_last_log
 
 if AIRFLOW_V_3_0_PLUS:

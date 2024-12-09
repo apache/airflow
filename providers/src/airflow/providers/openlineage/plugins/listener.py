@@ -143,6 +143,7 @@ class OpenLineageListener:
             parent_run_id = self.adapter.build_dag_run_id(
                 dag_id=dag.dag_id,
                 logical_date=dagrun.logical_date,
+                clear_number=dagrun.clear_number,
             )
 
             if hasattr(task_instance, "logical_date"):
@@ -228,6 +229,7 @@ class OpenLineageListener:
             parent_run_id = self.adapter.build_dag_run_id(
                 dag_id=dag.dag_id,
                 logical_date=dagrun.logical_date,
+                clear_number=dagrun.clear_number,
             )
 
             if hasattr(task_instance, "logical_date"):
@@ -332,6 +334,7 @@ class OpenLineageListener:
             parent_run_id = self.adapter.build_dag_run_id(
                 dag_id=dag.dag_id,
                 logical_date=dagrun.logical_date,
+                clear_number=dagrun.clear_number,
             )
 
             if hasattr(task_instance, "logical_date"):
@@ -467,6 +470,7 @@ class OpenLineageListener:
                 nominal_start_time=data_interval_start,
                 nominal_end_time=data_interval_end,
                 run_facets=run_facets,
+                clear_number=dag_run.clear_number,
                 owners=[x.strip() for x in dag_run.dag.owner.split(",")] if dag_run.dag else None,
                 description=dag_run.dag.description if dag_run.dag else None,
                 # AirflowJobFacet should be created outside ProcessPoolExecutor that pickles objects,
@@ -502,6 +506,7 @@ class OpenLineageListener:
                 run_id=dag_run.run_id,
                 end_date=dag_run.end_date,
                 logical_date=dag_run.logical_date,
+                clear_number=dag_run.clear_number,
                 task_ids=task_ids,
                 dag_run_state=dag_run.get_state(),
             )
@@ -534,6 +539,7 @@ class OpenLineageListener:
                 run_id=dag_run.run_id,
                 end_date=dag_run.end_date,
                 logical_date=dag_run.logical_date,
+                clear_number=dag_run.clear_number,
                 dag_run_state=dag_run.get_state(),
                 task_ids=task_ids,
                 msg=msg,

@@ -22,7 +22,13 @@ import sys
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).parents[3].resolve()
-ACCEPTED_NON_INIT_DIRS = ["adr", "doc", "templates", "__pycache__"]
+ACCEPTED_NON_INIT_DIRS = [
+    "adr",
+    "doc",
+    "templates",
+    "__pycache__",
+    "static",
+]
 
 
 def check_dir_init_file(folders: list[Path]) -> None:

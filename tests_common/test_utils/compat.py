@@ -18,14 +18,13 @@ from __future__ import annotations
 
 import contextlib
 import json
-import os
 from typing import TYPE_CHECKING, Any, cast
-
-from packaging.version import Version
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.models import Connection, Operator
 from airflow.utils.helpers import prune_dict
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
 
 try:
     # ImportError has been renamed to ParseImportError in airflow 2.10.0, and since our provider tests should
@@ -36,13 +35,6 @@ try:
     from airflow.models.errors import ParseImportError
 except ImportError:
     from airflow.models.errors import ImportError as ParseImportError  # type: ignore[no-redef,attr-defined]
-
-from airflow import __version__ as airflow_version
-
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_2_9_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("2.9.0")
-AIRFLOW_V_2_10_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("2.10.0")
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 try:
     from airflow.models.baseoperatorlink import BaseOperatorLink

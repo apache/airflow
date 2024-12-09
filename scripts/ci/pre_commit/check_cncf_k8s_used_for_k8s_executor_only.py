@@ -51,7 +51,7 @@ def get_imports(path: str):
 
 errors: list[str] = []
 
-EXCEPTIONS = ["airflow/cli/commands/kubernetes_command.py"]
+EXCEPTIONS = ["airflow/cli/commands/hybrid_commands/kubernetes_command.py"]
 
 
 def main() -> int:

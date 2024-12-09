@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime
 from collections.abc import Iterable
+from enum import Enum
 from traceback import format_exception
 from typing import TYPE_CHECKING, Any
 
@@ -25,6 +26,7 @@ from sqlalchemy import Column, Integer, String, Text, delete, func, or_, select,
 from sqlalchemy.orm import relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
 
+from airflow.assets.manager import AssetManager
 from airflow.models.asset import asset_trigger_association_table
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
@@ -39,6 +41,27 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
     from airflow.triggers.base import BaseTrigger
+
+TRIGGER_FAIL_REPR = "__fail__"
+"""String value to represent trigger failure.
+
+Internal use only.
+
+:meta private:
+"""
+
+
+class TriggerFailureReason(str, Enum):
+    """
+    Reasons for trigger failures.
+
+    Internal use only.
+
+    :meta private:
+    """
+
+    TRIGGER_TIMEOUT = "Trigger timeout"
+    TRIGGER_FAILURE = "Trigger failure"
 
 
 class Trigger(Base):
@@ -160,13 +183,19 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
+    def fetch_trigger_ids_with_asset(cls, session: Session = NEW_SESSION) -> set[str]:
+        """Fetch all the trigger IDs associated with at least one asset."""
+        query = select(asset_trigger_association_table.columns.trigger_id)
+        return {trigger_id for trigger_id in session.scalars(query)}
+
+    @classmethod
+    @provide_session
     def clean_unused(cls, session: Session = NEW_SESSION) -> None:
         """
-        Delete all triggers that have no tasks dependent on them.
+        Delete all triggers that have no tasks dependent on them and are not associated to an asset.
 
-        Triggers have a one-to-many relationship to task instances, so we need
-        to clean those up first. Afterwards we can drop the triggers not
-        referenced by anyone.
+        Triggers have a one-to-many relationship to task instances, so we need to clean those up first.
+        Afterward we can drop the triggers not referenced by anyone.
         """
         # Update all task instances with trigger IDs that are not DEFERRED to remove them
         for attempt in run_with_db_retries():
@@ -179,9 +208,10 @@ class Trigger(Base):
                     .values(trigger_id=None)
                 )
 
-        # Get all triggers that have no task instances depending on them and delete them
+        # Get all triggers that have no task instances and assets depending on them and delete them
         ids = (
             select(cls.id)
+            .where(~cls.assets.any())
             .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=True)
             .group_by(cls.id)
             .having(func.count(TaskInstance.trigger_id) == 0)
@@ -196,13 +226,27 @@ class Trigger(Base):
     @classmethod
     @provide_session
     def submit_event(cls, trigger_id, event, session: Session = NEW_SESSION) -> None:
-        """Take an event from an instance of itself, and trigger all dependent tasks to resume."""
+        """
+        Fire an event.
+
+        Resume all tasks that were in deferred state.
+        Send an event to all assets associated to the trigger.
+        """
+        # Resume deferred tasks
         for task_instance in session.scalars(
             select(TaskInstance).where(
                 TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
             )
         ):
             event.handle_submit(task_instance=task_instance)
+
+        # Send an event to assets
+        trigger = session.scalars(select(cls).where(cls.id == trigger_id)).one()
+        for asset in trigger.assets:
+            AssetManager.register_asset_change(
+                asset=asset.to_public(),
+                session=session,
+            )
 
     @classmethod
     @provide_session
@@ -229,8 +273,11 @@ class Trigger(Base):
         ):
             # Add the error and set the next_method to the fail state
             traceback = format_exception(type(exc), exc, exc.__traceback__) if exc else None
-            task_instance.next_method = "__fail__"
-            task_instance.next_kwargs = {"error": "Trigger failure", "traceback": traceback}
+            task_instance.next_method = TRIGGER_FAIL_REPR
+            task_instance.next_kwargs = {
+                "error": TriggerFailureReason.TRIGGER_FAILURE,
+                "traceback": traceback,
+            }
             # Remove ourselves as its trigger
             task_instance.trigger_id = None
             # Finally, mark it as scheduled so it gets re-queued
@@ -239,7 +286,7 @@ class Trigger(Base):
     @classmethod
     @provide_session
     def ids_for_triggerer(cls, triggerer_id, session: Session = NEW_SESSION) -> list[int]:
-        """Retrieve a list of triggerer_ids."""
+        """Retrieve a list of trigger ids."""
         return session.scalars(select(cls.id).where(cls.triggerer_id == triggerer_id)).all()
 
     @classmethod
@@ -301,4 +348,15 @@ class Trigger(Base):
             session,
             skip_locked=True,
         )
-        return session.execute(query).all()
+        ti_triggers = session.execute(query).all()
+
+        query = with_row_locks(
+            select(cls.id).where(cls.assets.any()).order_by(cls.created_date).limit(capacity),
+            session,
+            skip_locked=True,
+        )
+        asset_triggers = session.execute(query).all()
+
+        # Add triggers associated to assets after triggers associated to tasks
+        # It prioritizes DAGs over event driven scheduling which is fair
+        return ti_triggers + asset_triggers

@@ -61,7 +61,6 @@ class TestDatabricksSqlSensor:
             catalog=DEFAULT_CATALOG,
             timeout=30,
             poke_interval=15,
-            hook_params={"return_tuple": True},
         )
 
     def test_init(self):

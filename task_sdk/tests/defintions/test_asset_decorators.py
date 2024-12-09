@@ -17,15 +17,12 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import ANY
 
 import pytest
 
-from airflow.models.asset import AssetActive, AssetModel
+from airflow.models.asset import AssetModel
 from airflow.sdk.definitions.asset import Asset, AssetRef
 from airflow.sdk.definitions.asset.decorators import _AssetMainOperator, asset
-
-pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture
@@ -65,20 +62,20 @@ class TestAssetDecorator:
 
         assert asset_definition.name == "example_asset_func"
         assert asset_definition.uri == "example_asset_func"
-        assert asset_definition.group == ""
+        assert asset_definition.group == "asset"
         assert asset_definition.extra == {}
-        assert asset_definition.function == example_asset_func
-        assert asset_definition.schedule is None
+        assert asset_definition._function == example_asset_func
+        assert asset_definition._source.schedule is None
 
     def test_with_uri(self, example_asset_func):
         asset_definition = asset(schedule=None, uri="s3://bucket/object")(example_asset_func)
 
         assert asset_definition.name == "example_asset_func"
         assert asset_definition.uri == "s3://bucket/object"
-        assert asset_definition.group == ""
+        assert asset_definition.group == "asset"
         assert asset_definition.extra == {}
-        assert asset_definition.function == example_asset_func
-        assert asset_definition.schedule is None
+        assert asset_definition._function == example_asset_func
+        assert asset_definition._source.schedule is None
 
     def test_with_group_and_extra(self, example_asset_func):
         asset_definition = asset(schedule=None, uri="s3://bucket/object", group="MLModel", extra={"k": "v"})(
@@ -88,8 +85,8 @@ class TestAssetDecorator:
         assert asset_definition.uri == "s3://bucket/object"
         assert asset_definition.group == "MLModel"
         assert asset_definition.extra == {"k": "v"}
-        assert asset_definition.function == example_asset_func
-        assert asset_definition.schedule is None
+        assert asset_definition._function == example_asset_func
+        assert asset_definition._source.schedule is None
 
     def test_nested_function(self):
         def root_func():
@@ -110,55 +107,111 @@ class TestAssetDecorator:
         assert err.value.args[0].startswith("prohibited name for asset: ")
 
 
-class TestAssetDefinition:
-    def test_serialzie(self, example_asset_definition):
-        assert example_asset_definition.serialize() == {
-            "extra": {"k": "v"},
-            "group": "MLModel",
-            "name": "example_asset_func",
-            "uri": "s3://bucket/object",
-        }
+class TestAssetMultiDecorator:
+    def test_multi_asset(self, example_asset_func):
+        definition = asset.multi(
+            schedule=None,
+            outlets=[Asset(name="a"), Asset(name="b")],
+        )(example_asset_func)
 
-    @mock.patch("airflow.sdk.definitions.decorators._AssetMainOperator")
-    @mock.patch("airflow.sdk.definitions.decorators.DAG")
-    def test__attrs_post_init__(
-        self, DAG, _AssetMainOperator, example_asset_func_with_valid_arg_as_inlet_asset
+        assert definition._function == example_asset_func
+        assert definition._source.schedule is None
+        assert definition._source.outlets == [Asset(name="a"), Asset(name="b")]
+
+
+class TestAssetDefinition:
+    @mock.patch("airflow.sdk.definitions.asset.decorators._AssetMainOperator.from_definition")
+    @mock.patch("airflow.models.dag.DAG")
+    def test__attrs_post_init__(self, DAG, from_definition, example_asset_func_with_valid_arg_as_inlet_asset):
+        asset_definition = asset(schedule=None, uri="s3://bucket/object", group="MLModel", extra={"k": "v"})(
+            example_asset_func_with_valid_arg_as_inlet_asset
+        )
+
+        DAG.assert_called_once_with(
+            dag_id="example_asset_func",
+            dag_display_name="example_asset_func",
+            description=None,
+            schedule=None,
+            is_paused_upon_creation=None,
+            on_failure_callback=None,
+            on_success_callback=None,
+            params=None,
+            auto_register=True,
+        )
+        from_definition.assert_called_once_with(asset_definition)
+
+
+class TestMultiAssetDefinition:
+    @mock.patch("airflow.sdk.definitions.asset.decorators._AssetMainOperator.from_definition")
+    @mock.patch("airflow.models.dag.DAG")
+    def test__attrs_post_init__(self, DAG, from_definition, example_asset_func_with_valid_arg_as_inlet_asset):
+        definition = asset.multi(
+            schedule=None,
+            outlets=[Asset(name="a"), Asset(name="b")],
+        )(example_asset_func_with_valid_arg_as_inlet_asset)
+
+        DAG.assert_called_once_with(
+            dag_id="example_asset_func",
+            dag_display_name="example_asset_func",
+            description=None,
+            schedule=None,
+            is_paused_upon_creation=None,
+            on_failure_callback=None,
+            on_success_callback=None,
+            params=None,
+            auto_register=True,
+        )
+        from_definition.assert_called_once_with(definition)
+
+
+class Test_AssetMainOperator:
+    def test_from_definition(self, example_asset_func_with_valid_arg_as_inlet_asset):
+        definition = asset(schedule=None, uri="s3://bucket/object", group="MLModel", extra={"k": "v"})(
+            example_asset_func_with_valid_arg_as_inlet_asset
+        )
+        op = _AssetMainOperator.from_definition(definition)
+        assert op.task_id == "__main__"
+        assert op.inlets == [AssetRef(name="inlet_asset_1"), AssetRef(name="inlet_asset_2")]
+        assert op.outlets == [definition]
+        assert op.python_callable == example_asset_func_with_valid_arg_as_inlet_asset
+        assert op._definition_name == "example_asset_func"
+
+    def test_from_definition_multi(self, example_asset_func_with_valid_arg_as_inlet_asset):
+        definition = asset.multi(
+            schedule=None,
+            outlets=[Asset(name="a"), Asset(name="b")],
+        )(example_asset_func_with_valid_arg_as_inlet_asset)
+        op = _AssetMainOperator.from_definition(definition)
+        assert op.task_id == "__main__"
+        assert op.inlets == [AssetRef(name="inlet_asset_1"), AssetRef(name="inlet_asset_2")]
+        assert op.outlets == [Asset(name="a"), Asset(name="b")]
+        assert op.python_callable == example_asset_func_with_valid_arg_as_inlet_asset
+        assert op._definition_name == "example_asset_func"
+
+    @mock.patch("airflow.models.asset.fetch_active_assets_by_name")
+    @mock.patch("airflow.utils.session.create_session")
+    def test_determine_kwargs(
+        self,
+        mock_create_session,
+        mock_fetch_active_assets_by_name,
+        example_asset_func_with_valid_arg_as_inlet_asset,
     ):
         asset_definition = asset(schedule=None, uri="s3://bucket/object", group="MLModel", extra={"k": "v"})(
             example_asset_func_with_valid_arg_as_inlet_asset
         )
 
-        DAG.assert_called_once_with(dag_id="example_asset_func", schedule=None, auto_register=True)
-        _AssetMainOperator.assert_called_once_with(
-            task_id="__main__",
-            inlets=[
-                AssetRef(name="inlet_asset_1"),
-                AssetRef(name="inlet_asset_2"),
-            ],
-            outlets=[asset_definition],
-            python_callable=ANY,
-            definition_name="example_asset_func",
-            uri="s3://bucket/object",
-        )
+        class FakeSession:
+            def __enter__(self):
+                return self
 
-        python_callable = _AssetMainOperator.call_args.kwargs["python_callable"]
-        assert python_callable == example_asset_func_with_valid_arg_as_inlet_asset
+            def __exit__(self, *args, **kwargs):
+                pass
 
-
-class Test_AssetMainOperator:
-    def test_determine_kwargs(self, example_asset_func_with_valid_arg_as_inlet_asset, session):
-        example_asset_model = AssetModel(uri="s3://bucket/object1", name="inlet_asset_1")
-        asset_definition = asset(schedule=None, uri="s3://bucket/object", group="MLModel", extra={"k": "v"})(
-            example_asset_func_with_valid_arg_as_inlet_asset
-        )
-
-        ad_asset_model = AssetModel.from_public(asset_definition)
-
-        session.add(example_asset_model)
-        session.add(ad_asset_model)
-        session.add(AssetActive.for_asset(example_asset_model))
-        session.add(AssetActive.for_asset(ad_asset_model))
-        session.commit()
+        mock_create_session.return_value = fake_session = FakeSession()
+        mock_fetch_active_assets_by_name.return_value = {
+            "example_asset_func": AssetModel.from_public(asset_definition),
+            "inlet_asset_1": AssetModel(uri="s3://bucket/object1", name="inlet_asset_1"),
+        }
 
         op = _AssetMainOperator(
             task_id="__main__",
@@ -178,3 +231,7 @@ class Test_AssetMainOperator:
             "inlet_asset_1": Asset(name="inlet_asset_1", uri="s3://bucket/object1"),
             "inlet_asset_2": Asset(name="inlet_asset_2"),
         }
+
+        assert mock_fetch_active_assets_by_name.mock_calls == [
+            mock.call({"example_asset_func", "inlet_asset_1", "inlet_asset_2"}, fake_session),
+        ]

@@ -31,7 +31,7 @@ from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
 from providers.tests.amazon.aws.utils.test_template_fields import validate_template_fields
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 TEST_DAG_ID = "unit_tests"
 DEFAULT_DATE = datetime(2018, 1, 1)

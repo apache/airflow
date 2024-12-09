@@ -25,20 +25,21 @@ Dataform lets you manage data transformation in the Extraction, Loading, and Tra
 for data integration. After raw data is extracted from source systems and loaded into BigQuery, Dataform
 helps you to transform it into a well-defined, tested, and documented suite of data tables.
 
-For more information about the task visit `Dataform production documentation <Product documentation <https://cloud.google.com/dataform/docs>`__
+For more information about the task visit `Dataform documentation <https://cloud.google.com/dataform/docs>`__
 
 
 Configuration
 -------------
 
 Before you can use the Dataform operators you need to initialize repository and workspace, for more information
-about this visit `Dataform Production documentation <Product documentation <https://cloud.google.com/dataform/docs>`__
+about this visit `Dataform documentation <https://cloud.google.com/dataform/docs>`__
 
 Create Repository
 -----------------
-Create repository for tracking your code in Dataform service. Example of usage can be seen below:
 
-:class:`~airflow.providers.google.cloud.operators.dataform.DataformCreateRepositoryOperator`
+To create a repository for tracking your code in Dataform service use
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformCreateRepositoryOperator`.
+Example of usage can be seen below:
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
@@ -46,11 +47,13 @@ Create repository for tracking your code in Dataform service. Example of usage c
     :start-after: [START howto_operator_create_repository]
     :end-before: [END howto_operator_create_repository]
 
+
 Create Workspace
 ----------------
-Create workspace for storing your code in Dataform service. Example of usage can be seen below:
 
-:class:`~airflow.providers.google.cloud.operators.dataform.DataformCreateWorkspaceOperator`
+To create a workspace for storing your code in Dataform service use
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformCreateWorkspaceOperator`.
+Example of usage can be seen below:
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
@@ -61,9 +64,10 @@ Create workspace for storing your code in Dataform service. Example of usage can
 
 Create Compilation Result
 -------------------------
-A simple configuration to create Compilation Result can look as followed:
 
-:class:`~airflow.providers.google.cloud.operators.dataform.DataformCreateCompilationResultOperator`
+To create a Compilation Result use
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformCreateCompilationResultOperator`.
+A simple configuration can look as followed:
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
@@ -71,12 +75,12 @@ A simple configuration to create Compilation Result can look as followed:
     :start-after: [START howto_operator_create_compilation_result]
     :end-before: [END howto_operator_create_compilation_result]
 
+
 Get Compilation Result
 ----------------------
 
-To get a Compilation Result you can use:
-
-:class:`~airflow.providers.google.cloud.operators.dataform.DataformGetCompilationResultOperator`
+To get a Compilation Result you can use
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformGetCompilationResultOperator`.
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
@@ -84,22 +88,12 @@ To get a Compilation Result you can use:
     :start-after: [START howto_operator_get_compilation_result]
     :end-before: [END howto_operator_get_compilation_result]
 
+
 Create Workflow Invocation
 --------------------------
 
-To create a Workflow Invocation you can use:
-
-:class:`~airflow.providers.google.cloud.operators.dataform.DataformCreateWorkflowInvocationOperator`
-
-We have possibility to run this operation in the sync mode and async, for async operation we also have
-a sensor:
-:class:`~airflow.providers.google.cloud.operators.dataform.DataformWorkflowInvocationStateSensor`
-
-We also have a sensor to check the status of a particular action for a workflow invocation triggered
-asynchronously.
-
-:class:`~airflow.providers.google.cloud.operators.dataform.DataformWorkflowInvocationActionStateSensor`
-
+To create a Workflow Invocation you can use
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformCreateWorkflowInvocationOperator`.
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
@@ -107,11 +101,21 @@ asynchronously.
     :start-after: [START howto_operator_create_workflow_invocation]
     :end-before: [END howto_operator_create_workflow_invocation]
 
+
+We have possibility to run this operation in the sync mode and async, for async operation we also have
+a sensor
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformWorkflowInvocationStateSensor`.
+
 .. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_workflow_invocation_async]
     :end-before: [END howto_operator_create_workflow_invocation_async]
+
+
+We also have a sensor
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformWorkflowInvocationActionStateSensor`
+to check the status of a particular action for a workflow invocation triggered asynchronously.
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
@@ -119,12 +123,12 @@ asynchronously.
     :start-after: [START howto_operator_create_workflow_invocation_action_async]
     :end-before: [END howto_operator_create_workflow_invocation_action_async]
 
+
 Get Workflow Invocation
 -----------------------
 
-To get a Workflow Invocation you can use:
-
-:class:`~airflow.providers.google.cloud.operators.dataform.DataformGetWorkflowInvocationOperator`
+To get a Workflow Invocation you can use
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformGetWorkflowInvocationOperator`.
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
@@ -132,12 +136,12 @@ To get a Workflow Invocation you can use:
     :start-after: [START howto_operator_get_workflow_invocation]
     :end-before: [END howto_operator_get_workflow_invocation]
 
+
 Query Workflow Invocation Action
 --------------------------------
 
-To query Workflow Invocation Actions you can use:
-
-:class:`~airflow.providers.google.cloud.operators.dataform.DataformQueryWorkflowInvocationActionsOperator`
+To query Workflow Invocation Actions you can use
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformQueryWorkflowInvocationActionsOperator`.
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
@@ -145,12 +149,12 @@ To query Workflow Invocation Actions you can use:
     :start-after: [START howto_operator_query_workflow_invocation_actions]
     :end-before: [END howto_operator_query_workflow_invocation_actions]
 
+
 Cancel Workflow Invocation
 --------------------------
 
-To cancel a Workflow Invocation you can use:
-
-:class:`~airflow.providers.google.cloud.sensors.dataform.DataformCancelWorkflowInvocationOperator`
+To cancel a Workflow Invocation you can use
+:class:`~airflow.providers.google.cloud.sensors.dataform.DataformCancelWorkflowInvocationOperator`.
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
@@ -158,23 +162,13 @@ To cancel a Workflow Invocation you can use:
     :start-after: [START howto_operator_cancel_workflow_invocation]
     :end-before: [END howto_operator_cancel_workflow_invocation]
 
+
 Delete Repository
 -----------------
-Deletes repository. Example of usage can be seen below:
 
-:class:`~airflow.providers.google.cloud.operators.dataform.DataformDeleteRepositoryOperator`
-
-.. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
-    :language: python
-    :dedent: 0
-    :start-after: [START howto_operator_delete_workspace]
-    :end-before: [END howto_operator_delete_workspace]
-
-Delete Workspace
-----------------
-Deletes workspace. Example of usage can be seen below:
-
-:class:`~airflow.providers.google.cloud.operators.dataform.DataformDeleteRepositoryOperator`
+To delete a repository use
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformDeleteRepositoryOperator`.
+Example of usage can be seen below:
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
@@ -182,11 +176,27 @@ Deletes workspace. Example of usage can be seen below:
     :start-after: [START howto_operator_delete_repository]
     :end-before: [END howto_operator_delete_repository]
 
+
+Delete Workspace
+----------------
+
+To delete a workspace use
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformDeleteWorkspaceOperator`.
+Example of usage can be seen below:
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_operator_delete_workspace]
+    :end-before: [END howto_operator_delete_workspace]
+
+
 Remove file
 -----------
-Removes file. Example of usage can be seen below:
 
-:class:`~airflow.providers.google.cloud.operators.dataform.DataformRemoveFileOperator`
+To remove a file use
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformRemoveFileOperator`.
+Example of usage can be seen below:
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
@@ -194,11 +204,13 @@ Removes file. Example of usage can be seen below:
     :start-after: [START howto_operator_remove_file]
     :end-before: [END howto_operator_remove_file]
 
+
 Remove directory
 ----------------
-Removes directory. Example of usage can be seen below:
 
-:class:`~airflow.providers.google.cloud.operators.dataform.DataformRemoveDirectoryOperator`
+To remove a directory use
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformRemoveDirectoryOperator`.
+Example of usage can be seen below:
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
@@ -206,11 +218,12 @@ Removes directory. Example of usage can be seen below:
     :start-after: [START howto_operator_remove_directory]
     :end-before: [END howto_operator_remove_directory]
 
+
 Initialize workspace
 --------------------
-Creates default projects structure for provided workspace. Before it can be done workspace and repository should be created. Example of usage can be seen below:
 
-:class:`~airflow.providers.google.cloud.utils.dataform.make_initialization_workspace_flow`
+Creates default projects structure for provided workspace. Before it can be done workspace and repository should be created.
+Example of usage can be seen below:
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
@@ -218,11 +231,12 @@ Creates default projects structure for provided workspace. Before it can be done
     :start-after: [START howto_initialize_workspace]
     :end-before: [END howto_initialize_workspace]
 
+
 Write file to workspace
 -----------------------
-Writes file with given content to specified workspace.
 
-:class:`~airflow.providers.google.cloud.operators.dataform.DataformWriteFileOperator`
+To write a file with given content to specified workspace use
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformWriteFileOperator`.
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
@@ -230,11 +244,12 @@ Writes file with given content to specified workspace.
     :start-after: [START howto_operator_write_file]
     :end-before: [END howto_operator_write_file]
 
+
 Make directory in workspace
 ---------------------------
-Make directory with given path in specified workspace.
 
-:class:`~airflow.providers.google.cloud.operators.dataform.DataformMakeDirectoryOperator`
+To make a directory with given path in specified workspace use
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformMakeDirectoryOperator`.
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
@@ -242,11 +257,12 @@ Make directory with given path in specified workspace.
     :start-after: [START howto_operator_make_directory]
     :end-before: [END howto_operator_make_directory]
 
+
 Install NPM packages
 --------------------
-Installs npm packages for specified workspace
 
-:class:`~airflow.providers.google.cloud.operators.dataform.DataformInstallNpmPackagesOperator`
+To install npm packages for specified workspace use
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformInstallNpmPackagesOperator`.
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python

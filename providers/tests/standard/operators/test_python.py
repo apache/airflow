@@ -71,8 +71,8 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, DagRunType
 
 from tests_common.test_utils import AIRFLOW_MAIN_FOLDER
-from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS, AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.db import clear_db_runs
+from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS, AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun

@@ -4296,7 +4296,7 @@ class PluginView(AirflowBaseView):
         """List loaded plugins."""
         plugins_manager.ensure_plugins_loaded()
         plugins_manager.initialize_extra_operators_links_plugins()
-        plugins_manager.initialize_web_ui_plugins()
+        plugins_manager.initialize_flask_plugins()
         plugins_manager.initialize_fastapi_plugins()
 
         plugins = []

@@ -27,7 +27,7 @@ from unittest.mock import PropertyMock, patch
 import pytest
 from databricks.sql.types import Row
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook, create_timeout_thread
@@ -55,7 +55,7 @@ def create_connection(session):
 
 @pytest.fixture
 def databricks_hook():
-    return DatabricksSqlHook(sql_endpoint_name="Test", return_tuple=True)
+    return DatabricksSqlHook(sql_endpoint_name="Test")
 
 
 @pytest.fixture
@@ -114,7 +114,7 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
 
 
 @pytest.mark.parametrize(
-    "return_last, split_statements, sql, execution_timeout, cursor_calls, return_tuple,"
+    "return_last, split_statements, sql, execution_timeout, cursor_calls,"
     "cursor_descriptions, cursor_results, hook_descriptions, hook_results, ",
     [
         pytest.param(
@@ -123,7 +123,6 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             "select * from test.test",
             None,
             ["select * from test.test"],
-            False,
             [["id", "value"]],
             ([Row(id=1, value=2), Row(id=11, value=12)],),
             [[("id",), ("value",)]],
@@ -136,7 +135,6 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             "select * from test.test;",
             None,
             ["select * from test.test"],
-            False,
             [["id", "value"]],
             ([Row(id=1, value=2), Row(id=11, value=12)],),
             [[("id",), ("value",)]],
@@ -149,7 +147,6 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             "select * from test.test;",
             None,
             ["select * from test.test"],
-            False,
             [["id", "value"]],
             ([Row(id=1, value=2), Row(id=11, value=12)],),
             [[("id",), ("value",)]],
@@ -162,7 +159,6 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             "select * from test.test;",
             None,
             ["select * from test.test"],
-            False,
             [["id", "value"]],
             ([Row(id=1, value=2), Row(id=11, value=12)],),
             [[("id",), ("value",)]],
@@ -175,7 +171,6 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             "select * from test.test;select * from test.test2;",
             None,
             ["select * from test.test", "select * from test.test2"],
-            False,
             [["id", "value"], ["id2", "value2"]],
             ([Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]),
             [[("id2",), ("value2",)]],
@@ -188,7 +183,6 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             "select * from test.test;select * from test.test2;",
             None,
             ["select * from test.test", "select * from test.test2"],
-            False,
             [["id", "value"], ["id2", "value2"]],
             ([Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]),
             [[("id",), ("value",)], [("id2",), ("value2",)]],
@@ -204,7 +198,6 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             ["select * from test.test;"],
             None,
             ["select * from test.test"],
-            False,
             [["id", "value"]],
             ([Row(id=1, value=2), Row(id=11, value=12)],),
             [[("id",), ("value",)]],
@@ -217,7 +210,6 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             ["select * from test.test;"],
             None,
             ["select * from test.test"],
-            False,
             [["id", "value"]],
             ([Row(id=1, value=2), Row(id=11, value=12)],),
             [[("id",), ("value",)]],
@@ -230,7 +222,6 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             "select * from test.test;select * from test.test2;",
             None,
             ["select * from test.test", "select * from test.test2"],
-            False,
             [["id", "value"], ["id2", "value2"]],
             ([Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]),
             [[("id2",), ("value2",)]],
@@ -243,7 +234,6 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             "select * from test.test;select * from test.test2;",
             None,
             ["select * from test.test", "select * from test.test2"],
-            False,
             [["id", "value"], ["id2", "value2"]],
             ([Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]),
             [[("id",), ("value",)], [("id2",), ("value2",)]],
@@ -259,7 +249,6 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             "select * from test.test",
             None,
             ["select * from test.test"],
-            True,
             [["id", "value"]],
             ([Row("id", "value")(1, 2)],),
             [[("id",), ("value",)]],
@@ -272,7 +261,6 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             "select * from test.test",
             None,
             ["select * from test.test"],
-            True,
             [["id", "value"]],
             ([Row(id=1, value=2)],),
             [[("id",), ("value",)]],
@@ -285,7 +273,6 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             "select * from test.test",
             None,
             ["select * from test.test"],
-            True,
             [["id", "value"]],
             ([],),
             [[("id",), ("value",)]],
@@ -300,7 +287,6 @@ def test_query(
     sql,
     execution_timeout,
     cursor_calls,
-    return_tuple,
     cursor_descriptions,
     cursor_results,
     hook_descriptions,
@@ -322,16 +308,7 @@ def test_query(
         connections.append(conn)
     mock_get_conn.side_effect = connections
 
-    if not return_tuple:
-        with pytest.warns(
-            AirflowProviderDeprecationWarning,
-            match="""Returning a raw `databricks.sql.Row` object is deprecated. A namedtuple will be
-                returned instead in a future release of the databricks provider. Set `return_tuple=True` to
-                enable this behavior.""",
-        ):
-            databricks_hook = DatabricksSqlHook(sql_endpoint_name="Test", return_tuple=return_tuple)
-    else:
-        databricks_hook = DatabricksSqlHook(sql_endpoint_name="Test", return_tuple=return_tuple)
+    databricks_hook = DatabricksSqlHook(sql_endpoint_name="Test")
     results = databricks_hook.run(
         sql=sql, handler=fetch_all_handler, return_last=return_last, split_statements=split_statements
     )
@@ -374,7 +351,7 @@ def test_incorrect_column_names(row_objects, fields_names):
     namedtuple do not accept special characters and reserved python keywords
     as column name. This test ensure that such columns are renamed.
     """
-    result = DatabricksSqlHook(return_tuple=True)._make_common_data_structure(row_objects)
+    result = DatabricksSqlHook()._make_common_data_structure(row_objects)
     assert result._fields == fields_names
 
 
@@ -414,7 +391,7 @@ def test_execution_timeout_exceeded(
         mock_get_conn.side_effect = [conn]
 
         with pytest.raises(AirflowException) as exc_info:
-            DatabricksSqlHook(sql_endpoint_name="Test", return_tuple=True).run(
+            DatabricksSqlHook(sql_endpoint_name="Test").run(
                 sql=sql,
                 execution_timeout=execution_timeout,
                 handler=fetch_all_handler,

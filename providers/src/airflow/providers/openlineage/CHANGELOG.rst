@@ -26,6 +26,18 @@
 Changelog
 ---------
 
+main
+.....
+
+.. warning::
+   All deprecated classes, parameters and features have been removed from the OpenLineage provider package.
+   The following breaking changes were introduced:
+
+   * Utils
+
+      * Removed ``normalize_sql`` function from ``openlineage.utils`` module.
+
+
 1.14.0
 ......
 

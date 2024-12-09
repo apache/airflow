@@ -597,7 +597,9 @@ class MappedTaskGroup(TaskGroup):
 
         for child in self.children.values():
             if isinstance(child, AbstractOperator) and child.trigger_rule == TriggerRule.ALWAYS:
-                raise ValueError("Tasks in a mapped task group cannot have trigger_rule set to 'ALWAYS'")
+                raise ValueError(
+                    "Task-generated mapping within a mapped task group is not allowed with trigger rule 'always'"
+                )
             yield from self._iter_child(child)
 
     def iter_mapped_dependencies(self) -> Iterator[DAGNode]:

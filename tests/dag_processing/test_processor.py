@@ -41,7 +41,7 @@ from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, ParseImportError
+from tests_common.test_utils.compat import ParseImportError
 from tests_common.test_utils.config import conf_vars, env_vars
 from tests_common.test_utils.db import (
     clear_db_dags,
@@ -52,6 +52,7 @@ from tests_common.test_utils.db import (
     clear_db_serialized_dags,
 )
 from tests_common.test_utils.mock_executor import MockExecutor
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType

@@ -873,14 +873,6 @@ class HiveServer2Hook(DbApiHook):
             auth_mechanism = db.extra_dejson.get("auth_mechanism", "KERBEROS")
             kerberos_service_name = db.extra_dejson.get("kerberos_service_name", "hive")
 
-        # pyhive uses GSSAPI instead of KERBEROS as a auth_mechanism identifier
-        if auth_mechanism == "GSSAPI":
-            self.log.warning(
-                "Detected deprecated 'GSSAPI' for auth_mechanism for %s. Please use 'KERBEROS' instead",
-                self.hiveserver2_conn_id,  # type: ignore
-            )
-            auth_mechanism = "KERBEROS"
-
         # Password should be set if and only if in LDAP or CUSTOM mode
         if auth_mechanism in ("LDAP", "CUSTOM"):
             password = db.password

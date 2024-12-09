@@ -35,7 +35,6 @@ from __future__ import annotations
 
 import inspect
 import time
-import warnings
 from functools import wraps
 from typing import IO, TYPE_CHECKING, Any, Callable, TypeVar, Union, cast
 
@@ -48,7 +47,7 @@ from azure.identity.aio import (
 from azure.mgmt.datafactory import DataFactoryManagementClient
 from azure.mgmt.datafactory.aio import DataFactoryManagementClient as AsyncDataFactoryManagementClient
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
@@ -1095,14 +1094,6 @@ def provide_targeted_factory_async(func: T) -> T:
                 default_value = extras.get(default_key) or extras.get(
                     f"extra__azure_data_factory__{default_key}"
                 )
-                if not default_value and extras.get(f"extra__azure_data_factory__{default_key}"):
-                    warnings.warn(
-                        f"`extra__azure_data_factory__{default_key}` is deprecated in azure connection extra,"
-                        f" please use `{default_key}` instead",
-                        AirflowProviderDeprecationWarning,
-                        stacklevel=2,
-                    )
-                    default_value = extras.get(f"extra__azure_data_factory__{default_key}")
                 if not default_value:
                     raise AirflowException("Could not determine the targeted data factory.")
 

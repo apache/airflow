@@ -16,7 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
+
+pytestmark = pytest.mark.db_test
 
 
 def test_custom_openapi_includes_extra_schemas(client):
