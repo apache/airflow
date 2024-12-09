@@ -333,6 +333,13 @@ paths:
           minimum: 0
           default: 100
           title: Limit
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: id
+          title: Order By
       responses:
         '200':
           description: Successful Response

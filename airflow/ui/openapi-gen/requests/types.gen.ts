@@ -1492,6 +1492,7 @@ export type GridDataData = {
   includeUpstream?: boolean | null;
   limit?: number;
   offset?: number;
+  orderBy?: string;
   root?: string | null;
   runType?: Array<string>;
   state?: Array<string>;

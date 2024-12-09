@@ -25,7 +25,6 @@ from typing_extensions import Any
 from airflow import DAG
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.parameters import (
-    BaseParam,
     SortParam,
 )
 from airflow.api_fastapi.core_api.datamodels.ui.grid import (
@@ -40,7 +39,7 @@ from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 
 
-def get_dag_run_sort_param(dag: DAG) -> BaseParam:
+def get_dag_run_sort_param(dag: DAG, request_order_by: SortParam) -> SortParam:
     """
     Get the Sort Param for the DAG Run.
 
@@ -51,9 +50,13 @@ def get_dag_run_sort_param(dag: DAG) -> BaseParam:
     we sort by logical_date instead.
 
     :param dag: DAG
+    :param request_order_by: Request Order By
 
     :return: Sort Param
     """
+    if request_order_by and request_order_by.value != request_order_by.get_primary_key_string():
+        return request_order_by
+
     sort_param = SortParam(
         allowed_attrs=["logical_date", "data_interval_start", "data_interval_end"], model=DagRun
     )
@@ -87,7 +90,23 @@ def get_task_group_map(dag: DAG) -> dict[str, dict[str, Any]]:
     task_nodes: dict[str, dict[str, Any]] = {}
 
     def _is_task_node_mapped_task_group(task_node: BaseOperator | MappedTaskGroup | TaskMap | None) -> bool:
+        """Check if the Task Node is a Mapped Task Group."""
         return type(task_node) is MappedTaskGroup
+
+    def _append_child_task_count_to_parent(
+        child_task_count: int | MappedTaskGroup | TaskMap | MappedOperator | None,
+        parent_node: BaseOperator | MappedTaskGroup | TaskMap | None,
+    ):
+        """
+        Append the Child Task Count to the Parent.
+
+        This method should only be used for Mapped Models.
+        """
+        if isinstance(parent_node, TaskGroup):
+            # Remove the regular task counted in parent_node
+            task_nodes[parent_node.node_id]["task_count"].append(-1)
+            # Add the mapped task to the parent_node
+            task_nodes[parent_node.node_id]["task_count"].append(child_task_count)
 
     def _fill_task_group_map(
         task_node: BaseOperator | MappedTaskGroup | TaskMap | None,
@@ -102,12 +121,29 @@ def get_task_group_map(dag: DAG) -> dict[str, dict[str, Any]]:
                 "parent_id": parent_node.node_id if parent_node else None,
                 "task_count": [task_node],
             }
-            if isinstance(parent_node, TaskGroup):
-                # Remove the regular task counted in parent_node
-                task_nodes[parent_node.node_id]["task_count"].append(-1)
-                # Add the mapped task to the parent_node
-                task_nodes[parent_node.node_id]["task_count"].append(task_node)
+            # Add the Task Count to the Parent Node because parent node is a Task Group
+            _append_child_task_count_to_parent(child_task_count=task_node, parent_node=parent_node)
             return
+        elif isinstance(task_node, TaskGroup):
+            task_count = (
+                task_node
+                if _is_task_node_mapped_task_group(task_node)
+                else len([child for child in get_task_group_children_getter()(task_node)])
+            )
+            task_nodes[task_node.node_id] = {
+                "is_group": True,
+                "parent_id": parent_node.node_id if parent_node else None,
+                "task_count": [task_count],
+            }
+            # Add the Task Count to the Parent Node because parent node is a Task Group
+            _append_child_task_count_to_parent(
+                child_task_count=task_count,
+                parent_node=parent_node,
+            )
+            return [
+                _fill_task_group_map(task_node=child, parent_node=task_node)
+                for child in get_task_group_children_getter()(task_node)
+            ]
         elif isinstance(task_node, BaseOperator):
             task_nodes[task_node.task_id] = {
                 "is_group": False,
@@ -116,19 +152,8 @@ def get_task_group_map(dag: DAG) -> dict[str, dict[str, Any]]:
                 if _is_task_node_mapped_task_group(parent_node) and parent_node
                 else [1],
             }
+            # No Need to Add the Task Count to the Parent Node, these are already counted in Add the Parent
             return
-        elif isinstance(task_node, TaskGroup):
-            task_nodes[task_node.node_id] = {
-                "is_group": True,
-                "parent_id": parent_node.node_id if parent_node else None,
-                "task_count": [task_node]
-                if _is_task_node_mapped_task_group(task_node)
-                else [len([child for child in get_task_group_children_getter()(task_node)])],
-            }
-            return [
-                _fill_task_group_map(task_node=child, parent_node=task_node)
-                for child in get_task_group_children_getter()(task_node)
-            ]
 
     for node in [child for child in get_task_group_children_getter()(dag.task_group)]:
         _fill_task_group_map(task_node=node, parent_node=None)
@@ -171,9 +196,9 @@ def fill_task_instance_summaries(
 
     for (task_id, run_id), tis in grouped_task_instances.items():
         overall_state = next(
-            (state.value for ti in tis for state in priority if state is not None and ti.state == state),
-            None,
+            (state.value for state in priority for ti in tis if state is not None and ti.state == state), None
         )
+
         ti_try_number = max([ti.try_number for ti in tis])
         ti_start_date = min([ti.start_date for ti in tis if ti.start_date], default=None)
         ti_end_date = max([ti.end_date for ti in tis if ti.end_date], default=None)
@@ -191,7 +216,13 @@ def fill_task_instance_summaries(
         # Task Count is either integer or a TaskGroup to get the task count
         task_count = task_node_map[task_id]["task_count"]
         final_task_count = sum(
-            node if isinstance(node, int) else node.get_mapped_ti_count(run_id=run_id, session=session)
+            node
+            if isinstance(node, int)
+            else (
+                node.get_mapped_ti_count(run_id=run_id, session=session)
+                if isinstance(node, (MappedTaskGroup, MappedOperator))
+                else node
+            )
             for node in task_count
         )
 

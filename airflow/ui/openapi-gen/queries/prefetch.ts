@@ -506,6 +506,7 @@ export const prefetchUseStructureServiceStructureData = (
  * @param data.state
  * @param data.offset
  * @param data.limit
+ * @param data.orderBy
  * @returns GridResponse Successful Response
  * @throws ApiError
  */
@@ -518,6 +519,7 @@ export const prefetchUseGridServiceGridData = (
     includeUpstream,
     limit,
     offset,
+    orderBy,
     root,
     runType,
     state,
@@ -528,6 +530,7 @@ export const prefetchUseGridServiceGridData = (
     includeUpstream?: boolean;
     limit?: number;
     offset?: number;
+    orderBy?: string;
     root?: string;
     runType?: string[];
     state?: string[];
@@ -541,6 +544,7 @@ export const prefetchUseGridServiceGridData = (
       includeUpstream,
       limit,
       offset,
+      orderBy,
       root,
       runType,
       state,
@@ -553,6 +557,7 @@ export const prefetchUseGridServiceGridData = (
         includeUpstream,
         limit,
         offset,
+        orderBy,
         root,
         runType,
         state,
