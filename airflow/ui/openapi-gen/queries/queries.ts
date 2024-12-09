@@ -250,7 +250,7 @@ export const useAssetServiceGetAssetEvents = <
  * Get Asset Queued Events
  * Get queued asset events for an asset.
  * @param data The data for the request.
- * @param data.uri
+ * @param data.assetId
  * @param data.before
  * @returns QueuedEventCollectionResponse Successful Response
  * @throws ApiError
@@ -261,28 +261,29 @@ export const useAssetServiceGetAssetQueuedEvents = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
+    assetId,
     before,
-    uri,
   }: {
+    assetId: number;
     before?: string;
-    uri: string;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
     queryKey: Common.UseAssetServiceGetAssetQueuedEventsKeyFn(
-      { before, uri },
+      { assetId, before },
       queryKey,
     ),
-    queryFn: () => AssetService.getAssetQueuedEvents({ before, uri }) as TData,
+    queryFn: () =>
+      AssetService.getAssetQueuedEvents({ assetId, before }) as TData,
     ...options,
   });
 /**
  * Get Asset
  * Get an asset.
  * @param data The data for the request.
- * @param data.uri
+ * @param data.assetId
  * @returns AssetResponse Successful Response
  * @throws ApiError
  */
@@ -292,16 +293,16 @@ export const useAssetServiceGetAsset = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
-    uri,
+    assetId,
   }: {
-    uri: string;
+    assetId: number;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceGetAssetKeyFn({ uri }, queryKey),
-    queryFn: () => AssetService.getAsset({ uri }) as TData,
+    queryKey: Common.UseAssetServiceGetAssetKeyFn({ assetId }, queryKey),
+    queryFn: () => AssetService.getAsset({ assetId }) as TData,
     ...options,
   });
 /**
@@ -342,7 +343,7 @@ export const useAssetServiceGetDagAssetQueuedEvents = <
  * Get a queued asset event for a DAG.
  * @param data The data for the request.
  * @param data.dagId
- * @param data.uri
+ * @param data.assetId
  * @param data.before
  * @returns QueuedEventResponse Successful Response
  * @throws ApiError
@@ -353,24 +354,24 @@ export const useAssetServiceGetDagAssetQueuedEvent = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
+    assetId,
     before,
     dagId,
-    uri,
   }: {
+    assetId: number;
     before?: string;
     dagId: string;
-    uri: string;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
     queryKey: Common.UseAssetServiceGetDagAssetQueuedEventKeyFn(
-      { before, dagId, uri },
+      { assetId, before, dagId },
       queryKey,
     ),
     queryFn: () =>
-      AssetService.getDagAssetQueuedEvent({ before, dagId, uri }) as TData,
+      AssetService.getDagAssetQueuedEvent({ assetId, before, dagId }) as TData,
     ...options,
   });
 /**
@@ -3764,7 +3765,7 @@ export const useVariableServicePatchVariable = <
  * Delete Asset Queued Events
  * Delete queued asset events for an asset.
  * @param data The data for the request.
- * @param data.uri
+ * @param data.assetId
  * @param data.before
  * @returns void Successful Response
  * @throws ApiError
@@ -3779,8 +3780,8 @@ export const useAssetServiceDeleteAssetQueuedEvents = <
       TData,
       TError,
       {
+        assetId: number;
         before?: string;
-        uri: string;
       },
       TContext
     >,
@@ -3791,15 +3792,15 @@ export const useAssetServiceDeleteAssetQueuedEvents = <
     TData,
     TError,
     {
+      assetId: number;
       before?: string;
-      uri: string;
     },
     TContext
   >({
-    mutationFn: ({ before, uri }) =>
+    mutationFn: ({ assetId, before }) =>
       AssetService.deleteAssetQueuedEvents({
+        assetId,
         before,
-        uri,
       }) as unknown as Promise<TData>,
     ...options,
   });
@@ -3850,7 +3851,7 @@ export const useAssetServiceDeleteDagAssetQueuedEvents = <
  * Delete a queued asset event for a DAG.
  * @param data The data for the request.
  * @param data.dagId
- * @param data.uri
+ * @param data.assetId
  * @param data.before
  * @returns void Successful Response
  * @throws ApiError
@@ -3865,9 +3866,9 @@ export const useAssetServiceDeleteDagAssetQueuedEvent = <
       TData,
       TError,
       {
+        assetId: number;
         before?: string;
         dagId: string;
-        uri: string;
       },
       TContext
     >,
@@ -3878,17 +3879,17 @@ export const useAssetServiceDeleteDagAssetQueuedEvent = <
     TData,
     TError,
     {
+      assetId: number;
       before?: string;
       dagId: string;
-      uri: string;
     },
     TContext
   >({
-    mutationFn: ({ before, dagId, uri }) =>
+    mutationFn: ({ assetId, before, dagId }) =>
       AssetService.deleteDagAssetQueuedEvent({
+        assetId,
         before,
         dagId,
-        uri,
       }) as unknown as Promise<TData>,
     ...options,
   });
