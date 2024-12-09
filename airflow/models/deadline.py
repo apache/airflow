@@ -20,7 +20,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import sqlalchemy_jsonfield
-from sqlalchemy import Column, DateTime, Index, Integer, String
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String
 
 from airflow.models.base import Base, StringID
 from airflow.settings import json
@@ -39,8 +39,8 @@ class Deadline(Base, LoggingMixin):
     id = Column(Integer, primary_key=True, autoincrement=True)
 
     # If the Deadline Alert is for a DAG, store the DAG ID and Run ID from the dag_run.
-    dag_id = Column(StringID())
-    run_id = Column(StringID())
+    dag_id = Column(StringID(), ForeignKey("dag.dag_id"))
+    run_id = Column(Integer, ForeignKey("dag_run.id"))
 
     # The time after which the Deadline has passed and the callback should be triggered.
     deadline = Column(DateTime, nullable=False)
@@ -57,7 +57,7 @@ class Deadline(Base, LoggingMixin):
         callback: str,
         callback_kwargs: dict | None = None,
         dag_id: str | None = None,
-        run_id: str | None = None,
+        run_id: int | None = None,
     ):
         super().__init__()
         self.deadline = deadline

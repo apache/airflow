@@ -44,11 +44,21 @@ def upgrade():
         "deadline",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("dag_id", sa.String(length=250), nullable=True),
-        sa.Column("run_id", sa.String(length=250), nullable=True),
+        sa.Column("run_id", sa.Integer(), nullable=True),
         sa.Column("deadline", sa.DateTime(), nullable=False),
         sa.Column("callback", sa.String(), nullable=False),
         sa.Column("callback_kwargs", sqlalchemy_jsonfield.jsonfield.JSONField(), nullable=True),
         sa.PrimaryKeyConstraint("id", name=op.f("deadline_pkey")),
+        sa.ForeignKeyConstraint(
+            columns=("run_id",),
+            refcolumns=["dag_run.id"],
+            name=op.f("dag_run_id_fkey"),
+        ),
+        sa.ForeignKeyConstraint(
+            columns=("dag_id",),
+            refcolumns=["dag.dag_id"],
+            name=op.f("dag_id_fkey"),
+        ),
     )
     with op.batch_alter_table("deadline", schema=None) as batch_op:
         batch_op.create_index("deadline_idx", ["deadline"], unique=False)
