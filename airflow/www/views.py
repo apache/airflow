@@ -3277,6 +3277,7 @@ class Airflow(AirflowBaseView):
 
         return flask.json.jsonify(task_instances)
 
+    @mark_fastapi_migration_done
     @expose("/object/grid_data")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
     def grid_data(self):

@@ -52,6 +52,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.typing_compat import Self
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from sqlalchemy.sql import ColumnElement, Select
@@ -519,6 +520,32 @@ QueryDagRunStateFilter = Annotated[
     ),
 ]
 
+
+def _transform_dag_run_types(types: list[str] | None) -> list[DagRunType | None] | None:
+    try:
+        if not types:
+            return None
+        return [None if run_type in ("none", None) else DagRunType(run_type) for run_type in types]
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid value for state. Valid values are {', '.join(DagRunType)}",
+        )
+
+
+QueryDagRunRunTypesFilter = Annotated[
+    FilterParam[list[str]],
+    Depends(
+        filter_param_factory(
+            attribute=DagRun.run_type,
+            _type=list[str],
+            filter_option=FilterOptionEnum.ANY_EQUAL,
+            default_factory=list,
+            transform_callable=_transform_dag_run_types,
+        )
+    ),
+]
+
 # DAGTags
 QueryDagTagPatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(DagTag.name, "tag_name_pattern"))
@@ -536,7 +563,6 @@ def _transform_ti_states(states: list[str] | None) -> list[TaskInstanceState | N
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Invalid value for state. Valid values are {', '.join(TaskInstanceState)}",
         )
-    return states
 
 
 QueryTIStateFilter = Annotated[
@@ -583,3 +609,12 @@ QueryAssetAliasNamePatternSearch = Annotated[
 QueryAssetDagIdPatternSearch = Annotated[
     _DagIdAssetReferenceFilter, Depends(_DagIdAssetReferenceFilter().depends)
 ]
+
+
+# DAG Filter Upstream|Downstream
+def _optional_boolean(value: bool | None) -> bool | None:
+    return value if value is not None else False
+
+
+QueryIncludeUpstream = Annotated[Union[bool, None], AfterValidator(_optional_boolean)]
+QueryIncludeDownstream = Annotated[Union[bool, None], AfterValidator(_optional_boolean)]
