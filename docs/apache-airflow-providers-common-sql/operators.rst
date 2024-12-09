@@ -146,3 +146,30 @@ The below example demonstrates how to instantiate the SQLTableCheckOperator task
     :dedent: 4
     :start-after: [START howto_operator_sql_table_check]
     :end-before: [END howto_operator_sql_table_check]
+
+
+.. _howto/operator:SQLThresholdCheckOperator:
+
+Check SQL values against a threshold
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Use the :class:`~airflow.providers.common.sql.operators.sql.SQLThresholdCheckOperator` to compare a specific SQL query result against defined minimum and maximum thresholds.
+Both thresholds can either be a numeric value or another SQL query that evaluates to a numeric value.
+This operator requires a connection ID, along with the SQL query to execute, and allows optional specification of a database, if the one from the connection_id should be overridden.
+The parameters are:
+- ``sql`` - the sql query to be exeuted, as a templated string.
+- ``min_threshold`` The minimum threshold that is checked against. Either as a numeric value or templated sql query.
+- ``max_threshold`` The maximum threshold that is checked against. Either as a numeric value or templated sql query.
+- ``conn_id`` (optional) The connection ID used to connect to the database.
+- ``database`` (optional) name of the database which overwrites the one from the connection.
+
+
+The below example demonstrates how to instantiate the SQLThresholdCheckOperator task.
+
+.. exampleinclude:: /../../providers/tests/system/common/sql/example_sql_threshold_check.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sql_threshold_check]
+    :end-before: [END howto_operator_sql_threshold_check]
+
+If the value returned by the query, is within the thresholds, the task passes. Otherwise, it fails.
