@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-08T13:51:24.919143
+# This constraints file was automatically generated on 2024-12-09T02:24:34.047180
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -577,6 +577,7 @@ pytest-instafail==0.5.0
 pytest-mock==3.14.0
 pytest-rerunfailures==15.0
 pytest-timeouts==1.2.1
+pytest-unordered==0.6.1
 pytest-xdist==3.6.1
 pytest==8.3.4
 python-arango==8.1.3
