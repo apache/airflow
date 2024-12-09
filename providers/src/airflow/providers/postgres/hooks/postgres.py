@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 import warnings
+from collections.abc import Iterable
 from contextlib import closing
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Union
@@ -26,11 +27,9 @@ from typing import TYPE_CHECKING, Any, Union
 import psycopg2
 import psycopg2.extensions
 import psycopg2.extras
-from deprecated import deprecated
 from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor
 from sqlalchemy.engine import URL
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 
@@ -93,41 +92,11 @@ class PostgresHook(DbApiHook):
     def __init__(
         self, *args, options: str | None = None, enable_log_db_messages: bool = False, **kwargs
     ) -> None:
-        if "schema" in kwargs:
-            warnings.warn(
-                'The "schema" arg has been renamed to "database" as it contained the database name.'
-                'Please use "database" to set the database name.',
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            kwargs["database"] = kwargs["schema"]
         super().__init__(*args, **kwargs)
         self.conn: connection = None
         self.database: str | None = kwargs.pop("database", None)
         self.options = options
         self.enable_log_db_messages = enable_log_db_messages
-
-    @property
-    @deprecated(
-        reason=(
-            'The "schema" variable has been renamed to "database" as it contained the database name.'
-            'Please use "database" to get the database name.'
-        ),
-        category=AirflowProviderDeprecationWarning,
-    )
-    def schema(self):
-        return self.database
-
-    @schema.setter
-    @deprecated(
-        reason=(
-            'The "schema" variable has been renamed to "database" as it contained the database name.'
-            'Please use "database" to set the database name.'
-        ),
-        category=AirflowProviderDeprecationWarning,
-    )
-    def schema(self, value):
-        self.database = value
 
     @property
     def sqlalchemy_url(self) -> URL:
