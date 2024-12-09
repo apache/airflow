@@ -21,7 +21,6 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.redis.hooks.redis import RedisHook
 
@@ -29,11 +28,6 @@ pytestmark = pytest.mark.db_test
 
 
 class TestRedisHook:
-    deprecation_message = (
-        "Extra parameter `ssl_cert_file` deprecated and will be removed "
-        "in a future release. Please use `ssl_certfile` instead."
-    )
-
     def test_get_conn(self):
         hook = RedisHook(redis_conn_id="redis_default")
         assert hook.redis is None
@@ -47,24 +41,26 @@ class TestRedisHook:
     @mock.patch("airflow.providers.redis.hooks.redis.Redis")
     @mock.patch(
         "airflow.providers.redis.hooks.redis.RedisHook.get_connection",
-        return_value=Connection(
+    )
+    def test_get_conn_with_extra_config(self, mock_get_connection, mock_redis):
+        connection = Connection(
             login="user",
             password="password",
             host="remote_host",
             port=1234,
-            extra="""{
-                        "db": 2,
-                        "ssl": true,
-                        "ssl_cert_reqs": "required",
-                        "ssl_ca_certs": "/path/to/custom/ca-cert",
-                        "ssl_keyfile": "/path/to/key-file",
-                        "ssl_certfile": "/path/to/cert-file",
-                        "ssl_check_hostname": true
-                    }""",
-        ),
-    )
-    def test_get_conn_with_extra_config(self, mock_get_connection, mock_redis):
-        connection = mock_get_connection.return_value
+        )
+        connection.set_extra(
+            """{
+                "db": 2,
+                "ssl": true,
+                "ssl_cert_reqs": "required",
+                "ssl_ca_certs": "/path/to/custom/ca-cert",
+                "ssl_keyfile": "/path/to/key-file",
+                "ssl_certfile": "/path/to/cert-file",
+                "ssl_check_hostname": true
+            }"""
+        )
+        mock_get_connection.return_value = connection
         hook = RedisHook()
 
         hook.get_conn()
@@ -79,44 +75,6 @@ class TestRedisHook:
             ssl_ca_certs=connection.extra_dejson["ssl_ca_certs"],
             ssl_keyfile=connection.extra_dejson["ssl_keyfile"],
             ssl_certfile=connection.extra_dejson["ssl_certfile"],
-            ssl_check_hostname=connection.extra_dejson["ssl_check_hostname"],
-        )
-
-    @mock.patch("airflow.providers.redis.hooks.redis.Redis")
-    @mock.patch(
-        "airflow.providers.redis.hooks.redis.RedisHook.get_connection",
-        return_value=Connection(
-            password="password",
-            host="remote_host",
-            port=1234,
-            extra="""{
-                        "db": 2,
-                        "ssl": true,
-                        "ssl_cert_reqs": "required",
-                        "ssl_ca_certs": "/path/to/custom/ca-cert",
-                        "ssl_keyfile": "/path/to/key-file",
-                        "ssl_cert_file": "/path/to/cert-file",
-                        "ssl_check_hostname": true
-                    }""",
-        ),
-    )
-    def test_get_conn_with_deprecated_extra_config(self, mock_get_connection, mock_redis):
-        connection = mock_get_connection.return_value
-        hook = RedisHook()
-
-        with pytest.warns(AirflowProviderDeprecationWarning, match=self.deprecation_message):
-            hook.get_conn()
-        mock_redis.assert_called_once_with(
-            host=connection.host,
-            password=connection.password,
-            username=None,
-            port=connection.port,
-            db=connection.extra_dejson["db"],
-            ssl=connection.extra_dejson["ssl"],
-            ssl_cert_reqs=connection.extra_dejson["ssl_cert_reqs"],
-            ssl_ca_certs=connection.extra_dejson["ssl_ca_certs"],
-            ssl_keyfile=connection.extra_dejson["ssl_keyfile"],
-            ssl_certfile=connection.extra_dejson["ssl_cert_file"],
             ssl_check_hostname=connection.extra_dejson["ssl_check_hostname"],
         )
 
