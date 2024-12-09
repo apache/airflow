@@ -94,7 +94,6 @@ def test_run_basic(test_dags_dir: Path, time_machine):
     with mock.patch(
         "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
     ) as mock_supervisor_comms:
-        mock_supervisor_comms.send_request = mock.Mock()
         run(ti, log=mock.MagicMock())
 
         mock_supervisor_comms.send_request.assert_called_once_with(
@@ -155,7 +154,6 @@ def test_run_basic_skipped(test_dags_dir: Path, time_machine):
     with mock.patch(
         "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
     ) as mock_supervisor_comms:
-        mock_supervisor_comms.send_request = mock.Mock()
         run(ti, log=mock.MagicMock())
 
         mock_supervisor_comms.send_request.assert_called_once_with(
