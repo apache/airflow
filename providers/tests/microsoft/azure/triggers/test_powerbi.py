@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from unittest import mock
 
 import pytest
@@ -39,7 +38,6 @@ DATASET_REFRESH_ID = "dataset_refresh_id"
 TIMEOUT = 5
 MODULE = "airflow.providers.microsoft.azure"
 CHECK_INTERVAL = 1
-API_TIMEOUT = 30
 API_VERSION = "v1.0"
 
 
@@ -53,7 +51,6 @@ def powerbi_trigger(timeout=TIMEOUT, check_interval=CHECK_INTERVAL) -> PowerBITr
         dataset_id=DATASET_ID,
         group_id=GROUP_ID,
         check_interval=check_interval,
-        api_timeout=API_TIMEOUT,
         wait_for_termination=True,
         timeout=timeout,
     )
@@ -70,7 +67,6 @@ class TestPowerBITrigger:
             dataset_id=DATASET_ID,
             group_id=GROUP_ID,
             check_interval=CHECK_INTERVAL,
-            api_timeout=API_TIMEOUT,
             wait_for_termination=True,
             timeout=TIMEOUT,
         )
@@ -85,7 +81,6 @@ class TestPowerBITrigger:
             "proxies": None,
             "api_version": API_VERSION,
             "check_interval": CHECK_INTERVAL,
-            "api_timeout": API_TIMEOUT,
             "wait_for_termination": True,
         }
 
@@ -184,19 +179,18 @@ class TestPowerBITrigger:
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.cancel_dataset_refresh")
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.trigger_dataset_refresh")
-    async def test_powerbi_trigger_run_PowerBIDatasetRefreshExceptionn_during_refresh_check_loop(
+    async def test_powerbi_trigger_run_PowerBIDatasetRefreshException_during_refresh_check_loop(
         self,
         mock_trigger_dataset_refresh,
         mock_get_refresh_details_by_refresh_id,
         mock_cancel_dataset_refresh,
-        caplog,
         powerbi_trigger,
     ):
         """Assert that run catch PowerBIDatasetRefreshException and triggers retry mechanism"""
         mock_get_refresh_details_by_refresh_id.side_effect = PowerBIDatasetRefreshException("Test exception")
         mock_trigger_dataset_refresh.return_value = DATASET_REFRESH_ID
 
-        with caplog.at_level(logging.INFO):
+        with mock.patch("tenacity.wait.wait_exponential.__call__") as mock_retry:
             task = [i async for i in powerbi_trigger.run()]
             response = TriggerEvent(
                 {
@@ -207,9 +201,8 @@ class TestPowerBITrigger:
             )
             assert len(task) == 1
             assert response in task
-            mock_cancel_dataset_refresh.assert_called_once()
-
-        assert "Retrying in 5 seconds" in caplog.text  # Test the retry mechanism
+            assert mock_cancel_dataset_refresh.call_count == 1
+            assert mock_retry.call_count == 3
 
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.cancel_dataset_refresh")

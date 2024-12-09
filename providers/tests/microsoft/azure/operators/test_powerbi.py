@@ -44,7 +44,6 @@ CONFIG = {
     "group_id": GROUP_ID,
     "dataset_id": DATASET_ID,
     "check_interval": 1,
-    "api_timeout": 40,
     "timeout": 3,
 }
 NEW_REFRESH_REQUEST_ID = "5e2d9921-e91b-491f-b7e1-e7d8db49194c"
@@ -137,7 +136,6 @@ class TestPowerBIDatasetRefreshOperator(Base):
             group_id=GROUP_ID,
             dataset_id=DATASET_ID,
             check_interval=1,
-            api_timeout=40,
             timeout=3,
         )
 

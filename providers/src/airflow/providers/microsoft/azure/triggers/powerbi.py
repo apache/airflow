@@ -22,6 +22,8 @@ import time
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
 
+import tenacity
+
 from airflow.providers.microsoft.azure.hooks.powerbi import (
     PowerBIDatasetRefreshException,
     PowerBIDatasetRefreshStatus,
@@ -62,7 +64,6 @@ class PowerBITrigger(BaseTrigger):
         proxies: dict | None = None,
         api_version: APIVersion | str | None = None,
         check_interval: int = 60,
-        api_timeout: float = 30,
         wait_for_termination: bool = True,
     ):
         super().__init__()
@@ -71,7 +72,6 @@ class PowerBITrigger(BaseTrigger):
         self.timeout = timeout
         self.group_id = group_id
         self.check_interval = check_interval
-        self.api_timeout = api_timeout
         self.wait_for_termination = wait_for_termination
 
     def serialize(self):
@@ -86,7 +86,6 @@ class PowerBITrigger(BaseTrigger):
                 "group_id": self.group_id,
                 "timeout": self.timeout,
                 "check_interval": self.check_interval,
-                "api_timeout": self.api_timeout,
                 "wait_for_termination": self.wait_for_termination,
             },
         )
@@ -110,31 +109,12 @@ class PowerBITrigger(BaseTrigger):
             group_id=self.group_id,
         )
 
-        def retry(api_timeout: float, time_interval: float):
-            """
-            Retry decorator for API calls based on a specified timeout.
-
-            This decorator retries the decorated function until the specified `api_timeout` is reached. If the
-            function raises a `PowerBIDatasetRefreshException`, it waits for `time_interval` seconds before retrying.
-            """
-
-            def decorator(func):
-                async def wrapped(*args, **kwargs):
-                    start_time = time.monotonic()
-                    while start_time + api_timeout > time.monotonic():
-                        try:
-                            return await func(*args, **kwargs)
-                        except PowerBIDatasetRefreshException:
-                            self.log.info("Retrying in %s seconds", time_interval)
-                            await asyncio.sleep(time_interval)
-                            pass
-                    return await func(*args, **kwargs)
-
-                return wrapped
-
-            return decorator
-
-        @retry(api_timeout=self.api_timeout, time_interval=5)
+        @tenacity.retry(
+            stop=tenacity.stop_after_attempt(3),
+            wait=tenacity.wait_exponential(multiplier=1, min=3, max=60),
+            reraise=True,
+            retry=tenacity.retry_if_exception_type(PowerBIDatasetRefreshException),
+        )
         async def fetch_refresh_status() -> str:
             """Fetch the current status of the dataset refresh."""
             refresh_details = await self.hook.get_refresh_details_by_refresh_id(
