@@ -59,12 +59,14 @@ export const UseAssetServiceGetAssetsKeyFn = (
   {
     dagIds,
     limit,
+    namePattern,
     offset,
     orderBy,
     uriPattern,
   }: {
     dagIds?: string[];
     limit?: number;
+    namePattern?: string;
     offset?: number;
     orderBy?: string;
     uriPattern?: string;
@@ -72,7 +74,34 @@ export const UseAssetServiceGetAssetsKeyFn = (
   queryKey?: Array<unknown>,
 ) => [
   useAssetServiceGetAssetsKey,
-  ...(queryKey ?? [{ dagIds, limit, offset, orderBy, uriPattern }]),
+  ...(queryKey ?? [
+    { dagIds, limit, namePattern, offset, orderBy, uriPattern },
+  ]),
+];
+export type AssetServiceGetAssetAliasesDefaultResponse = Awaited<
+  ReturnType<typeof AssetService.getAssetAliases>
+>;
+export type AssetServiceGetAssetAliasesQueryResult<
+  TData = AssetServiceGetAssetAliasesDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useAssetServiceGetAssetAliasesKey = "AssetServiceGetAssetAliases";
+export const UseAssetServiceGetAssetAliasesKeyFn = (
+  {
+    limit,
+    namePattern,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    namePattern?: string;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useAssetServiceGetAssetAliasesKey,
+  ...(queryKey ?? [{ limit, namePattern, offset, orderBy }]),
 ];
 export type AssetServiceGetAssetEventsDefaultResponse = Awaited<
   ReturnType<typeof AssetService.getAssetEvents>

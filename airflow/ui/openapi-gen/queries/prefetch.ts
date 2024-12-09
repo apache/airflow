@@ -56,6 +56,7 @@ export const prefetchUseAssetServiceNextRunAssets = (
  * @param data The data for the request.
  * @param data.limit
  * @param data.offset
+ * @param data.namePattern
  * @param data.uriPattern
  * @param data.dagIds
  * @param data.orderBy
@@ -67,12 +68,14 @@ export const prefetchUseAssetServiceGetAssets = (
   {
     dagIds,
     limit,
+    namePattern,
     offset,
     orderBy,
     uriPattern,
   }: {
     dagIds?: string[];
     limit?: number;
+    namePattern?: string;
     offset?: number;
     orderBy?: string;
     uriPattern?: string;
@@ -82,12 +85,55 @@ export const prefetchUseAssetServiceGetAssets = (
     queryKey: Common.UseAssetServiceGetAssetsKeyFn({
       dagIds,
       limit,
+      namePattern,
       offset,
       orderBy,
       uriPattern,
     }),
     queryFn: () =>
-      AssetService.getAssets({ dagIds, limit, offset, orderBy, uriPattern }),
+      AssetService.getAssets({
+        dagIds,
+        limit,
+        namePattern,
+        offset,
+        orderBy,
+        uriPattern,
+      }),
+  });
+/**
+ * Get Asset Aliases
+ * Get asset aliases.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.namePattern
+ * @param data.orderBy
+ * @returns AssetAliasCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseAssetServiceGetAssetAliases = (
+  queryClient: QueryClient,
+  {
+    limit,
+    namePattern,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    namePattern?: string;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseAssetServiceGetAssetAliasesKeyFn({
+      limit,
+      namePattern,
+      offset,
+      orderBy,
+    }),
+    queryFn: () =>
+      AssetService.getAssetAliases({ limit, namePattern, offset, orderBy }),
   });
 /**
  * Get Asset Events

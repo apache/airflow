@@ -26,6 +26,7 @@ import time_machine
 
 from airflow.models import DagModel
 from airflow.models.asset import (
+    AssetAliasModel,
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
@@ -83,6 +84,24 @@ def _create_assets_with_sensitive_extra(session, num: int = 2) -> None:
 
 def _create_provided_asset(session, asset: AssetModel) -> None:
     session.add(asset)
+    session.commit()
+
+
+def _create_asset_aliases(session, num: int = 2) -> None:
+    asset_aliases = [
+        AssetAliasModel(
+            id=i,
+            name=f"simple{i}",
+            group="alias",
+        )
+        for i in range(1, 1 + num)
+    ]
+    session.add_all(asset_aliases)
+    session.commit()
+
+
+def _create_provided_asset_alias(session, asset_alias: AssetAliasModel) -> None:
+    session.add(asset_alias)
     session.commit()
 
 
@@ -256,6 +275,42 @@ class TestGetAssets(TestAssets):
     @pytest.mark.parametrize(
         "params, expected_assets",
         [
+            ({"name_pattern": "s3"}, {"s3://folder/key"}),
+            ({"name_pattern": "bucket"}, {"gcp://bucket/key", "wasb://some_asset_bucket_/key"}),
+            (
+                {"name_pattern": "asset"},
+                {"somescheme://asset/key", "wasb://some_asset_bucket_/key"},
+            ),
+            (
+                {"name_pattern": ""},
+                {
+                    "gcp://bucket/key",
+                    "s3://folder/key",
+                    "somescheme://asset/key",
+                    "wasb://some_asset_bucket_/key",
+                },
+            ),
+        ],
+    )
+    @provide_session
+    def test_filter_assets_by_name_pattern_works(self, test_client, params, expected_assets, session):
+        asset1 = AssetModel("s3-folder-key", "s3://folder/key")
+        asset2 = AssetModel("gcp-bucket-key", "gcp://bucket/key")
+        asset3 = AssetModel("some-asset-key", "somescheme://asset/key")
+        asset4 = AssetModel("wasb-some_asset_bucket_-key", "wasb://some_asset_bucket_/key")
+
+        assets = [asset1, asset2, asset3, asset4]
+        for a in assets:
+            self.create_provided_asset(asset=a)
+
+        response = test_client.get("/public/assets", params=params)
+        assert response.status_code == 200
+        asset_urls = {asset["uri"] for asset in response.json()["assets"]}
+        assert expected_assets == asset_urls
+
+    @pytest.mark.parametrize(
+        "params, expected_assets",
+        [
             ({"uri_pattern": "s3"}, {"s3://folder/key"}),
             ({"uri_pattern": "bucket"}, {"gcp://bucket/key", "wasb://some_asset_bucket_/key"}),
             (
@@ -371,6 +426,105 @@ class TestGetAssetsEndpointPagination(TestAssets):
 
         assert response.status_code == 200
         assert len(response.json()["assets"]) == 100
+
+
+class TestAssetAliases:
+    @pytest.fixture(autouse=True)
+    def setup(self) -> None:
+        clear_db_assets()
+        clear_db_runs()
+
+    def teardown_method(self) -> None:
+        clear_db_assets()
+        clear_db_runs()
+
+    @provide_session
+    def create_asset_aliases(self, num: int = 2, *, session):
+        _create_asset_aliases(num=num, session=session)
+
+    @provide_session
+    def create_provided_asset_alias(self, asset_alias: AssetAliasModel, session):
+        _create_provided_asset_alias(session=session, asset_alias=asset_alias)
+
+
+class TestGetAssetAliases(TestAssetAliases):
+    def test_should_respond_200(self, test_client, session):
+        self.create_asset_aliases()
+        asset_aliases = session.query(AssetAliasModel).all()
+        assert len(asset_aliases) == 2
+
+        response = test_client.get("/public/assets/aliases")
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data == {
+            "asset_aliases": [
+                {"id": 1, "name": "simple1", "group": "alias"},
+                {"id": 2, "name": "simple2", "group": "alias"},
+            ],
+            "total_entries": 2,
+        }
+
+    def test_order_by_raises_400_for_invalid_attr(self, test_client, session):
+        response = test_client.get("/public/assets/aliases?order_by=fake")
+
+        assert response.status_code == 400
+        msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
+        assert response.json()["detail"] == msg
+
+    @pytest.mark.parametrize(
+        "params, expected_asset_aliases",
+        [
+            ({"name_pattern": "foo"}, {"foo1"}),
+            ({"name_pattern": "1"}, {"foo1", "bar12"}),
+            ({"uri_pattern": ""}, {"foo1", "bar12", "bar2", "bar3", "rex23"}),
+        ],
+    )
+    @provide_session
+    def test_filter_assets_by_name_pattern_works(self, test_client, params, expected_asset_aliases, session):
+        asset_alias1 = AssetAliasModel(name="foo1")
+        asset_alias2 = AssetAliasModel(name="bar12")
+        asset_alias3 = AssetAliasModel(name="bar2")
+        asset_alias4 = AssetAliasModel(name="bar3")
+        asset_alias5 = AssetAliasModel(name="rex23")
+
+        asset_aliases = [asset_alias1, asset_alias2, asset_alias3, asset_alias4, asset_alias5]
+        for a in asset_aliases:
+            self.create_provided_asset_alias(a)
+
+        response = test_client.get("/public/assets/aliases", params=params)
+        assert response.status_code == 200
+        alias_names = {asset_alias["name"] for asset_alias in response.json()["asset_aliases"]}
+        assert expected_asset_aliases == alias_names
+
+
+class TestGetAssetAliasesEndpointPagination(TestAssetAliases):
+    @pytest.mark.parametrize(
+        "url, expected_asset_aliases",
+        [
+            # Limit test data
+            ("/public/assets/aliases?limit=1", ["simple1"]),
+            ("/public/assets/aliases?limit=100", [f"simple{i}" for i in range(1, 101)]),
+            # Offset test data
+            ("/public/assets/aliases?offset=1", [f"simple{i}" for i in range(2, 102)]),
+            ("/public/assets/aliases?offset=3", [f"simple{i}" for i in range(4, 104)]),
+            # Limit and offset test data
+            ("/public/assets/aliases?offset=3&limit=3", ["simple4", "simple5", "simple6"]),
+        ],
+    )
+    def test_limit_and_offset(self, test_client, url, expected_asset_aliases):
+        self.create_asset_aliases(num=110)
+
+        response = test_client.get(url)
+
+        assert response.status_code == 200
+        alias_names = [asset["name"] for asset in response.json()["asset_aliases"]]
+        assert alias_names == expected_asset_aliases
+
+    def test_should_respect_page_size_limit_default(self, test_client):
+        self.create_asset_aliases(num=110)
+        response = test_client.get("/public/assets/aliases")
+        assert response.status_code == 200
+        assert len(response.json()["asset_aliases"]) == 100
 
 
 class TestGetAssetEvents(TestAssets):

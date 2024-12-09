@@ -42,14 +42,6 @@ class TaskOutletAssetReference(BaseModel):
     updated_at: datetime
 
 
-class AssetAliasSchema(BaseModel):
-    """Asset alias serializer for assets."""
-
-    id: int
-    name: str
-    group: str
-
-
 class AssetResponse(BaseModel):
     """Asset serializer for responses."""
 
@@ -62,7 +54,7 @@ class AssetResponse(BaseModel):
     updated_at: datetime
     consuming_dags: list[DagScheduleAssetReference]
     producing_tasks: list[TaskOutletAssetReference]
-    aliases: list[AssetAliasSchema]
+    aliases: list[AssetAliasResponse]
 
     @field_validator("extra", mode="after")
     @classmethod
@@ -74,6 +66,21 @@ class AssetCollectionResponse(BaseModel):
     """Asset collection response."""
 
     assets: list[AssetResponse]
+    total_entries: int
+
+
+class AssetAliasResponse(BaseModel):
+    """Asset alias serializer for responses."""
+
+    id: int
+    name: str
+    group: str
+
+
+class AssetAliasCollectionResponse(BaseModel):
+    """Asset alias collection response."""
+
+    asset_aliases: list[AssetAliasResponse]
     total_entries: int
 
 
