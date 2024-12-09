@@ -132,7 +132,7 @@ def init_plugins(app):
     """Integrate Flask and FAB with plugins."""
     from airflow import plugins_manager
 
-    plugins_manager.initialize_web_ui_plugins()
+    plugins_manager.initialize_flask_plugins()
 
     appbuilder = app.appbuilder
 

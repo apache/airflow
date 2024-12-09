@@ -25,8 +25,8 @@ from flask import Response, current_app, request
 from flask_appbuilder.const import AUTH_LDAP
 from flask_login import login_user
 
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from airflow.providers.fab.auth_manager.models import User

@@ -20,14 +20,12 @@
 from __future__ import annotations
 
 import re
-import warnings
 from typing import TYPE_CHECKING, Any
 
 import sqlalchemy
 import teradatasql
 from teradatasql import TeradataConnection
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
@@ -159,40 +157,6 @@ class TeradataHook(DbApiHook):
                 cur.execute(set_query_band_sql)
         except Exception as ex:
             self.log.error("Error occurred while setting session query band: %s ", str(ex))
-
-    def bulk_insert_rows(
-        self,
-        table: str,
-        rows: list[tuple],
-        target_fields: list[str] | None = None,
-        commit_every: int = 5000,
-    ):
-        """
-        Use :func:`insert_rows` instead, this is deprecated.
-
-        Insert bulk of records into Teradata SQL Database.
-
-        This uses prepared statements via `executemany()`. For best performance,
-        pass in `rows` as an iterator.
-
-        :param table: target Teradata database table, use dot notation to target a
-            specific database
-        :param rows: the rows to insert into the table
-        :param target_fields: the names of the columns to fill in the table, default None.
-            If None, each row should have some order as table columns name
-        :param commit_every: the maximum number of rows to insert in one transaction
-            Default 5000. Set greater than 0. Set 1 to insert each row in each transaction
-        """
-        warnings.warn(
-            "bulk_insert_rows is deprecated. Please use the insert_rows method instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-
-        if not rows:
-            raise ValueError("parameter rows could not be None or empty iterable")
-
-        self.insert_rows(table=table, rows=rows, target_fields=target_fields, commit_every=commit_every)
 
     def _get_conn_config_teradatasql(self) -> dict[str, Any]:
         """Return set of config params required for connecting to Teradata DB using teradatasql client."""

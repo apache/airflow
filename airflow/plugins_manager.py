@@ -366,7 +366,7 @@ def ensure_plugins_loaded():
         log.debug("Loading %d plugin(s) took %.2f seconds", len(plugins), timer.duration)
 
 
-def initialize_web_ui_plugins():
+def initialize_flask_plugins():
     """Collect extension points for WEB UI."""
     global plugins
     global flask_blueprints
@@ -577,7 +577,7 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
     """
     ensure_plugins_loaded()
     integrate_macros_plugins()
-    initialize_web_ui_plugins()
+    initialize_flask_plugins()
     initialize_fastapi_plugins()
     initialize_extra_operators_links_plugins()
     if not attrs_to_dump:
