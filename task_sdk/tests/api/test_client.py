@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+import json
+
 import httpx
 import pytest
 import uuid6
@@ -98,51 +100,51 @@ class TestTaskInstanceOperations:
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             if request.url.path == f"/task-instances/{ti_id}/state":
+                actual_body = json.loads(request.read())
+                assert actual_body["pid"] == 100
+                assert actual_body["start_date"] == "2024-10-31T12:00:00Z"
+                assert actual_body["state"] == "running"
                 return httpx.Response(
                     status_code=204,
                 )
             return httpx.Response(status_code=400, json={"detail": "Bad Request"})
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        try:
-            client.task_instances.start(ti_id, 100, "2024-10-31T12:00:00Z")
-        except Exception as e:
-            pytest.fail(f"Unexpected error occurred: {e}")
+        client.task_instances.start(ti_id, 100, "2024-10-31T12:00:00Z")
 
     @pytest.mark.parametrize("state", [state for state in TerminalTIState])
     def test_task_instance_finish(self, state):
-        # Simulate a successful response from the server that finishes a task
+        # Simulate a successful response from the server that finishes (moved to terminal state) a task
         ti_id = uuid6.uuid7()
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             if request.url.path == f"/task-instances/{ti_id}/state":
+                actual_body = json.loads(request.read())
+                assert actual_body["end_date"] == "2024-10-31T12:00:00Z"
+                assert actual_body["state"] == state
                 return httpx.Response(
                     status_code=204,
                 )
             return httpx.Response(status_code=400, json={"detail": "Bad Request"})
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        try:
-            client.task_instances.finish(ti_id, state=state, when="2024-10-31T12:00:00Z")
-        except Exception as e:
-            pytest.fail(f"Unexpected error occurred: {e}")
+        client.task_instances.finish(ti_id, state=state, when="2024-10-31T12:00:00Z")
 
     def test_task_instance_heartbeat(self):
-        # Simulate a successful response from the server is used to heartbeat
+        # Simulate a successful response from the server that sends a heartbeat for a ti
         ti_id = uuid6.uuid7()
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             if request.url.path == f"/task-instances/{ti_id}/heartbeat":
+                actual_body = json.loads(request.read())
+                assert actual_body["pid"] == 100
                 return httpx.Response(
                     status_code=204,
                 )
             return httpx.Response(status_code=400, json={"detail": "Bad Request"})
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        try:
-            client.task_instances.heartbeat(ti_id, 100)
-        except Exception as e:
-            pytest.fail(f"Unexpected error occurred: {e}")
+        client.task_instances.heartbeat(ti_id, 100)
 
     def test_task_instance_defer(self):
         # Simulate a successful response from the server that defers a task
@@ -150,21 +152,28 @@ class TestTaskInstanceOperations:
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             if request.url.path == f"/task-instances/{ti_id}/state":
+                actual_body = json.loads(request.read())
+                assert actual_body["state"] == "deferred"
+                assert actual_body["trigger_kwargs"] == {
+                    "moment": "2024-11-07T12:34:59Z",
+                    "end_from_trigger": False,
+                }
+                assert (
+                    actual_body["classpath"] == "airflow.providers.standard.triggers.temporal.DateTimeTrigger"
+                )
+                assert actual_body["next_method"] == "execute_complete"
                 return httpx.Response(
                     status_code=204,
                 )
             return httpx.Response(status_code=400, json={"detail": "Bad Request"})
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        try:
-            msg = DeferTask(
-                classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
-                trigger_kwargs={"moment": "2024-11-07T12:34:59Z", "end_from_trigger": False},
-                next_method="execute_complete",
-            )
-            client.task_instances.defer(ti_id, msg)
-        except Exception as e:
-            pytest.fail(f"Unexpected error occurred: {e}")
+        msg = DeferTask(
+            classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
+            trigger_kwargs={"moment": "2024-11-07T12:34:59Z", "end_from_trigger": False},
+            next_method="execute_complete",
+        )
+        client.task_instances.defer(ti_id, msg)
 
     @pytest.mark.parametrize(
         "rendered_fields",
