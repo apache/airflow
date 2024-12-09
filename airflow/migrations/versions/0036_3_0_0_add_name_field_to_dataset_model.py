@@ -38,7 +38,6 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.orm import Session
 
 # revision identifiers, used by Alembic.
 revision = "0d9e73a75ee4"
@@ -63,9 +62,7 @@ def upgrade():
         batch_op.add_column(sa.Column("name", _STRING_COLUMN_TYPE))
         batch_op.add_column(sa.Column("group", _STRING_COLUMN_TYPE, default="", nullable=False))
     # Fill name from uri column.
-    with Session(bind=op.get_bind()) as session:
-        session.execute(sa.text("update dataset set name=uri"))
-        session.commit()
+    op.execute(sa.text("update dataset set name=uri"))
     # Set the name column non-nullable.
     # Now with values in there, we can create the new unique constraint and index.
     # Due to MySQL restrictions, we are also reducing the length on uri.
