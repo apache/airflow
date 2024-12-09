@@ -46,11 +46,12 @@ from airflow.sdk.execution_time.comms import (
     GetXCom,
     PutVariable,
     SetXCom,
+    TaskState,
     VariableResult,
     XComResult,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, supervise
-from airflow.utils import timezone as tz
+from airflow.utils import timezone, timezone as tz
 
 from task_sdk.tests.api.test_client import make_client
 
@@ -848,6 +849,14 @@ class TestHandleRequest:
                 {"ok": True},
                 id="set_xcom_with_map_index",
             ),
+            pytest.param(
+                TaskState(state="skipped", end_date=timezone.parse("2024-10-31T12:00:00Z")),
+                b"",
+                "",
+                (),
+                "",
+                id="patch_task_instance_to_skipped",
+            ),
         ],
     )
     def test_handle_requests(
@@ -883,7 +892,8 @@ class TestHandleRequest:
         generator.send(msg)
 
         # Verify the correct client method was called
-        mock_client_method.assert_called_once_with(*method_arg)
+        if client_attr_path:
+            mock_client_method.assert_called_once_with(*method_arg)
 
         # Verify the response was added to the buffer
         assert watched_subprocess.stdin.getvalue() == expected_buffer

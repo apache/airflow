@@ -137,3 +137,27 @@ def test_run_deferred_basic(test_dags_dir: Path, time_machine):
 
         # send_request will only be called when the TaskDeferred exception is raised
         mock_supervisor_comms.send_request.assert_called_once_with(msg=expected_defer_task, log=mock.ANY)
+
+
+def test_run_basic_skipped(test_dags_dir: Path, time_machine):
+    """Test running a basic task that marks itself skipped."""
+    what = StartupDetails(
+        ti=TaskInstance(id=uuid7(), task_id="skip", dag_id="super_basic_skipped", run_id="c", try_number=1),
+        file=str(test_dags_dir / "super_basic_skipped.py"),
+        requests_fd=0,
+    )
+
+    ti = parse(what)
+
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
+
+    with mock.patch(
+        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
+    ) as mock_supervisor_comms:
+        mock_supervisor_comms.send_request = mock.Mock()
+        run(ti, log=mock.MagicMock())
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            msg=TaskState(state=TerminalTIState.SKIPPED, end_date=instant), log=mock.ANY
+        )
