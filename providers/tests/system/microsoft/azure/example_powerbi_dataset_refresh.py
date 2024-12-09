@@ -65,7 +65,6 @@ with DAG(
         dataset_id=DATASET_ID,
         group_id=GROUP_ID,
         check_interval=30,
-        api_timeout=30,
         timeout=120,
     )
     # [END howto_operator_powerbi_refresh_async]

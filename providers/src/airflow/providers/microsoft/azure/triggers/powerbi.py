@@ -22,6 +22,8 @@ import time
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
 
+import tenacity
+
 from airflow.providers.microsoft.azure.hooks.powerbi import (
     PowerBIDatasetRefreshException,
     PowerBIDatasetRefreshStatus,
@@ -62,7 +64,6 @@ class PowerBITrigger(BaseTrigger):
         proxies: dict | None = None,
         api_version: APIVersion | str | None = None,
         check_interval: int = 60,
-        api_timeout: float = 30,
         wait_for_termination: bool = True,
     ):
         super().__init__()
@@ -71,7 +72,6 @@ class PowerBITrigger(BaseTrigger):
         self.timeout = timeout
         self.group_id = group_id
         self.check_interval = check_interval
-        self.api_timeout = api_timeout
         self.wait_for_termination = wait_for_termination
 
     def serialize(self):
@@ -86,7 +86,6 @@ class PowerBITrigger(BaseTrigger):
                 "group_id": self.group_id,
                 "timeout": self.timeout,
                 "check_interval": self.check_interval,
-                "api_timeout": self.api_timeout,
                 "wait_for_termination": self.wait_for_termination,
             },
         )
@@ -110,8 +109,14 @@ class PowerBITrigger(BaseTrigger):
             group_id=self.group_id,
         )
 
-        async def fetch_refresh_status_and_error() -> tuple[str, str]:
-            """Fetch the current status and error of the dataset refresh."""
+        @tenacity.retry(
+            stop=tenacity.stop_after_attempt(3),
+            wait=tenacity.wait_exponential(multiplier=1, min=3, max=60),
+            reraise=True,
+            retry=tenacity.retry_if_exception_type(PowerBIDatasetRefreshException),
+        )
+        async def fetch_refresh_status() -> str:
+            """Fetch the current status of the dataset refresh."""
             refresh_details = await self.hook.get_refresh_details_by_refresh_id(
                 dataset_id=self.dataset_id,
                 group_id=self.group_id,
