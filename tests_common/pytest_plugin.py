@@ -834,6 +834,12 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             dag.clear(session=self.session)
             dag.sync_to_db(processor_subdir=self.processor_subdir, session=self.session)
+
+            if dag.access_control:
+                from airflow.www.security_appless import ApplessAirflowSecurityManager
+
+                security_manager = ApplessAirflowSecurityManager(session=self.session)
+                security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)
             self.dag_model = self.session.get(DagModel, dag.dag_id)
 
             if self.want_serialized:
