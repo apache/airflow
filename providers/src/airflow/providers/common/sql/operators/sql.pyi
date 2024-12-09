@@ -78,7 +78,13 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         autocommit: bool = False,
         parameters: Mapping | Iterable | None = None,
         handler: Callable[[Any], list[tuple] | None] = ...,
-        output_processor: Callable[[list[Any], list[Sequence[Sequence] | None]], list[Any] | tuple[list[Sequence[Sequence] | None], list]] | None = None,
+        output_processor: (
+            Callable[
+                [list[Any], list[Sequence[Sequence] | None]],
+                list[Any] | tuple[list[Sequence[Sequence] | None], list],
+            ]
+            | None
+        ) = None,
         conn_id: str | None = None,
         database: str | None = None,
         split_statements: bool | None = None,

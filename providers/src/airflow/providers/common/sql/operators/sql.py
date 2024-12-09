@@ -241,7 +241,13 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         autocommit: bool = False,
         parameters: Mapping | Iterable | None = None,
         handler: Callable[[Any], list[tuple] | None] = fetch_all_handler,
-        output_processor: Callable[[list[Any], list[Sequence[Sequence] | None]], list[Any] | tuple[list[Sequence[Sequence] | None], list]] | None = None,
+        output_processor: (
+            Callable[
+                    [list[Any], list[Sequence[Sequence] | None]],
+                    list[Any] | tuple[list[Sequence[Sequence] | None], list],
+                ]
+            | None
+        ) = None,
         conn_id: str | None = None,
         database: str | None = None,
         split_statements: bool | None = None,
@@ -259,7 +265,9 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         self.return_last = return_last
         self.show_return_value_in_logs = show_return_value_in_logs
 
-    def _process_output(self, results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any] | tuple[list[Sequence[Sequence] | None], list]:
+    def _process_output(
+        self, results: list[Any], descriptions: list[Sequence[Sequence] | None]
+    ) -> list[Any] | tuple[list[Sequence[Sequence] | None], list]:
         """
         Process output before it is returned by the operator.
 
