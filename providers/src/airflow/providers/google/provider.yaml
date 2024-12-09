@@ -281,6 +281,11 @@ integrations:
       - /docs/apache-airflow-providers-google/operators/firebase/firestore.rst
     logo: /integration-logos/gcp/Google-Firestore.png
     tags: [gcp]
+  - integration-name: Google Cloud Financial Services
+    external-doc-url: https://cloud.google.com/financial-services/anti-money-laundering/docs
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/financial_services.rst
+    tags: [gcp]
   - integration-name: Google Cloud Functions
     external-doc-url: https://cloud.google.com/functions/
     how-to-guide:
@@ -610,6 +615,9 @@ operators:
   - integration-name: Google Cloud Data Loss Prevention (DLP)
     python-modules:
       - airflow.providers.google.cloud.operators.dlp
+  - integration-name: Google Cloud Financial Services
+    python-modules:
+      - airflow.providers.google.cloud.operators.financial_services
   - integration-name: Google Cloud Functions
     python-modules:
       - airflow.providers.google.cloud.operators.functions
@@ -857,6 +865,9 @@ hooks:
   - integration-name: Google Cloud Data Loss Prevention (DLP)
     python-modules:
       - airflow.providers.google.cloud.hooks.dlp
+  - integration-name: Google Cloud Financial Services
+    python-modules:
+      - airflow.providers.google.cloud.hooks.financial_services
   - integration-name: Google Cloud Functions
     python-modules:
       - airflow.providers.google.cloud.hooks.functions
