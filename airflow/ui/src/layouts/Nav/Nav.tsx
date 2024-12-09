@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, VStack } from "@chakra-ui/react";
+import { Box, Flex, VStack, Link } from "@chakra-ui/react";
 import { FiCornerUpLeft, FiDatabase, FiHome, FiSettings } from "react-icons/fi";
 
+import { useVersionServiceGetVersion } from "openapi/queries";
 import { AirflowPin } from "src/assets/AirflowPin";
 import { DagIcon } from "src/assets/DagIcon";
 
@@ -27,51 +28,64 @@ import { DocsButton } from "./DocsButton";
 import { NavButton } from "./NavButton";
 import { UserSettingsButton } from "./UserSettingsButton";
 
-export const Nav = () => (
-  <VStack
-    alignItems="center"
-    bg="blue.muted"
-    height="100%"
-    justifyContent="space-between"
-    left={0}
-    position="fixed"
-    py={3}
-    top={0}
-    width={20}
-    zIndex={1}
-  >
-    <Flex alignItems="center" flexDir="column" width="100%">
-      <Box mb={3}>
-        <AirflowPin height="35px" width="35px" />
-      </Box>
-      <NavButton icon={<FiHome size="1.75rem" />} title="Home" to="/" />
-      <NavButton
-        icon={<DagIcon height="1.75rem" width="1.75rem" />}
-        title="Dags"
-        to="dags"
-      />
-      <NavButton
-        disabled
-        icon={<FiDatabase size="1.75rem" />}
-        title="Assets"
-        to="assets"
-      />
-      <BrowseButton />
-      <NavButton
-        disabled
-        icon={<FiSettings size="1.75rem" />}
-        title="Admin"
-        to="admin"
-      />
-    </Flex>
-    <Flex flexDir="column">
-      <NavButton
-        icon={<FiCornerUpLeft size="1.75rem" />}
-        title="Legacy UI"
-        to={import.meta.env.VITE_LEGACY_API_URL}
-      />
-      <DocsButton />
-      <UserSettingsButton />
-    </Flex>
-  </VStack>
-);
+export const Nav = () => {
+  const { data } = useVersionServiceGetVersion();
+
+  return (
+    <VStack
+      alignItems="center"
+      bg="blue.muted"
+      height="100%"
+      justifyContent="space-between"
+      left={0}
+      position="fixed"
+      py={3}
+      top={0}
+      width={20}
+      zIndex={1}
+    >
+      <Flex alignItems="center" flexDir="column" width="100%">
+        <Box mb={3}>
+          <AirflowPin height="35px" width="35px" />
+        </Box>
+        <NavButton icon={<FiHome size="1.75rem" />} title="Home" to="/" />
+        <NavButton
+          icon={<DagIcon height="1.75rem" width="1.75rem" />}
+          title="Dags"
+          to="dags"
+        />
+        <NavButton
+          disabled
+          icon={<FiDatabase size="1.75rem" />}
+          title="Assets"
+          to="assets"
+        />
+        <BrowseButton />
+        <NavButton
+          disabled
+          icon={<FiSettings size="1.75rem" />}
+          title="Admin"
+          to="admin"
+        />
+      </Flex>
+      <Flex flexDir="column">
+        <NavButton
+          icon={<FiCornerUpLeft size="1.75rem" />}
+          title="Legacy UI"
+          to={import.meta.env.VITE_LEGACY_API_URL}
+        />
+        <DocsButton />
+        <UserSettingsButton />
+        <Link
+          aria-label={data?.version}
+          color="fg.info"
+          href={`https://airflow.apache.org/docs/apache-airflow/${data?.version}/index.html`}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          {data?.version}
+        </Link>
+      </Flex>
+    </VStack>
+  );
+};

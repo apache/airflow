@@ -166,6 +166,37 @@ class TestTaskInstanceOperations:
         except Exception as e:
             pytest.fail(f"Unexpected error occurred: {e}")
 
+    @pytest.mark.parametrize(
+        "rendered_fields",
+        [
+            pytest.param({"field1": "rendered_value1", "field2": "rendered_value2"}, id="simple-rendering"),
+            pytest.param(
+                {
+                    "field1": "ClassWithCustomAttributes({'nested1': ClassWithCustomAttributes("
+                    "{'att1': 'test', 'att2': 'test2'), "
+                    "'nested2': ClassWithCustomAttributes("
+                    "{'att3': 'test3', 'att4': 'test4')"
+                },
+                id="complex-rendering",
+            ),
+        ],
+    )
+    def test_taskinstance_set_rtif_success(self, rendered_fields):
+        TI_ID = uuid6.uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{TI_ID}/rtif":
+                return httpx.Response(
+                    status_code=201,
+                    json={"message": "Rendered task instance fields successfully set"},
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_instances.set_rtif(id=TI_ID, body=rendered_fields)
+
+        assert result == {"ok": True}
+
 
 class TestVariableOperations:
     """
