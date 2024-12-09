@@ -31,7 +31,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.asset.metadata import Metadata
 
-ds = Asset("s3://output/1.txt")
+asset = Asset(uri="s3://output/1.txt", name="test-asset")
 
 with DAG(
     dag_id="asset_with_extra_by_yield",
@@ -41,9 +41,9 @@ with DAG(
     tags=["produces"],
 ):
 
-    @task(outlets=[ds])
+    @task(outlets=[asset])
     def asset_with_extra_by_yield():
-        yield Metadata(ds, {"hi": "bye"})
+        yield Metadata(asset, {"hi": "bye"})
 
     asset_with_extra_by_yield()
 
@@ -55,9 +55,9 @@ with DAG(
     tags=["produces"],
 ):
 
-    @task(outlets=[ds])
+    @task(outlets=[asset])
     def asset_with_extra_by_context(*, outlet_events=None):
-        outlet_events[ds].extra = {"hi": "bye"}
+        outlet_events[asset].extra = {"hi": "bye"}
 
     asset_with_extra_by_context()
 
@@ -70,11 +70,11 @@ with DAG(
 ):
 
     def _asset_with_extra_from_classic_operator_post_execute(context, result):
-        context["outlet_events"][ds].extra = {"hi": "bye"}
+        context["outlet_events"][asset].extra = {"hi": "bye"}
 
     BashOperator(
         task_id="asset_with_extra_from_classic_operator",
-        outlets=[ds],
+        outlets=[asset],
         bash_command=":",
         post_execute=_asset_with_extra_from_classic_operator_post_execute,
     )

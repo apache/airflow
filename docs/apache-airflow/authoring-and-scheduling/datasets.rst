@@ -251,7 +251,7 @@ The easiest way to attach extra information to the asset event is by ``yield``-i
     from airflow.sdk.definitions.asset import Asset
     from airflow.sdk.definitions.asset.metadata import Metadata
 
-    example_s3_asset = Asset("s3://asset/example.csv")
+    example_s3_asset = Asset(uri="s3://asset/example.csv", name="example_s3")
 
 
     @task(outlets=[example_s3_asset])
@@ -457,7 +457,7 @@ The following example creates an asset event against the S3 URI ``f"s3://bucket/
 
     @task(outlets=[AssetAlias("my-task-outputs")])
     def my_task_with_metadata():
-        s3_asset = Asset("s3://bucket/my-task")
+        s3_asset = Asset(uri="s3://bucket/my-task", name="example_s3")
         yield Metadata(s3_asset, extra={"k": "v"}, alias="my-task-outputs")
 
 Only one asset event is emitted for an added asset, even if it is added to the alias multiple times, or added to multiple aliases. However, if different ``extra`` values are passed, it can emit multiple asset events. In the following example, two asset events will be emitted.
