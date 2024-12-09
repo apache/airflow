@@ -28,7 +28,6 @@ from unittest.mock import MagicMock, Mock, patch
 
 import jaydebeapi
 import pytest
-
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.jdbc.hooks.jdbc import JdbcHook, suppress_and_warn
@@ -38,6 +37,7 @@ pytestmark = pytest.mark.db_test
 
 
 jdbc_conn_mock = Mock(name="jdbc_conn")
+logger = logging.getLogger(__name__)
 
 
 def get_hook(
@@ -57,7 +57,6 @@ def get_hook(
             **conn_params,
         }
     )
-    jvm_started = False
 
     class MockedJdbcHook(JdbcHook):
         @classmethod
@@ -241,7 +240,7 @@ class TestJdbcHook:
         def connect_side_effect(*args, **kwargs):
             nonlocal open_connections
             open_connections += 1
-            logging.debug("Thread %s has %s open connections", current_thread().name, open_connections)
+            logger.debug("Thread %s has %s open connections", current_thread().name, open_connections)
 
             try:
                 if open_connections > 1:
