@@ -42,7 +42,6 @@ from airflow.utils.db import add_default_pool_if_not_exists, create_default_conn
 from airflow.utils.session import create_session
 
 from tests_common.test_utils.compat import (
-    AIRFLOW_V_2_10_PLUS,
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
@@ -50,6 +49,7 @@ from tests_common.test_utils.compat import (
     ParseImportError,
     TaskOutletAssetReference,
 )
+from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 
 
 def _bootstrap_dagbag():
@@ -73,7 +73,7 @@ def initial_db_init():
     from airflow.www.extensions.init_appbuilder import init_appbuilder
     from airflow.www.extensions.init_auth_manager import get_auth_manager
 
-    from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
     db.resetdb()
     if AIRFLOW_V_3_0_PLUS:
@@ -120,6 +120,20 @@ def clear_db_assets():
             from tests_common.test_utils.compat import AssetAliasModel
 
             session.query(AssetAliasModel).delete()
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.asset import AssetActive, asset_trigger_association_table
+
+            session.query(asset_trigger_association_table).delete()
+            session.query(AssetActive).delete()
+
+
+def clear_db_triggers():
+    with create_session() as session:
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.asset import asset_trigger_association_table
+
+            session.query(asset_trigger_association_table).delete()
+        session.query(Trigger).delete()
 
 
 def clear_db_dags():

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.providers.common.compat import (
+from airflow.providers.common.compat.version_references import (
     AIRFLOW_V_2_8_PLUS,
     AIRFLOW_V_2_9_PLUS,
     AIRFLOW_V_2_10_PLUS,

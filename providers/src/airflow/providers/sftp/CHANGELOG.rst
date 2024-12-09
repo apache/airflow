@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+main
+....
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the sftp provider package.
+  The following breaking changes were introduced:
+
+  * Removed deprecated ``ssh_hook`` parameter from ``SFTPOperator``. Use ``sftp_hook`` instead.
+  * Removed deprecated ``ssh_hook`` parameter from ``SFTPHook``.
+  * Removed deprecated ``ftp_conn_id`` parameter from ``SFTPHook``. Use ``ssh_conn_id`` instead.
+
+
+
+
 4.11.1
 ......
 

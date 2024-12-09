@@ -48,8 +48,8 @@ from airflow.security.permissions import (
 from airflow.www import app as application
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 
-from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS
 from tests_common.test_utils.www import check_content_in_response
 
 if TYPE_CHECKING:
