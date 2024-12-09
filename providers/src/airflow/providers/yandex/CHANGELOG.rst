@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+main
+....
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the {provider_name} provider package.
+  The following breaking changes were introduced:
+
+  * removed ``YandexCloudBaseHook.provider_user_agent`` . Use ``utils.user_agent.provider_user_agent`` instead.
+  * removed ``connection_id`` parameter from ``YandexCloudBaseHook``. Use ``yandex_conn_id`` parameter.
+  * removed ``yandex.hooks.yandexcloud_dataproc`` module.
+  * removed ``yandex.operators.yandexcloud_dataproc`` module.
+  * removed implicit passing of ``yandex_conn_id``  in ``DataprocBaseOperator``. Please pass it as a parameter.
+
 3.12.0
 ......
 
