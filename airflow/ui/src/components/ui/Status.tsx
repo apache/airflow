@@ -28,12 +28,13 @@ import { stateColor } from "src/utils/stateColor";
 type StatusValue = DagRunState | TaskInstanceState;
 
 export type StatusProps = {
-  state?: StatusValue;
+  state: StatusValue | null;
 } & ChakraStatus.RootProps;
 
 export const Status = React.forwardRef<HTMLDivElement, StatusProps>(
   ({ children, state, ...rest }, ref) => {
-    const colorPalette = state === undefined ? "info" : stateColor[state];
+    // "null" is actually a string on stateColor
+    const colorPalette = stateColor[state ?? "null"];
 
     return (
       <ChakraStatus.Root ref={ref} {...rest}>

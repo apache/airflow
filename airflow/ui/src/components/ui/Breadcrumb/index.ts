@@ -16,22 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Breadcrumb as ChakraBreadcrumb } from "@chakra-ui/react";
 
-export * from "./Dialog";
-export * from "./Pagination";
-export * from "./Select";
-export * from "./Alert";
-export * from "./CloseButton";
-export * from "./InputGroup";
+import { Root } from "./Root";
 
-export * from "./Switch";
-export * from "./Tag";
-export * from "./Tooltip";
-
-export * from "./ProgressBar";
-export * from "./Menu";
-export * from "./Accordion";
-export * from "./Status";
-export * from "./Button";
-export * from "./Toaster";
-export * from "./Breadcrumb";
+export const Breadcrumb = {
+  ...ChakraBreadcrumb,
+  Root,
+};

@@ -16,19 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Box,
-  Flex,
-  HStack,
-  Heading,
-  SimpleGrid,
-  VStack,
-  Link,
-} from "@chakra-ui/react";
+import { Box, Flex, HStack, SimpleGrid, Link } from "@chakra-ui/react";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import DagRunInfo from "src/components/DagRunInfo";
+import { Stat } from "src/components/Stat";
 import { TogglePause } from "src/components/TogglePause";
 import TriggerDAGIconButton from "src/components/TriggerDag/TriggerDAGIconButton";
 import { Tooltip } from "src/components/ui";
@@ -82,16 +75,10 @@ export const DagCard = ({ dag }: Props) => {
         </HStack>
       </Flex>
       <SimpleGrid columns={4} gap={4} height={20} px={3} py={2}>
-        <VStack align="flex-start" gap={1}>
-          <Heading color="fg.muted" fontSize="xs">
-            Schedule
-          </Heading>
+        <Stat label="Schedule">
           <Schedule dag={dag} />
-        </VStack>
-        <VStack align="flex-start" gap={1}>
-          <Heading color="fg.muted" fontSize="xs">
-            Latest Run
-          </Heading>
+        </Stat>
+        <Stat label="Latest Run">
           {latestRun ? (
             <DagRunInfo
               dataIntervalEnd={latestRun.data_interval_end}
@@ -101,11 +88,8 @@ export const DagCard = ({ dag }: Props) => {
               state={latestRun.state}
             />
           ) : undefined}
-        </VStack>
-        <VStack align="flex-start" gap={1}>
-          <Heading color="fg.muted" fontSize="xs">
-            Next Run
-          </Heading>
+        </Stat>
+        <Stat label="Next Run">
           {Boolean(dag.next_dagrun) ? (
             <DagRunInfo
               dataIntervalEnd={dag.next_dagrun_data_interval_end}
@@ -113,7 +97,7 @@ export const DagCard = ({ dag }: Props) => {
               nextDagrunCreateAfter={dag.next_dagrun_create_after}
             />
           ) : undefined}
-        </VStack>
+        </Stat>
         <RecentRuns latestRuns={dag.latest_dag_runs} />
       </SimpleGrid>
     </Box>
