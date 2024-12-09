@@ -23,6 +23,7 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
+
 from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import Connection, DagRun, TaskInstance as TI, XCom
