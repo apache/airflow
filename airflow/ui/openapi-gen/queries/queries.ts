@@ -467,6 +467,7 @@ export const useConfigServiceGetConfigValue = <
  * @param data.offset
  * @param data.tags
  * @param data.owners
+ * @param data.dagIds
  * @param data.dagIdPattern
  * @param data.dagDisplayNamePattern
  * @param data.onlyActive
@@ -483,6 +484,7 @@ export const useDagsServiceRecentDagRuns = <
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    dagIds,
     dagRunsLimit,
     lastDagRunState,
     limit,
@@ -494,6 +496,7 @@ export const useDagsServiceRecentDagRuns = <
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    dagIds?: string[];
     dagRunsLimit?: number;
     lastDagRunState?: DagRunState;
     limit?: number;
@@ -511,6 +514,7 @@ export const useDagsServiceRecentDagRuns = <
       {
         dagDisplayNamePattern,
         dagIdPattern,
+        dagIds,
         dagRunsLimit,
         lastDagRunState,
         limit,
@@ -526,6 +530,7 @@ export const useDagsServiceRecentDagRuns = <
       DagsService.recentDagRuns({
         dagDisplayNamePattern,
         dagIdPattern,
+        dagIds,
         dagRunsLimit,
         lastDagRunState,
         limit,
