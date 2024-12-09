@@ -1486,11 +1486,12 @@ export type StructureDataData = {
 export type StructureDataResponse2 = StructureDataResponse;
 
 export type GridDataData = {
-  baseDate?: string | null;
   dagId: string;
   includeDownstream?: boolean | null;
   includeUpstream?: boolean | null;
   limit?: number;
+  logicalDateGte?: string | null;
+  logicalDateLte?: string | null;
   offset?: number;
   orderBy?: string;
   root?: string | null;

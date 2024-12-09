@@ -285,14 +285,22 @@ paths:
           - type: 'null'
           default: false
           title: Include Downstream
-      - name: base_date
+      - name: logical_date_gte
         in: query
         required: false
         schema:
           anyOf:
           - type: string
           - type: 'null'
-          title: Base Date
+          title: Logical Date Gte
+      - name: logical_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Logical Date Lte
       - name: root
         in: query
         required: false
