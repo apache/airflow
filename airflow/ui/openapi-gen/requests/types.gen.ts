@@ -2054,6 +2054,7 @@ export type GetVariablesData = {
   limit?: number;
   offset?: number;
   orderBy?: string;
+  variableKeyPattern?: string | null;
 };
 
 export type GetVariablesResponse = VariableCollectionResponse;
