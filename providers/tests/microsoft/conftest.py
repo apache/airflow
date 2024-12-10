@@ -24,17 +24,15 @@ import string
 from inspect import currentframe
 from json import JSONDecodeError
 from os.path import dirname, join
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import Any, TypeVar
 from unittest.mock import MagicMock
 
 import pytest
-from airflow.models import Connection
-from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIHook
 from httpx import Headers, Response
 from msgraph_core import APIVersion
 
-if TYPE_CHECKING:
-    pass
+from airflow.models import Connection
+from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIHook
 
 T = TypeVar("T", dict, str, Connection)
 

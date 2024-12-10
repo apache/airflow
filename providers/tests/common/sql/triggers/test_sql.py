@@ -20,6 +20,7 @@ import json
 from unittest import mock
 
 import pytest
+
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.triggers.sql import SQLExecuteQueryTrigger
 from airflow.triggers.base import TriggerEvent

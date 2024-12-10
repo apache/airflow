@@ -25,10 +25,8 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
-    from typing import (
-        Any,
-        AsyncIterator,
-    )
+     from collections.abc import AsyncIterator
+     from typing import Any
 
 
 class SQLExecuteQueryTrigger(BaseTrigger):
@@ -39,6 +37,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
     :param conn_id: the connection ID used to connect to the database
     :param hook_params: hook parameters
     """
+
     def __init__(
         self,
         sql: str | list[str],
