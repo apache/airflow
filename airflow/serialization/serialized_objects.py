@@ -694,11 +694,6 @@ class BaseSerialization:
                 encode_outlet_event_accessors(var),
                 type_=DAT.ASSET_EVENT_ACCESSORS,
             )
-        elif isinstance(var, OutletEventAccessor):
-            return cls._encode(
-                encode_outlet_event_accessor(var),
-                type_=DAT.ASSET_EVENT_ACCESSOR,
-            )
         elif isinstance(var, DAG):
             return cls._encode(SerializedDAG.serialize_dag(var), type_=DAT.DAG)
         elif isinstance(var, Resources):
