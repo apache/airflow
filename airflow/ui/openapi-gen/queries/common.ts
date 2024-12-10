@@ -174,16 +174,16 @@ export const useAssetServiceGetAssetQueuedEventsKey =
   "AssetServiceGetAssetQueuedEvents";
 export const UseAssetServiceGetAssetQueuedEventsKeyFn = (
   {
+    assetId,
     before,
-    uri,
   }: {
+    assetId: number;
     before?: string;
-    uri: string;
   },
   queryKey?: Array<unknown>,
 ) => [
   useAssetServiceGetAssetQueuedEventsKey,
-  ...(queryKey ?? [{ before, uri }]),
+  ...(queryKey ?? [{ assetId, before }]),
 ];
 export type AssetServiceGetAssetDefaultResponse = Awaited<
   ReturnType<typeof AssetService.getAsset>
@@ -195,12 +195,12 @@ export type AssetServiceGetAssetQueryResult<
 export const useAssetServiceGetAssetKey = "AssetServiceGetAsset";
 export const UseAssetServiceGetAssetKeyFn = (
   {
-    uri,
+    assetId,
   }: {
-    uri: string;
+    assetId: number;
   },
   queryKey?: Array<unknown>,
-) => [useAssetServiceGetAssetKey, ...(queryKey ?? [{ uri }])];
+) => [useAssetServiceGetAssetKey, ...(queryKey ?? [{ assetId }])];
 export type AssetServiceGetDagAssetQueuedEventsDefaultResponse = Awaited<
   ReturnType<typeof AssetService.getDagAssetQueuedEvents>
 >;
@@ -234,18 +234,18 @@ export const useAssetServiceGetDagAssetQueuedEventKey =
   "AssetServiceGetDagAssetQueuedEvent";
 export const UseAssetServiceGetDagAssetQueuedEventKeyFn = (
   {
+    assetId,
     before,
     dagId,
-    uri,
   }: {
+    assetId: number;
     before?: string;
     dagId: string;
-    uri: string;
   },
   queryKey?: Array<unknown>,
 ) => [
   useAssetServiceGetDagAssetQueuedEventKey,
-  ...(queryKey ?? [{ before, dagId, uri }]),
+  ...(queryKey ?? [{ assetId, before, dagId }]),
 ];
 export type ConfigServiceGetConfigsDefaultResponse = Awaited<
   ReturnType<typeof ConfigService.getConfigs>
