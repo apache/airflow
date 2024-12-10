@@ -20,10 +20,9 @@ import time
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from deprecated import deprecated
-from tableauserverclient import Pager, PersonalAccessTokenAuth, Server, TableauAuth
+from tableauserverclient import Pager, Server, TableauAuth
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
@@ -112,8 +111,6 @@ class TableauHook(BaseHook):
         """
         if self.conn.login and self.conn.password:
             return self._auth_via_password()
-        if "token_name" in self.conn.extra_dejson and "personal_access_token" in self.conn.extra_dejson:
-            return self._auth_via_token()
         raise NotImplementedError("No Authentication method found for given Credentials!")
 
     def _auth_via_password(self) -> Auth.contextmgr:
@@ -121,26 +118,6 @@ class TableauHook(BaseHook):
             username=self.conn.login, password=self.conn.password, site_id=self.site_id
         )
         return self.server.auth.sign_in(tableau_auth)
-
-    @deprecated(
-        reason=(
-            "Authentication via personal access token is deprecated. "
-            "Please, use the password authentication to avoid inconsistencies."
-        ),
-        category=AirflowProviderDeprecationWarning,
-    )
-    def _auth_via_token(self) -> Auth.contextmgr:
-        """
-        Authenticate via personal access token.
-
-        This method is deprecated. Please, use the authentication via password instead.
-        """
-        tableau_auth = PersonalAccessTokenAuth(
-            token_name=self.conn.extra_dejson["token_name"],
-            personal_access_token=self.conn.extra_dejson["personal_access_token"],
-            site_id=self.site_id,
-        )
-        return self.server.auth.sign_in_with_personal_access_token(tableau_auth)
 
     def get_all(self, resource_name: str) -> Pager:
         """

@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+main
+.....
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the Apache Druid provider package.
+  The following breaking changes were introduced:
+
+  * Operators
+
+    * Removed ``DruidCheckOperator``. Please use ``airflow.providers.common.sql.operators.sql.SQLCheckOperator`` instead.
+
 3.12.1
 ......
 

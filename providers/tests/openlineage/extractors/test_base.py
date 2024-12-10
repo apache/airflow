@@ -260,7 +260,7 @@ def test_extract_on_failure(task_state, is_airflow_2_10_or_higher, should_call_o
     extractor = DefaultExtractor(operator=operator)
 
     with mock.patch(
-        "airflow.providers.openlineage.extractors.base.IS_AIRFLOW_2_10_OR_HIGHER", is_airflow_2_10_or_higher
+        "airflow.providers.openlineage.extractors.base.AIRFLOW_V_2_10_PLUS", is_airflow_2_10_or_higher
     ):
         result = extractor.extract_on_complete(task_instance)
 

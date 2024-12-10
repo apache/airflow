@@ -267,6 +267,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "pytest-mock>=3.12.0",
         "pytest-rerunfailures>=13.0",
         "pytest-timeouts>=1.2.1",
+        "pytest-unordered>=0.6.1",
         "pytest-xdist>=3.5.0",
         "pytest>=8.2,<9",
         "requests_mock>=1.11.0",

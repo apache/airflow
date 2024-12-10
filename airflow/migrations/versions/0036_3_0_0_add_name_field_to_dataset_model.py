@@ -58,20 +58,22 @@ def upgrade():
     with op.batch_alter_table("dataset_alias", schema=None) as batch_op:
         batch_op.drop_index("idx_name_unique")
         batch_op.create_index("idx_dataset_alias_name_unique", ["name"], unique=True)
-    # Add 'name' column. Set it to nullable for now.
+    # Add 'name' and 'group' columns. Set them to nullable for now.
     with op.batch_alter_table("dataset", schema=None) as batch_op:
         batch_op.add_column(sa.Column("name", _STRING_COLUMN_TYPE))
-        batch_op.add_column(sa.Column("group", _STRING_COLUMN_TYPE, default="", nullable=False))
-    # Fill name from uri column.
+        batch_op.add_column(sa.Column("group", _STRING_COLUMN_TYPE))
+    # Fill name from uri column, and group to 'asset'.
+    dataset_table = sa.table("dataset", sa.column("name"), sa.column("uri"), sa.column("group"))
     with Session(bind=op.get_bind()) as session:
-        session.execute(sa.text("update dataset set name=uri"))
+        session.execute(sa.update(dataset_table).values(name=dataset_table.c.uri, group="asset"))
         session.commit()
-    # Set the name column non-nullable.
+    # Set the name and group columns non-nullable.
     # Now with values in there, we can create the new unique constraint and index.
     # Due to MySQL restrictions, we are also reducing the length on uri.
     with op.batch_alter_table("dataset", schema=None) as batch_op:
         batch_op.alter_column("name", existing_type=_STRING_COLUMN_TYPE, nullable=False)
         batch_op.alter_column("uri", type_=_STRING_COLUMN_TYPE, nullable=False)
+        batch_op.alter_column("group", type_=_STRING_COLUMN_TYPE, default="asset", nullable=False)
         batch_op.drop_index("idx_uri_unique")
         batch_op.create_index("idx_dataset_name_uri_unique", ["name", "uri"], unique=True)
 

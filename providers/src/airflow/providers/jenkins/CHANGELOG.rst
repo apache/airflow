@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+main
+.....
+
+.. warning::
+   All deprecated classes, parameters and features have been removed from the Jenkins provider package.
+   The following breaking changes were introduced:
+
+   * Operators
+
+      * Removed ``get_hook`` method from ``JenkinsJobTriggerOperator``. Use ``hook`` property instead
+
 3.7.2
 .....
 

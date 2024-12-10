@@ -19,7 +19,8 @@
 import type { Node as FlowNodeType, Edge as FlowEdgeType } from "@xyflow/react";
 import type { ElkExtendedEdge } from "elkjs";
 
-import type { Node } from "./data";
+import type { NodeResponse } from "openapi/requests/types.gen";
+
 import type { LayoutNode } from "./useGraphLayout";
 
 export type CustomNodeProps = {
@@ -30,7 +31,9 @@ export type CustomNodeProps = {
   isMapped?: boolean;
   isOpen?: boolean;
   label: string;
-  setupTeardownType?: Node["setup_teardown_type"];
+  operator?: string | null;
+  setupTeardownType?: NodeResponse["setup_teardown_type"];
+  type: string;
   width?: number;
 };
 
@@ -103,7 +106,7 @@ export const flattenGraph = ({
 
     if (node.children) {
       const { edges: childEdges, nodes: childNodes } = flattenGraph({
-        children: node.children,
+        children: node.children as Array<LayoutNode>,
         parent: newNode,
       });
 

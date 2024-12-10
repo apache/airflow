@@ -30,7 +30,6 @@ from typing import TYPE_CHECKING
 
 import psutil
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile, write_pid_to_pidfile
-from packaging.version import Version
 
 from airflow import __version__ as airflow_version, settings
 from airflow.cli.cli_config import ARG_PID, ARG_VERBOSE, ActionCommand, Arg
@@ -46,6 +45,7 @@ from airflow.providers.edge.cli.api_client import (
     worker_set_state,
 )
 from airflow.providers.edge.models.edge_worker import EdgeWorkerState, EdgeWorkerVersionException
+from airflow.providers.edge.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.platform import IS_WINDOWS
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -81,8 +81,6 @@ def force_use_internal_api_on_edge_worker():
     os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
     os.environ["AIRFLOW_ENABLE_AIP_44"] = "True"
     if "airflow" in sys.argv[0] and sys.argv[1:3] == ["edge", "worker"]:
-        AIRFLOW_VERSION = Version(airflow_version)
-        AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
         if AIRFLOW_V_3_0_PLUS:
             # Obvious TODO Make EdgeWorker compatible with Airflow 3 (again)
             raise SystemExit(

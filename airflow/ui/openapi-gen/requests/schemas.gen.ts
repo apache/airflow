@@ -89,7 +89,27 @@ export const $AppBuilderViewResponse = {
   description: "Serializer for AppBuilder View responses.",
 } as const;
 
-export const $AssetAliasSchema = {
+export const $AssetAliasCollectionResponse = {
+  properties: {
+    asset_aliases: {
+      items: {
+        $ref: "#/components/schemas/AssetAliasResponse",
+      },
+      type: "array",
+      title: "Asset Aliases",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["asset_aliases", "total_entries"],
+  title: "AssetAliasCollectionResponse",
+  description: "Asset alias collection response.",
+} as const;
+
+export const $AssetAliasResponse = {
   properties: {
     id: {
       type: "integer",
@@ -106,8 +126,8 @@ export const $AssetAliasSchema = {
   },
   type: "object",
   required: ["id", "name", "group"],
-  title: "AssetAliasSchema",
-  description: "Asset alias serializer for assets.",
+  title: "AssetAliasResponse",
+  description: "Asset alias serializer for responses.",
 } as const;
 
 export const $AssetCollectionResponse = {
@@ -293,7 +313,7 @@ export const $AssetResponse = {
     },
     aliases: {
       items: {
-        $ref: "#/components/schemas/AssetAliasSchema",
+        $ref: "#/components/schemas/AssetAliasResponse",
       },
       type: "array",
       title: "Aliases",
@@ -3128,14 +3148,7 @@ export const $NodeResponse = {
       title: "Children",
     },
     id: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "string",
       title: "Id",
     },
     is_mapped: {
@@ -3150,14 +3163,7 @@ export const $NodeResponse = {
       title: "Is Mapped",
     },
     label: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "string",
       title: "Label",
     },
     tooltip: {
@@ -3185,12 +3191,23 @@ export const $NodeResponse = {
     },
     type: {
       type: "string",
-      enum: ["join", "sensor", "task", "task_group"],
+      enum: ["join", "task", "asset_condition"],
       title: "Type",
+    },
+    operator: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Operator",
     },
   },
   type: "object",
-  required: ["id", "type"],
+  required: ["id", "label", "type"],
   title: "NodeResponse",
   description: "Node serializer for responses.",
 } as const;

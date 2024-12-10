@@ -106,3 +106,15 @@ class TestAirbyteJobSensor:
             sensor.poke(context={})
 
         mock_get_job.assert_called_once_with(request=GetJobRequest(job_id=self.job_id))
+
+    def test_airbyte_job_sensor_init(self):
+        """Test initializing AirbyteJobSensor with `poke_interval`."""
+        sensor = AirbyteJobSensor(
+            task_id="test_sensor",
+            airbyte_job_id=1,
+            deferrable=True,
+            poke_interval=10,
+            timeout=3600,
+        )
+        assert sensor.poke_interval == 10
+        assert sensor.timeout == 3600
