@@ -2469,13 +2469,13 @@ class TestTaskInstance:
             @task(outlets=Asset("test_outlet_asset_extra_1"))
             def write1():
                 result = "write_1 result"
-                yield Metadata("test_outlet_asset_extra_1", {"foo": "bar"})
+                yield Metadata(Asset(name="test_outlet_asset_extra_1"), {"foo": "bar"})
                 return result
 
             write1()
 
             def _write2_post_execute(context, result):
-                yield Metadata("test_outlet_asset_extra_2", {"x": 1})
+                yield Metadata(Asset(name="test_outlet_asset_extra_2", uri="test://asset-2"), extra={"x": 1})
 
             BashOperator(
                 task_id="write2",
@@ -2645,7 +2645,7 @@ class TestTaskInstance:
 
             @task(outlets=AssetAlias(asset_alias_name))
             def producer(*, outlet_events):
-                yield Metadata(asset_uri, extra={"key": "value"}, alias=asset_alias_name)
+                yield Metadata(Asset(asset_uri), extra={"key": "value"}, alias=asset_alias_name)
 
             producer()
 
