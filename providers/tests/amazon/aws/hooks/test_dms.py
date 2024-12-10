@@ -17,10 +17,12 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from typing import Any
 from unittest import mock
 
 import pytest
+from dateutil import parser
 
 from airflow.providers.amazon.aws.hooks.dms import DmsHook, DmsTaskWaiterStatus
 
@@ -65,6 +67,187 @@ MOCK_CREATE_RESPONSE: dict[str, Any] = {"ReplicationTask": MOCK_TASK_RESPONSE_DA
 MOCK_START_RESPONSE: dict[str, Any] = {"ReplicationTask": {**MOCK_TASK_RESPONSE_DATA, "Status": "starting"}}
 MOCK_STOP_RESPONSE: dict[str, Any] = {"ReplicationTask": {**MOCK_TASK_RESPONSE_DATA, "Status": "stopping"}}
 MOCK_DELETE_RESPONSE: dict[str, Any] = {"ReplicationTask": {**MOCK_TASK_RESPONSE_DATA, "Status": "deleting"}}
+
+MOCK_CONFIG_RESPONSE: dict[str, Any] = {
+    "Marker": "xxxxx",
+    "ReplicationConfigs": [
+        {
+            "ReplicationConfigIdentifier": "1111",
+            "ReplicationConfigArn": "arn:aws:my-arn",
+            "SourceEndpointArn": "source-endpoint-arn",
+            "TargetEndpointArn": "target-endpoint-arn",
+            "ReplicationType": "cdc",
+            "ComputeConfig": {
+                "AvailabilityZone": "az1",
+                "MaxCapacityUnits": 10,
+                "MinCapacityUnits": 20,
+                "MultiAZ": True,
+                "PreferredMaintenanceWindow": "string",
+                "ReplicationSubnetGroupId": "string",
+                "VpcSecurityGroupIds": [
+                    "string",
+                ],
+            },
+            "ReplicationSettings": "string",
+            "SupplementalSettings": "string",
+            "TableMappings": "string",
+            "ReplicationConfigCreateTime": datetime(2015, 1, 1),
+            "ReplicationConfigUpdateTime": datetime(2015, 1, 1),
+        },
+        {
+            "ReplicationConfigIdentifier": "2222",
+            "ReplicationConfigArn": "arn:aws:my-arn",
+            "SourceEndpointArn": "source-endpoint-arn",
+            "TargetEndpointArn": "target-endpoint-arn",
+            "ReplicationType": "full-load-and-cdc",
+            "ComputeConfig": {
+                "AvailabilityZone": "string",
+                "DnsNameServers": "string",
+                "KmsKeyId": "string",
+                "MaxCapacityUnits": 1,
+                "MinCapacityUnits": 30,
+                "MultiAZ": False,
+                "PreferredMaintenanceWindow": "string",
+                "ReplicationSubnetGroupId": "string",
+                "VpcSecurityGroupIds": [
+                    "string",
+                ],
+            },
+            "ReplicationSettings": "string",
+            "SupplementalSettings": "string",
+            "TableMappings": "string",
+            "ReplicationConfigCreateTime": datetime(2015, 1, 1),
+            "ReplicationConfigUpdateTime": datetime(2015, 2, 1),
+        },
+    ],
+}
+
+MOCK_REPLICATION_CONFIG: dict[str, Any] = {
+    "ReplicationConfigIdentifier": "test-config",
+    "SourceEndpointArn": "arn:aws:dms:us-east-1:123456789012:endpoint:RZZK4EZW5UANC7Y3P4E776WHBE",
+    "TargetEndpointArn": "arn:aws:dms:us-east-1:123456789012:endpoint:GVBUJQXJZASXWHTWCLN2WNT57E",
+    "ComputeConfig": {
+        "MaxCapacityUnits": 2,
+        "MinCapacityUnits": 4,
+    },
+    "ReplicationType": "full-load",
+    "TableMappings": json.dumps(
+        {
+            "TableMappings": [
+                {
+                    "Type": "Selection",
+                    "RuleId": 123,
+                    "RuleName": "test-rule",
+                    "SourceSchema": "/",
+                    "SourceTable": "/",
+                }
+            ]
+        }
+    ),
+    "ReplicationSettings": "string",
+    "SupplementalSettings": "string",
+    "ResourceIdentifier": "string",
+}
+
+MOCK_REPLICATION_CONFIG_RESP: dict[str, Any] = {
+    "ReplicationConfig": {
+        "ReplicationConfigIdentifier": "test-config",
+        "ReplicationConfigArn": "arn:aws:dms:us-east-1:123456789012:replication-config/test-config",
+        "SourceEndpointArn": "arn:aws:dms:us-east-1:123456789012:endpoint:RZZK4EZW5UANC7Y3P4E776WHBE",
+        "TargetEndpointArn": "arn:aws:dms:us-east-1:123456789012:endpoint:GVBUJQXJZASXWHTWCLN2WNT57E",
+        "ReplicationType": "full-load",
+    }
+}
+
+MOCK_DESCRIBE_REPLICATIONS_RESP = {
+    "Marker": "string",
+    "Replications": [
+        {
+            "ReplicationConfigIdentifier": "test-config",
+            "ReplicationConfigArn": "arn:aws:dms:us-east-1:123456789012:replication-config/test-config",
+            "SourceEndpointArn": "arn:aws:dms:us-east-1:123456789012:endpoint:RZZK4EZW5UANC7Y3P4E776WHBE",
+            "TargetEndpointArn": "arn:aws:dms:us-east-1:123456789012:endpoint:GVBUJQXJZASXWHTWCLN2WNT57E",
+            "ReplicationType": "full-load",
+            "Status": "CREATED",
+            "ProvisionData": {
+                "ProvisionState": "string",
+                "ProvisionedCapacityUnits": 123,
+                "DateProvisioned": datetime(2015, 1, 1),
+                "IsNewProvisioningAvailable": False,
+                "DateNewProvisioningDataAvailable": datetime(2015, 1, 1),
+                "ReasonForNewProvisioningData": "string",
+            },
+            "StopReason": "string",
+            "FailureMessages": [
+                "string",
+            ],
+            "ReplicationStats": {
+                "FullLoadProgressPercent": 123,
+                "ElapsedTimeMillis": 123,
+                "TablesLoaded": 123,
+                "TablesLoading": 123,
+                "TablesQueued": 123,
+                "TablesErrored": 123,
+                "FreshStartDate": datetime(2015, 1, 1),
+                "StartDate": datetime(2015, 1, 1),
+                "StopDate": datetime(2015, 1, 1),
+                "FullLoadStartDate": datetime(2015, 1, 1),
+                "FullLoadFinishDate": datetime(2015, 1, 1),
+            },
+            "StartReplicationType": "string",
+            "CdcStartTime": datetime(2015, 1, 1),
+            "CdcStartPosition": "string",
+            "CdcStopPosition": "string",
+            "RecoveryCheckpoint": "string",
+            "ReplicationCreateTime": datetime(2015, 1, 1),
+            "ReplicationUpdateTime": datetime(2015, 1, 1),
+            "ReplicationLastStopTime": datetime(2015, 1, 1),
+            "ReplicationDeprovisionTime": datetime(2015, 1, 1),
+        },
+        {
+            "ReplicationConfigIdentifier": "test-config-2",
+            "ReplicationConfigArn": "arn:aws:dms:us-east-1:123456789012:replication-config/test-config-2",
+            "SourceEndpointArn": "arn:aws:dms:us-east-1:123456789012:endpoint:RZZK4EZW5UANC7Y3P4E776WHBE",
+            "TargetEndpointArn": "arn:aws:dms:us-east-1:123456789012:endpoint:GVBUJQXJZASXWHTWCLN2WNT57E",
+            "ReplicationType": "cdc-only",
+            "Status": "CREATED",
+            "ProvisionData": {
+                "ProvisionState": "string",
+                "ProvisionedCapacityUnits": 123,
+                "DateProvisioned": datetime(2015, 1, 1),
+                "IsNewProvisioningAvailable": False,
+                "DateNewProvisioningDataAvailable": datetime(2015, 1, 1),
+                "ReasonForNewProvisioningData": "string",
+            },
+            "StopReason": "string",
+            "FailureMessages": [
+                "string",
+            ],
+            "ReplicationStats": {
+                "FullLoadProgressPercent": 123,
+                "ElapsedTimeMillis": 123,
+                "TablesLoaded": 123,
+                "TablesLoading": 123,
+                "TablesQueued": 123,
+                "TablesErrored": 123,
+                "FreshStartDate": datetime(2015, 1, 1),
+                "StartDate": datetime(2015, 1, 1),
+                "StopDate": datetime(2015, 1, 1),
+                "FullLoadStartDate": datetime(2015, 1, 1),
+                "FullLoadFinishDate": datetime(2015, 1, 1),
+            },
+            "StartReplicationType": "string",
+            "CdcStartTime": datetime(2015, 1, 1),
+            "CdcStartPosition": "string",
+            "CdcStopPosition": "string",
+            "RecoveryCheckpoint": "string",
+            "ReplicationCreateTime": datetime(2015, 1, 1),
+            "ReplicationUpdateTime": datetime(2015, 1, 1),
+            "ReplicationLastStopTime": datetime(2015, 1, 1),
+            "ReplicationDeprovisionTime": datetime(2015, 1, 1),
+        },
+    ],
+}
 
 
 class TestDmsHook:
@@ -213,3 +396,117 @@ class TestDmsHook:
         }
         mock_conn.return_value.get_waiter.assert_called_with("replication_task_deleted")
         mock_conn.return_value.get_waiter.return_value.wait.assert_called_with(**expected_waiter_call_params)
+
+    @mock.patch.object(DmsHook, "conn")
+    def test_describe_config_no_filter(self, mock_conn):
+        mock_conn.describe_replication_configs.return_value = MOCK_CONFIG_RESPONSE
+        resp = self.dms.describe_replication_configs()
+
+        assert len(resp) == 2
+
+    @mock.patch.object(DmsHook, "conn")
+    def test_describe_config_filter(self, mock_conn):
+        filter = [{"Name": "replication-type", "Values": ["cdc"]}]
+        self.dms.describe_replication_configs(filters=filter)
+        mock_conn.describe_replication_configs.assert_called_with(Filters=filter)
+
+    @mock.patch.object(DmsHook, "conn")
+    def test_create_repl_config_kwargs(self, mock_conn):
+        self.dms.create_replication_config(
+            replication_config_id=MOCK_REPLICATION_CONFIG["ReplicationConfigIdentifier"],
+            source_endpoint_arn=MOCK_REPLICATION_CONFIG["SourceEndpointArn"],
+            target_endpoint_arn=MOCK_REPLICATION_CONFIG["TargetEndpointArn"],
+            compute_config=MOCK_REPLICATION_CONFIG["ComputeConfig"],
+            replication_type=MOCK_REPLICATION_CONFIG["ReplicationType"],
+            table_mappings=MOCK_REPLICATION_CONFIG["TableMappings"],
+            additional_config_kwargs={
+                "ReplicationSettings": MOCK_REPLICATION_CONFIG["ReplicationSettings"],
+                "SupplementalSettings": MOCK_REPLICATION_CONFIG["SupplementalSettings"],
+            },
+        )
+
+        mock_conn.create_replication_config.assert_called_with(
+            ReplicationConfigIdentifier=MOCK_REPLICATION_CONFIG["ReplicationConfigIdentifier"],
+            SourceEndpointArn=MOCK_REPLICATION_CONFIG["SourceEndpointArn"],
+            TargetEndpointArn=MOCK_REPLICATION_CONFIG["TargetEndpointArn"],
+            ComputeConfig=MOCK_REPLICATION_CONFIG["ComputeConfig"],
+            ReplicationType=MOCK_REPLICATION_CONFIG["ReplicationType"],
+            TableMappings=MOCK_REPLICATION_CONFIG["TableMappings"],
+            ReplicationSettings=MOCK_REPLICATION_CONFIG["ReplicationSettings"],
+            SupplementalSettings=MOCK_REPLICATION_CONFIG["SupplementalSettings"],
+        )
+
+        self.dms.create_replication_config(
+            replication_config_id=MOCK_REPLICATION_CONFIG["ReplicationConfigIdentifier"],
+            source_endpoint_arn=MOCK_REPLICATION_CONFIG["SourceEndpointArn"],
+            target_endpoint_arn=MOCK_REPLICATION_CONFIG["TargetEndpointArn"],
+            compute_config=MOCK_REPLICATION_CONFIG["ComputeConfig"],
+            replication_type=MOCK_REPLICATION_CONFIG["ReplicationType"],
+            table_mappings=MOCK_REPLICATION_CONFIG["TableMappings"],
+        )
+        mock_conn.create_replication_config.assert_called_with(
+            ReplicationConfigIdentifier=MOCK_REPLICATION_CONFIG["ReplicationConfigIdentifier"],
+            SourceEndpointArn=MOCK_REPLICATION_CONFIG["SourceEndpointArn"],
+            TargetEndpointArn=MOCK_REPLICATION_CONFIG["TargetEndpointArn"],
+            ComputeConfig=MOCK_REPLICATION_CONFIG["ComputeConfig"],
+            ReplicationType=MOCK_REPLICATION_CONFIG["ReplicationType"],
+            TableMappings=MOCK_REPLICATION_CONFIG["TableMappings"],
+        )
+
+    @mock.patch.object(DmsHook, "conn")
+    def test_create_repl_config(self, mock_conn):
+        mock_conn.create_replication_config.return_value = MOCK_REPLICATION_CONFIG_RESP
+
+        resp = self.dms.create_replication_config(
+            replication_config_id=MOCK_REPLICATION_CONFIG["ReplicationConfigIdentifier"],
+            source_endpoint_arn=MOCK_REPLICATION_CONFIG["SourceEndpointArn"],
+            target_endpoint_arn=MOCK_REPLICATION_CONFIG["TargetEndpointArn"],
+            compute_config=MOCK_REPLICATION_CONFIG["ComputeConfig"],
+            replication_type=MOCK_REPLICATION_CONFIG["ReplicationType"],
+            table_mappings=MOCK_REPLICATION_CONFIG["TableMappings"],
+        )
+
+        assert resp == MOCK_REPLICATION_CONFIG_RESP["ReplicationConfig"]["ReplicationConfigArn"]
+
+    @mock.patch.object(DmsHook, "conn")
+    def test_describe_replications(self, mock_conn):
+        mock_conn.describe_replication_tasks.return_value = MOCK_DESCRIBE_REPLICATIONS_RESP
+        resp = self.dms.describe_replication_tasks()
+        assert len(resp) == 2
+
+    @mock.patch.object(DmsHook, "conn")
+    def test_describe_replications_filter(self, mock_conn):
+        filter = [
+            {
+                "Name": "replication-task-id",
+                "Values": MOCK_DESCRIBE_REPLICATIONS_RESP["Replications"][0]["ReplicationConfigArn"],
+            }
+        ]
+        self.dms.describe_replication_tasks(filters=filter)
+        mock_conn.describe_replication_tasks.assert_called_with(filters=filter)
+
+    @mock.patch.object(DmsHook, "conn")
+    def test_start_replication_args(self, mock_conn):
+        self.dms.start_replication(
+            replication_config_arn=MOCK_TASK_ARN,
+            start_replication_type="cdc",
+        )
+        mock_conn.start_replication.assert_called_with(
+            ReplicationConfigArn=MOCK_TASK_ARN,
+            StartReplicationType="cdc",
+        )
+
+    @mock.patch.object(DmsHook, "conn")
+    def test_start_replication_kwargs(self, mock_conn):
+        self.dms.start_replication(
+            replication_config_arn=MOCK_TASK_ARN,
+            start_replication_type="cdc",
+            cdc_start_time="2022-01-01T00:00:00Z",
+            cdc_start_pos=None,
+            cdc_stop_pos=None,
+        )
+        mock_conn.start_replication.assert_called_with(
+            ReplicationConfigArn=MOCK_TASK_ARN,
+            StartReplicationType="cdc",
+            CdcStartTime=parser.parse("2022-01-01T00:00:00Z"),
+        )
