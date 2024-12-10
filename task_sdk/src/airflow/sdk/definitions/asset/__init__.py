@@ -391,10 +391,10 @@ class Model(Asset):
 
 @attrs.define(unsafe_hash=False)
 class AssetAlias(BaseAsset):
-    """A represeation of asset alias which is used to create asset during the runtime."""
+    """A representation of asset alias which is used to create asset during the runtime."""
 
     name: str = attrs.field(validator=_validate_non_empty_identifier)
-    group: str = attrs.field(kw_only=True, default="", validator=_validate_identifier)
+    group: str = attrs.field(kw_only=True, default="asset", validator=_validate_identifier)
 
     def _resolve_assets(self) -> list[Asset]:
         from airflow.models.asset import expand_alias_to_assets
