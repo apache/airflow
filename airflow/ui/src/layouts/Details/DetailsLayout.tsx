@@ -17,62 +17,70 @@
  * under the License.
  */
 import { Box, Button } from "@chakra-ui/react";
+import type { PropsWithChildren } from "react";
 import { FiChevronsLeft } from "react-icons/fi";
-import { Outlet, Link as RouterLink, useParams } from "react-router-dom";
-
 import {
-  useDagServiceGetDagDetails,
-  useDagsServiceRecentDagRuns,
-} from "openapi/queries";
+  Outlet,
+  Link as RouterLink,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
+
+import type { DAGResponse } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ProgressBar } from "src/components/ui";
 import { Toaster } from "src/components/ui";
 import { OpenGroupsProvider } from "src/context/openGroups";
 
-import { Header } from "./Header";
-import { DagTabs } from "./Tabs";
+import { DagVizModal } from "./DagVizModal";
+import { NavTabs } from "./NavTabs";
 
-export const Dag = () => {
-  const { dagId } = useParams();
+type Props = {
+  readonly dag?: DAGResponse;
+  readonly error?: unknown;
+  readonly isLoading?: boolean;
+  readonly tabs: Array<{ label: string; value: string }>;
+} & PropsWithChildren;
 
-  const {
-    data: dag,
-    error,
-    isLoading,
-  } = useDagServiceGetDagDetails({
-    dagId: dagId ?? "",
-  });
+export const DetailsLayout = ({
+  children,
+  dag,
+  error,
+  isLoading,
+  tabs,
+}: Props) => {
+  const { dagId = "" } = useParams();
 
-  // TODO: replace with with a list dag runs by dag id request
-  const {
-    data: runsData,
-    error: runsError,
-    isLoading: isLoadingRuns,
-  } = useDagsServiceRecentDagRuns({ dagIdPattern: dagId ?? "" }, undefined, {
-    enabled: Boolean(dagId),
-  });
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const runs =
-    runsData?.dags.find((dagWithRuns) => dagWithRuns.dag_id === dagId)
-      ?.latest_dag_runs ?? [];
+  const modal = searchParams.get("modal");
+
+  const isModalOpen = modal !== null;
+  const onClose = () => {
+    searchParams.delete("modal");
+    setSearchParams(searchParams);
+  };
 
   return (
-    <OpenGroupsProvider dagId={dagId ?? ""}>
+    <OpenGroupsProvider dagId={dagId}>
       <Box>
-        <Toaster />
         <Button asChild colorPalette="blue" variant="ghost">
           <RouterLink to="/dags">
             <FiChevronsLeft />
             Back to all dags
           </RouterLink>
         </Button>
-        <Header dag={dag} dagId={dagId} latestRun={runs[0]} />
-        <ErrorAlert error={error ?? runsError} />
-        <ProgressBar
-          size="xs"
-          visibility={isLoading || isLoadingRuns ? "visible" : "hidden"}
+        <Toaster />
+        {children}
+        <ErrorAlert error={error} />
+        <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
+        <NavTabs tabs={tabs} />
+        <DagVizModal
+          dagDisplayName={dag?.dag_display_name}
+          dagId={dag?.dag_id}
+          onClose={onClose}
+          open={isModalOpen}
         />
-        <DagTabs dag={dag} />
       </Box>
       <Box overflow="auto">
         <Outlet />
