@@ -22,6 +22,7 @@ import pytest
 
 from airflow.models import DagBag
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 from airflow.sdk.definitions.asset import Asset, AssetAlias, Dataset
 
@@ -48,6 +49,16 @@ def clean():
 
 @pytest.fixture
 def make_dag(dag_maker, session, time_machine):
+    with dag_maker(
+        dag_id="external_trigger",
+        serialized=True,
+        session=session,
+        start_date=pendulum.DateTime(2023, 2, 1, 0, 0, 0, tzinfo=pendulum.UTC),
+    ):
+        TriggerDagRunOperator(task_id="trigger_dag_run_operator", trigger_dag_id=DAG_ID)
+
+    dag_maker.dagbag.sync_to_db()
+
     with dag_maker(
         dag_id=DAG_ID,
         serialized=True,
@@ -189,6 +200,12 @@ class TestStructureDataEndpoint:
                         {
                             "is_setup_teardown": None,
                             "label": None,
+                            "source_id": "trigger:external_trigger:test_dag_id:trigger_dag_run_operator",
+                            "target_id": "task_1",
+                        },
+                        {
+                            "is_setup_teardown": None,
+                            "label": None,
                             "source_id": "external_task_sensor",
                             "target_id": "task_2",
                         },
@@ -235,6 +252,16 @@ class TestStructureDataEndpoint:
                             "setup_teardown_type": None,
                             "type": "task",
                             "operator": "EmptyOperator",
+                        },
+                        {
+                            "children": None,
+                            "id": "trigger:external_trigger:test_dag_id:trigger_dag_run_operator",
+                            "is_mapped": None,
+                            "label": "trigger:external_trigger:test_dag_id:trigger_dag_run_operator",
+                            "tooltip": None,
+                            "setup_teardown_type": None,
+                            "type": "trigger",
+                            "operator": None,
                         },
                         {
                             "children": None,

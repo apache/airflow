@@ -54,7 +54,7 @@ def structure_data(
             task_ids_or_regex=root, include_upstream=include_upstream, include_downstream=include_downstream
         )
 
-    nodes = [task_group_to_dict(child) for child in dag.task_group.children.values()]
+    nodes = [task_group_to_dict(child) for child in dag.task_group.topological_sort()]
     edges = dag_edges(dag)
 
     data = {
@@ -64,28 +64,30 @@ def structure_data(
     }
 
     if external_dependencies:
-        dependencies = SerializedDagModel.get_dag_dependencies()[dag_id]
-
         entry_node_ref = nodes[0]
         exit_node_ref = nodes[-1]
 
-        for dependency in dependencies:
-            # Add nodes
-            nodes.append(
-                {
-                    "id": dependency.node_id,
-                    "label": dependency.node_id,
-                    "type": dependency.dependency_type,
-                }
-            )
+        for dependency_dag_id, dependencies in SerializedDagModel.get_dag_dependencies().items():
+            for dependency in dependencies:
+                if dependency_dag_id != dag_id and dependency.target != dag_id:
+                    continue
 
-            # Add edges
-            # start dependency
-            if dependency.target != dependency.dependency_type:
-                edges.insert(0, {"source_id": dependency.node_id, "target_id": entry_node_ref["id"]})
+                # Add nodes
+                nodes.append(
+                    {
+                        "id": dependency.node_id,
+                        "label": dependency.node_id,
+                        "type": dependency.dependency_type,
+                    }
+                )
 
-            # end dependency
-            elif dependency.source != dependency.dependency_type:
-                edges.append({"source_id": exit_node_ref["id"], "target_id": dependency.node_id})
+                # Add edges
+                # start dependency
+                if dependency.target != dependency.dependency_type:
+                    edges.insert(0, {"source_id": dependency.node_id, "target_id": entry_node_ref["id"]})
+
+                # end dependency
+                elif dependency.source != dependency.dependency_type:
+                    edges.append({"source_id": exit_node_ref["id"], "target_id": dependency.node_id})
 
     return StructureDataResponse(**data)
