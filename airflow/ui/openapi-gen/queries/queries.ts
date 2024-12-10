@@ -617,6 +617,53 @@ export const useStructureServiceStructureData = <
 /**
  * List Backfills
  * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @param data.dagId
+ * @param data.onlyActive
+ * @returns BackfillCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useBackfillServiceListBackfills = <
+  TData = Common.BackfillServiceListBackfillsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    limit,
+    offset,
+    onlyActive,
+    orderBy,
+  }: {
+    dagId?: string;
+    limit?: number;
+    offset?: number;
+    onlyActive?: boolean;
+    orderBy?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseBackfillServiceListBackfillsKeyFn(
+      { dagId, limit, offset, onlyActive, orderBy },
+      queryKey,
+    ),
+    queryFn: () =>
+      BackfillService.listBackfills({
+        dagId,
+        limit,
+        offset,
+        onlyActive,
+        orderBy,
+      }) as TData,
+    ...options,
+  });
+/**
+ * List Backfills
+ * @param data The data for the request.
  * @param data.dagId
  * @param data.limit
  * @param data.offset
@@ -624,8 +671,8 @@ export const useStructureServiceStructureData = <
  * @returns BackfillCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useBackfillServiceListBackfills = <
-  TData = Common.BackfillServiceListBackfillsDefaultResponse,
+export const useBackfillServiceListBackfills1 = <
+  TData = Common.BackfillServiceListBackfills1DefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -644,12 +691,17 @@ export const useBackfillServiceListBackfills = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseBackfillServiceListBackfillsKeyFn(
+    queryKey: Common.UseBackfillServiceListBackfills1KeyFn(
       { dagId, limit, offset, orderBy },
       queryKey,
     ),
     queryFn: () =>
-      BackfillService.listBackfills({ dagId, limit, offset, orderBy }) as TData,
+      BackfillService.listBackfills1({
+        dagId,
+        limit,
+        offset,
+        orderBy,
+      }) as TData,
     ...options,
   });
 /**

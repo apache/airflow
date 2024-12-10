@@ -1445,13 +1445,23 @@ export type StructureDataData = {
 export type StructureDataResponse2 = StructureDataResponse;
 
 export type ListBackfillsData = {
+  dagId?: string | null;
+  limit?: number;
+  offset?: number;
+  onlyActive?: boolean | null;
+  orderBy?: string;
+};
+
+export type ListBackfillsResponse = BackfillCollectionResponse;
+
+export type ListBackfills1Data = {
   dagId: string;
   limit?: number;
   offset?: number;
   orderBy?: string;
 };
 
-export type ListBackfillsResponse = BackfillCollectionResponse;
+export type ListBackfills1Response = BackfillCollectionResponse;
 
 export type CreateBackfillData = {
   requestBody: BackfillPostBody;
@@ -2512,9 +2522,28 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/backfills": {
+  "/ui/backfills": {
     get: {
       req: ListBackfillsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: BackfillCollectionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/backfills": {
+    get: {
+      req: ListBackfills1Data;
       res: {
         /**
          * Successful Response
