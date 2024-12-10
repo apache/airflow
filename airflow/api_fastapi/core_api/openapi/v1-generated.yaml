@@ -405,6 +405,50 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/assets/aliases/{asset_alias_id}:
+    get:
+      tags:
+      - Asset
+      summary: Get Asset Alias
+      description: Get an asset alias.
+      operationId: get_asset_alias
+      parameters:
+      - name: asset_alias_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Asset Alias Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/assets/events:
     get:
       tags:
@@ -550,7 +594,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/assets/queuedEvents/{uri}:
+  /public/assets/{asset_id}/queuedEvents:
     get:
       tags:
       - Asset
@@ -558,12 +602,12 @@ paths:
       description: Get queued asset events for an asset.
       operationId: get_asset_queued_events
       parameters:
-      - name: uri
+      - name: asset_id
         in: path
         required: true
         schema:
-          type: string
-          title: Uri
+          type: integer
+          title: Asset Id
       - name: before
         in: query
         required: false
@@ -610,12 +654,12 @@ paths:
       description: Delete queued asset events for an asset.
       operationId: delete_asset_queued_events
       parameters:
-      - name: uri
+      - name: asset_id
         in: path
         required: true
         schema:
-          type: string
-          title: Uri
+          type: integer
+          title: Asset Id
       - name: before
         in: query
         required: false
@@ -651,7 +695,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/assets/{uri}:
+  /public/assets/{asset_id}:
     get:
       tags:
       - Asset
@@ -659,12 +703,12 @@ paths:
       description: Get an asset.
       operationId: get_asset
       parameters:
-      - name: uri
+      - name: asset_id
         in: path
         required: true
         schema:
-          type: string
-          title: Uri
+          type: integer
+          title: Asset Id
       responses:
         '200':
           description: Successful Response
@@ -802,7 +846,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/assets/queuedEvents/{uri}:
+  /public/dags/{dag_id}/assets/{asset_id}/queuedEvents:
     get:
       tags:
       - Asset
@@ -816,12 +860,12 @@ paths:
         schema:
           type: string
           title: Dag Id
-      - name: uri
+      - name: asset_id
         in: path
         required: true
         schema:
-          type: string
-          title: Uri
+          type: integer
+          title: Asset Id
       - name: before
         in: query
         required: false
@@ -874,12 +918,12 @@ paths:
         schema:
           type: string
           title: Dag Id
-      - name: uri
+      - name: asset_id
         in: path
         required: true
         schema:
-          type: string
-          title: Uri
+          type: integer
+          title: Asset Id
       - name: before
         in: query
         required: false
@@ -5505,6 +5549,14 @@ paths:
           type: string
           default: id
           title: Order By
+      - name: variable_key_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Variable Key Pattern
       responses:
         '200':
           description: Successful Response
@@ -5930,9 +5982,6 @@ components:
         asset_id:
           type: integer
           title: Asset Id
-        uri:
-          type: string
-          title: Uri
         extra:
           anyOf:
           - type: object
@@ -5969,7 +6018,6 @@ components:
       required:
       - id
       - asset_id
-      - uri
       - source_map_index
       - created_dagruns
       - timestamp
@@ -6496,16 +6544,16 @@ components:
       description: Connection Test serializer for responses.
     CreateAssetEventsBody:
       properties:
-        uri:
-          type: string
-          title: Uri
+        asset_id:
+          type: integer
+          title: Asset Id
         extra:
           type: object
           title: Extra
       additionalProperties: false
       type: object
       required:
-      - uri
+      - asset_id
       title: CreateAssetEventsBody
       description: Create asset events request.
     DAGCollectionResponse:
@@ -8221,20 +8269,20 @@ components:
       description: Queued Event Collection serializer for responses.
     QueuedEventResponse:
       properties:
-        uri:
-          type: string
-          title: Uri
         dag_id:
           type: string
           title: Dag Id
+        asset_id:
+          type: integer
+          title: Asset Id
         created_at:
           type: string
           format: date-time
           title: Created At
       type: object
       required:
-      - uri
       - dag_id
+      - asset_id
       - created_at
       title: QueuedEventResponse
       description: Queued Event serializer for responses..
