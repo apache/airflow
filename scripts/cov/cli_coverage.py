@@ -38,7 +38,6 @@ files_not_fully_covered = [
     "airflow/cli/commands/local_commands/db_command.py",
     "airflow/cli/commands/local_commands/info_command.py",
     "airflow/cli/commands/remote_commands/jobs_command.py",
-    "airflow/cli/commands/hybrid_commands/kubernetes_command.py",
     "airflow/cli/commands/local_commands/plugins_command.py",
     "airflow/cli/commands/remote_commands/pool_command.py",
     "airflow/cli/commands/remote_commands/provider_command.py",
