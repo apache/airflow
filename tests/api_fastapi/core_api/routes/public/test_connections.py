@@ -247,7 +247,7 @@ class TestPostConnection(TestConnectionEndpoint):
         response = test_client.post("/public/connections", json=body)
         assert response.status_code == 409
         assert response.json() == {
-            "detail": "Unique constraint violation",
+            "detail": "Unique constraint violation: connection with conn_id=test_connection_id already exists",
         }
 
     @pytest.mark.enable_redact
@@ -397,7 +397,7 @@ class TestPostConnections(TestConnectionEndpoint):
         response = test_client.post("/public/connections/bulk", json=body)
         assert response.status_code == 409
         assert response.json() == {
-            "detail": "Unique constraint violation",
+            "detail": "Unique constraint violation: connection with conn_id=test_connection_id already exists",
         }
 
     @pytest.mark.enable_redact
