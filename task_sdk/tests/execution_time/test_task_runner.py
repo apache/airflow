@@ -28,7 +28,7 @@ from uuid6 import uuid7
 
 from airflow.sdk import DAG, BaseOperator
 from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
-from airflow.sdk.execution_time.comms import DeferTask, RTIFPayload, StartupDetails, TaskState
+from airflow.sdk.execution_time.comms import DeferTask, SetRenderedFields, StartupDetails, TaskState
 from airflow.sdk.execution_time.task_runner import CommsDecoder, parse, run, startup
 from airflow.utils import timezone
 
@@ -155,7 +155,7 @@ def test_startup_basic_templated_dag(test_dags_dir: Path):
         startup()
 
         mock_supervisor_comms.send_request.assert_called_once_with(
-            msg=RTIFPayload(
+            msg=SetRenderedFields(
                 rendered_fields={
                     "bash_command": "echo 'Logical date is {{ logical_date }}'",
                     "cwd": None,

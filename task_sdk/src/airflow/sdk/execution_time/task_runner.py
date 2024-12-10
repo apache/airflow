@@ -33,7 +33,7 @@ from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
 from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.execution_time.comms import (
     DeferTask,
-    RTIFPayload,
+    SetRenderedFields,
     StartupDetails,
     TaskState,
     ToSupervisor,
@@ -162,7 +162,7 @@ def startup() -> tuple[RuntimeTaskInstance, Logger]:
 
     # so that we do not call the API unnecessarily
     if payload:
-        SUPERVISOR_COMMS.send_request(log=log, msg=RTIFPayload(rendered_fields=payload))
+        SUPERVISOR_COMMS.send_request(log=log, msg=SetRenderedFields(rendered_fields=payload))
     return ti, log
 
 
