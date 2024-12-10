@@ -80,6 +80,7 @@ class TaskReschedule(TaskInstanceDependencies):
     )
     dag_run = relationship("DagRun")
     execution_date = association_proxy("dag_run", "execution_date")
+    logical_date = association_proxy("dag_run", "execution_date")
 
     def __init__(
         self,
