@@ -863,8 +863,6 @@ class BaseSerialization:
             return {k: cls.deserialize(v, use_pydantic_models) for k, v in var.items()}
         elif type_ == DAT.ASSET_EVENT_ACCESSORS:
             return decode_outlet_event_accessors(var)
-        elif type_ == DAT.ASSET_EVENT_ACCESSOR:
-            return decode_outlet_event_accessor(var)
         elif type_ == DAT.DAG:
             return SerializedDAG.deserialize_dag(var)
         elif type_ == DAT.OP:
