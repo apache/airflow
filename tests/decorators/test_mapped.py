@@ -17,6 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
+from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.utils.task_group import TaskGroup
 from tests.models import DEFAULT_DATE
@@ -36,3 +39,41 @@ def test_mapped_task_group_id_prefix_task_id():
 
     dag.get_task("t1") == x1.operator
     dag.get_task("g.t2") == x2.operator
+
+
+@pytest.mark.db_test
+def test_fail_task_generated_mapping_with_trigger_rule_always__exapnd(dag_maker, session):
+    with DAG(dag_id="d", schedule=None, start_date=DEFAULT_DATE):
+
+        @task
+        def get_input():
+            return ["world", "moon"]
+
+        @task(trigger_rule="always")
+        def hello(input):
+            print(f"Hello, {input}")
+
+        with pytest.raises(
+            ValueError,
+            match="Task-generated mapping within a task using 'expand' is not allowed with trigger rule 'always'",
+        ):
+            hello.expand(input=get_input())
+
+
+@pytest.mark.db_test
+def test_fail_task_generated_mapping_with_trigger_rule_always__exapnd_kwargs(dag_maker, session):
+    with DAG(dag_id="d", schedule=None, start_date=DEFAULT_DATE):
+
+        @task
+        def get_input():
+            return ["world", "moon"]
+
+        @task(trigger_rule="always")
+        def hello(input, input2):
+            print(f"Hello, {input}, {input2}")
+
+        with pytest.raises(
+            ValueError,
+            match="Task-generated mapping within a task using 'expand_kwargs' is not allowed with trigger rule 'always'",
+        ):
+            hello.expand_kwargs([{"input": get_input(), "input2": get_input()}])

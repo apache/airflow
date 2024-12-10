@@ -494,7 +494,7 @@ core:
       description: |
         Dataset URI validation should raise an exception if it is not compliant with AIP-60.
         By default this configuration is false, meaning that Airflow 2.x only warns the user.
-        In Airflow 3, this configuration will be enabled by default.
+        In Airflow 3, this configuration will be removed, unconditionally enabling strict validation.
       default: "False"
       example: ~
       version_added: 2.9.2

@@ -59,6 +59,7 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   tests-integration:
     timeout-minutes: 130
+    if: inputs.testable-integrations != '[]'
     name: "Integration Tests: ${{ matrix.integration }}"
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
     strategy:

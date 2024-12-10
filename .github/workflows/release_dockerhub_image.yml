@@ -85,6 +85,7 @@ jobs:
       "kaxil",
       "pierrejeambrun",
       "potiuk",
+      "utkarsharma2"
       ]'), github.event.sender.login)
     steps:
       - name: "Cleanup repo"

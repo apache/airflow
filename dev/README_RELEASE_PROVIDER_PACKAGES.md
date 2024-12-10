@@ -335,7 +335,6 @@ export AIRFLOW_REPO_ROOT=$(pwd -P)
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 ```
 
-
 * Release candidate packages:
 
 ```shell script

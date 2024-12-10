@@ -68,7 +68,9 @@ with DAG(
     def produce_dataset_events_through_dataset_alias_with_no_taskflow(*, outlet_events=None):
         bucket_name = "bucket"
         object_path = "my-task"
-        outlet_events["example-alias-no-taskflow"].add(Dataset(f"s3://{bucket_name}/{object_path}"))
+        outlet_events[DatasetAlias("example-alias-no-taskflow")].add(
+            Dataset(f"s3://{bucket_name}/{object_path}")
+        )
 
     PythonOperator(
         task_id="produce_dataset_events_through_dataset_alias_with_no_taskflow",

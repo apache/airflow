@@ -836,7 +836,7 @@ def static_checks(
         for attempt in range(1, 1 + max_initialization_attempts):
             get_console().print(f"[info]Attempt number {attempt} to install pre-commit environments")
             initialization_result = run_command(
-                [sys.executable, "-m", "pre_commit", "install", "--install-hooks"],
+                ["pre-commit", "install", "--install-hooks"],
                 check=False,
                 no_output_dump_on_exception=True,
                 text=True,
@@ -849,7 +849,7 @@ def static_checks(
             get_console().print("[error]Could not install pre-commit environments[/]")
             sys.exit(return_code)
 
-    command_to_execute = [sys.executable, "-m", "pre_commit", "run"]
+    command_to_execute = ["pre-commit", "run"]
     if not one_or_none_set([last_commit, commit_ref, only_my_changes, all_files]):
         get_console().print(
             "\n[error]You can only specify "

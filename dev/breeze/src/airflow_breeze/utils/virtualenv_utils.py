@@ -23,6 +23,7 @@ import tempfile
 from pathlib import Path
 from typing import Generator
 
+from airflow_breeze.utils.cache import check_if_cache_exists
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.run_utils import run_command
 
@@ -31,10 +32,15 @@ def create_pip_command(python: str | Path) -> list[str]:
     return [python.as_posix() if hasattr(python, "as_posix") else str(python), "-m", "pip"]
 
 
+def create_uv_command(python: str | Path) -> list[str]:
+    return [python.as_posix() if hasattr(python, "as_posix") else str(python), "-m", "uv", "pip"]
+
+
 def create_venv(
     venv_path: str | Path,
     python: str | None = None,
     pip_version: str | None = None,
+    uv_version: str | None = None,
     requirements_file: str | Path | None = None,
 ) -> str:
     venv_path = Path(venv_path).resolve().absolute()
@@ -53,10 +59,13 @@ def create_venv(
     if not python_path.exists():
         get_console().print(f"\n[errors]Python interpreter is not exist in path {python_path}. Exiting!\n")
         sys.exit(1)
-    pip_command = create_pip_command(python_path)
+    if check_if_cache_exists("use_uv"):
+        command = create_uv_command(python_path)
+    else:
+        command = create_pip_command(python_path)
     if pip_version:
         result = run_command(
-            [*pip_command, "install", f"pip=={pip_version}", "-q"],
+            [*command, "install", f"pip=={pip_version}", "-q"],
             check=False,
             capture_output=False,
             text=True,
@@ -67,10 +76,23 @@ def create_venv(
                 f"{result.stdout}\n{result.stderr}"
             )
             sys.exit(result.returncode)
+    if uv_version:
+        result = run_command(
+            [*command, "install", f"uv=={uv_version}", "-q"],
+            check=False,
+            capture_output=False,
+            text=True,
+        )
+        if result.returncode != 0:
+            get_console().print(
+                f"[error]Error when installing uv in {venv_path.as_posix()}[/]\n"
+                f"{result.stdout}\n{result.stderr}"
+            )
+            sys.exit(result.returncode)
     if requirements_file:
         requirements_file = Path(requirements_file).absolute().as_posix()
         result = run_command(
-            [*pip_command, "install", "-r", requirements_file, "-q"],
+            [*command, "install", "-r", requirements_file, "-q"],
             check=True,
             capture_output=False,
             text=True,
@@ -88,6 +110,7 @@ def create_venv(
 def create_temp_venv(
     python: str | None = None,
     pip_version: str | None = None,
+    uv_version: str | None = None,
     requirements_file: str | Path | None = None,
     prefix: str | None = None,
 ) -> Generator[str, None, None]:
@@ -96,5 +119,6 @@ def create_temp_venv(
             Path(tmp_dir_name) / ".venv",
             python=python,
             pip_version=pip_version,
+            uv_version=uv_version,
             requirements_file=requirements_file,
         )

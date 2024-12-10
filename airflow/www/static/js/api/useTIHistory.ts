@@ -48,7 +48,7 @@ export default function useTIHistory({
         .replace("_DAG_RUN_ID_", dagRunId)
         .replace("_TASK_ID_", taskId);
 
-      if (mapIndex && mapIndex > -1) {
+      if (mapIndex !== undefined && mapIndex > -1) {
         tiHistoryUrl = tiHistoryUrl.replace("/tries", `/${mapIndex}/tries`);
       }
 

@@ -125,7 +125,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers-test-types-list-as-string": None,
                     "separate-test-types-list-as-string": None,
                     "needs-mypy": "false",
-                    "mypy-folders": "[]",
+                    "mypy-checks": "[]",
                 },
                 id="No tests on simple change",
             )
@@ -152,7 +152,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers-test-types-list-as-string": "Providers[fab]",
                     "separate-test-types-list-as-string": "API Always Providers[fab]",
                     "needs-mypy": "true",
-                    "mypy-folders": "['airflow']",
+                    "mypy-checks": "['mypy-airflow']",
                 },
                 id="Only API tests and DOCS and FAB provider should run",
             )
@@ -177,7 +177,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "parallel-test-types-list-as-string": "API Always",
                     "separate-test-types-list-as-string": "API Always",
                     "needs-mypy": "true",
-                    "mypy-folders": "['airflow']",
+                    "mypy-checks": "['mypy-airflow']",
                 },
                 id="Only API tests and DOCS should run (no provider tests) when only internal_api changed",
             )
@@ -202,7 +202,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "parallel-test-types-list-as-string": "API Always",
                     "separate-test-types-list-as-string": "API Always",
                     "needs-mypy": "true",
-                    "mypy-folders": "['airflow']",
+                    "mypy-checks": "['mypy-airflow']",
                 },
                 id="Only API tests should run (no provider tests) and no DOCs build when only test API files changed",
             )
@@ -229,7 +229,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers-test-types-list-as-string": "",
                     "separate-test-types-list-as-string": "Always Operators",
                     "needs-mypy": "true",
-                    "mypy-folders": "['airflow']",
+                    "mypy-checks": "['mypy-airflow']",
                 },
                 id="Only Operator tests and DOCS should run",
             )
@@ -258,7 +258,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "separate-test-types-list-as-string": "Always BranchExternalPython BranchPythonVenv "
                     "ExternalPython Operators PythonVenv",
                     "needs-mypy": "true",
-                    "mypy-folders": "['airflow']",
+                    "mypy-checks": "['mypy-airflow']",
                 },
                 id="Only Python tests",
             )
@@ -285,7 +285,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers-test-types-list-as-string": "",
                     "separate-test-types-list-as-string": "Always Serialization",
                     "needs-mypy": "true",
-                    "mypy-folders": "['airflow']",
+                    "mypy-checks": "['mypy-airflow']",
                 },
                 id="Only Serialization tests",
             )
@@ -320,7 +320,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "Providers[fab] Providers[google] Providers[openlineage] Providers[pgvector] "
                     "Providers[postgres]",
                     "needs-mypy": "true",
-                    "mypy-folders": "['airflow', 'providers']",
+                    "mypy-checks": "['mypy-airflow', 'mypy-providers']",
                 },
                 id="API and providers tests and docs should run",
             )
@@ -348,7 +348,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers-test-types-list-as-string": "Providers[apache.beam] Providers[google]",
                     "separate-test-types-list-as-string": "Always Providers[apache.beam] Providers[google]",
                     "needs-mypy": "true",
-                    "mypy-folders": "['providers']",
+                    "mypy-checks": "['mypy-providers']",
                 },
                 id="Selected Providers and docs should run",
             )
@@ -375,7 +375,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "parallel-test-types-list-as-string": None,
                     "providers-test-types-list-as-string": None,
                     "needs-mypy": "false",
-                    "mypy-folders": "[]",
+                    "mypy-checks": "[]",
                 },
                 id="Only docs builds should run - no tests needed",
             )
@@ -407,7 +407,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers-test-types-list-as-string": "Providers[amazon] "
                     "Providers[common.sql,openlineage,pgvector,postgres] Providers[google]",
                     "needs-mypy": "true",
-                    "mypy-folders": "['providers']",
+                    "mypy-checks": "['mypy-providers']",
                 },
                 id="Helm tests, providers (both upstream and downstream),"
                 "kubernetes tests and docs should run",
@@ -443,7 +443,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "Providers[apache.livy] Providers[dbt.cloud] "
                     "Providers[dingding] Providers[discord] Providers[http]",
                     "needs-mypy": "true",
-                    "mypy-folders": "['providers']",
+                    "mypy-checks": "['mypy-providers']",
                 },
                 id="Helm tests, http and all relevant providers, kubernetes tests and "
                 "docs should run even if unimportant files were added",
@@ -474,7 +474,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "parallel-test-types-list-as-string": "Always Providers[airbyte,http]",
                     "providers-test-types-list-as-string": "Providers[airbyte,http]",
                     "needs-mypy": "true",
-                    "mypy-folders": "['providers']",
+                    "mypy-checks": "['mypy-providers']",
                 },
                 id="Helm tests, airbyte/http providers, kubernetes tests and "
                 "docs should run even if unimportant files were added",
@@ -506,7 +506,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "parallel-test-types-list-as-string": "Always",
                     "providers-test-types-list-as-string": "",
                     "needs-mypy": "true",
-                    "mypy-folders": "['airflow']",
+                    "mypy-checks": "['mypy-airflow']",
                 },
                 id="Docs should run even if unimportant files were added and prod image "
                 "should be build for chart changes",
@@ -533,7 +533,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
-                    "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
+                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev']",
                 },
                 id="Everything should run - including all providers and upgrading to "
                 "newer requirements as pyproject.toml changed and all Python versions",
@@ -560,7 +560,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
-                    "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
+                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev']",
                 },
                 id="Everything should run and upgrading to newer requirements as dependencies change",
             )
@@ -588,7 +588,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "Providers[apache.hive,cncf.kubernetes,common.compat,common.sql,exasol,ftp,http,"
                 "imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
                 "needs-mypy": "true",
-                "mypy-folders": "['providers']",
+                "mypy-checks": "['mypy-providers']",
             },
             id="Providers tests run including amazon tests if amazon provider files changed",
         ),
@@ -611,7 +611,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "upgrade-to-newer-dependencies": "false",
                 "parallel-test-types-list-as-string": "Always Providers[airbyte,http]",
                 "needs-mypy": "true",
-                "mypy-folders": "['providers']",
+                "mypy-checks": "['mypy-providers']",
             },
             id="Providers tests run without amazon tests if no amazon file changed",
         ),
@@ -638,7 +638,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "Providers[apache.hive,cncf.kubernetes,common.compat,common.sql,exasol,ftp,http,"
                 "imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
                 "needs-mypy": "true",
-                "mypy-folders": "['providers']",
+                "mypy-checks": "['mypy-providers']",
             },
             id="Providers tests run including amazon tests if amazon provider files changed",
         ),
@@ -665,7 +665,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "upgrade-to-newer-dependencies": "false",
                 "parallel-test-types-list-as-string": "Always Providers[common.compat,common.io,openlineage]",
                 "needs-mypy": "true",
-                "mypy-folders": "['airflow', 'providers']",
+                "mypy-checks": "['mypy-airflow', 'mypy-providers']",
             },
             id="Only Always and common providers tests should run when only common.io and tests/always changed",
         ),
@@ -688,7 +688,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "upgrade-to-newer-dependencies": "false",
                 "parallel-test-types-list-as-string": "Always Core Operators Serialization",
                 "needs-mypy": "true",
-                "mypy-folders": "['airflow']",
+                "mypy-checks": "['mypy-airflow']",
             },
             id="Force Core and Serialization tests to run when airflow bash.py changed",
         ),
@@ -711,7 +711,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "upgrade-to-newer-dependencies": "false",
                 "parallel-test-types-list-as-string": "Always Core Operators Serialization",
                 "needs-mypy": "true",
-                "mypy-folders": "['airflow']",
+                "mypy-checks": "['mypy-airflow']",
             },
             id="Force Core and Serialization tests to run when tests bash changed",
         ),
@@ -736,7 +736,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
-                    "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
+                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev']",
                 },
                 id="All tests should be run when tests/utils/ change",
             )
@@ -893,7 +893,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
-                    "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
+                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev']",
                 },
                 id="Everything should run including all providers when full tests are needed, "
                 "and all versions are required.",
@@ -927,7 +927,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
-                    "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
+                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev']",
                 },
                 id="Everything should run including all providers when full tests are needed "
                 "but with single python and kubernetes if `default versions only` label is set",
@@ -961,7 +961,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
-                    "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
+                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev']",
                 },
                 id="Everything should run including all providers when full tests are needed "
                 "but with single python and kubernetes if no version label is set",
@@ -996,7 +996,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
-                    "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
+                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev']",
                 },
                 id="Everything should run including all providers when full tests are needed "
                 "but with single python and kubernetes if `latest versions only` label is set",
@@ -1031,7 +1031,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
-                    "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
+                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev']",
                 },
                 id="Everything should run including full providers when full "
                 "tests are needed even with different label set as well",
@@ -1067,7 +1067,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     + LIST_OF_ALL_PROVIDER_TESTS
                     + " PythonVenv Serialization WWW",
                     "needs-mypy": "true",
-                    "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
+                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev']",
                 },
                 id="Everything should run including full providers when"
                 "full tests are needed even if no files are changed",
@@ -1101,7 +1101,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "BranchPythonVenv CLI Core ExternalPython Operators Other PlainAsserts "
                     "PythonVenv Serialization WWW",
                     "needs-mypy": "true",
-                    "mypy-folders": "['airflow', 'docs', 'dev']",
+                    "mypy-checks": "['mypy-airflow', 'mypy-docs', 'mypy-dev']",
                 },
                 id="Everything should run except Providers and lint pre-commit "
                 "when full tests are needed for non-main branch",
@@ -1144,7 +1144,7 @@ def test_expected_output_full_tests_needed(
                 "skip-provider-tests": "true",
                 "parallel-test-types-list-as-string": None,
                 "needs-mypy": "false",
-                "mypy-folders": "[]",
+                "mypy-checks": "[]",
             },
             id="Nothing should run if only non-important files changed",
         ),
@@ -1171,7 +1171,7 @@ def test_expected_output_full_tests_needed(
                 "skip-provider-tests": "true",
                 "parallel-test-types-list-as-string": "Always",
                 "needs-mypy": "false",
-                "mypy-folders": "[]",
+                "mypy-checks": "[]",
             },
             id="No Helm tests, No providers no lint charts, should run if "
             "only chart/providers changed in non-main but PROD image should be built",
@@ -1201,7 +1201,7 @@ def test_expected_output_full_tests_needed(
                 "skip-provider-tests": "true",
                 "parallel-test-types-list-as-string": "Always CLI",
                 "needs-mypy": "true",
-                "mypy-folders": "['airflow']",
+                "mypy-checks": "['mypy-airflow']",
             },
             id="Only CLI tests and Kubernetes tests should run if cli/chart files changed in non-main branch",
         ),
@@ -1227,7 +1227,7 @@ def test_expected_output_full_tests_needed(
                 "parallel-test-types-list-as-string": "API Always BranchExternalPython BranchPythonVenv "
                 "CLI Core ExternalPython Operators Other PlainAsserts PythonVenv Serialization WWW",
                 "needs-mypy": "true",
-                "mypy-folders": "['airflow']",
+                "mypy-checks": "['mypy-airflow']",
             },
             id="All tests except Providers and helm lint pre-commit "
             "should run if core file changed in non-main branch",
@@ -1268,7 +1268,7 @@ def test_expected_output_pull_request_v2_7(
                 "skip-provider-tests": "true",
                 "parallel-test-types-list-as-string": None,
                 "needs-mypy": "false",
-                "mypy-folders": "[]",
+                "mypy-checks": "[]",
             },
             id="Nothing should run if only non-important files changed",
         ),
@@ -1289,7 +1289,7 @@ def test_expected_output_pull_request_v2_7(
                 "skip-provider-tests": "true",
                 "parallel-test-types-list-as-string": "Always",
                 "needs-mypy": "true",
-                "mypy-folders": "['airflow']",
+                "mypy-checks": "['mypy-airflow']",
             },
             id="Only Always and docs build should run if only system tests changed",
         ),
@@ -1324,7 +1324,7 @@ def test_expected_output_pull_request_v2_7(
                 "hashicorp,microsoft.azure,microsoft.mssql,mysql,openlineage,oracle,postgres,presto,"
                 "salesforce,samba,sftp,ssh,trino] Providers[google]",
                 "needs-mypy": "true",
-                "mypy-folders": "['airflow', 'providers']",
+                "mypy-checks": "['mypy-airflow', 'mypy-providers']",
             },
             id="CLI tests and Google-related provider tests should run if cli/chart files changed but "
             "prod image should be build too and k8s tests too",
@@ -1352,7 +1352,7 @@ def test_expected_output_pull_request_v2_7(
                 "skip-provider-tests": "false",
                 "parallel-test-types-list-as-string": "API Always CLI Operators Providers[fab] WWW",
                 "needs-mypy": "true",
-                "mypy-folders": "['airflow']",
+                "mypy-checks": "['mypy-airflow']",
             },
             id="No providers tests except fab should run if only CLI/API/Operators/WWW file changed",
         ),
@@ -1373,7 +1373,7 @@ def test_expected_output_pull_request_v2_7(
                 "skip-provider-tests": "true",
                 "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES_WITHOUT_PROVIDERS,
                 "needs-mypy": "true",
-                "mypy-folders": "['airflow']",
+                "mypy-checks": "['mypy-airflow']",
             },
             id="Tests for all airflow core types except providers should run if model file changed",
         ),
@@ -1394,7 +1394,7 @@ def test_expected_output_pull_request_v2_7(
                 "skip-provider-tests": "true",
                 "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES_WITHOUT_PROVIDERS,
                 "needs-mypy": "true",
-                "mypy-folders": "['airflow']",
+                "mypy-checks": "['mypy-airflow']",
             },
             id="Tests for all airflow core types except providers should run if "
             "any other than API/WWW/CLI/Operators file changed.",
@@ -1436,7 +1436,7 @@ def test_expected_output_pull_request_target(
                 "upgrade-to-newer-dependencies": "true",
                 "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                 "needs-mypy": "true",
-                "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
+                "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev']",
             },
             id="All tests run on push even if unimportant file changed",
         ),
@@ -1459,7 +1459,7 @@ def test_expected_output_pull_request_target(
                 "parallel-test-types-list-as-string": "API Always BranchExternalPython BranchPythonVenv "
                 "CLI Core ExternalPython Operators Other PlainAsserts PythonVenv Serialization WWW",
                 "needs-mypy": "true",
-                "mypy-folders": "['airflow', 'docs', 'dev']",
+                "mypy-checks": "['mypy-airflow', 'mypy-docs', 'mypy-dev']",
             },
             id="All tests except Providers and Helm run on push"
             " even if unimportant file changed in non-main branch",
@@ -1482,7 +1482,7 @@ def test_expected_output_pull_request_target(
                 "upgrade-to-newer-dependencies": "true",
                 "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                 "needs-mypy": "true",
-                "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
+                "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev']",
             },
             id="All tests run on push if core file changed",
         ),
@@ -1537,7 +1537,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             else "false",
             "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
             "needs-mypy": "true",
-            "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
+            "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev']",
         },
         str(stderr),
     )
@@ -1763,7 +1763,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             dict(),
             # TODO: revert it when we fix self-hosted runners
             '["ubuntu-22.04"]',
-            '["self-hosted", "asf-runner"]',
+            '["ubuntu-22.04"]',
             # '["self-hosted", "Linux", "X64"]',
             # TODO: revert it when we fix self-hosted runners
             "false",
@@ -2115,7 +2115,7 @@ def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs
             ("README.md",),
             {
                 "needs-mypy": "false",
-                "mypy-folders": "[]",
+                "mypy-checks": "[]",
             },
             "main",
             (),
@@ -2125,7 +2125,7 @@ def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs
             ("airflow/cli/file.py",),
             {
                 "needs-mypy": "true",
-                "mypy-folders": "['airflow']",
+                "mypy-checks": "['mypy-airflow']",
             },
             "main",
             (),
@@ -2135,7 +2135,7 @@ def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs
             ("airflow/models/file.py",),
             {
                 "needs-mypy": "true",
-                "mypy-folders": "['airflow']",
+                "mypy-checks": "['mypy-airflow']",
             },
             "main",
             (),
@@ -2145,7 +2145,7 @@ def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs
             ("airflow/providers/a_file.py",),
             {
                 "needs-mypy": "true",
-                "mypy-folders": "['providers']",
+                "mypy-checks": "['mypy-providers']",
             },
             "main",
             (),
@@ -2155,7 +2155,7 @@ def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs
             ("docs/a_file.py",),
             {
                 "needs-mypy": "true",
-                "mypy-folders": "['docs']",
+                "mypy-checks": "['mypy-docs']",
             },
             "main",
             (),
@@ -2165,7 +2165,7 @@ def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs
             ("dev/a_package/a_file.py",),
             {
                 "needs-mypy": "true",
-                "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
+                "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev']",
             },
             "main",
             (),
@@ -2175,7 +2175,7 @@ def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs
             ("readme.md",),
             {
                 "needs-mypy": "true",
-                "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
+                "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev']",
             },
             "main",
             ("full tests needed",),

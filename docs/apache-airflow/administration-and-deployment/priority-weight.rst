@@ -63,6 +63,12 @@ Below are the weighting methods. By default, Airflow's weighting method is ``dow
 
 The ``priority_weight`` parameter can be used in conjunction with :ref:`concepts:pool`.
 
+.. note::
+
+    As most database engines are using 32-bit for integers, the maximum value for any calculated or
+    defined ``priority_weight`` is 2,147,483,647 and the minimum value is -2,147,483,648.
+
+
 Custom Weight Rule
 ------------------
 
