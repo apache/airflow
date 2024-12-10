@@ -49,7 +49,7 @@ from airflow.models.tasklog import LogTemplate
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasUniqueKey, AssetUniqueKey
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.pydantic.asset import AssetEventPydantic, AssetPydantic
 from airflow.serialization.pydantic.dag import DagModelPydantic, DagTagPydantic
@@ -150,6 +150,16 @@ DAG_RUN = DagRun(
 DAG_RUN.id = 1
 
 
+def create_outlet_event_accessors(
+    key: Asset | AssetAlias, extra: dict, asset_alias_events: list[AssetAliasEvent]
+) -> OutletEventAccessors:
+    o = OutletEventAccessors()
+    o[key].extra = extra
+    o[key].asset_alias_events = asset_alias_events
+
+    return o
+
+
 def equals(a, b) -> bool:
     return a == b
 
@@ -160,6 +170,13 @@ def equal_time(a: datetime, b: datetime) -> bool:
 
 def equal_exception(a: AirflowException, b: AirflowException) -> bool:
     return a.__class__ == b.__class__ and str(a) == str(b)
+
+
+def equal_outlet_event_accessors(a: OutletEventAccessors, b: OutletEventAccessors) -> bool:
+    return a._dict.keys() == b._dict.keys() and all(  # type: ignore[attr-defined]
+        equal_outlet_event_accessor(a._dict[key], b._dict[key])  # type: ignore[attr-defined]
+        for key in a._dict  # type: ignore[attr-defined]
+    )
 
 
 def equal_outlet_event_accessor(a: OutletEventAccessor, b: OutletEventAccessor) -> bool:
@@ -257,21 +274,17 @@ class MockLazySelectSequence(LazySelectSequence):
             lambda a, b: a.get_uri() == b.get_uri(),
         ),
         (
-            OutletEventAccessor(
-                key=AssetUniqueKey.from_asset(Asset(uri="test", name="test", group="test-group")),
-                extra={"key": "value"},
-                asset_alias_events=[],
+            create_outlet_event_accessors(
+                Asset(uri="test", name="test", group="test-group"), {"key": "value"}, []
             ),
-            DAT.ASSET_EVENT_ACCESSOR,
-            equal_outlet_event_accessor,
+            DAT.ASSET_EVENT_ACCESSORS,
+            equal_outlet_event_accessors,
         ),
         (
-            OutletEventAccessor(
-                key=AssetAliasUniqueKey.from_asset_alias(
-                    AssetAlias(name="test_alias", group="test-alias-group")
-                ),
-                extra={"key": "value"},
-                asset_alias_events=[
+            create_outlet_event_accessors(
+                AssetAlias(name="test_alias", group="test-alias-group"),
+                {"key": "value"},
+                [
                     AssetAliasEvent(
                         source_alias_name="test_alias",
                         dest_asset_key=AssetUniqueKey(name="test_name", uri="test://asset-uri"),
@@ -279,8 +292,8 @@ class MockLazySelectSequence(LazySelectSequence):
                     )
                 ],
             ),
-            DAT.ASSET_EVENT_ACCESSOR,
-            equal_outlet_event_accessor,
+            DAT.ASSET_EVENT_ACCESSORS,
+            equal_outlet_event_accessors,
         ),
         (
             AirflowException("test123 wohoo!"),

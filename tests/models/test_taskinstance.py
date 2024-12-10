@@ -2525,7 +2525,7 @@ class TestTaskInstance:
 
             @task(outlets=AssetAlias(alias_name_1))
             def producer(*, outlet_events):
-                outlet_events[alias_name_1].add(Asset(asset_uri))
+                outlet_events[AssetAlias(alias_name_1)].add(Asset(asset_uri))
 
             producer()
 
@@ -2581,9 +2581,9 @@ class TestTaskInstance:
                 ]
             )
             def producer(*, outlet_events):
-                outlet_events[asset_alias_name_1].add(Asset(asset_uri))
-                outlet_events[asset_alias_name_2].add(Asset(asset_uri))
-                outlet_events[asset_alias_name_3].add(Asset(asset_uri), extra={"k": "v"})
+                outlet_events[AssetAlias(asset_alias_name_1)].add(Asset(asset_uri))
+                outlet_events[AssetAlias(asset_alias_name_2)].add(Asset(asset_uri))
+                outlet_events[AssetAlias(asset_alias_name_3)].add(Asset(asset_uri), extra={"k": "v"})
 
             producer()
 
@@ -2686,7 +2686,7 @@ class TestTaskInstance:
 
             @task(outlets=AssetAlias(asset_alias_name))
             def producer(*, outlet_events):
-                outlet_events[asset_alias_name].add(Asset(asset_uri), extra={"key": "value"})
+                outlet_events[AssetAlias(asset_alias_name)].add(Asset(asset_uri), extra={"key": "value"})
 
             producer()
 
@@ -2786,7 +2786,7 @@ class TestTaskInstance:
 
             @task(outlets=AssetAlias(asset_alias_name))
             def write(*, ti, outlet_events):
-                outlet_events[asset_alias_name].add(Asset(asset_uri), extra={"from": ti.task_id})
+                outlet_events[AssetAlias(asset_alias_name)].add(Asset(asset_uri), extra={"from": ti.task_id})
 
             @task(inlets=AssetAlias(asset_alias_name))
             def read(*, inlet_events):
@@ -2875,7 +2875,7 @@ class TestTaskInstance:
 
             @task(outlets=Asset(asset_uri))
             def write(*, params, outlet_events):
-                outlet_events[asset_uri].extra = {"from": params["i"]}
+                outlet_events[Asset(asset_uri)].extra = {"from": params["i"]}
 
             write()
 
@@ -2935,7 +2935,7 @@ class TestTaskInstance:
 
             @task(outlets=AssetAlias(asset_alias_name))
             def write(*, params, outlet_events):
-                outlet_events[asset_alias_name].add(Asset(asset_uri), {"from": params["i"]})
+                outlet_events[AssetAlias(asset_alias_name)].add(Asset(asset_uri), {"from": params["i"]})
 
             write()
 
