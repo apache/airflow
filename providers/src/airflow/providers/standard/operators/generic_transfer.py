@@ -121,8 +121,9 @@ class GenericTransfer(BaseOperator):
         # Make sure string are converted to integers
         if isinstance(self.chunk_size, str):
             self.chunk_size = int(self.chunk_size)
-        if isinstance(self.insert_args.get("commit_every"), str):
-            self.insert_args["commit_every"] = int(self.insert_args.get("commit_every"))
+        commit_every = self.insert_args.get("commit_every")
+        if isinstance(commit_every, str):
+            self.insert_args["commit_every"] = int(commit_every)
 
     def paginated_execute(self, context: Context):
         destination_hook = BaseHook.get_hook(self.destination_conn_id, hook_params=self.destination_hook_params)

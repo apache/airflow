@@ -41,7 +41,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
     def __init__(
         self,
         sql: str | list[str],
-        conn_id: str | None = None,
+        conn_id: str,
         hook_params: dict | None = None,
         **kwargs,
     ):
@@ -81,7 +81,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
 
             if not callable(get_records):
                 raise RuntimeError(
-                    f"Hook for connection {self.source_conn_id!r} "
+                    f"Hook for connection {self.conn_id!r} "
                     f"({type(hook).__name__}) has no `get_records` method"
                 )
             else:
