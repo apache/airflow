@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+main
+....
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the {provider_name} provider package.
+  The following breaking changes were introduced:
+
+  * Remove ``TrinoOperator`` class from airflow.providers.trino.operators.trino. Please use ``airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator```
+
 5.9.0
 .....
 

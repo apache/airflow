@@ -32,7 +32,7 @@ from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import ExtractorManager
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
 from airflow.providers.openlineage.utils.utils import (
-    IS_AIRFLOW_2_10_OR_HIGHER,
+    AIRFLOW_V_2_10_PLUS,
     get_airflow_dag_run_facet,
     get_airflow_debug_facet,
     get_airflow_job_facet,
@@ -61,7 +61,7 @@ _openlineage_listener: OpenLineageListener | None = None
 
 def _get_try_number_success(val):
     # todo: remove when min airflow version >= 2.10.0
-    if IS_AIRFLOW_2_10_OR_HIGHER:
+    if AIRFLOW_V_2_10_PLUS:
         return val.try_number
     return val.try_number - 1
 
@@ -273,7 +273,7 @@ class OpenLineageListener:
 
         self._execute(on_success, "on_success", use_fork=True)
 
-    if IS_AIRFLOW_2_10_OR_HIGHER:
+    if AIRFLOW_V_2_10_PLUS:
 
         @hookimpl
         def on_task_instance_failed(
@@ -496,7 +496,7 @@ class OpenLineageListener:
                 self.log.debug("Executor have not started before `on_dag_run_success`")
                 return
 
-            if IS_AIRFLOW_2_10_OR_HIGHER:
+            if AIRFLOW_V_2_10_PLUS:
                 task_ids = DagRun._get_partial_task_ids(dag_run.dag)
             else:
                 task_ids = dag_run.dag.task_ids if dag_run.dag and dag_run.dag.partial else None
@@ -529,7 +529,7 @@ class OpenLineageListener:
                 self.log.debug("Executor have not started before `on_dag_run_failed`")
                 return
 
-            if IS_AIRFLOW_2_10_OR_HIGHER:
+            if AIRFLOW_V_2_10_PLUS:
                 task_ids = DagRun._get_partial_task_ids(dag_run.dag)
             else:
                 task_ids = dag_run.dag.task_ids if dag_run.dag and dag_run.dag.partial else None
