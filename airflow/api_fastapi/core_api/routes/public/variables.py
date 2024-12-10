@@ -22,7 +22,12 @@ from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
-from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
+from airflow.api_fastapi.common.parameters import (
+    QueryLimit,
+    QueryOffset,
+    QueryVariableKeyPatternSearch,
+    SortParam,
+)
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.variables import (
     VariableBody,
@@ -80,16 +85,18 @@ def get_variables(
         SortParam,
         Depends(
             SortParam(
-                ["key", "id"],
+                ["key", "id", "_val", "description"],
                 Variable,
             ).dynamic_depends()
         ),
     ],
     session: SessionDep,
+    varaible_key_pattern: QueryVariableKeyPatternSearch,
 ) -> VariableCollectionResponse:
     """Get all Variables entries."""
     variable_select, total_entries = paginated_select(
         statement=select(Variable),
+        filters=[varaible_key_pattern],
         order_by=order_by,
         offset=offset,
         limit=limit,

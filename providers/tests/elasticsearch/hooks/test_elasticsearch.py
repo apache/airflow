@@ -20,46 +20,24 @@ from __future__ import annotations
 from unittest import mock
 from unittest.mock import MagicMock
 
-import pytest
 from elasticsearch import Elasticsearch
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.elasticsearch.hooks.elasticsearch import (
-    ElasticsearchHook,
     ElasticsearchPythonHook,
     ElasticsearchSQLHook,
     ESConnection,
 )
 
 
-class TestElasticsearchHook:
-    def test_throws_warning(self):
-        self.cur = mock.MagicMock(rowcount=0)
-        self.conn = mock.MagicMock()
-        self.conn.cursor.return_value = self.cur
-        conn = self.conn
-        self.connection = Connection(host="localhost", port=9200, schema="http")
-
-        with pytest.warns(AirflowProviderDeprecationWarning):
-
-            class UnitTestElasticsearchHook(ElasticsearchHook):
-                conn_name_attr = "test_conn_id"
-
-                def get_conn(self):
-                    return conn
-
-            self.db_hook = UnitTestElasticsearchHook()
-
-
 class TestElasticsearchSQLHookConn:
     def setup_method(self):
         self.connection = Connection(host="localhost", port=9200, schema="http")
 
-        class UnitTestElasticsearchHook(ElasticsearchSQLHook):
+        class UnitTestElasticsearchSQLHook(ElasticsearchSQLHook):
             conn_name_attr = "elasticsearch_conn_id"
 
-        self.db_hook = UnitTestElasticsearchHook()
+        self.db_hook = UnitTestElasticsearchSQLHook()
         self.db_hook.get_connection = mock.Mock()
         self.db_hook.get_connection.return_value = self.connection
 
@@ -77,13 +55,13 @@ class TestElasticsearchSQLHook:
         self.conn.cursor.return_value = self.cur
         conn = self.conn
 
-        class UnitTestElasticsearchHook(ElasticsearchSQLHook):
+        class UnitTestElasticsearchSQLHook(ElasticsearchSQLHook):
             conn_name_attr = "test_conn_id"
 
             def get_conn(self):
                 return conn
 
-        self.db_hook = UnitTestElasticsearchHook()
+        self.db_hook = UnitTestElasticsearchSQLHook()
 
     def test_get_first_record(self):
         statement = "SQL"

@@ -59,12 +59,14 @@ export const UseAssetServiceGetAssetsKeyFn = (
   {
     dagIds,
     limit,
+    namePattern,
     offset,
     orderBy,
     uriPattern,
   }: {
     dagIds?: string[];
     limit?: number;
+    namePattern?: string;
     offset?: number;
     orderBy?: string;
     uriPattern?: string;
@@ -72,8 +74,51 @@ export const UseAssetServiceGetAssetsKeyFn = (
   queryKey?: Array<unknown>,
 ) => [
   useAssetServiceGetAssetsKey,
-  ...(queryKey ?? [{ dagIds, limit, offset, orderBy, uriPattern }]),
+  ...(queryKey ?? [
+    { dagIds, limit, namePattern, offset, orderBy, uriPattern },
+  ]),
 ];
+export type AssetServiceGetAssetAliasesDefaultResponse = Awaited<
+  ReturnType<typeof AssetService.getAssetAliases>
+>;
+export type AssetServiceGetAssetAliasesQueryResult<
+  TData = AssetServiceGetAssetAliasesDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useAssetServiceGetAssetAliasesKey = "AssetServiceGetAssetAliases";
+export const UseAssetServiceGetAssetAliasesKeyFn = (
+  {
+    limit,
+    namePattern,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    namePattern?: string;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useAssetServiceGetAssetAliasesKey,
+  ...(queryKey ?? [{ limit, namePattern, offset, orderBy }]),
+];
+export type AssetServiceGetAssetAliasDefaultResponse = Awaited<
+  ReturnType<typeof AssetService.getAssetAlias>
+>;
+export type AssetServiceGetAssetAliasQueryResult<
+  TData = AssetServiceGetAssetAliasDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useAssetServiceGetAssetAliasKey = "AssetServiceGetAssetAlias";
+export const UseAssetServiceGetAssetAliasKeyFn = (
+  {
+    assetAliasId,
+  }: {
+    assetAliasId: number;
+  },
+  queryKey?: Array<unknown>,
+) => [useAssetServiceGetAssetAliasKey, ...(queryKey ?? [{ assetAliasId }])];
 export type AssetServiceGetAssetEventsDefaultResponse = Awaited<
   ReturnType<typeof AssetService.getAssetEvents>
 >;
@@ -129,16 +174,16 @@ export const useAssetServiceGetAssetQueuedEventsKey =
   "AssetServiceGetAssetQueuedEvents";
 export const UseAssetServiceGetAssetQueuedEventsKeyFn = (
   {
+    assetId,
     before,
-    uri,
   }: {
+    assetId: number;
     before?: string;
-    uri: string;
   },
   queryKey?: Array<unknown>,
 ) => [
   useAssetServiceGetAssetQueuedEventsKey,
-  ...(queryKey ?? [{ before, uri }]),
+  ...(queryKey ?? [{ assetId, before }]),
 ];
 export type AssetServiceGetAssetDefaultResponse = Awaited<
   ReturnType<typeof AssetService.getAsset>
@@ -150,12 +195,12 @@ export type AssetServiceGetAssetQueryResult<
 export const useAssetServiceGetAssetKey = "AssetServiceGetAsset";
 export const UseAssetServiceGetAssetKeyFn = (
   {
-    uri,
+    assetId,
   }: {
-    uri: string;
+    assetId: number;
   },
   queryKey?: Array<unknown>,
-) => [useAssetServiceGetAssetKey, ...(queryKey ?? [{ uri }])];
+) => [useAssetServiceGetAssetKey, ...(queryKey ?? [{ assetId }])];
 export type AssetServiceGetDagAssetQueuedEventsDefaultResponse = Awaited<
   ReturnType<typeof AssetService.getDagAssetQueuedEvents>
 >;
@@ -189,18 +234,18 @@ export const useAssetServiceGetDagAssetQueuedEventKey =
   "AssetServiceGetDagAssetQueuedEvent";
 export const UseAssetServiceGetDagAssetQueuedEventKeyFn = (
   {
+    assetId,
     before,
     dagId,
-    uri,
   }: {
+    assetId: number;
     before?: string;
     dagId: string;
-    uri: string;
   },
   queryKey?: Array<unknown>,
 ) => [
   useAssetServiceGetDagAssetQueuedEventKey,
-  ...(queryKey ?? [{ before, dagId, uri }]),
+  ...(queryKey ?? [{ assetId, before, dagId }]),
 ];
 export type ConfigServiceGetConfigsDefaultResponse = Awaited<
   ReturnType<typeof ConfigService.getConfigs>
@@ -656,31 +701,6 @@ export const UseDagServiceGetDagsKeyFn = (
     },
   ]),
 ];
-export type DagServiceGetDagTagsDefaultResponse = Awaited<
-  ReturnType<typeof DagService.getDagTags>
->;
-export type DagServiceGetDagTagsQueryResult<
-  TData = DagServiceGetDagTagsDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useDagServiceGetDagTagsKey = "DagServiceGetDagTags";
-export const UseDagServiceGetDagTagsKeyFn = (
-  {
-    limit,
-    offset,
-    orderBy,
-    tagNamePattern,
-  }: {
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-    tagNamePattern?: string;
-  } = {},
-  queryKey?: Array<unknown>,
-) => [
-  useDagServiceGetDagTagsKey,
-  ...(queryKey ?? [{ limit, offset, orderBy, tagNamePattern }]),
-];
 export type DagServiceGetDagDefaultResponse = Awaited<
   ReturnType<typeof DagService.getDag>
 >;
@@ -713,6 +733,31 @@ export const UseDagServiceGetDagDetailsKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useDagServiceGetDagDetailsKey, ...(queryKey ?? [{ dagId }])];
+export type DagServiceGetDagTagsDefaultResponse = Awaited<
+  ReturnType<typeof DagService.getDagTags>
+>;
+export type DagServiceGetDagTagsQueryResult<
+  TData = DagServiceGetDagTagsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagServiceGetDagTagsKey = "DagServiceGetDagTags";
+export const UseDagServiceGetDagTagsKeyFn = (
+  {
+    limit,
+    offset,
+    orderBy,
+    tagNamePattern,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    tagNamePattern?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useDagServiceGetDagTagsKey,
+  ...(queryKey ?? [{ limit, offset, orderBy, tagNamePattern }]),
+];
 export type EventLogServiceGetEventLogDefaultResponse = Awaited<
   ReturnType<typeof EventLogService.getEventLog>
 >;
@@ -1552,15 +1597,17 @@ export const UseVariableServiceGetVariablesKeyFn = (
     limit,
     offset,
     orderBy,
+    variableKeyPattern,
   }: {
     limit?: number;
     offset?: number;
     orderBy?: string;
+    variableKeyPattern?: string;
   } = {},
   queryKey?: Array<unknown>,
 ) => [
   useVariableServiceGetVariablesKey,
-  ...(queryKey ?? [{ limit, offset, orderBy }]),
+  ...(queryKey ?? [{ limit, offset, orderBy, variableKeyPattern }]),
 ];
 export type MonitorServiceGetHealthDefaultResponse = Awaited<
   ReturnType<typeof MonitorService.getHealth>

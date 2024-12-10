@@ -41,7 +41,6 @@ from sqlalchemy.engine import Inspector
 from airflow.exceptions import (
     AirflowException,
     AirflowOptionalProviderFeatureException,
-    AirflowProviderDeprecationWarning,
 )
 from airflow.hooks.base import BaseHook
 
@@ -60,7 +59,7 @@ WARNING_MESSAGE = """Import of {} from the 'airflow.providers.common.sql.hooks' 
 be removed in the future. Please import it from 'airflow.providers.common.sql.hooks.handlers'."""
 
 
-def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool):
+def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool | None):
     warnings.warn(WARNING_MESSAGE.format("return_single_query_results"), DeprecationWarning, stacklevel=2)
 
     from airflow.providers.common.sql.hooks import handlers
@@ -502,17 +501,6 @@ class DbApiHook(BaseHook):
         If this method is not overridden, the result data is returned as-is. If the output of the cursor
         is already a common data structure, this method should be ignored.
         """
-        # Back-compatibility call for providers implementing old ´_make_serializable' method.
-        with contextlib.suppress(AttributeError):
-            result = self._make_serializable(result=result)  # type: ignore[attr-defined]
-            warnings.warn(
-                "The `_make_serializable` method is deprecated and support will be removed in a future "
-                f"version of the common.sql provider. Please update the {self.__class__.__name__}'s provider "
-                "to a version based on common.sql >= 1.9.1.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-
         if isinstance(result, Sequence):
             return cast(list[tuple], result)
         return cast(tuple, result)

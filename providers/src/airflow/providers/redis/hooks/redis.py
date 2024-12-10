@@ -19,12 +19,10 @@
 
 from __future__ import annotations
 
-import warnings
 from typing import Any
 
 from redis import Redis
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 DEFAULT_SSL_CERT_REQS = "required"
@@ -37,7 +35,7 @@ class RedisHook(BaseHook):
 
     You can set your db in the extra field of your connection as ``{"db": 3}``.
     Also you can set ssl parameters as:
-    ``{"ssl": true, "ssl_cert_reqs": "require", "ssl_cert_file": "/path/to/cert.pem", etc}``.
+    ``{"ssl": true, "ssl_cert_reqs": "require", "ssl_certfile": "/path/to/cert.pem", etc}``.
     """
 
     conn_name_attr = "redis_conn_id"
@@ -80,16 +78,6 @@ class RedisHook(BaseHook):
             "ssl_check_hostname",
         ]
         ssl_args = {name: val for name, val in conn.extra_dejson.items() if name in ssl_arg_names}
-
-        # This logic is for backward compatibility only
-        if "ssl_cert_file" in conn.extra_dejson and "ssl_certfile" not in conn.extra_dejson:
-            warnings.warn(
-                "Extra parameter `ssl_cert_file` deprecated and will be removed "
-                "in a future release. Please use `ssl_certfile` instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            ssl_args["ssl_certfile"] = conn.extra_dejson.get("ssl_cert_file")
 
         if not self.redis:
             self.log.debug(

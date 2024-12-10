@@ -56,6 +56,7 @@ export const prefetchUseAssetServiceNextRunAssets = (
  * @param data The data for the request.
  * @param data.limit
  * @param data.offset
+ * @param data.namePattern
  * @param data.uriPattern
  * @param data.dagIds
  * @param data.orderBy
@@ -67,12 +68,14 @@ export const prefetchUseAssetServiceGetAssets = (
   {
     dagIds,
     limit,
+    namePattern,
     offset,
     orderBy,
     uriPattern,
   }: {
     dagIds?: string[];
     limit?: number;
+    namePattern?: string;
     offset?: number;
     orderBy?: string;
     uriPattern?: string;
@@ -82,12 +85,75 @@ export const prefetchUseAssetServiceGetAssets = (
     queryKey: Common.UseAssetServiceGetAssetsKeyFn({
       dagIds,
       limit,
+      namePattern,
       offset,
       orderBy,
       uriPattern,
     }),
     queryFn: () =>
-      AssetService.getAssets({ dagIds, limit, offset, orderBy, uriPattern }),
+      AssetService.getAssets({
+        dagIds,
+        limit,
+        namePattern,
+        offset,
+        orderBy,
+        uriPattern,
+      }),
+  });
+/**
+ * Get Asset Aliases
+ * Get asset aliases.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.namePattern
+ * @param data.orderBy
+ * @returns AssetAliasCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseAssetServiceGetAssetAliases = (
+  queryClient: QueryClient,
+  {
+    limit,
+    namePattern,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    namePattern?: string;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseAssetServiceGetAssetAliasesKeyFn({
+      limit,
+      namePattern,
+      offset,
+      orderBy,
+    }),
+    queryFn: () =>
+      AssetService.getAssetAliases({ limit, namePattern, offset, orderBy }),
+  });
+/**
+ * Get Asset Alias
+ * Get an asset alias.
+ * @param data The data for the request.
+ * @param data.assetAliasId
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseAssetServiceGetAssetAlias = (
+  queryClient: QueryClient,
+  {
+    assetAliasId,
+  }: {
+    assetAliasId: number;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseAssetServiceGetAssetAliasKeyFn({ assetAliasId }),
+    queryFn: () => AssetService.getAssetAlias({ assetAliasId }),
   });
 /**
  * Get Asset Events
@@ -153,7 +219,7 @@ export const prefetchUseAssetServiceGetAssetEvents = (
  * Get Asset Queued Events
  * Get queued asset events for an asset.
  * @param data The data for the request.
- * @param data.uri
+ * @param data.assetId
  * @param data.before
  * @returns QueuedEventCollectionResponse Successful Response
  * @throws ApiError
@@ -161,36 +227,39 @@ export const prefetchUseAssetServiceGetAssetEvents = (
 export const prefetchUseAssetServiceGetAssetQueuedEvents = (
   queryClient: QueryClient,
   {
+    assetId,
     before,
-    uri,
   }: {
+    assetId: number;
     before?: string;
-    uri: string;
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseAssetServiceGetAssetQueuedEventsKeyFn({ before, uri }),
-    queryFn: () => AssetService.getAssetQueuedEvents({ before, uri }),
+    queryKey: Common.UseAssetServiceGetAssetQueuedEventsKeyFn({
+      assetId,
+      before,
+    }),
+    queryFn: () => AssetService.getAssetQueuedEvents({ assetId, before }),
   });
 /**
  * Get Asset
  * Get an asset.
  * @param data The data for the request.
- * @param data.uri
+ * @param data.assetId
  * @returns AssetResponse Successful Response
  * @throws ApiError
  */
 export const prefetchUseAssetServiceGetAsset = (
   queryClient: QueryClient,
   {
-    uri,
+    assetId,
   }: {
-    uri: string;
+    assetId: number;
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseAssetServiceGetAssetKeyFn({ uri }),
-    queryFn: () => AssetService.getAsset({ uri }),
+    queryKey: Common.UseAssetServiceGetAssetKeyFn({ assetId }),
+    queryFn: () => AssetService.getAsset({ assetId }),
   });
 /**
  * Get Dag Asset Queued Events
@@ -223,7 +292,7 @@ export const prefetchUseAssetServiceGetDagAssetQueuedEvents = (
  * Get a queued asset event for a DAG.
  * @param data The data for the request.
  * @param data.dagId
- * @param data.uri
+ * @param data.assetId
  * @param data.before
  * @returns QueuedEventResponse Successful Response
  * @throws ApiError
@@ -231,22 +300,23 @@ export const prefetchUseAssetServiceGetDagAssetQueuedEvents = (
 export const prefetchUseAssetServiceGetDagAssetQueuedEvent = (
   queryClient: QueryClient,
   {
+    assetId,
     before,
     dagId,
-    uri,
   }: {
+    assetId: number;
     before?: string;
     dagId: string;
-    uri: string;
   },
 ) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseAssetServiceGetDagAssetQueuedEventKeyFn({
+      assetId,
       before,
       dagId,
-      uri,
     }),
-    queryFn: () => AssetService.getDagAssetQueuedEvent({ before, dagId, uri }),
+    queryFn: () =>
+      AssetService.getDagAssetQueuedEvent({ assetId, before, dagId }),
   });
 /**
  * Get Configs
@@ -851,41 +921,6 @@ export const prefetchUseDagServiceGetDags = (
       }),
   });
 /**
- * Get Dag Tags
- * Get all DAG tags.
- * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
- * @param data.tagNamePattern
- * @returns DAGTagCollectionResponse Successful Response
- * @throws ApiError
- */
-export const prefetchUseDagServiceGetDagTags = (
-  queryClient: QueryClient,
-  {
-    limit,
-    offset,
-    orderBy,
-    tagNamePattern,
-  }: {
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-    tagNamePattern?: string;
-  } = {},
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseDagServiceGetDagTagsKeyFn({
-      limit,
-      offset,
-      orderBy,
-      tagNamePattern,
-    }),
-    queryFn: () =>
-      DagService.getDagTags({ limit, offset, orderBy, tagNamePattern }),
-  });
-/**
  * Get Dag
  * Get basic information about a DAG.
  * @param data The data for the request.
@@ -926,6 +961,41 @@ export const prefetchUseDagServiceGetDagDetails = (
     queryFn: () => DagService.getDagDetails({ dagId }),
   });
 /**
+ * Get Dag Tags
+ * Get all DAG tags.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @param data.tagNamePattern
+ * @returns DAGTagCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagServiceGetDagTags = (
+  queryClient: QueryClient,
+  {
+    limit,
+    offset,
+    orderBy,
+    tagNamePattern,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    tagNamePattern?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagServiceGetDagTagsKeyFn({
+      limit,
+      offset,
+      orderBy,
+      tagNamePattern,
+    }),
+    queryFn: () =>
+      DagService.getDagTags({ limit, offset, orderBy, tagNamePattern }),
+  });
+/**
  * Get Event Log
  * @param data The data for the request.
  * @param data.eventLogId
@@ -948,6 +1018,9 @@ export const prefetchUseEventLogServiceGetEventLog = (
  * Get Event Logs
  * Get all Event Logs.
  * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
  * @param data.dagId
  * @param data.taskId
  * @param data.runId
@@ -959,9 +1032,6 @@ export const prefetchUseEventLogServiceGetEventLog = (
  * @param data.includedEvents
  * @param data.before
  * @param data.after
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
  * @returns EventLogCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -2117,6 +2187,7 @@ export const prefetchUseVariableServiceGetVariable = (
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
+ * @param data.variableKeyPattern
  * @returns VariableCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -2126,10 +2197,12 @@ export const prefetchUseVariableServiceGetVariables = (
     limit,
     offset,
     orderBy,
+    variableKeyPattern,
   }: {
     limit?: number;
     offset?: number;
     orderBy?: string;
+    variableKeyPattern?: string;
   } = {},
 ) =>
   queryClient.prefetchQuery({
@@ -2137,8 +2210,15 @@ export const prefetchUseVariableServiceGetVariables = (
       limit,
       offset,
       orderBy,
+      variableKeyPattern,
     }),
-    queryFn: () => VariableService.getVariables({ limit, offset, orderBy }),
+    queryFn: () =>
+      VariableService.getVariables({
+        limit,
+        offset,
+        orderBy,
+        variableKeyPattern,
+      }),
   });
 /**
  * Get Health

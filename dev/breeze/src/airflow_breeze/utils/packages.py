@@ -554,7 +554,7 @@ def get_provider_details(provider_id: str) -> ProviderPackageDetails:
         provider_description=provider_info["description"],
         dependencies=provider_info["dependencies"],
         versions=provider_info["versions"],
-        excluded_python_versions=provider_info.get("excluded-python-versions") or [],
+        excluded_python_versions=provider_info.get("excluded-python-versions", []),
         plugins=plugins,
         removed=provider_info["state"] == "removed",
     )

@@ -44,7 +44,9 @@ def return_single_query_results(sql: str | Iterable[str], return_last: bool, spl
     :param split_statements: whether to split string statements.
     :return: True if the hook should return single query results
     """
-    return isinstance(sql, str) and (return_last or not split_statements)
+    if split_statements is not None:
+        return isinstance(sql, str) and (return_last or not split_statements)
+    return isinstance(sql, str) and return_last
 
 
 def fetch_all_handler(cursor) -> list[tuple] | None:

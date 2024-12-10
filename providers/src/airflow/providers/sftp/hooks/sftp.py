@@ -24,6 +24,7 @@ import os
 import stat
 import warnings
 from contextlib import contextmanager, closing
+from collections.abc import Sequence
 from fnmatch import fnmatch
 from io import BytesIO
 from typing import TYPE_CHECKING, Any, Callable, Sequence
@@ -58,7 +59,6 @@ class SFTPHook(SSHHook):
     For consistency reasons with SSHHook, the preferred parameter is "ssh_conn_id".
 
     :param ssh_conn_id: The :ref:`sftp connection id<howto/connection:sftp>`
-    :param ssh_hook: Optional SSH hook (included to support passing of an SSH hook to the SFTP operator)
     """
 
     conn_name_attr = "ssh_conn_id"
@@ -137,6 +137,15 @@ class SFTPHook(SSHHook):
         """
         with self.get_sftp_conn() as conn:
             return sorted(conn.listdir(path))
+
+    def list_directory_with_attr(self, path: str) -> list[paramiko.SFTPAttributes]:
+        """
+        List files in a directory on the remote system including their SFTPAttributes.
+
+        :param path: full path to the remote directory to list
+        """
+        conn = self.get_conn()
+        return [file for file in conn.listdir_attr(path)]
 
     def mkdir(self, path: str, mode: int = 0o777) -> None:
         """
@@ -319,9 +328,9 @@ class SFTPHook(SSHHook):
         :param bool recurse: *Default: True* - should it recurse
         """
         with self.get_sftp_conn() as conn:
-            for entry in self.list_directory(path):
-                pathname = os.path.join(path, entry)
-                mode = conn.stat(pathname).st_mode
+            for entry in self.list_directory_with_attr(path):
+                pathname = os.path.join(path, entry.filename)
+                mode = entry.st_mode
                 if stat.S_ISDIR(mode):  # type: ignore
                     # It's a directory, call the dcallback function
                     dcallback(pathname)
@@ -396,9 +405,9 @@ class SFTPHook(SSHHook):
         :return: list of string containing the found files, or an empty list if none matched
         """
         matched_files = []
-        for file in self.list_directory(path):
-            if fnmatch(file, fnmatch_pattern):
-                matched_files.append(file)
+        for file in self.list_directory_with_attr(path):
+            if fnmatch(file.filename, fnmatch_pattern):
+                matched_files.append(file.filename)
 
         return matched_files
 

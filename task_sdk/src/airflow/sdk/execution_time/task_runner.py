@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import os
 import sys
+from datetime import datetime, timezone
 from io import FileIO
 from typing import TYPE_CHECKING, TextIO
 
@@ -28,9 +29,16 @@ import attrs
 import structlog
 from pydantic import ConfigDict, TypeAdapter
 
-from airflow.sdk.api.datamodels._generated import TaskInstance
+from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
 from airflow.sdk.definitions.baseoperator import BaseOperator
-from airflow.sdk.execution_time.comms import DeferTask, StartupDetails, ToSupervisor, ToTask
+from airflow.sdk.execution_time.comms import (
+    DeferTask,
+    SetRenderedFields,
+    StartupDetails,
+    TaskState,
+    ToSupervisor,
+    ToTask,
+)
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
@@ -135,11 +143,27 @@ def startup() -> tuple[RuntimeTaskInstance, Logger]:
         # TODO: set the "magic loop" context vars for parsing
         ti = parse(msg)
         log.debug("DAG file parsed", file=msg.file)
-        return ti, log
     else:
         raise RuntimeError(f"Unhandled  startup message {type(msg)} {msg}")
 
     # TODO: Render fields here
+    # 1. Implementing the part where we pull in the logic to render fields and add that here
+    # for all operators, we should do setattr(task, templated_field, rendered_templated_field)
+    # task.templated_fields should give all the templated_fields and each of those fields should
+    # give the rendered values.
+
+    # 2. Once rendered, we call the `set_rtif` API to store the rtif in the metadata DB
+    templated_fields = ti.task.template_fields
+    payload = {}
+
+    for field in templated_fields:
+        if field not in payload:
+            payload[field] = getattr(ti.task, field)
+
+    # so that we do not call the API unnecessarily
+    if payload:
+        SUPERVISOR_COMMS.send_request(log=log, msg=SetRenderedFields(rendered_fields=payload))
+    return ti, log
 
 
 def run(ti: RuntimeTaskInstance, log: Logger):
@@ -158,11 +182,14 @@ def run(ti: RuntimeTaskInstance, log: Logger):
     if TYPE_CHECKING:
         assert ti.task is not None
         assert isinstance(ti.task, BaseOperator)
+
+    msg: ToSupervisor | None = None
     try:
         # TODO: pre execute etc.
         # TODO next_method to support resuming from deferred
         # TODO: Get a real context object
         ti.task.execute({"task_instance": ti})  # type: ignore[attr-defined]
+        msg = TaskState(state=TerminalTIState.SUCCESS, end_date=datetime.now(tz=timezone.utc))
     except TaskDeferred as defer:
         classpath, trigger_kwargs = defer.trigger.serialize()
         next_method = defer.method_name
@@ -173,9 +200,11 @@ def run(ti: RuntimeTaskInstance, log: Logger):
             next_method=next_method,
             trigger_timeout=timeout,
         )
-        SUPERVISOR_COMMS.send_request(msg=msg, log=log)
     except AirflowSkipException:
-        ...
+        msg = TaskState(
+            state=TerminalTIState.SKIPPED,
+            end_date=datetime.now(tz=timezone.utc),
+        )
     except AirflowRescheduleException:
         ...
     except (AirflowFailException, AirflowSensorTimeout):
@@ -188,6 +217,9 @@ def run(ti: RuntimeTaskInstance, log: Logger):
     except BaseException:
         # TODO: Handle TI handle failure
         raise
+
+    if msg:
+        SUPERVISOR_COMMS.send_request(msg=msg, log=log)
 
 
 def finalize(log: Logger): ...

@@ -7,6 +7,10 @@ import type {
   NextRunAssetsResponse,
   GetAssetsData,
   GetAssetsResponse,
+  GetAssetAliasesData,
+  GetAssetAliasesResponse,
+  GetAssetAliasData,
+  GetAssetAliasResponse,
   GetAssetEventsData,
   GetAssetEventsResponse,
   CreateAssetEventData,
@@ -88,8 +92,6 @@ import type {
   GetDagsResponse,
   PatchDagsData,
   PatchDagsResponse,
-  GetDagTagsData,
-  GetDagTagsResponse,
   GetDagData,
   GetDagResponse,
   PatchDagData,
@@ -98,6 +100,8 @@ import type {
   DeleteDagResponse,
   GetDagDetailsData,
   GetDagDetailsResponse,
+  GetDagTagsData,
+  GetDagTagsResponse,
   GetEventLogData,
   GetEventLogResponse,
   GetEventLogsData,
@@ -209,6 +213,7 @@ export class AssetService {
    * @param data The data for the request.
    * @param data.limit
    * @param data.offset
+   * @param data.namePattern
    * @param data.uriPattern
    * @param data.dagIds
    * @param data.orderBy
@@ -224,9 +229,68 @@ export class AssetService {
       query: {
         limit: data.limit,
         offset: data.offset,
+        name_pattern: data.namePattern,
         uri_pattern: data.uriPattern,
         dag_ids: data.dagIds,
         order_by: data.orderBy,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Asset Aliases
+   * Get asset aliases.
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.namePattern
+   * @param data.orderBy
+   * @returns AssetAliasCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getAssetAliases(
+    data: GetAssetAliasesData = {},
+  ): CancelablePromise<GetAssetAliasesResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/assets/aliases",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+        name_pattern: data.namePattern,
+        order_by: data.orderBy,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Asset Alias
+   * Get an asset alias.
+   * @param data The data for the request.
+   * @param data.assetAliasId
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getAssetAlias(
+    data: GetAssetAliasData,
+  ): CancelablePromise<GetAssetAliasResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/assets/aliases/{asset_alias_id}",
+      path: {
+        asset_alias_id: data.assetAliasId,
       },
       errors: {
         401: "Unauthorized",
@@ -306,7 +370,7 @@ export class AssetService {
    * Get Asset Queued Events
    * Get queued asset events for an asset.
    * @param data The data for the request.
-   * @param data.uri
+   * @param data.assetId
    * @param data.before
    * @returns QueuedEventCollectionResponse Successful Response
    * @throws ApiError
@@ -316,9 +380,9 @@ export class AssetService {
   ): CancelablePromise<GetAssetQueuedEventsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/assets/queuedEvents/{uri}",
+      url: "/public/assets/{asset_id}/queuedEvents",
       path: {
-        uri: data.uri,
+        asset_id: data.assetId,
       },
       query: {
         before: data.before,
@@ -336,7 +400,7 @@ export class AssetService {
    * Delete Asset Queued Events
    * Delete queued asset events for an asset.
    * @param data The data for the request.
-   * @param data.uri
+   * @param data.assetId
    * @param data.before
    * @returns void Successful Response
    * @throws ApiError
@@ -346,9 +410,9 @@ export class AssetService {
   ): CancelablePromise<DeleteAssetQueuedEventsResponse> {
     return __request(OpenAPI, {
       method: "DELETE",
-      url: "/public/assets/queuedEvents/{uri}",
+      url: "/public/assets/{asset_id}/queuedEvents",
       path: {
-        uri: data.uri,
+        asset_id: data.assetId,
       },
       query: {
         before: data.before,
@@ -366,7 +430,7 @@ export class AssetService {
    * Get Asset
    * Get an asset.
    * @param data The data for the request.
-   * @param data.uri
+   * @param data.assetId
    * @returns AssetResponse Successful Response
    * @throws ApiError
    */
@@ -375,9 +439,9 @@ export class AssetService {
   ): CancelablePromise<GetAssetResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/assets/{uri}",
+      url: "/public/assets/{asset_id}",
       path: {
-        uri: data.uri,
+        asset_id: data.assetId,
       },
       errors: {
         401: "Unauthorized",
@@ -453,7 +517,7 @@ export class AssetService {
    * Get a queued asset event for a DAG.
    * @param data The data for the request.
    * @param data.dagId
-   * @param data.uri
+   * @param data.assetId
    * @param data.before
    * @returns QueuedEventResponse Successful Response
    * @throws ApiError
@@ -463,10 +527,10 @@ export class AssetService {
   ): CancelablePromise<GetDagAssetQueuedEventResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/assets/queuedEvents/{uri}",
+      url: "/public/dags/{dag_id}/assets/{asset_id}/queuedEvents",
       path: {
         dag_id: data.dagId,
-        uri: data.uri,
+        asset_id: data.assetId,
       },
       query: {
         before: data.before,
@@ -485,7 +549,7 @@ export class AssetService {
    * Delete a queued asset event for a DAG.
    * @param data The data for the request.
    * @param data.dagId
-   * @param data.uri
+   * @param data.assetId
    * @param data.before
    * @returns void Successful Response
    * @throws ApiError
@@ -495,10 +559,10 @@ export class AssetService {
   ): CancelablePromise<DeleteDagAssetQueuedEventResponse> {
     return __request(OpenAPI, {
       method: "DELETE",
-      url: "/public/dags/{dag_id}/assets/queuedEvents/{uri}",
+      url: "/public/dags/{dag_id}/assets/{asset_id}/queuedEvents",
       path: {
         dag_id: data.dagId,
-        uri: data.uri,
+        asset_id: data.assetId,
       },
       query: {
         before: data.before,
@@ -690,7 +754,7 @@ export class StructureService {
         include_downstream: data.includeDownstream,
       },
       errors: {
-        400: "Bad Request",
+        404: "Not Found",
         422: "Validation Error",
       },
     });
@@ -1512,37 +1576,6 @@ export class DagService {
   }
 
   /**
-   * Get Dag Tags
-   * Get all DAG tags.
-   * @param data The data for the request.
-   * @param data.limit
-   * @param data.offset
-   * @param data.orderBy
-   * @param data.tagNamePattern
-   * @returns DAGTagCollectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static getDagTags(
-    data: GetDagTagsData = {},
-  ): CancelablePromise<GetDagTagsResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/dags/tags",
-      query: {
-        limit: data.limit,
-        offset: data.offset,
-        order_by: data.orderBy,
-        tag_name_pattern: data.tagNamePattern,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
    * Get Dag
    * Get basic information about a DAG.
    * @param data The data for the request.
@@ -1654,6 +1687,37 @@ export class DagService {
       },
     });
   }
+
+  /**
+   * Get Dag Tags
+   * Get all DAG tags.
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @param data.tagNamePattern
+   * @returns DAGTagCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDagTags(
+    data: GetDagTagsData = {},
+  ): CancelablePromise<GetDagTagsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dagTags",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+        tag_name_pattern: data.tagNamePattern,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        422: "Validation Error",
+      },
+    });
+  }
 }
 
 export class EventLogService {
@@ -1686,6 +1750,9 @@ export class EventLogService {
    * Get Event Logs
    * Get all Event Logs.
    * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
    * @param data.dagId
    * @param data.taskId
    * @param data.runId
@@ -1697,9 +1764,6 @@ export class EventLogService {
    * @param data.includedEvents
    * @param data.before
    * @param data.after
-   * @param data.limit
-   * @param data.offset
-   * @param data.orderBy
    * @returns EventLogCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -1710,6 +1774,9 @@ export class EventLogService {
       method: "GET",
       url: "/public/eventLogs",
       query: {
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
         dag_id: data.dagId,
         task_id: data.taskId,
         run_id: data.runId,
@@ -1721,9 +1788,6 @@ export class EventLogService {
         included_events: data.includedEvents,
         before: data.before,
         after: data.after,
-        limit: data.limit,
-        offset: data.offset,
-        order_by: data.orderBy,
       },
       errors: {
         401: "Unauthorized",
@@ -2946,6 +3010,7 @@ export class VariableService {
    * @param data.limit
    * @param data.offset
    * @param data.orderBy
+   * @param data.variableKeyPattern
    * @returns VariableCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -2959,6 +3024,7 @@ export class VariableService {
         limit: data.limit,
         offset: data.offset,
         order_by: data.orderBy,
+        variable_key_pattern: data.variableKeyPattern,
       },
       errors: {
         401: "Unauthorized",

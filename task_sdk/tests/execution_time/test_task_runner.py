@@ -27,9 +27,9 @@ import pytest
 from uuid6 import uuid7
 
 from airflow.sdk import DAG, BaseOperator
-from airflow.sdk.api.datamodels._generated import TaskInstance
-from airflow.sdk.execution_time.comms import DeferTask, StartupDetails
-from airflow.sdk.execution_time.task_runner import CommsDecoder, parse, run
+from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
+from airflow.sdk.execution_time.comms import DeferTask, SetRenderedFields, StartupDetails, TaskState
+from airflow.sdk.execution_time.task_runner import CommsDecoder, parse, run, startup
 from airflow.utils import timezone
 
 
@@ -78,7 +78,7 @@ def test_parse(test_dags_dir: Path):
     assert isinstance(ti.task.dag, DAG)
 
 
-def test_run_basic(test_dags_dir: Path):
+def test_run_basic(test_dags_dir: Path, time_machine):
     """Test running a basic task."""
     what = StartupDetails(
         ti=TaskInstance(id=uuid7(), task_id="hello", dag_id="super_basic_run", run_id="c", try_number=1),
@@ -87,7 +87,18 @@ def test_run_basic(test_dags_dir: Path):
     )
 
     ti = parse(what)
-    run(ti, log=mock.MagicMock())
+
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
+
+    with mock.patch(
+        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
+    ) as mock_supervisor_comms:
+        run(ti, log=mock.MagicMock())
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            msg=TaskState(state=TerminalTIState.SUCCESS, end_date=instant), log=mock.ANY
+        )
 
 
 def test_run_deferred_basic(test_dags_dir: Path, time_machine):
@@ -125,3 +136,53 @@ def test_run_deferred_basic(test_dags_dir: Path, time_machine):
 
         # send_request will only be called when the TaskDeferred exception is raised
         mock_supervisor_comms.send_request.assert_called_once_with(msg=expected_defer_task, log=mock.ANY)
+
+
+def test_run_basic_skipped(test_dags_dir: Path, time_machine):
+    """Test running a basic task that marks itself skipped."""
+    what = StartupDetails(
+        ti=TaskInstance(id=uuid7(), task_id="skip", dag_id="basic_skipped", run_id="c", try_number=1),
+        file=str(test_dags_dir / "basic_skipped.py"),
+        requests_fd=0,
+    )
+
+    ti = parse(what)
+
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
+
+    with mock.patch(
+        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
+    ) as mock_supervisor_comms:
+        run(ti, log=mock.MagicMock())
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            msg=TaskState(state=TerminalTIState.SKIPPED, end_date=instant), log=mock.ANY
+        )
+
+
+def test_startup_basic_templated_dag(test_dags_dir: Path):
+    """Test running a basic task."""
+    what = StartupDetails(
+        ti=TaskInstance(id=uuid7(), task_id="task1", dag_id="basic_templated_dag", run_id="c", try_number=1),
+        file=str(test_dags_dir / "basic_templated_dag.py"),
+        requests_fd=0,
+    )
+    parse(what)
+
+    with mock.patch(
+        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
+    ) as mock_supervisor_comms:
+        mock_supervisor_comms.get_message.return_value = what
+        startup()
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            msg=SetRenderedFields(
+                rendered_fields={
+                    "bash_command": "echo 'Logical date is {{ logical_date }}'",
+                    "cwd": None,
+                    "env": None,
+                }
+            ),
+            log=mock.ANY,
+        )

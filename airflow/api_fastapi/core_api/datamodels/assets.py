@@ -42,14 +42,6 @@ class TaskOutletAssetReference(BaseModel):
     updated_at: datetime
 
 
-class AssetAliasSchema(BaseModel):
-    """Asset alias serializer for assets."""
-
-    id: int
-    name: str
-    group: str
-
-
 class AssetResponse(BaseModel):
     """Asset serializer for responses."""
 
@@ -62,7 +54,7 @@ class AssetResponse(BaseModel):
     updated_at: datetime
     consuming_dags: list[DagScheduleAssetReference]
     producing_tasks: list[TaskOutletAssetReference]
-    aliases: list[AssetAliasSchema]
+    aliases: list[AssetAliasResponse]
 
     @field_validator("extra", mode="after")
     @classmethod
@@ -74,6 +66,21 @@ class AssetCollectionResponse(BaseModel):
     """Asset collection response."""
 
     assets: list[AssetResponse]
+    total_entries: int
+
+
+class AssetAliasResponse(BaseModel):
+    """Asset alias serializer for responses."""
+
+    id: int
+    name: str
+    group: str
+
+
+class AssetAliasCollectionResponse(BaseModel):
+    """Asset alias collection response."""
+
+    asset_aliases: list[AssetAliasResponse]
     total_entries: int
 
 
@@ -95,7 +102,6 @@ class AssetEventResponse(BaseModel):
 
     id: int
     asset_id: int
-    uri: str
     extra: dict | None = None
     source_task_id: str | None = None
     source_dag_id: str | None = None
@@ -120,8 +126,8 @@ class AssetEventCollectionResponse(BaseModel):
 class QueuedEventResponse(BaseModel):
     """Queued Event serializer for responses.."""
 
-    uri: str
     dag_id: str
+    asset_id: int
     created_at: datetime
 
 
@@ -135,7 +141,7 @@ class QueuedEventCollectionResponse(BaseModel):
 class CreateAssetEventsBody(BaseModel):
     """Create asset events request."""
 
-    uri: str
+    asset_id: int
     extra: dict = Field(default_factory=dict)
 
     @field_validator("extra", mode="after")

@@ -26,6 +26,15 @@
 Changelog
 ---------
 
+main
+.....
+
+.. warning::
+  All deprecated classes, parameters, and features have been removed from the Airbyte provider package.
+  The following breaking changes were introduced:
+
+  * Removed ``polling_interval`` parameter from ``AirbyteJobSensor``. Use the ``poke_interval`` parameter instead.
+
 4.0.0
 .....
 

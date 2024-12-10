@@ -27,17 +27,17 @@ from airflow.api_fastapi.common.db.common import (
     paginated_select,
 )
 from airflow.api_fastapi.common.parameters import (
-    QueryDagIdInDagWarningFilter,
+    FilterParam,
     QueryLimit,
     QueryOffset,
-    QueryWarningTypeFilter,
     SortParam,
+    filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.dag_warning import (
     DAGWarningCollectionResponse,
 )
-from airflow.models import DagWarning
+from airflow.models.dagwarning import DagWarning, DagWarningType
 
 dag_warning_router = AirflowRouter(tags=["DagWarning"])
 
@@ -46,8 +46,11 @@ dag_warning_router = AirflowRouter(tags=["DagWarning"])
     "/dagWarnings",
 )
 def list_dag_warnings(
-    dag_id: QueryDagIdInDagWarningFilter,
-    warning_type: QueryWarningTypeFilter,
+    dag_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(DagWarning.dag_id, str | None))],
+    warning_type: Annotated[
+        FilterParam[DagWarningType | None],
+        Depends(filter_param_factory(DagWarning.warning_type, DagWarningType | None)),
+    ],
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[

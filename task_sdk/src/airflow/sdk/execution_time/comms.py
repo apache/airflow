@@ -43,9 +43,11 @@ Execution API server is because:
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated, Literal, Union
 
-from pydantic import BaseModel, ConfigDict, Field
+from fastapi import Body
+from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
@@ -101,6 +103,7 @@ class TaskState(BaseModel):
     """
 
     state: TerminalTIState
+    end_date: datetime | None = None
     type: Literal["TaskState"] = "TaskState"
 
 
@@ -119,6 +122,37 @@ class GetXCom(BaseModel):
     type: Literal["GetXCom"] = "GetXCom"
 
 
+class SetXCom(BaseModel):
+    key: str
+    value: Annotated[
+        # JsonValue can handle non JSON stringified dicts, lists and strings, which is better
+        # for the task intuitibe to send to the supervisor
+        JsonValue,
+        Body(
+            description="A JSON-formatted string representing the value to set for the XCom.",
+            openapi_examples={
+                "simple_value": {
+                    "summary": "Simple value",
+                    "value": "value1",
+                },
+                "dict_value": {
+                    "summary": "Dictionary value",
+                    "value": {"key2": "value2"},
+                },
+                "list_value": {
+                    "summary": "List value",
+                    "value": ["value1"],
+                },
+            },
+        ),
+    ]
+    dag_id: str
+    run_id: str
+    task_id: str
+    map_index: int | None = None
+    type: Literal["SetXCom"] = "SetXCom"
+
+
 class GetConnection(BaseModel):
     conn_id: str
     type: Literal["GetConnection"] = "GetConnection"
@@ -129,7 +163,24 @@ class GetVariable(BaseModel):
     type: Literal["GetVariable"] = "GetVariable"
 
 
+class PutVariable(BaseModel):
+    key: str
+    value: str | None
+    description: str | None
+    type: Literal["PutVariable"] = "PutVariable"
+
+
+class SetRenderedFields(BaseModel):
+    """Payload for setting RTIF for a task instance."""
+
+    # We are using a BaseModel here compared to server using RootModel because we
+    # have a discriminator running with "type", and RootModel doesn't support type
+
+    rendered_fields: dict[str, str | None]
+    type: Literal["SetRenderedFields"] = "SetRenderedFields"
+
+
 ToSupervisor = Annotated[
-    Union[TaskState, GetXCom, GetConnection, GetVariable, DeferTask],
+    Union[TaskState, GetXCom, GetConnection, GetVariable, DeferTask, PutVariable, SetXCom, SetRenderedFields],
     Field(discriminator="type"),
 ]
