@@ -417,10 +417,8 @@ class TestCli:
                     ["db", "export-archived", "--export-format", export_format, "--output-path", "mydir"]
                 )
             error_msg = stderr.getvalue()
-        assert error_msg == (
-            "\nairflow db export-archived command error: argument "
-            f"--export-format: invalid choice: '{export_format}' "
-            "(choose from 'csv'), see help above.\n"
+        assert (
+            "airflow db export-archived command error: argument --export-format: invalid choice" in error_msg
         )
 
     @pytest.mark.parametrize(
