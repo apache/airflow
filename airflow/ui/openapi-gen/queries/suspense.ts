@@ -62,6 +62,7 @@ export const useAssetServiceNextRunAssetsSuspense = <
  * @param data The data for the request.
  * @param data.limit
  * @param data.offset
+ * @param data.namePattern
  * @param data.uriPattern
  * @param data.dagIds
  * @param data.orderBy
@@ -76,12 +77,14 @@ export const useAssetServiceGetAssetsSuspense = <
   {
     dagIds,
     limit,
+    namePattern,
     offset,
     orderBy,
     uriPattern,
   }: {
     dagIds?: string[];
     limit?: number;
+    namePattern?: string;
     offset?: number;
     orderBy?: string;
     uriPattern?: string;
@@ -91,16 +94,61 @@ export const useAssetServiceGetAssetsSuspense = <
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseAssetServiceGetAssetsKeyFn(
-      { dagIds, limit, offset, orderBy, uriPattern },
+      { dagIds, limit, namePattern, offset, orderBy, uriPattern },
       queryKey,
     ),
     queryFn: () =>
       AssetService.getAssets({
         dagIds,
         limit,
+        namePattern,
         offset,
         orderBy,
         uriPattern,
+      }) as TData,
+    ...options,
+  });
+/**
+ * Get Asset Aliases
+ * Get asset aliases.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.namePattern
+ * @param data.orderBy
+ * @returns AssetAliasCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useAssetServiceGetAssetAliasesSuspense = <
+  TData = Common.AssetServiceGetAssetAliasesDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    limit,
+    namePattern,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    namePattern?: string;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseAssetServiceGetAssetAliasesKeyFn(
+      { limit, namePattern, offset, orderBy },
+      queryKey,
+    ),
+    queryFn: () =>
+      AssetService.getAssetAliases({
+        limit,
+        namePattern,
+        offset,
+        orderBy,
       }) as TData,
     ...options,
   });

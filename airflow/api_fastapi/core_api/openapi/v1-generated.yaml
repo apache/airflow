@@ -273,6 +273,14 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name Pattern
       - name: uri_pattern
         in: query
         required: false
@@ -303,6 +311,76 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AssetCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/assets/aliases:
+    get:
+      tags:
+      - Asset
+      summary: Get Asset Aliases
+      description: Get asset aliases.
+      operationId: get_asset_aliases
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name Pattern
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: id
+          title: Order By
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetAliasCollectionResponse'
         '401':
           content:
             application/json:
@@ -5786,7 +5864,23 @@ components:
       type: object
       title: AppBuilderViewResponse
       description: Serializer for AppBuilder View responses.
-    AssetAliasSchema:
+    AssetAliasCollectionResponse:
+      properties:
+        asset_aliases:
+          items:
+            $ref: '#/components/schemas/AssetAliasResponse'
+          type: array
+          title: Asset Aliases
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - asset_aliases
+      - total_entries
+      title: AssetAliasCollectionResponse
+      description: Asset alias collection response.
+    AssetAliasResponse:
       properties:
         id:
           type: integer
@@ -5802,8 +5896,8 @@ components:
       - id
       - name
       - group
-      title: AssetAliasSchema
-      description: Asset alias serializer for assets.
+      title: AssetAliasResponse
+      description: Asset alias serializer for responses.
     AssetCollectionResponse:
       properties:
         assets:
@@ -5928,7 +6022,7 @@ components:
           title: Producing Tasks
         aliases:
           items:
-            $ref: '#/components/schemas/AssetAliasSchema'
+            $ref: '#/components/schemas/AssetAliasResponse'
           type: array
           title: Aliases
       type: object
