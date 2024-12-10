@@ -37,6 +37,7 @@ from airflow.providers.amazon.aws.operators.dms import (
     DmsDescribeReplicationConfigsOperator,
     DmsDescribeReplicationsOperator,
     DmsStartReplicationOperator,
+    DmsStopReplicationOperator,
 )
 from airflow.providers.amazon.aws.operators.rds import (
     RdsCreateDbInstanceOperator,
@@ -391,6 +392,18 @@ with DAG(
     )
     # [END howto_operator_dms_serverless_start_replication]
 
+    # [START howto_operator_dms_serverless_stop_replication]
+    stop_relication = DmsStopReplicationOperator(
+        task_id="stop_replication",
+        replication_config_arn="{{ task_instance.xcom_pull(task_ids='create_replication_config', key='return_value') }}",
+        wait_for_completion=True,
+        waiter_delay=120,
+        waiter_max_attempts=200,
+        trigger_rule=TriggerRule.ALL_SUCCESS,
+        deferrable=False,
+    )
+    # [END howto_operator_dms_serverless_stop_replication]
+
     # [START howto_operator_dms_serverless_delete_replication_config]
     delete_replication_config = DmsDeleteReplicationConfigOperator(
         task_id="delete_replication_config",
@@ -441,6 +454,7 @@ with DAG(
         create_replication_config,
         describe_replication_configs,
         replicate,
+        stop_relication,
         describe_replications,
         delete_replication_config,
         # TEST TEARDOWN

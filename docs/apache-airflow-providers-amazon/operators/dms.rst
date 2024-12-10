@@ -151,6 +151,19 @@ To start a serverless replication use
     :start-after: [START howto_operator_dms_serverless_start_replication]
     :end-before: [END howto_operator_dms_serverless_start_replication]
 
+Stop a serverless replication
+==============================
+
+To stop a serverless replication use
+:class:`~airflow.providers.amazon.aws.operators.dms.DmsStopReplicationOperator`.
+
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_dms_serverless.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dms_serverless_stop_replication]
+    :end-before: [END howto_operator_dms_serverless_stop_replication]
+
+
 Get the status of a serverless replication
 ==========================================
 
