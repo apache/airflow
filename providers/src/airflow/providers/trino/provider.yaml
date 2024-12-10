@@ -83,11 +83,6 @@ integrations:
       - /docs/apache-airflow-providers-trino/operators/trino.rst
     tags: [software]
 
-operators:
-  - integration-name: Trino
-    python-modules:
-      - airflow.providers.trino.operators.trino
-
 asset-uris:
   - schemes: [trino]
     handler: airflow.providers.trino.assets.trino.sanitize_uri
