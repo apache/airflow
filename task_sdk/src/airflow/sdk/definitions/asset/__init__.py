@@ -50,7 +50,14 @@ __all__ = [
 log = logging.getLogger(__name__)
 
 
-class AssetUniqueKey(NamedTuple):
+@attrs.define(frozen=True)
+class AssetUniqueKey:
+    """
+    Columns to identify an unique asset.
+
+    :meta private:
+    """
+
     name: str
     uri: str
 
@@ -62,15 +69,15 @@ class AssetUniqueKey(NamedTuple):
         return Asset(name=self.name, uri=self.uri)
 
 
-@attrs.define()
-class AssetAliasUniqueKey:
 @attrs.define(frozen=True)
-
+class AssetAliasUniqueKey:
     """
     Columns to identify an unique asset alias.
-    """
-    name: str
 
+    :meta private:
+    """
+
+    name: str
 
     @staticmethod
     def from_asset_alias(asset_alias: AssetAlias) -> AssetAliasUniqueKey:
