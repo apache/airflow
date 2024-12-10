@@ -49,7 +49,7 @@ from airflow.models.tasklog import LogTemplate
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasUniqueKey, AssetUniqueKey
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.pydantic.asset import AssetEventPydantic, AssetPydantic
 from airflow.serialization.pydantic.dag import DagModelPydantic, DagTagPydantic
@@ -163,7 +163,7 @@ def equal_exception(a: AirflowException, b: AirflowException) -> bool:
 
 
 def equal_outlet_event_accessor(a: OutletEventAccessor, b: OutletEventAccessor) -> bool:
-    return a.raw_key == b.raw_key and a.extra == b.extra and a.asset_alias_events == b.asset_alias_events
+    return a.key == b.key and a.extra == b.extra and a.asset_alias_events == b.asset_alias_events
 
 
 class MockLazySelectSequence(LazySelectSequence):
@@ -258,7 +258,7 @@ class MockLazySelectSequence(LazySelectSequence):
         ),
         (
             OutletEventAccessor(
-                raw_key=Asset(uri="test://asset1", name="test", group="test-group"),
+                key=AssetUniqueKey.from_asset(Asset(uri="test", name="test", group="test-group")),
                 extra={"key": "value"},
                 asset_alias_events=[],
             ),
@@ -267,21 +267,18 @@ class MockLazySelectSequence(LazySelectSequence):
         ),
         (
             OutletEventAccessor(
-                raw_key=AssetAlias(name="test_alias", group="test-alias-group"),
+                key=AssetAliasUniqueKey.from_asset_alias(
+                    AssetAlias(name="test_alias", group="test-alias-group")
+                ),
                 extra={"key": "value"},
                 asset_alias_events=[
                     AssetAliasEvent(
                         source_alias_name="test_alias",
-                        dest_asset_uri="test_uri",
+                        dest_asset_key=AssetUniqueKey(name="test_name", uri="test://asset-uri"),
                         extra={},
                     )
                 ],
             ),
-            DAT.ASSET_EVENT_ACCESSOR,
-            equal_outlet_event_accessor,
-        ),
-        (
-            OutletEventAccessor(raw_key="test", extra={"key": "value"}, asset_alias_events=[]),
             DAT.ASSET_EVENT_ACCESSOR,
             equal_outlet_event_accessor,
         ),
@@ -525,12 +522,14 @@ def test_serialized_mapped_operator_unmap(dag_maker):
 def test_ser_of_asset_event_accessor():
     # todo: (Airflow 3.0) we should force reserialization on upgrade
     d = OutletEventAccessors()
-    d["hi"].extra = "blah1"  # todo: this should maybe be forbidden?  i.e. can extra be any json or just dict?
-    d["yo"].extra = {"this": "that", "the": "other"}
+    d[
+        Asset("hi")
+    ].extra = "blah1"  # todo: this should maybe be forbidden?  i.e. can extra be any json or just dict?
+    d[Asset(name="yo", uri="test://yo")].extra = {"this": "that", "the": "other"}
     ser = BaseSerialization.serialize(var=d)
     deser = BaseSerialization.deserialize(ser)
-    assert deser["hi"].extra == "blah1"
-    assert d["yo"].extra == {"this": "that", "the": "other"}
+    assert deser[Asset(uri="hi", name="hi")].extra == "blah1"
+    assert d[Asset(name="yo", uri="test://yo")].extra == {"this": "that", "the": "other"}
 
 
 class MyTrigger(BaseTrigger):

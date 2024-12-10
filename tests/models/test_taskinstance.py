@@ -2405,12 +2405,12 @@ class TestTaskInstance:
 
             @task(outlets=Asset("test_outlet_asset_extra_1"))
             def write1(*, outlet_events):
-                outlet_events["test_outlet_asset_extra_1"].extra = {"foo": "bar"}
+                outlet_events[Asset("test_outlet_asset_extra_1")].extra = {"foo": "bar"}
 
             write1()
 
             def _write2_post_execute(context, _):
-                context["outlet_events"]["test_outlet_asset_extra_2"].extra = {"x": 1}
+                context["outlet_events"][Asset("test_outlet_asset_extra_2")].extra = {"x": 1}
 
             BashOperator(
                 task_id="write2",
@@ -2446,8 +2446,8 @@ class TestTaskInstance:
 
             @task(outlets=Asset("test_outlet_asset_extra"))
             def write(*, outlet_events):
-                outlet_events["test_outlet_asset_extra"].extra = {"one": 1}
-                outlet_events["different_uri"].extra = {"foo": "bar"}  # Will be silently dropped.
+                outlet_events[Asset("test_outlet_asset_extra")].extra = {"one": 1}
+                outlet_events[Asset("different_uri")].extra = {"foo": "bar"}  # Will be silently dropped.
 
             write()
 
@@ -2469,13 +2469,13 @@ class TestTaskInstance:
             @task(outlets=Asset("test_outlet_asset_extra_1"))
             def write1():
                 result = "write_1 result"
-                yield Metadata("test_outlet_asset_extra_1", {"foo": "bar"})
+                yield Metadata(Asset(name="test_outlet_asset_extra_1"), {"foo": "bar"})
                 return result
 
             write1()
 
             def _write2_post_execute(context, result):
-                yield Metadata("test_outlet_asset_extra_2", {"x": 1})
+                yield Metadata(Asset(name="test_outlet_asset_extra_2", uri="test://asset-2"), extra={"x": 1})
 
             BashOperator(
                 task_id="write2",
@@ -2645,7 +2645,7 @@ class TestTaskInstance:
 
             @task(outlets=AssetAlias(asset_alias_name))
             def producer(*, outlet_events):
-                yield Metadata(asset_uri, extra={"key": "value"}, alias=asset_alias_name)
+                yield Metadata(Asset(asset_uri), extra={"key": "value"}, alias=asset_alias_name)
 
             producer()
 
@@ -2722,22 +2722,22 @@ class TestTaskInstance:
 
             @task(outlets=Asset("test_inlet_asset_extra"))
             def write(*, ti, outlet_events):
-                outlet_events["test_inlet_asset_extra"].extra = {"from": ti.task_id}
+                outlet_events[Asset("test_inlet_asset_extra")].extra = {"from": ti.task_id}
 
             @task(inlets=Asset("test_inlet_asset_extra"))
             def read(*, inlet_events):
-                second_event = inlet_events["test_inlet_asset_extra"][1]
+                second_event = inlet_events[Asset("test_inlet_asset_extra")][1]
                 assert second_event.uri == "test_inlet_asset_extra"
                 assert second_event.extra == {"from": "write2"}
 
-                last_event = inlet_events["test_inlet_asset_extra"][-1]
+                last_event = inlet_events[Asset("test_inlet_asset_extra")][-1]
                 assert last_event.uri == "test_inlet_asset_extra"
                 assert last_event.extra == {"from": "write3"}
 
                 with pytest.raises(KeyError):
-                    inlet_events["does_not_exist"]
+                    inlet_events[Asset("does_not_exist")]
                 with pytest.raises(IndexError):
-                    inlet_events["test_inlet_asset_extra"][5]
+                    inlet_events[Asset("test_inlet_asset_extra")][5]
 
                 # TODO: Support slices.
 
@@ -2770,7 +2770,7 @@ class TestTaskInstance:
         asset_uri = "test_inlet_asset_extra_ds"
         asset_alias_name = "test_inlet_asset_extra_asset_alias"
 
-        asset_model = AssetModel(id=1, uri=asset_uri)
+        asset_model = AssetModel(id=1, uri=asset_uri, group="asset")
         asset_alias_model = AssetAliasModel(name=asset_alias_name)
         asset_alias_model.assets.append(asset_model)
         session.add_all([asset_model, asset_alias_model])
@@ -2797,7 +2797,7 @@ class TestTaskInstance:
                 assert last_event.extra == {"from": "write3"}
 
                 with pytest.raises(KeyError):
-                    inlet_events["does_not_exist"]
+                    inlet_events[Asset("does_not_exist")]
                 with pytest.raises(KeyError):
                     inlet_events[AssetAlias("does_not_exist")]
                 with pytest.raises(IndexError):
