@@ -21,6 +21,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 import jinja2
+
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
@@ -126,7 +127,9 @@ class GenericTransfer(BaseOperator):
             self.insert_args["commit_every"] = int(commit_every)
 
     def paginated_execute(self, context: Context):
-        destination_hook = BaseHook.get_hook(self.destination_conn_id, hook_params=self.destination_hook_params)
+        destination_hook = BaseHook.get_hook(
+            self.destination_conn_id, hook_params=self.destination_hook_params
+        )
 
         if self.preoperator:
             run = getattr(destination_hook, "run", None)
@@ -152,7 +155,9 @@ class GenericTransfer(BaseOperator):
                 method_name=self.execute_complete.__name__,
             )
         else:
-            source_hook = BaseHook.get_hook(self.source_conn_id, hook_params=self.source_hook_params)
+            source_hook = BaseHook.get_hook(
+                self.source_conn_id, hook_params=self.source_hook_params
+            )
 
             self.log.info("Extracting data from %s", self.source_conn_id)
             self.log.info("Executing: \n %s", self.sql)
