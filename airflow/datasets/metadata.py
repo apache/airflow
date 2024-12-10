@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any
 
 import attrs
@@ -38,9 +39,26 @@ class Metadata:
     def __init__(
         self, target: str | Dataset, extra: dict[str, Any], alias: DatasetAlias | str | None = None
     ) -> None:
+        if isinstance(target, str):
+            warnings.warn(
+                (
+                    "Accessing outlet_events using string is deprecated and will be removed in Airflow 3. "
+                    "Please use the Dataset or DatasetAlias object (renamed as Asset and AssetAlias in Airflow 3) directly"
+                ),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self.uri = extract_event_key(target)
         self.extra = extra
         if isinstance(alias, DatasetAlias):
             self.alias_name = alias.name
         else:
+            warnings.warn(
+                (
+                    "Emitting dataset events using string is deprecated and will be removed in Airflow 3. "
+                    "Please use the Dataset object (renamed as Asset in Airflow 3) directly"
+                ),
+                DeprecationWarning,
+                stacklevel=2,
+            )
             self.alias_name = alias
