@@ -68,6 +68,13 @@ def _create_variables(session) -> None:
         session=session,
     )
 
+    Variable.set(
+        key=TEST_VARIABLE_SEARCH_KEY,
+        value=TEST_VARIABLE_SEARCH_VALUE,
+        description=TEST_VARIABLE_SEARCH_DESCRIPTION,
+        session=session,
+    )
+
 
 class TestVariableEndpoint:
     @pytest.fixture(autouse=True)
