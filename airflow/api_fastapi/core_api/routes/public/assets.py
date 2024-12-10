@@ -146,7 +146,7 @@ def get_asset_aliases(
 
 
 @assets_router.get(
-    "/assets/aliases/{asset_alias_id:int}",
+    "/assets/aliases/{asset_alias_id}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_asset_alias(asset_alias_id: int, session: SessionDep):
