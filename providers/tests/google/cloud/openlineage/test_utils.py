@@ -27,9 +27,11 @@ from airflow.providers.common.compat.openlineage.facet import (
     Dataset,
     DocumentationDatasetFacet,
     Fields,
+    Identifier,
     InputField,
     SchemaDatasetFacet,
     SchemaDatasetFacetFields,
+    SymlinksDatasetFacet,
 )
 from airflow.providers.google.cloud.openlineage.utils import (
     extract_ds_name_from_gcs_path,
@@ -48,6 +50,10 @@ TEST_TABLE_API_REPR = {
             {"name": "field1", "type": "STRING", "description": "field1 description"},
             {"name": "field2", "type": "INTEGER"},
         ]
+    },
+    "externalDataConfiguration": {
+        "sourceFormat": "CSV",
+        "sourceUris": ["gs://bucket/path/to/files*", "gs://second_bucket/path/to/other/files*"],
     },
 }
 TEST_TABLE: Table = Table.from_api_repr(TEST_TABLE_API_REPR)
@@ -84,6 +90,12 @@ def test_get_facets_from_bq_table():
             ]
         ),
         "documentation": DocumentationDatasetFacet(description="Table description."),
+        "symlink": SymlinksDatasetFacet(
+            identifiers=[
+                Identifier(namespace="gs://bucket", name="path/to", type="file"),
+                Identifier(namespace="gs://second_bucket", name="path/to/other", type="file"),
+            ]
+        ),
     }
     result = get_facets_from_bq_table(TEST_TABLE)
     assert result == expected_facets

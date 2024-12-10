@@ -26,7 +26,7 @@ from unittest.mock import ANY, MagicMock
 
 import pandas as pd
 import pytest
-from google.cloud.bigquery import DEFAULT_RETRY, ScalarQueryParameter
+from google.cloud.bigquery import DEFAULT_RETRY, ScalarQueryParameter, Table
 from google.cloud.exceptions import Conflict
 
 from airflow.exceptions import (
@@ -36,11 +36,17 @@ from airflow.exceptions import (
     TaskDeferred,
 )
 from airflow.providers.common.compat.openlineage.facet import (
+    DocumentationDatasetFacet,
     ErrorMessageRunFacet,
     ExternalQueryRunFacet,
+    Identifier,
     InputDataset,
+    SchemaDatasetFacet,
+    SchemaDatasetFacetFields,
     SQLJobFacet,
+    SymlinksDatasetFacet,
 )
+from airflow.providers.google.cloud.openlineage.utils import BIGQUERY_NAMESPACE
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCheckOperator,
     BigQueryColumnCheckOperator,
@@ -259,6 +265,63 @@ class TestBigQueryCreateEmptyTableOperator:
         if log_msg is not None:
             assert log_msg in caplog.text
 
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_get_openlineage_facets_on_complete(self, mock_hook):
+        schema_fields = [
+            {"name": "field1", "type": "STRING", "description": "field1 description"},
+            {"name": "field2", "type": "INTEGER"},
+        ]
+        table_resource = {
+            "tableReference": {
+                "projectId": TEST_GCP_PROJECT_ID,
+                "datasetId": TEST_DATASET,
+                "tableId": TEST_TABLE_ID,
+            },
+            "description": "Table description.",
+            "schema": {"fields": schema_fields},
+        }
+        mock_hook.return_value.create_empty_table.return_value = Table.from_api_repr(table_resource)
+        operator = BigQueryCreateEmptyTableOperator(
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            project_id=TEST_GCP_PROJECT_ID,
+            table_id=TEST_TABLE_ID,
+            schema_fields=schema_fields,
+        )
+        operator.execute(context=MagicMock())
+
+        mock_hook.return_value.create_empty_table.assert_called_once_with(
+            dataset_id=TEST_DATASET,
+            project_id=TEST_GCP_PROJECT_ID,
+            table_id=TEST_TABLE_ID,
+            schema_fields=schema_fields,
+            time_partitioning={},
+            cluster_fields=None,
+            labels=None,
+            view=None,
+            materialized_view=None,
+            encryption_configuration=None,
+            table_resource=None,
+            exists_ok=False,
+        )
+
+        result = operator.get_openlineage_facets_on_complete(None)
+        assert not result.run_facets
+        assert not result.job_facets
+        assert not result.inputs
+        assert len(result.outputs) == 1
+        assert result.outputs[0].namespace == BIGQUERY_NAMESPACE
+        assert result.outputs[0].name == f"{TEST_GCP_PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}"
+        assert result.outputs[0].facets == {
+            "schema": SchemaDatasetFacet(
+                fields=[
+                    SchemaDatasetFacetFields(name="field1", type="STRING", description="field1 description"),
+                    SchemaDatasetFacetFields(name="field2", type="INTEGER"),
+                ]
+            ),
+            "documentation": DocumentationDatasetFacet(description="Table description."),
+        }
+
 
 class TestBigQueryCreateExternalTableOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
@@ -343,6 +406,65 @@ class TestBigQueryCreateExternalTableOperator:
 
         operator.execute(context=MagicMock())
         mock_hook.return_value.create_empty_table.assert_called_once_with(table_resource=table_resource)
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_get_openlineage_facets_on_complete(self, mock_hook):
+        table_resource = {
+            "tableReference": {
+                "projectId": TEST_GCP_PROJECT_ID,
+                "datasetId": TEST_DATASET,
+                "tableId": TEST_TABLE_ID,
+            },
+            "description": "Table description.",
+            "schema": {
+                "fields": [
+                    {"name": "field1", "type": "STRING", "description": "field1 description"},
+                    {"name": "field2", "type": "INTEGER"},
+                ]
+            },
+            "externalDataConfiguration": {
+                "sourceUris": [
+                    f"gs://{TEST_GCS_BUCKET}/{source_object}" for source_object in TEST_GCS_CSV_DATA
+                ],
+                "sourceFormat": TEST_SOURCE_CSV_FORMAT,
+            },
+        }
+        mock_hook.return_value.create_empty_table.return_value = Table.from_api_repr(table_resource)
+        operator = BigQueryCreateExternalTableOperator(
+            task_id=TASK_ID,
+            bucket=TEST_GCS_BUCKET,
+            source_objects=TEST_GCS_CSV_DATA,
+            table_resource=table_resource,
+        )
+
+        mock_hook.return_value.split_tablename.return_value = (
+            TEST_GCP_PROJECT_ID,
+            TEST_DATASET,
+            TEST_TABLE_ID,
+        )
+
+        operator.execute(context=MagicMock())
+        mock_hook.return_value.create_empty_table.assert_called_once_with(table_resource=table_resource)
+
+        result = operator.get_openlineage_facets_on_complete(None)
+        assert not result.run_facets
+        assert not result.job_facets
+        assert not result.inputs
+        assert len(result.outputs) == 1
+        assert result.outputs[0].namespace == BIGQUERY_NAMESPACE
+        assert result.outputs[0].name == f"{TEST_GCP_PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}"
+        assert result.outputs[0].facets == {
+            "schema": SchemaDatasetFacet(
+                fields=[
+                    SchemaDatasetFacetFields(name="field1", type="STRING", description="field1 description"),
+                    SchemaDatasetFacetFields(name="field2", type="INTEGER"),
+                ]
+            ),
+            "documentation": DocumentationDatasetFacet(description="Table description."),
+            "symlink": SymlinksDatasetFacet(
+                identifiers=[Identifier(namespace=f"gs://{TEST_GCS_BUCKET}", name="dir1", type="file")]
+            ),
+        }
 
 
 class TestBigQueryDeleteDatasetOperator:
