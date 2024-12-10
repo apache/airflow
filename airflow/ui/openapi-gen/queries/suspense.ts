@@ -280,6 +280,35 @@ export const useAssetServiceGetAssetSuspense = <
     ...options,
   });
 /**
+ * Get Asset Alias
+ * Get an asset alias.
+ * @param data The data for the request.
+ * @param data.assetAliasId
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useAssetServiceGetAssetAliasSuspense = <
+  TData = Common.AssetServiceGetAssetAliasDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    assetAliasId,
+  }: {
+    assetAliasId: number;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseAssetServiceGetAssetAliasKeyFn(
+      { assetAliasId },
+      queryKey,
+    ),
+    queryFn: () => AssetService.getAssetAlias({ assetAliasId }) as TData,
+    ...options,
+  });
+/**
  * Get Dag Asset Queued Events
  * Get queued asset events for a DAG.
  * @param data The data for the request.
