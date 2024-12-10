@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-10T09:14:19.038412
+# This constraints file was automatically generated on 2024-12-10T22:35:39.890164
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -134,7 +134,7 @@ celery==5.4.0
 certifi==2024.8.30
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.21.0
+cfn-lint==1.22.0
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.0
@@ -162,7 +162,7 @@ curlify==2.2.1
 databricks-sql-connector==2.9.6
 datadog==0.50.2
 db-dtypes==1.3.1
-debugpy==1.8.9
+debugpy==1.8.10
 decorator==5.1.1
 defusedxml==0.7.1
 deltalake==0.21.0
@@ -183,7 +183,7 @@ entrypoints==0.4
 eralchemy2==1.4.1
 et_xmlfile==2.0.0
 eval_type_backport==0.2.0
-eventlet==0.38.0
+eventlet==0.38.1
 exceptiongroup==1.2.2
 execnet==2.1.1
 executing==2.1.0
@@ -374,7 +374,7 @@ nodeenv==1.9.1
 numpy==1.24.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.57.1
+openai==1.57.2
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.25.0
@@ -475,7 +475,7 @@ pytest-rerunfailures==14.0
 pytest-timeouts==1.2.1
 pytest-xdist==3.6.1
 pytest==8.3.4
-python-arango==8.1.3
+python-arango==8.1.4
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
@@ -557,7 +557,7 @@ sqlalchemy-bigquery==1.12.0
 sqlalchemy-redshift==0.8.14
 sqlalchemy-spanner==1.8.0
 sqlalchemy_drill==1.1.5
-sqlparse==0.5.2
+sqlparse==0.5.3
 sshtunnel==0.4.0
 stack-data==0.6.3
 starkbank-ecdsa==2.2.0
