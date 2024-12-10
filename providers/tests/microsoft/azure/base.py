@@ -19,8 +19,9 @@ from __future__ import annotations
 from contextlib import contextmanager
 from unittest.mock import patch
 
-from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
+
+from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 
 from providers.tests.microsoft.conftest import get_airflow_connection
 

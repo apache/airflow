@@ -109,9 +109,7 @@ class GenericTransfer(BaseOperator):
 
     def get_paginated_sql(self, offset: int) -> str:
         """Format the paginated SQL statement using the current format."""
-        return self._paginated_sql_statement_format.format(
-            self.sql, self.chunk_size, offset
-        )
+        return self._paginated_sql_statement_format.format(self.sql, self.chunk_size, offset)
 
     def render_template_fields(
         self,
@@ -191,9 +189,7 @@ class GenericTransfer(BaseOperator):
             if event.get("status") == "failure":
                 raise AirflowException(event.get("message"))
 
-            destination_hook = BaseHook.get_hook(
-                self.destination_conn_id, hook_params=self.destination_hook_params
-            )
+            destination_hook = BaseHook.get_hook(self.destination_conn_id, hook_params=self.destination_hook_params)
 
             results = event.get("results")
 
@@ -221,12 +217,8 @@ class GenericTransfer(BaseOperator):
                 self.log.info("Offset increased to %d", offset)
                 self.xcom_push(context=context, key="offset", value=offset)
 
-                self.log.info(
-                    "Inserting %d rows into %s", len(results), self.destination_conn_id
-                )
-                insert_rows(
-                    table=self.destination_table, rows=results, **self.insert_args
-                )
+                self.log.info("Inserting %d rows into %s", len(results), self.destination_conn_id)
+                insert_rows(table=self.destination_table, rows=results, **self.insert_args)
                 self.log.info(
                     "Inserting %d rows into %s done!",
                     len(results),

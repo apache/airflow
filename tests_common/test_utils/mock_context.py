@@ -23,11 +23,12 @@ from airflow.utils.context import Context
 
 
 def mock_context(task) -> Context:
+    from sqlalchemy.orm import Session
+
     from airflow.models import TaskInstance
     from airflow.utils.session import NEW_SESSION
     from airflow.utils.state import TaskInstanceState
     from airflow.utils.xcom import XCOM_RETURN_KEY
-    from sqlalchemy.orm import Session
 
     values: dict[str, Any] = {}
 
