@@ -37,7 +37,6 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
     from airflow.sdk.definitions.node import DAGNode
-    from airflow.serialization.pydantic.dag_run import DagRunPydantic
 
 # The key used by SkipMixin to store XCom data.
 XCOM_SKIPMIXIN_KEY = "skipmixin_key"
@@ -61,7 +60,7 @@ class SkipMixin(LoggingMixin):
 
     @staticmethod
     def _set_state_to_skipped(
-        dag_run: DagRun | DagRunPydantic,
+        dag_run: DagRun,
         tasks: Sequence[str] | Sequence[tuple[str, int]],
         session: Session,
     ) -> None:
@@ -95,7 +94,7 @@ class SkipMixin(LoggingMixin):
     @provide_session
     def skip(
         self,
-        dag_run: DagRun | DagRunPydantic,
+        dag_run: DagRun,
         tasks: Iterable[DAGNode],
         map_index: int = -1,
         session: Session = NEW_SESSION,
