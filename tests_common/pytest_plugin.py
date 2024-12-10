@@ -773,7 +773,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
     from airflow.utils.log.logging_mixin import LoggingMixin
 
-    from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
     class DagFactory(LoggingMixin, DagMaker):
         _own_session = False
@@ -834,6 +834,12 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             dag.clear(session=self.session)
             dag.sync_to_db(processor_subdir=self.processor_subdir, session=self.session)
+
+            if dag.access_control:
+                from airflow.www.security_appless import ApplessAirflowSecurityManager
+
+                security_manager = ApplessAirflowSecurityManager(session=self.session)
+                security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)
             self.dag_model = self.session.get(DagModel, dag.dag_id)
 
             if self.want_serialized:
@@ -1102,7 +1108,7 @@ def create_dummy_dag(dag_maker: DagMaker) -> CreateDummyDAG:
         **kwargs,
     ):
         op_kwargs = {}
-        from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
+        from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS
 
         if AIRFLOW_V_2_9_PLUS:
             op_kwargs["task_display_name"] = task_display_name
@@ -1168,7 +1174,7 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
     """
     from airflow.operators.empty import EmptyOperator
 
-    from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
+    from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS
 
     def maker(
         logical_date=None,
@@ -1384,7 +1390,7 @@ def reset_logging_config():
 def suppress_info_logs_for_dag_and_fab():
     import logging
 
-    from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
+    from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS
 
     dag_logger = logging.getLogger("airflow.models.dag")
     dag_logger.setLevel(logging.WARNING)

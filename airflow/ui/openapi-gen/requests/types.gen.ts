@@ -22,9 +22,17 @@ export type AppBuilderViewResponse = {
 };
 
 /**
- * Asset alias serializer for assets.
+ * Asset alias collection response.
  */
-export type AssetAliasSchema = {
+export type AssetAliasCollectionResponse = {
+  asset_aliases: Array<AssetAliasResponse>;
+  total_entries: number;
+};
+
+/**
+ * Asset alias serializer for responses.
+ */
+export type AssetAliasResponse = {
   id: number;
   name: string;
   group: string;
@@ -79,7 +87,7 @@ export type AssetResponse = {
   updated_at: string;
   consuming_dags: Array<DagScheduleAssetReference>;
   producing_tasks: Array<TaskOutletAssetReference>;
-  aliases: Array<AssetAliasSchema>;
+  aliases: Array<AssetAliasResponse>;
 };
 
 /**
@@ -1302,12 +1310,22 @@ export type NextRunAssetsResponse = {
 export type GetAssetsData = {
   dagIds?: Array<string>;
   limit?: number;
+  namePattern?: string | null;
   offset?: number;
   orderBy?: string;
   uriPattern?: string | null;
 };
 
 export type GetAssetsResponse = AssetCollectionResponse;
+
+export type GetAssetAliasesData = {
+  limit?: number;
+  namePattern?: string | null;
+  offset?: number;
+  orderBy?: string;
+};
+
+export type GetAssetAliasesResponse = AssetAliasCollectionResponse;
 
 export type GetAssetEventsData = {
   assetId?: number | null;
@@ -2076,6 +2094,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: AssetCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/assets/aliases": {
+    get: {
+      req: GetAssetAliasesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: AssetAliasCollectionResponse;
         /**
          * Unauthorized
          */

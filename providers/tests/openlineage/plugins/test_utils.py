@@ -49,11 +49,9 @@ from airflow.utils.log.secrets_masker import _secrets_masker
 from airflow.utils.state import State
 
 from tests_common.test_utils.compat import (
-    AIRFLOW_V_2_9_PLUS,
-    AIRFLOW_V_2_10_PLUS,
-    AIRFLOW_V_3_0_PLUS,
     BashOperator,
 )
+from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS, AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -372,7 +370,7 @@ def test_serialize_timetable():
                         {
                             "__type": DagAttributeTypes.ASSET_ALIAS,
                             "name": "another",
-                            "group": "",
+                            "group": "asset",
                         },
                         {
                             "__type": DagAttributeTypes.ASSET,

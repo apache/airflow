@@ -23,7 +23,7 @@ import typing
 from sqlalchemy import select
 
 from airflow.api.common.trigger_dag import trigger_dag
-from airflow.api_fastapi.core_api.datamodels.assets import AssetAliasSchema, AssetResponse
+from airflow.api_fastapi.core_api.datamodels.assets import AssetAliasResponse, AssetResponse
 from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.cli.simple_table import AirflowConsole
 from airflow.models.asset import AssetAliasModel, AssetModel, TaskOutletAssetReference
@@ -43,7 +43,7 @@ log = logging.getLogger(__name__)
 
 def _list_asset_aliases(args, *, session: Session) -> tuple[Any, type[BaseModel]]:
     aliases = session.scalars(select(AssetAliasModel).order_by(AssetAliasModel.name))
-    return aliases, AssetAliasSchema
+    return aliases, AssetAliasResponse
 
 
 def _list_assets(args, *, session: Session) -> tuple[Any, type[BaseModel]]:
@@ -77,7 +77,7 @@ def _detail_asset_alias(args, *, session: Session) -> BaseModel:
     if alias is None:
         raise SystemExit(f"Asset alias with name {args.name} does not exist.")
 
-    return AssetAliasSchema.model_validate(alias)
+    return AssetAliasResponse.model_validate(alias)
 
 
 def _detail_asset(args, *, session: Session) -> BaseModel:

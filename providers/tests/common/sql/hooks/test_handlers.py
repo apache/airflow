@@ -30,6 +30,7 @@ class TestHandlers:
     def test_return_single_query_results(self):
         assert return_single_query_results("SELECT 1", return_last=True, split_statements=False)
         assert return_single_query_results("SELECT 1", return_last=False, split_statements=False)
+        assert return_single_query_results("SELECT 1", return_last=False, split_statements=None) is False
         assert return_single_query_results(["SELECT 1"], return_last=True, split_statements=False) is False
         assert return_single_query_results(["SELECT 1"], return_last=False, split_statements=False) is False
         assert return_single_query_results("SELECT 1", return_last=False, split_statements=True) is False
