@@ -52,7 +52,6 @@ if TYPE_CHECKING:
 # * Context in airflow/utils/context.pyi.
 # * Table in docs/apache-airflow/templates-ref.rst
 KNOWN_CONTEXT_KEYS: set[str] = {
-    "conf",
     "conn",
     "dag",
     "dag_run",
