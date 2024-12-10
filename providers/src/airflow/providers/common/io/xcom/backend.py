@@ -25,12 +25,11 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.parse import urlsplit
 
 import fsspec.utils
-from packaging.version import Version
 
-from airflow import __version__ as airflow_version
 from airflow.configuration import conf
 from airflow.io.path import ObjectStoragePath
 from airflow.models.xcom import BaseXCom
+from airflow.providers.common.io.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.json import XComDecoder, XComEncoder
 
 if TYPE_CHECKING:
@@ -41,10 +40,6 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 SECTION = "common.io"
-
-
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 
 def _get_compression_suffix(compression: str) -> str:

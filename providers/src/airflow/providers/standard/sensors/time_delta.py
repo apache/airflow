@@ -26,7 +26,7 @@ from packaging.version import Version
 from airflow.configuration import conf
 from airflow.exceptions import AirflowSkipException
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.providers.standard.utils.version_references import AIRFLOW_V_3_0_PLUS
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils import timezone
 
