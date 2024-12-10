@@ -342,15 +342,17 @@ class TestHttpSensorAsync:
 
         assert isinstance(exc.value.trigger, HttpSensorTrigger), "Trigger is not a HttpTrigger"
 
-    @mock.patch("airflow.providers.http.sensors.http.HttpSensor.defer")
-    @mock.patch("airflow.sensors.base.BaseSensorOperator.execute")
-    def test_execute_not_defer_when_response_check_is_not_none(self, mock_execute, mock_defer):
+    @mock.patch(
+        "airflow.providers.http.sensors.http.HttpSensor.poke",
+        return_value=False,
+    )
+    def test_execute_defer_when_response_check_is_not_none(self, mock_poke):
         task = HttpSensor(
             task_id="run_now",
             endpoint="test-endpoint",
             response_check=lambda response: "httpbin" in response.text,
             deferrable=True,
         )
-        task.execute({})
-        mock_execute.assert_called_once()
-        mock_defer.assert_not_called()
+        with pytest.raises(TaskDeferred) as exc:
+            task.execute({})
+        assert isinstance(exc.value.trigger, HttpSensorTrigger), "Trigger is not a HttpTrigger"
