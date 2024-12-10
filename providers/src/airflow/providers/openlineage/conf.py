@@ -78,6 +78,12 @@ def selective_enable() -> bool:
 
 
 @cache
+def spark_inject_parent_job_info() -> bool:
+    """[openlineage] spark_inject_parent_job_info."""
+    return conf.getboolean(_CONFIG_SECTION, "spark_inject_parent_job_info", fallback="False")
+
+
+@cache
 def custom_extractors() -> set[str]:
     """[openlineage] extractors."""
     option = conf.get(_CONFIG_SECTION, "extractors", fallback="")
