@@ -180,10 +180,6 @@ export const $AssetEventResponse = {
       type: "integer",
       title: "Asset Id",
     },
-    uri: {
-      type: "string",
-      title: "Uri",
-    },
     extra: {
       anyOf: [
         {
@@ -249,7 +245,6 @@ export const $AssetEventResponse = {
   required: [
     "id",
     "asset_id",
-    "uri",
     "source_map_index",
     "created_dagruns",
     "timestamp",
@@ -1025,9 +1020,9 @@ export const $ConnectionTestResponse = {
 
 export const $CreateAssetEventsBody = {
   properties: {
-    uri: {
-      type: "string",
-      title: "Uri",
+    asset_id: {
+      type: "integer",
+      title: "Asset Id",
     },
     extra: {
       type: "object",
@@ -1036,7 +1031,7 @@ export const $CreateAssetEventsBody = {
   },
   additionalProperties: false,
   type: "object",
-  required: ["uri"],
+  required: ["asset_id"],
   title: "CreateAssetEventsBody",
   description: "Create asset events request.",
 } as const;
@@ -3640,13 +3635,13 @@ export const $QueuedEventCollectionResponse = {
 
 export const $QueuedEventResponse = {
   properties: {
-    uri: {
-      type: "string",
-      title: "Uri",
-    },
     dag_id: {
       type: "string",
       title: "Dag Id",
+    },
+    asset_id: {
+      type: "integer",
+      title: "Asset Id",
     },
     created_at: {
       type: "string",
@@ -3655,7 +3650,7 @@ export const $QueuedEventResponse = {
     },
   },
   type: "object",
-  required: ["uri", "dag_id", "created_at"],
+  required: ["dag_id", "asset_id", "created_at"],
   title: "QueuedEventResponse",
   description: "Queued Event serializer for responses..",
 } as const;
