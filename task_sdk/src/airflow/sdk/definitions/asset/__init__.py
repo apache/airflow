@@ -50,7 +50,12 @@ __all__ = [
 log = logging.getLogger(__name__)
 
 
-class AssetUniqueKey(NamedTuple):
+@attrs.define()
+class AssetUniqueKey:
+    """Columns to identify an unique asset
+
+    :meta private:
+    """
     name: str
     uri: str
 
