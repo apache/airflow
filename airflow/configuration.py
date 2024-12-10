@@ -1505,12 +1505,7 @@ class AirflowConfigParser(ConfigParser):
                 opt = (opt, "env var")
 
             section = section.lower()
-            # if we lower key for kubernetes_environment_variables section,
-            # then we won't be able to set any Airflow environment
-            # variables. Airflow only parse environment variables starts
-            # with AIRFLOW_. Therefore, we need to make it a special case.
-            if section != "kubernetes_environment_variables":
-                key = key.lower()
+            key = key.lower()
             config_sources.setdefault(section, {}).update({key: opt})
 
     def _filter_by_source(
