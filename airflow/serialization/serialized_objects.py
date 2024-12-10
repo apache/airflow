@@ -322,7 +322,7 @@ def decode_outlet_event_accessor(var: dict[str, Any]) -> OutletEventAccessor:
 
 
 def encode_outlet_event_accessors(var: OutletEventAccessors) -> dict[str, Any]:
-    return {k: encode_outlet_event_accessor(v) for k, v in var._dict.items()}
+    return {k: encode_outlet_event_accessor(v) for k, v in var._dict.items()}  # type: ignore[attr-defined]
 
 
 def decode_outlet_event_accessors(var: dict[str, Any]) -> OutletEventAccessors:
