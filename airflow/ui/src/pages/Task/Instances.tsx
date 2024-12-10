@@ -21,7 +21,10 @@ import type { ColumnDef } from "@tanstack/react-table";
 import dayjs from "dayjs";
 import { Link as RouterLink, useParams } from "react-router-dom";
 
-import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
+import {
+  useTaskInstanceServiceGetTaskInstances,
+  useTaskServiceGetTask,
+} from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
@@ -29,24 +32,15 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 import { Status } from "src/components/ui";
 
-const columns: Array<ColumnDef<TaskInstanceResponse>> = [
-  {
-    accessorKey: "task_display_name",
-    cell: ({ row: { original } }) => (
-      <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink to={`/dags/${original.dag_id}//tasks/${original.task_id}`}>
-          {original.task_display_name}
-        </RouterLink>
-      </Link>
-    ),
-    header: "Task ID",
-  },
+const columns = (
+  isMapped?: boolean,
+): Array<ColumnDef<TaskInstanceResponse>> => [
   {
     accessorKey: "start_date",
     cell: ({ row: { original } }) => (
       <Link asChild color="fg.info" fontWeight="bold">
         <RouterLink
-          to={`/dags/${original.dag_id}/runs/${original.dag_run_id}/tasks/${original.task_id}${original.map_index > -1 ? `?map_index=${original.map_index}` : ""}`}
+          to={`/dags/${original.dag_id}/runs/${original.dag_run_id}/tasks/${original.task_id}`}
         >
           <Time datetime={original.start_date} />
         </RouterLink>
@@ -60,10 +54,6 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
     header: "End Date",
   },
   {
-    accessorKey: "map_index",
-    header: "Map Index",
-  },
-  {
     accessorKey: "state",
     cell: ({
       row: {
@@ -73,10 +63,30 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
     header: () => "State",
   },
   {
+    accessorKey: "dag_run_id",
+    cell: ({ row: { original } }) => (
+      <Link asChild color="fg.info" fontWeight="bold">
+        <RouterLink to={`/dags/${original.dag_id}/runs/${original.dag_run_id}`}>
+          {original.dag_run_id}
+        </RouterLink>
+      </Link>
+    ),
+    header: "Dag Run ID",
+  },
+  ...(isMapped
+    ? [
+        {
+          accessorKey: "map_index",
+          header: "Map Index",
+        },
+      ]
+    : []),
+  {
     accessorKey: "try_number",
     enableSorting: false,
     header: "Try Number",
   },
+
   {
     accessorKey: "operator",
     enableSorting: false,
@@ -90,31 +100,38 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
   },
 ];
 
-export const TaskInstances = () => {
-  const { dagId = "", runId = "" } = useParams();
+export const Instances = () => {
+  const { dagId = "", taskId } = useParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
 
+  const {
+    data: task,
+    error: taskError,
+    isLoading: isTaskLoading,
+  } = useTaskServiceGetTask({ dagId, taskId });
+
   const { data, error, isFetching, isLoading } =
     useTaskInstanceServiceGetTaskInstances({
       dagId,
-      dagRunId: runId,
+      dagRunId: "~",
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
+      taskId,
     });
 
   return (
     <Box>
       <DataTable
-        columns={columns}
+        columns={columns(Boolean(task?.is_mapped))}
         data={data?.task_instances ?? []}
-        errorMessage={<ErrorAlert error={error} />}
+        errorMessage={<ErrorAlert error={error ?? taskError} />}
         initialState={tableURLState}
         isFetching={isFetching}
-        isLoading={isLoading}
+        isLoading={isLoading || isTaskLoading}
         modelName="Task Instance"
         onStateChange={setTableURLState}
         total={data?.total_entries}
