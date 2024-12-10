@@ -170,7 +170,17 @@ class PutVariable(BaseModel):
     type: Literal["PutVariable"] = "PutVariable"
 
 
+class RTIFPayload(BaseModel):
+    """Payload for setting RTIF for a task instance."""
+
+    # We are using a BaseModel here compared to server using RootModel because we
+    # have a discriminator running with "type", and RootModel doesn't support type
+
+    rendered_fields: dict[str, str | None]
+    type: Literal["RTIFPayload"] = "RTIFPayload"
+
+
 ToSupervisor = Annotated[
-    Union[TaskState, GetXCom, GetConnection, GetVariable, DeferTask, PutVariable, SetXCom],
+    Union[TaskState, GetXCom, GetConnection, GetVariable, DeferTask, PutVariable, SetXCom, RTIFPayload],
     Field(discriminator="type"),
 ]
