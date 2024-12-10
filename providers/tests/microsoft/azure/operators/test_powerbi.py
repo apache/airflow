@@ -106,12 +106,27 @@ class TestPowerBIDatasetRefreshOperator(Base):
             **CONFIG,
         )
         context = {"ti": MagicMock()}
-        with pytest.raises(AirflowException):
+        with pytest.raises(AirflowException) as exc:
             operator.execute_complete(
                 context=context,
                 event={"status": "error", "message": "error", "dataset_refresh_id": "1234"},
             )
         assert context["ti"].xcom_push.call_count == 0
+        assert str(exc.value) == "error"
+
+    def test_powerbi_operator_refresh_fail(self):
+        """Assert that execute_complete raise exception on refresh fail"""
+        operator = PowerBIDatasetRefreshOperator(
+            **CONFIG,
+        )
+        context = {"ti": MagicMock()}
+        with pytest.raises(AirflowException) as exc:
+            operator.execute_complete(
+                context=context,
+                event={"status": "Failed", "message": "error message", "dataset_refresh_id": "1234"},
+            )
+        assert context["ti"].xcom_push.call_count == 0
+        assert str(exc.value) == "error message"
 
     def test_execute_complete_no_event(self):
         """Test execute_complete when event is None or empty."""
