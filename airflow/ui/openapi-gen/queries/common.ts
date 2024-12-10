@@ -103,6 +103,22 @@ export const UseAssetServiceGetAssetAliasesKeyFn = (
   useAssetServiceGetAssetAliasesKey,
   ...(queryKey ?? [{ limit, namePattern, offset, orderBy }]),
 ];
+export type AssetServiceGetAssetAliasDefaultResponse = Awaited<
+  ReturnType<typeof AssetService.getAssetAlias>
+>;
+export type AssetServiceGetAssetAliasQueryResult<
+  TData = AssetServiceGetAssetAliasDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useAssetServiceGetAssetAliasKey = "AssetServiceGetAssetAlias";
+export const UseAssetServiceGetAssetAliasKeyFn = (
+  {
+    assetAliasId,
+  }: {
+    assetAliasId: number;
+  },
+  queryKey?: Array<unknown>,
+) => [useAssetServiceGetAssetAliasKey, ...(queryKey ?? [{ assetAliasId }])];
 export type AssetServiceGetAssetEventsDefaultResponse = Awaited<
   ReturnType<typeof AssetService.getAssetEvents>
 >;
