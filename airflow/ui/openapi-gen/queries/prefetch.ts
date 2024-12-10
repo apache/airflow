@@ -239,6 +239,26 @@ export const prefetchUseAssetServiceGetAsset = (
     queryFn: () => AssetService.getAsset({ uri }),
   });
 /**
+ * Get Asset Alias
+ * Get an asset alias.
+ * @param data The data for the request.
+ * @param data.assetAliasId
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseAssetServiceGetAssetAlias = (
+  queryClient: QueryClient,
+  {
+    assetAliasId,
+  }: {
+    assetAliasId: number;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseAssetServiceGetAssetAliasKeyFn({ assetAliasId }),
+    queryFn: () => AssetService.getAssetAlias({ assetAliasId }),
+  });
+/**
  * Get Dag Asset Queued Events
  * Get queued asset events for a DAG.
  * @param data The data for the request.
