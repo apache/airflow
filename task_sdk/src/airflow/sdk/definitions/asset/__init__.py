@@ -62,7 +62,12 @@ class AssetUniqueKey(NamedTuple):
         return Asset(name=self.name, uri=self.uri)
 
 
-class AssetAliasUniqueKey(NamedTuple):
+@attrs.define()
+class AssetAliasUniqueKey:
+    """Columns to identify an unique asset alias
+
+    :meta private:
+    """
     name: str
 
     @staticmethod
