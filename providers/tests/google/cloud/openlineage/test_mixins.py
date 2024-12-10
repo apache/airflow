@@ -64,6 +64,7 @@ class TestBigQueryOpenLineageMixin:
         class BQOperator(_BigQueryOpenLineageMixin):
             sql = ""
             job_id = "job_id"
+            location = None
 
             @property
             def hook(self):
