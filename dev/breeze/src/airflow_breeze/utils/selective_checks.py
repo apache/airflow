@@ -47,6 +47,7 @@ from airflow_breeze.global_constants import (
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     RUNS_ON_PUBLIC_RUNNER,
     RUNS_ON_SELF_HOSTED_ASF_RUNNER,
+    RUNS_ON_SELF_HOSTED_DOCS_BUILD_RUNNER,
     RUNS_ON_SELF_HOSTED_RUNNER,
     TESTABLE_CORE_INTEGRATIONS,
     TESTABLE_PROVIDERS_INTEGRATIONS,
@@ -1285,7 +1286,7 @@ class SelectiveChecks:
         # It turned out that public runners have a lot of space in /mnt folder that we can utilise
         # but in the future we might want to switch back to self-hosted runners so we have this
         # separate property to determine that and place to implement different logic if needed
-        return RUNS_ON_PUBLIC_RUNNER
+        return RUNS_ON_SELF_HOSTED_DOCS_BUILD_RUNNER
 
     @cached_property
     def runs_on_as_json_public(self) -> str:
