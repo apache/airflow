@@ -25,8 +25,8 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
-     from collections.abc import AsyncIterator
-     from typing import Any
+    from collections.abc import AsyncIterator
+    from typing import Any
 
 
 class SQLExecuteQueryTrigger(BaseTrigger):
