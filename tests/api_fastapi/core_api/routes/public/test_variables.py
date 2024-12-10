@@ -40,7 +40,7 @@ TEST_VARIABLE_VALUE3 = '{"password": "some_password"}'
 TEST_VARIABLE_DESCRIPTION3 = "Some description for the variable"
 
 
-TEST_VARIABLE_SEARCH_KEY = "test_variable_serach_key"
+TEST_VARIABLE_SEARCH_KEY = "test_variable_search_key"
 TEST_VARIABLE_SEARCH_VALUE = "random search value"
 TEST_VARIABLE_SEARCH_DESCRIPTION = "Some description for the variable"
 
@@ -92,11 +92,11 @@ class TestDeleteVariable(TestVariableEndpoint):
     def test_delete_should_respond_204(self, test_client, session):
         self.create_variables()
         variables = session.query(Variable).all()
-        assert len(variables) == 3
+        assert len(variables) == 4
         response = test_client.delete(f"/public/variables/{TEST_VARIABLE_KEY}")
         assert response.status_code == 204
         variables = session.query(Variable).all()
-        assert len(variables) == 2
+        assert len(variables) == 3
 
     def test_delete_should_respond_404(self, test_client):
         response = test_client.delete(f"/public/variables/{TEST_VARIABLE_KEY}")
@@ -180,12 +180,12 @@ class TestGetVariables(TestVariableEndpoint):
             (
                 {"order_by": "key"},
                 4,
-                [TEST_VARIABLE_SEARCH_KEY, TEST_VARIABLE_KEY3, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY],
+                [TEST_VARIABLE_KEY3, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY, TEST_VARIABLE_SEARCH_KEY],
             ),
             (
                 {"order_by": "-key"},
                 4,
-                [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3, TEST_VARIABLE_SEARCH_KEY],
+                [TEST_VARIABLE_SEARCH_KEY, TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3],
             ),
             # Search
             (
