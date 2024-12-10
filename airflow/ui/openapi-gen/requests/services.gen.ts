@@ -9,6 +9,8 @@ import type {
   GetAssetsResponse,
   GetAssetAliasesData,
   GetAssetAliasesResponse,
+  GetAssetAliasData,
+  GetAssetAliasResponse,
   GetAssetEventsData,
   GetAssetEventsResponse,
   CreateAssetEventData,
@@ -263,6 +265,32 @@ export class AssetService {
         offset: data.offset,
         name_pattern: data.namePattern,
         order_by: data.orderBy,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Asset Alias
+   * Get an asset alias.
+   * @param data The data for the request.
+   * @param data.assetAliasId
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getAssetAlias(
+    data: GetAssetAliasData,
+  ): CancelablePromise<GetAssetAliasResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/assets/aliases/{asset_alias_id}",
+      path: {
+        asset_alias_id: data.assetAliasId,
       },
       errors: {
         401: "Unauthorized",

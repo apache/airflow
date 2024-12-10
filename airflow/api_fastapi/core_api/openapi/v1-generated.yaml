@@ -405,6 +405,50 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/assets/aliases/{asset_alias_id}:
+    get:
+      tags:
+      - Asset
+      summary: Get Asset Alias
+      description: Get an asset alias.
+      operationId: get_asset_alias
+      parameters:
+      - name: asset_alias_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Asset Alias Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/assets/events:
     get:
       tags:

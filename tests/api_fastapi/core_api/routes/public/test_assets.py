@@ -767,6 +767,22 @@ class TestGetAssetEndpoint(TestAssets):
         }
 
 
+class TestGetAssetAliasEndpoint(TestAssetAliases):
+    @provide_session
+    def test_should_respond_200(self, test_client, session):
+        self.create_asset_aliases(num=1)
+        assert session.query(AssetAliasModel).count() == 1
+        with assert_queries_count(6):
+            response = test_client.get("/public/assets/aliases/1")
+        assert response.status_code == 200
+        assert response.json() == {"id": 1, "name": "simple1", "group": "alias"}
+
+    def test_should_respond_404(self, test_client):
+        response = test_client.get("/public/assets/aliases/1")
+        assert response.status_code == 404
+        assert response.json()["detail"] == "The Asset Alias with ID: `1` was not found"
+
+
 class TestQueuedEventEndpoint(TestAssets):
     def _create_asset_dag_run_queues(self, dag_id, asset_id, session):
         adrq = AssetDagRunQueue(target_dag_id=dag_id, asset_id=asset_id)

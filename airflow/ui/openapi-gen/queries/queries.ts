@@ -178,6 +178,35 @@ export const useAssetServiceGetAssetAliases = <
     ...options,
   });
 /**
+ * Get Asset Alias
+ * Get an asset alias.
+ * @param data The data for the request.
+ * @param data.assetAliasId
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useAssetServiceGetAssetAlias = <
+  TData = Common.AssetServiceGetAssetAliasDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    assetAliasId,
+  }: {
+    assetAliasId: number;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseAssetServiceGetAssetAliasKeyFn(
+      { assetAliasId },
+      queryKey,
+    ),
+    queryFn: () => AssetService.getAssetAlias({ assetAliasId }) as TData,
+    ...options,
+  });
+/**
  * Get Asset Events
  * Get asset events.
  * @param data The data for the request.

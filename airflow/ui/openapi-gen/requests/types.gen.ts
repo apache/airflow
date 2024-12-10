@@ -1327,6 +1327,12 @@ export type GetAssetAliasesData = {
 
 export type GetAssetAliasesResponse = AssetAliasCollectionResponse;
 
+export type GetAssetAliasData = {
+  assetAliasId: number;
+};
+
+export type GetAssetAliasResponse = unknown;
+
 export type GetAssetEventsData = {
   assetId?: number | null;
   limit?: number;
@@ -2121,6 +2127,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: AssetAliasCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/assets/aliases/{asset_alias_id}": {
+    get: {
+      req: GetAssetAliasData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
         /**
          * Unauthorized
          */
