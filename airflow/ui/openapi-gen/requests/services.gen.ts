@@ -2209,6 +2209,7 @@ export class TaskInstanceService {
    * @param data The data for the request.
    * @param data.dagId
    * @param data.dagRunId
+   * @param data.taskId
    * @param data.logicalDateGte
    * @param data.logicalDateLte
    * @param data.startDateGte
@@ -2219,6 +2220,7 @@ export class TaskInstanceService {
    * @param data.updatedAtLte
    * @param data.durationGte
    * @param data.durationLte
+   * @param data.taskDisplayNamePattern
    * @param data.state
    * @param data.pool
    * @param data.queue
@@ -2240,6 +2242,7 @@ export class TaskInstanceService {
         dag_run_id: data.dagRunId,
       },
       query: {
+        task_id: data.taskId,
         logical_date_gte: data.logicalDateGte,
         logical_date_lte: data.logicalDateLte,
         start_date_gte: data.startDateGte,
@@ -2250,6 +2253,7 @@ export class TaskInstanceService {
         updated_at_lte: data.updatedAtLte,
         duration_gte: data.durationGte,
         duration_lte: data.durationLte,
+        task_display_name_pattern: data.taskDisplayNamePattern,
         state: data.state,
         pool: data.pool,
         queue: data.queue,

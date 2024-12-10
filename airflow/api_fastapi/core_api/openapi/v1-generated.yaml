@@ -4831,6 +4831,14 @@ paths:
         schema:
           type: string
           title: Dag Run Id
+      - name: task_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Id
       - name: logical_date_gte
         in: query
         required: false
@@ -4919,6 +4927,14 @@ paths:
           - type: number
           - type: 'null'
           title: Duration Lte
+      - name: task_display_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Display Name Pattern
       - name: state
         in: query
         required: false
