@@ -1128,7 +1128,7 @@ def run_with_timeout(timeout: int):
         run_command(
             ["docker", "kill", "--signal", "SIGQUIT"] + list_of_containers.stdout.splitlines(),
             check=True,
-            capture_output=True,
+            capture_output=False,
             text=True,
         )
 
