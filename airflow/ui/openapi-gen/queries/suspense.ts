@@ -153,6 +153,35 @@ export const useAssetServiceGetAssetAliasesSuspense = <
     ...options,
   });
 /**
+ * Get Asset Alias
+ * Get an asset alias.
+ * @param data The data for the request.
+ * @param data.assetAliasId
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useAssetServiceGetAssetAliasSuspense = <
+  TData = Common.AssetServiceGetAssetAliasDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    assetAliasId,
+  }: {
+    assetAliasId: number;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseAssetServiceGetAssetAliasKeyFn(
+      { assetAliasId },
+      queryKey,
+    ),
+    queryFn: () => AssetService.getAssetAlias({ assetAliasId }) as TData,
+    ...options,
+  });
+/**
  * Get Asset Events
  * Get asset events.
  * @param data The data for the request.
@@ -225,7 +254,7 @@ export const useAssetServiceGetAssetEventsSuspense = <
  * Get Asset Queued Events
  * Get queued asset events for an asset.
  * @param data The data for the request.
- * @param data.uri
+ * @param data.assetId
  * @param data.before
  * @returns QueuedEventCollectionResponse Successful Response
  * @throws ApiError
@@ -236,28 +265,29 @@ export const useAssetServiceGetAssetQueuedEventsSuspense = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
+    assetId,
     before,
-    uri,
   }: {
+    assetId: number;
     before?: string;
-    uri: string;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseAssetServiceGetAssetQueuedEventsKeyFn(
-      { before, uri },
+      { assetId, before },
       queryKey,
     ),
-    queryFn: () => AssetService.getAssetQueuedEvents({ before, uri }) as TData,
+    queryFn: () =>
+      AssetService.getAssetQueuedEvents({ assetId, before }) as TData,
     ...options,
   });
 /**
  * Get Asset
  * Get an asset.
  * @param data The data for the request.
- * @param data.uri
+ * @param data.assetId
  * @returns AssetResponse Successful Response
  * @throws ApiError
  */
@@ -267,16 +297,16 @@ export const useAssetServiceGetAssetSuspense = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
-    uri,
+    assetId,
   }: {
-    uri: string;
+    assetId: number;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceGetAssetKeyFn({ uri }, queryKey),
-    queryFn: () => AssetService.getAsset({ uri }) as TData,
+    queryKey: Common.UseAssetServiceGetAssetKeyFn({ assetId }, queryKey),
+    queryFn: () => AssetService.getAsset({ assetId }) as TData,
     ...options,
   });
 /**
@@ -317,7 +347,7 @@ export const useAssetServiceGetDagAssetQueuedEventsSuspense = <
  * Get a queued asset event for a DAG.
  * @param data The data for the request.
  * @param data.dagId
- * @param data.uri
+ * @param data.assetId
  * @param data.before
  * @returns QueuedEventResponse Successful Response
  * @throws ApiError
@@ -328,24 +358,24 @@ export const useAssetServiceGetDagAssetQueuedEventSuspense = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
+    assetId,
     before,
     dagId,
-    uri,
   }: {
+    assetId: number;
     before?: string;
     dagId: string;
-    uri: string;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseAssetServiceGetDagAssetQueuedEventKeyFn(
-      { before, dagId, uri },
+      { assetId, before, dagId },
       queryKey,
     ),
     queryFn: () =>
-      AssetService.getDagAssetQueuedEvent({ before, dagId, uri }) as TData,
+      AssetService.getDagAssetQueuedEvent({ assetId, before, dagId }) as TData,
     ...options,
   });
 /**
@@ -2526,6 +2556,7 @@ export const useVariableServiceGetVariableSuspense = <
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
+ * @param data.variableKeyPattern
  * @returns VariableCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -2538,21 +2569,28 @@ export const useVariableServiceGetVariablesSuspense = <
     limit,
     offset,
     orderBy,
+    variableKeyPattern,
   }: {
     limit?: number;
     offset?: number;
     orderBy?: string;
+    variableKeyPattern?: string;
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseVariableServiceGetVariablesKeyFn(
-      { limit, offset, orderBy },
+      { limit, offset, orderBy, variableKeyPattern },
       queryKey,
     ),
     queryFn: () =>
-      VariableService.getVariables({ limit, offset, orderBy }) as TData,
+      VariableService.getVariables({
+        limit,
+        offset,
+        orderBy,
+        variableKeyPattern,
+      }) as TData,
     ...options,
   });
 /**

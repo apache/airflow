@@ -49,6 +49,7 @@ from airflow.models.asset import (
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.variable import Variable
 from airflow.typing_compat import Self
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -582,4 +583,9 @@ QueryAssetAliasNamePatternSearch = Annotated[
 ]
 QueryAssetDagIdPatternSearch = Annotated[
     _DagIdAssetReferenceFilter, Depends(_DagIdAssetReferenceFilter().depends)
+]
+
+# Variables
+QueryVariableKeyPatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(Variable.key, "variable_key_pattern"))
 ]
