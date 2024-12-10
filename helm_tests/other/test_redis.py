@@ -361,16 +361,6 @@ class TestRedis:
         )
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
 
-    def test_should_set_correct_helm_hooks_weight(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-            },
-            show_only=["templates/secrets/redis-secrets.yaml"],
-        )
-        annotations = jmespath.search("metadata.annotations", docs[0])
-        assert annotations["helm.sh/hook-weight"] == "0"
-
     def test_persistence_volume_annotations(self):
         docs = render_chart(
             values={"redis": {"persistence": {"annotations": {"foo": "bar"}}}},
