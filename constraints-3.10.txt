@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-04T13:56:58.589751
+# This constraints file was automatically generated on 2024-12-10T09:21:54.333540
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -48,10 +48,10 @@ Flask==2.2.5
 GitPython==3.1.43
 JayDeBeApi==1.2.3
 Jinja2==3.1.4
-Mako==1.3.7
+Mako==1.3.8
 Markdown==3.7
 MarkupSafe==3.0.2
-PyAthena==3.10.0
+PyAthena==3.11.0
 PyGithub==2.5.0
 PyHive==0.7.0
 PyJWT==2.10.1
@@ -93,7 +93,7 @@ analytics-python==1.2.9
 annotated-types==0.7.0
 ansicolors==1.1.8
 anyascii==0.3.2
-anyio==4.6.2.post1
+anyio==4.7.0
 apache-airflow-providers-airbyte==4.0.0
 apache-airflow-providers-alibaba==2.9.1
 apache-airflow-providers-amazon==9.1.0
@@ -189,7 +189,7 @@ apache-airflow-providers-zendesk==4.8.0
 apache-beam==2.61.0
 apispec==6.8.0
 apprise==1.9.0
-argcomplete==3.5.1
+argcomplete==3.5.2
 asana==3.2.3
 asgiref==3.8.1
 asn1crypto==1.5.1
@@ -246,12 +246,12 @@ celery==5.4.0
 certifi==2024.8.30
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.20.2
+cfn-lint==1.21.0
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.0
 checksumdir==1.2.0
-ciso8601==2.3.1
+ciso8601==2.3.2
 click-didyoumean==0.3.1
 click-plugins==1.1.1
 click-repl==0.3.0
@@ -265,7 +265,7 @@ colorlog==6.9.0
 comm==0.2.2
 confluent-kafka==2.6.1
 connexion==2.14.2
-coverage==7.6.8
+coverage==7.6.9
 crcmod==1.7
 cron-descriptor==1.4.5
 croniter==5.0.1
@@ -278,7 +278,7 @@ db-dtypes==1.3.1
 debugpy==1.8.9
 decorator==5.1.1
 defusedxml==0.7.1
-deltalake==0.21.0
+deltalake==0.22.3
 diagrams==0.24.1
 dill==0.3.1.1
 distlib==0.3.9
@@ -317,12 +317,12 @@ gevent==24.11.1
 gitdb==4.0.11
 google-ads==25.1.0
 google-analytics-admin==0.23.2
-google-api-core==2.23.0
+google-api-core==2.24.0
 google-api-python-client==2.154.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.36.0
-google-cloud-aiplatform==1.73.0
+google-cloud-aiplatform==1.74.0
 google-cloud-appengine-logging==1.5.0
 google-cloud-audit-log==0.3.0
 google-cloud-automl==2.14.1
@@ -353,10 +353,10 @@ google-cloud-redis==2.16.1
 google-cloud-resource-manager==1.13.1
 google-cloud-run==0.10.13
 google-cloud-secret-manager==2.21.1
-google-cloud-spanner==3.50.1
+google-cloud-spanner==3.51.0
 google-cloud-speech==2.28.1
 google-cloud-storage-transfer==1.13.1
-google-cloud-storage==2.18.2
+google-cloud-storage==2.19.0
 google-cloud-tasks==2.17.1
 google-cloud-texttospeech==2.21.1
 google-cloud-translate==3.18.0
@@ -417,7 +417,7 @@ jaraco.context==6.0.1
 jaraco.functools==4.1.0
 jedi==0.19.2
 jeepney==0.8.0
-jiter==0.8.0
+jiter==0.8.2
 jmespath==0.10.0
 joserfc==1.0.1
 jpype1==1.5.1
@@ -476,7 +476,7 @@ multidict==6.1.0
 mypy-boto3-appflow==1.35.39
 mypy-boto3-rds==1.35.72
 mypy-boto3-redshift-data==1.35.51
-mypy-boto3-s3==1.35.74
+mypy-boto3-s3==1.35.76
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.1.0
@@ -491,7 +491,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.56.2
+openai==1.57.1
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.25.0
@@ -571,7 +571,7 @@ pydruid==0.6.9
 pyenchant==3.2.2
 pyexasol==0.27.0
 pygraphviz==1.14
-pyiceberg==0.8.0
+pyiceberg==0.8.1
 pykerberos==1.2.4
 pymongo==4.10.1
 pymssql==2.3.2
@@ -599,7 +599,7 @@ python-jenkins==1.8.2
 python-ldap==3.4.4
 python-nvd3==0.16.0
 python-slugify==8.0.4
-python-telegram-bot==21.8
+python-telegram-bot==21.9
 python3-saml==1.16.0
 pytz==2024.2
 pywinrm==0.5.0
@@ -607,7 +607,7 @@ pyzmq==26.2.0
 qdrant-client==1.12.1
 reactivex==4.0.4
 readme_renderer==43.0
-redis==5.2.0
+redis==5.2.1
 redshift-connector==2.1.4
 referencing==0.35.1
 regex==2024.11.6
@@ -625,7 +625,7 @@ rfc3986==2.0.0
 rich-argparse==1.6.0
 rich-click==1.8.5
 rich==13.9.4
-rpds-py==0.22.1
+rpds-py==0.22.3
 rsa==4.9
 ruff==0.5.5
 s3fs==2024.10.0
@@ -635,19 +635,19 @@ scrapbook==0.5.0
 semver==3.0.2
 sendgrid==6.11.0
 sentinels==1.0.0
-sentry-sdk==2.19.0
+sentry-sdk==2.19.2
 setproctitle==1.3.4
 shapely==2.0.6
 shellingham==1.5.4
 simple-salesforce==1.12.6
-six==1.16.0
-slack_sdk==3.33.4
+six==1.17.0
+slack_sdk==3.33.5
 smbprotocol==1.15.0
 smmap==5.0.1
 sniffio==1.3.1
 snowballstemmer==2.2.0
-snowflake-connector-python==3.12.3
-snowflake-snowpark-python==1.25.0
+snowflake-connector-python==3.12.4
+snowflake-snowpark-python==1.26.0
 snowflake-sqlalchemy==1.7.1
 sortedcontainers==2.4.0
 soupsieve==2.6
@@ -671,7 +671,7 @@ sphinxcontrib-spelling==8.0.0
 spython==0.3.14
 sqlalchemy-bigquery==1.12.0
 sqlalchemy-redshift==0.8.14
-sqlalchemy-spanner==1.7.0
+sqlalchemy-spanner==1.8.0
 sqlalchemy_drill==1.1.5
 sqlparse==0.5.2
 sshtunnel==0.4.0
@@ -698,7 +698,7 @@ tornado==6.4.2
 towncrier==24.8.0
 tqdm==4.67.1
 traitlets==5.14.3
-trino==0.330.0
+trino==0.331.0
 trove-classifiers==2024.10.21.16
 twine==6.0.1
 types-Deprecated==1.2.15.20241117
@@ -708,18 +708,18 @@ types-PyYAML==6.0.12.20240917
 types-aiofiles==24.1.0.20240626
 types-certifi==2021.10.8.3
 types-cffi==1.16.0.20240331
-types-croniter==4.0.0.20241030
+types-croniter==5.0.1.20241205
 types-docutils==0.21.0.20241128
 types-paramiko==3.5.0.20240928
-types-protobuf==5.28.3.20241203
+types-protobuf==5.29.1.20241207
 types-pyOpenSSL==24.1.0.20240722
-types-python-dateutil==2.9.0.20241003
+types-python-dateutil==2.9.0.20241206
 types-python-slugify==8.0.2.20240310
 types-pytz==2024.2.0.20241003
 types-redis==4.6.0.20241004
 types-requests==2.32.0.20241016
 types-setuptools==75.6.0.20241126
-types-tabulate==0.9.0.20240106
+types-tabulate==0.9.0.20241207
 types-termcolor==1.1.6.2
 types-toml==0.10.8.20240310
 typing-inspect==0.9.0
@@ -746,7 +746,7 @@ xmlsec==1.3.14
 xmltodict==0.14.2
 yamllint==1.35.1
 yandex-query-client==0.1.4
-yandexcloud==0.326.0
+yandexcloud==0.328.0
 yarl==1.18.3
 ydb-dbapi==0.1.5
 ydb==3.18.10

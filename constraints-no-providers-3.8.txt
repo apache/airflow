@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-04T13:49:28.311574
+# This constraints file was automatically generated on 2024-12-10T09:14:29.516885
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -23,7 +23,7 @@ Flask-Session==0.5.0
 Flask-WTF==1.2.1
 Flask==2.2.5
 Jinja2==3.1.4
-Mako==1.3.7
+Mako==1.3.8
 MarkupSafe==2.1.5
 PyJWT==2.9.0
 PyYAML==6.0.2
@@ -43,7 +43,7 @@ amqp==5.3.1
 annotated-types==0.7.0
 anyio==4.5.2
 apispec==6.6.1
-argcomplete==3.5.1
+argcomplete==3.5.2
 asgiref==3.8.1
 async-timeout==5.0.1
 atlasclient==1.0.0
@@ -91,7 +91,7 @@ gunicorn==23.0.0
 h11==0.14.0
 hdfs==2.7.3
 httpcore==1.0.7
-httpx==0.28.0
+httpx==0.28.1
 idna==3.10
 importlib_metadata==8.5.0
 importlib_resources==6.4.5
@@ -139,7 +139,7 @@ plyvel==1.5.1
 prison==0.2.1
 prometheus_client==0.21.1
 propcache==0.2.0
-protobuf==5.29.0
+protobuf==5.29.1
 psutil==6.1.0
 pure-sasl==0.6.2
 pyasn1==0.6.1
@@ -165,9 +165,9 @@ rich-argparse==1.6.0
 rich==13.9.4
 rpds-py==0.20.1
 s3fs==2024.10.0
-sentry-sdk==2.19.0
+sentry-sdk==2.19.2
 setproctitle==1.3.4
-six==1.16.0
+six==1.17.0
 sniffio==1.3.1
 sqlparse==0.5.2
 statsd==4.0.1
