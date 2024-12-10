@@ -225,7 +225,7 @@ def create_asset_event(
 
 
 @assets_router.get(
-    "/assets/{asset_id:int}/queuedEvents",
+    "/assets/{asset_id}/queuedEvents",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_asset_queued_events(
@@ -258,7 +258,7 @@ def get_asset_queued_events(
 
 
 @assets_router.get(
-    "/assets/{asset_id:int}",
+    "/assets/{asset_id}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_asset(
@@ -308,7 +308,7 @@ def get_dag_asset_queued_events(
 
 
 @assets_router.get(
-    "/dags/{dag_id}/assets/{asset_id:int}/queuedEvents",
+    "/dags/{dag_id}/assets/{asset_id}/queuedEvents",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_dag_asset_queued_event(
@@ -331,7 +331,7 @@ def get_dag_asset_queued_event(
 
 
 @assets_router.delete(
-    "/assets/{asset_id:int}/queuedEvents",
+    "/assets/{asset_id}/queuedEvents",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
@@ -376,7 +376,7 @@ def delete_dag_asset_queued_events(
 
 
 @assets_router.delete(
-    "/dags/{dag_id}/assets/{asset_id:int}/queuedEvents",
+    "/dags/{dag_id}/assets/{asset_id}/queuedEvents",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc(
         [
