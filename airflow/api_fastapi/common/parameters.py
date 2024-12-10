@@ -571,6 +571,9 @@ QueryTIExecutorFilter = Annotated[
         )
     ),
 ]
+QueryTITaskDisplayNamePatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(TaskInstance.task_display_name, "task_display_name_pattern"))
+]
 
 # Assets
 QueryAssetNamePatternSearch = Annotated[
