@@ -21,8 +21,8 @@ from unittest import mock
 
 import pytest
 
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.trino.hooks.trino import TrinoHook
-from airflow.providers.trino.operators.trino import TrinoOperator
 
 
 @pytest.mark.integration("trino")
@@ -50,7 +50,7 @@ class TestTrinoHookIntegration:
 
     @mock.patch.dict("os.environ", AIRFLOW_CONN_TRINO_DEFAULT="trino://airflow@trino:8080/")
     def test_openlineage_methods(self):
-        op = TrinoOperator(task_id="trino_test", sql="SELECT name FROM tpch.sf1.customer LIMIT 3")
+        op = SQLExecuteQueryOperator(task_id="trino_test", sql="SELECT name FROM tpch.sf1.customer LIMIT 3")
         op.execute({})
         lineage = op.get_openlineage_facets_on_start()
         assert lineage.inputs[0].namespace == "trino://trino:8080"
