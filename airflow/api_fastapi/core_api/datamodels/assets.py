@@ -102,7 +102,6 @@ class AssetEventResponse(BaseModel):
 
     id: int
     asset_id: int
-    uri: str
     extra: dict | None = None
     source_task_id: str | None = None
     source_dag_id: str | None = None
@@ -127,8 +126,8 @@ class AssetEventCollectionResponse(BaseModel):
 class QueuedEventResponse(BaseModel):
     """Queued Event serializer for responses.."""
 
-    uri: str
     dag_id: str
+    asset_id: int
     created_at: datetime
 
 
@@ -142,7 +141,7 @@ class QueuedEventCollectionResponse(BaseModel):
 class CreateAssetEventsBody(BaseModel):
     """Create asset events request."""
 
-    uri: str
+    asset_id: int
     extra: dict = Field(default_factory=dict)
 
     @field_validator("extra", mode="after")

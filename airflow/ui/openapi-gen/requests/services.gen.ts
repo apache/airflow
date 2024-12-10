@@ -342,7 +342,7 @@ export class AssetService {
    * Get Asset Queued Events
    * Get queued asset events for an asset.
    * @param data The data for the request.
-   * @param data.uri
+   * @param data.assetId
    * @param data.before
    * @returns QueuedEventCollectionResponse Successful Response
    * @throws ApiError
@@ -352,9 +352,9 @@ export class AssetService {
   ): CancelablePromise<GetAssetQueuedEventsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/assets/queuedEvents/{uri}",
+      url: "/public/assets/{asset_id}/queuedEvents",
       path: {
-        uri: data.uri,
+        asset_id: data.assetId,
       },
       query: {
         before: data.before,
@@ -372,7 +372,7 @@ export class AssetService {
    * Delete Asset Queued Events
    * Delete queued asset events for an asset.
    * @param data The data for the request.
-   * @param data.uri
+   * @param data.assetId
    * @param data.before
    * @returns void Successful Response
    * @throws ApiError
@@ -382,9 +382,9 @@ export class AssetService {
   ): CancelablePromise<DeleteAssetQueuedEventsResponse> {
     return __request(OpenAPI, {
       method: "DELETE",
-      url: "/public/assets/queuedEvents/{uri}",
+      url: "/public/assets/{asset_id}/queuedEvents",
       path: {
-        uri: data.uri,
+        asset_id: data.assetId,
       },
       query: {
         before: data.before,
@@ -402,7 +402,7 @@ export class AssetService {
    * Get Asset
    * Get an asset.
    * @param data The data for the request.
-   * @param data.uri
+   * @param data.assetId
    * @returns AssetResponse Successful Response
    * @throws ApiError
    */
@@ -411,9 +411,9 @@ export class AssetService {
   ): CancelablePromise<GetAssetResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/assets/{uri}",
+      url: "/public/assets/{asset_id}",
       path: {
-        uri: data.uri,
+        asset_id: data.assetId,
       },
       errors: {
         401: "Unauthorized",
@@ -489,7 +489,7 @@ export class AssetService {
    * Get a queued asset event for a DAG.
    * @param data The data for the request.
    * @param data.dagId
-   * @param data.uri
+   * @param data.assetId
    * @param data.before
    * @returns QueuedEventResponse Successful Response
    * @throws ApiError
@@ -499,10 +499,10 @@ export class AssetService {
   ): CancelablePromise<GetDagAssetQueuedEventResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/assets/queuedEvents/{uri}",
+      url: "/public/dags/{dag_id}/assets/{asset_id}/queuedEvents",
       path: {
         dag_id: data.dagId,
-        uri: data.uri,
+        asset_id: data.assetId,
       },
       query: {
         before: data.before,
@@ -521,7 +521,7 @@ export class AssetService {
    * Delete a queued asset event for a DAG.
    * @param data The data for the request.
    * @param data.dagId
-   * @param data.uri
+   * @param data.assetId
    * @param data.before
    * @returns void Successful Response
    * @throws ApiError
@@ -531,10 +531,10 @@ export class AssetService {
   ): CancelablePromise<DeleteDagAssetQueuedEventResponse> {
     return __request(OpenAPI, {
       method: "DELETE",
-      url: "/public/dags/{dag_id}/assets/queuedEvents/{uri}",
+      url: "/public/dags/{dag_id}/assets/{asset_id}/queuedEvents",
       path: {
         dag_id: data.dagId,
-        uri: data.uri,
+        asset_id: data.assetId,
       },
       query: {
         before: data.before,
