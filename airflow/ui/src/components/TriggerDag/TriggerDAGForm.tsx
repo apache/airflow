@@ -204,6 +204,21 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                   </Box>
                 )}
               />
+
+              <Text fontSize="md" mb={2} mt={6}>
+                Notes
+              </Text>
+              <Controller
+                control={control}
+                name="notes"
+                render={({ field }) => (
+                  <Input
+                    {...field}
+                    placeholder="Optional- Provide context for triggering this DAG run (e.g., 'Testing feature X', 'Backfilling data for 2024-01-01')"
+                    size="sm"
+                  />
+                )}
+              />
             </Box>
           </Accordion.ItemContent>
         </Accordion.Item>
