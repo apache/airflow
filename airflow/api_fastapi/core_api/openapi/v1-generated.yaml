@@ -5505,6 +5505,16 @@ paths:
           type: string
           default: id
           title: Order By
+      - name: filters
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Filters
       responses:
         '200':
           description: Successful Response

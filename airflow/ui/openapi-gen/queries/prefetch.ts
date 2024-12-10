@@ -2163,16 +2163,19 @@ export const prefetchUseVariableServiceGetVariable = (
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
+ * @param data.filters
  * @returns VariableCollectionResponse Successful Response
  * @throws ApiError
  */
 export const prefetchUseVariableServiceGetVariables = (
   queryClient: QueryClient,
   {
+    filters,
     limit,
     offset,
     orderBy,
   }: {
+    filters?: string[];
     limit?: number;
     offset?: number;
     orderBy?: string;
@@ -2180,11 +2183,13 @@ export const prefetchUseVariableServiceGetVariables = (
 ) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseVariableServiceGetVariablesKeyFn({
+      filters,
       limit,
       offset,
       orderBy,
     }),
-    queryFn: () => VariableService.getVariables({ limit, offset, orderBy }),
+    queryFn: () =>
+      VariableService.getVariables({ filters, limit, offset, orderBy }),
   });
 /**
  * Get Health

@@ -2982,6 +2982,7 @@ export class VariableService {
    * @param data.limit
    * @param data.offset
    * @param data.orderBy
+   * @param data.filters
    * @returns VariableCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -2995,6 +2996,7 @@ export class VariableService {
         limit: data.limit,
         offset: data.offset,
         order_by: data.orderBy,
+        filters: data.filters,
       },
       errors: {
         401: "Unauthorized",
