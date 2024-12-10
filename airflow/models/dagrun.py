@@ -164,6 +164,7 @@ class DagRun(Base, LoggingMixin):
     """
     dag_version_id = Column(UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="CASCADE"))
     dag_version = relationship("DagVersion", back_populates="dag_runs")
+    bundle_version = Column(StringID())
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
@@ -236,13 +237,14 @@ class DagRun(Base, LoggingMixin):
         triggered_by: DagRunTriggeredByType | None = None,
         backfill_id: int | None = None,
         dag_version: DagVersion | None = None,
+        bundle_version: str | None = None,
     ):
         if data_interval is None:
             # Legacy: Only happen for runs created prior to Airflow 2.2.
             self.data_interval_start = self.data_interval_end = None
         else:
             self.data_interval_start, self.data_interval_end = data_interval
-
+        self.bundle_version = bundle_version
         self.dag_id = dag_id
         self.run_id = run_id
         self.logical_date = logical_date

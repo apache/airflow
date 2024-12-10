@@ -32,6 +32,7 @@ from pydantic import ConfigDict, TypeAdapter
 from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
 from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.execution_time.comms import DeferTask, StartupDetails, TaskState, ToSupervisor, ToTask
+from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
@@ -49,8 +50,14 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
 
     from airflow.models.dagbag import DagBag
 
+    bundle_info = what.ti.bundle
+    if TYPE_CHECKING:
+        assert bundle_info
+    bundle_cls = import_string(bundle_info.classpath)
+    bundle_instance = bundle_cls(name=bundle_info.name, version=bundle_info.version, **bundle_info.kwargs)
+
     bag = DagBag(
-        dag_folder=what.file,
+        dag_folder=bundle_instance.path,
         include_examples=False,
         safe_mode=False,
         load_op_links=False,
