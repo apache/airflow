@@ -78,7 +78,7 @@ export const Variables = () => {
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
       variableKeyPattern: Boolean(variableKeyPattern)
-        ? `%${variableKeyPattern}%`
+        ? `${variableKeyPattern}`
         : undefined,
     },
   );
