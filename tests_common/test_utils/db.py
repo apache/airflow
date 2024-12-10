@@ -36,7 +36,6 @@ from airflow.models import (
 from airflow.models.dag import DagOwnerAttributes
 from airflow.models.dagcode import DagCode
 from airflow.models.dagwarning import DagWarning
-from airflow.models.deadline import Deadline
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections, reflect_tables
@@ -146,7 +145,10 @@ def clear_db_dags():
 
 def clear_db_deadline():
     with create_session() as session:
-        session.query(Deadline).delete()
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.deadline import Deadline
+
+            session.query(Deadline).delete()
 
 
 def drop_tables_with_prefix(prefix):
