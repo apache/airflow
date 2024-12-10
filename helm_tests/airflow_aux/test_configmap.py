@@ -105,6 +105,8 @@ class TestConfigmap:
             ("KubernetesExecutor", "2.0.0", True),
             ("CeleryExecutor", "1.10.11", False),
             ("CeleryExecutor", "2.0.0", False),
+            ("CeleryExecutor,KubernetesExecutor", "2.0.0", True),
+            ("CeleryExecutor,KubernetesExecutor", "1.10.11", False),
         ],
     )
     def test_pod_template_created(self, executor, af_version, should_be_created):
