@@ -20,18 +20,14 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 import redshift_connector
-from packaging.version import Version
 from redshift_connector import Connection as RedshiftConnection
 from sqlalchemy import create_engine
 from sqlalchemy.engine.url import URL
 
-from airflow import __version__ as AIRFLOW_VERSION
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.version_compat import AIRFLOW_V_2_10_PLUS
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-
-_IS_AIRFLOW_2_10_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.10.0")
-
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
@@ -265,6 +261,6 @@ class RedshiftSQLHook(DbApiHook):
 
     def get_openlineage_default_schema(self) -> str | None:
         """Return current schema. This is usually changed with ``SEARCH_PATH`` parameter."""
-        if _IS_AIRFLOW_2_10_OR_HIGHER:
+        if AIRFLOW_V_2_10_PLUS:
             return self.get_first("SELECT CURRENT_SCHEMA();")[0]
         return super().get_openlineage_default_schema()
