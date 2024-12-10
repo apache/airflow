@@ -16,6 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
+pytestmark = pytest.mark.db_test
+
 
 def test_health(test_client):
     response = test_client.get("/execution/health")

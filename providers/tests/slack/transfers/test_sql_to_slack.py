@@ -20,8 +20,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowProviderDeprecationWarning, AirflowSkipException
-from airflow.providers.slack.transfers.sql_to_slack import SqlToSlackApiFileOperator, SqlToSlackOperator
+from airflow.exceptions import AirflowSkipException
+from airflow.providers.slack.transfers.sql_to_slack import SqlToSlackApiFileOperator
 from airflow.utils import timezone
 
 TEST_DAG_ID = "sql_to_slack_unit_test"
@@ -223,17 +223,3 @@ class TestSqlToSlackApiFileOperator:
         with pytest.raises(ValueError, match=r"output df must be non-empty\. Failing"):
             op.execute(mock.MagicMock())
         mock_slack_hook_cls.assert_not_called()
-
-
-def test_deprecated_sql_to_slack_operator():
-    warning_pattern = "SqlToSlackOperator` has been renamed and moved"
-    with pytest.warns(AirflowProviderDeprecationWarning, match=warning_pattern):
-        SqlToSlackOperator(
-            task_id="deprecated-sql-to-slack",
-            sql="SELECT 1",
-            sql_conn_id="test-sql-conn-id",
-            slack_webhook_conn_id="test-slack-conn-id",
-            sql_hook_params=None,
-            parameters=None,
-            slack_message="foo-bar",
-        )

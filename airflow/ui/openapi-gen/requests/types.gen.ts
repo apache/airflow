@@ -761,15 +761,16 @@ export type JobResponse = {
  */
 export type NodeResponse = {
   children?: Array<NodeResponse> | null;
-  id: string | null;
+  id: string;
   is_mapped?: boolean | null;
-  label?: string | null;
+  label: string;
   tooltip?: string | null;
   setup_teardown_type?: "setup" | "teardown" | null;
-  type: "join" | "sensor" | "task" | "task_group";
+  type: "join" | "task" | "asset_condition";
+  operator?: string | null;
 };
 
-export type type = "join" | "sensor" | "task" | "task_group";
+export type type = "join" | "task" | "asset_condition";
 
 /**
  * Request body for Clear Task Instances endpoint.
@@ -1636,15 +1637,6 @@ export type PatchDagsData = {
 
 export type PatchDagsResponse = DAGCollectionResponse;
 
-export type GetDagTagsData = {
-  limit?: number;
-  offset?: number;
-  orderBy?: string;
-  tagNamePattern?: string | null;
-};
-
-export type GetDagTagsResponse = DAGTagCollectionResponse;
-
 export type GetDagData = {
   dagId: string;
 };
@@ -1670,6 +1662,15 @@ export type GetDagDetailsData = {
 };
 
 export type GetDagDetailsResponse = DAGDetailsResponse;
+
+export type GetDagTagsData = {
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  tagNamePattern?: string | null;
+};
+
+export type GetDagTagsResponse = DAGTagCollectionResponse;
 
 export type GetEventLogData = {
   eventLogId: number;
@@ -2456,9 +2457,9 @@ export type $OpenApiTs = {
          */
         200: StructureDataResponse;
         /**
-         * Bad Request
+         * Not Found
          */
-        400: HTTPExceptionResponse;
+        404: HTTPExceptionResponse;
         /**
          * Validation Error
          */
@@ -3188,29 +3189,6 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/tags": {
-    get: {
-      req: GetDagTagsData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: DAGTagCollectionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
   "/public/dags/{dag_id}": {
     get: {
       req: GetDagData;
@@ -3324,6 +3302,29 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dagTags": {
+    get: {
+      req: GetDagTagsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGTagCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */

@@ -25,8 +25,8 @@ SQLExecuteQueryOperator to connect to Sqlite
 Use the :class:`SQLExecuteQueryOperator<airflow.providers.common.sql.operators.sql>` to execute
 Sqlite commands in a `Sqlite <https://sqlite.org/lang.html>`__ database.
 
-.. warning::
-    Previously, SqliteOperator was used to perform this kind of operation. But at the moment SqliteOperator is deprecated and will be removed in future versions of the provider. Please consider to switch to SQLExecuteQueryOperator as soon as possible.
+.. note::
+    Previously, ``SqliteOperator`` was used to perform this kind of operation. After deprecation this has been removed. Please use ``SQLExecuteQueryOperator`` instead.
 
 Using the Operator
 ^^^^^^^^^^^^^^^^^^

@@ -35,13 +35,8 @@ import lazy_object_proxy
 from sqlalchemy import select
 
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel, _fetch_active_assets_by_name
-from airflow.sdk.definitions.asset import (
-    Asset,
-    AssetAlias,
-    AssetAliasEvent,
-    AssetRef,
-)
+from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel, fetch_active_assets_by_name
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetRef
 from airflow.sdk.definitions.asset.metadata import extract_event_key
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.types import NOTSET
@@ -146,6 +141,19 @@ class ConnectionAccessor:
 
 
 @attrs.define()
+class AssetAliasEvent:
+    """
+    Represeation of asset event to be triggered by an asset alias.
+
+    :meta private:
+    """
+
+    source_alias_name: str
+    dest_asset_uri: str
+    extra: dict[str, Any]
+
+
+@attrs.define()
 class OutletEventAccessor:
     """
     Wrapper to access an outlet asset event in template.
@@ -173,9 +181,7 @@ class OutletEventAccessor:
         else:
             return
 
-        event = AssetAliasEvent(
-            source_alias_name=asset_alias_name, dest_asset_uri=asset_uri, extra=extra or {}
-        )
+        event = AssetAliasEvent(asset_alias_name, asset_uri, extra=extra or {})
         self.asset_alias_events.append(event)
 
 
@@ -250,7 +256,7 @@ class InletEventsAccessors(Mapping[str, LazyAssetEventSelectSequence]):
                 _asset_ref_names.append(inlet.name)
 
         if _asset_ref_names:
-            for asset_name, asset in _fetch_active_assets_by_name(_asset_ref_names, self._session).items():
+            for asset_name, asset in fetch_active_assets_by_name(_asset_ref_names, self._session).items():
                 self._assets[asset_name] = asset
 
     def __iter__(self) -> Iterator[str]:

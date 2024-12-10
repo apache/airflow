@@ -49,11 +49,9 @@ from airflow.utils.log.secrets_masker import _secrets_masker
 from airflow.utils.state import State
 
 from tests_common.test_utils.compat import (
-    AIRFLOW_V_2_9_PLUS,
-    AIRFLOW_V_2_10_PLUS,
-    AIRFLOW_V_3_0_PLUS,
     BashOperator,
 )
+from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS, AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -337,7 +335,7 @@ def test_serialize_timetable():
         Asset(name="2", uri="test://2", group="test-group"),
         AssetAlias(name="example-alias", group="test-group"),
         Asset(name="3", uri="test://3", group="test-group"),
-        AssetAll(AssetAlias("this-should-not-be-seen"), Asset("4")),
+        AssetAll(AssetAlias("another"), Asset("4")),
     )
     dag = MagicMock()
     dag.timetable = AssetTriggeredTimetable(asset)
@@ -354,7 +352,11 @@ def test_serialize_timetable():
                     "name": "2",
                     "group": "test-group",
                 },
-                {"__type": DagAttributeTypes.ASSET_ANY, "objects": []},
+                {
+                    "__type": DagAttributeTypes.ASSET_ALIAS,
+                    "name": "example-alias",
+                    "group": "test-group",
+                },
                 {
                     "__type": DagAttributeTypes.ASSET,
                     "extra": {},
@@ -365,7 +367,11 @@ def test_serialize_timetable():
                 {
                     "__type": DagAttributeTypes.ASSET_ALL,
                     "objects": [
-                        {"__type": DagAttributeTypes.ASSET_ANY, "objects": []},
+                        {
+                            "__type": DagAttributeTypes.ASSET_ALIAS,
+                            "name": "another",
+                            "group": "",
+                        },
                         {
                             "__type": DagAttributeTypes.ASSET,
                             "extra": {},

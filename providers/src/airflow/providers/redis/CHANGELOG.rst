@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+main
+.....
+
+.. warning::
+   All deprecated classes, parameters and features have been removed from the Redis provider package.
+   The following breaking changes were introduced:
+
+   * Hooks
+
+      * Removed ``ssl_cert_file`` parameter from ``RedisHook``. Use ``ssl_certfile`` instead
+
 3.8.0
 .....
 
