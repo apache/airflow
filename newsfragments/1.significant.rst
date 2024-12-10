@@ -1,0 +1,14 @@
+``kubernetes`` commands have been removed from the CLI
+
+The ``kubernetes`` commands for ``generate_pod_yaml`` and ``cleanup_pods`` moved to the ``kubernetes`` provider package. If you were using these commands, you will need to install the ``apache-airflow-providers-cncf-kubernetes`` provider package.
+These commands have been removed from core in Airflow 3 - in order to use them, you will need to install the provider package version 8.2.1+.
+
+* Types of change
+
+  * [ ] DAG changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [x] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency change
