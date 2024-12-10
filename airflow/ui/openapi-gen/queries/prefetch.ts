@@ -136,6 +136,26 @@ export const prefetchUseAssetServiceGetAssetAliases = (
       AssetService.getAssetAliases({ limit, namePattern, offset, orderBy }),
   });
 /**
+ * Get Asset Alias
+ * Get an asset alias.
+ * @param data The data for the request.
+ * @param data.assetAliasId
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseAssetServiceGetAssetAlias = (
+  queryClient: QueryClient,
+  {
+    assetAliasId,
+  }: {
+    assetAliasId: number;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseAssetServiceGetAssetAliasKeyFn({ assetAliasId }),
+    queryFn: () => AssetService.getAssetAlias({ assetAliasId }),
+  });
+/**
  * Get Asset Events
  * Get asset events.
  * @param data The data for the request.

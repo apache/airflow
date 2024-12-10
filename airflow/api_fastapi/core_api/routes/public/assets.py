@@ -40,6 +40,7 @@ from airflow.api_fastapi.common.parameters import (
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.assets import (
     AssetAliasCollectionResponse,
+    AssetAliasResponse,
     AssetCollectionResponse,
     AssetEventCollectionResponse,
     AssetEventResponse,
@@ -142,6 +143,21 @@ def get_asset_aliases(
         asset_aliases=session.scalars(asset_aliases_select),
         total_entries=total_entries,
     )
+
+
+@assets_router.get(
+    "/assets/aliases/{asset_alias_id:int}",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+)
+def get_asset_alias(asset_alias_id: int, session: SessionDep):
+    """Get an asset alias."""
+    alias = session.scalar(select(AssetAliasModel).where(AssetAliasModel.id == asset_alias_id))
+    if alias is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The Asset Alias with ID: `{asset_alias_id}` was not found",
+        )
+    return AssetAliasResponse.model_validate(alias)
 
 
 @assets_router.get(
