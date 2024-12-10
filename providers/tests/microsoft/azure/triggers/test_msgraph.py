@@ -40,6 +40,7 @@ from providers.tests.microsoft.conftest import (
     mock_json_response,
     mock_response,
 )
+from tests_common.test_utils.operators.run_deferable import run_trigger
 
 
 class TestMSGraphTrigger(Base):
@@ -49,7 +50,7 @@ class TestMSGraphTrigger(Base):
 
         with self.patch_hook_and_request_adapter(response):
             trigger = MSGraphTrigger("users/delta", conn_id="msgraph_api")
-            actual = self.run_trigger(trigger)
+            actual = run_trigger(trigger)
 
             assert len(actual) == 1
             assert isinstance(actual[0], TriggerEvent)
@@ -62,7 +63,7 @@ class TestMSGraphTrigger(Base):
 
         with self.patch_hook_and_request_adapter(response):
             trigger = MSGraphTrigger("users/delta", conn_id="msgraph_api")
-            actual = self.run_trigger(trigger)
+            actual = run_trigger(trigger)
 
             assert len(actual) == 1
             assert isinstance(actual[0], TriggerEvent)
@@ -73,7 +74,7 @@ class TestMSGraphTrigger(Base):
     def test_run_when_response_cannot_be_converted_to_json(self):
         with self.patch_hook_and_request_adapter(AirflowException()):
             trigger = MSGraphTrigger("users/delta", conn_id="msgraph_api")
-            actual = next(iter(self.run_trigger(trigger)))
+            actual = next(iter(run_trigger(trigger)))
 
             assert isinstance(actual, TriggerEvent)
             assert actual.payload["status"] == "failure"
@@ -89,7 +90,7 @@ class TestMSGraphTrigger(Base):
                 "https://graph.microsoft.com/v1.0/me/drive/items/1b30fecf-4330-4899-b249-104c2afaf9ed/content"
             )
             trigger = MSGraphTrigger(url, response_type="bytes", conn_id="msgraph_api")
-            actual = next(iter(self.run_trigger(trigger)))
+            actual = next(iter(run_trigger(trigger)))
 
             assert isinstance(actual, TriggerEvent)
             assert actual.payload["status"] == "success"
