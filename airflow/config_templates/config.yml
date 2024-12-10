@@ -2654,3 +2654,16 @@ usage_data_collection:
       example: ~
       default: "True"
       see_also: ":ref:`Usage data collection FAQ <usage-data-collection>`"
+dag_bundles:
+  description: |
+    Configuration for the DAG bundles. This allows Airflow to load DAGs from different sources.
+  options:
+    dags_folder:
+      description: |
+        This is the default DAG bundle that loads DAGs from the traditional `[core] dags_folder`.
+        It can be disabled by setting it to an empty string.
+      version_added: ~
+      type: string
+      example: ~
+      default: |
+        {{"classpath": "airflow.dag_processing.bundles.dagfolder.DagsFolderDagBundle", "kwargs": {{}}}}
