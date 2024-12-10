@@ -20,6 +20,7 @@ import urllib
 from collections.abc import Generator
 from unittest.mock import ANY
 
+from datetime import timedelta
 import pytest
 import time_machine
 
@@ -487,6 +488,66 @@ class TestGetAssetEvents(TestAssetEndpoint):
             ],
             "total_entries": 1,
         }
+
+        # New Test to Check Filtering by timestamp_gte and timestamp_lte
+    @pytest.mark.parametrize(
+        "timestamp_gte, timestamp_lte, expected_ids",
+        [
+            ("2020-06-11T00:00:00", "2020-06-12T00:00:00", [1]),
+            ("2020-06-12T00:00:00", "2020-06-13T00:00:00", [2]),
+            ("2020-06-11T00:00:00", "2020-06-13T00:00:00", [1, 2]),
+        ],
+    )
+    @provide_session
+    def test_filtering_by_timestamp(self, timestamp_gte, timestamp_lte, expected_ids, session):
+        # Create the same assets
+        assets = [
+            AssetModel(
+                id=i,
+                uri=f"s3://bucket/key/{i}",
+                extra={"foo": "bar"},
+                created_at=timezone.parse(self.default_time),
+                updated_at=timezone.parse(self.default_time),
+            )
+            for i in [1, 2, 3]
+        ]
+        session.add_all(assets)
+        session.commit()
+
+        # Create events with different timestamps
+        event_timestamp_base = timezone.parse(self.default_time)
+        events = [
+            AssetEvent(
+                id=i,
+                asset_id=i,
+                source_dag_id=f"dag{i}",
+                source_task_id=f"task{i}",
+                source_run_id=f"run{i}",
+                source_map_index=i,
+                timestamp=event_timestamp_base + timedelta(days=i-1),  # Vary timestamps for testing
+            )
+            for i in [1, 2, 3]
+        ]
+        session.add_all(events)
+        session.commit()
+
+        assert session.query(AssetEvent).count() == 3
+
+        # Construct query URL with timestamp_gte and timestamp_lte filters
+        response = self.client.get(
+            f"/api/v1/assets/events?timestamp_gte={timestamp_gte}&timestamp_lte={timestamp_lte}",
+            environ_overrides={"REMOTE_USER": "test"}
+        )
+
+        assert response.status_code == 200
+        response_data = response.json
+
+        # Check if the returned asset events' ids match the expected ones
+        asset_event_ids = [event['id'] for event in response_data['asset_events']]
+        assert sorted(asset_event_ids) == sorted(expected_ids)
+
+        # Validate total entries match expected number of results
+        assert response_data["total_entries"] == len(expected_ids)
 
     def test_order_by_raises_400_for_invalid_attr(self, session):
         self._create_asset(session)
