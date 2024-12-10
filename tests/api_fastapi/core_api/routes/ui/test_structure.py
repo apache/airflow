@@ -22,6 +22,7 @@ import pytest
 
 from airflow.models import DagBag
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 from airflow.sdk.definitions.asset import Asset, AssetAlias, Dataset
 
 from tests_common.test_utils.db import clear_db_runs
@@ -58,9 +59,11 @@ def make_dag(dag_maker, session, time_machine):
             & AssetAlias("example-alias")
         ),
     ):
-        EmptyOperator(
-            task_id="task_1", outlets=[Dataset(uri="s3://dataset-bucket/example.csv")]
-        ) >> EmptyOperator(task_id="task_2")
+        (
+            EmptyOperator(task_id="task_1", outlets=[Dataset(uri="s3://dataset-bucket/example.csv")])
+            >> ExternalTaskSensor(task_id="external_task_sensor", external_dag_id=DAG_ID)
+            >> EmptyOperator(task_id="task_2")
+        )
 
     dag_maker.dagbag.sync_to_db()
 
@@ -72,13 +75,18 @@ class TestStructureDataEndpoint:
             (
                 {"dag_id": DAG_ID},
                 {
-                    "arrange": "LR",
                     "edges": [
                         {
                             "is_setup_teardown": None,
                             "label": None,
-                            "source_id": "task_1",
+                            "source_id": "external_task_sensor",
                             "target_id": "task_2",
+                        },
+                        {
+                            "is_setup_teardown": None,
+                            "label": None,
+                            "source_id": "task_1",
+                            "target_id": "external_task_sensor",
                         },
                     ],
                     "nodes": [
@@ -87,22 +95,33 @@ class TestStructureDataEndpoint:
                             "id": "task_1",
                             "is_mapped": None,
                             "label": "task_1",
-                            "operator": "EmptyOperator",
-                            "setup_teardown_type": None,
                             "tooltip": None,
+                            "setup_teardown_type": None,
                             "type": "task",
+                            "operator": "EmptyOperator",
+                        },
+                        {
+                            "children": None,
+                            "id": "external_task_sensor",
+                            "is_mapped": None,
+                            "label": "external_task_sensor",
+                            "tooltip": None,
+                            "setup_teardown_type": None,
+                            "type": "task",
+                            "operator": "ExternalTaskSensor",
                         },
                         {
                             "children": None,
                             "id": "task_2",
                             "is_mapped": None,
                             "label": "task_2",
-                            "operator": "EmptyOperator",
-                            "setup_teardown_type": None,
                             "tooltip": None,
+                            "setup_teardown_type": None,
                             "type": "task",
+                            "operator": "EmptyOperator",
                         },
                     ],
+                    "arrange": "LR",
                 },
             ),
             (
@@ -142,8 +161,13 @@ class TestStructureDataEndpoint:
                     "external_dependencies": True,
                 },
                 {
-                    "arrange": "LR",
                     "edges": [
+                        {
+                            "is_setup_teardown": None,
+                            "label": None,
+                            "source_id": "sensor:test_dag_id:test_dag_id:external_task_sensor",
+                            "target_id": "task_1",
+                        },
                         {
                             "is_setup_teardown": None,
                             "label": None,
@@ -165,8 +189,14 @@ class TestStructureDataEndpoint:
                         {
                             "is_setup_teardown": None,
                             "label": None,
-                            "source_id": "task_1",
+                            "source_id": "external_task_sensor",
                             "target_id": "task_2",
+                        },
+                        {
+                            "is_setup_teardown": None,
+                            "label": None,
+                            "source_id": "task_1",
+                            "target_id": "external_task_sensor",
                         },
                         {
                             "is_setup_teardown": None,
@@ -181,62 +211,83 @@ class TestStructureDataEndpoint:
                             "id": "task_1",
                             "is_mapped": None,
                             "label": "task_1",
-                            "operator": "EmptyOperator",
-                            "setup_teardown_type": None,
                             "tooltip": None,
+                            "setup_teardown_type": None,
                             "type": "task",
+                            "operator": "EmptyOperator",
+                        },
+                        {
+                            "children": None,
+                            "id": "external_task_sensor",
+                            "is_mapped": None,
+                            "label": "external_task_sensor",
+                            "tooltip": None,
+                            "setup_teardown_type": None,
+                            "type": "task",
+                            "operator": "ExternalTaskSensor",
                         },
                         {
                             "children": None,
                             "id": "task_2",
                             "is_mapped": None,
                             "label": "task_2",
-                            "operator": "EmptyOperator",
-                            "setup_teardown_type": None,
                             "tooltip": None,
+                            "setup_teardown_type": None,
                             "type": "task",
+                            "operator": "EmptyOperator",
                         },
                         {
                             "children": None,
                             "id": "asset:asset1",
                             "is_mapped": None,
                             "label": "asset:asset1",
-                            "operator": None,
-                            "setup_teardown_type": None,
                             "tooltip": None,
+                            "setup_teardown_type": None,
                             "type": "asset",
+                            "operator": None,
                         },
                         {
                             "children": None,
                             "id": "asset:asset2",
                             "is_mapped": None,
                             "label": "asset:asset2",
-                            "operator": None,
-                            "setup_teardown_type": None,
                             "tooltip": None,
+                            "setup_teardown_type": None,
                             "type": "asset",
+                            "operator": None,
                         },
                         {
                             "children": None,
                             "id": "asset-alias:example-alias",
                             "is_mapped": None,
                             "label": "asset-alias:example-alias",
-                            "operator": None,
-                            "setup_teardown_type": None,
                             "tooltip": None,
+                            "setup_teardown_type": None,
                             "type": "asset-alias",
+                            "operator": None,
                         },
                         {
                             "children": None,
                             "id": "asset:s3://dataset-bucket/example.csv",
                             "is_mapped": None,
                             "label": "asset:s3://dataset-bucket/example.csv",
-                            "operator": None,
-                            "setup_teardown_type": None,
                             "tooltip": None,
+                            "setup_teardown_type": None,
                             "type": "asset",
+                            "operator": None,
+                        },
+                        {
+                            "children": None,
+                            "id": "sensor:test_dag_id:test_dag_id:external_task_sensor",
+                            "is_mapped": None,
+                            "label": "sensor:test_dag_id:test_dag_id:external_task_sensor",
+                            "tooltip": None,
+                            "setup_teardown_type": None,
+                            "type": "sensor",
+                            "operator": None,
                         },
                     ],
+                    "arrange": "LR",
                 },
             ),
         ],

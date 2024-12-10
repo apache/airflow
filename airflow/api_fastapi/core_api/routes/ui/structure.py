@@ -54,9 +54,7 @@ def structure_data(
             task_ids_or_regex=root, include_upstream=include_upstream, include_downstream=include_downstream
         )
 
-    nodes = [
-        task_group_to_dict(child) for child in sorted(dag.task_group.children.values(), key=lambda t: t.label)
-    ]
+    nodes = [task_group_to_dict(child) for child in dag.task_group.children.values()]
     edges = dag_edges(dag)
 
     data = {
