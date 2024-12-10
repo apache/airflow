@@ -24,7 +24,7 @@ from typing import Any
 import pendulum
 
 from airflow.exceptions import AirflowException
-from airflow.providers.standard.utils.version_references import AIRFLOW_V_2_10_PLUS
+from airflow.providers.standard.version_compat import AIRFLOW_V_2_10_PLUS
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils import timezone
 
