@@ -201,7 +201,10 @@ def run(ti: RuntimeTaskInstance, log: Logger):
             trigger_timeout=timeout,
         )
     except AirflowSkipException:
-        ...
+        msg = TaskState(
+            state=TerminalTIState.SKIPPED,
+            end_date=datetime.now(tz=timezone.utc),
+        )
     except AirflowRescheduleException:
         ...
     except (AirflowFailException, AirflowSensorTimeout):

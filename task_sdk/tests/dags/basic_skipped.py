@@ -14,3 +14,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from __future__ import annotations
+
+from airflow.exceptions import AirflowSkipException
+from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk.definitions.dag import dag
+
+
+@dag()
+def basic_skipped():
+    def skip_task():
+        raise AirflowSkipException("This task is being skipped intentionally.")
+
+    PythonOperator(
+        task_id="skip",
+        python_callable=skip_task,
+    )
+
+
+basic_skipped()

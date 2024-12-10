@@ -182,6 +182,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-hooks-apply                                         | Check if all hooks apply to the repository             |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-imports-in-providers                                | Check imports in providers                             |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-incorrect-use-of-LoggingMixin                       | Make sure LoggingMixin is not used alone               |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-init-decorator-arguments                            | Sync model __init__ and decorator arguments            |         |
