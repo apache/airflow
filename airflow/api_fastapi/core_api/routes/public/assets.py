@@ -28,7 +28,9 @@ from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     FilterParam,
     OptionalDateTimeQuery,
+    QueryAssetAliasNamePatternSearch,
     QueryAssetDagIdPatternSearch,
+    QueryAssetNamePatternSearch,
     QueryLimit,
     QueryOffset,
     QueryUriPatternSearch,
@@ -37,6 +39,7 @@ from airflow.api_fastapi.common.parameters import (
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.assets import (
+    AssetAliasCollectionResponse,
     AssetCollectionResponse,
     AssetEventCollectionResponse,
     AssetEventResponse,
@@ -47,7 +50,7 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.assets.manager import asset_manager
-from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
+from airflow.models.asset import AssetAliasModel, AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.utils import timezone
 
 assets_router = AirflowRouter(tags=["Asset"])
@@ -81,18 +84,19 @@ def _generate_queued_event_where_clause(
 def get_assets(
     limit: QueryLimit,
     offset: QueryOffset,
+    name_pattern: QueryAssetNamePatternSearch,
     uri_pattern: QueryUriPatternSearch,
     dag_ids: QueryAssetDagIdPatternSearch,
     order_by: Annotated[
         SortParam,
-        Depends(SortParam(["id", "uri", "created_at", "updated_at"], AssetModel).dynamic_depends()),
+        Depends(SortParam(["id", "name", "uri", "created_at", "updated_at"], AssetModel).dynamic_depends()),
     ],
     session: SessionDep,
 ) -> AssetCollectionResponse:
     """Get assets."""
     assets_select, total_entries = paginated_select(
         statement=select(AssetModel),
-        filters=[uri_pattern, dag_ids],
+        filters=[name_pattern, uri_pattern, dag_ids],
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -106,6 +110,36 @@ def get_assets(
     )
     return AssetCollectionResponse(
         assets=assets,
+        total_entries=total_entries,
+    )
+
+
+@assets_router.get(
+    "/assets/aliases",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+)
+def get_asset_aliases(
+    limit: QueryLimit,
+    offset: QueryOffset,
+    name_pattern: QueryAssetAliasNamePatternSearch,
+    order_by: Annotated[
+        SortParam,
+        Depends(SortParam(["id", "name"], AssetAliasModel).dynamic_depends()),
+    ],
+    session: SessionDep,
+) -> AssetAliasCollectionResponse:
+    """Get asset aliases."""
+    asset_aliases_select, total_entries = paginated_select(
+        statement=select(AssetAliasModel),
+        filters=[name_pattern],
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
+    )
+
+    return AssetAliasCollectionResponse(
+        asset_aliases=session.scalars(asset_aliases_select),
         total_entries=total_entries,
     )
 

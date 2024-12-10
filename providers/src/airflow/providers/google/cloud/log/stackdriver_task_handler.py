@@ -30,17 +30,13 @@ from google.cloud.logging import Resource
 from google.cloud.logging.handlers.transports import BackgroundThreadTransport, Transport
 from google.cloud.logging_v2.services.logging_service_v2 import LoggingServiceV2Client
 from google.cloud.logging_v2.types import ListLogEntriesRequest, ListLogEntriesResponse
-from packaging.version import Version
 
-from airflow import __version__ as airflow_version
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.log.trigger_handler import ctx_indiv_trigger
 from airflow.utils.types import NOTSET, ArgNotSet
-
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 if TYPE_CHECKING:
     from google.auth.credentials import Credentials
