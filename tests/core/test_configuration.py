@@ -146,27 +146,16 @@ class TestConf:
 
         assert conf.has_option("testsection", "testkey")
 
-        with mock.patch.dict(
-            "os.environ", AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__AIRFLOW__TESTSECTION__TESTKEY="nested"
-        ):
-            opt = conf.get("kubernetes_environment_variables", "AIRFLOW__TESTSECTION__TESTKEY")
-            assert opt == "nested"
-
-    @mock.patch.dict(
-        "os.environ", AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__AIRFLOW__TESTSECTION__TESTKEY="nested"
-    )
     @conf_vars({("core", "percent"): "with%%inside"})
     def test_conf_as_dict(self):
         cfg_dict = conf.as_dict()
 
         # test that configs are picked up
         assert cfg_dict["core"]["unit_test_mode"] == "True"
-
         assert cfg_dict["core"]["percent"] == "with%inside"
 
         # test env vars
         assert cfg_dict["testsection"]["testkey"] == "testvalue"
-        assert cfg_dict["kubernetes_environment_variables"]["AIRFLOW__TESTSECTION__TESTKEY"] == "nested"
 
     def test_conf_as_dict_source(self):
         # test display_source
@@ -610,23 +599,6 @@ key3 = value3
         monkeypatch.setenv("AIRFLOW__WEBSERVER__SECRET_KEY_CMD", str(cmd_file))
         content = conf.getsection("webserver")
         assert content["secret_key"] == "difficult_unpredictable_cat_password"
-
-    def test_kubernetes_environment_variables_section(self):
-        test_config = """
-[kubernetes_environment_variables]
-key1 = hello
-AIRFLOW_HOME = /root/airflow
-"""
-        test_config_default = """
-[kubernetes_environment_variables]
-"""
-        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
-        test_conf.read_string(test_config)
-
-        assert test_conf.getsection("kubernetes_environment_variables") == {
-            "key1": "hello",
-            "AIRFLOW_HOME": "/root/airflow",
-        }
 
     @pytest.mark.parametrize(
         "key, type",
