@@ -23,18 +23,14 @@ from collections.abc import Iterable, Mapping
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import prestodb
-from packaging.version import Version
 from prestodb.exceptions import DatabaseError
 from prestodb.transaction import IsolationLevel
 
-from airflow import __version__ as airflow_version
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.presto.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX
-
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 if TYPE_CHECKING:
     from airflow.models import Connection

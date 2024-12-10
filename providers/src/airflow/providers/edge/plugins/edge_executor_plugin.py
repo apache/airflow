@@ -23,15 +23,14 @@ from typing import TYPE_CHECKING, Any
 
 from flask import Blueprint
 from flask_appbuilder import BaseView, expose
-from packaging.version import Version
 from sqlalchemy import select
 
-from airflow import __version__ as airflow_version
 from airflow.auth.managers.models.resource_details import AccessView
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.models.taskinstance import TaskInstanceState
 from airflow.plugins_manager import AirflowPlugin
+from airflow.providers.edge.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.yaml import safe_load
 from airflow.www import utils as wwwutils
@@ -41,9 +40,6 @@ from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, 
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
-
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 
 def _get_airflow_2_api_endpoint() -> Blueprint:

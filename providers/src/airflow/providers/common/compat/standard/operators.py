@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow import __version__ as AIRFLOW_VERSION
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_2_10_PLUS
 
 if TYPE_CHECKING:
     from airflow.providers.standard.operators.python import (
@@ -37,17 +37,13 @@ else:
             get_current_context,
         )
     except ModuleNotFoundError:
-        from packaging.version import Version
-
-        _IS_AIRFLOW_2_10_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.10.0")
-
         from airflow.operators.python import (
             PythonOperator,
             ShortCircuitOperator,
             get_current_context,
         )
 
-        if _IS_AIRFLOW_2_10_OR_HIGHER:
+        if AIRFLOW_V_2_10_PLUS:
             from airflow.operators.python import _SERIALIZERS
 
 
