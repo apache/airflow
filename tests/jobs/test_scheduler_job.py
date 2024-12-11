@@ -6319,10 +6319,10 @@ class TestSchedulerJob:
             )
         )
         assert dag_warning.message == (
-            'Cannot activate asset AssetModel(name="it\'s also a duplicate",'
-            " uri='s3://bucket/key/1', extra={'foo': 'bar'}); uri is already associated to 'asset1'\n"
-            "Cannot activate asset AssetModel(name='asset1', uri"
-            "=\"it's duplicate\", extra={'foo': 'bar'}); name is already associated to 's3://bucket/key/1'"
+            'Cannot activate asset Asset(name="it\'s also a duplicate",'
+            " uri='s3://bucket/key/1', group='asset', extra={'foo': 'bar'}, watchers=[]); uri is already associated to 'asset1'\n"
+            "Cannot activate asset Asset(name='asset1', uri"
+            "=\"it's duplicate\", group='asset', extra={'foo': 'bar'}, watchers=[]); name is already associated to 's3://bucket/key/1'"
         )
 
     def test_activate_referenced_assets_with_existing_warnings(self, session):
@@ -6357,7 +6357,7 @@ class TestSchedulerJob:
             )
         )
         assert dag_warning.message == (
-            "Cannot activate asset AssetModel(name='asset1', uri=\"it's duplicate\", extra={'foo': 'bar'}); "
+            "Cannot activate asset Asset(name='asset1', uri=\"it's duplicate\", group='asset', extra={'foo': 'bar'}, watchers=[]); "
             "name is already associated to 's3://bucket/key/1'"
         )
 
@@ -6374,7 +6374,7 @@ class TestSchedulerJob:
             )
         )
         assert dag_warning.message == (
-            "Cannot activate asset AssetModel(name='asset1', uri=\"it's duplicate 2\", extra={'foo': 'bar'}); "
+            "Cannot activate asset Asset(name='asset1', uri=\"it's duplicate 2\", group='asset', extra={'foo': 'bar'}, watchers=[]); "
             "name is already associated to 's3://bucket/key/1'"
         )
 

@@ -2218,7 +2218,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             for ref in itertools.chain(offending.consuming_dags, offending.producing_tasks):
                 yield (
                     ref.dag_id,
-                    f"Cannot activate asset {offending}; {attr} is already associated to {value!r}",
+                    f"Cannot activate asset {offending.to_public()}; {attr} is already associated to {value!r}",
                 )
 
         def _activate_assets_generate_warnings() -> Iterator[tuple[str, str]]:
