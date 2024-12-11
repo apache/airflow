@@ -16,15 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Heading,
-  VStack,
-  HStack,
-  Box,
-  SimpleGrid,
-  Text,
-  Link,
-} from "@chakra-ui/react";
+import { Heading, VStack, Box, SimpleGrid, Text, Link } from "@chakra-ui/react";
 import { Link as RouterLink } from "react-router-dom";
 
 import type {
@@ -77,14 +69,18 @@ export const TaskCard = ({ dagId, task, taskInstances }: Props) => (
         </Heading>
         {taskInstances[0] ? (
           <TaskInstanceTooltip taskInstance={taskInstances[0]}>
-            <HStack fontSize="sm">
-              <Time datetime={taskInstances[0].start_date} />
-              {taskInstances[0].state === null ? undefined : (
-                <Status state={taskInstances[0].state}>
-                  {taskInstances[0].state}
-                </Status>
-              )}
-            </HStack>
+            <Link asChild color="fg.info" fontSize="sm">
+              <RouterLink
+                to={`/dags/${dagId}/runs/${taskInstances[0].dag_run_id}/tasks/${task.task_id}`}
+              >
+                <Time datetime={taskInstances[0].start_date} />
+                {taskInstances[0].state === null ? undefined : (
+                  <Status state={taskInstances[0].state}>
+                    {taskInstances[0].state}
+                  </Status>
+                )}
+              </RouterLink>
+            </Link>
           </TaskInstanceTooltip>
         ) : undefined}
       </VStack>

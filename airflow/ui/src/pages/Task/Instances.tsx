@@ -36,22 +36,18 @@ const columns = (
   isMapped?: boolean,
 ): Array<ColumnDef<TaskInstanceResponse>> => [
   {
-    accessorKey: "start_date",
+    accessorKey: "dag_run_id",
     cell: ({ row: { original } }) => (
       <Link asChild color="fg.info" fontWeight="bold">
         <RouterLink
           to={`/dags/${original.dag_id}/runs/${original.dag_run_id}/tasks/${original.task_id}`}
         >
-          <Time datetime={original.start_date} />
+          {original.dag_run_id}
         </RouterLink>
       </Link>
     ),
-    header: "Start Date",
-  },
-  {
-    accessorKey: "end_date",
-    cell: ({ row: { original } }) => <Time datetime={original.end_date} />,
-    header: "End Date",
+    enableSorting: false,
+    header: "Dag Run ID",
   },
   {
     accessorKey: "state",
@@ -63,15 +59,14 @@ const columns = (
     header: () => "State",
   },
   {
-    accessorKey: "dag_run_id",
-    cell: ({ row: { original } }) => (
-      <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink to={`/dags/${original.dag_id}/runs/${original.dag_run_id}`}>
-          {original.dag_run_id}
-        </RouterLink>
-      </Link>
-    ),
-    header: "Dag Run ID",
+    accessorKey: "start_date",
+    cell: ({ row: { original } }) => <Time datetime={original.start_date} />,
+    header: "Start Date",
+  },
+  {
+    accessorKey: "end_date",
+    cell: ({ row: { original } }) => <Time datetime={original.end_date} />,
+    header: "End Date",
   },
   ...(isMapped
     ? [
@@ -86,13 +81,6 @@ const columns = (
     enableSorting: false,
     header: "Try Number",
   },
-
-  {
-    accessorKey: "operator",
-    enableSorting: false,
-    header: "Operator",
-  },
-
   {
     cell: ({ row: { original } }) =>
       `${dayjs.duration(dayjs(original.end_date).diff(original.start_date)).asSeconds().toFixed(2)}s`,

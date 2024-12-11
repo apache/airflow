@@ -34,24 +34,28 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
     accessorKey: "task_display_name",
     cell: ({ row: { original } }) => (
       <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink to={`/dags/${original.dag_id}//tasks/${original.task_id}`}>
+        <RouterLink
+          to={`/dags/${original.dag_id}/runs/${original.dag_run_id}/tasks/${original.task_id}${original.map_index > -1 ? `?map_index=${original.map_index}` : ""}`}
+        >
           {original.task_display_name}
         </RouterLink>
       </Link>
     ),
+    enableSorting: false,
     header: "Task ID",
   },
   {
+    accessorKey: "state",
+    cell: ({
+      row: {
+        original: { state },
+      },
+    }) => <Status state={state}>{state}</Status>,
+    header: () => "State",
+  },
+  {
     accessorKey: "start_date",
-    cell: ({ row: { original } }) => (
-      <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink
-          to={`/dags/${original.dag_id}/runs/${original.dag_run_id}/tasks/${original.task_id}${original.map_index > -1 ? `?map_index=${original.map_index}` : ""}`}
-        >
-          <Time datetime={original.start_date} />
-        </RouterLink>
-      </Link>
-    ),
+    cell: ({ row: { original } }) => <Time datetime={original.start_date} />,
     header: "Start Date",
   },
   {
@@ -63,15 +67,7 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
     accessorKey: "map_index",
     header: "Map Index",
   },
-  {
-    accessorKey: "state",
-    cell: ({
-      row: {
-        original: { state },
-      },
-    }) => <Status state={state}>{state}</Status>,
-    header: () => "State",
-  },
+
   {
     accessorKey: "try_number",
     enableSorting: false,
