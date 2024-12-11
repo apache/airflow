@@ -64,8 +64,11 @@ def structure_data(
     }
 
     if external_dependencies:
-        entry_node_ref = nodes[0]
-        exit_node_ref = nodes[-1]
+        entry_node_ref = nodes[0] if nodes else None
+        exit_node_ref = nodes[-1] if nodes else None
+
+        start_edges: list[dict] = []
+        end_edges: list[dict] = []
 
         for dependency_dag_id, dependencies in SerializedDagModel.get_dag_dependencies().items():
             for dependency in dependencies:
@@ -83,11 +86,13 @@ def structure_data(
 
                 # Add edges
                 # start dependency
-                if dependency.target != dependency.dependency_type:
-                    edges.insert(0, {"source_id": dependency.node_id, "target_id": entry_node_ref["id"]})
+                if dependency.target != dependency.dependency_type and entry_node_ref:
+                    start_edges.append({"source_id": dependency.node_id, "target_id": entry_node_ref["id"]})
 
                 # end dependency
-                elif dependency.source != dependency.dependency_type:
-                    edges.append({"source_id": exit_node_ref["id"], "target_id": dependency.node_id})
+                elif dependency.source != dependency.dependency_type and exit_node_ref:
+                    end_edges.append({"source_id": exit_node_ref["id"], "target_id": dependency.node_id})
+
+        data["edges"] = start_edges + edges + end_edges
 
     return StructureDataResponse(**data)

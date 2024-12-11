@@ -176,19 +176,7 @@ class TestStructureDataEndpoint:
                         {
                             "is_setup_teardown": None,
                             "label": None,
-                            "source_id": "sensor:test_dag_id:test_dag_id:external_task_sensor",
-                            "target_id": "task_1",
-                        },
-                        {
-                            "is_setup_teardown": None,
-                            "label": None,
-                            "source_id": "asset-alias:example-alias",
-                            "target_id": "task_1",
-                        },
-                        {
-                            "is_setup_teardown": None,
-                            "label": None,
-                            "source_id": "asset:asset2",
+                            "source_id": "trigger:external_trigger:test_dag_id:trigger_dag_run_operator",
                             "target_id": "task_1",
                         },
                         {
@@ -200,7 +188,19 @@ class TestStructureDataEndpoint:
                         {
                             "is_setup_teardown": None,
                             "label": None,
-                            "source_id": "trigger:external_trigger:test_dag_id:trigger_dag_run_operator",
+                            "source_id": "asset:asset2",
+                            "target_id": "task_1",
+                        },
+                        {
+                            "is_setup_teardown": None,
+                            "label": None,
+                            "source_id": "asset-alias:example-alias",
+                            "target_id": "task_1",
+                        },
+                        {
+                            "is_setup_teardown": None,
+                            "label": None,
+                            "source_id": "sensor:test_dag_id:test_dag_id:external_task_sensor",
                             "target_id": "task_1",
                         },
                         {
