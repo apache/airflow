@@ -28,7 +28,7 @@ import { DagRunMetrics } from "./DagRunMetrics";
 import { MetricSectionSkeleton } from "./MetricSectionSkeleton";
 import { TaskInstanceMetrics } from "./TaskInstanceMetrics";
 
-const defaultHour = "12";
+const defaultHour = "168";
 
 export const HistoricalMetrics = () => {
   const now = dayjs();

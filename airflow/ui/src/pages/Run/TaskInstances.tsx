@@ -88,7 +88,14 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
 
 export const TaskInstances = () => {
   const { dagId = "", runId = "" } = useParams();
-  const { setTableURLState, tableURLState } = useTableURLState();
+  const { setTableURLState, tableURLState } = useTableURLState({
+    sorting: [
+      {
+        desc: true,
+        id: "start_date",
+      },
+    ],
+  });
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;

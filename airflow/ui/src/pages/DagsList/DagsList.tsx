@@ -100,11 +100,10 @@ const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
           nextDagrunCreateAfter={original.next_dagrun_create_after}
         />
       ) : undefined,
-    enableSorting: false,
     header: "Next Dag Run",
   },
   {
-    accessorKey: "latest_dag_runs",
+    accessorKey: "last_run_start_date",
     cell: ({ row: { original } }) =>
       original.latest_dag_runs[0] ? (
         <DagRunInfo
@@ -115,7 +114,6 @@ const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
           state={original.latest_dag_runs[0].state}
         />
       ) : undefined,
-    enableSorting: false,
     header: "Last Dag Run",
   },
   {
@@ -171,7 +169,15 @@ export const DagsList = () => {
   ) as DagRunState;
   const selectedTags = searchParams.getAll(TAGS_PARAM);
 
-  const { setTableURLState, tableURLState } = useTableURLState();
+  const { setTableURLState, tableURLState } = useTableURLState({
+    sorting: [
+      {
+        desc: true,
+        id: "last_run_start_date",
+      },
+    ],
+  });
+
   const { pagination, sorting } = tableURLState;
   const [dagDisplayNamePattern, setDagDisplayNamePattern] = useState(
     searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
@@ -254,7 +260,11 @@ export const DagsList = () => {
         <DataTable
           cardDef={cardDef}
           columns={columns}
-          data={data.dags}
+          // We need to rename latest_dag_runs so that react-table can handle the sort correctly
+          data={data.dags.map((dag) => ({
+            ...dag,
+            last_run_start_date: dag.latest_dag_runs,
+          }))}
           displayMode={display}
           errorMessage={<ErrorAlert error={error} />}
           initialState={tableURLState}
