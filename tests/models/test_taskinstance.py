@@ -42,6 +42,7 @@ from airflow import settings
 from airflow.decorators import task, task_group
 from airflow.exceptions import (
     AirflowException,
+    AirflowExecuteWithInactiveAssetExecption,
     AirflowFailException,
     AirflowRescheduleException,
     AirflowSensorTimeout,
@@ -51,6 +52,7 @@ from airflow.exceptions import (
     UnmappableXComTypePushed,
     XComForMappingNotPushed,
 )
+from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models.asset import AssetAliasModel, AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
@@ -2268,6 +2270,11 @@ class TestTaskInstance:
         dagbag = DagBag(dag_folder=example_assets.__file__)
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
         dagbag.sync_to_db(session=session)
+
+        asset_models = session.scalars(select(AssetModel)).all()
+        SchedulerJobRunner._activate_referenced_assets(asset_models, session=session)
+        session.flush()
+
         run_id = str(uuid4())
         dr = DagRun(dag1.dag_id, run_id=run_id, run_type="anything")
         session.merge(dr)
@@ -2381,6 +2388,11 @@ class TestTaskInstance:
         dagbag = DagBag(dag_folder=test_assets.__file__)
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
         dagbag.sync_to_db(session=session)
+
+        asset_models = session.scalars(select(AssetModel)).all()
+        SchedulerJobRunner._activate_referenced_assets(asset_models, session=session)
+        session.flush()
+
         run_id = str(uuid4())
         dr = DagRun(dag_with_skip_task.dag_id, run_id=run_id, run_type="anything")
         session.merge(dr)
@@ -2398,10 +2410,11 @@ class TestTaskInstance:
         # check that no asset events were generated
         assert session.query(AssetEvent).count() == 0
 
+    @pytest.mark.want_activate_assets(True)
     def test_outlet_asset_extra(self, dag_maker, session):
         from airflow.sdk.definitions.asset import Asset
 
-        with dag_maker(schedule=None, session=session) as dag:
+        with dag_maker(schedule=None, serialized=True, session=session):
 
             @task(outlets=Asset("test_outlet_asset_extra_1"))
             def write1(*, outlet_events):
@@ -2421,7 +2434,6 @@ class TestTaskInstance:
 
         dr: DagRun = dag_maker.create_dagrun()
         for ti in dr.get_task_instances(session=session):
-            ti.refresh_from_task(dag.get_task(ti.task_id))
             ti.run(session=session)
 
         events = dict(iter(session.execute(select(AssetEvent.source_task_id, AssetEvent))))
@@ -2439,10 +2451,11 @@ class TestTaskInstance:
         assert events["write2"].asset.uri == "test_outlet_asset_extra_2"
         assert events["write2"].extra == {"x": 1}
 
+    @pytest.mark.want_activate_assets(True)
     def test_outlet_asset_extra_ignore_different(self, dag_maker, session):
         from airflow.sdk.definitions.asset import Asset
 
-        with dag_maker(schedule=None, session=session):
+        with dag_maker(schedule=None, serialized=True, session=session):
 
             @task(outlets=Asset("test_outlet_asset_extra"))
             def write(*, outlet_events):
@@ -2460,11 +2473,12 @@ class TestTaskInstance:
         assert event.source_task_id == "write"
         assert event.extra == {"one": 1}
 
+    @pytest.mark.want_activate_assets(True)
     def test_outlet_asset_extra_yield(self, dag_maker, session):
         from airflow.sdk.definitions.asset import Asset
         from airflow.sdk.definitions.asset.metadata import Metadata
 
-        with dag_maker(schedule=None, session=session) as dag:
+        with dag_maker(schedule=None, serialized=True, session=session):
 
             @task(outlets=Asset("test_outlet_asset_extra_1"))
             def write1():
@@ -2486,7 +2500,6 @@ class TestTaskInstance:
 
         dr: DagRun = dag_maker.create_dagrun()
         for ti in dr.get_task_instances(session=session):
-            ti.refresh_from_task(dag.get_task(ti.task_id))
             ti.run(session=session)
 
         xcom = session.scalars(
@@ -2715,12 +2728,13 @@ class TestTaskInstance:
         assert len(asset_alias_obj.assets) == 1
         assert asset_alias_obj.assets[0].uri == asset_uri
 
+    @pytest.mark.want_activate_assets(True)
     def test_inlet_asset_extra(self, dag_maker, session):
         from airflow.sdk.definitions.asset import Asset
 
         read_task_evaluated = False
 
-        with dag_maker(schedule=None, session=session):
+        with dag_maker(schedule=None, serialized=True, session=session):
 
             @task(outlets=Asset("test_inlet_asset_extra"))
             def write(*, ti, outlet_events):
@@ -2857,6 +2871,7 @@ class TestTaskInstance:
         # Should be done.
         assert not dr.task_instance_scheduling_decisions(session=session).schedulable_tis
 
+    @pytest.mark.want_activate_assets(True)
     @pytest.mark.parametrize(
         "slicer, expected",
         [
@@ -2873,7 +2888,7 @@ class TestTaskInstance:
 
         asset_uri = "test_inlet_asset_extra_slice"
 
-        with dag_maker(dag_id="write", schedule="@daily", params={"i": -1}, session=session):
+        with dag_maker(dag_id="write", serialized=True, schedule="@daily", params={"i": -1}, session=session):
 
             @task(outlets=Asset(asset_uri))
             def write(*, params, outlet_events):
@@ -4033,6 +4048,135 @@ class TestTaskInstance:
         assert ti.state == State.UP_FOR_RETRY
         assert session.query(TaskInstance).count() == 1
         assert session.query(TaskInstanceHistory).count() == 1
+
+    @pytest.mark.want_activate_assets(True)
+    def test_run_with_inactive_assets(self, dag_maker, session):
+        from airflow.sdk.definitions.asset import Asset
+
+        with dag_maker(schedule=None, serialized=True, session=session):
+
+            @task(outlets=Asset("asset_first"))
+            def first_asset_task(*, outlet_events):
+                outlet_events[Asset("asset_first")].extra = {"foo": "bar"}
+
+            first_asset_task()
+
+        with dag_maker(schedule=None, serialized=True, session=session):
+
+            @task(outlets=Asset("asset_second"))
+            def asset_task_in_inlet():
+                pass
+
+            @task(outlets=Asset(name="asset_first", uri="test://asset"), inlets=Asset("asset_second"))
+            def duplicate_asset_task_in_outlet(*, outlet_events):
+                outlet_events[Asset(name="asset_first", uri="test://asset")].extra = {"foo": "bar"}
+
+            duplicate_asset_task_in_outlet() >> asset_task_in_inlet()
+
+        tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
+
+        with pytest.raises(AirflowExecuteWithInactiveAssetExecption) as exc:
+            tis["duplicate_asset_task_in_outlet"].run(session=session)
+
+        assert 'Asset(name="asset_second", uri="asset_second") is inactive' in exc.value.args[0]
+        assert 'Asset(name="asset_first", uri="test://asset/") is inactive' in exc.value.args[0]
+
+    @pytest.mark.want_activate_assets(True)
+    def test_run_with_inactive_assets_in_outlets_within_the_same_dag(self, dag_maker, session):
+        from airflow.sdk.definitions.asset import Asset
+
+        with dag_maker(schedule=None, serialized=True, session=session):
+
+            @task(outlets=Asset("asset_first"))
+            def first_asset_task(*, outlet_events):
+                outlet_events[Asset("asset_first")].extra = {"foo": "bar"}
+
+            @task(outlets=Asset(name="asset_first", uri="test://asset"))
+            def duplicate_asset_task(*, outlet_events):
+                outlet_events[Asset(name="asset_first", uri="test://asset")].extra = {"foo": "bar"}
+
+            first_asset_task() >> duplicate_asset_task()
+
+        tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
+        tis["first_asset_task"].run(session=session)
+        with pytest.raises(AirflowExecuteWithInactiveAssetExecption) as exc:
+            tis["duplicate_asset_task"].run(session=session)
+
+        assert exc.value.args[0] == 'Asset(name="asset_first", uri="test://asset/") is inactive'
+
+    @pytest.mark.want_activate_assets(True)
+    def test_run_with_inactive_assets_in_outlets_in_different_dag(self, dag_maker, session):
+        from airflow.sdk.definitions.asset import Asset
+
+        with dag_maker(schedule=None, serialized=True, session=session):
+
+            @task(outlets=Asset("asset_first"))
+            def first_asset_task(*, outlet_events):
+                outlet_events[Asset("asset_first")].extra = {"foo": "bar"}
+
+            first_asset_task()
+
+        with dag_maker(schedule=None, serialized=True, session=session):
+
+            @task(outlets=Asset(name="asset_first", uri="test://asset"))
+            def duplicate_asset_task(*, outlet_events):
+                outlet_events[Asset(name="asset_first", uri="test://asset")].extra = {"foo": "bar"}
+
+            duplicate_asset_task()
+
+        tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
+        with pytest.raises(AirflowExecuteWithInactiveAssetExecption) as exc:
+            tis["duplicate_asset_task"].run(session=session)
+
+        assert exc.value.args[0] == 'Asset(name="asset_first", uri="test://asset/") is inactive'
+
+    @pytest.mark.want_activate_assets(True)
+    def test_run_with_inactive_assets_in_inlets_within_the_same_dag(self, dag_maker, session):
+        from airflow.sdk.definitions.asset import Asset
+
+        with dag_maker(schedule=None, serialized=True, session=session):
+
+            @task(inlets=Asset("asset_first"))
+            def first_asset_task():
+                pass
+
+            @task(inlets=Asset(name="asset_first", uri="test://asset"))
+            def duplicate_asset_task():
+                pass
+
+            first_asset_task() >> duplicate_asset_task()
+
+        tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
+        with pytest.raises(AirflowExecuteWithInactiveAssetExecption) as exc:
+            tis["first_asset_task"].run(session=session)
+
+        assert exc.value.args[0] == 'Asset(name="asset_first", uri="asset_first") is inactive'
+
+    @pytest.mark.want_activate_assets(True)
+    def test_run_with_inactive_assets_in_inlets_in_different_dag(self, dag_maker, session):
+        from airflow.sdk.definitions.asset import Asset
+
+        with dag_maker(schedule=None, serialized=True, session=session):
+
+            @task(inlets=Asset("asset_first"))
+            def first_asset_task(*, outlet_events):
+                pass
+
+            first_asset_task()
+
+        with dag_maker(schedule=None, serialized=True, session=session):
+
+            @task(inlets=Asset(name="asset_first", uri="test://asset"))
+            def duplicate_asset_task(*, outlet_events):
+                pass
+
+            duplicate_asset_task()
+
+        tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
+        with pytest.raises(AirflowExecuteWithInactiveAssetExecption) as exc:
+            tis["duplicate_asset_task"].run(session=session)
+
+        assert exc.value.args[0] == 'Asset(name="asset_first", uri="test://asset/") is inactive'
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])
