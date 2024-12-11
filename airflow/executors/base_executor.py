@@ -119,7 +119,6 @@ class BaseExecutor(LoggingMixin):
     supports_sentry: bool = False
 
     is_local: bool = False
-    is_single_threaded: bool = False
     is_production: bool = True
 
     change_sensor_mode_to_reschedule: bool = False

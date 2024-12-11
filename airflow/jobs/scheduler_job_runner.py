@@ -209,9 +209,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if log:
             self._log = log
 
-        # Check what SQL backend we use
-        sql_conn: str = conf.get_mandatory_value("database", "sql_alchemy_conn").lower()
-        self.using_sqlite = sql_conn.startswith("sqlite")
         # Dag Processor agent - not used in Dag Processor standalone mode.
         self.processor_agent: DagFileProcessorAgent | None = None
 
@@ -930,10 +927,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         self.log.info("Processing each file at most %s times", self.num_times_parse_dags)
 
-        # When using sqlite, we do not use async_mode
-        # so the scheduler job and DAG parser don't access the DB at the same time.
-        async_mode = not self.using_sqlite
-
         processor_timeout_seconds: int = conf.getint("core", "dag_file_processor_timeout")
         processor_timeout = timedelta(seconds=processor_timeout_seconds)
         if not self._standalone_dag_processor and not self.processor_agent:
@@ -942,7 +935,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 max_runs=self.num_times_parse_dags,
                 processor_timeout=processor_timeout,
                 dag_ids=[],
-                async_mode=async_mode,
             )
 
         reset_signals = self.register_signals()
@@ -1105,13 +1097,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         "loop_count": loop_count,
                     }
                 )
-
-                if self.using_sqlite and self.processor_agent:
-                    self.processor_agent.run_single_parsing_loop()
-                    # For the sqlite case w/ 1 thread, wait until the processor
-                    # is finished to avoid concurrent access to the DB.
-                    self.log.debug("Waiting for processors to finish since we're using sqlite")
-                    self.processor_agent.wait_until_finished()
 
                 with create_session() as session:
                     # This will schedule for as many executors as possible.

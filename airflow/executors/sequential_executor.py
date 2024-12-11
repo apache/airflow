@@ -49,7 +49,6 @@ class SequentialExecutor(BaseExecutor):
     """
 
     is_local: bool = True
-    is_single_threaded: bool = True
     is_production: bool = False
 
     serve_logs: bool = True

@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import datetime
 import os
 import pathlib
 import sys
@@ -30,7 +29,6 @@ import pytest
 from airflow import settings
 from airflow.callbacks.callback_requests import TaskCallbackRequest
 from airflow.configuration import TEST_DAGS_FOLDER, conf
-from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.dag_processing.processor import DagFileProcessor, DagFileProcessorProcess
 from airflow.models import DagBag, DagModel, TaskInstance
 from airflow.models.serialized_dag import SerializedDagModel
@@ -656,49 +654,3 @@ class TestDagFileProcessor:
                 session=session,
             ):
                 self._process_file(dag_filepath, TEST_DAG_FOLDER, session)
-
-
-class TestProcessorAgent:
-    @pytest.fixture(autouse=True)
-    def per_test(self):
-        self.processor_agent = None
-        yield
-        if self.processor_agent:
-            self.processor_agent.end()
-
-    def test_error_when_waiting_in_async_mode(self, tmp_path):
-        self.processor_agent = DagFileProcessorAgent(
-            dag_directory=tmp_path,
-            max_runs=1,
-            processor_timeout=datetime.timedelta(1),
-            dag_ids=[],
-            async_mode=True,
-        )
-        self.processor_agent.start()
-        with pytest.raises(RuntimeError, match="wait_until_finished should only be called in sync_mode"):
-            self.processor_agent.wait_until_finished()
-
-    def test_default_multiprocessing_behaviour(self, tmp_path):
-        self.processor_agent = DagFileProcessorAgent(
-            dag_directory=tmp_path,
-            max_runs=1,
-            processor_timeout=datetime.timedelta(1),
-            dag_ids=[],
-            async_mode=False,
-        )
-        self.processor_agent.start()
-        self.processor_agent.run_single_parsing_loop()
-        self.processor_agent.wait_until_finished()
-
-    @conf_vars({("core", "mp_start_method"): "spawn"})
-    def test_spawn_multiprocessing_behaviour(self, tmp_path):
-        self.processor_agent = DagFileProcessorAgent(
-            dag_directory=tmp_path,
-            max_runs=1,
-            processor_timeout=datetime.timedelta(1),
-            dag_ids=[],
-            async_mode=False,
-        )
-        self.processor_agent.start()
-        self.processor_agent.run_single_parsing_loop()
-        self.processor_agent.wait_until_finished()
