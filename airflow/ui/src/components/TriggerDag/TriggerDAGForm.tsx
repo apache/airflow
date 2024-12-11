@@ -206,7 +206,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
               />
 
               <Text fontSize="md" mb={2} mt={6}>
-                Notes
+                Dag Run Notes
               </Text>
               <Controller
                 control={control}
