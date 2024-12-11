@@ -122,7 +122,8 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         )
 
     def get_url_login(self, **kwargs) -> str:
-        return url_for("SimpleAuthManagerAuthenticationViews.login")
+        """Return the login page url."""
+        return url_for("SimpleAuthManagerAuthenticationViews.login", next=kwargs.get("next_url"))
 
     def get_url_logout(self) -> str:
         return url_for("SimpleAuthManagerAuthenticationViews.logout")
