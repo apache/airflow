@@ -73,6 +73,8 @@ class TestRecentDagRuns(TestPublicDagEndpoint):
             ({"paused": False}, [DAG1_ID, DAG2_ID], 11),
             ({"owners": ["airflow"]}, [DAG1_ID, DAG2_ID], 11),
             ({"owners": ["test_owner"], "only_active": False}, [DAG3_ID], 4),
+            ({"dag_ids": [DAG1_ID]}, [DAG1_ID], 6),
+            ({"dag_ids": [DAG1_ID, DAG2_ID]}, [DAG1_ID, DAG2_ID], 11),
             ({"last_dag_run_state": "success", "only_active": False}, [DAG1_ID, DAG2_ID, DAG3_ID], 6),
             ({"last_dag_run_state": "failed", "only_active": False}, [DAG1_ID, DAG2_ID, DAG3_ID], 9),
             # Search

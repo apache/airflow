@@ -17,6 +17,9 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
+from fastapi import Depends
 from sqlalchemy import and_, func, select
 
 from airflow.api_fastapi.common.db.common import (
@@ -24,6 +27,8 @@ from airflow.api_fastapi.common.db.common import (
     paginated_select,
 )
 from airflow.api_fastapi.common.parameters import (
+    FilterOptionEnum,
+    FilterParam,
     QueryDagDisplayNamePatternSearch,
     QueryDagIdPatternSearch,
     QueryLastDagRunStateFilter,
@@ -33,6 +38,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryOwnersFilter,
     QueryPausedFilter,
     QueryTagsFilter,
+    filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
@@ -52,6 +58,10 @@ def recent_dag_runs(
     offset: QueryOffset,
     tags: QueryTagsFilter,
     owners: QueryOwnersFilter,
+    dag_ids: Annotated[
+        FilterParam[list[str] | None],
+        Depends(filter_param_factory(DagRun.dag_id, list[str] | None, FilterOptionEnum.IN, "dag_ids")),
+    ],
     dag_id_pattern: QueryDagIdPatternSearch,
     dag_display_name_pattern: QueryDagDisplayNamePatternSearch,
     only_active: QueryOnlyActiveFilter,
@@ -104,6 +114,7 @@ def recent_dag_runs(
             only_active,
             paused,
             dag_id_pattern,
+            dag_ids,
             dag_display_name_pattern,
             tags,
             owners,

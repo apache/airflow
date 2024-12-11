@@ -668,6 +668,7 @@ export class DagsService {
    * @param data.offset
    * @param data.tags
    * @param data.owners
+   * @param data.dagIds
    * @param data.dagIdPattern
    * @param data.dagDisplayNamePattern
    * @param data.onlyActive
@@ -688,6 +689,7 @@ export class DagsService {
         offset: data.offset,
         tags: data.tags,
         owners: data.owners,
+        dag_ids: data.dagIds,
         dag_id_pattern: data.dagIdPattern,
         dag_display_name_pattern: data.dagDisplayNamePattern,
         only_active: data.onlyActive,

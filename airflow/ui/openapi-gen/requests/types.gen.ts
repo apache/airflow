@@ -1421,6 +1421,7 @@ export type GetConfigValueResponse = Config;
 export type RecentDagRunsData = {
   dagDisplayNamePattern?: string | null;
   dagIdPattern?: string | null;
+  dagIds?: Array<string> | null;
   dagRunsLimit?: number;
   lastDagRunState?: DagRunState | null;
   limit?: number;
