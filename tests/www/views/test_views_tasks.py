@@ -356,6 +356,7 @@ def client_ti_without_dag_edit(app):
         ),
     ],
 )
+
 def test_views_get(admin_client, url, contents):
     resp = admin_client.get(url, follow_redirects=True)
     for content in contents:
