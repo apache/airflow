@@ -40,6 +40,11 @@ TEST_VARIABLE_VALUE3 = '{"password": "some_password"}'
 TEST_VARIABLE_DESCRIPTION3 = "Some description for the variable"
 
 
+TEST_VARIABLE_SEARCH_KEY = "test_variable_search_key"
+TEST_VARIABLE_SEARCH_VALUE = "random search value"
+TEST_VARIABLE_SEARCH_DESCRIPTION = "Some description for the variable"
+
+
 @provide_session
 def _create_variables(session) -> None:
     Variable.set(
@@ -63,6 +68,13 @@ def _create_variables(session) -> None:
         session=session,
     )
 
+    Variable.set(
+        key=TEST_VARIABLE_SEARCH_KEY,
+        value=TEST_VARIABLE_SEARCH_VALUE,
+        description=TEST_VARIABLE_SEARCH_DESCRIPTION,
+        session=session,
+    )
+
 
 class TestVariableEndpoint:
     @pytest.fixture(autouse=True)
@@ -80,11 +92,11 @@ class TestDeleteVariable(TestVariableEndpoint):
     def test_delete_should_respond_204(self, test_client, session):
         self.create_variables()
         variables = session.query(Variable).all()
-        assert len(variables) == 3
+        assert len(variables) == 4
         response = test_client.delete(f"/public/variables/{TEST_VARIABLE_KEY}")
         assert response.status_code == 204
         variables = session.query(Variable).all()
-        assert len(variables) == 2
+        assert len(variables) == 3
 
     def test_delete_should_respond_404(self, test_client):
         response = test_client.delete(f"/public/variables/{TEST_VARIABLE_KEY}")
@@ -122,6 +134,14 @@ class TestGetVariable(TestVariableEndpoint):
                     "description": TEST_VARIABLE_DESCRIPTION3,
                 },
             ),
+            (
+                TEST_VARIABLE_SEARCH_KEY,
+                {
+                    "key": TEST_VARIABLE_SEARCH_KEY,
+                    "value": TEST_VARIABLE_SEARCH_VALUE,
+                    "description": TEST_VARIABLE_SEARCH_DESCRIPTION,
+                },
+            ),
         ],
     )
     def test_get_should_respond_200(self, test_client, session, key, expected_response):
@@ -143,14 +163,37 @@ class TestGetVariables(TestVariableEndpoint):
         "query_params, expected_total_entries, expected_keys",
         [
             # Filters
-            ({}, 3, [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3]),
-            ({"limit": 1}, 3, [TEST_VARIABLE_KEY]),
-            ({"limit": 1, "offset": 1}, 3, [TEST_VARIABLE_KEY2]),
+            ({}, 4, [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3, TEST_VARIABLE_SEARCH_KEY]),
+            ({"limit": 1}, 4, [TEST_VARIABLE_KEY]),
+            ({"limit": 1, "offset": 1}, 4, [TEST_VARIABLE_KEY2]),
             # Sort
-            ({"order_by": "id"}, 3, [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3]),
-            ({"order_by": "-id"}, 3, [TEST_VARIABLE_KEY3, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY]),
-            ({"order_by": "key"}, 3, [TEST_VARIABLE_KEY3, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY]),
-            ({"order_by": "-key"}, 3, [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3]),
+            (
+                {"order_by": "id"},
+                4,
+                [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3, TEST_VARIABLE_SEARCH_KEY],
+            ),
+            (
+                {"order_by": "-id"},
+                4,
+                [TEST_VARIABLE_SEARCH_KEY, TEST_VARIABLE_KEY3, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY],
+            ),
+            (
+                {"order_by": "key"},
+                4,
+                [TEST_VARIABLE_KEY3, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY, TEST_VARIABLE_SEARCH_KEY],
+            ),
+            (
+                {"order_by": "-key"},
+                4,
+                [TEST_VARIABLE_SEARCH_KEY, TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3],
+            ),
+            # Search
+            (
+                {"variable_key_pattern": "~"},
+                4,
+                [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3, TEST_VARIABLE_SEARCH_KEY],
+            ),
+            ({"variable_key_pattern": "search"}, 1, [TEST_VARIABLE_SEARCH_KEY]),
         ],
     )
     def test_should_respond_200(

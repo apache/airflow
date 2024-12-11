@@ -264,7 +264,7 @@ class TestDagProcessorJobRunner:
         mock_processor.terminate.side_effect = None
 
         manager._processors["missing_file.txt"] = mock_processor
-        manager._file_stats["missing_file.txt"] = DagFileStat(0, 0, None, None, 0, 0)
+        manager._file_stats["missing_file.txt"] = DagFileStat()
 
         manager.set_file_paths(["abc.txt"])
         assert manager._processors == {}
@@ -533,7 +533,7 @@ class TestDagProcessorJobRunner:
             assert last_finish_time < file_1_new_mtime
             assert (
                 manager._file_process_interval
-                > (freezed_base_time - manager.get_last_finish_time("file_1.py")).total_seconds()
+                > (freezed_base_time - manager._file_stats["file_1.py"].last_finish_time).total_seconds()
             )
 
     @mock.patch("zipfile.is_zipfile", return_value=True)
@@ -937,17 +937,18 @@ class TestDagProcessorJobRunner:
         )
 
         self.run_processor_manager_one_loop(manager, parent_pipe)
-        last_runtime = manager.get_last_runtime(manager.file_paths[0])
+        last_runtime = manager._file_stats[manager.file_paths[0]].last_duration
+        assert last_runtime is not None
 
         child_pipe.close()
         parent_pipe.close()
 
         statsd_timing_mock.assert_has_calls(
             [
-                mock.call("dag_processing.last_duration.temp_dag", timedelta(seconds=last_runtime)),
+                mock.call("dag_processing.last_duration.temp_dag", last_runtime * 1000.0),
                 mock.call(
                     "dag_processing.last_duration",
-                    timedelta(seconds=last_runtime),
+                    last_runtime * 1000.0,
                     tags={"file_name": "temp_dag"},
                 ),
             ],

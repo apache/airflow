@@ -28,7 +28,9 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 
 const eventsColumn = (
-  dagId: string | undefined,
+  dagId?: string,
+  runId?: string,
+  taskId?: string,
 ): Array<ColumnDef<EventLogResponse>> => [
   {
     accessorKey: "when",
@@ -51,22 +53,30 @@ const eventsColumn = (
           },
         },
       ]),
-  {
-    accessorKey: "run_id",
-    enableSorting: true,
-    header: "Run ID",
-    meta: {
-      skeletonWidth: 10,
-    },
-  },
-  {
-    accessorKey: "task_id",
-    enableSorting: true,
-    header: "Task ID",
-    meta: {
-      skeletonWidth: 10,
-    },
-  },
+  ...(Boolean(runId)
+    ? []
+    : [
+        {
+          accessorKey: "run_id",
+          enableSorting: true,
+          header: "Run ID",
+          meta: {
+            skeletonWidth: 10,
+          },
+        },
+      ]),
+  ...(Boolean(taskId)
+    ? []
+    : [
+        {
+          accessorKey: "task_id",
+          enableSorting: true,
+          header: "Task ID",
+          meta: {
+            skeletonWidth: 10,
+          },
+        },
+      ]),
   {
     accessorKey: "map_index",
     enableSorting: false,
@@ -102,7 +112,7 @@ const eventsColumn = (
 ];
 
 export const Events = () => {
-  const { dagId } = useParams();
+  const { dagId, runId, taskId } = useParams();
   const { setTableURLState, tableURLState } = useTableURLState({
     sorting: [{ desc: true, id: "when" }],
   });
@@ -121,13 +131,15 @@ export const Events = () => {
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy,
+    runId,
+    taskId,
   });
 
   return (
     <Box>
       <ErrorAlert error={EventsError} />
       <DataTable
-        columns={eventsColumn(dagId)}
+        columns={eventsColumn(dagId, runId, taskId)}
         data={data ? data.event_logs : []}
         displayMode="table"
         initialState={tableURLState}

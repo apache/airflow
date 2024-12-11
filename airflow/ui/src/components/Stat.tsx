@@ -16,29 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Heading, VStack } from "@chakra-ui/react";
+import type { PropsWithChildren } from "react";
 
-export type DagParams = {
-  configJson: string;
-  dagId: string;
-  dataIntervalEnd: string;
-  dataIntervalStart: string;
-  notes: string;
-  runId: string;
-};
+type Props = {
+  readonly label: string;
+} & PropsWithChildren;
 
-export const TriggerDag = (dagParams: DagParams) => {
-  // eslint-disable-next-line no-alert
-  alert(`
-    Triggering DAG with the following parameters:
-
-    Config JSON: ${JSON.stringify(dagParams.configJson)}
-    Data Interval Start Date: ${dagParams.dataIntervalStart}
-    Data Interval End Date: ${dagParams.dataIntervalEnd}
-    Run ID: ${dagParams.runId}
-
-    TODO: This trigger button is under progress.
-    The values you have entered are shown above.
-  `);
-
-  // TODO triggering logic (would be placed here once the FAST API is available)
-};
+export const Stat = ({ children, label }: Props) => (
+  <VStack align="flex-start" gap={1}>
+    <Heading color="fg.muted" fontSize="xs">
+      {label}
+    </Heading>
+    {children}
+  </VStack>
+);

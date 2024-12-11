@@ -157,7 +157,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                 render={({ field }) => (
                   <Input
                     {...field}
-                    placeholder="Run id, optional - will be generated if not provided"
+                    placeholder="Run Id, optional - will be generated if not provided"
                     size="sm"
                   />
                 )}
@@ -202,6 +202,17 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                       </Text>
                     ) : undefined}
                   </Box>
+                )}
+              />
+
+              <Text fontSize="md" mb={2} mt={6}>
+                Dag Run Notes
+              </Text>
+              <Controller
+                control={control}
+                name="notes"
+                render={({ field }) => (
+                  <Input {...field} placeholder="Optional" size="sm" />
                 )}
               />
             </Box>
