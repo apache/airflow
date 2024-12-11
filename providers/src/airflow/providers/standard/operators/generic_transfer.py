@@ -135,7 +135,7 @@ class GenericTransfer(BaseOperator):
     def destination_hook(self) -> BaseHook:
         return BaseHook.get_hook(self.destination_conn_id, hook_params=self.destination_hook_params)
 
-    def paginated_execute(self, context: Context):
+    def execute(self, context: Context):
         if self.preoperator:
             run = getattr(self.destination_hook, "run", None)
             if not callable(run):
@@ -146,9 +146,6 @@ class GenericTransfer(BaseOperator):
             self.log.info("Running preoperator")
             self.log.info(self.preoperator)
             run(self.preoperator)
-
-        if isinstance(self.insert_args.get("commit_every"), str):
-            self.insert_args["commit_every"] = int(self.insert_args.get("commit_every"))
 
         if self.chunk_size and isinstance(self.sql, str):
             self.defer(
