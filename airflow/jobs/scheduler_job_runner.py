@@ -934,7 +934,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 dag_directory=Path(self.subdir),
                 max_runs=self.num_times_parse_dags,
                 processor_timeout=processor_timeout,
-                dag_ids=[],
             )
 
         reset_signals = self.register_signals()

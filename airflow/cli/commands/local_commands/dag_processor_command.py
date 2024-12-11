@@ -43,7 +43,6 @@ def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
             processor_timeout=processor_timeout,
             dag_directory=args.subdir,
             max_runs=args.num_runs,
-            dag_ids=[],
         ),
     )
 

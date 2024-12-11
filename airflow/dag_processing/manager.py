@@ -116,7 +116,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
     :param max_runs: The number of times to parse and schedule each file. -1
         for unlimited.
     :param processor_timeout: How long to wait before timing out a DAG file processor
-    :param dag_ids: if specified, only schedule tasks with these DAG IDs
     """
 
     def __init__(
@@ -124,13 +123,11 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         dag_directory: os.PathLike,
         max_runs: int,
         processor_timeout: timedelta,
-        dag_ids: list[str] | None,
     ):
         super().__init__()
         self._dag_directory: os.PathLike = dag_directory
         self._max_runs = max_runs
         self._processor_timeout = processor_timeout
-        self._dag_ids = dag_ids
         # Map from file path to the processor
         self._processors: dict[str, DagFileProcessorProcess] = {}
         # Pipe for communicating signals
@@ -156,7 +153,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
                 self._max_runs,
                 self._processor_timeout,
                 child_signal_conn,
-                self._dag_ids,
             ),
         )
         self._process = process
@@ -177,26 +173,19 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         max_runs: int,
         processor_timeout: timedelta,
         signal_conn: MultiprocessingConnection,
-        dag_ids: list[str] | None,
     ) -> None:
         # Make this process start as a new process group - that makes it easy
         # to kill all sub-process of this at the OS-level, rather than having
         # to iterate the child processes
         set_new_process_group()
         span = Trace.get_current_span()
-        span.set_attributes(
-            {
-                "dag_directory": str(dag_directory),
-                "dag_ids": str(dag_ids),
-            }
-        )
+        span.set_attribute("dag_directory", str(dag_directory))
         setproctitle("airflow scheduler -- DagFileProcessorManager")
         reload_configuration_for_dag_processing()
         processor_manager = DagFileProcessorManager(
             dag_directory=dag_directory,
             max_runs=max_runs,
             processor_timeout=processor_timeout,
-            dag_ids=dag_ids,
             signal_conn=signal_conn,
         )
         processor_manager.start()
@@ -307,7 +296,6 @@ class DagFileProcessorManager(LoggingMixin):
         for unlimited.
     :param processor_timeout: How long to wait before timing out a DAG file processor
     :param signal_conn: connection to communicate signal with processor agent.
-    :param dag_ids: if specified, only schedule tasks with these DAG IDs
     """
 
     def __init__(
@@ -315,7 +303,6 @@ class DagFileProcessorManager(LoggingMixin):
         dag_directory: os.PathLike[str],
         max_runs: int,
         processor_timeout: timedelta,
-        dag_ids: list[str] | None,
         signal_conn: MultiprocessingConnection | None = None,
     ):
         super().__init__()
@@ -325,7 +312,6 @@ class DagFileProcessorManager(LoggingMixin):
         self._max_runs = max_runs
         # signal_conn is None for dag_processor_standalone mode.
         self._direct_scheduler_conn = signal_conn
-        self._dag_ids = dag_ids
         self._parsing_start_time: float | None = None
         self._dag_directory = dag_directory
         # Set the signal conn in to non-blocking mode, so that attempting to
@@ -1001,11 +987,10 @@ class DagFileProcessorManager(LoggingMixin):
         self.log.debug("%s file paths queued for processing", len(self._file_path_queue))
 
     @staticmethod
-    def _create_process(file_path, dag_ids, dag_directory, callback_requests):
+    def _create_process(file_path, dag_directory, callback_requests):
         """Create DagFileProcessorProcess instance."""
         return DagFileProcessorProcess(
             file_path=file_path,
-            dag_ids=dag_ids,
             dag_directory=dag_directory,
             callback_requests=callback_requests,
         )
@@ -1026,7 +1011,6 @@ class DagFileProcessorManager(LoggingMixin):
             callback_to_execute_for_file = self._callback_to_execute[file_path]
             processor = self._create_process(
                 file_path,
-                self._dag_ids,
                 self.get_dag_directory(),
                 callback_to_execute_for_file,
             )

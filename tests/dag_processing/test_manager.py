@@ -80,8 +80,8 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 class FakeDagFileProcessorRunner(DagFileProcessorProcess):
     # This fake processor will return the zombies it received in constructor
     # as its processing result w/o actually parsing anything.
-    def __init__(self, file_path, dag_ids, dag_directory, callbacks):
-        super().__init__(file_path, dag_ids, dag_directory, callbacks)
+    def __init__(self, file_path, dag_directory, callbacks):
+        super().__init__(file_path, dag_directory, callbacks)
         # We need a "real" selectable handle for waitable_handle to work
         readable, writable = multiprocessing.Pipe(duplex=False)
         writable.send("abc")
@@ -109,10 +109,9 @@ class FakeDagFileProcessorRunner(DagFileProcessorProcess):
         return self._result
 
     @staticmethod
-    def _create_process(file_path, callback_requests, dag_ids, dag_directory):
+    def _create_process(file_path, callback_requests, dag_directory):
         return FakeDagFileProcessorRunner(
             file_path,
-            dag_ids,
             dag_directory,
             callback_requests,
         )
@@ -169,7 +168,6 @@ class TestDagProcessorJobRunner:
             max_runs=1,
             processor_timeout=timedelta(days=365),
             signal_conn=child_pipe,
-            dag_ids=[],
         )
 
         with create_session() as session:
@@ -199,7 +197,6 @@ class TestDagProcessorJobRunner:
             max_runs=1,
             processor_timeout=timedelta(days=365),
             signal_conn=child_pipe,
-            dag_ids=[],
         )
 
         self.run_processor_manager_one_loop(manager, parent_pipe)
@@ -217,7 +214,6 @@ class TestDagProcessorJobRunner:
             max_runs=1,
             processor_timeout=timedelta(days=365),
             signal_conn=MagicMock(),
-            dag_ids=[],
         )
 
         file_1 = "file_1.py"
@@ -246,7 +242,6 @@ class TestDagProcessorJobRunner:
             max_runs=1,
             processor_timeout=timedelta(days=365),
             signal_conn=MagicMock(),
-            dag_ids=[],
         )
 
         mock_processor = MagicMock()
@@ -266,7 +261,6 @@ class TestDagProcessorJobRunner:
             max_runs=1,
             processor_timeout=timedelta(days=365),
             signal_conn=MagicMock(),
-            dag_ids=[],
         )
 
         mock_processor = MagicMock()
@@ -295,7 +289,6 @@ class TestDagProcessorJobRunner:
             max_runs=1,
             processor_timeout=timedelta(days=365),
             signal_conn=MagicMock(),
-            dag_ids=[],
         )
 
         manager.set_file_paths(dag_files)
@@ -320,7 +313,6 @@ class TestDagProcessorJobRunner:
             max_runs=1,
             processor_timeout=timedelta(days=365),
             signal_conn=MagicMock(),
-            dag_ids=[],
         )
 
         manager.set_file_paths(dag_files)
@@ -380,7 +372,6 @@ class TestDagProcessorJobRunner:
             max_runs=1,
             processor_timeout=timedelta(days=365),
             signal_conn=MagicMock(),
-            dag_ids=[],
         )
 
         manager.set_file_paths(dag_files)
@@ -413,7 +404,6 @@ class TestDagProcessorJobRunner:
             max_runs=1,
             processor_timeout=timedelta(days=365),
             signal_conn=MagicMock(),
-            dag_ids=[],
         )
 
         manager.set_file_paths(dag_files)
@@ -445,7 +435,6 @@ class TestDagProcessorJobRunner:
             max_runs=1,
             processor_timeout=timedelta(days=365),
             signal_conn=MagicMock(),
-            dag_ids=[],
         )
 
         manager.set_file_paths(dag_files)
@@ -486,7 +475,6 @@ class TestDagProcessorJobRunner:
             max_runs=3,
             processor_timeout=timedelta(days=365),
             signal_conn=MagicMock(),
-            dag_ids=[],
         )
 
         # let's say the DAG was just parsed 10 seconds before the Freezed time
@@ -542,7 +530,6 @@ class TestDagProcessorJobRunner:
             max_runs=1,
             processor_timeout=timedelta(days=365),
             signal_conn=MagicMock(),
-            dag_ids=[],
         )
 
         manager.set_file_paths(dag_files)
@@ -563,7 +550,6 @@ class TestDagProcessorJobRunner:
             max_runs=1,
             processor_timeout=timedelta(minutes=10),
             signal_conn=MagicMock(),
-            dag_ids=[],
         )
 
         test_dag_path = str(TEST_DAG_FOLDER / "test_example_bash_operator.py")
@@ -630,7 +616,6 @@ class TestDagProcessorJobRunner:
             max_runs=1,
             processor_timeout=timedelta(minutes=10),
             signal_conn=MagicMock(),
-            dag_ids=[],
         )
 
         test_dag_path = str(TEST_DAG_FOLDER / "test_example_bash_operator.py")
@@ -682,12 +667,10 @@ class TestDagProcessorJobRunner:
             max_runs=1,
             processor_timeout=timedelta(seconds=5),
             signal_conn=MagicMock(),
-            dag_ids=[],
         )
 
         processor = DagFileProcessorProcess(
             file_path="abc.txt",
-            dag_ids=[],
             dag_directory=TEST_DAG_FOLDER,
             callback_requests=[],
         )
@@ -709,12 +692,10 @@ class TestDagProcessorJobRunner:
             max_runs=1,
             processor_timeout=timedelta(seconds=5),
             signal_conn=MagicMock(),
-            dag_ids=[],
         )
 
         processor = DagFileProcessorProcess(
             file_path="abc.txt",
-            dag_ids=[],
             dag_directory=str(TEST_DAG_FOLDER),
             callback_requests=[],
         )
@@ -741,7 +722,6 @@ class TestDagProcessorJobRunner:
 
         manager = DagFileProcessorManager(
             dag_directory=dag_directory,
-            dag_ids=[],
             max_runs=1,
             processor_timeout=timedelta(seconds=5),
             signal_conn=child_pipe,
@@ -782,7 +762,6 @@ class TestDagProcessorJobRunner:
 
             manager = DagFileProcessorManager(
                 dag_directory=processor_dir_1,
-                dag_ids=[],
                 max_runs=1,
                 signal_conn=child_pipe,
                 processor_timeout=timedelta(seconds=5),
@@ -798,7 +777,6 @@ class TestDagProcessorJobRunner:
 
             manager = DagFileProcessorManager(
                 dag_directory=processor_dir_2,
-                dag_ids=[],
                 max_runs=1,
                 signal_conn=child_pipe,
                 processor_timeout=timedelta(seconds=5),
@@ -863,7 +841,6 @@ class TestDagProcessorJobRunner:
 
         manager = DagFileProcessorManager(
             dag_directory=dag_filepath,
-            dag_ids=[],
             # A reasonable large number to ensure that we trigger the deadlock
             max_runs=100,
             processor_timeout=timedelta(seconds=5),
@@ -904,7 +881,6 @@ class TestDagProcessorJobRunner:
             max_runs=1,
             processor_timeout=timedelta(days=365),
             signal_conn=child_pipe,
-            dag_ids=[],
         )
 
         self.run_processor_manager_one_loop(manager, parent_pipe)
@@ -933,7 +909,6 @@ class TestDagProcessorJobRunner:
             max_runs=1,
             processor_timeout=timedelta(days=365),
             signal_conn=MagicMock(),
-            dag_ids=[],
         )
         dagbag = DagBag(dag_folder=tmp_path, include_examples=False)
         zipped_dag_path = os.path.join(TEST_DAGS_FOLDER, "test_zip.zip")
@@ -957,7 +932,6 @@ class TestDagProcessorJobRunner:
             max_runs=1,
             processor_timeout=timedelta(days=365),
             signal_conn=MagicMock(),
-            dag_ids=[],
         )
         dagbag = DagBag(dag_folder=tmp_path, include_examples=False)
         zipped_dag_path = os.path.join(TEST_DAGS_FOLDER, "test_zip.zip")
@@ -999,7 +973,6 @@ class TestDagProcessorJobRunner:
             max_runs=1,
             processor_timeout=timedelta(days=365),
             signal_conn=MagicMock(),
-            dag_ids=[],
         )
         manager.last_dag_dir_refresh_time = timezone.utcnow() - timedelta(minutes=10)
 
@@ -1044,7 +1017,6 @@ class TestDagProcessorJobRunner:
             max_runs=1,
             processor_timeout=timedelta(days=365),
             signal_conn=child_pipe,
-            dag_ids=[],
         )
 
         with create_session() as session:
@@ -1086,7 +1058,6 @@ class TestDagProcessorJobRunner:
             max_runs=1,
             processor_timeout=timedelta(days=365),
             signal_conn=child_pipe,
-            dag_ids=[],
         )
 
         with create_session() as session:
@@ -1121,7 +1092,6 @@ class TestDagProcessorJobRunner:
             max_runs=1,
             processor_timeout=timedelta(days=365),
             signal_conn=child_pipe,
-            dag_ids=[],
         )
 
         with create_session() as session:
@@ -1157,7 +1127,6 @@ class TestDagProcessorJobRunner:
             max_runs=1,
             processor_timeout=timedelta(days=365),
             signal_conn=child_pipe,
-            dag_ids=[],
         )
 
         with create_session() as session:
@@ -1175,7 +1144,6 @@ class TestDagProcessorJobRunner:
             max_runs=1,
             processor_timeout=timedelta(days=365),
             signal_conn=MagicMock(),
-            dag_ids=[],
         )
 
         dag1_req1 = DagCallbackRequest(
@@ -1273,7 +1241,7 @@ class TestDagFileProcessorAgent:
                 os.remove(log_file_loc)
 
             # Starting dag processing with 0 max_runs to avoid redundant operations.
-            processor_agent = DagFileProcessorAgent(test_dag_path, 0, timedelta(days=365), [])
+            processor_agent = DagFileProcessorAgent(test_dag_path, 0, timedelta(days=365))
             processor_agent.start()
 
             processor_agent._process.join()
@@ -1288,7 +1256,7 @@ class TestDagFileProcessorAgent:
         clear_db_dags()
 
         test_dag_path = TEST_DAG_FOLDER / "test_scheduler_dags.py"
-        processor_agent = DagFileProcessorAgent(test_dag_path, 1, timedelta(days=365), [])
+        processor_agent = DagFileProcessorAgent(test_dag_path, 1, timedelta(days=365))
         processor_agent.start()
         while not processor_agent.done:
             processor_agent.heartbeat()
@@ -1311,7 +1279,7 @@ class TestDagFileProcessorAgent:
             os.remove(log_file_loc)
 
         # Starting dag processing with 0 max_runs to avoid redundant operations.
-        processor_agent = DagFileProcessorAgent(test_dag_path, 0, timedelta(days=365), [])
+        processor_agent = DagFileProcessorAgent(test_dag_path, 0, timedelta(days=365))
         processor_agent.start()
 
         processor_agent._process.join()
@@ -1319,25 +1287,25 @@ class TestDagFileProcessorAgent:
         assert os.path.isfile(log_file_loc)
 
     def test_get_callbacks_pipe(self):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [])
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365))
         processor_agent._parent_signal_conn = Mock()
         retval = processor_agent.get_callbacks_pipe()
         assert retval == processor_agent._parent_signal_conn
 
     def test_get_callbacks_pipe_no_parent_signal_conn(self):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [])
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365))
         processor_agent._parent_signal_conn = None
         with pytest.raises(ValueError, match="Process not started"):
             processor_agent.get_callbacks_pipe()
 
     def test_heartbeat_no_parent_signal_conn(self):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [])
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365))
         processor_agent._parent_signal_conn = None
         with pytest.raises(ValueError, match="Process not started"):
             processor_agent.heartbeat()
 
     def test_heartbeat_poll_eof_error(self):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [])
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365))
         processor_agent._parent_signal_conn = Mock()
         processor_agent._parent_signal_conn.poll.return_value = True
         processor_agent._parent_signal_conn.recv = Mock()
@@ -1346,7 +1314,7 @@ class TestDagFileProcessorAgent:
         assert ret_val is None
 
     def test_heartbeat_poll_connection_error(self):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [])
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365))
         processor_agent._parent_signal_conn = Mock()
         processor_agent._parent_signal_conn.poll.return_value = True
         processor_agent._parent_signal_conn.recv = Mock()
@@ -1355,7 +1323,7 @@ class TestDagFileProcessorAgent:
         assert ret_val is None
 
     def test_heartbeat_poll_process_message(self):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [])
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365))
         processor_agent._parent_signal_conn = Mock()
         processor_agent._parent_signal_conn.poll.side_effect = [True, False]
         processor_agent._parent_signal_conn.recv = Mock()
@@ -1366,19 +1334,19 @@ class TestDagFileProcessorAgent:
 
     def test_process_message_invalid_type(self):
         message = "xyz"
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [])
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365))
         with pytest.raises(RuntimeError, match="Unexpected message received of type str"):
             processor_agent._process_message(message)
 
     def test_heartbeat_manager(self):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [])
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365))
         processor_agent._parent_signal_conn = None
         with pytest.raises(ValueError, match="Process not started"):
             processor_agent._heartbeat_manager()
 
     @mock.patch("airflow.utils.process_utils.reap_process_group")
     def test_heartbeat_manager_process_restart(self, mock_pg):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [])
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365))
         processor_agent._parent_signal_conn = Mock()
         processor_agent._process = MagicMock()
         processor_agent.start = Mock()
@@ -1392,7 +1360,7 @@ class TestDagFileProcessorAgent:
     @mock.patch("time.monotonic")
     @mock.patch("airflow.dag_processing.manager.reap_process_group")
     def test_heartbeat_manager_process_reap(self, mock_pg, mock_time_monotonic, mock_stats):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [])
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365))
         processor_agent._parent_signal_conn = Mock()
         processor_agent._process = Mock()
         processor_agent._process.pid = 12345
@@ -1413,7 +1381,7 @@ class TestDagFileProcessorAgent:
         processor_agent.start.assert_called()
 
     def test_heartbeat_manager_terminate(self):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [])
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365))
         processor_agent._parent_signal_conn = Mock()
         processor_agent._process = Mock()
         processor_agent._process.is_alive.return_value = True
@@ -1423,7 +1391,7 @@ class TestDagFileProcessorAgent:
         processor_agent._parent_signal_conn.send.assert_called_with(DagParsingSignal.TERMINATE_MANAGER)
 
     def test_heartbeat_manager_terminate_conn_err(self):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [])
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365))
         processor_agent._process = Mock()
         processor_agent._process.is_alive.return_value = True
         processor_agent._parent_signal_conn = Mock()
@@ -1434,7 +1402,7 @@ class TestDagFileProcessorAgent:
         processor_agent._parent_signal_conn.send.assert_called_with(DagParsingSignal.TERMINATE_MANAGER)
 
     def test_heartbeat_manager_end_no_process(self):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [])
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365))
         processor_agent._process = Mock()
         processor_agent._process.__bool__ = Mock(return_value=False)
         processor_agent._process.side_effect = [None]
@@ -1449,7 +1417,7 @@ class TestDagFileProcessorAgent:
         test_dag_path = TEST_DAG_FOLDER / "test_scheduler_dags.py"
 
         # Starting dag processing with 0 max_runs to avoid redundant operations.
-        processor_agent = DagFileProcessorAgent(test_dag_path, 0, timedelta(days=365), [])
+        processor_agent = DagFileProcessorAgent(test_dag_path, 0, timedelta(days=365))
         processor_agent.start()
 
         processor_agent._process.join()
@@ -1464,7 +1432,7 @@ class TestDagFileProcessorAgent:
         test_dag_path = TEST_DAG_FOLDER / "test_scheduler_dags.py"
 
         # Starting dag processing with 0 max_runs to avoid redundant operations.
-        processor_agent = DagFileProcessorAgent(test_dag_path, 0, timedelta(days=365), [])
+        processor_agent = DagFileProcessorAgent(test_dag_path, 0, timedelta(days=365))
         processor_agent.start()
 
         processor_agent._process.join()
