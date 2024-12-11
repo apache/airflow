@@ -137,5 +137,8 @@ class TaskInstance(BaseModel):
     map_index: int | None = None
 
 
+"""Defines the types that the RTIF payload's dictionary values can take. These are all JsonAble types """
+JsonAbleValueTypes = Union[str, dict[str, str], list[str], int, float, None]
+
 """Schema for setting RTIF for a task instance."""
-RTIFPayload = RootModel[dict[str, str]]
+RTIFPayload = RootModel[dict[str, JsonAbleValueTypes]]
