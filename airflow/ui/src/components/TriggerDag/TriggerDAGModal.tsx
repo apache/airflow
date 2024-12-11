@@ -19,8 +19,10 @@
 import { Heading, VStack } from "@chakra-ui/react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
+import { useDagServiceGetDagDetails } from "openapi/queries";
 import { Alert, Dialog } from "src/components/ui";
 
+import { ErrorAlert } from "../ErrorAlert";
 import { TogglePause } from "../TogglePause";
 import TriggerDAGForm from "./TriggerDAGForm";
 import type { DagParams } from "./TriggerDag";
@@ -41,16 +43,28 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   onClose,
   open,
 }) => {
+  const { data, error } = useDagServiceGetDagDetails({ dagId });
+  let initialConf: string = "{}";
+  let parseError: unknown = undefined;
+
+  if (!Boolean(error)) {
+    try {
+      initialConf = JSON.stringify(data?.params, undefined, 2);
+    } catch (_error) {
+      parseError = _error;
+    }
+  }
+
   const initialDagParams = useMemo(
     () => ({
-      configJson: "{}",
+      configJson: initialConf,
       dagId,
       dataIntervalEnd: "",
       dataIntervalStart: "",
       notes: "",
       runId: "",
     }),
-    [dagId],
+    [dagId, initialConf],
   );
 
   const [dagParams, setDagParams] = useState<DagParams>(initialDagParams);
@@ -82,6 +96,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
                 skipConfirm
               />
             </Heading>
+            <ErrorAlert error={error ?? parseError} />
             {isPaused ? (
               <Alert status="warning" title="Paused DAG">
                 Triggering will create a DAG run, but it will not start until

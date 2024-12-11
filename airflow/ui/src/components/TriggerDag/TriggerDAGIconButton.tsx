@@ -43,13 +43,15 @@ const TriggerDAGIconButton: React.FC<Props> = ({ dag }) => {
         <FiPlay />
       </IconButton>
 
-      <TriggerDAGModal
-        dagDisplayName={dag.dag_display_name}
-        dagId={dag.dag_id}
-        isPaused={dag.is_paused}
-        onClose={onClose}
-        open={open}
-      />
+      {open ? (
+        <TriggerDAGModal
+          dagDisplayName={dag.dag_display_name}
+          dagId={dag.dag_id}
+          isPaused={dag.is_paused}
+          onClose={onClose}
+          open={open}
+        />
+      ) : undefined}
     </Box>
   );
 };
