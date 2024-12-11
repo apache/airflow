@@ -18,19 +18,21 @@
 from __future__ import annotations
 
 import os
+import tempfile
 from typing import TYPE_CHECKING
 
 from git import Repo
 from git.exc import BadName
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
-class GitDagBundle(BaseDagBundle):
+class GitDagBundle(BaseDagBundle, LoggingMixin):
     """
     git DAG bundle - exposes a git repository as a DAG bundle.
 
@@ -44,16 +46,30 @@ class GitDagBundle(BaseDagBundle):
 
     supports_versioning = True
 
-    def __init__(self, *, repo_url: str, tracking_ref: str, subdir: str | None = None, **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        tracking_ref: str,
+        subdir: str | None = None,
+        ssh_conn_id: str | None = None,
+        repo_url: str | os.PathLike = "",
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.repo_url = repo_url
         self.tracking_ref = tracking_ref
         self.subdir = subdir
-
+        self.ssh_conn_id = ssh_conn_id
         self.bare_repo_path = self._dag_bundle_root_storage_path / "git" / self.name
         self.repo_path = (
             self._dag_bundle_root_storage_path / "git" / (self.name + f"+{self.version or self.tracking_ref}")
         )
+        self.env: dict[str, str] = {}
+
+    def _clone_from(self, to_path: Path, bare: bool = False) -> Repo:
+        return Repo.clone_from(self.repo_url, to_path, bare=bare, env=self.env)
+
+    def _init_bundle(self):
         self._clone_bare_repo_if_required()
         self._ensure_version_in_bare_repo()
         self._clone_repo_if_required()
@@ -68,18 +84,47 @@ class GitDagBundle(BaseDagBundle):
         else:
             self.refresh()
 
+    def init_bundle(self) -> None:
+        if self.ssh_conn_id:
+            try:
+                from airflow.providers.ssh.hooks.ssh import SSHHook
+            except ImportError as e:
+                raise AirflowOptionalProviderFeatureException(e)
+            ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id)
+            ssh_hook.get_conn()
+            temp_key_file_path = None
+            try:
+                if not ssh_hook.key_file:
+                    conn = ssh_hook.get_connection(self.ssh_conn_id)
+                    private_key = conn.extra_dejson.get("private_key")
+                    if not private_key:
+                        raise AirflowException("No private key present in connection")
+                    with tempfile.NamedTemporaryFile(delete=False) as key_file:
+                        temp_key_file_path = key_file.name
+                        key_file.write(private_key.encode("utf-8"))
+                    self.env["GIT_SSH_COMMAND"] = f"ssh -i {temp_key_file_path} -o IdentitiesOnly=yes"
+                else:
+                    self.env["GIT_SSH_COMMAND"] = f"ssh -i {ssh_hook.key_file} -o IdentitiesOnly=yes"
+                if ssh_hook.remote_host:
+                    self.log.info("Using repo URL defined in the SSH connection")
+                    self.repo_url = ssh_hook.remote_host
+                self._init_bundle()
+            finally:
+                if temp_key_file_path:
+                    os.remove(temp_key_file_path)
+        else:
+            self._init_bundle()
+
     def _clone_repo_if_required(self) -> None:
         if not os.path.exists(self.repo_path):
-            Repo.clone_from(
-                url=self.bare_repo_path,
+            self._clone_from(
                 to_path=self.repo_path,
             )
         self.repo = Repo(self.repo_path)
 
     def _clone_bare_repo_if_required(self) -> None:
         if not os.path.exists(self.bare_repo_path):
-            Repo.clone_from(
-                url=self.repo_url,
+            self._clone_from(
                 to_path=self.bare_repo_path,
                 bare=True,
             )
