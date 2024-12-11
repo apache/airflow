@@ -150,7 +150,8 @@ def startup() -> tuple[RuntimeTaskInstance, Logger]:
     # 1. Implementing the part where we pull in the logic to render fields and add that here
     # for all operators, we should do setattr(task, templated_field, rendered_templated_field)
     # task.templated_fields should give all the templated_fields and each of those fields should
-    # give the rendered values.
+    # give the rendered values. task.templated_fields should already be in a JSONable format and
+    # we should not have to handle that here.
 
     # 2. Once rendered, we call the `set_rtif` API to store the rtif in the metadata DB
     templated_fields = ti.task.template_fields

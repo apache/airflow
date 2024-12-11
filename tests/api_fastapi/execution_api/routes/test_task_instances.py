@@ -422,16 +422,31 @@ class TestTIPutRTIF:
         clear_db_runs()
         clear_rendered_ti_fields()
 
-    def test_ti_put_rtif_success(self, client, session, create_task_instance):
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            {"field1": "string_value", "field2": "another_string"},
+            {"field1": {"nested_key": "nested_value"}},
+            {"field1": ["123"], "field2": ["a", "b", "c"]},
+            {"field1": 42, "field2": -99},
+            {"field1": 3.14, "field2": 2.718},
+            {
+                "key1": "value",
+                "key2": {"nested_key": "nested_value"},
+                "key3": ["i am a", "mixed", "list"],
+                "key4": 42,
+                "key5": 3.14,
+                "key6": None,
+            },
+        ],
+    )
+    def test_ti_put_rtif_success(self, client, session, create_task_instance, payload):
         ti = create_task_instance(
             task_id="test_ti_put_rtif_success",
             state=State.RUNNING,
             session=session,
         )
         session.commit()
-
-        payload = {"field1": "rendered_value1", "field2": "rendered_value2"}
-
         response = client.put(f"/execution/task-instances/{ti.id}/rtif", json=payload)
         assert response.status_code == 201
         assert response.json() == {"message": "Rendered task instance fields successfully set"}
@@ -461,28 +476,3 @@ class TestTIPutRTIF:
         response = client.put(f"/execution/task-instances/{random_id}/rtif", json=payload)
         assert response.status_code == 404
         assert response.json()["detail"] == "Not Found"
-
-    def test_ti_put_rtif_extra_fields(self, client, session, create_task_instance):
-        ti = create_task_instance(
-            task_id="test_ti_put_rtif_missing_ti",
-            state=State.RUNNING,
-            session=session,
-        )
-        session.commit()
-
-        payload = {
-            "field1": "rendered_value1",
-            "field2": "rendered_value2",
-            "invalid_key": {"field3": "rendered_value3"},
-        }
-
-        response = client.put(f"/execution/task-instances/{ti.id}/rtif", json=payload)
-        assert response.status_code == 422
-        assert response.json()["detail"] == [
-            {
-                "input": {"field3": "rendered_value3"},
-                "loc": ["body", "invalid_key"],
-                "msg": "Input should be a valid string",
-                "type": "string_type",
-            }
-        ]
