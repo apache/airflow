@@ -1491,22 +1491,6 @@ export type StructureDataData = {
 
 export type StructureDataResponse2 = StructureDataResponse;
 
-export type GridDataData = {
-  dagId: string;
-  includeDownstream?: boolean | null;
-  includeUpstream?: boolean | null;
-  limit?: number;
-  logicalDateGte?: string | null;
-  logicalDateLte?: string | null;
-  offset?: number;
-  orderBy?: string;
-  root?: string | null;
-  runType?: Array<string>;
-  state?: Array<string>;
-};
-
-export type GridDataResponse = GridResponse;
-
 export type ListBackfillsData = {
   active?: boolean | null;
   dagId?: string | null;
@@ -1555,6 +1539,22 @@ export type CancelBackfillData = {
 };
 
 export type CancelBackfillResponse = BackfillResponse;
+
+export type GridDataData = {
+  dagId: string;
+  includeDownstream?: boolean | null;
+  includeUpstream?: boolean | null;
+  limit?: number;
+  logicalDateGte?: string | null;
+  logicalDateLte?: string | null;
+  offset?: number;
+  orderBy?: string;
+  root?: string | null;
+  runType?: Array<string>;
+  state?: Array<string>;
+};
+
+export type GridDataResponse = GridResponse;
 
 export type DeleteConnectionData = {
   connectionId: string;
@@ -2615,34 +2615,7 @@ export type $OpenApiTs = {
       };
     };
   };
-<<<<<<< HEAD
   "/ui/backfills": {
-=======
-  "/ui/grid/{dag_id}": {
-    get: {
-      req: GridDataData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: GridResponse;
-        /**
-         * Bad Request
-         */
-        400: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/backfills": {
->>>>>>> d3c55f5fd5 (Include grid endpoint to FastAPI)
     get: {
       req: ListBackfillsData;
       res: {
@@ -2826,6 +2799,29 @@ export type $OpenApiTs = {
          * Conflict
          */
         409: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/ui/grid/{dag_id}": {
+    get: {
+      req: GridDataData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: GridResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
         /**
          * Validation Error
          */

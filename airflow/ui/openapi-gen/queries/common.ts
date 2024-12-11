@@ -402,59 +402,6 @@ export const UseStructureServiceStructureDataKeyFn = (
   useStructureServiceStructureDataKey,
   ...(queryKey ?? [{ dagId, includeDownstream, includeUpstream, root }]),
 ];
-export type GridServiceGridDataDefaultResponse = Awaited<
-  ReturnType<typeof GridService.gridData>
->;
-export type GridServiceGridDataQueryResult<
-  TData = GridServiceGridDataDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useGridServiceGridDataKey = "GridServiceGridData";
-export const UseGridServiceGridDataKeyFn = (
-  {
-    dagId,
-    includeDownstream,
-    includeUpstream,
-    limit,
-    logicalDateGte,
-    logicalDateLte,
-    offset,
-    orderBy,
-    root,
-    runType,
-    state,
-  }: {
-    dagId: string;
-    includeDownstream?: boolean;
-    includeUpstream?: boolean;
-    limit?: number;
-    logicalDateGte?: string;
-    logicalDateLte?: string;
-    offset?: number;
-    orderBy?: string;
-    root?: string;
-    runType?: string[];
-    state?: string[];
-  },
-  queryKey?: Array<unknown>,
-) => [
-  useGridServiceGridDataKey,
-  ...(queryKey ?? [
-    {
-      dagId,
-      includeDownstream,
-      includeUpstream,
-      limit,
-      logicalDateGte,
-      logicalDateLte,
-      offset,
-      orderBy,
-      root,
-      runType,
-      state,
-    },
-  ]),
-];
 export type BackfillServiceListBackfillsDefaultResponse = Awaited<
   ReturnType<typeof BackfillService.listBackfills>
 >;
@@ -525,6 +472,59 @@ export const UseBackfillServiceGetBackfillKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useBackfillServiceGetBackfillKey, ...(queryKey ?? [{ backfillId }])];
+export type GridServiceGridDataDefaultResponse = Awaited<
+  ReturnType<typeof GridService.gridData>
+>;
+export type GridServiceGridDataQueryResult<
+  TData = GridServiceGridDataDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useGridServiceGridDataKey = "GridServiceGridData";
+export const UseGridServiceGridDataKeyFn = (
+  {
+    dagId,
+    includeDownstream,
+    includeUpstream,
+    limit,
+    logicalDateGte,
+    logicalDateLte,
+    offset,
+    orderBy,
+    root,
+    runType,
+    state,
+  }: {
+    dagId: string;
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
+    limit?: number;
+    logicalDateGte?: string;
+    logicalDateLte?: string;
+    offset?: number;
+    orderBy?: string;
+    root?: string;
+    runType?: string[];
+    state?: string[];
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useGridServiceGridDataKey,
+  ...(queryKey ?? [
+    {
+      dagId,
+      includeDownstream,
+      includeUpstream,
+      limit,
+      logicalDateGte,
+      logicalDateLte,
+      offset,
+      orderBy,
+      root,
+      runType,
+      state,
+    },
+  ]),
+];
 export type ConnectionServiceGetConnectionDefaultResponse = Awaited<
   ReturnType<typeof ConnectionService.getConnection>
 >;
