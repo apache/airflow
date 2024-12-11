@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-11T02:22:39.240880
+# This constraints file was automatically generated on 2024-12-11T13:54:29.807432
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -120,7 +120,6 @@ apache-airflow-providers-arangodb==2.6.0
 apache-airflow-providers-asana==2.6.0
 apache-airflow-providers-atlassian-jira==2.7.1
 apache-airflow-providers-celery==3.8.5
-apache-airflow-providers-cncf-kubernetes==10.0.1
 apache-airflow-providers-cohere==1.3.0
 apache-airflow-providers-common-io==1.4.2
 apache-airflow-providers-common-sql==1.20.0
