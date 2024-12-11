@@ -107,18 +107,14 @@ class TestDagFileProcessor:
         self.clean_db()
 
     def _process_file(self, file_path, dag_directory, session):
-        dag_file_processor = DagFileProcessor(
-            dag_ids=[], dag_directory=str(dag_directory), log=mock.MagicMock()
-        )
+        dag_file_processor = DagFileProcessor(dag_directory=str(dag_directory), log=mock.MagicMock())
 
         dag_file_processor.process_file(file_path, [])
 
     @patch.object(TaskInstance, "handle_failure")
     def test_execute_on_failure_callbacks(self, mock_ti_handle_failure):
         dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
-        dag_file_processor = DagFileProcessor(
-            dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock()
-        )
+        dag_file_processor = DagFileProcessor(dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock())
         with create_session() as session:
             session.query(TaskInstance).delete()
             dag = dagbag.get_dag("example_branch_operator")
@@ -152,9 +148,7 @@ class TestDagFileProcessor:
     @patch.object(TaskInstance, "handle_failure")
     def test_execute_on_failure_callbacks_without_dag(self, mock_ti_handle_failure, has_serialized_dag):
         dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
-        dag_file_processor = DagFileProcessor(
-            dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock()
-        )
+        dag_file_processor = DagFileProcessor(dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock())
         with create_session() as session:
             session.query(TaskInstance).delete()
             dag = dagbag.get_dag("example_branch_operator")
@@ -188,9 +182,7 @@ class TestDagFileProcessor:
 
     def test_failure_callbacks_should_not_drop_hostname(self):
         dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
-        dag_file_processor = DagFileProcessor(
-            dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock()
-        )
+        dag_file_processor = DagFileProcessor(dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock())
         dag_file_processor.UNIT_TEST_MODE = False
 
         with create_session() as session:
@@ -224,9 +216,7 @@ class TestDagFileProcessor:
         callback_file = tmp_path.joinpath("callback.txt")
         callback_file.touch()
         monkeypatch.setenv("AIRFLOW_CALLBACK_FILE", str(callback_file))
-        dag_file_processor = DagFileProcessor(
-            dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock()
-        )
+        dag_file_processor = DagFileProcessor(dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock())
 
         dag = get_test_dag("test_on_failure_callback")
         task = dag.get_task(task_id="test_on_failure_callback_task")
