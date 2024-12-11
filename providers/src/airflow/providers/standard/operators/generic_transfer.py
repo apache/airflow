@@ -21,14 +21,14 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-import jinja2
-
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
 from airflow.providers.common.sql.triggers.sql import SQLExecuteQueryTrigger
 
 if TYPE_CHECKING:
+    import jinja2
+
     from airflow.utils.context import Context
 
 
