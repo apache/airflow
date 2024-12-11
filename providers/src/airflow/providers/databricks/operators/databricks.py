@@ -930,13 +930,15 @@ class DatabricksRunNowOperator(BaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         if event:
+            if event.get("run_state"):
+                run_state = RunState.from_json(event["run_state"])
+                if event.get("repair_run"):
+                    event["repair_run"] = event["repair_run"] and (
+                        not self.databricks_repair_reason_new_settings
+                        or is_repair_reason_match_exist(self, run_state)
+                    )
             _handle_deferrable_databricks_operator_completion(event, self.log)
-            run_state = RunState.from_json(event["run_state"])
-            should_repair = event["repair_run"] and (
-                not self.databricks_repair_reason_new_settings
-                or is_repair_reason_match_exist(self, run_state)
-            )
-            if should_repair:
+            if event.get("repair_run"):
                 self.repair_run = False
                 self.run_id = event["run_id"]
                 job_id = self._hook.get_job_id(self.run_id)
