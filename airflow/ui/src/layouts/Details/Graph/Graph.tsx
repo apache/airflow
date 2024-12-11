@@ -75,17 +75,29 @@ const edgeTypes = { custom: Edge };
 
 export const Graph = () => {
   const { colorMode = "light" } = useColorMode();
-  const { dagId = "" } = useParams();
+  const { dagId = "", runId, taskId } = useParams();
 
-  // corresponds to the "bg" and "bg.emphasized" semantic tokens
-  const [oddLight, oddDark, evenLight, evenDark] = useToken("colors", [
+  // corresponds to the "bg", "bg.emphasized", "border.inverted" semantic tokens
+  const [
+    oddLight,
+    oddDark,
+    evenLight,
+    evenDark,
+    selectedDarkColor,
+    selectedLightColor,
+  ] = useToken("colors", [
     "white",
     "black",
+    "gray.200",
+    "gray.800",
     "gray.200",
     "gray.800",
   ]);
 
   const { openGroupIds } = useOpenGroups();
+
+  const selectedColor =
+    colorMode === "dark" ? selectedDarkColor : selectedLightColor;
 
   const { data: graphData = { arrange: "LR", edges: [], nodes: [] } } =
     useStructureServiceStructureData({
@@ -98,12 +110,18 @@ export const Graph = () => {
     openGroupIds,
   });
 
-  const { data: gridData } = useGridServiceGridData({
-    dagId,
-    limit: 14,
-  });
+  const { data: gridData } = useGridServiceGridData(
+    {
+      dagId,
+      limit: 14,
+    },
+    undefined,
+    {
+      enabled: Boolean(runId),
+    },
+  );
 
-  const dagRun = gridData?.dag_runs[0];
+  const dagRun = gridData?.dag_runs.find((dr) => dr.run_id === runId);
 
   // Add task instances to the node data but without having to recalculate how the graph is laid out
   const nodes =
@@ -116,7 +134,11 @@ export const Graph = () => {
 
           return {
             ...node,
-            data: { ...node.data, taskInstance },
+            data: {
+              ...node.data,
+              isSelected: node.id === taskId,
+              taskInstance,
+            },
           };
         });
 
@@ -145,6 +167,11 @@ export const Graph = () => {
               colorMode === "dark" ? evenDark : evenLight,
               colorMode === "dark" ? oddDark : oddLight,
             )
+          }
+          nodeStrokeColor={(node: ReactFlowNode<CustomNodeProps>) =>
+            node.data.isSelected && selectedColor !== undefined
+              ? selectedColor
+              : ""
           }
           nodeStrokeWidth={15}
           pannable
