@@ -469,7 +469,7 @@ with DAG(
         delete_s3_bucket,
     )
 
-    from tests_common.test_utils.system_tests import watcher
+    from tests_common.test_utils.watcher import watcher
 
     # This test needs watcher in order to properly mark success/failure
     # when "tearDown" task with trigger rule is part of the DAG
