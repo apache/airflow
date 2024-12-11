@@ -16,7 +16,7 @@
 
 .. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
 
-* Migration rules needed
+* [ ] Migration rules needed
 
 .. e.g.,
 .. * Remove context key ``execution_date``
