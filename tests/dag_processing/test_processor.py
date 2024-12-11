@@ -566,7 +566,6 @@ class TestDagFileProcessor:
     def test_dag_parser_output_when_logging_to_stdout(self, mock_redirect_stdout_for_file):
         processor = DagFileProcessorProcess(
             file_path="abc.txt",
-            dag_ids=[],
             dag_directory=[],
             callback_requests=[],
         )
@@ -574,7 +573,6 @@ class TestDagFileProcessor:
             result_channel=MagicMock(),
             parent_channel=MagicMock(),
             file_path="fake_file_path",
-            dag_ids=[],
             thread_name="fake_thread_name",
             callback_requests=[],
             dag_directory=[],
@@ -587,7 +585,6 @@ class TestDagFileProcessor:
     def test_dag_parser_output_when_logging_to_file(self, mock_redirect_stdout_for_file):
         processor = DagFileProcessorProcess(
             file_path="abc.txt",
-            dag_ids=[],
             dag_directory=[],
             callback_requests=[],
         )
@@ -595,7 +592,6 @@ class TestDagFileProcessor:
             result_channel=MagicMock(),
             parent_channel=MagicMock(),
             file_path="fake_file_path",
-            dag_ids=[],
             thread_name="fake_thread_name",
             callback_requests=[],
             dag_directory=[],
@@ -612,7 +608,6 @@ class TestDagFileProcessor:
 
         processor = DagFileProcessorProcess(
             file_path=zip_filename,
-            dag_ids=[],
             dag_directory=[],
             callback_requests=[],
         )
@@ -628,7 +623,6 @@ class TestDagFileProcessor:
 
         processor = DagFileProcessorProcess(
             file_path=dag_filename,
-            dag_ids=[],
             dag_directory=[],
             callback_requests=[],
         )
