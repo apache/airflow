@@ -77,17 +77,16 @@ class TestListBackfills(TestBackfillEndpoint):
         "test_params, response_params, total_entries",
         [
             ({}, ["backfill1", "backfill2", "backfill3"], 3),
-            ({"only_active": True}, ["backfill2", "backfill3"], 2),
-            ({"only_active": False}, ["backfill1", "backfill2", "backfill3"], 3),
-            ({"dag_id": "", "only_active": True}, ["backfill2", "backfill3"], 2),
-            ({"dag_id": "", "only_active": False}, ["backfill1", "backfill2", "backfill3"], 3),
+            ({"active": True}, ["backfill2", "backfill3"], 2),
+            ({"active": False}, ["backfill1"], 1),
+            ({"dag_id": "", "active": True}, ["backfill2", "backfill3"], 2),
+            ({"dag_id": "", "active": False}, ["backfill1"], 1),
             ({"dag_id": ""}, ["backfill1", "backfill2", "backfill3"], 3),
-            ({"dag_id": "TEST_DAG_1", "only_active": True}, [], 0),
-            ({"dag_id": "TEST_DAG_1", "only_active": False}, ["backfill1"], 1),
+            ({"dag_id": "TEST_DAG_1", "active": True}, [], 0),
+            ({"dag_id": "TEST_DAG_1", "active": False}, ["backfill1"], 1),
             ({"dag_id": "TEST_DAG_1"}, ["backfill1"], 1),
         ],
     )
-    @provide_session
     def test_list_backfill(self, test_params, response_params, total_entries, test_client, session):
         dags = self._create_dag_models()
         from_date = timezone.utcnow()

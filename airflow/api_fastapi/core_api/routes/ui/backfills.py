@@ -23,13 +23,14 @@ from sqlalchemy import select
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
+    # none_param_factory,
+    FilterOptionEnum,
     FilterParam,
     QueryLimit,
     QueryOffset,
     SortParam,
-    _NoneFilter,
+    # _NoneFilter,
     filter_param_factory,
-    none_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.backfills import BackfillCollectionResponse
@@ -54,11 +55,14 @@ def list_backfills(
     ],
     session: SessionDep,
     dag_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(Backfill.dag_id, str | None))],
-    only_active: Annotated[_NoneFilter, Depends(none_param_factory(Backfill.completed_at, "only_active"))],
+    active: Annotated[
+        FilterParam[bool | None],
+        Depends(filter_param_factory(Backfill.completed_at, bool | None, FilterOptionEnum.IS_NONE, "active")),
+    ],
 ) -> BackfillCollectionResponse:
     select_stmt, total_entries = paginated_select(
         statement=select(Backfill),
-        filters=[dag_id, only_active],
+        filters=[dag_id, active],
         order_by=order_by,
         offset=offset,
         limit=limit,

@@ -573,7 +573,7 @@ export const useStructureServiceStructureData = <
  * @param data.offset
  * @param data.orderBy
  * @param data.dagId
- * @param data.onlyActive
+ * @param data.active
  * @returns BackfillCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -583,16 +583,16 @@ export const useBackfillServiceListBackfills = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
+    active,
     dagId,
     limit,
     offset,
-    onlyActive,
     orderBy,
   }: {
+    active?: boolean;
     dagId?: string;
     limit?: number;
     offset?: number;
-    onlyActive?: boolean;
     orderBy?: string;
   } = {},
   queryKey?: TQueryKey,
@@ -600,15 +600,15 @@ export const useBackfillServiceListBackfills = <
 ) =>
   useQuery<TData, TError>({
     queryKey: Common.UseBackfillServiceListBackfillsKeyFn(
-      { dagId, limit, offset, onlyActive, orderBy },
+      { active, dagId, limit, offset, orderBy },
       queryKey,
     ),
     queryFn: () =>
       BackfillService.listBackfills({
+        active,
         dagId,
         limit,
         offset,
-        onlyActive,
         orderBy,
       }) as TData,
     ...options,

@@ -364,22 +364,22 @@ export const useBackfillServiceListBackfillsKey =
   "BackfillServiceListBackfills";
 export const UseBackfillServiceListBackfillsKeyFn = (
   {
+    active,
     dagId,
     limit,
     offset,
-    onlyActive,
     orderBy,
   }: {
+    active?: boolean;
     dagId?: string;
     limit?: number;
     offset?: number;
-    onlyActive?: boolean;
     orderBy?: string;
   } = {},
   queryKey?: Array<unknown>,
 ) => [
   useBackfillServiceListBackfillsKey,
-  ...(queryKey ?? [{ dagId, limit, offset, onlyActive, orderBy }]),
+  ...(queryKey ?? [{ active, dagId, limit, offset, orderBy }]),
 ];
 export type BackfillServiceListBackfills1DefaultResponse = Awaited<
   ReturnType<typeof BackfillService.listBackfills1>

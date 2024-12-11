@@ -1427,10 +1427,10 @@ export type StructureDataData = {
 export type StructureDataResponse2 = StructureDataResponse;
 
 export type ListBackfillsData = {
+  active?: boolean | null;
   dagId?: string | null;
   limit?: number;
   offset?: number;
-  onlyActive?: boolean | null;
   orderBy?: string;
 };
 

@@ -453,42 +453,36 @@ export const prefetchUseStructureServiceStructureData = (
  * @param data.offset
  * @param data.orderBy
  * @param data.dagId
- * @param data.onlyActive
+ * @param data.active
  * @returns BackfillCollectionResponse Successful Response
  * @throws ApiError
  */
 export const prefetchUseBackfillServiceListBackfills = (
   queryClient: QueryClient,
   {
+    active,
     dagId,
     limit,
     offset,
-    onlyActive,
     orderBy,
   }: {
+    active?: boolean;
     dagId?: string;
     limit?: number;
     offset?: number;
-    onlyActive?: boolean;
     orderBy?: string;
   } = {},
 ) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseBackfillServiceListBackfillsKeyFn({
+      active,
       dagId,
       limit,
       offset,
-      onlyActive,
       orderBy,
     }),
     queryFn: () =>
-      BackfillService.listBackfills({
-        dagId,
-        limit,
-        offset,
-        onlyActive,
-        orderBy,
-      }),
+      BackfillService.listBackfills({ active, dagId, limit, offset, orderBy }),
   });
 /**
  * List Backfills

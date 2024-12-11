@@ -112,34 +112,6 @@ class _OnlyActiveFilter(BaseParam[bool]):
         return self.set_value(only_active)
 
 
-class _NoneFilter(BaseParam[bool]):
-    """check if a column is none or not."""
-
-    def __init__(self, attribute: ColumnElement, value: bool | None = None, skip_none: bool = True) -> None:
-        super().__init__(value, skip_none)
-        self.attribute: ColumnElement = attribute
-        self.value: bool | None = value
-
-    def to_orm(self, select: Select) -> Select:
-        if not self.value and self.skip_none:
-            return select
-        return select.where(self.attribute.is_(None))
-
-    def depends(self, *args: Any, **kwargs: Any) -> Self:
-        raise NotImplementedError("Use search_param_factory instead , depends is not implemented.")
-
-
-def none_param_factory(
-    attribute: ColumnElement,
-    none_filter_name: str,
-    skip_none: bool = True,
-) -> Callable[[bool | None], _NoneFilter]:
-    def depends_none(value: bool | None = Query(alias=none_filter_name, default=None)) -> _NoneFilter:
-        return _NoneFilter(attribute, value, skip_none)
-
-    return depends_none
-
-
 class _SearchParam(BaseParam[str]):
     """Search on attribute."""
 
@@ -254,6 +226,7 @@ class FilterOptionEnum(Enum):
     IN = "in"
     NOT_IN = "not_in"
     ANY_EQUAL = "any_eq"
+    IS_NONE = "is_none"
 
 
 class FilterParam(BaseParam[T]):
@@ -301,6 +274,13 @@ class FilterParam(BaseParam[T]):
             return select.where(self.attribute > self.value)
         if self.filter_option == FilterOptionEnum.GREATER_THAN_EQUAL:
             return select.where(self.attribute >= self.value)
+        if self.filter_option == FilterOptionEnum.IS_NONE:
+            if self.value is None:
+                return select
+            if self.value is False:
+                return select.where(self.attribute.is_not(None))
+            if self.value is True:
+                return select.where(self.attribute.is_(None))
         raise ValueError(f"Invalid filter option {self.filter_option} for value {self.value}")
 
     def depends(self, *args: Any, **kwargs: Any) -> Self:

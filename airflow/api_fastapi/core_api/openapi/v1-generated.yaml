@@ -287,14 +287,14 @@ paths:
           - type: string
           - type: 'null'
           title: Dag Id
-      - name: only_active
+      - name: active
         in: query
         required: false
         schema:
           anyOf:
           - type: boolean
           - type: 'null'
-          title: Only Active
+          title: Active
       responses:
         '200':
           description: Successful Response
