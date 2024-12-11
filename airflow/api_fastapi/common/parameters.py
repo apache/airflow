@@ -40,10 +40,16 @@ from sqlalchemy import Column, case, or_
 from sqlalchemy.inspection import inspect
 
 from airflow.models import Base
-from airflow.models.asset import AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
+from airflow.models.asset import (
+    AssetAliasModel,
+    AssetModel,
+    DagScheduleAssetReference,
+    TaskOutletAssetReference,
+)
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.variable import Variable
 from airflow.typing_compat import Self
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -574,9 +580,23 @@ QueryTIExecutorFilter = Annotated[
         )
     ),
 ]
+QueryTITaskDisplayNamePatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(TaskInstance.task_display_name, "task_display_name_pattern"))
+]
 
 # Assets
+QueryAssetNamePatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(AssetModel.name, "name_pattern"))
+]
 QueryUriPatternSearch = Annotated[_SearchParam, Depends(search_param_factory(AssetModel.uri, "uri_pattern"))]
+QueryAssetAliasNamePatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(AssetAliasModel.name, "name_pattern"))
+]
 QueryAssetDagIdPatternSearch = Annotated[
     _DagIdAssetReferenceFilter, Depends(_DagIdAssetReferenceFilter().depends)
+]
+
+# Variables
+QueryVariableKeyPatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(Variable.key, "variable_key_pattern"))
 ]

@@ -31,7 +31,7 @@ import itertools
 import logging
 from typing import TYPE_CHECKING, NamedTuple
 
-from sqlalchemy import func, select, tuple_
+from sqlalchemy import and_, exists, func, select, tuple_
 from sqlalchemy.orm import joinedload, load_only
 
 from airflow.assets.manager import asset_manager
@@ -281,18 +281,32 @@ def _find_active_assets(name_uri_assets, session: Session):
         for dm in session.scalars(select(DagModel).where(DagModel.is_active).where(~DagModel.is_paused))
     }
 
-    return {
-        (asset_model.name, asset_model.uri)
-        for asset_model in session.scalars(
-            select(AssetModel)
-            .join(AssetActive, (AssetActive.name == AssetModel.name) & (AssetActive.uri == AssetModel.uri))
-            .where(tuple_(AssetActive.name, AssetActive.uri).in_(name_uri_assets))
-            .where(AssetModel.consuming_dags.any(DagScheduleAssetReference.dag_id.in_(active_dags)))
-            .options(
-                joinedload(AssetModel.consuming_dags).joinedload(DagScheduleAssetReference.dag),
+    return set(
+        session.execute(
+            select(
+                AssetModel.name,
+                AssetModel.uri,
+            ).where(
+                tuple_(AssetModel.name, AssetModel.uri).in_(name_uri_assets),
+                exists(
+                    select(1).where(
+                        and_(
+                            AssetActive.name == AssetModel.name,
+                            AssetActive.uri == AssetModel.uri,
+                        ),
+                    )
+                ),
+                exists(
+                    select(1).where(
+                        and_(
+                            DagScheduleAssetReference.asset_id == AssetModel.id,
+                            DagScheduleAssetReference.dag_id.in_(active_dags),
+                        )
+                    )
+                ),
             )
-        ).unique()
-    }
+        )
+    )
 
 
 class AssetModelOperation(NamedTuple):

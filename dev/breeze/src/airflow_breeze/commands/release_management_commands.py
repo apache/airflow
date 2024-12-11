@@ -235,7 +235,7 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "24.3.1"
-AIRFLOW_UV_VERSION = "0.5.6"
+AIRFLOW_UV_VERSION = "0.5.7"
 AIRFLOW_USE_UV = False
 # TODO: automate these as well
 WHEEL_VERSION = "0.44.0"
@@ -2415,6 +2415,7 @@ def print_issue_content(
     all_users: set[str] = set()
     for user_list in users.values():
         all_users.update(user_list)
+    all_users = {user for user in all_users if user != "github-actions[bot]"}
     all_user_logins = " ".join(f"@{u}" for u in all_users)
     content = render_template(
         template_name="ISSUE",

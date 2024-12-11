@@ -22,9 +22,17 @@ export type AppBuilderViewResponse = {
 };
 
 /**
- * Asset alias serializer for assets.
+ * Asset alias collection response.
  */
-export type AssetAliasSchema = {
+export type AssetAliasCollectionResponse = {
+  asset_aliases: Array<AssetAliasResponse>;
+  total_entries: number;
+};
+
+/**
+ * Asset alias serializer for responses.
+ */
+export type AssetAliasResponse = {
   id: number;
   name: string;
   group: string;
@@ -52,7 +60,6 @@ export type AssetEventCollectionResponse = {
 export type AssetEventResponse = {
   id: number;
   asset_id: number;
-  uri: string;
   extra?: {
     [key: string]: unknown;
   } | null;
@@ -79,7 +86,7 @@ export type AssetResponse = {
   updated_at: string;
   consuming_dags: Array<DagScheduleAssetReference>;
   producing_tasks: Array<TaskOutletAssetReference>;
-  aliases: Array<AssetAliasSchema>;
+  aliases: Array<AssetAliasResponse>;
 };
 
 /**
@@ -257,7 +264,7 @@ export type ConnectionTestResponse = {
  * Create asset events request.
  */
 export type CreateAssetEventsBody = {
-  uri: string;
+  asset_id: number;
   extra?: {
     [key: string]: unknown;
   };
@@ -891,8 +898,8 @@ export type QueuedEventCollectionResponse = {
  * Queued Event serializer for responses..
  */
 export type QueuedEventResponse = {
-  uri: string;
   dag_id: string;
+  asset_id: number;
   created_at: string;
 };
 
@@ -1302,12 +1309,28 @@ export type NextRunAssetsResponse = {
 export type GetAssetsData = {
   dagIds?: Array<string>;
   limit?: number;
+  namePattern?: string | null;
   offset?: number;
   orderBy?: string;
   uriPattern?: string | null;
 };
 
 export type GetAssetsResponse = AssetCollectionResponse;
+
+export type GetAssetAliasesData = {
+  limit?: number;
+  namePattern?: string | null;
+  offset?: number;
+  orderBy?: string;
+};
+
+export type GetAssetAliasesResponse = AssetAliasCollectionResponse;
+
+export type GetAssetAliasData = {
+  assetAliasId: number;
+};
+
+export type GetAssetAliasResponse = unknown;
 
 export type GetAssetEventsData = {
   assetId?: number | null;
@@ -1329,21 +1352,21 @@ export type CreateAssetEventData = {
 export type CreateAssetEventResponse = AssetEventResponse;
 
 export type GetAssetQueuedEventsData = {
+  assetId: number;
   before?: string | null;
-  uri: string;
 };
 
 export type GetAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 
 export type DeleteAssetQueuedEventsData = {
+  assetId: number;
   before?: string | null;
-  uri: string;
 };
 
 export type DeleteAssetQueuedEventsResponse = void;
 
 export type GetAssetData = {
-  uri: string;
+  assetId: number;
 };
 
 export type GetAssetResponse = AssetResponse;
@@ -1363,17 +1386,17 @@ export type DeleteDagAssetQueuedEventsData = {
 export type DeleteDagAssetQueuedEventsResponse = void;
 
 export type GetDagAssetQueuedEventData = {
+  assetId: number;
   before?: string | null;
   dagId: string;
-  uri: string;
 };
 
 export type GetDagAssetQueuedEventResponse = QueuedEventResponse;
 
 export type DeleteDagAssetQueuedEventData = {
+  assetId: number;
   before?: string | null;
   dagId: string;
-  uri: string;
 };
 
 export type DeleteDagAssetQueuedEventResponse = void;
@@ -1837,6 +1860,8 @@ export type GetTaskInstancesData = {
   startDateGte?: string | null;
   startDateLte?: string | null;
   state?: Array<string>;
+  taskDisplayNamePattern?: string | null;
+  taskId?: string | null;
   updatedAtGte?: string | null;
   updatedAtLte?: string | null;
 };
@@ -2040,6 +2065,7 @@ export type GetVariablesData = {
   limit?: number;
   offset?: number;
   orderBy?: string;
+  variableKeyPattern?: string | null;
 };
 
 export type GetVariablesResponse = VariableCollectionResponse;
@@ -2086,6 +2112,60 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: AssetCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/assets/aliases": {
+    get: {
+      req: GetAssetAliasesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: AssetAliasCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/assets/aliases/{asset_alias_id}": {
+    get: {
+      req: GetAssetAliasData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
         /**
          * Unauthorized
          */
@@ -2157,7 +2237,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/assets/queuedEvents/{uri}": {
+  "/public/assets/{asset_id}/queuedEvents": {
     get: {
       req: GetAssetQueuedEventsData;
       res: {
@@ -2209,7 +2289,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/assets/{uri}": {
+  "/public/assets/{asset_id}": {
     get: {
       req: GetAssetData;
       res: {
@@ -2292,7 +2372,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/assets/queuedEvents/{uri}": {
+  "/public/dags/{dag_id}/assets/{asset_id}/queuedEvents": {
     get: {
       req: GetDagAssetQueuedEventData;
       res: {

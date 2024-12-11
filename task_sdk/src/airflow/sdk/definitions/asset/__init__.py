@@ -22,7 +22,7 @@ import operator
 import os
 import urllib.parse
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, NamedTuple, overload
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Union, overload
 
 import attrs
 
@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
     from urllib.parse import SplitResult
 
+    from airflow.models.asset import AssetModel
     from airflow.triggers.base import BaseTrigger
 
 
@@ -49,13 +50,44 @@ __all__ = [
 log = logging.getLogger(__name__)
 
 
-class AssetUniqueKey(NamedTuple):
+@attrs.define(frozen=True)
+class AssetUniqueKey:
+    """
+    Columns to identify an unique asset.
+
+    :meta private:
+    """
+
     name: str
     uri: str
 
     @staticmethod
-    def from_asset(asset: Asset) -> AssetUniqueKey:
+    def from_asset(asset: Asset | AssetModel) -> AssetUniqueKey:
         return AssetUniqueKey(name=asset.name, uri=asset.uri)
+
+    def to_asset(self) -> Asset:
+        return Asset(name=self.name, uri=self.uri)
+
+
+@attrs.define(frozen=True)
+class AssetAliasUniqueKey:
+    """
+    Columns to identify an unique asset alias.
+
+    :meta private:
+    """
+
+    name: str
+
+    @staticmethod
+    def from_asset_alias(asset_alias: AssetAlias) -> AssetAliasUniqueKey:
+        return AssetAliasUniqueKey(name=asset_alias.name)
+
+    def to_asset_alias(self) -> AssetAlias:
+        return AssetAlias(name=self.name)
+
+
+BaseAssetUniqueKey = Union[AssetUniqueKey, AssetAliasUniqueKey]
 
 
 def normalize_noop(parts: SplitResult) -> SplitResult:
@@ -391,10 +423,10 @@ class Model(Asset):
 
 @attrs.define(unsafe_hash=False)
 class AssetAlias(BaseAsset):
-    """A represeation of asset alias which is used to create asset during the runtime."""
+    """A representation of asset alias which is used to create asset during the runtime."""
 
     name: str = attrs.field(validator=_validate_non_empty_identifier)
-    group: str = attrs.field(kw_only=True, default="", validator=_validate_identifier)
+    group: str = attrs.field(kw_only=True, default="asset", validator=_validate_identifier)
 
     def _resolve_assets(self) -> list[Asset]:
         from airflow.models.asset import expand_alias_to_assets

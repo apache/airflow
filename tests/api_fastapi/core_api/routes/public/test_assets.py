@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import urllib
 from collections.abc import Generator
 from datetime import datetime
 from unittest import mock
@@ -26,6 +25,7 @@ import time_machine
 
 from airflow.models import DagModel
 from airflow.models.asset import (
+    AssetAliasModel,
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
@@ -83,6 +83,24 @@ def _create_assets_with_sensitive_extra(session, num: int = 2) -> None:
 
 def _create_provided_asset(session, asset: AssetModel) -> None:
     session.add(asset)
+    session.commit()
+
+
+def _create_asset_aliases(session, num: int = 2) -> None:
+    asset_aliases = [
+        AssetAliasModel(
+            id=i,
+            name=f"simple{i}",
+            group="alias",
+        )
+        for i in range(1, 1 + num)
+    ]
+    session.add_all(asset_aliases)
+    session.commit()
+
+
+def _create_provided_asset_alias(session, asset_alias: AssetAliasModel) -> None:
+    session.add(asset_alias)
     session.commit()
 
 
@@ -256,6 +274,42 @@ class TestGetAssets(TestAssets):
     @pytest.mark.parametrize(
         "params, expected_assets",
         [
+            ({"name_pattern": "s3"}, {"s3://folder/key"}),
+            ({"name_pattern": "bucket"}, {"gcp://bucket/key", "wasb://some_asset_bucket_/key"}),
+            (
+                {"name_pattern": "asset"},
+                {"somescheme://asset/key", "wasb://some_asset_bucket_/key"},
+            ),
+            (
+                {"name_pattern": ""},
+                {
+                    "gcp://bucket/key",
+                    "s3://folder/key",
+                    "somescheme://asset/key",
+                    "wasb://some_asset_bucket_/key",
+                },
+            ),
+        ],
+    )
+    @provide_session
+    def test_filter_assets_by_name_pattern_works(self, test_client, params, expected_assets, session):
+        asset1 = AssetModel("s3-folder-key", "s3://folder/key")
+        asset2 = AssetModel("gcp-bucket-key", "gcp://bucket/key")
+        asset3 = AssetModel("some-asset-key", "somescheme://asset/key")
+        asset4 = AssetModel("wasb-some_asset_bucket_-key", "wasb://some_asset_bucket_/key")
+
+        assets = [asset1, asset2, asset3, asset4]
+        for a in assets:
+            self.create_provided_asset(asset=a)
+
+        response = test_client.get("/public/assets", params=params)
+        assert response.status_code == 200
+        asset_urls = {asset["uri"] for asset in response.json()["assets"]}
+        assert expected_assets == asset_urls
+
+    @pytest.mark.parametrize(
+        "params, expected_assets",
+        [
             ({"uri_pattern": "s3"}, {"s3://folder/key"}),
             ({"uri_pattern": "bucket"}, {"gcp://bucket/key", "wasb://some_asset_bucket_/key"}),
             (
@@ -373,6 +427,105 @@ class TestGetAssetsEndpointPagination(TestAssets):
         assert len(response.json()["assets"]) == 100
 
 
+class TestAssetAliases:
+    @pytest.fixture(autouse=True)
+    def setup(self) -> None:
+        clear_db_assets()
+        clear_db_runs()
+
+    def teardown_method(self) -> None:
+        clear_db_assets()
+        clear_db_runs()
+
+    @provide_session
+    def create_asset_aliases(self, num: int = 2, *, session):
+        _create_asset_aliases(num=num, session=session)
+
+    @provide_session
+    def create_provided_asset_alias(self, asset_alias: AssetAliasModel, session):
+        _create_provided_asset_alias(session=session, asset_alias=asset_alias)
+
+
+class TestGetAssetAliases(TestAssetAliases):
+    def test_should_respond_200(self, test_client, session):
+        self.create_asset_aliases()
+        asset_aliases = session.query(AssetAliasModel).all()
+        assert len(asset_aliases) == 2
+
+        response = test_client.get("/public/assets/aliases")
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data == {
+            "asset_aliases": [
+                {"id": 1, "name": "simple1", "group": "alias"},
+                {"id": 2, "name": "simple2", "group": "alias"},
+            ],
+            "total_entries": 2,
+        }
+
+    def test_order_by_raises_400_for_invalid_attr(self, test_client, session):
+        response = test_client.get("/public/assets/aliases?order_by=fake")
+
+        assert response.status_code == 400
+        msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
+        assert response.json()["detail"] == msg
+
+    @pytest.mark.parametrize(
+        "params, expected_asset_aliases",
+        [
+            ({"name_pattern": "foo"}, {"foo1"}),
+            ({"name_pattern": "1"}, {"foo1", "bar12"}),
+            ({"uri_pattern": ""}, {"foo1", "bar12", "bar2", "bar3", "rex23"}),
+        ],
+    )
+    @provide_session
+    def test_filter_assets_by_name_pattern_works(self, test_client, params, expected_asset_aliases, session):
+        asset_alias1 = AssetAliasModel(name="foo1")
+        asset_alias2 = AssetAliasModel(name="bar12")
+        asset_alias3 = AssetAliasModel(name="bar2")
+        asset_alias4 = AssetAliasModel(name="bar3")
+        asset_alias5 = AssetAliasModel(name="rex23")
+
+        asset_aliases = [asset_alias1, asset_alias2, asset_alias3, asset_alias4, asset_alias5]
+        for a in asset_aliases:
+            self.create_provided_asset_alias(a)
+
+        response = test_client.get("/public/assets/aliases", params=params)
+        assert response.status_code == 200
+        alias_names = {asset_alias["name"] for asset_alias in response.json()["asset_aliases"]}
+        assert expected_asset_aliases == alias_names
+
+
+class TestGetAssetAliasesEndpointPagination(TestAssetAliases):
+    @pytest.mark.parametrize(
+        "url, expected_asset_aliases",
+        [
+            # Limit test data
+            ("/public/assets/aliases?limit=1", ["simple1"]),
+            ("/public/assets/aliases?limit=100", [f"simple{i}" for i in range(1, 101)]),
+            # Offset test data
+            ("/public/assets/aliases?offset=1", [f"simple{i}" for i in range(2, 102)]),
+            ("/public/assets/aliases?offset=3", [f"simple{i}" for i in range(4, 104)]),
+            # Limit and offset test data
+            ("/public/assets/aliases?offset=3&limit=3", ["simple4", "simple5", "simple6"]),
+        ],
+    )
+    def test_limit_and_offset(self, test_client, url, expected_asset_aliases):
+        self.create_asset_aliases(num=110)
+
+        response = test_client.get(url)
+
+        assert response.status_code == 200
+        alias_names = [asset["name"] for asset in response.json()["asset_aliases"]]
+        assert alias_names == expected_asset_aliases
+
+    def test_should_respect_page_size_limit_default(self, test_client):
+        self.create_asset_aliases(num=110)
+        response = test_client.get("/public/assets/aliases")
+        assert response.status_code == 200
+        assert len(response.json()["asset_aliases"]) == 100
+
+
 class TestGetAssetEvents(TestAssets):
     def test_should_respond_200(self, test_client, session):
         self.create_assets()
@@ -389,7 +542,6 @@ class TestGetAssetEvents(TestAssets):
                 {
                     "id": 1,
                     "asset_id": 1,
-                    "uri": "s3://bucket/key/1",
                     "extra": {"foo": "bar"},
                     "source_task_id": "source_task_id",
                     "source_dag_id": "source_dag_id",
@@ -412,7 +564,6 @@ class TestGetAssetEvents(TestAssets):
                 {
                     "id": 2,
                     "asset_id": 2,
-                    "uri": "s3://bucket/key/2",
                     "extra": {"foo": "bar"},
                     "source_task_id": "source_task_id",
                     "source_dag_id": "source_dag_id",
@@ -464,17 +615,17 @@ class TestGetAssetEvents(TestAssets):
         assert response.json()["detail"] == msg
 
     @pytest.mark.parametrize(
-        "params, expected_asset_uris",
+        "params, expected_asset_ids",
         [
             # Limit test data
-            ({"limit": "1"}, ["s3://bucket/key/1"]),
-            ({"limit": "100"}, [f"s3://bucket/key/{i}" for i in range(1, 101)]),
+            ({"limit": "1"}, [1]),
+            ({"limit": "100"}, list(range(1, 101))),
             # Offset test data
-            ({"offset": "1"}, [f"s3://bucket/key/{i}" for i in range(2, 102)]),
-            ({"offset": "3"}, [f"s3://bucket/key/{i}" for i in range(4, 104)]),
+            ({"offset": "1"}, list(range(2, 102))),
+            ({"offset": "3"}, list(range(4, 104))),
         ],
     )
-    def test_limit_and_offset(self, test_client, params, expected_asset_uris):
+    def test_limit_and_offset(self, test_client, params, expected_asset_ids):
         self.create_assets(num=110)
         self.create_assets_events(num=110)
         self.create_dag_run(num=110)
@@ -483,8 +634,8 @@ class TestGetAssetEvents(TestAssets):
         response = test_client.get("/public/assets/events", params=params)
 
         assert response.status_code == 200
-        asset_uris = [asset["uri"] for asset in response.json()["asset_events"]]
-        assert asset_uris == expected_asset_uris
+        asset_ids = [asset["id"] for asset in response.json()["asset_events"]]
+        assert asset_ids == expected_asset_ids
 
     @pytest.mark.usefixtures("time_freezer")
     @pytest.mark.enable_redact
@@ -501,7 +652,6 @@ class TestGetAssetEvents(TestAssets):
                 {
                     "id": 1,
                     "asset_id": 1,
-                    "uri": "s3://bucket/key/1",
                     "extra": {"password": "***"},
                     "source_task_id": "source_task_id",
                     "source_dag_id": "source_dag_id",
@@ -524,7 +674,6 @@ class TestGetAssetEvents(TestAssets):
                 {
                     "id": 2,
                     "asset_id": 2,
-                    "uri": "s3://bucket/key/2",
                     "extra": {"password": "***"},
                     "source_task_id": "source_task_id",
                     "source_dag_id": "source_dag_id",
@@ -550,24 +699,13 @@ class TestGetAssetEvents(TestAssets):
 
 
 class TestGetAssetEndpoint(TestAssets):
-    @pytest.mark.parametrize(
-        "url",
-        [
-            urllib.parse.quote(
-                "s3://bucket/key/1", safe=""
-            ),  # api should cover raw as well as unquoted case like legacy
-            "s3://bucket/key/1",
-        ],
-    )
     @provide_session
-    def test_should_respond_200(self, test_client, url, session):
+    def test_should_respond_200(self, test_client, session):
         self.create_assets(num=1)
         assert session.query(AssetModel).count() == 1
         tz_datetime_format = from_datetime_to_zulu_without_ms(DEFAULT_DATE)
         with assert_queries_count(6):
-            response = test_client.get(
-                f"/public/assets/{url}",
-            )
+            response = test_client.get("/public/assets/1")
         assert response.status_code == 200
         assert response.json() == {
             "id": 1,
@@ -583,21 +721,16 @@ class TestGetAssetEndpoint(TestAssets):
         }
 
     def test_should_respond_404(self, test_client):
-        response = test_client.get(
-            f"/public/assets/{urllib.parse.quote('s3://bucket/key', safe='')}",
-        )
+        response = test_client.get("/public/assets/1")
         assert response.status_code == 404
-        assert response.json()["detail"] == "The Asset with uri: `s3://bucket/key` was not found"
+        assert response.json()["detail"] == "The Asset with ID: `1` was not found"
 
     @pytest.mark.usefixtures("time_freezer")
     @pytest.mark.enable_redact
     def test_should_mask_sensitive_extra(self, test_client, session):
         self.create_assets_with_sensitive_extra()
         tz_datetime_format = from_datetime_to_zulu_without_ms(DEFAULT_DATE)
-        uri = "s3://bucket/key/1"
-        response = test_client.get(
-            f"/public/assets/{uri}",
-        )
+        response = test_client.get("/public/assets/1")
         assert response.status_code == 200
         assert response.json() == {
             "id": 1,
@@ -611,6 +744,22 @@ class TestGetAssetEndpoint(TestAssets):
             "producing_tasks": [],
             "aliases": [],
         }
+
+
+class TestGetAssetAliasEndpoint(TestAssetAliases):
+    @provide_session
+    def test_should_respond_200(self, test_client, session):
+        self.create_asset_aliases(num=1)
+        assert session.query(AssetAliasModel).count() == 1
+        with assert_queries_count(6):
+            response = test_client.get("/public/assets/aliases/1")
+        assert response.status_code == 200
+        assert response.json() == {"id": 1, "name": "simple1", "group": "alias"}
+
+    def test_should_respond_404(self, test_client):
+        response = test_client.get("/public/assets/aliases/1")
+        assert response.status_code == 404
+        assert response.json()["detail"] == "The Asset Alias with ID: `1` was not found"
 
 
 class TestQueuedEventEndpoint(TestAssets):
@@ -638,9 +787,9 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
         assert response.json() == {
             "queued_events": [
                 {
-                    "created_at": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
-                    "uri": "s3://bucket/key/1",
+                    "asset_id": 1,
                     "dag_id": "dag",
+                    "created_at": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                 }
             ],
             "total_entries": 1,
@@ -705,13 +854,12 @@ class TestPostAssetEvents(TestAssets):
     @pytest.mark.usefixtures("time_freezer")
     def test_should_respond_200(self, test_client, session):
         self.create_assets()
-        event_payload = {"uri": "s3://bucket/key/1", "extra": {"foo": "bar"}}
+        event_payload = {"asset_id": 1, "extra": {"foo": "bar"}}
         response = test_client.post("/public/assets/events", json=event_payload)
         assert response.status_code == 200
         assert response.json() == {
             "id": mock.ANY,
             "asset_id": 1,
-            "uri": "s3://bucket/key/1",
             "extra": {"foo": "bar", "from_rest_api": True},
             "source_task_id": None,
             "source_dag_id": None,
@@ -732,13 +880,12 @@ class TestPostAssetEvents(TestAssets):
     @pytest.mark.enable_redact
     def test_should_mask_sensitive_extra(self, test_client, session):
         self.create_assets(session)
-        event_payload = {"uri": "s3://bucket/key/1", "extra": {"password": "bar"}}
+        event_payload = {"asset_id": 1, "extra": {"password": "bar"}}
         response = test_client.post("/public/assets/events", json=event_payload)
         assert response.status_code == 200
         assert response.json() == {
             "id": mock.ANY,
             "asset_id": 1,
-            "uri": "s3://bucket/key/1",
             "extra": {"password": "***", "from_rest_api": True},
             "source_task_id": None,
             "source_dag_id": None,
@@ -755,34 +902,26 @@ class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
         dag, _ = create_dummy_dag()
         dag_id = dag.dag_id
         self.create_assets(session=session, num=1)
-        uri = "s3://bucket/key/1"
         asset_id = 1
         self._create_asset_dag_run_queues(dag_id, asset_id, session)
 
-        response = test_client.get(
-            f"/public/assets/queuedEvents/{uri}",
-        )
+        response = test_client.get(f"/public/assets/{asset_id}/queuedEvents/")
         assert response.status_code == 200
         assert response.json() == {
             "queued_events": [
                 {
-                    "created_at": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
-                    "uri": "s3://bucket/key/1",
+                    "asset_id": asset_id,
                     "dag_id": "dag",
+                    "created_at": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                 }
             ],
             "total_entries": 1,
         }
 
     def test_should_respond_404(self, test_client):
-        uri = "not_exists"
-
-        response = test_client.get(
-            f"/public/assets/queuedEvents/{uri}",
-        )
-
+        response = test_client.get("/public/assets/1/queuedEvents")
         assert response.status_code == 404
-        assert response.json()["detail"] == "Queue event with uri: `not_exists` was not found"
+        assert response.json()["detail"] == "Queue event with asset_id: `1` was not found"
 
 
 class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):
@@ -790,33 +929,25 @@ class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):
     def test_should_respond_204(self, test_client, session, create_dummy_dag):
         dag, _ = create_dummy_dag()
         dag_id = dag.dag_id
-        uri = "s3://bucket/key/1"
         self.create_assets(session=session, num=1)
         asset_id = 1
         self._create_asset_dag_run_queues(dag_id, asset_id, session)
 
-        response = test_client.delete(
-            f"/public/assets/queuedEvents/{uri}",
-        )
+        assert session.get(AssetDagRunQueue, (asset_id, dag_id)) is not None
+        response = test_client.delete(f"/public/assets/{asset_id}/queuedEvents")
         assert response.status_code == 204
-        assert session.query(AssetDagRunQueue).filter_by(asset_id=1).first() is None
+        assert session.get(AssetDagRunQueue, (asset_id, dag_id)) is None
 
     def test_should_respond_404(self, test_client):
-        uri = "not_exists"
-
-        response = test_client.delete(
-            f"/public/assets/queuedEvents/{uri}",
-        )
-
+        response = test_client.delete("/public/assets/1/queuedEvents")
         assert response.status_code == 404
-        assert response.json()["detail"] == "Queue event with uri: `not_exists` was not found"
+        assert response.json()["detail"] == "Queue event with asset_id: `1` was not found"
 
 
 class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
     def test_delete_should_respond_204(self, test_client, session, create_dummy_dag):
         dag, _ = create_dummy_dag()
         dag_id = dag.dag_id
-        asset_uri = "s3://bucket/key/1"
         self.create_assets(session=session, num=1)
         asset_id = 1
 
@@ -825,7 +956,7 @@ class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
         assert len(adrq) == 1
 
         response = test_client.delete(
-            f"/public/dags/{dag_id}/assets/queuedEvents/{asset_uri}",
+            f"/public/dags/{dag_id}/assets/{asset_id}/queuedEvents",
         )
 
         assert response.status_code == 204
@@ -834,14 +965,14 @@ class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
 
     def test_should_respond_404(self, test_client):
         dag_id = "not_exists"
-        asset_uri = "not_exists"
+        asset_id = 1
 
         response = test_client.delete(
-            f"/public/dags/{dag_id}/assets/queuedEvents/{asset_uri}",
+            f"/public/dags/{dag_id}/assets/{asset_id}/queuedEvents/",
         )
 
         assert response.status_code == 404
         assert (
             response.json()["detail"]
-            == "Queued event with dag_id: `not_exists` and asset uri: `not_exists` was not found"
+            == "Queued event with dag_id: `not_exists` and asset_id: `1` was not found"
         )

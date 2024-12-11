@@ -112,3 +112,7 @@ ISSUE_TRIAGE_PROCESS.rst @eladkal
 /providers/src/airflow/providers/**/fs/ @bolkedebruin
 /providers/src/airflow/providers/common/io/ @bolkedebruin
 /docs/apache-airflow/core-concepts/objectstorage.rst @bolkedebruin
+
+# Migrations
+/airflow/migrations/ @ephraimbuddy
+/providers/src/airflow/providers/fab/migrations/ @ephraimbuddy
