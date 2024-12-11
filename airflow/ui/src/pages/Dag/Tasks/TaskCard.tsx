@@ -23,7 +23,9 @@ import {
   Box,
   SimpleGrid,
   Text,
+  Link,
 } from "@chakra-ui/react";
+import { Link as RouterLink } from "react-router-dom";
 
 import type {
   TaskResponse,
@@ -36,22 +38,27 @@ import { Status } from "src/components/ui";
 import { TaskRecentRuns } from "./TaskRecentRuns.tsx";
 
 type Props = {
+  readonly dagId: string;
   readonly task: TaskResponse;
   readonly taskInstances: Array<TaskInstanceResponse>;
 };
 
-export const TaskCard = ({ task, taskInstances }: Props) => (
+export const TaskCard = ({ dagId, task, taskInstances }: Props) => (
   <Box
     borderColor="border.emphasized"
     borderRadius={8}
     borderWidth={1}
     overflow="hidden"
+    px={3}
+    py={2}
   >
-    <Text bg="bg.info" color="fg.info" fontWeight="bold" p={2}>
-      {task.task_display_name ?? task.task_id}
-      {task.is_mapped ? "[]" : undefined}
-    </Text>
-    <SimpleGrid columns={4} gap={4} height={20} px={3} py={2}>
+    <Link asChild color="fg.info" fontWeight="bold">
+      <RouterLink to={`/dags/${dagId}/tasks/${task.task_id}`}>
+        {task.task_display_name ?? task.task_id}
+        {task.is_mapped ? "[]" : undefined}
+      </RouterLink>
+    </Link>
+    <SimpleGrid columns={4} gap={4} height={20}>
       <VStack align="flex-start" gap={1}>
         <Heading color="fg.muted" fontSize="xs">
           Operator
