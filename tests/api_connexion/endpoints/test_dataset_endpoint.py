@@ -17,10 +17,10 @@
 from __future__ import annotations
 
 import urllib
+from datetime import timedelta
 from typing import Generator
 from unittest.mock import ANY
 
-from datetime import timedelta
 import pytest
 import time_machine
 
@@ -570,7 +570,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
                 source_task_id=f"task{i}",
                 source_run_id=f"run{i}",
                 source_map_index=i,
-                timestamp=event_timestamp_base + timedelta(days=i-1),  # Vary timestamps for testing
+                timestamp=event_timestamp_base + timedelta(days=i - 1),  # Vary timestamps for testing
             )
             for i in [1, 2, 3]
         ]
@@ -582,14 +582,14 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         # Construct query URL with timestamp_gte and timestamp_lte filters
         response = self.client.get(
             f"/api/v1/datasets/events?timestamp_gte={timestamp_gte}&timestamp_lte={timestamp_lte}",
-            environ_overrides={"REMOTE_USER": "test"}
+            environ_overrides={"REMOTE_USER": "test"},
         )
 
         assert response.status_code == 200
         response_data = response.json
 
         # Check if the returned dataset events' ids match the expected ones
-        dataset_event_ids = [event['id'] for event in response_data['dataset_events']]
+        dataset_event_ids = [event["id"] for event in response_data["dataset_events"]]
         assert sorted(dataset_event_ids) == sorted(expected_ids)
 
         # Validate total entries match expected number of results
