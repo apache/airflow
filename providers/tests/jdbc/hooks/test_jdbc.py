@@ -20,8 +20,11 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import current_thread
+from time import sleep
 from unittest import mock
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import jaydebeapi
 import pytest
@@ -35,6 +38,7 @@ pytestmark = pytest.mark.db_test
 
 
 jdbc_conn_mock = Mock(name="jdbc_conn")
+logger = logging.getLogger(__name__)
 
 
 def get_hook(
@@ -229,3 +233,39 @@ class TestJdbcHook:
             jdbc_hook.get_conn = lambda: connection
             engine = jdbc_hook.get_sqlalchemy_engine()
             assert engine.connect().connection.connection == connection
+
+    def test_get_conn_thread_safety(self):
+        mock_conn = MagicMock()
+        open_connections = 0
+
+        def connect_side_effect(*args, **kwargs):
+            nonlocal open_connections
+            open_connections += 1
+            logger.debug("Thread %s has %s open connections", current_thread().name, open_connections)
+
+            try:
+                if open_connections > 1:
+                    raise OSError("JVM is already started")
+            finally:
+                sleep(0.1)  # wait a bit before releasing the connection again
+                open_connections -= 1
+
+            return mock_conn
+
+        with patch.object(jaydebeapi, "connect", side_effect=connect_side_effect) as mock_connect:
+            jdbc_hook = get_hook()
+
+            def call_get_conn():
+                conn = jdbc_hook.get_conn()
+                assert conn is mock_conn
+
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                futures = []
+
+                for _ in range(0, 10):
+                    futures.append(executor.submit(call_get_conn))
+
+                for future in as_completed(futures):
+                    future.result()  # This will raise OSError if get_conn isn't threadsafe
+
+            assert mock_connect.call_count == 10
