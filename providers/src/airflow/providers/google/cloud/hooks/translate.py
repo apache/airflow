@@ -30,6 +30,7 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.translate_v2 import Client
 from google.cloud.translate_v3 import TranslationServiceClient
+from google.cloud.translate_v3.types.translation_service import GlossaryInputConfig
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
@@ -51,6 +52,7 @@ if TYPE_CHECKING:
         TransliterationConfig,
         automl_translation,
     )
+    from google.cloud.translate_v3.types.translation_service import Glossary
     from proto import Message
 
 
@@ -915,3 +917,232 @@ class TranslateHook(GoogleBaseHook):
             retry=retry,
             metadata=metadata,
         )
+
+    def create_glossary(
+        self,
+        project_id: str,
+        location: str,
+        glossary_id: str,
+        input_config: GlossaryInputConfig | dict,
+        language_pair: Glossary.LanguageCodePair | dict | None = None,
+        language_codes_set: Glossary.LanguageCodesSet | MutableSequence[str] | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Operation:
+        """
+        Create the glossary resource from the input source file.
+
+        :param project_id: ID of the Google Cloud project where dataset is located. If not provided
+            default project_id is used.
+        :param location: The location of the project.
+        :param glossary_id: User-specified id to built glossary resource name.
+        :param input_config: The input configuration of examples to built glossary from.
+            Total glossary must not exceed 10M Unicode codepoints.
+            The headers should not be included into the input file table, as languages specified with the
+            ``language_pair`` or ``language_codes_set`` params.
+        :param language_pair: Pair of language codes to be used for glossary creation.
+            Used to built unidirectional glossary. If specified, the ``language_codes_set`` should be empty.
+        :param language_codes_set: Set of language codes to create the equivalent term sets glossary.
+            Meant multiple languages mapping. If specified, the ``language_pair`` should be empty.
+        :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
+            retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+            `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+
+        :return: `Operation` object with the glossary creation results.
+        """
+        client = self.get_client()
+        parent = f"projects/{project_id}/locations/{location}"
+        name = f"projects/{project_id}/locations/{location}/glossaries/{glossary_id}"
+
+        result = client.create_glossary(
+            request={
+                "parent": parent,
+                "glossary": {
+                    "name": name,
+                    "input_config": input_config,
+                    "language_pair": language_pair,
+                    "language_codes_set": language_codes_set,
+                },
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    def get_glossary(
+        self,
+        project_id: str,
+        location: str,
+        glossary_id: str,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Glossary:
+        """
+        Fetch glossary item data by the given id.
+
+        The glossary_id is a substring of glossary name, following the format:
+        ``projects/{project-number-or-id}/locations/{location-id}/glossaries/{glossary-id}``
+
+        :param project_id: ID of the Google Cloud project where dataset is located. If not provided
+            default project_id is used.
+        :param location: The location of the project.
+        :param glossary_id: User-specified id to built glossary resource name.
+        :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
+            retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+            `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+
+        :return: Fetched glossary item.
+        """
+        client = self.get_client()
+        name = f"projects/{project_id}/locations/{location}/glossaries/{glossary_id}"
+        result = client.get_glossary(
+            name=name,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        if not result:
+            raise AirflowException(f"Fail to get glossary {name}! Please check if it exists.")
+        return result
+
+    def update_glossary(
+        self,
+        glossary: Glossary,
+        new_display_name: str | None = None,
+        new_input_config: GlossaryInputConfig | dict | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Operation:
+        """
+        Update glossary item with values provided.
+
+        Only ``display_name`` and ``input_config`` fields are allowed for update.
+
+        :param glossary: Glossary item to update.
+        :param new_display_name: New value of the ``display_name`` to be updated.
+        :param new_input_config: New value of the ``input_config`` to be updated.
+        :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
+            retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+            `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+
+        :return: `Operation` with glossary update results.
+        """
+        client = self.get_client()
+        updated_fields = []
+        if new_display_name:
+            glossary.display_name = new_display_name
+            updated_fields.append("display_name")
+        if new_input_config is not None:
+            if isinstance(new_input_config, dict):
+                new_input_config = GlossaryInputConfig(**new_input_config)
+            glossary.input_config = new_input_config
+            updated_fields.append("input_config")
+        result = client.update_glossary(
+            request={"glossary": glossary, "update_mask": {"paths": updated_fields}},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    def list_glossaries(
+        self,
+        project_id: str,
+        location: str,
+        page_size: int | None = None,
+        page_token: str | None = None,
+        filter_str: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> pagers.ListGlossariesPager:
+        """
+        Get the list of glossaries available.
+
+        :param project_id: ID of the Google Cloud project where dataset is located. If not provided
+            default project_id is used.
+        :param location: The location of the project.
+        :param page_size: Page size requested, if not set server use appropriate default.
+        :param page_token: A token identifying a page of results the server should return.
+            The first page is returned if ``page_token`` is empty or missing.
+        :param filter_str: Filter specifying constraints of a list operation. Specify the constraint by the
+            format of "key=value", where key must be ``src`` or ``tgt``, and the value must be a valid
+            language code.
+            For multiple restrictions, concatenate them by "AND" (uppercase only), such as:
+            ``src=en-US AND tgt=zh-CN``. Notice that the exact match is used here, which means using 'en-US'
+            and 'en' can lead to different results, which depends on the language code you used when you
+            create the glossary.
+            For the unidirectional glossaries, the ``src`` and ``tgt`` add restrictions
+            on the source and target language code separately.
+            For the equivalent term set glossaries, the ``src`` and/or ``tgt`` add restrictions on the term set.
+            For example: ``src=en-US AND tgt=zh-CN`` will only pick the unidirectional glossaries which exactly
+            match the source language code as ``en-US`` and the target language code ``zh-CN``, but all
+            equivalent term set glossaries which contain ``en-US`` and ``zh-CN`` in their language set will
+            be picked.
+            If missing, no filtering is performed.
+        :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
+            retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+            `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+
+        :return: Glossaries list pager object.
+        """
+        client = self.get_client()
+        parent = f"projects/{project_id}/locations/{location}"
+        result = client.list_glossaries(
+            request={
+                "parent": parent,
+                "page_size": page_size,
+                "page_token": page_token,
+                "filter": filter_str,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    def delete_glossary(
+        self,
+        project_id: str,
+        location: str,
+        glossary_id: str,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Operation:
+        """
+        Delete the glossary item by the given id.
+
+        :param project_id: ID of the Google Cloud project where dataset is located. If not provided
+            default project_id is used.
+        :param location: The location of the project.
+        :param glossary_id: Glossary id to be deleted.
+        :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
+            retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+            `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+
+        :return: `Operation` with glossary deletion results.
+        """
+        client = self.get_client()
+        name = f"projects/{project_id}/locations/{location}/glossaries/{glossary_id}"
+        result = client.delete_glossary(
+            name=name,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result

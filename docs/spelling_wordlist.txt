@@ -125,6 +125,7 @@ autoscale
 autoscaled
 autoscaler
 autoscaling
+available
 avp
 Avro
 avro
