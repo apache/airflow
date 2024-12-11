@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-10T02:16:11.672812
+# This constraints file was automatically generated on 2024-12-11T02:15:05.863639
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -133,7 +133,7 @@ cattrs==24.1.2
 celery==5.4.0
 certifi==2024.8.30
 cffi==1.17.1
-cfn-lint==1.21.0
+cfn-lint==1.22.0
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.0
@@ -161,7 +161,7 @@ databricks-sql-connector==3.6.0
 dataclasses-json==0.6.7
 datadog==0.50.2
 db-dtypes==1.3.1
-debugpy==1.8.9
+debugpy==1.8.10
 decorator==5.1.1
 defusedxml==0.7.1
 deltalake==0.22.3
@@ -181,7 +181,7 @@ email_validator==2.2.0
 entrypoints==0.4
 eralchemy2==1.4.1
 et_xmlfile==2.0.0
-eventlet==0.38.0
+eventlet==0.38.1
 execnet==2.1.1
 executing==2.1.0
 facebook_business==21.0.5
@@ -360,7 +360,7 @@ multidict==6.1.0
 mypy-boto3-appflow==1.35.39
 mypy-boto3-rds==1.35.72
 mypy-boto3-redshift-data==1.35.51
-mypy-boto3-s3==1.35.76
+mypy-boto3-s3==1.35.76.post1
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.1.0
@@ -373,7 +373,7 @@ networkx==3.4.2
 nh3==0.2.19
 numpy==1.26.4
 oauthlib==3.2.2
-openai==1.57.1
+openai==1.57.2
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.25.0
@@ -469,7 +469,7 @@ pytest-timeouts==1.2.1
 pytest-unordered==0.6.1
 pytest-xdist==3.6.1
 pytest==8.3.4
-python-arango==8.1.3
+python-arango==8.1.4
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
@@ -553,7 +553,7 @@ spython==0.3.14
 sqlalchemy-bigquery==1.12.0
 sqlalchemy-spanner==1.8.0
 sqlalchemy_drill==1.1.5
-sqlparse==0.5.2
+sqlparse==0.5.3
 sshtunnel==0.4.0
 stack-data==0.6.3
 starkbank-ecdsa==2.2.0
@@ -578,7 +578,7 @@ tornado==6.4.2
 towncrier==24.8.0
 tqdm==4.67.1
 traitlets==5.14.3
-trino==0.330.0
+trino==0.331.0
 twine==6.0.1
 typer==0.15.1
 types-Deprecated==1.2.15.20241117
@@ -616,7 +616,7 @@ uvloop==0.21.0
 validators==0.33.0
 vertica-python==1.4.0
 vine==5.1.0
-watchfiles==1.0.0
+watchfiles==1.0.3
 watchtower==3.3.1
 wcwidth==0.2.13
 weaviate-client==4.8.0
