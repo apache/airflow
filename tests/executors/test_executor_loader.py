@@ -26,7 +26,7 @@ from airflow.executors import executor_loader
 from airflow.executors.executor_loader import ConnectorSource, ExecutorLoader, ExecutorName
 from airflow.executors.local_executor import LocalExecutor
 from airflow.providers.amazon.aws.executors.ecs.ecs_executor import AwsEcsExecutor
-from airflow.providers.celery.executors.celery_executor import CeleryExecutor
+from airflow.providers_manager import ProvidersManager
 
 from tests_common.test_utils.config import conf_vars
 
@@ -141,6 +141,11 @@ class TestExecutorLoader:
             assert executors == expected_executors_list
 
     def test_init_executors(self):
+        # We need to init provider config in order to import CeleryExecutor
+        ProvidersManager().initialize_providers_configuration()
+
+        from airflow.providers.celery.executors.celery_executor import CeleryExecutor
+
         with conf_vars({("core", "executor"): "CeleryExecutor"}):
             executors = ExecutorLoader.init_executors()
             executor_name = ExecutorLoader.get_default_executor_name()
