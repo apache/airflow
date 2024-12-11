@@ -122,6 +122,7 @@ class TestGitDagBundle:
         bundle = GitDagBundle(
             name="test", refresh_interval=300, repo_url=repo_path, tracking_ref=GIT_DEFAULT_BRANCH
         )
+        bundle.init_bundle()
 
         assert bundle.get_current_version() == repo.head.commit.hexsha
 
@@ -143,6 +144,7 @@ class TestGitDagBundle:
             repo_url=repo_path,
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
+        bundle.init_bundle()
 
         assert bundle.get_current_version() == starting_commit.hexsha
 
@@ -171,7 +173,7 @@ class TestGitDagBundle:
             repo_url=repo_path,
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
-
+        bundle.init_bundle()
         assert bundle.get_current_version() == starting_commit.hexsha
 
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
@@ -190,6 +192,7 @@ class TestGitDagBundle:
         bundle = GitDagBundle(
             name="test", refresh_interval=300, repo_url=repo_path, tracking_ref=GIT_DEFAULT_BRANCH
         )
+        bundle.init_bundle()
 
         assert bundle.get_current_version() != starting_commit.hexsha
 
@@ -203,6 +206,7 @@ class TestGitDagBundle:
         bundle = GitDagBundle(
             name="test", refresh_interval=300, repo_url=repo_path, tracking_ref=GIT_DEFAULT_BRANCH
         )
+        bundle.init_bundle()
 
         assert bundle.get_current_version() == starting_commit.hexsha
 
@@ -227,19 +231,21 @@ class TestGitDagBundle:
 
         repo.create_head("test")
         bundle = GitDagBundle(name="test", refresh_interval=300, repo_url=repo_path, tracking_ref="test")
+        bundle.init_bundle()
         assert bundle.repo.head.ref.name == "test"
 
     def test_version_not_found(self, git_repo):
         repo_path, repo = git_repo
+        bundle = GitDagBundle(
+            name="test",
+            refresh_interval=300,
+            version="not_found",
+            repo_url=repo_path,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+        )
 
         with pytest.raises(AirflowException, match="Version not_found not found in the repository"):
-            GitDagBundle(
-                name="test",
-                refresh_interval=300,
-                version="not_found",
-                repo_url=repo_path,
-                tracking_ref=GIT_DEFAULT_BRANCH,
-            )
+            bundle.init_bundle()
 
     def test_subdir(self, git_repo):
         repo_path, repo = git_repo
@@ -261,6 +267,7 @@ class TestGitDagBundle:
             tracking_ref=GIT_DEFAULT_BRANCH,
             subdir=subdir,
         )
+        bundle.init_bundle()
 
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert str(bundle.path).endswith(subdir)
