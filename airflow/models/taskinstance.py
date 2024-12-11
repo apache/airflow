@@ -1012,7 +1012,6 @@ def _get_template_context(
     # * KNOWN_CONTEXT_KEYS in airflow/utils/context.py
     # * Table in docs/apache-airflow/templates-ref.rst
     context: dict[str, Any] = {
-        "conf": conf,
         "dag": dag,
         "dag_run": dag_run,
         "data_interval_end": timezone.coerce_datetime(data_interval.end),
