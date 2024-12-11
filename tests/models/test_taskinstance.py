@@ -39,10 +39,10 @@ import uuid6
 from sqlalchemy import select
 
 from airflow import settings
-from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.decorators import task, task_group
 from airflow.exceptions import (
     AirflowException,
+    AirflowExecuteWithInactiveAssetExecption,
     AirflowFailException,
     AirflowRescheduleException,
     AirflowSensorTimeout,
@@ -52,6 +52,7 @@ from airflow.exceptions import (
     UnmappableXComTypePushed,
     XComForMappingNotPushed,
 )
+from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models.asset import AssetAliasModel, AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
@@ -4068,6 +4069,55 @@ class TestTaskInstance:
         assert ti.state == State.UP_FOR_RETRY
         assert session.query(TaskInstance).count() == 1
         assert session.query(TaskInstanceHistory).count() == 1
+
+    @pytest.mark.want_activate_assets(True)
+    def test_run_with_inactive_assets_in_the_same_dag(self, dag_maker, session):
+        from airflow.sdk.definitions.asset import Asset
+
+        with dag_maker(schedule=None, serialized=True, session=session):
+
+            @task(outlets=Asset("asset_first"))
+            def first_asset_task(*, outlet_events):
+                outlet_events[Asset("asset_first")].extra = {"foo": "bar"}
+
+            @task(outlets=Asset(name="asset_first", uri="test://asset"))
+            def duplicate_asset_task(*, outlet_events):
+                outlet_events[Asset(name="asset_first", uri="test://asset")].extra = {"foo": "bar"}
+
+            first_asset_task() >> duplicate_asset_task()
+
+        tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
+        tis["first_asset_task"].run(session=session)
+        with pytest.raises(AirflowExecuteWithInactiveAssetExecption) as exc:
+            tis["duplicate_asset_task"].run(session=session)
+
+        assert exc.value.args[0] == 'Asset(name="asset_first", uri="test://asset/") is inactive'
+
+    @pytest.mark.want_activate_assets(True)
+    def test_run_with_inactive_assets_in_different_dags(self, dag_maker, session):
+        from airflow.sdk.definitions.asset import Asset
+
+        with dag_maker(schedule=None, serialized=True, session=session):
+
+            @task(outlets=Asset("asset_first"))
+            def first_asset_task(*, outlet_events):
+                outlet_events[Asset("asset_first")].extra = {"foo": "bar"}
+
+            first_asset_task()
+
+        with dag_maker(schedule=None, serialized=True, session=session):
+
+            @task(outlets=Asset(name="asset_first", uri="test://asset"))
+            def duplicate_asset_task(*, outlet_events):
+                outlet_events[Asset(name="asset_first", uri="test://asset")].extra = {"foo": "bar"}
+
+            duplicate_asset_task()
+
+        tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
+        with pytest.raises(AirflowExecuteWithInactiveAssetExecption) as exc:
+            tis["duplicate_asset_task"].run(session=session)
+
+        assert exc.value.args[0] == 'Asset(name="asset_first", uri="test://asset/") is inactive'
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])
