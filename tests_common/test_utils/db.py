@@ -143,6 +143,14 @@ def clear_db_dags():
         session.query(DagModel).delete()
 
 
+def clear_db_deadline():
+    with create_session() as session:
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.deadline import Deadline
+
+            session.query(Deadline).delete()
+
+
 def drop_tables_with_prefix(prefix):
     with create_session() as session:
         metadata = reflect_tables(None, session)
