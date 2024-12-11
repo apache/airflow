@@ -3647,12 +3647,9 @@ class TaskInstance(Base, LoggingMixin):
         if not self.task or not (self.task.outlets or self.task.inlets):
             return
 
-        inlets_and_outlets = self.task.inlets[:]
-        inlets_and_outlets.extend(self.task.outlets[:])
-
         all_assets_name_uri = {
             (inlet_or_outlet.name, inlet_or_outlet.uri)
-            for inlet_or_outlet in inlets_and_outlets
+            for inlet_or_outlet in itertools.chain(self.task.inlets, self.task.outlets)
             if isinstance(inlet_or_outlet, Asset)
         }
         active_assets_name_uri = set(
@@ -3664,8 +3661,9 @@ class TaskInstance(Base, LoggingMixin):
         )
         inactive_assets_name_uri = all_assets_name_uri - active_assets_name_uri
         if inactive_assets_name_uri:
-            error_msg = "; ".join(
-                f'Asset(name="{name}", uri="{uri}") is inactive' for name, uri in inactive_assets_name_uri
+            error_msg = "Task has the following inactive assets in its inlets or outlets: "
+            error_msg += ", ".join(
+                f'Asset(name="{name}", uri="{uri}")' for name, uri in inactive_assets_name_uri
             )
             raise AirflowExecuteWithInactiveAssetExecption(error_msg)
 

@@ -4084,7 +4084,7 @@ class TestTaskInstance:
 
         with dag_maker(schedule=None, serialized=True, session=session):
 
-            @task(outlets=Asset("asset_second"))
+            @task(inlets=Asset("asset_second"))
             def asset_task_in_inlet():
                 pass
 
@@ -4096,11 +4096,12 @@ class TestTaskInstance:
 
         tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
 
+        tis["asset_task_in_inlet"].run(session=session)
         with pytest.raises(AirflowExecuteWithInactiveAssetExecption) as exc:
             tis["duplicate_asset_task_in_outlet"].run(session=session)
 
-        assert 'Asset(name="asset_second", uri="asset_second") is inactive' in exc.value.args[0]
-        assert 'Asset(name="asset_first", uri="test://asset/") is inactive' in exc.value.args[0]
+        assert 'Asset(name="asset_second", uri="asset_second")' in exc.value.args[0]
+        assert 'Asset(name="asset_first", uri="test://asset/")' in exc.value.args[0]
 
     @pytest.mark.want_activate_assets(True)
     def test_run_with_inactive_assets_in_outlets_within_the_same_dag(self, dag_maker, session):
@@ -4123,7 +4124,10 @@ class TestTaskInstance:
         with pytest.raises(AirflowExecuteWithInactiveAssetExecption) as exc:
             tis["duplicate_asset_task"].run(session=session)
 
-        assert exc.value.args[0] == 'Asset(name="asset_first", uri="test://asset/") is inactive'
+        assert exc.value.args[0] == (
+            "Task has the following inactive assets in its inlets or outlets: "
+            'Asset(name="asset_first", uri="test://asset/")'
+        )
 
     @pytest.mark.want_activate_assets(True)
     def test_run_with_inactive_assets_in_outlets_in_different_dag(self, dag_maker, session):
@@ -4149,7 +4153,10 @@ class TestTaskInstance:
         with pytest.raises(AirflowExecuteWithInactiveAssetExecption) as exc:
             tis["duplicate_asset_task"].run(session=session)
 
-        assert exc.value.args[0] == 'Asset(name="asset_first", uri="test://asset/") is inactive'
+        assert exc.value.args[0] == (
+            "Task has the following inactive assets in its inlets or outlets: "
+            'Asset(name="asset_first", uri="test://asset/")'
+        )
 
     @pytest.mark.want_activate_assets(True)
     def test_run_with_inactive_assets_in_inlets_within_the_same_dag(self, dag_maker, session):
@@ -4171,7 +4178,10 @@ class TestTaskInstance:
         with pytest.raises(AirflowExecuteWithInactiveAssetExecption) as exc:
             tis["first_asset_task"].run(session=session)
 
-        assert exc.value.args[0] == 'Asset(name="asset_first", uri="asset_first") is inactive'
+        assert exc.value.args[0] == (
+            "Task has the following inactive assets in its inlets or outlets: "
+            'Asset(name="asset_first", uri="asset_first")'
+        )
 
     @pytest.mark.want_activate_assets(True)
     def test_run_with_inactive_assets_in_inlets_in_different_dag(self, dag_maker, session):
@@ -4197,7 +4207,10 @@ class TestTaskInstance:
         with pytest.raises(AirflowExecuteWithInactiveAssetExecption) as exc:
             tis["duplicate_asset_task"].run(session=session)
 
-        assert exc.value.args[0] == 'Asset(name="asset_first", uri="test://asset/") is inactive'
+        assert exc.value.args[0] == (
+            "Task has the following inactive assets in its inlets or outlets: "
+            'Asset(name="asset_first", uri="test://asset/")'
+        )
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])
