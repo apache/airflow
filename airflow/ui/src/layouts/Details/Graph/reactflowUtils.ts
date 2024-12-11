@@ -30,10 +30,10 @@ export type CustomNodeProps = {
   childCount?: number;
   depth?: number;
   height?: number;
-  isActive?: boolean;
   isGroup?: boolean;
   isMapped?: boolean;
   isOpen?: boolean;
+  isSelected?: boolean;
   label: string;
   operator?: string | null;
   setupTeardownType?: NodeResponse["setup_teardown_type"];

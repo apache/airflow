@@ -39,6 +39,7 @@ export const TaskNode = ({
     isGroup,
     isMapped,
     isOpen,
+    isSelected,
     label,
     operator,
     setupTeardownType,
@@ -58,6 +59,7 @@ export const TaskNode = ({
     <NodeWrapper>
       <Flex alignItems="center" cursor="default" flexDirection="column">
         <TaskInstanceTooltip
+          openDelay={500}
           positioning={{
             placement: "top-start",
           }}
@@ -79,7 +81,7 @@ export const TaskNode = ({
                   ]
             }
             borderRadius={5}
-            borderWidth={2}
+            borderWidth={isSelected ? 4 : 2}
             height={`${height}px`}
             justifyContent="space-between"
             px={3}

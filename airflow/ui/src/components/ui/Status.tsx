@@ -28,7 +28,7 @@ import { stateColor } from "src/utils/stateColor";
 type StatusValue = DagRunState | TaskInstanceState | null;
 
 export type StatusProps = {
-  state: StatusValue | null;
+  state: StatusValue;
 } & ChakraStatus.RootProps;
 
 export const Status = React.forwardRef<HTMLDivElement, StatusProps>(
