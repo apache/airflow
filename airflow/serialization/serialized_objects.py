@@ -59,9 +59,11 @@ from airflow.providers_manager import ProvidersManager
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
+    AssetAliasUniqueKey,
     AssetAll,
     AssetAny,
     AssetRef,
+    AssetUniqueKey,
     BaseAsset,
 )
 from airflow.sdk.definitions.baseoperator import BaseOperator as TaskSDKBaseOperator
@@ -303,23 +305,50 @@ def decode_asset_condition(var: dict[str, Any]) -> BaseAsset:
 
 
 def encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
-    raw_key = var.raw_key
+    key = var.key
     return {
+        "key": BaseSerialization.serialize(key),
         "extra": var.extra,
         "asset_alias_events": [attrs.asdict(cast(attrs.AttrsInstance, e)) for e in var.asset_alias_events],
-        "raw_key": BaseSerialization.serialize(raw_key),
     }
 
 
 def decode_outlet_event_accessor(var: dict[str, Any]) -> OutletEventAccessor:
     asset_alias_events = var.get("asset_alias_events", [])
-
     outlet_event_accessor = OutletEventAccessor(
+        key=BaseSerialization.deserialize(var["key"]),
         extra=var["extra"],
-        raw_key=BaseSerialization.deserialize(var["raw_key"]),
-        asset_alias_events=[AssetAliasEvent(**e) for e in asset_alias_events],
+        asset_alias_events=[
+            AssetAliasEvent(
+                source_alias_name=e["source_alias_name"],
+                dest_asset_key=AssetUniqueKey(
+                    name=e["dest_asset_key"]["name"], uri=e["dest_asset_key"]["uri"]
+                ),
+                extra=e["extra"],
+            )
+            for e in asset_alias_events
+        ],
     )
     return outlet_event_accessor
+
+
+def encode_outlet_event_accessors(var: OutletEventAccessors) -> dict[str, Any]:
+    return {
+        "__type": DAT.ASSET_EVENT_ACCESSORS,
+        "_dict": [
+            {"key": BaseSerialization.serialize(k), "value": encode_outlet_event_accessor(v)}
+            for k, v in var._dict.items()  # type: ignore[attr-defined]
+        ],
+    }
+
+
+def decode_outlet_event_accessors(var: dict[str, Any]) -> OutletEventAccessors:
+    d = OutletEventAccessors()  # type: ignore[assignment]
+    d._dict = {  # type: ignore[attr-defined]
+        BaseSerialization.deserialize(row["key"]): decode_outlet_event_accessor(row["value"])
+        for row in var["_dict"]
+    }
+    return d
 
 
 def encode_timetable(var: Timetable) -> dict[str, Any]:
@@ -680,17 +709,18 @@ class BaseSerialization:
             return cls._encode(json_pod, type_=DAT.POD)
         elif isinstance(var, OutletEventAccessors):
             return cls._encode(
-                cls.serialize(
-                    var._dict,  # type: ignore[attr-defined]
-                    strict=strict,
-                    use_pydantic_models=use_pydantic_models,
-                ),
+                encode_outlet_event_accessors(var),
                 type_=DAT.ASSET_EVENT_ACCESSORS,
             )
-        elif isinstance(var, OutletEventAccessor):
+        elif isinstance(var, AssetUniqueKey):
             return cls._encode(
-                encode_outlet_event_accessor(var),
-                type_=DAT.ASSET_EVENT_ACCESSOR,
+                attrs.asdict(var),
+                type_=DAT.ASSET_UNIQUE_KEY,
+            )
+        elif isinstance(var, AssetAliasUniqueKey):
+            return cls._encode(
+                attrs.asdict(var),
+                type_=DAT.ASSET_ALIAS_UNIQUE_KEY,
             )
         elif isinstance(var, DAG):
             return cls._encode(SerializedDAG.serialize_dag(var), type_=DAT.DAG)
@@ -855,11 +885,11 @@ class BaseSerialization:
         elif type_ == DAT.DICT:
             return {k: cls.deserialize(v, use_pydantic_models) for k, v in var.items()}
         elif type_ == DAT.ASSET_EVENT_ACCESSORS:
-            d = OutletEventAccessors()  # type: ignore[assignment]
-            d._dict = cls.deserialize(var)  # type: ignore[attr-defined]
-            return d
-        elif type_ == DAT.ASSET_EVENT_ACCESSOR:
-            return decode_outlet_event_accessor(var)
+            return decode_outlet_event_accessors(var)
+        elif type_ == DAT.ASSET_UNIQUE_KEY:
+            return AssetUniqueKey(name=var["name"], uri=var["uri"])
+        elif type_ == DAT.ASSET_ALIAS_UNIQUE_KEY:
+            return AssetAliasUniqueKey(name=var["name"])
         elif type_ == DAT.DAG:
             return SerializedDAG.deserialize_dag(var)
         elif type_ == DAT.OP:
