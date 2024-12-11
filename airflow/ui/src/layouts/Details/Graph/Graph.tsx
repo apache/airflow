@@ -19,9 +19,9 @@
 import { Flex } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { useParams } from "react-router-dom";
 
 import { useStructureServiceStructureData } from "openapi/queries";
-import type { DAGResponse } from "openapi/requests/types.gen";
 import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
 
@@ -36,8 +36,9 @@ const nodeTypes = {
 };
 const edgeTypes = { custom: Edge };
 
-export const Graph = ({ dagId }: { readonly dagId: DAGResponse["dag_id"] }) => {
+export const Graph = () => {
   const { colorMode } = useColorMode();
+  const { dagId = "" } = useParams();
 
   const { openGroupIds } = useOpenGroups();
 

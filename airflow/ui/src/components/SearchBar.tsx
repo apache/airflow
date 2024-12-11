@@ -30,6 +30,7 @@ type Props = {
   readonly defaultValue: string;
   readonly groupProps?: InputGroupProps;
   readonly onChange: (value: string) => void;
+  readonly placeHolder: string;
 };
 
 export const SearchBar = ({
@@ -37,6 +38,7 @@ export const SearchBar = ({
   defaultValue,
   groupProps,
   onChange,
+  placeHolder,
 }: Props) => {
   const handleSearchChange = useDebouncedCallback(
     (val: string) => onChange(val),
@@ -84,7 +86,7 @@ export const SearchBar = ({
       <Input
         data-testid="search-dags"
         onChange={onSearchChange}
-        placeholder="Search Dags"
+        placeholder={placeHolder}
         pr={150}
         value={value}
       />
