@@ -1,0 +1,21 @@
+Update conf column in dag_run table type from byte ( that store a python pickle ) to JSON
+
+.. Provide additional contextual information
+
+Column conf of the table dag_run is using the type byte ( and storing a python pickle ) on the database , since airflow only support postgres 12+ and mysql 8+ , we updated it to  json type .
+
+.. Check the type of change that applies to this change
+
+* Types of change
+
+  * [ ] DAG changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency change
+
+.. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
+
+* Migrations rules needed
