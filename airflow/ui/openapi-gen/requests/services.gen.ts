@@ -42,6 +42,8 @@ import type {
   StructureDataResponse2,
   ListBackfillsData,
   ListBackfillsResponse,
+  ListBackfills1Data,
+  ListBackfills1Response,
   CreateBackfillData,
   CreateBackfillResponse,
   GetBackfillData,
@@ -767,6 +769,37 @@ export class BackfillService {
   /**
    * List Backfills
    * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @param data.dagId
+   * @param data.active
+   * @returns BackfillCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static listBackfills(
+    data: ListBackfillsData = {},
+  ): CancelablePromise<ListBackfillsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/backfills",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+        dag_id: data.dagId,
+        active: data.active,
+      },
+      errors: {
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * List Backfills
+   * @param data The data for the request.
    * @param data.dagId
    * @param data.limit
    * @param data.offset
@@ -774,9 +807,9 @@ export class BackfillService {
    * @returns BackfillCollectionResponse Successful Response
    * @throws ApiError
    */
-  public static listBackfills(
-    data: ListBackfillsData,
-  ): CancelablePromise<ListBackfillsResponse> {
+  public static listBackfills1(
+    data: ListBackfills1Data,
+  ): CancelablePromise<ListBackfills1Response> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/public/backfills",
