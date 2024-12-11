@@ -608,41 +608,37 @@ class TestGetAssetEvents(TestAssets):
         assert response.json()["total_entries"] == total_entries
 
     @pytest.mark.parametrize(
-        "params, expected_ids, num_events",
+        "params, expected_ids",
         [
             # Test Case 1: Filtering with both timestamp_gte and timestamp_lte set to the same date
             (
                 {"timestamp_gte": from_datetime_to_zulu_without_ms(DEFAULT_DATE), "timestamp_lte": from_datetime_to_zulu_without_ms(DEFAULT_DATE)},
                 [1],  # expected_ids for events exactly on DEFAULT_DATE
-                3,
             ),
             
             # Test Case 2: Filtering events greater than or equal to a certain timestamp and less than or equal to another
             (
                 {"timestamp_gte": from_datetime_to_zulu_without_ms(DEFAULT_DATE), "timestamp_lte": from_datetime_to_zulu_without_ms(DEFAULT_DATE + timedelta(days=1))},
                 [1, 2],  # expected_ids for events within the date range
-                3,
             ),
             
             # Test Case 3: timestamp_gte later than timestamp_lte with no events in range
             (
                 {"timestamp_gte": from_datetime_to_zulu_without_ms(DEFAULT_DATE + timedelta(days=1)), "timestamp_lte": from_datetime_to_zulu_without_ms(DEFAULT_DATE - timedelta(days=1))},
                 [],  # expected_ids for events outside the range
-                3,
             ),
             
             # Test Case 4: timestamp_gte earlier than timestamp_lte, allowing events within the range
             (
                 {"timestamp_gte": from_datetime_to_zulu_without_ms(DEFAULT_DATE + timedelta(days=1)), "timestamp_lte": from_datetime_to_zulu_without_ms(DEFAULT_DATE + timedelta(days=2))},
                 [2, 3],  # expected_ids for events within the date range
-                3,
             ),
         ]
     )
-    def test_filter_by_timestamp_gte_and_lte(self, test_client, params, expected_ids, num_events, session):
+    def test_filter_by_timestamp_gte_and_lte(self, test_client, params, expected_ids, session):
         # Create sample assets and asset events with specified timestamps
         self.create_assets()
-        self.create_assets_events(num=num_events, varying_timestamps=True)
+        self.create_assets_events(num=3, varying_timestamps=True)
         self.create_dag_run()
         self.create_asset_dag_run()
 
