@@ -206,7 +206,7 @@ export const DagsList = () => {
 
   const { data, error, isFetching, isLoading } = useDags({
     dagDisplayNamePattern: Boolean(dagDisplayNamePattern)
-      ? `%${dagDisplayNamePattern}%`
+      ? `${dagDisplayNamePattern}`
       : undefined,
     lastDagRunState,
     limit: pagination.pageSize,
@@ -237,6 +237,7 @@ export const DagsList = () => {
           buttonProps={{ disabled: true }}
           defaultValue={dagDisplayNamePattern ?? ""}
           onChange={handleSearchChange}
+          placeHolder="Search Dags"
         />
         <DagsFilters />
         <HStack justifyContent="space-between">
