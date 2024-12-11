@@ -21,7 +21,7 @@ import uuid
 from datetime import timedelta
 from typing import Annotated, Any, Literal, Union
 
-from pydantic import Discriminator, Field, RootModel, Tag, WithJsonSchema
+from pydantic import Discriminator, Field, JsonValue, RootModel, Tag, WithJsonSchema
 
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel
@@ -138,7 +138,11 @@ class TaskInstance(BaseModel):
 
 
 """Defines the types that the RTIF payload's dictionary values can take. These are all JsonAble types """
-JsonAbleValueTypes = Union[str, dict[str, str], list[str], int, float, None]
+JsonAbleValueTypes = Union[
+    dict[str, JsonValue],
+    list[JsonValue],
+    JsonValue,
+]
 
 """Schema for setting RTIF for a task instance."""
 RTIFPayload = RootModel[dict[str, JsonAbleValueTypes]]

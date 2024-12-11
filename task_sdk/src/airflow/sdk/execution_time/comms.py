@@ -170,13 +170,21 @@ class PutVariable(BaseModel):
     type: Literal["PutVariable"] = "PutVariable"
 
 
+"""Defines the types that the RTIF payload's dictionary values can take. These are all JsonAble types """
+JsonAbleValueTypes = Union[
+    dict[str, JsonValue],
+    list[JsonValue],
+    JsonValue,
+]
+
+
 class SetRenderedFields(BaseModel):
     """Payload for setting RTIF for a task instance."""
 
     # We are using a BaseModel here compared to server using RootModel because we
     # have a discriminator running with "type", and RootModel doesn't support type
 
-    rendered_fields: dict[str, str | None]
+    rendered_fields: dict[str, JsonAbleValueTypes]
     type: Literal["SetRenderedFields"] = "SetRenderedFields"
 
 

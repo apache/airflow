@@ -260,3 +260,67 @@ def test_startup_basic_templated_dag(mocked_parse):
             ),
             log=mock.ANY,
         )
+
+
+def test_startup_dag_with_no_templates(mocked_parse):
+    """Test startup of a simple DAG."""
+    from airflow.providers.standard.operators.python import PythonOperator
+
+    task = PythonOperator(
+        task_id="task1",
+        python_callable=lambda: print("hello world!"),
+    )
+
+    what = StartupDetails(
+        ti=TaskInstance(id=uuid7(), task_id="task1", dag_id="basic_dag", run_id="c", try_number=1),
+        file="",
+        requests_fd=0,
+    )
+    mocked_parse(what, "basic_dag", task)
+
+    with mock.patch(
+        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
+    ) as mock_supervisor_comms:
+        mock_supervisor_comms.get_message.return_value = what
+        startup()
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            msg=SetRenderedFields(rendered_fields={"op_args": (), "op_kwargs": {}, "templates_dict": None}),
+            log=mock.ANY,
+        )
+
+
+def test_startup_dag_with_no_templates_mixed_types(mocked_parse):
+    """Test startup of a simple DAG."""
+    from airflow.providers.standard.operators.python import PythonOperator
+
+    task = PythonOperator(
+        task_id="task1",
+        python_callable=lambda *args, **kwargs: print(f"op_args: {args}, op_kwargs: {kwargs}"),
+        op_args=["arg1", "arg2", 1, 2, 3.75, {"key": "value"}],
+        op_kwargs={"key1": "value1", "key2": 99.0, "key3": {"nested_key": "nested_value"}},
+    )
+
+    what = StartupDetails(
+        ti=TaskInstance(id=uuid7(), task_id="task1", dag_id="basic_dag", run_id="c", try_number=1),
+        file="",
+        requests_fd=0,
+    )
+    mocked_parse(what, "basic_dag", task)
+
+    with mock.patch(
+        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
+    ) as mock_supervisor_comms:
+        mock_supervisor_comms.get_message.return_value = what
+        startup()
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            msg=SetRenderedFields(
+                rendered_fields={
+                    "templates_dict": None,
+                    "op_args": ["arg1", "arg2", 1, 2, 3.75, {"key": "value"}],
+                    "op_kwargs": {"key1": "value1", "key2": 99.0, "key3": {"nested_key": "nested_value"}},
+                }
+            ),
+            log=mock.ANY,
+        )

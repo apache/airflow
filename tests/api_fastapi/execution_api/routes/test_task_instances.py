@@ -425,18 +425,24 @@ class TestTIPutRTIF:
     @pytest.mark.parametrize(
         "payload",
         [
+            # string value
             {"field1": "string_value", "field2": "another_string"},
+            # dictionary value
             {"field1": {"nested_key": "nested_value"}},
+            # integer value
+            {"field1": 100},
+            # None value
+            {"field1": None},
+            # float value
+            {"field1": 3.14159},
+            # string lists value
             {"field1": ["123"], "field2": ["a", "b", "c"]},
-            {"field1": 42, "field2": -99},
-            {"field1": 3.14, "field2": 2.718},
+            # list of JSON values
+            {"field1": [1, "string", 3.14, True, None, {"nested": "dict"}]},
+            # nested dictionary with mixed types in lists
             {
-                "key1": "value",
-                "key2": {"nested_key": "nested_value"},
-                "key3": ["i am a", "mixed", "list"],
-                "key4": 42,
-                "key5": 3.14,
-                "key6": None,
+                "field1": {"nested_dict": {"key1": 123, "key2": "value"}},
+                "field2": [3.14, {"sub_key": "sub_value"}, [1, 2]],
             },
         ],
     )

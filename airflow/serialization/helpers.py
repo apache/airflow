@@ -35,6 +35,11 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
 
     def is_jsonable(x):
         try:
+            # TODO: Handle better for tuples.
+            # Internally, this converts tuples to lists which is not right as we store a "list" in
+            # RTIF table when tuple is passed.
+            # Ex: json.dumps(t)
+            # Out[19]: '[1, 2.4]'
             json.dumps(x)
         except (TypeError, OverflowError):
             return False
