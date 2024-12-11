@@ -417,6 +417,10 @@ class TaskDeferralError(AirflowException):
     """Raised when a task failed during deferral for some reason."""
 
 
+class ResponseCheckFailedException(AirflowException):
+    """Raise when response check failed."""
+
+
 # The try/except handling is needed after we moved all k8s classes to cncf.kubernetes provider
 # These two exceptions are used internally by Kubernetes Executor but also by PodGenerator, so we need
 # to leave them here in case older version of cncf.kubernetes provider is used to run KubernetesPodOperator
