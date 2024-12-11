@@ -133,7 +133,6 @@ def get_dataset_events(
     source_map_index: int | None = None,
     timestamp_gte: str | None = None,
     timestamp_lte: str | None = None,
-
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get dataset events."""
