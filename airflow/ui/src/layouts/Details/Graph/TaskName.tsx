@@ -49,7 +49,7 @@ export const TaskName = ({
   };
 
   return (
-    <Text data-testid={id} fontSize={isZoomedOut ? 24 : undefined} {...rest}>
+    <Text data-testid={id} fontSize={isZoomedOut ? "lg" : "md"} {...rest}>
       {label}
       {isMapped ? " [ ]" : undefined}
       {setupTeardownType === "setup" && (
