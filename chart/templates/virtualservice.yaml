@@ -1,0 +1,18 @@
+{{- if .Values.istio.enabled -}}
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ include "airflow.fullname" . }}
+spec:
+  hosts:
+    - {{ required "Name of host is required" .Values.istio.virtualService.host | quote}}
+  gateways:
+    - {{ required "Name of Istio gateway is required" .Values.istio.gateway.name }}
+
+  http:
+  - route:
+    - destination:
+        host: "airflow-webserver"
+        port:
+          number: {{ 8080 | int }} # Ensure it's an integer
+{{- end }}
