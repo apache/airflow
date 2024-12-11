@@ -2725,6 +2725,8 @@ class TestTaskInstance:
             @task(outlets=Asset("test_inlet_asset_extra"))
             def write(*, ti, outlet_events):
                 outlet_events[Asset("test_inlet_asset_extra")].extra = {"from": ti.task_id}
+                with pytest.raises(TypeError):
+                    outlet_events["test_inlet_asset_extra"]
 
             @task(inlets=Asset("test_inlet_asset_extra"))
             def read(*, inlet_events):

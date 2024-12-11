@@ -222,7 +222,7 @@ class OutletEventAccessors(Mapping[Union[Asset, AssetAlias], OutletEventAccessor
         elif isinstance(key, AssetAlias):
             hashable_key = AssetAliasUniqueKey.from_asset_alias(key)
         else:
-            raise KeyError("Key should be either an asset or an asset alias")
+            raise TypeError(f"Key should be either an asset or an asset alias, not {type(key)}")
 
         if hashable_key not in self._dict:
             self._dict[hashable_key] = OutletEventAccessor(extra={}, key=hashable_key)
