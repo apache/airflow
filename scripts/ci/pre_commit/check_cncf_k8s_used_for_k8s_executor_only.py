@@ -51,8 +51,6 @@ def get_imports(path: str):
 
 errors: list[str] = []
 
-EXCEPTIONS = ["airflow/cli/commands/hybrid_commands/kubernetes_command.py"]
-
 
 def main() -> int:
     for path in sys.argv[1:]:
@@ -62,9 +60,8 @@ def main() -> int:
             import_count += 1
             if len(imp.module) > 3:
                 if imp.module[:4] == ["airflow", "providers", "cncf", "kubernetes"]:
-                    if path not in EXCEPTIONS:
-                        local_error_count += 1
-                        errors.append(f"{path}: ({'.'.join(imp.module)})")
+                    local_error_count += 1
+                    errors.append(f"{path}: ({'.'.join(imp.module)})")
         console.print(f"[blue]{path}:[/] Import count: {import_count}, error_count {local_error_count}")
     if errors:
         console.print(
