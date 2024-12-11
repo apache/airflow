@@ -211,7 +211,7 @@ const generateElkGraph = ({
     if (node.type === "join") {
       width = 10;
       height = 10;
-    } else if (node.type === "asset_condition") {
+    } else if (node.type === "asset-condition") {
       width = 30;
       height = 30;
     }
