@@ -263,7 +263,7 @@ def _run_raw_task(
         context = ti.get_template_context(ignore_param_exceptions=False, session=session)
 
         try:
-            ti._validate_outlet_assets_activeness(session=session)
+            ti._validate_inlet_outlet_assets_activeness(session=session)
             if not mark_success:
                 TaskInstance._execute_task_with_callbacks(
                     self=ti,  # type: ignore[arg-type]
@@ -3643,12 +3643,17 @@ class TaskInstance(Base, LoggingMixin):
             }
         )
 
-    def _validate_outlet_assets_activeness(self, session: Session) -> None:
-        if not self.task or not self.task.outlets:
+    def _validate_inlet_outlet_assets_activeness(self, session: Session) -> None:
+        if not self.task or not (self.task.outlets or self.task.inlets):
             return
 
+        inlets_and_outlets = self.task.inlets[:]
+        inlets_and_outlets.extend(self.task.outlets[:])
+
         all_assets_name_uri = {
-            (outlet.name, outlet.uri) for outlet in self.task.outlets if isinstance(outlet, Asset)
+            (inlet_or_outlet.name, inlet_or_outlet.uri)
+            for inlet_or_outlet in inlets_and_outlets
+            if isinstance(inlet_or_outlet, Asset)
         }
         active_assets_name_uri = set(
             session.execute(
