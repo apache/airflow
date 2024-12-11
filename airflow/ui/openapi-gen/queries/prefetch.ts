@@ -524,6 +524,44 @@ export const prefetchUseStructureServiceStructureData = (
 /**
  * List Backfills
  * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @param data.dagId
+ * @param data.active
+ * @returns BackfillCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseBackfillServiceListBackfills = (
+  queryClient: QueryClient,
+  {
+    active,
+    dagId,
+    limit,
+    offset,
+    orderBy,
+  }: {
+    active?: boolean;
+    dagId?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseBackfillServiceListBackfillsKeyFn({
+      active,
+      dagId,
+      limit,
+      offset,
+      orderBy,
+    }),
+    queryFn: () =>
+      BackfillService.listBackfills({ active, dagId, limit, offset, orderBy }),
+  });
+/**
+ * List Backfills
+ * @param data The data for the request.
  * @param data.dagId
  * @param data.limit
  * @param data.offset
@@ -531,7 +569,7 @@ export const prefetchUseStructureServiceStructureData = (
  * @returns BackfillCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseBackfillServiceListBackfills = (
+export const prefetchUseBackfillServiceListBackfills1 = (
   queryClient: QueryClient,
   {
     dagId,
@@ -546,14 +584,14 @@ export const prefetchUseBackfillServiceListBackfills = (
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseBackfillServiceListBackfillsKeyFn({
+    queryKey: Common.UseBackfillServiceListBackfills1KeyFn({
       dagId,
       limit,
       offset,
       orderBy,
     }),
     queryFn: () =>
-      BackfillService.listBackfills({ dagId, limit, offset, orderBy }),
+      BackfillService.listBackfills1({ dagId, limit, offset, orderBy }),
   });
 /**
  * Get Backfill
