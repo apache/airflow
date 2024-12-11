@@ -112,7 +112,7 @@ class AirflowFailException(AirflowException):
 
 
 class AirflowExecuteWithInactiveAssetExecption(AirflowFailException):
-    """Raise when the task is exected with inactive asset."""
+    """Raise when the task is executed with inactive asset."""
 
 
 class AirflowOptionalProviderFeatureException(AirflowException):
