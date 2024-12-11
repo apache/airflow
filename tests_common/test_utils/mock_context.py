@@ -26,8 +26,6 @@ if TYPE_CHECKING:
 
 
 def mock_context(task) -> Context:
-
-
     from airflow.models import TaskInstance
     from airflow.utils.session import NEW_SESSION
     from airflow.utils.state import TaskInstanceState
