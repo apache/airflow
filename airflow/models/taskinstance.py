@@ -60,6 +60,7 @@ from sqlalchemy import (
     inspect,
     or_,
     text,
+    tuple_,
     update,
 )
 from sqlalchemy.dialects import postgresql
@@ -100,7 +101,7 @@ from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import LazyXComSelectSequence, XCom
 from airflow.plugins_manager import integrate_macros_plugins
-from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey
 from airflow.sentry import Sentry
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
@@ -2735,7 +2736,7 @@ class TaskInstance(Base, LoggingMixin):
         # One task only triggers one asset event for each asset with the same extra.
         # This tuple[asset uri, extra] to sets alias names mapping is used to find whether
         # there're assets with same uri but different extra that we need to emit more than one asset events.
-        asset_alias_names: dict[tuple[str, frozenset], set[str]] = defaultdict(set)
+        asset_alias_names: dict[tuple[AssetUniqueKey, frozenset], set[str]] = defaultdict(set)
         for obj in ti.task.outlets or []:
             ti.log.debug("outlet obj %s", obj)
             # Lineage can have other types of objects besides assets
@@ -2749,26 +2750,34 @@ class TaskInstance(Base, LoggingMixin):
             elif isinstance(obj, AssetAlias):
                 for asset_alias_event in events[obj].asset_alias_events:
                     asset_alias_name = asset_alias_event.source_alias_name
-                    asset_uri = asset_alias_event.dest_asset_uri
+                    asset_unique_key = asset_alias_event.dest_asset_key
                     frozen_extra = frozenset(asset_alias_event.extra.items())
-                    asset_alias_names[(asset_uri, frozen_extra)].add(asset_alias_name)
+                    asset_alias_names[(asset_unique_key, frozen_extra)].add(asset_alias_name)
 
-        asset_models: dict[str, AssetModel] = {
-            asset_obj.uri: asset_obj
+        asset_models: dict[AssetUniqueKey, AssetModel] = {
+            AssetUniqueKey.from_asset(asset_obj): asset_obj
             for asset_obj in session.scalars(
-                select(AssetModel).where(AssetModel.uri.in_(uri for uri, _ in asset_alias_names))
+                select(AssetModel).where(
+                    tuple_(AssetModel.name, AssetModel.uri).in_(
+                        (key.name, key.uri) for key, _ in asset_alias_names
+                    )
+                )
             )
         }
-        if missing_assets := [Asset(uri=u) for u, _ in asset_alias_names if u not in asset_models]:
+        if missing_assets := [
+            asset_unique_key.to_asset()
+            for asset_unique_key, _ in asset_alias_names
+            if asset_unique_key not in asset_models
+        ]:
             asset_models.update(
-                (asset_obj.uri, asset_obj)
+                (AssetUniqueKey.from_asset(asset_obj), asset_obj)
                 for asset_obj in asset_manager.create_assets(missing_assets, session=session)
             )
             ti.log.warning("Created new assets for alias reference: %s", missing_assets)
             session.flush()  # Needed because we need the id for fk.
 
-        for (uri, extra_items), alias_names in asset_alias_names.items():
-            asset_obj = asset_models[uri]
+        for (unique_key, extra_items), alias_names in asset_alias_names.items():
+            asset_obj = asset_models[unique_key]
             ti.log.info(
                 'Creating event for %r through aliases "%s"',
                 asset_obj,
