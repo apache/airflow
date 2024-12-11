@@ -63,3 +63,11 @@ class MockKubernetesPodOperatorCallback(KubernetesPodOperatorCallback):
     @staticmethod
     def progress_callback(*args, **kwargs) -> None:
         MockWrapper.mock_callbacks.progress_callback(*args, **kwargs)
+
+    @staticmethod
+    def on_manifest_finalization(*args, **kwargs) -> None:
+        MockWrapper.mock_callbacks.on_manifest_finalization(*args, **kwargs)
+
+    @staticmethod
+    def on_pod_wrapup(*args, **kwargs) -> None:
+        MockWrapper.mock_callbacks.on_pod_wrapup(*args, **kwargs)
