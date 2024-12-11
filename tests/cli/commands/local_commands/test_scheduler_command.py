@@ -48,20 +48,9 @@ class TestSchedulerCommand:
             ("LocalKubernetesExecutor", True),
         ],
     )
-    @mock.patch(
-        "airflow.cli.commands.local_commands.scheduler_command.ExecutorLoader.validate_database_executor_compatibility",
-        side_effect=None,
-    )
     @mock.patch("airflow.cli.commands.local_commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.local_commands.scheduler_command.Process")
-    def test_serve_logs_on_scheduler(
-        self,
-        mock_process,
-        mock_scheduler_job,
-        mock_validate,
-        executor,
-        expect_serve_logs,
-    ):
+    def test_serve_logs_on_scheduler(self, mock_process, mock_scheduler_job, executor, expect_serve_logs):
         mock_scheduler_job.return_value.job_type = "SchedulerJob"
         args = self.parser.parse_args(["scheduler"])
 
@@ -74,14 +63,10 @@ class TestSchedulerCommand:
                 with pytest.raises(AssertionError):
                     mock_process.assert_has_calls([mock.call(target=serve_logs)])
 
-    @mock.patch(
-        "airflow.cli.commands.local_commands.scheduler_command.ExecutorLoader.validate_database_executor_compatibility",
-        side_effect=None,
-    )
     @mock.patch("airflow.cli.commands.local_commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.local_commands.scheduler_command.Process")
     @pytest.mark.parametrize("executor", ["LocalExecutor", "SequentialExecutor"])
-    def test_skip_serve_logs(self, mock_process, mock_scheduler_job, mock_validate, executor):
+    def test_skip_serve_logs(self, mock_process, mock_scheduler_job, executor):
         mock_scheduler_job.return_value.job_type = "SchedulerJob"
         args = self.parser.parse_args(["scheduler", "--skip-serve-logs"])
         with conf_vars({("core", "executor"): executor}):
@@ -90,17 +75,11 @@ class TestSchedulerCommand:
             with pytest.raises(AssertionError):
                 mock_process.assert_has_calls([mock.call(target=serve_logs)])
 
-    @mock.patch(
-        "airflow.cli.commands.local_commands.scheduler_command.ExecutorLoader.validate_database_executor_compatibility",
-        side_effect=None,
-    )
     @mock.patch("airflow.utils.db.check_and_run_migrations")
     @mock.patch("airflow.utils.db.synchronize_log_template")
     @mock.patch("airflow.cli.commands.local_commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.local_commands.scheduler_command.Process")
-    def test_check_migrations_is_false(
-        self, mock_process, mock_scheduler_job, mock_log, mock_run_migration, mock_validate
-    ):
+    def test_check_migrations_is_false(self, mock_process, mock_scheduler_job, mock_log, mock_run_migration):
         mock_scheduler_job.return_value.job_type = "SchedulerJob"
         args = self.parser.parse_args(["scheduler"])
         with conf_vars({("database", "check_migrations"): "False"}):
@@ -108,17 +87,11 @@ class TestSchedulerCommand:
             mock_run_migration.assert_not_called()
             mock_log.assert_called_once()
 
-    @mock.patch(
-        "airflow.cli.commands.local_commands.scheduler_command.ExecutorLoader.validate_database_executor_compatibility",
-        side_effect=None,
-    )
     @mock.patch("airflow.utils.db.check_and_run_migrations")
     @mock.patch("airflow.utils.db.synchronize_log_template")
     @mock.patch("airflow.cli.commands.local_commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.local_commands.scheduler_command.Process")
-    def test_check_migrations_is_true(
-        self, mock_process, mock_scheduler_job, mock_log, mock_run_migration, mock_validate
-    ):
+    def test_check_migrations_is_true(self, mock_process, mock_scheduler_job, mock_log, mock_run_migration):
         mock_scheduler_job.return_value.job_type = "SchedulerJob"
         args = self.parser.parse_args(["scheduler"])
         with conf_vars({("database", "check_migrations"): "True"}):
@@ -126,14 +99,10 @@ class TestSchedulerCommand:
             mock_run_migration.assert_called_once()
             mock_log.assert_called_once()
 
-    @mock.patch(
-        "airflow.cli.commands.local_commands.scheduler_command.ExecutorLoader.validate_database_executor_compatibility",
-        side_effect=None,
-    )
     @mock.patch("airflow.cli.commands.local_commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.local_commands.scheduler_command.Process")
     @pytest.mark.parametrize("executor", ["LocalExecutor", "SequentialExecutor"])
-    def test_graceful_shutdown(self, mock_process, mock_scheduler_job, mock_validate, executor):
+    def test_graceful_shutdown(self, mock_process, mock_scheduler_job, executor):
         mock_scheduler_job.return_value.job_type = "SchedulerJob"
         args = self.parser.parse_args(["scheduler"])
         with conf_vars({("core", "executor"): executor}):
@@ -144,36 +113,18 @@ class TestSchedulerCommand:
             finally:
                 mock_process().terminate.assert_called()
 
-    @mock.patch(
-        "airflow.cli.commands.local_commands.scheduler_command.ExecutorLoader.validate_database_executor_compatibility",
-        side_effect=None,
-    )
     @mock.patch("airflow.cli.commands.local_commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.local_commands.scheduler_command.Process")
-    def test_enable_scheduler_health(
-        self,
-        mock_process,
-        mock_scheduler_job,
-        mock_validate,
-    ):
+    def test_enable_scheduler_health(self, mock_process, mock_scheduler_job):
         with conf_vars({("scheduler", "enable_health_check"): "True"}):
             mock_scheduler_job.return_value.job_type = "SchedulerJob"
             args = self.parser.parse_args(["scheduler"])
             scheduler_command.scheduler(args)
             mock_process.assert_has_calls([mock.call(target=serve_health_check)])
 
-    @mock.patch(
-        "airflow.cli.commands.local_commands.scheduler_command.ExecutorLoader.validate_database_executor_compatibility",
-        side_effect=None,
-    )
     @mock.patch("airflow.cli.commands.local_commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.local_commands.scheduler_command.Process")
-    def test_disable_scheduler_health(
-        self,
-        mock_process,
-        mock_scheduler_job,
-        mock_validate,
-    ):
+    def test_disable_scheduler_health(self, mock_process, mock_scheduler_job):
         mock_scheduler_job.return_value.job_type = "SchedulerJob"
         args = self.parser.parse_args(["scheduler"])
         scheduler_command.scheduler(args)
@@ -196,23 +147,13 @@ class TestSchedulerCommand:
             serve_health_check()
         assert http_server_mock.call_args.args[0] == (health_check_host, health_check_port)
 
-    @mock.patch(
-        "airflow.cli.commands.local_commands.scheduler_command.ExecutorLoader.validate_database_executor_compatibility",
-        side_effect=None,
-    )
     @mock.patch("airflow.cli.commands.local_commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.local_commands.scheduler_command.Process")
     @mock.patch(
         "airflow.cli.commands.local_commands.scheduler_command.run_job",
         side_effect=Exception("run_job failed"),
     )
-    def test_run_job_exception_handling(
-        self,
-        mock_run_job,
-        mock_process,
-        mock_scheduler_job,
-        mock_validate,
-    ):
+    def test_run_job_exception_handling(self, mock_run_job, mock_process, mock_scheduler_job):
         args = self.parser.parse_args(["scheduler"])
         with pytest.raises(Exception, match="run_job failed"):
             scheduler_command.scheduler(args)
