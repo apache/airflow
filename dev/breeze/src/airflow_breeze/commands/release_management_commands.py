@@ -2415,6 +2415,7 @@ def print_issue_content(
     all_users: set[str] = set()
     for user_list in users.values():
         all_users.update(user_list)
+    all_users = {user for user in all_users if user != "github-actions[bot]"}
     all_user_logins = " ".join(f"@{u}" for u in all_users)
     content = render_template(
         template_name="ISSUE",
