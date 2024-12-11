@@ -97,7 +97,6 @@ class DagFileStat:
 class DagParsingSignal(enum.Enum):
     """All signals sent to parser."""
 
-    AGENT_RUN_ONCE = "agent_run_once"
     TERMINATE_MANAGER = "terminate_manager"
     END_MANAGER = "end_manager"
 
@@ -118,7 +117,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         for unlimited.
     :param processor_timeout: How long to wait before timing out a DAG file processor
     :param dag_ids: if specified, only schedule tasks with these DAG IDs
-    :param async_mode: Whether to start agent in async mode
     """
 
     def __init__(
@@ -127,14 +125,12 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         max_runs: int,
         processor_timeout: timedelta,
         dag_ids: list[str] | None,
-        async_mode: bool,
     ):
         super().__init__()
         self._dag_directory: os.PathLike = dag_directory
         self._max_runs = max_runs
         self._processor_timeout = processor_timeout
         self._dag_ids = dag_ids
-        self._async_mode = async_mode
         # Map from file path to the processor
         self._processors: dict[str, DagFileProcessorProcess] = {}
         # Pipe for communicating signals
@@ -161,7 +157,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
                 self._processor_timeout,
                 child_signal_conn,
                 self._dag_ids,
-                self._async_mode,
             ),
         )
         self._process = process
@@ -170,48 +165,11 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
 
         self.log.info("Launched DagFileProcessorManager with pid: %s", process.pid)
 
-    def run_single_parsing_loop(self) -> None:
-        """
-        Send agent heartbeat signal to the manager, requesting that it runs one processing "loop".
-
-        Should only be used when launched DAG file processor manager in sync mode.
-
-        Call wait_until_finished to ensure that any launched processors have finished before continuing.
-        """
-        if not self._parent_signal_conn or not self._process:
-            raise ValueError("Process not started.")
-        if not self._process.is_alive():
-            return
-
-        try:
-            self._parent_signal_conn.send(DagParsingSignal.AGENT_RUN_ONCE)
-        except ConnectionError:
-            # If this died cos of an error then we will noticed and restarted
-            # when harvest_serialized_dags calls _heartbeat_manager.
-            pass
-
     def get_callbacks_pipe(self) -> MultiprocessingConnection:
         """Return the pipe for sending Callbacks to DagProcessorManager."""
         if not self._parent_signal_conn:
             raise ValueError("Process not started.")
         return self._parent_signal_conn
-
-    def wait_until_finished(self) -> None:
-        """Wait until DAG parsing is finished."""
-        if not self._parent_signal_conn:
-            raise ValueError("Process not started.")
-        if self._async_mode:
-            raise RuntimeError("wait_until_finished should only be called in sync_mode")
-        while self._parent_signal_conn.poll(timeout=None):
-            try:
-                result = self._parent_signal_conn.recv()
-            except EOFError:
-                return
-            self._process_message(result)
-            if isinstance(result, DagParsingStat):
-                # In sync mode (which is the only time we call this function) we don't send this message from
-                # the Manager until all the running processors have finished
-                return
 
     @staticmethod
     def _run_processor_manager(
@@ -220,7 +178,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         processor_timeout: timedelta,
         signal_conn: MultiprocessingConnection,
         dag_ids: list[str] | None,
-        async_mode: bool,
     ) -> None:
         # Make this process start as a new process group - that makes it easy
         # to kill all sub-process of this at the OS-level, rather than having
@@ -241,7 +198,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
             processor_timeout=processor_timeout,
             dag_ids=dag_ids,
             signal_conn=signal_conn,
-            async_mode=async_mode,
         )
         processor_manager.start()
 
@@ -352,7 +308,6 @@ class DagFileProcessorManager(LoggingMixin):
     :param processor_timeout: How long to wait before timing out a DAG file processor
     :param signal_conn: connection to communicate signal with processor agent.
     :param dag_ids: if specified, only schedule tasks with these DAG IDs
-    :param async_mode: whether to start the manager in async mode
     """
 
     def __init__(
@@ -362,7 +317,6 @@ class DagFileProcessorManager(LoggingMixin):
         processor_timeout: timedelta,
         dag_ids: list[str] | None,
         signal_conn: MultiprocessingConnection | None = None,
-        async_mode: bool = True,
     ):
         super().__init__()
         # known files; this will be updated every `dag_dir_list_interval` and stuff added/removed accordingly
@@ -372,30 +326,16 @@ class DagFileProcessorManager(LoggingMixin):
         # signal_conn is None for dag_processor_standalone mode.
         self._direct_scheduler_conn = signal_conn
         self._dag_ids = dag_ids
-        self._async_mode = async_mode
         self._parsing_start_time: float | None = None
         self._dag_directory = dag_directory
         # Set the signal conn in to non-blocking mode, so that attempting to
         # send when the buffer is full errors, rather than hangs for-ever
         # attempting to send (this is to avoid deadlocks!)
-        #
-        # Don't do this in sync_mode, as we _need_ the DagParsingStat sent to
-        # continue the scheduler
-        if self._async_mode and self._direct_scheduler_conn is not None:
+        if self._direct_scheduler_conn:
             os.set_blocking(self._direct_scheduler_conn.fileno(), False)
 
         self.standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
         self._parallelism = conf.getint("scheduler", "parsing_processes")
-        if (
-            conf.get_mandatory_value("database", "sql_alchemy_conn").startswith("sqlite")
-            and self._parallelism > 1
-        ):
-            self.log.warning(
-                "Because we cannot use more than 1 thread (parsing_processes = "
-                "%d) when using sqlite. So we set parallelism to 1.",
-                self._parallelism,
-            )
-            self._parallelism = 1
 
         # Parse and schedule each file no faster than this interval.
         self._file_process_interval = conf.getint("scheduler", "min_file_process_interval")
@@ -531,20 +471,13 @@ class DagFileProcessorManager(LoggingMixin):
                 cls.logger().info("Deactivated %i DAGs which are no longer present in file.", deactivated)
 
     def _run_parsing_loop(self):
-        # In sync mode we want timeout=None -- wait forever until a message is received
-        if self._async_mode:
-            poll_time = 0.0
-        else:
-            poll_time = None
+        poll_time = 0.0
 
         self._refresh_dag_dir()
         self.prepare_file_path_queue()
         max_callbacks_per_loop = conf.getint("scheduler", "max_callbacks_per_loop")
 
-        if self._async_mode:
-            # If we're in async mode, we can start up straight away. If we're
-            # in sync mode we need to be told to start a "loop"
-            self.start_new_processes()
+        self.start_new_processes()
         while True:
             with Trace.start_span(span_name="dag_parsing_loop", component="DagFileProcessorManager") as span:
                 loop_start_time = time.monotonic()
@@ -557,35 +490,15 @@ class DagFileProcessorManager(LoggingMixin):
 
                     self.log.debug("Received %s signal from DagFileProcessorAgent", agent_signal)
                     if agent_signal == DagParsingSignal.TERMINATE_MANAGER:
-                        if span.is_recording():
-                            span.add_event(name="terminate")
                         self.terminate()
                         break
                     elif agent_signal == DagParsingSignal.END_MANAGER:
-                        if span.is_recording():
-                            span.add_event(name="end")
                         self.end()
                         sys.exit(os.EX_OK)
-                    elif agent_signal == DagParsingSignal.AGENT_RUN_ONCE:
-                        # continue the loop to parse dags
-                        pass
                     elif isinstance(agent_signal, CallbackRequest):
                         self._add_callback_to_queue(agent_signal)
                     else:
                         raise ValueError(f"Invalid message {type(agent_signal)}")
-
-                if not ready and not self._async_mode:
-                    # In "sync" mode we don't want to parse the DAGs until we
-                    # are told to (as that would open another connection to the
-                    # SQLite DB which isn't a good practice
-
-                    # This shouldn't happen, as in sync mode poll should block for
-                    # ever. Lets be defensive about that.
-                    self.log.warning(
-                        "wait() unexpectedly returned nothing ready after infinite timeout (%r)!", poll_time
-                    )
-
-                    continue
 
                 for sentinel in ready:
                     if sentinel is not self._direct_scheduler_conn:
@@ -631,14 +544,6 @@ class DagFileProcessorManager(LoggingMixin):
                 # Update number of loop iteration.
                 self._num_run += 1
 
-                if not self._async_mode:
-                    self.log.debug("Waiting for processors to finish since we're using sqlite")
-                    # Wait until the running DAG processors are finished before
-                    # sending a DagParsingStat message back. This means the Agent
-                    # can tell we've got to the end of this iteration when it sees
-                    # this type of message
-                    self.wait_until_finished()
-
                 # Collect anything else that has finished, but don't kick off any more processors
                 if span.is_recording():
                     span.add_event(name="collect_results")
@@ -664,10 +569,9 @@ class DagFileProcessorManager(LoggingMixin):
                 except BlockingIOError:
                     # Try again next time around the loop!
 
-                    # It is better to fail, than it is deadlock. This should
-                    # "almost never happen" since the DagParsingStat object is
-                    # small, and in async mode this stat is not actually _required_
-                    # for normal operation (It only drives "max runs")
+                    # It is better to fail, than it is deadlock. This should "almost never happen" since the
+                    # DagParsingStat object is small, and  is not actually _required_ for normal operation (It
+                    # only drives "max runs")
                     self.log.debug("BlockingIOError received trying to send DagParsingStat, ignoring")
 
                 if max_runs_reached:
@@ -683,12 +587,11 @@ class DagFileProcessorManager(LoggingMixin):
                         )
                     break
 
-                if self._async_mode:
-                    loop_duration = time.monotonic() - loop_start_time
-                    if loop_duration < 1:
-                        poll_time = 1 - loop_duration
-                    else:
-                        poll_time = 0.0
+                loop_duration = time.monotonic() - loop_start_time
+                if loop_duration < 1:
+                    poll_time = 1 - loop_duration
+                else:
+                    poll_time = 0.0
 
     @classmethod
     @provide_session
