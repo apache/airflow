@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.triggers.sql import SQLExecuteQueryTrigger
 
 if TYPE_CHECKING:
@@ -98,16 +99,29 @@ class GenericTransfer(BaseOperator):
         )
 
     @classmethod
-    def get_hook(cls, conn_id: str, hook_params: dict | None = None) -> BaseHook:
+    def get_hook(cls, conn_id: str, hook_params: dict | None = None) -> DbApiHook:
         """
-        Return default hook for this connection id.
+        Return DbApiHook for this connection id.
 
         :param conn_id: connection id
         :param hook_params: hook parameters
-        :return: default hook for this connection
+        :return: DbApiHook for this connection
         """
         connection = BaseHook.get_connection(conn_id)
-        return connection.get_hook(hook_params=hook_params)
+        hook = connection.get_hook(hook_params=hook_params)
+        if not isinstance(hook, DbApiHook):
+            raise RuntimeError(
+                f"Hook for connection {conn_id!r} must be of type {DbApiHook.__name__}"
+            )
+        return hook
+
+    @cached_property
+    def source_hook(self) -> DbApiHook:
+        return self.get_hook(conn_id=self.source_conn_id, hook_params=self.source_hook_params)
+
+    @cached_property
+    def destination_hook(self) -> DbApiHook:
+        return self.get_hook(conn_id=self.destination_conn_id, hook_params=self.destination_hook_params)
 
     def get_paginated_sql(self, offset: int) -> str:
         """Format the paginated SQL statement using the current format."""
@@ -127,25 +141,11 @@ class GenericTransfer(BaseOperator):
         if isinstance(commit_every, str):
             self.insert_args["commit_every"] = int(commit_every)
 
-    @cached_property
-    def source_hook(self) -> BaseHook:
-        return BaseHook.get_hook(self.source_conn_id, hook_params=self.source_hook_params)
-
-    @cached_property
-    def destination_hook(self) -> BaseHook:
-        return BaseHook.get_hook(self.destination_conn_id, hook_params=self.destination_hook_params)
-
     def execute(self, context: Context):
         if self.preoperator:
-            run = getattr(self.destination_hook, "run", None)
-            if not callable(run):
-                raise RuntimeError(
-                    f"Hook for connection {self.destination_conn_id!r} "
-                    f"({type(self.destination_hook).__name__}) has no `run` method"
-                )
             self.log.info("Running preoperator")
             self.log.info(self.preoperator)
-            run(self.preoperator)
+            self.destination_hook.run(self.preoperator)
 
         if self.chunk_size and isinstance(self.sql, str):
             self.defer(
@@ -160,25 +160,10 @@ class GenericTransfer(BaseOperator):
             self.log.info("Extracting data from %s", self.source_conn_id)
             self.log.info("Executing: \n %s", self.sql)
 
-            get_records = getattr(self.source_hook, "get_records", None)
-
-            if not callable(get_records):
-                raise RuntimeError(
-                    f"Hook for connection {self.source_conn_id!r} "
-                    f"({type(self.source_hook).__name__}) has no `get_records` method"
-                )
-
-            results = get_records(self.sql)
-            insert_rows = getattr(self.destination_hook, "insert_rows", None)
-
-            if not callable(insert_rows):
-                raise RuntimeError(
-                    f"Hook for connection {self.destination_conn_id!r} "
-                    f"({type(self.destination_hook).__name__}) has no `insert_rows` method"
-                )
+            results = self.destination_hook.get_records(self.sql)
 
             self.log.info("Inserting rows into %s", self.destination_conn_id)
-            insert_rows(table=self.destination_table, rows=results, **self.insert_args)
+            self.destination_hook.insert_rows(table=self.destination_table, rows=results, **self.insert_args)
 
     def execute_complete(
         self,
@@ -192,14 +177,6 @@ class GenericTransfer(BaseOperator):
             results = event.get("results")
 
             if results:
-                insert_rows = getattr(self.destination_hook, "insert_rows", None)
-
-                if not callable(insert_rows):
-                    raise RuntimeError(
-                        f"Hook for connection {self.destination_conn_id!r} "
-                        f"({type(self.destination_hook).__name__}) has no `insert_rows` method"
-                    )
-
                 map_index = context["ti"].map_index
                 offset = (
                     context["ti"].xcom_pull(
@@ -216,7 +193,9 @@ class GenericTransfer(BaseOperator):
                 self.xcom_push(context=context, key="offset", value=offset)
 
                 self.log.info("Inserting %d rows into %s", len(results), self.destination_conn_id)
-                insert_rows(table=self.destination_table, rows=results, **self.insert_args)
+                self.destination_hook.insert_rows(
+                    table=self.destination_table, rows=results, **self.insert_args
+                )
                 self.log.info(
                     "Inserting %d rows into %s done!",
                     len(results),
