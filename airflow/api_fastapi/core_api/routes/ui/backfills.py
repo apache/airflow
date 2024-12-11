@@ -23,13 +23,11 @@ from sqlalchemy import select
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
-    # none_param_factory,
     FilterOptionEnum,
     FilterParam,
     QueryLimit,
     QueryOffset,
     SortParam,
-    # _NoneFilter,
     filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
