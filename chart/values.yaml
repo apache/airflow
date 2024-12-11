@@ -79,10 +79,10 @@ airflowVersion: "2.8.1"
 # Images
 images:
   airflow:
-    repository: ~
-    tag: ~
+    repository: 017820686756.dkr.ecr.us-east-1.amazonaws.com/production-isocrates-madtechai-airflow
+    tag: "latest"
     # Specifying digest takes precedence over tag.
-    digest: ~
+    digest: ""
     pullPolicy: IfNotPresent
   # To avoid images with user code, you can turn this to 'true' and
   # all the 'run-airflow-migrations' and 'wait-for-airflow-migrations' containers/jobs
@@ -125,7 +125,8 @@ images:
     pullPolicy: IfNotPresent
 
 # Select certain nodes for airflow pods.
-nodeSelector: {}
+nodeSelector:
+  eks.amazonaws.com/nodegroup: production-applications-nodes
 affinity: {}
 tolerations: []
 topologySpreadConstraints: []
@@ -134,10 +135,17 @@ schedulerName: ~
 # Add common labels to all objects and pods defined in this chart.
 labels: {}
 
+istio:
+  enabled: true
+  gateway:
+    name: 'istio-system/istio-gateway'
+  virtualService:
+    host: 'airflow.madtechai.com'
+
 # Ingress configuration
 ingress:
   # Enable all ingress resources (deprecated - use ingress.web.enabled and ingress.flower.enabled)
-  enabled: ~
+  enabled: false
 
   # Configs for the Ingress of the web Service
   web:
@@ -426,7 +434,7 @@ fernetKey: ~
 fernetKeySecretName: ~
 
 # Flask secret key for Airflow Webserver: `[webserver] secret_key` in airflow.cfg
-webserverSecretKey: ~
+webserverSecretKey: "de21ceaf0169b10919a8160b2e507256"
 webserverSecretKeySecretName: ~
 
 # In order to use kerberos you need to create secret containing the keytab file
@@ -620,7 +628,7 @@ workers:
     # Volume size for worker StatefulSet
     size: 100Gi
     # If using a custom storageClass, pass name ref to all statefulSets here
-    storageClassName:
+    storageClassName: efs-sc
     # Execute init container to chown log directory.
     # This is currently only needed in kind, due to usage
     # of local-path provisioner.
@@ -699,7 +707,8 @@ workers:
   extraVolumeMounts: []
 
   # Select certain nodes for airflow worker pods.
-  nodeSelector: {}
+  nodeSelector:
+    eks.amazonaws.com/nodegroup: production-applications-nodes
   runtimeClassName: ~
   priorityClassName: ~
   affinity: {}
@@ -905,7 +914,8 @@ scheduler:
   extraVolumeMounts: []
 
   # Select certain nodes for airflow scheduler pods.
-  nodeSelector: {}
+  nodeSelector:
+    eks.amazonaws.com/nodegroup: production-applications-nodes
   affinity: {}
   # default scheduler affinity is:
   #  podAntiAffinity:
@@ -1043,7 +1053,8 @@ createUserJob:
   extraVolumes: []
   extraVolumeMounts: []
 
-  nodeSelector: {}
+  nodeSelector:
+    eks.amazonaws.com/nodegroup: production-applications-nodes
   affinity: {}
   tolerations: []
   topologySpreadConstraints: []
@@ -1139,14 +1150,15 @@ migrateDatabaseJob:
   extraVolumes: []
   extraVolumeMounts: []
 
-  nodeSelector: {}
+  nodeSelector:
+    eks.amazonaws.com/nodegroup: production-applications-nodes
   affinity: {}
   tolerations: []
   topologySpreadConstraints: []
   # In case you need to disable the helm hooks that create the jobs after install.
   # Disable this if you are using ArgoCD for example
-  useHelmHooks: true
-  applyCustomEnv: true
+  useHelmHooks: false
+  applyCustomEnv: false
 
 # Airflow webserver settings
 webserver:
@@ -1255,11 +1267,11 @@ webserver:
   defaultUser:
     enabled: true
     role: Admin
-    username: admin
-    email: admin@example.com
-    firstName: admin
-    lastName: user
-    password: admin
+    username: madtechai@isocrates.com
+    email: madtechai@isocrates.com
+    firstName: madtechai
+    lastName: isocrates
+    password: <]81-ck1=J[£iDnP0£t-
 
   # Launch additional containers into webserver.
   extraContainers: []
@@ -1327,7 +1339,8 @@ webserver:
     loadBalancerSourceRanges: []
 
   # Select certain nodes for airflow webserver pods.
-  nodeSelector: {}
+  nodeSelector:
+    eks.amazonaws.com/nodegroup: production-critical-nodes
   priorityClassName: ~
   affinity: {}
   # default webserver affinity is:
@@ -1424,7 +1437,7 @@ triggerer:
     # Volume size for triggerer StatefulSet
     size: 100Gi
     # If using a custom storageClass, pass name ref to all statefulSets here
-    storageClassName:
+    storageClassName: efs-sc
     # Execute init container to chown log directory.
     # This is currently only needed in kind, due to usage
     # of local-path provisioner.
@@ -1468,7 +1481,8 @@ triggerer:
   extraVolumeMounts: []
 
   # Select certain nodes for airflow triggerer pods.
-  nodeSelector: {}
+  nodeSelector:
+    eks.amazonaws.com/nodegroup: production-applications-nodes
   affinity: {}
   # default triggerer affinity is:
   #  podAntiAffinity:
@@ -1908,7 +1922,7 @@ statsd:
 # PgBouncer settings
 pgbouncer:
   # Enable PgBouncer
-  enabled: false
+  enabled: true
   # Number of PgBouncer replicas to run in Deployment
   replicas: 1
   # Max number of old replicasets to retain
@@ -2032,7 +2046,8 @@ pgbouncer:
   extraContainers: []
 
   # Select certain nodes for PgBouncer pods.
-  nodeSelector: {}
+  nodeSelector:
+    eks.amazonaws.com/nodegroup: production-critical-nodes
   affinity: {}
   tolerations: []
   topologySpreadConstraints: []
@@ -2126,7 +2141,7 @@ redis:
     # Volume size for worker StatefulSet
     size: 1Gi
     # If using a custom storageClass, pass name ref to all statefulSets here
-    storageClassName:
+    storageClassName: efs-sc
     # Annotations to add to redis volumes
     annotations: {}
 
@@ -2156,7 +2171,8 @@ redis:
   safeToEvict: true
 
   # Select certain nodes for redis pods.
-  nodeSelector: {}
+  nodeSelector:
+    eks.amazonaws.com/nodegroup: production-applications-nodes
   affinity: {}
   tolerations: []
   topologySpreadConstraints: []
@@ -2422,11 +2438,11 @@ dags:
     # Annotations for dags PVC
     annotations: {}
     # Enable persistent volume for storing dags
-    enabled: false
+    enabled: true
     # Volume size for dags
     size: 1Gi
     # If using a custom storageClass, pass name here
-    storageClassName:
+    storageClassName: efs-sc
     # access mode of the persistent volume
     accessMode: ReadWriteOnce
     ## the name of an existing PVC to use
@@ -2543,12 +2559,12 @@ logs:
 
   persistence:
     # Enable persistent volume for storing logs
-    enabled: false
+    enabled: true
     # Volume size for logs
     size: 100Gi
     # Annotations for the logs PVC
     annotations: {}
     # If using a custom storageClass, pass name here
-    storageClassName:
+    storageClassName: efs-sc
     ## the name of an existing PVC to use
     existingClaim:
