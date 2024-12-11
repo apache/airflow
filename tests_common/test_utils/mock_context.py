@@ -17,13 +17,16 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from airflow.utils.context import Context
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
 
 def mock_context(task) -> Context:
-    from sqlalchemy.orm import Session
+
 
     from airflow.models import TaskInstance
     from airflow.utils.session import NEW_SESSION
