@@ -110,9 +110,7 @@ class GenericTransfer(BaseOperator):
         connection = BaseHook.get_connection(conn_id)
         hook = connection.get_hook(hook_params=hook_params)
         if not isinstance(hook, DbApiHook):
-            raise RuntimeError(
-                f"Hook for connection {conn_id!r} must be of type {DbApiHook.__name__}"
-            )
+            raise RuntimeError(f"Hook for connection {conn_id!r} must be of type {DbApiHook.__name__}")
         return hook
 
     @cached_property
