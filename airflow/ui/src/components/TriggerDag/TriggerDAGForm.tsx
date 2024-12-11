@@ -157,7 +157,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                 render={({ field }) => (
                   <Input
                     {...field}
-                    placeholder="Run id, optional - will be generated if not provided"
+                    placeholder="Run Id, optional - will be generated if not provided"
                     size="sm"
                   />
                 )}
@@ -212,11 +212,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                 control={control}
                 name="notes"
                 render={({ field }) => (
-                  <Input
-                    {...field}
-                    placeholder="Optional- Provide context for triggering this DAG run (e.g., 'Testing feature X', 'Backfilling data for 2024-01-01')"
-                    size="sm"
-                  />
+                  <Input {...field} placeholder="Optional" size="sm" />
                 )}
               />
             </Box>
