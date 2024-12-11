@@ -30,6 +30,7 @@ import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
 import { Run } from "src/pages/Run";
 import { TaskInstances } from "src/pages/Run/TaskInstances";
+import { Task, Instances } from "src/pages/Task";
 import { TaskInstance } from "src/pages/TaskInstance";
 
 import { Variables } from "./pages/Variables";
@@ -84,6 +85,14 @@ export const router = createBrowserRouter(
           ],
           element: <TaskInstance />,
           path: "dags/:dagId/runs/:runId/tasks/:taskId",
+        },
+        {
+          children: [
+            { element: <Instances />, index: true },
+            { element: <Events />, path: "events" },
+          ],
+          element: <Task />,
+          path: "dags/:dagId/tasks/:taskId",
         },
       ],
       element: <BaseLayout />,

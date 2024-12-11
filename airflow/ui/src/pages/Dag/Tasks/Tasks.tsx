@@ -36,10 +36,12 @@ import { pluralize } from "src/utils";
 import { TaskCard } from "./TaskCard";
 
 const cardDef = (
+  dagId: string,
   taskInstances?: Array<TaskInstanceResponse>,
 ): CardDef<TaskResponse> => ({
   card: ({ row }) => (
     <TaskCard
+      dagId={dagId}
       task={row}
       taskInstances={
         taskInstances
@@ -57,19 +59,19 @@ const cardDef = (
 });
 
 export const Tasks = () => {
-  const { dagId } = useParams();
+  const { dagId = "" } = useParams();
   const {
     data,
     error: tasksError,
     isFetching,
     isLoading,
   } = useTaskServiceGetTasks({
-    dagId: dagId ?? "",
+    dagId,
   });
 
   // TODO: Replace dagIdPattern with dagId once supported for better matching
   const { data: runsData } = useDagsServiceRecentDagRuns(
-    { dagIdPattern: dagId ?? "", dagRunsLimit: 14 },
+    { dagIdPattern: dagId, dagRunsLimit: 14 },
     undefined,
     {
       enabled: Boolean(dagId),
@@ -85,7 +87,7 @@ export const Tasks = () => {
   const { data: taskInstancesResponse } =
     useTaskInstanceServiceGetTaskInstances(
       {
-        dagId: dagId ?? "",
+        dagId,
         dagRunId: "~",
         logicalDateGte: runs.at(-1)?.logical_date ?? "",
       },
@@ -100,7 +102,10 @@ export const Tasks = () => {
         {pluralize("Task", data ? data.total_entries : 0)}
       </Heading>
       <DataTable
-        cardDef={cardDef(taskInstancesResponse?.task_instances.reverse())}
+        cardDef={cardDef(
+          dagId,
+          taskInstancesResponse?.task_instances.reverse(),
+        )}
         columns={[]}
         data={data ? data.tasks : []}
         displayMode="card"
