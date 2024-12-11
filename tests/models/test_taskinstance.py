@@ -39,6 +39,7 @@ import uuid6
 from sqlalchemy import select
 
 from airflow import settings
+from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.decorators import task, task_group
 from airflow.exceptions import (
     AirflowException,
@@ -2289,6 +2290,11 @@ class TestTaskInstance:
         dagbag = DagBag(dag_folder=example_assets.__file__)
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
         dagbag.sync_to_db(session=session)
+
+        asset_models = session.scalars(select(AssetModel)).all()
+        SchedulerJobRunner._activate_referenced_assets(asset_models, session=session)
+        session.flush()
+
         run_id = str(uuid4())
         dr = DagRun(dag1.dag_id, run_id=run_id, run_type="anything")
         session.merge(dr)
@@ -2402,6 +2408,11 @@ class TestTaskInstance:
         dagbag = DagBag(dag_folder=test_assets.__file__)
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
         dagbag.sync_to_db(session=session)
+
+        asset_models = session.scalars(select(AssetModel)).all()
+        SchedulerJobRunner._activate_referenced_assets(asset_models, session=session)
+        session.flush()
+
         run_id = str(uuid4())
         dr = DagRun(dag_with_skip_task.dag_id, run_id=run_id, run_type="anything")
         session.merge(dr)
@@ -2419,10 +2430,11 @@ class TestTaskInstance:
         # check that no asset events were generated
         assert session.query(AssetEvent).count() == 0
 
+    @pytest.mark.want_activate_assets(True)
     def test_outlet_asset_extra(self, dag_maker, session):
         from airflow.sdk.definitions.asset import Asset
 
-        with dag_maker(schedule=None, session=session) as dag:
+        with dag_maker(schedule=None, serialized=True, session=session):
 
             @task(outlets=Asset("test_outlet_asset_extra_1"))
             def write1(*, outlet_events):
@@ -2442,7 +2454,6 @@ class TestTaskInstance:
 
         dr: DagRun = dag_maker.create_dagrun()
         for ti in dr.get_task_instances(session=session):
-            ti.refresh_from_task(dag.get_task(ti.task_id))
             ti.run(session=session)
 
         events = dict(iter(session.execute(select(AssetEvent.source_task_id, AssetEvent))))
@@ -2460,10 +2471,11 @@ class TestTaskInstance:
         assert events["write2"].asset.uri == "test_outlet_asset_extra_2"
         assert events["write2"].extra == {"x": 1}
 
+    @pytest.mark.want_activate_assets(True)
     def test_outlet_asset_extra_ignore_different(self, dag_maker, session):
         from airflow.sdk.definitions.asset import Asset
 
-        with dag_maker(schedule=None, session=session):
+        with dag_maker(schedule=None, serialized=True, session=session):
 
             @task(outlets=Asset("test_outlet_asset_extra"))
             def write(*, outlet_events):
@@ -2481,11 +2493,12 @@ class TestTaskInstance:
         assert event.source_task_id == "write"
         assert event.extra == {"one": 1}
 
+    @pytest.mark.want_activate_assets(True)
     def test_outlet_asset_extra_yield(self, dag_maker, session):
         from airflow.sdk.definitions.asset import Asset
         from airflow.sdk.definitions.asset.metadata import Metadata
 
-        with dag_maker(schedule=None, session=session) as dag:
+        with dag_maker(schedule=None, serialized=True, session=session):
 
             @task(outlets=Asset("test_outlet_asset_extra_1"))
             def write1():
@@ -2507,7 +2520,6 @@ class TestTaskInstance:
 
         dr: DagRun = dag_maker.create_dagrun()
         for ti in dr.get_task_instances(session=session):
-            ti.refresh_from_task(dag.get_task(ti.task_id))
             ti.run(session=session)
 
         xcom = session.scalars(
@@ -2736,12 +2748,13 @@ class TestTaskInstance:
         assert len(asset_alias_obj.assets) == 1
         assert asset_alias_obj.assets[0].uri == asset_uri
 
+    @pytest.mark.want_activate_assets(True)
     def test_inlet_asset_extra(self, dag_maker, session):
         from airflow.sdk.definitions.asset import Asset
 
         read_task_evaluated = False
 
-        with dag_maker(schedule=None, session=session):
+        with dag_maker(schedule=None, serialized=True, session=session):
 
             @task(outlets=Asset("test_inlet_asset_extra"))
             def write(*, ti, outlet_events):
@@ -2878,6 +2891,7 @@ class TestTaskInstance:
         # Should be done.
         assert not dr.task_instance_scheduling_decisions(session=session).schedulable_tis
 
+    @pytest.mark.want_activate_assets(True)
     @pytest.mark.parametrize(
         "slicer, expected",
         [
@@ -2894,7 +2908,7 @@ class TestTaskInstance:
 
         asset_uri = "test_inlet_asset_extra_slice"
 
-        with dag_maker(dag_id="write", schedule="@daily", params={"i": -1}, session=session):
+        with dag_maker(dag_id="write", serialized=True, schedule="@daily", params={"i": -1}, session=session):
 
             @task(outlets=Asset(asset_uri))
             def write(*, params, outlet_events):
