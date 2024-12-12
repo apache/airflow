@@ -50,7 +50,16 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
 
   if (!Boolean(error)) {
     try {
-      initialConf = JSON.stringify(data?.params, undefined, 2);
+      const transformedParams = data?.params
+        ? Object.fromEntries(
+            Object.entries(data.params).map(([key, param]) => [
+              key,
+              (param as { value: unknown }).value,
+            ]),
+          )
+        : {};
+
+      initialConf = JSON.stringify(transformedParams, undefined, 2);
     } catch (_error) {
       parseError = _error;
     }
