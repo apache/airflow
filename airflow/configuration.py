@@ -449,6 +449,8 @@ class AirflowConfigParser(ConfigParser):
         elif not with_providers and self._providers_configuration_loaded:
             reload_providers_when_leaving = True
             self.restore_core_default_configuration()
+        elif self._providers_configuration_loaded:
+            reload_providers_when_leaving = True
         yield
         if reload_providers_when_leaving:
             self.load_providers_configuration()
