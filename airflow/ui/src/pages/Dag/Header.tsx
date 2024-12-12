@@ -61,7 +61,7 @@ export const Header = ({
           {dag ? (
             <HStack>
               {dag.doc_md === null ? undefined : (
-                <DocumentationModal docMd={dag.doc_md} isDag />
+                <DocumentationModal docMd={dag.doc_md} docType="Dag" />
               )}
               <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />
               <TriggerDAGTextButton dag={dag} />

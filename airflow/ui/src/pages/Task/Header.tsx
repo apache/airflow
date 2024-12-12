@@ -38,7 +38,7 @@ export const Header = ({ task }: { readonly task: TaskResponse }) => (
         </Flex>
       </HStack>
       {task.doc_md === null ? undefined : (
-        <DocumentationModal docMd={task.doc_md} />
+        <DocumentationModal docMd={task.doc_md} docType="Task" />
       )}
     </Flex>
     <SimpleGrid columns={4} gap={4}>

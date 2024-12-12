@@ -25,13 +25,12 @@ import { Button, Dialog } from "src/components/ui";
 
 const DocumentationModal = ({
   docMd,
-  isDag = false,
+  docType,
 }: {
   readonly docMd: string;
-  readonly isDag?: boolean;
+  readonly docType: string;
 }) => {
   const [isDocsOpen, setIsDocsOpen] = useState(false);
-  const docType = isDag ? "Dag" : "Task";
 
   return (
     <Box>
