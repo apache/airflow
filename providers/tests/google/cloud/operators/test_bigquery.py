@@ -1614,7 +1614,6 @@ class TestBigQueryInsertJobOperator:
         ]
 
         assert lineage.run_facets == {
-            "bigQuery_job": mock.ANY,
             "bigQueryJob": mock.ANY,
             "externalQuery": ExternalQueryRunFacet(externalQueryId=mock.ANY, source="bigquery"),
         }

@@ -1118,8 +1118,19 @@ def python_api_client_tests(
 @contextlib.contextmanager
 def run_with_timeout(timeout: int):
     def timeout_handler(signum, frame):
-        get_console().print("[error]Timeout reached. Killing the process[/]")
-        sys.exit(1)
+        get_console().print("[error]Timeout reached. Killing the container(s)[/]")
+        list_of_containers = run_command(
+            ["docker", "ps", "-q"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        run_command(
+            ["docker", "kill", "--signal", "SIGQUIT"] + list_of_containers.stdout.splitlines(),
+            check=True,
+            capture_output=False,
+            text=True,
+        )
 
     signal.signal(signal.SIGALRM, timeout_handler)
     signal.alarm(timeout)
