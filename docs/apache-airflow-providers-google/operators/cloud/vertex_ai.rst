@@ -673,8 +673,8 @@ To check if Feature View Sync succeeded you can use
 .. exampleinclude:: /../../providers/tests/system/google/cloud/vertex_ai/example_vertex_ai_feature_store.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_bigquery_dts_sensor]
-    :end-before: [END howto_bigquery_dts_sensor]
+    :start-after: [START how_to_cloud_vertex_ai_feature_store_feature_view_sync_sensor]
+    :end-before: [END how_to_cloud_vertex_ai_feature_store_feature_view_sync_sensor]
 
 Reference
 ^^^^^^^^^
