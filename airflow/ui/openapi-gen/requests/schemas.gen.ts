@@ -2664,6 +2664,17 @@ export const $EdgeResponse = {
       type: "string",
       title: "Target Id",
     },
+    is_source_asset: {
+      anyOf: [
+        {
+          type: "boolean",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Is Source Asset",
+    },
   },
   type: "object",
   required: ["source_id", "target_id"],
@@ -3207,6 +3218,18 @@ export const $NodeResponse = {
         },
       ],
       title: "Operator",
+    },
+    asset_condition_type: {
+      anyOf: [
+        {
+          type: "string",
+          enum: ["or-gate", "and-gate"],
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Asset Condition Type",
     },
   },
   type: "object",
