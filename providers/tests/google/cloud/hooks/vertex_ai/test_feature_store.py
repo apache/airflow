@@ -1,19 +1,29 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 from __future__ import annotations
 
 from unittest import mock
 
-import pytest
-from google.api_core.client_options import ClientOptions
-from google.cloud.aiplatform_v1beta1 import FeatureOnlineStoreAdminServiceClient
-
-from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.feature_store import FeatureStoreHook
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-from airflow.providers.google.common.consts import CLIENT_INFO
+
 from providers.tests.google.cloud.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id,
 )
-
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 FEATURE_STORE_STRING = "airflow.providers.google.cloud.hooks.vertex_ai.feature_store.{}"
@@ -26,6 +36,7 @@ TEST_FEATURE_VIEW_ID = "test-view"
 TEST_FEATURE_VIEW = f"projects/{TEST_PROJECT_ID}/locations/{TEST_LOCATION}/featureOnlineStores/{TEST_FEATURE_ONLINE_STORE_ID}/featureViews/{TEST_FEATURE_VIEW_ID}"
 TEST_FEATURE_VIEW_SYNC_NAME = f"{TEST_FEATURE_VIEW}/featureViewSyncs/sync123"
 
+
 class TestFeatureStoreHook:
     def setup_method(self):
         with mock.patch(
@@ -37,22 +48,18 @@ class TestFeatureStoreHook:
     @mock.patch(BASE_STRING.format("GoogleBaseHook.get_credentials"))
     def test_get_feature_online_store_admin_service_client(self, mock_get_credentials, mock_client):
         # Test with location
-        result = self.hook.get_feature_online_store_admin_service_client(location=TEST_LOCATION)
+        self.hook.get_feature_online_store_admin_service_client(location=TEST_LOCATION)
         mock_client.assert_called_once_with(
-            credentials=mock_get_credentials.return_value,
-            client_info=mock.ANY,
-            client_options=mock.ANY
+            credentials=mock_get_credentials.return_value, client_info=mock.ANY, client_options=mock.ANY
         )
         client_options = mock_client.call_args[1]["client_options"]
         assert client_options.api_endpoint == f"{TEST_LOCATION}-aiplatform.googleapis.com:443"
 
         # Test without location (global)
         mock_client.reset_mock()
-        result = self.hook.get_feature_online_store_admin_service_client()
+        self.hook.get_feature_online_store_admin_service_client()
         mock_client.assert_called_once_with(
-            credentials=mock_get_credentials.return_value,
-            client_info=mock.ANY,
-            client_options=mock.ANY
+            credentials=mock_get_credentials.return_value, client_info=mock.ANY, client_options=mock.ANY
         )
         client_options = mock_client.call_args[1]["client_options"]
         assert not client_options.api_endpoint
@@ -69,9 +76,7 @@ class TestFeatureStoreHook:
             feature_view_sync_name=TEST_FEATURE_VIEW_SYNC_NAME,
         )
 
-        mock_client.get_feature_view_sync.assert_called_once_with(
-            name=TEST_FEATURE_VIEW_SYNC_NAME
-        )
+        mock_client.get_feature_view_sync.assert_called_once_with(name=TEST_FEATURE_VIEW_SYNC_NAME)
         assert result == mock_response
 
     @mock.patch(FEATURE_STORE_STRING.format("FeatureStoreHook.get_feature_online_store_admin_service_client"))
@@ -88,9 +93,7 @@ class TestFeatureStoreHook:
             feature_view_id=TEST_FEATURE_VIEW_ID,
         )
 
-        mock_client.sync_feature_view.assert_called_once_with(
-            feature_view=TEST_FEATURE_VIEW
-        )
+        mock_client.sync_feature_view.assert_called_once_with(feature_view=TEST_FEATURE_VIEW)
         assert result == mock_response
 
     @mock.patch(FEATURE_STORE_STRING.format("FeatureStoreHook.get_feature_online_store_admin_service_client"))
@@ -107,7 +110,5 @@ class TestFeatureStoreHook:
             feature_view_id=TEST_FEATURE_VIEW_ID,
         )
 
-        mock_client.list_feature_views.assert_called_once_with(
-            parent=TEST_FEATURE_VIEW
-        )
+        mock_client.list_feature_views.assert_called_once_with(parent=TEST_FEATURE_VIEW)
         assert result == mock_response

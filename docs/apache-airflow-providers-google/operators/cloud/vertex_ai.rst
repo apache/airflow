@@ -655,7 +655,7 @@ The operator returns sync job results in :ref:`XCom <concepts:xcom>` under ``ret
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_feature_store_get_feature_view_sync_operator]
-    :end-before: [END how_to_cloud_vertex_ai_text_embedding_model_get_embeddings_operator]
+    :end-before: [END how_to_cloud_vertex_ai_feature_store_get_feature_view_sync_operator]
 
 To sync a feature view you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.feature_store.SyncFeatureViewOperator`.
@@ -667,6 +667,14 @@ The operator returns the sync job name in :ref:`XCom <concepts:xcom>` under ``re
     :start-after: [START how_to_cloud_vertex_ai_feature_store_sync_feature_view_operator]
     :end-before: [END how_to_cloud_vertex_ai_feature_store_sync_feature_view_operator]
 
+To check if Feature View Sync succeeded you can use
+:class:`~airflow.providers.google.cloud.sensors.vertex_ai.FeatureViewSyncSensor`.
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/vertex_ai/example_vertex_ai_feature_store.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_bigquery_dts_sensor]
+    :end-before: [END howto_bigquery_dts_sensor]
 
 Reference
 ^^^^^^^^^

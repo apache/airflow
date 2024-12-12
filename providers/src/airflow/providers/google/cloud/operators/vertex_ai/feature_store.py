@@ -19,25 +19,51 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Sequence, Union
-from datetime import timedelta
-
-from airflow.configuration import conf
-from airflow.utils.context import Context
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.google.cloud.hooks.vertex_ai.feature_store import FeatureStoreHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
+
 class SyncFeatureViewOperator(GoogleCloudBaseOperator):
-    """Operator that syncs Vertex AI Feature Views"""
+    """
+    Initiate a synchronization operation for a Feature View in Vertex AI Feature Store.
+
+    This operator triggers a sync operation that updates the online serving data for a feature view
+    based on the latest data in the underlying batch source. The sync operation ensures that
+    the online feature values are up-to-date for real-time serving.
+
+    :param project_id: Required. The ID of the Google Cloud project that contains the feature store.
+        This is used to identify which project's resources to interact with.
+    :param location: Required. The location of the feature store (e.g., 'us-central1', 'us-east1').
+        This specifies the Google Cloud region where the feature store resources are located.
+    :param feature_online_store_id: Required. The ID of the online feature store that contains
+        the feature view to be synchronized. This store serves as the online serving layer.
+    :param feature_view_id: Required. The ID of the feature view to synchronize. This identifies
+        the specific view that needs to have its online values updated from the batch source.
+    :param gcp_conn_id: The connection ID to use for connecting to Google Cloud Platform.
+        Defaults to 'google_cloud_default'.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials. Can be either a single account or a chain of accounts required to
+        get the access_token of the last account in the list, which will be impersonated
+        in the request. If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role. If set as a sequence, the identities
+        from the list must grant Service Account Token Creator IAM role to the directly
+        preceding identity, with first account from the list granting this role to the
+        originating account.
+    """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'location',
-        'feature_online_store_id',
-        'feature_view_id',
+        "project_id",
+        "location",
+        "feature_online_store_id",
+        "feature_view_id",
     )
-    
+
     def __init__(
         self,
         *,
@@ -45,8 +71,8 @@ class SyncFeatureViewOperator(GoogleCloudBaseOperator):
         location: str,
         feature_online_store_id: str,
         feature_view_id: str,
-        gcp_conn_id: str = 'google_cloud_default',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -57,9 +83,8 @@ class SyncFeatureViewOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Context) -> Dict[str, Any]:
-        """Executes the feature view sync operation"""
-
+    def execute(self, context: Context) -> str:
+        """Execute the feature view sync operation."""
         self.hook = FeatureStoreHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -71,24 +96,48 @@ class SyncFeatureViewOperator(GoogleCloudBaseOperator):
             feature_online_store_id=self.feature_online_store_id,
             feature_view_id=self.feature_view_id,
         )
-        
-        return str(response.feature_view_sync)
-    
+
+        return response
+
+
 class GetFeatureViewSyncOperator(GoogleCloudBaseOperator):
-    """Operator that gets a Vertex AI Feature View Sync"""
+    """
+    Retrieve the status and details of a Feature View synchronization operation.
+
+    This operator fetches information about a specific feature view sync operation,
+    including its current status, timing information, and synchronization metrics.
+    It's typically used to monitor the progress of a sync operation initiated by
+    the SyncFeatureViewOperator.
+
+    :param location: Required. The location of the feature store (e.g., 'us-central1', 'us-east1').
+        This specifies the Google Cloud region where the feature store resources are located.
+    :param feature_view_sync_name: Required. The full resource name of the feature view
+        sync operation to retrieve. This is typically the return value from a
+        SyncFeatureViewOperator execution.
+    :param gcp_conn_id: The connection ID to use for connecting to Google Cloud Platform.
+        Defaults to 'google_cloud_default'.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials. Can be either a single account or a chain of accounts required to
+        get the access_token of the last account in the list, which will be impersonated
+        in the request. If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role. If set as a sequence, the identities
+        from the list must grant Service Account Token Creator IAM role to the directly
+        preceding identity, with first account from the list granting this role to the
+        originating account.
+    """
 
     template_fields: Sequence[str] = (
-        'location',
-        'feature_view_sync_name',
+        "location",
+        "feature_view_sync_name",
     )
-    
+
     def __init__(
         self,
         *,
         location: str,
         feature_view_sync_name: str,
-        gcp_conn_id: str = 'google_cloud_default',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -97,29 +146,15 @@ class GetFeatureViewSyncOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Context) -> Dict[str, Any]:
-        """Executes the get feature view sync operation"""
-
+    def execute(self, context: Context) -> dict[str, Any]:
+        """Execute the get feature view sync operation."""
         self.hook = FeatureStoreHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
 
         response = self.hook.get_feature_view_sync(
-            location=self.location,
-            feature_view_sync_name=self.feature_view_sync_name
+            location=self.location, feature_view_sync_name=self.feature_view_sync_name
         )
-        
-        report = {
-            "name": self.feature_view_sync_name,
-            "start_time": int(response.run_time.start_time.seconds)
-        }
 
-        if int(response.run_time.end_time.seconds) > 0:
-            report['end_time'] = int(response.run_time.end_time.seconds)
-            report['sync_summary'] = {
-                "row_synced": int(response.sync_summary.row_synced),
-                "total_slot": int(response.sync_summary.total_slot)
-            }
-
-        return report
+        return response

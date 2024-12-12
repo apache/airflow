@@ -744,6 +744,9 @@ sensors:
   - integration-name: Google Cloud Pub/Sub
     python-modules:
       - airflow.providers.google.cloud.sensors.pubsub
+  - integration-name: Google Cloud Vertex AI
+    python-modules:
+      - airflow.providers.google.cloud.sensors.vertex_ai.feature_store
   - integration-name: Google Cloud Workflows
     python-modules:
       - airflow.providers.google.cloud.sensors.workflows

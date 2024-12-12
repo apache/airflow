@@ -1,22 +1,40 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 """This module contains a Vertex AI Feature Store sensor."""
 
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
-from airflow.sensors.base import BaseSensorOperator
 from airflow.providers.google.cloud.hooks.vertex_ai.feature_store import FeatureStoreHook
+from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
+
 class FeatureViewSyncSensor(BaseSensorOperator):
     """
     Sensor to monitor the state of a Vertex AI Feature View sync operation.
-    
+
     :param feature_view_sync_name: The name of the feature view sync operation to monitor. (templated)
     :param location: Required. The Cloud region in which to handle the request. (templated)
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
@@ -66,12 +84,12 @@ class FeatureViewSyncSensor(BaseSensorOperator):
             )
 
             # Check if the sync has completed by verifying end_time exists
-            if int(response.run_time.end_time.seconds) > 0:
+            if response.get("end_time", 0) > 0:
                 self.log.info(
                     "Feature View sync %s completed. Rows synced: %d, Total slots: %d",
                     self.feature_view_sync_name,
-                    int(response.sync_summary.row_synced),
-                    int(response.sync_summary.total_slot),
+                    int(response.get("sync_summary", "").get("row_synced", "")),
+                    int(response.get("sync_summary", "").get("total_slot", "")),
                 )
                 return True
 

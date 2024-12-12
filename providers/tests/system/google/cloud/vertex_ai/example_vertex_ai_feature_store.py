@@ -24,10 +24,11 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
+
 from airflow import DAG
 from airflow.providers.google.cloud.operators.vertex_ai.feature_store import (
+    GetFeatureViewSyncOperator,
     SyncFeatureViewOperator,
-    GetFeatureViewSyncOperator
 )
 from airflow.providers.google.cloud.sensors.vertex_ai.feature_store import FeatureViewSyncSensor
 
@@ -35,8 +36,8 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "vertex_ai_feature_store_dag"
 REGION = "us-central1"
 
-FEATURE_ONLINE_STORE_ID = 'my_feature_online_store_unique'
-FEATURE_VIEW_ID = 'feature_view_publications'
+FEATURE_ONLINE_STORE_ID = "my_feature_online_store_unique"
+FEATURE_VIEW_ID = "feature_view_publications"
 
 with DAG(
     dag_id=DAG_ID,
@@ -46,7 +47,6 @@ with DAG(
     catchup=False,
     tags=["example", "vertex_ai", "feature_store"],
 ) as dag:
-    
     # [START how_to_cloud_vertex_ai_feature_store_sync_feature_view_operator]
     sync_task = SyncFeatureViewOperator(
         task_id="sync_task",
@@ -56,16 +56,18 @@ with DAG(
         feature_view_id=FEATURE_VIEW_ID,
     )
     # [END how_to_cloud_vertex_ai_feature_store_sync_feature_view_operator]
-    
+
+    # [START how_to_cloud_vertex_ai_feature_store_feature_view_sync_sensor]
     wait_for_sync = FeatureViewSyncSensor(
         task_id="wait_for_sync",
         location=REGION,
         feature_view_sync_name="{{ task_instance.xcom_pull(task_ids='sync_task', key='return_value')}}",
         poke_interval=60,  # Check every minute
         timeout=600,  # Timeout after 10 minutes
-        mode='reschedule',
+        mode="reschedule",
     )
-    
+    # [END how_to_cloud_vertex_ai_feature_store_feature_view_sync_sensor]
+
     # [START how_to_cloud_vertex_ai_feature_store_get_feature_view_sync_operator]
     get_task = GetFeatureViewSyncOperator(
         task_id="get_task",
@@ -73,7 +75,7 @@ with DAG(
         feature_view_sync_name="{{ task_instance.xcom_pull(task_ids='sync_task', key='return_value')}}",
     )
     # [END how_to_cloud_vertex_ai_feature_store_get_feature_view_sync_operator]
-    
+
     sync_task >> wait_for_sync >> get_task
 
     from tests_common.test_utils.watcher import watcher
