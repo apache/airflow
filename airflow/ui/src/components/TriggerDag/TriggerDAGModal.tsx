@@ -17,16 +17,29 @@
  * under the License.
  */
 import { Heading, VStack } from "@chakra-ui/react";
-import React, { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import React, { useCallback, useEffect, useState } from "react";
 
-import { useDagServiceGetDagDetails } from "openapi/queries";
+import {
+  useDagRunServiceTriggerDagRun,
+  useDagServiceGetDagDetails,
+  useDagServiceGetDagsKey,
+  useDagsServiceRecentDagRunsKey,
+} from "openapi/queries";
 import { Alert, Dialog } from "src/components/ui";
 
 import { ErrorAlert } from "../ErrorAlert";
 import { TogglePause } from "../TogglePause";
 import TriggerDAGForm from "./TriggerDAGForm";
-import type { DagParams } from "./useTriggerDag";
-import { useTriggerDag } from "./useTriggerDag";
+
+export type DagParams = {
+  configJson: string;
+  dagId: string;
+  dataIntervalEnd: string;
+  dataIntervalStart: string;
+  notes: string;
+  runId: string;
+};
 
 type TriggerDAGModalProps = {
   dagDisplayName: string;
@@ -43,27 +56,18 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   onClose,
   open,
 }) => {
-  const { error: errorTrigger, triggerDag } = useTriggerDag();
   const { data, error } = useDagServiceGetDagDetails({ dagId });
-  let initialConf = "{}";
-  let parseError: unknown = undefined;
 
-  if (!Boolean(error)) {
-    try {
-      const transformedParams = data?.params
-        ? Object.fromEntries(
-            Object.entries(data.params).map(([key, param]) => [
-              key,
-              (param as { value: unknown }).value,
-            ]),
-          )
-        : {};
+  const transformedParams = data?.params
+    ? Object.fromEntries(
+        Object.entries(data.params).map(([key, param]) => [
+          key,
+          (param as { shubham: unknown }).shubham,
+        ]),
+      )
+    : {};
 
-      initialConf = JSON.stringify(transformedParams, undefined, 2);
-    } catch (_error) {
-      parseError = _error;
-    }
-  }
+  const initialConf = JSON.stringify(transformedParams, undefined, 2);
 
   const [dagParams, setDagParams] = useState<DagParams>({
     configJson: initialConf,
@@ -83,9 +87,53 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
     }));
   }, [initialConf, error]);
 
-  const handleTrigger = (updatedDagParams: DagParams) => {
-    triggerDag(updatedDagParams);
+  const queryClient = useQueryClient();
+  const onSuccess = async () => {
+    await queryClient.invalidateQueries({
+      queryKey: [useDagServiceGetDagsKey],
+    });
+
+    await queryClient.invalidateQueries({
+      queryKey: [useDagsServiceRecentDagRunsKey],
+    });
     onClose();
+  };
+  const { mutate } = useDagRunServiceTriggerDagRun({
+    onSuccess,
+  });
+
+  const onTrigger = useCallback(
+    (updatedDagParams: DagParams) => {
+      // Parse the configJson string into a JavaScript object
+      const parsedConfig = JSON.parse(updatedDagParams.configJson) as Record<
+        string,
+        unknown
+      >;
+
+      // Validate and format data intervals
+      const formattedDataIntervalStart = updatedDagParams.dataIntervalStart
+        ? new Date(updatedDagParams.dataIntervalStart).toISOString()
+        : undefined; // Use null if empty or invalid
+      const formattedDataIntervalEnd = updatedDagParams.dataIntervalEnd
+        ? new Date(updatedDagParams.dataIntervalEnd).toISOString()
+        : undefined; // Use null if empty or invalid
+
+      mutate({
+        dagId: updatedDagParams.dagId,
+        requestBody: {
+          conf: parsedConfig,
+          dag_run_id: updatedDagParams.runId,
+          data_interval_end: formattedDataIntervalEnd,
+          data_interval_start: formattedDataIntervalStart,
+          note: updatedDagParams.notes,
+        },
+      });
+    },
+    [mutate],
+  );
+
+  const handleTrigger = (updatedDagParams: DagParams) => {
+    onTrigger(updatedDagParams);
   };
 
   useEffect(() => {
@@ -103,7 +151,6 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
 
   return (
     <Dialog.Root onOpenChange={onClose} open={open} size="xl">
-      <ErrorAlert error={errorTrigger} />
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>
@@ -115,7 +162,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
                 skipConfirm
               />
             </Heading>
-            <ErrorAlert error={error ?? parseError} />
+            <ErrorAlert error={error} />
             {isPaused ? (
               <Alert status="warning" title="Paused DAG">
                 Triggering will create a DAG run, but it will not start until
@@ -128,12 +175,14 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
         <Dialog.CloseTrigger />
 
         <Dialog.Body>
-          <TriggerDAGForm
-            dagParams={dagParams}
-            onClose={onClose}
-            onTrigger={handleTrigger}
-            setDagParams={setDagParams}
-          />
+          {Boolean(error) ? undefined : (
+            <TriggerDAGForm
+              dagParams={dagParams}
+              onClose={onClose}
+              onTrigger={handleTrigger}
+              setDagParams={setDagParams}
+            />
+          )}
         </Dialog.Body>
       </Dialog.Content>
     </Dialog.Root>

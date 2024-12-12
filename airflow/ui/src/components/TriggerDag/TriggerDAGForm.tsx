@@ -27,7 +27,7 @@ import { FiPlay } from "react-icons/fi";
 import { useColorMode } from "src/context/colorMode";
 
 import { Accordion } from "../ui";
-import type { DagParams } from "./useTriggerDag";
+import type { DagParams } from "./TriggerDAGModal";
 
 type TriggerDAGFormProps = {
   dagParams: DagParams;
