@@ -27,7 +27,7 @@ export const JoinNode = ({
 }: NodeProps<NodeType<CustomNodeProps, "join">>) => (
   <NodeWrapper>
     <Box
-      bg="fg"
+      bg="border.inverted"
       borderRadius={`${data.width}px`}
       height={`${data.height}px`}
       width={`${data.width}px`}

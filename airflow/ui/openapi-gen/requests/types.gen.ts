@@ -688,6 +688,47 @@ export type FastAPIAppResponse = {
 };
 
 /**
+ * DAG Run model for the Grid UI.
+ */
+export type GridDAGRunwithTIs = {
+  run_id: string;
+  queued_at: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  state: string;
+  run_type: string;
+  data_interval_start: string | null;
+  data_interval_end: string | null;
+  version_number: string | null;
+  note: string | null;
+  task_instances: Array<GridTaskInstanceSummary>;
+};
+
+/**
+ * Response model for the Grid UI.
+ */
+export type GridResponse = {
+  dag_runs: Array<GridDAGRunwithTIs>;
+};
+
+/**
+ * Task Instance Summary model for the Grid UI.
+ */
+export type GridTaskInstanceSummary = {
+  task_id: string;
+  try_number: number;
+  start_date: string | null;
+  end_date: string | null;
+  queued_dttm: string | null;
+  states: {
+    [key: string]: number;
+  } | null;
+  task_count: number;
+  overall_state: string | null;
+  note: string | null;
+};
+
+/**
  * HTTPException Model used for error response.
  */
 export type HTTPExceptionResponse = {
@@ -1443,8 +1484,8 @@ export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
 
 export type StructureDataData = {
   dagId: string;
-  includeDownstream?: boolean;
-  includeUpstream?: boolean;
+  includeDownstream?: boolean | null;
+  includeUpstream?: boolean | null;
   root?: string | null;
 };
 
@@ -1498,6 +1539,22 @@ export type CancelBackfillData = {
 };
 
 export type CancelBackfillResponse = BackfillResponse;
+
+export type GridDataData = {
+  dagId: string;
+  includeDownstream?: boolean | null;
+  includeUpstream?: boolean | null;
+  limit?: number;
+  logicalDateGte?: string | null;
+  logicalDateLte?: string | null;
+  offset?: number;
+  orderBy?: string;
+  root?: string | null;
+  runType?: Array<string>;
+  state?: Array<string>;
+};
+
+export type GridDataResponse = GridResponse;
 
 export type DeleteConnectionData = {
   connectionId: string;
@@ -2742,6 +2799,29 @@ export type $OpenApiTs = {
          * Conflict
          */
         409: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/ui/grid/{dag_id}": {
+    get: {
+      req: GridDataData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: GridResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
         /**
          * Validation Error
          */
