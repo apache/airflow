@@ -46,6 +46,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.grid import (
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.services.ui.grid import (
     fill_task_instance_summaries,
+    get_child_task_map,
     get_dag_run_sort_param,
     get_task_group_map,
 )
@@ -168,7 +169,10 @@ def grid_data(
     for ti in task_instances:
         if task_node_map_exclude and ti.task_id not in task_node_map_exclude.keys():
             continue
-        all_tis[(ti.task_id, ti.run_id)].append(ti)
+        if ti.task_id in get_child_task_map(
+            parent_task_id=task_node_map[ti.task_id]["parent_id"], task_node_map=task_node_map
+        ):
+            all_tis[(ti.task_id, ti.run_id)].append(ti)
         parent_id = task_node_map[ti.task_id]["parent_id"]
         if not parent_id and task_node_map[ti.task_id]["is_group"]:
             parent_tis[(ti.task_id, ti.run_id)].append(ti)

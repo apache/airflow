@@ -135,11 +135,6 @@ def get_task_group_map(dag: DAG) -> dict[str, dict[str, Any]]:
                 "parent_id": parent_node.node_id if parent_node else None,
                 "task_count": [task_count],
             }
-            # Add the Task Count to the Parent Node because parent node is a Task Group
-            _append_child_task_count_to_parent(
-                child_task_count=task_count,
-                parent_node=parent_node,
-            )
             return [
                 _fill_task_group_map(task_node=child, parent_node=task_node)
                 for child in get_task_group_children_getter()(task_node)
@@ -159,6 +154,26 @@ def get_task_group_map(dag: DAG) -> dict[str, dict[str, Any]]:
         _fill_task_group_map(task_node=node, parent_node=None)
 
     return task_nodes
+
+
+def get_child_task_map(parent_task_id: str, task_node_map: dict[str, dict[str, Any]]):
+    """Get the Child Task Map for the Parent Task ID."""
+    return [task_id for task_id, task_map in task_node_map.items() if task_map["parent_id"] == parent_task_id]
+
+
+def _get_total_task_count(
+    run_id: str, task_count: list[int | MappedTaskGroup | MappedOperator], session: SessionDep
+) -> int:
+    return sum(
+        node
+        if isinstance(node, int)
+        else (
+            node.get_mapped_ti_count(run_id=run_id, session=session)
+            if isinstance(node, (MappedTaskGroup, MappedOperator))
+            else node
+        )
+        for node in task_count
+    )
 
 
 def fill_task_instance_summaries(
@@ -194,38 +209,49 @@ def fill_task_instance_summaries(
         TaskInstanceState.REMOVED,
     ]
 
-    for (task_id, run_id), tis in grouped_task_instances.items():
-        overall_state = next(
-            (state.value for state in priority for ti in tis if state is not None and ti.state == state), None
+    overall_states: dict[tuple[str, str], str] = {
+        (task_id, run_id): next(
+            (str(state.value) for state in priority for ti in tis if state is not None and ti.state == state),
+            "no_status",
         )
-
+        for (task_id, run_id), tis in grouped_task_instances.items()
+    }
+    for (task_id, run_id), tis in grouped_task_instances.items():
         ti_try_number = max([ti.try_number for ti in tis])
         ti_start_date = min([ti.start_date for ti in tis if ti.start_date], default=None)
         ti_end_date = max([ti.end_date for ti in tis if ti.end_date], default=None)
         ti_queued_dttm = min([ti.queued_dttm for ti in tis if ti.queued_dttm], default=None)
         ti_note = min([ti.note for ti in tis if ti.note], default=None)
+
         all_states = {"no_status" if state is None else state.name.lower(): 0 for state in priority}
+        # Update Task States for non-grouped tasks
         all_states.update(
             {
                 "no_status" if state is None else state.name.lower(): len(
                     [ti for ti in tis if ti.state == state]
+                    if not task_node_map[task_id]["is_group"]
+                    else [
+                        ti
+                        for ti in tis
+                        if ti.state == state and ti.task_id in get_child_task_map(task_id, task_node_map)
+                    ]
                 )
                 for state in priority
             }
         )
-        # Task Count is either integer or a TaskGroup to get the task count
-        task_count = task_node_map[task_id]["task_count"]
-        final_task_count = sum(
-            node
-            if isinstance(node, int)
-            else (
-                node.get_mapped_ti_count(run_id=run_id, session=session)
-                if isinstance(node, (MappedTaskGroup, MappedOperator))
-                else node
-            )
-            for node in task_count
+        # Update Nested Task Group
+        all_states.update(
+            {
+                overall_states[(task_node_id, run_id)].lower(): all_states.get(
+                    overall_states[(task_node_id, run_id)].lower(), 0
+                )
+                + 1
+                for task_node_id in get_child_task_map(task_id, task_node_map)
+                if task_node_map[task_node_id]["is_group"]
+            }
         )
 
+        # Task Count is either integer or a TaskGroup to get the task count
         task_instance_summaries_to_fill[run_id].append(
             GridTaskInstanceSummary(
                 task_id=task_id,
@@ -234,8 +260,10 @@ def fill_task_instance_summaries(
                 end_date=ti_end_date,
                 queued_dttm=ti_queued_dttm,
                 states=all_states,
-                task_count=final_task_count,
-                overall_state=overall_state,
+                task_count=_get_total_task_count(run_id, task_node_map[task_id]["task_count"], session),
+                state=overall_states[(task_id, run_id)]
+                if overall_states[(task_id, run_id)] != "no_status"
+                else None,
                 note=ti_note,
             )
         )
