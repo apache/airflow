@@ -68,8 +68,22 @@ class TestFeatureStoreHook:
     def test_get_feature_view_sync(self, mock_client_getter):
         mock_client = mock.MagicMock()
         mock_client_getter.return_value = mock_client
+
+        # Create a mock response with the expected structure
         mock_response = mock.MagicMock()
+        mock_response.run_time.start_time.seconds = 1
+        mock_response.run_time.end_time.seconds = 1
+        mock_response.sync_summary.row_synced = 1
+        mock_response.sync_summary.total_slot = 1
+
         mock_client.get_feature_view_sync.return_value = mock_response
+
+        expected_result = {
+            "name": TEST_FEATURE_VIEW_SYNC_NAME,
+            "start_time": 1,
+            "end_time": 1,
+            "sync_summary": {"row_synced": 1, "total_slot": 1},
+        }
 
         result = self.hook.get_feature_view_sync(
             location=TEST_LOCATION,
@@ -77,13 +91,16 @@ class TestFeatureStoreHook:
         )
 
         mock_client.get_feature_view_sync.assert_called_once_with(name=TEST_FEATURE_VIEW_SYNC_NAME)
-        assert result == mock_response
+        assert result == expected_result
 
     @mock.patch(FEATURE_STORE_STRING.format("FeatureStoreHook.get_feature_online_store_admin_service_client"))
     def test_sync_feature_view(self, mock_client_getter):
         mock_client = mock.MagicMock()
         mock_client_getter.return_value = mock_client
+
+        # Create a mock response with the expected structure
         mock_response = mock.MagicMock()
+        mock_response.feature_view_sync = "test-sync-operation-name"
         mock_client.sync_feature_view.return_value = mock_response
 
         result = self.hook.sync_feature_view(
@@ -94,21 +111,6 @@ class TestFeatureStoreHook:
         )
 
         mock_client.sync_feature_view.assert_called_once_with(feature_view=TEST_FEATURE_VIEW)
-        assert result == mock_response
+        assert result == "test-sync-operation-name"
 
-    @mock.patch(FEATURE_STORE_STRING.format("FeatureStoreHook.get_feature_online_store_admin_service_client"))
-    def test_list_feature_view_syncs(self, mock_client_getter):
-        mock_client = mock.MagicMock()
-        mock_client_getter.return_value = mock_client
-        mock_response = mock.MagicMock()
-        mock_client.list_feature_views.return_value = mock_response
-
-        result = self.hook.list_feature_view_syncs(
-            project_id=TEST_PROJECT_ID,
-            location=TEST_LOCATION,
-            feature_online_store_id=TEST_FEATURE_ONLINE_STORE_ID,
-            feature_view_id=TEST_FEATURE_VIEW_ID,
-        )
-
-        mock_client.list_feature_views.assert_called_once_with(parent=TEST_FEATURE_VIEW)
-        assert result == mock_response
+    # Removing test_list_feature_view_syncs as the method doesn't exist in the hook

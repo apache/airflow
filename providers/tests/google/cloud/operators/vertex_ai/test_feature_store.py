@@ -38,8 +38,13 @@ FEATURE_VIEW_SYNC_NAME = f"projects/{GCP_PROJECT}/locations/{GCP_LOCATION}/featu
 
 class TestSyncFeatureViewOperator:
     @mock.patch(VERTEX_AI_PATH.format("feature_store.FeatureStoreHook"))
-    def test_execute(self, mock_hook):
-        mock_hook.return_value.sync_feature_view.return_value.feature_view_sync = FEATURE_VIEW_SYNC_NAME
+    def test_execute(self, mock_hook_class):
+        # Create the mock hook and set up its return value
+        mock_hook = mock.MagicMock()
+        mock_hook_class.return_value = mock_hook
+
+        # Set up the return value for sync_feature_view to match the hook implementation
+        mock_hook.sync_feature_view.return_value = FEATURE_VIEW_SYNC_NAME
 
         op = SyncFeatureViewOperator(
             task_id=TASK_ID,
@@ -53,29 +58,30 @@ class TestSyncFeatureViewOperator:
 
         response = op.execute(context={"ti": mock.MagicMock()})
 
-        mock_hook.assert_called_once_with(
+        # Verify hook initialization
+        mock_hook_class.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        mock_hook.return_value.sync_feature_view.assert_called_once_with(
+
+        # Verify hook method call
+        mock_hook.sync_feature_view.assert_called_once_with(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
             feature_online_store_id=FEATURE_ONLINE_STORE_ID,
             feature_view_id=FEATURE_VIEW_ID,
         )
+
+        # Verify response matches expected value
         assert response == FEATURE_VIEW_SYNC_NAME
 
 
 class TestGetFeatureViewSyncOperator:
     @mock.patch(VERTEX_AI_PATH.format("feature_store.FeatureStoreHook"))
-    def test_execute(self, mock_hook):
-        mock_response = mock.MagicMock()
-        mock_response.run_time.start_time.seconds = 1000
-        mock_response.run_time.end_time.seconds = 2000
-        mock_response.sync_summary.row_synced = 500
-        mock_response.sync_summary.total_slot = 4
-
-        mock_hook.return_value.get_feature_view_sync.return_value = mock_response
+    def test_execute(self, mock_hook_class):
+        # Create the mock hook and set up expected response
+        mock_hook = mock.MagicMock()
+        mock_hook_class.return_value = mock_hook
 
         expected_response = {
             "name": FEATURE_VIEW_SYNC_NAME,
@@ -83,6 +89,9 @@ class TestGetFeatureViewSyncOperator:
             "end_time": 2000,
             "sync_summary": {"row_synced": 500, "total_slot": 4},
         }
+
+        # Set up the return value for get_feature_view_sync to match the hook implementation
+        mock_hook.get_feature_view_sync.return_value = expected_response
 
         op = GetFeatureViewSyncOperator(
             task_id=TASK_ID,
@@ -94,12 +103,17 @@ class TestGetFeatureViewSyncOperator:
 
         response = op.execute(context={"ti": mock.MagicMock()})
 
-        mock_hook.assert_called_once_with(
+        # Verify hook initialization
+        mock_hook_class.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        mock_hook.return_value.get_feature_view_sync.assert_called_once_with(
+
+        # Verify hook method call
+        mock_hook.get_feature_view_sync.assert_called_once_with(
             location=GCP_LOCATION,
             feature_view_sync_name=FEATURE_VIEW_SYNC_NAME,
         )
+
+        # Verify response matches expected structure
         assert response == expected_response
