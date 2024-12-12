@@ -3057,13 +3057,12 @@ export const $GridTaskInstanceSummary = {
     state: {
       anyOf: [
         {
-          type: "string",
+          $ref: "#/components/schemas/TaskInstanceState",
         },
         {
           type: "null",
         },
       ],
-      title: "State",
     },
     note: {
       anyOf: [
