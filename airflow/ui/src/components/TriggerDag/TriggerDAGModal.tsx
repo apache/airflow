@@ -62,7 +62,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
     ? Object.fromEntries(
         Object.entries(data.params).map(([key, param]) => [
           key,
-          (param as { shubham: unknown }).shubham,
+          (param as { value: unknown }).value,
         ]),
       )
     : {};
