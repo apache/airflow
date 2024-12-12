@@ -117,13 +117,7 @@ def get_assets(
 @mark_fastapi_migration_done
 @security.requires_access_asset("GET")
 @provide_session
-@format_parameters(
-    {
-        "limit": check_limit,
-        "timestamp_gte": format_datetime,
-        "timestamp_lte": format_datetime,
-    }
-)
+@format_parameters({"limit": check_limit})
 def get_asset_events(
     *,
     limit: int,
@@ -134,8 +128,6 @@ def get_asset_events(
     source_task_id: str | None = None,
     source_run_id: str | None = None,
     source_map_index: int | None = None,
-    timestamp_gte: str | None = None,
-    timestamp_lte: str | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get asset events."""
@@ -154,7 +146,6 @@ def get_asset_events(
     if source_map_index:
         query = query.where(AssetEvent.source_map_index == source_map_index)
 
-    query = _apply_range_filter(query, key=AssetEvent.timestasmp, value_range=(timestamp_gte, timestamp_lte))
     query = query.options(subqueryload(AssetEvent.created_dagruns))
 
     total_entries = get_query_count(query, session=session)
