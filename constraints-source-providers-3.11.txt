@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-11T13:47:00.915823
+# This constraints file was automatically generated on 2024-12-12T02:14:46.704157
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -57,7 +57,7 @@ aiomysql==0.2.0
 aioresponses==0.7.7
 aiosignal==1.3.1
 aiosqlite==0.20.0
-airbyte-api==0.52.1
+airbyte-api==0.52.2
 alabaster==0.7.16
 alembic==1.14.0
 alibabacloud-adb20211201==2.0.0
@@ -164,7 +164,7 @@ databricks-sql-connector==3.6.0
 dataclasses-json==0.6.7
 datadog==0.50.2
 db-dtypes==1.3.1
-debugpy==1.8.10
+debugpy==1.8.9
 decorator==5.1.1
 defusedxml==0.7.1
 deltalake==0.22.3
@@ -208,10 +208,10 @@ gitdb==4.0.11
 google-ads==25.1.0
 google-analytics-admin==0.23.2
 google-api-core==2.24.0
-google-api-python-client==2.154.0
+google-api-python-client==2.155.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
-google-auth==2.36.0
+google-auth==2.37.0
 google-cloud-aiplatform==1.74.0
 google-cloud-appengine-logging==1.5.0
 google-cloud-audit-log==0.3.0
@@ -402,7 +402,7 @@ ordered-set==4.1.0
 orjson==3.10.12
 oss2==2.19.1
 packaging==24.2
-pandas-gbq==0.24.0
+pandas-gbq==0.25.0
 pandas-stubs==2.2.3.241126
 pandas==2.1.4
 papermill==2.6.0
@@ -620,7 +620,7 @@ universal_pathlib==0.2.5
 uritemplate==4.1.1
 urllib3==2.2.3
 uuid6==2024.7.10
-uv==0.5.7
+uv==0.5.8
 uvicorn==0.32.1
 uvloop==0.21.0
 validators==0.33.0
