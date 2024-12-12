@@ -30,7 +30,6 @@ structure_router = AirflowRouter(tags=["Structure"], prefix="/structure")
 
 @structure_router.get(
     "/structure_data",
-    include_in_schema=False,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def structure_data(
