@@ -293,7 +293,7 @@ export type DAGDetailsResponse = {
   description: string | null;
   timetable_summary: string | null;
   timetable_description: string | null;
-  tags: Array<DagTagPydantic>;
+  tags: Array<DagTagResponse>;
   max_active_tasks: number;
   max_active_runs: number | null;
   max_consecutive_failed_dag_runs: number;
@@ -352,7 +352,7 @@ export type DAGResponse = {
   description: string | null;
   timetable_summary: string | null;
   timetable_description: string | null;
-  tags: Array<DagTagPydantic>;
+  tags: Array<DagTagResponse>;
   max_active_tasks: number;
   max_active_runs: number | null;
   max_consecutive_failed_dag_runs: number;
@@ -515,7 +515,7 @@ export type DAGWithLatestDagRunsResponse = {
   description: string | null;
   timetable_summary: string | null;
   timetable_description: string | null;
-  tags: Array<DagTagPydantic>;
+  tags: Array<DagTagResponse>;
   max_active_tasks: number;
   max_active_runs: number | null;
   max_consecutive_failed_dag_runs: number;
@@ -620,9 +620,9 @@ export type DagStatsStateResponse = {
 };
 
 /**
- * Serializable representation of the DagTag ORM SqlAlchemyModel used by internal API.
+ * DAG Tag serializer for responses.
  */
-export type DagTagPydantic = {
+export type DagTagResponse = {
   name: string;
   dag_id: string;
 };
