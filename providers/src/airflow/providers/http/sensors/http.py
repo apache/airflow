@@ -26,7 +26,7 @@ import cloudpickle
 from requests import Response
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, ResponseCheckFailedException
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.providers.http.triggers.http import HttpSensorTrigger
 from airflow.sensors.base import BaseSensorOperator
@@ -209,15 +209,14 @@ class HttpSensor(BaseSensorOperator):
         return make_default_response()
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
-        if event["status"] == "success":
-            response = event["response"]
-            if self.response_check:
-                retrieved_data = cloudpickle.loads(base64.standard_b64decode(response))
-                if self.process_response(context=context, response=retrieved_data):
-                    self.log.info("response_check condition is matched for %s", self.task_id)
-                else:
-                    raise AirflowException("response_check condition is not matched for %s", self.task_id)
-
-            self.log.info("%s completed successfully.", self.task_id)
-        else:
+        if event["status"] != "success":
             raise AirflowException(f"Unexpected error in the operation: {event['message']}")
+        response = event["response"]
+        if self.response_check:
+            retrieved_data = cloudpickle.loads(base64.standard_b64decode(response))
+            if not self.process_response(context=context, response=retrieved_data):
+                raise ResponseCheckFailedException(
+                    "response_check condition is not matched for %s", self.task_id
+                )
+            self.log.info("response_check condition is matched for %s", self.task_id)
+        self.log.info("%s completed successfully.", self.task_id)
