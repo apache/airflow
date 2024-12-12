@@ -31,6 +31,7 @@ import { XComEntry } from "./XComEntry";
 const XComColumn = (): Array<ColumnDef<XComResponse>> => [
   {
     accessorKey: "key",
+    enableSorting: false,
     header: "Key",
     meta: {
       skeletonWidth: 10,
@@ -46,6 +47,7 @@ const XComColumn = (): Array<ColumnDef<XComResponse>> => [
         xcomKey={original.key}
       />
     ),
+    enableSorting: false,
     header: "Value",
     meta: {
       skeletonWidth: 10,
