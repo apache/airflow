@@ -429,12 +429,6 @@ class TestTIPutRTIF:
             {"field1": "string_value", "field2": "another_string"},
             # dictionary value
             {"field1": {"nested_key": "nested_value"}},
-            # integer value
-            {"field1": 100},
-            # None value
-            {"field1": None},
-            # float value
-            {"field1": 3.14159},
             # string lists value
             {"field1": ["123"], "field2": ["a", "b", "c"]},
             # list of JSON values

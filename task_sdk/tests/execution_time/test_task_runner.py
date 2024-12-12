@@ -82,6 +82,19 @@ class CustomOperator(BaseOperator):
         print(f"Hello World {task_id}!")
 
 
+class CustomOperator2(BaseOperator):
+    template_fields = ("my_set", "my_tup")
+
+    def __init__(self, my_set: set, my_tup: tuple, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.my_set = my_set
+        self.my_tup = my_tup
+
+    def execute(self, context):
+        task_id = context["task_instance"].task_id
+        print(f"Hello World {task_id}!")
+
+
 class TestCommsDecoder:
     """Test the communication between the subprocess and the "supervisor"."""
 
@@ -285,7 +298,7 @@ def test_startup_dag_with_no_templates(mocked_parse):
         startup()
 
         mock_supervisor_comms.send_request.assert_called_once_with(
-            msg=SetRenderedFields(rendered_fields={"op_args": (), "op_kwargs": {}, "templates_dict": None}),
+            msg=SetRenderedFields(rendered_fields={"op_args": "()", "op_kwargs": {}, "templates_dict": None}),
             log=mock.ANY,
         )
 
@@ -322,5 +335,36 @@ def test_startup_dag_with_no_templates_mixed_types(mocked_parse):
                     "op_kwargs": {"key1": "value1", "key2": 99.0, "key3": {"nested_key": "nested_value"}},
                 }
             ),
+            log=mock.ANY,
+        )
+
+
+def test_startup_dag_with_tuple_and_set_templated_fields(mocked_parse):
+    """Test startup of a simple DAG with tuple and set templated fields."""
+
+    task = CustomOperator2(
+        task_id="templated_task",
+        my_tup=(
+            1,
+            2,
+        ),
+        my_set={1, 2, 3},
+    )
+
+    what = StartupDetails(
+        ti=TaskInstance(id=uuid7(), task_id="templated_task", dag_id="basic_dag", run_id="c", try_number=1),
+        file="",
+        requests_fd=0,
+    )
+    mocked_parse(what, "basic_dag", task)
+
+    with mock.patch(
+        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
+    ) as mock_supervisor_comms:
+        mock_supervisor_comms.get_message.return_value = what
+        startup()
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            msg=SetRenderedFields(rendered_fields={"my_set": "{1, 2, 3}", "my_tup": "(1, 2)"}),
             log=mock.ANY,
         )
