@@ -28,7 +28,7 @@ from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel, DagSc
 assets_router = AirflowRouter(tags=["Asset"])
 
 
-@assets_router.get("/next_run_assets/{dag_id}", include_in_schema=False)
+@assets_router.get("/next_run_assets/{dag_id}")
 def next_run_assets(
     dag_id: str,
     request: Request,

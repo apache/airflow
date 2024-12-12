@@ -41,16 +41,8 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
         </RouterLink>
       </Link>
     ),
-    header: "Task ID",
-  },
-  {
-    accessorKey: "map_index",
-    header: "Map Index",
-  },
-  {
-    accessorKey: "try_number",
     enableSorting: false,
-    header: "Try Number",
+    header: "Task ID",
   },
   {
     accessorKey: "state",
@@ -62,11 +54,6 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
     header: () => "State",
   },
   {
-    accessorKey: "operator",
-    enableSorting: false,
-    header: "Operator",
-  },
-  {
     accessorKey: "start_date",
     cell: ({ row: { original } }) => <Time datetime={original.start_date} />,
     header: "Start Date",
@@ -76,6 +63,22 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
     cell: ({ row: { original } }) => <Time datetime={original.end_date} />,
     header: "End Date",
   },
+  {
+    accessorKey: "map_index",
+    header: "Map Index",
+  },
+
+  {
+    accessorKey: "try_number",
+    enableSorting: false,
+    header: "Try Number",
+  },
+  {
+    accessorKey: "operator",
+    enableSorting: false,
+    header: "Operator",
+  },
+
   {
     cell: ({ row: { original } }) =>
       `${dayjs.duration(dayjs(original.end_date).diff(original.start_date)).asSeconds().toFixed(2)}s`,

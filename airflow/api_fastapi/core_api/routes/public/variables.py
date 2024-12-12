@@ -19,6 +19,8 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 from sqlalchemy import select
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -137,14 +139,21 @@ def patch_variable(
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, f"The Variable with key: `{variable_key}` was not found"
         )
+
+    fields_to_update = patch_body.model_fields_set
     if update_mask:
-        data = patch_body.model_dump(
-            include=set(update_mask) - non_update_fields, by_alias=True, exclude_none=True
-        )
+        fields_to_update = fields_to_update.intersection(update_mask)
+        data = patch_body.model_dump(include=fields_to_update - non_update_fields, by_alias=True)
     else:
-        data = patch_body.model_dump(exclude=non_update_fields, by_alias=True, exclude_none=True)
+        try:
+            VariableBody(**patch_body.model_dump())
+        except ValidationError as e:
+            raise RequestValidationError(errors=e.errors())
+        data = patch_body.model_dump(exclude=non_update_fields, by_alias=True)
+
     for key, val in data.items():
         setattr(variable, key, val)
+
     return variable
 
 
