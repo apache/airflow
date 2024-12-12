@@ -31,6 +31,7 @@ from tests_common.test_utils.db import clear_db_runs
 pytestmark = pytest.mark.db_test
 
 DAG_ID = "test_dag_id"
+DAG_ID_EXTERNAL_TRIGGER = "external_trigger"
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -50,7 +51,7 @@ def clean():
 @pytest.fixture
 def make_dag(dag_maker, session, time_machine):
     with dag_maker(
-        dag_id="external_trigger",
+        dag_id=DAG_ID_EXTERNAL_TRIGGER,
         serialized=True,
         session=session,
         start_date=pendulum.DateTime(2023, 2, 1, 0, 0, 0, tzinfo=pendulum.UTC),
@@ -257,7 +258,7 @@ class TestStructureDataEndpoint:
                             "children": None,
                             "id": "trigger:external_trigger:test_dag_id:trigger_dag_run_operator",
                             "is_mapped": None,
-                            "label": "trigger:external_trigger:test_dag_id:trigger_dag_run_operator",
+                            "label": "trigger_dag_run_operator",
                             "tooltip": None,
                             "setup_teardown_type": None,
                             "type": "trigger",
@@ -267,7 +268,7 @@ class TestStructureDataEndpoint:
                             "children": None,
                             "id": "asset:asset1",
                             "is_mapped": None,
-                            "label": "asset:asset1",
+                            "label": "asset1",
                             "tooltip": None,
                             "setup_teardown_type": None,
                             "type": "asset",
@@ -277,7 +278,7 @@ class TestStructureDataEndpoint:
                             "children": None,
                             "id": "asset:asset2",
                             "is_mapped": None,
-                            "label": "asset:asset2",
+                            "label": "asset2",
                             "tooltip": None,
                             "setup_teardown_type": None,
                             "type": "asset",
@@ -287,7 +288,7 @@ class TestStructureDataEndpoint:
                             "children": None,
                             "id": "asset-alias:example-alias",
                             "is_mapped": None,
-                            "label": "asset-alias:example-alias",
+                            "label": "example-alias",
                             "tooltip": None,
                             "setup_teardown_type": None,
                             "type": "asset-alias",
@@ -297,7 +298,7 @@ class TestStructureDataEndpoint:
                             "children": None,
                             "id": "asset:s3://dataset-bucket/example.csv",
                             "is_mapped": None,
-                            "label": "asset:s3://dataset-bucket/example.csv",
+                            "label": "s3://dataset-bucket/example.csv",
                             "tooltip": None,
                             "setup_teardown_type": None,
                             "type": "asset",
@@ -307,10 +308,46 @@ class TestStructureDataEndpoint:
                             "children": None,
                             "id": "sensor:test_dag_id:test_dag_id:external_task_sensor",
                             "is_mapped": None,
-                            "label": "sensor:test_dag_id:test_dag_id:external_task_sensor",
+                            "label": "external_task_sensor",
                             "tooltip": None,
                             "setup_teardown_type": None,
                             "type": "sensor",
+                            "operator": None,
+                        },
+                    ],
+                    "arrange": "LR",
+                },
+            ),
+            (
+                {"dag_id": DAG_ID_EXTERNAL_TRIGGER, "external_dependencies": True},
+                {
+                    "edges": [
+                        {
+                            "is_setup_teardown": None,
+                            "label": None,
+                            "source_id": "trigger_dag_run_operator",
+                            "target_id": "trigger:external_trigger:test_dag_id:trigger_dag_run_operator",
+                        }
+                    ],
+                    "nodes": [
+                        {
+                            "children": None,
+                            "id": "trigger_dag_run_operator",
+                            "is_mapped": None,
+                            "label": "trigger_dag_run_operator",
+                            "tooltip": None,
+                            "setup_teardown_type": None,
+                            "type": "task",
+                            "operator": "TriggerDagRunOperator",
+                        },
+                        {
+                            "children": None,
+                            "id": "trigger:external_trigger:test_dag_id:trigger_dag_run_operator",
+                            "is_mapped": None,
+                            "label": "trigger_dag_run_operator",
+                            "tooltip": None,
+                            "setup_teardown_type": None,
+                            "type": "trigger",
                             "operator": None,
                         },
                     ],

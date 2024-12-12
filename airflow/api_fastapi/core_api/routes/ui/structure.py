@@ -31,7 +31,6 @@ structure_router = AirflowRouter(tags=["Structure"], prefix="/structure")
 
 @structure_router.get(
     "/structure_data",
-    include_in_schema=False,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def structure_data(
@@ -79,18 +78,22 @@ def structure_data(
                 nodes.append(
                     {
                         "id": dependency.node_id,
-                        "label": dependency.node_id,
+                        "label": dependency.dependency_id,
                         "type": dependency.dependency_type,
                     }
                 )
 
                 # Add edges
                 # start dependency
-                if dependency.target != dependency.dependency_type and entry_node_ref:
+                if (
+                    dependency.source == dependency.dependency_type or dependency.target == dag_id
+                ) and entry_node_ref:
                     start_edges.append({"source_id": dependency.node_id, "target_id": entry_node_ref["id"]})
 
                 # end dependency
-                elif dependency.source != dependency.dependency_type and exit_node_ref:
+                elif (
+                    dependency.target == dependency.dependency_type or dependency.source == dag_id
+                ) and exit_node_ref:
                     end_edges.append({"source_id": exit_node_ref["id"], "target_id": dependency.node_id})
 
         data["edges"] = start_edges + edges + end_edges
