@@ -54,6 +54,8 @@ import type {
   UnpauseBackfillResponse,
   CancelBackfillData,
   CancelBackfillResponse,
+  GridDataData,
+  GridDataResponse,
   DeleteConnectionData,
   DeleteConnectionResponse,
   GetConnectionData,
@@ -956,6 +958,55 @@ export class BackfillService {
         403: "Forbidden",
         404: "Not Found",
         409: "Conflict",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class GridService {
+  /**
+   * Grid Data
+   * Return grid data.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.includeUpstream
+   * @param data.includeDownstream
+   * @param data.logicalDateGte
+   * @param data.logicalDateLte
+   * @param data.root
+   * @param data.runType
+   * @param data.state
+   * @param data.offset
+   * @param data.limit
+   * @param data.orderBy
+   * @returns GridResponse Successful Response
+   * @throws ApiError
+   */
+  public static gridData(
+    data: GridDataData,
+  ): CancelablePromise<GridDataResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/grid/{dag_id}",
+      path: {
+        dag_id: data.dagId,
+      },
+      query: {
+        include_upstream: data.includeUpstream,
+        include_downstream: data.includeDownstream,
+        logical_date_gte: data.logicalDateGte,
+        logical_date_lte: data.logicalDateLte,
+        root: data.root,
+        run_type: data.runType,
+        state: data.state,
+        offset: data.offset,
+        limit: data.limit,
+        order_by: data.orderBy,
+      },
+      errors: {
+        400: "Bad Request",
+        404: "Not Found",
         422: "Validation Error",
       },
     });

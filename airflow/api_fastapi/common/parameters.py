@@ -629,11 +629,8 @@ QueryVariableKeyPatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(Variable.key, "variable_key_pattern"))
 ]
 
-# UI Shared
-QueryIncludeUpstream = Annotated[Union[bool, None], Depends(lambda: False)]
-QueryIncludeDownstream = Annotated[Union[bool, None], Depends(lambda: False)]
 
-# DAG Filter Upstream|Downstream
+# UI Shared
 def _optional_boolean(value: bool | None) -> bool | None:
     return value if value is not None else False
 
