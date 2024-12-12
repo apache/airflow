@@ -47,7 +47,6 @@ class TestFeatureStoreHook:
     @mock.patch(FEATURE_STORE_STRING.format("FeatureOnlineStoreAdminServiceClient"), autospec=True)
     @mock.patch(BASE_STRING.format("GoogleBaseHook.get_credentials"))
     def test_get_feature_online_store_admin_service_client(self, mock_get_credentials, mock_client):
-        # Test with location
         self.hook.get_feature_online_store_admin_service_client(location=TEST_LOCATION)
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value, client_info=mock.ANY, client_options=mock.ANY
@@ -55,7 +54,6 @@ class TestFeatureStoreHook:
         client_options = mock_client.call_args[1]["client_options"]
         assert client_options.api_endpoint == f"{TEST_LOCATION}-aiplatform.googleapis.com:443"
 
-        # Test without location (global)
         mock_client.reset_mock()
         self.hook.get_feature_online_store_admin_service_client()
         mock_client.assert_called_once_with(
@@ -112,5 +110,3 @@ class TestFeatureStoreHook:
 
         mock_client.sync_feature_view.assert_called_once_with(feature_view=TEST_FEATURE_VIEW)
         assert result == "test-sync-operation-name"
-
-    # Removing test_list_feature_view_syncs as the method doesn't exist in the hook
