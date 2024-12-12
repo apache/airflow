@@ -3036,7 +3036,7 @@ export const $GridTaskInstanceSummary = {
       ],
       title: "Queued Dttm",
     },
-    states: {
+    child_states: {
       anyOf: [
         {
           additionalProperties: {
@@ -3048,7 +3048,7 @@ export const $GridTaskInstanceSummary = {
           type: "null",
         },
       ],
-      title: "States",
+      title: "Child States",
     },
     task_count: {
       type: "integer",
@@ -3083,7 +3083,7 @@ export const $GridTaskInstanceSummary = {
     "start_date",
     "end_date",
     "queued_dttm",
-    "states",
+    "child_states",
     "task_count",
     "state",
     "note",

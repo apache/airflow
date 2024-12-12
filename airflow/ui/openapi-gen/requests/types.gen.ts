@@ -720,7 +720,7 @@ export type GridTaskInstanceSummary = {
   start_date: string | null;
   end_date: string | null;
   queued_dttm: string | null;
-  states: {
+  child_states: {
     [key: string]: number;
   } | null;
   task_count: number;

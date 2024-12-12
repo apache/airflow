@@ -8059,13 +8059,13 @@ components:
             format: date-time
           - type: 'null'
           title: Queued Dttm
-        states:
+        child_states:
           anyOf:
           - additionalProperties:
               type: integer
             type: object
           - type: 'null'
-          title: States
+          title: Child States
         task_count:
           type: integer
           title: Task Count
@@ -8085,7 +8085,7 @@ components:
       - start_date
       - end_date
       - queued_dttm
-      - states
+      - child_states
       - task_count
       - state
       - note
