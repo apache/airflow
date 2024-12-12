@@ -23,7 +23,7 @@ import contextlib
 import json
 import time
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -33,8 +33,7 @@ from google.auth.transport import requests as google_requests
 from google.cloud import exceptions  # type: ignore[attr-defined]
 from google.cloud.container_v1 import ClusterManagerAsyncClient, ClusterManagerClient
 from google.cloud.container_v1.types import Cluster, Operation
-from kubernetes import client, utils
-from kubernetes.client.models import V1Deployment
+from kubernetes import client
 from kubernetes_asyncio import client as async_client
 from kubernetes_asyncio.config.kube_config import FileOrData
 
@@ -434,38 +433,9 @@ class GKEKubernetesHook(GoogleBaseHook, KubernetesHook):
             enable_tcp_keepalive=self.enable_tcp_keepalive,
         ).get_conn()
 
-    def check_kueue_deployment_running(self, name, namespace):
-        timeout = 300
-        polling_period_seconds = 2
-
-        while timeout is None or timeout > 0:
-            try:
-                deployment = self.get_deployment_status(name=name, namespace=namespace)
-                deployment_status = V1Deployment.to_dict(deployment)["status"]
-                replicas = deployment_status["replicas"]
-                ready_replicas = deployment_status["ready_replicas"]
-                unavailable_replicas = deployment_status["unavailable_replicas"]
-                if (
-                    replicas is not None
-                    and ready_replicas is not None
-                    and unavailable_replicas is None
-                    and replicas == ready_replicas
-                ):
-                    return
-                else:
-                    self.log.info("Waiting until Deployment will be ready...")
-                    time.sleep(polling_period_seconds)
-            except Exception as e:
-                self.log.exception("Exception occurred while checking for Deployment status.")
-                raise e
-
-            if timeout is not None:
-                timeout -= polling_period_seconds
-
-        raise AirflowException("Deployment timed out")
-
     def apply_from_yaml_file(
         self,
+        api_client: Any = None,
         yaml_file: str | None = None,
         yaml_objects: list[dict] | None = None,
         verbose: bool = False,
@@ -474,18 +444,17 @@ class GKEKubernetesHook(GoogleBaseHook, KubernetesHook):
         """
         Perform an action from a yaml file.
 
+        :param api_client: A Kubernetes client application.
         :param yaml_file: Contains the path to yaml file.
         :param yaml_objects: List of YAML objects; used instead of reading the yaml_file.
         :param verbose: If True, print confirmation from create action. Default is False.
         :param namespace: Contains the namespace to create all resources inside. The namespace must
             preexist otherwise the resource creation will fail.
         """
-        k8s_client = self.get_conn()
-
-        utils.create_from_yaml(
-            k8s_client=k8s_client,
-            yaml_objects=yaml_objects,
+        super().apply_from_yaml_file(
+            api_client=api_client or self.get_conn(),
             yaml_file=yaml_file,
+            yaml_objects=yaml_objects,
             verbose=verbose,
             namespace=namespace,
         )

@@ -80,13 +80,19 @@ export const DagCard = ({ dag }: Props) => {
         </Stat>
         <Stat label="Latest Run">
           {latestRun ? (
-            <DagRunInfo
-              dataIntervalEnd={latestRun.data_interval_end}
-              dataIntervalStart={latestRun.data_interval_start}
-              endDate={latestRun.end_date}
-              startDate={latestRun.start_date}
-              state={latestRun.state}
-            />
+            <Link asChild color="fg.info" fontSize="sm">
+              <RouterLink
+                to={`/dags/${latestRun.dag_id}/runs/${latestRun.dag_run_id}`}
+              >
+                <DagRunInfo
+                  dataIntervalEnd={latestRun.data_interval_end}
+                  dataIntervalStart={latestRun.data_interval_start}
+                  endDate={latestRun.end_date}
+                  startDate={latestRun.start_date}
+                  state={latestRun.state}
+                />
+              </RouterLink>
+            </Link>
           ) : undefined}
         </Stat>
         <Stat label="Next Run">
