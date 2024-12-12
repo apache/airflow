@@ -23,14 +23,21 @@ import Markdown from "react-markdown";
 
 import { Button, Dialog } from "src/components/ui";
 
-const DagDocumentation = ({ docMd }: { readonly docMd: string }) => {
+const DocumentationModal = ({
+  docMd,
+  isDag = false,
+}: {
+  readonly docMd: string;
+  readonly isDag?: boolean;
+}) => {
   const [isDocsOpen, setIsDocsOpen] = useState(false);
+  const docType = isDag ? "Dag" : "Task";
 
   return (
     <Box>
       <Button onClick={() => setIsDocsOpen(true)} variant="outline">
         <FiBookOpen height={5} width={5} />
-        Dag Docs
+        {docType} Docs
       </Button>
       <Dialog.Root
         onOpenChange={() => setIsDocsOpen(false)}
@@ -39,7 +46,7 @@ const DagDocumentation = ({ docMd }: { readonly docMd: string }) => {
       >
         <Dialog.Content backdrop>
           <Dialog.Header bg="blue.muted">
-            <Heading size="xl">Dag Documentation</Heading>
+            <Heading size="xl">{docType} Documentation</Heading>
             <Dialog.CloseTrigger closeButtonProps={{ size: "xl" }} />
           </Dialog.Header>
           <Dialog.Body display="flex">
@@ -51,4 +58,4 @@ const DagDocumentation = ({ docMd }: { readonly docMd: string }) => {
   );
 };
 
-export default DagDocumentation;
+export default DocumentationModal;
