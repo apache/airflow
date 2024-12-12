@@ -2863,9 +2863,9 @@ export const $FastAPIAppResponse = {
 
 export const $GridDAGRunwithTIs = {
   properties: {
-    run_id: {
+    dag_run_id: {
       type: "string",
-      title: "Run Id",
+      title: "Dag Run Id",
     },
     queued_at: {
       anyOf: [
@@ -2904,12 +2904,10 @@ export const $GridDAGRunwithTIs = {
       title: "End Date",
     },
     state: {
-      type: "string",
-      title: "State",
+      $ref: "#/components/schemas/DagRunState",
     },
     run_type: {
-      type: "string",
-      title: "Run Type",
+      $ref: "#/components/schemas/DagRunType",
     },
     data_interval_start: {
       anyOf: [
@@ -2968,7 +2966,7 @@ export const $GridDAGRunwithTIs = {
   },
   type: "object",
   required: [
-    "run_id",
+    "dag_run_id",
     "queued_at",
     "start_date",
     "end_date",
@@ -3064,7 +3062,7 @@ export const $GridTaskInstanceSummary = {
       type: "integer",
       title: "Task Count",
     },
-    overall_state: {
+    state: {
       anyOf: [
         {
           type: "string",
@@ -3073,7 +3071,7 @@ export const $GridTaskInstanceSummary = {
           type: "null",
         },
       ],
-      title: "Overall State",
+      title: "State",
     },
     note: {
       anyOf: [
@@ -3096,7 +3094,7 @@ export const $GridTaskInstanceSummary = {
     "queued_dttm",
     "states",
     "task_count",
-    "overall_state",
+    "state",
     "note",
   ],
   title: "GridTaskInstanceSummary",
