@@ -100,11 +100,10 @@ const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
           nextDagrunCreateAfter={original.next_dagrun_create_after}
         />
       ) : undefined,
-    enableSorting: false,
     header: "Next Dag Run",
   },
   {
-    accessorKey: "latest_dag_runs",
+    accessorKey: "last_run_start_date",
     cell: ({ row: { original } }) =>
       original.latest_dag_runs[0] ? (
         <DagRunInfo
@@ -115,7 +114,6 @@ const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
           state={original.latest_dag_runs[0].state}
         />
       ) : undefined,
-    enableSorting: false,
     header: "Last Dag Run",
   },
   {
@@ -172,13 +170,16 @@ export const DagsList = () => {
   const selectedTags = searchParams.getAll(TAGS_PARAM);
 
   const { setTableURLState, tableURLState } = useTableURLState();
+
   const { pagination, sorting } = tableURLState;
   const [dagDisplayNamePattern, setDagDisplayNamePattern] = useState(
     searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
   );
 
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
+  const orderBy = sort
+    ? `${sort.desc ? "-" : ""}${sort.id}`
+    : "-last_run_start_date";
 
   const handleSearchChange = (value: string) => {
     if (value) {

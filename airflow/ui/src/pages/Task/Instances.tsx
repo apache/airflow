@@ -93,7 +93,7 @@ export const Instances = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
+  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-start_date";
 
   const {
     data: task,
