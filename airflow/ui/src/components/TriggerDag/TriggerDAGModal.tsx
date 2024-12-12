@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Heading, VStack } from "@chakra-ui/react";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import { useDagServiceGetDagDetails } from "openapi/queries";
 import { Alert, Dialog } from "src/components/ui";
@@ -25,8 +25,8 @@ import { Alert, Dialog } from "src/components/ui";
 import { ErrorAlert } from "../ErrorAlert";
 import { TogglePause } from "../TogglePause";
 import TriggerDAGForm from "./TriggerDAGForm";
-import type { DagParams } from "./TriggerDag";
-import { TriggerDag as triggerDag } from "./TriggerDag";
+import type { DagParams } from "./useTriggerDag";
+import { useTriggerDag } from "./useTriggerDag";
 
 type TriggerDAGModalProps = {
   dagDisplayName: string;
@@ -43,6 +43,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   onClose,
   open,
 }) => {
+  const { error: errorTrigger, triggerDag } = useTriggerDag();
   const { data, error } = useDagServiceGetDagDetails({ dagId });
   let initialConf = "{}";
   let parseError: unknown = undefined;
@@ -73,13 +74,10 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
     }));
   }, [initialConf, error]);
 
-  const handleTrigger = useCallback(
-    (updatedDagParams: DagParams) => {
-      triggerDag(updatedDagParams);
-      onClose();
-    },
-    [onClose],
-  );
+  const handleTrigger = (updatedDagParams: DagParams) => {
+    triggerDag(updatedDagParams);
+    onClose();
+  };
 
   useEffect(() => {
     if (!open) {
@@ -96,6 +94,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
 
   return (
     <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+      <ErrorAlert error={errorTrigger} />
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>
