@@ -20,6 +20,8 @@ import contextlib
 from io import StringIO
 from unittest import mock
 
+import pytest
+
 from airflow.cli import cli_parser
 from airflow.cli.commands.remote_commands import config_command
 
@@ -232,3 +234,109 @@ class TestCliConfigGetValue:
             self.parser.parse_args(["config", "get-value", "missing-section", "dags_folder"])
         )
         assert "section/key [missing-section/dags_folder] not found in config" in caplog.text
+
+
+class TestConfigLint:
+    from airflow.cli.commands.remote_commands.config_command import CONFIGS_CHANGES
+
+    @pytest.mark.parametrize("removed_config", CONFIGS_CHANGES)
+    def test_lint_detects_removed_configs(self, removed_config):
+        with mock.patch("airflow.configuration.conf.has_option", return_value=True):
+            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+                config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
+
+            output = temp_stdout.getvalue()
+            assert (
+                f"Removed deprecated `{removed_config.option}` configuration parameter from `{removed_config.section}` section."
+                in output
+            )
+
+            if removed_config.suggestion:
+                assert removed_config.suggestion in output
+
+    @pytest.mark.parametrize(
+        "section, option, suggestion",
+        [
+            (
+                "core",
+                "check_slas",
+                "The SLA feature is removed in Airflow 3.0, to be replaced with Airflow Alerts in Airflow 3.1",
+            ),
+            (
+                "core",
+                "strict_asset_uri_validation",
+                "Asset URI with a defined scheme will now always be validated strictly, raising a hard error on validation failure.",
+            ),
+            (
+                "logging",
+                "enable_task_context_logger",
+                "Remove TaskContextLogger: Replaced by the Log table for better handling of task log messages outside the execution context.",
+            ),
+        ],
+    )
+    def test_lint_with_specific_removed_configs(self, section, option, suggestion):
+        with mock.patch("airflow.configuration.conf.has_option", return_value=True):
+            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+                config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
+
+            output = temp_stdout.getvalue()
+            assert (
+                f"Removed deprecated `{option}` configuration parameter from `{section}` section." in output
+            )
+
+            if suggestion:
+                assert suggestion in output
+
+    def test_lint_specific_section_option(self):
+        with mock.patch("airflow.configuration.conf.has_option", return_value=True):
+            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+                config_command.lint_config(
+                    cli_parser.get_parser().parse_args(
+                        ["config", "lint", "--section", "core", "--option", "check_slas"]
+                    )
+                )
+
+            output = temp_stdout.getvalue()
+            assert "Removed deprecated `check_slas` configuration parameter from `core` section." in output
+
+    def test_lint_with_invalid_section_option(self):
+        with mock.patch("airflow.configuration.conf.has_option", return_value=False):
+            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+                config_command.lint_config(
+                    cli_parser.get_parser().parse_args(
+                        ["config", "lint", "--section", "invalid_section", "--option", "invalid_option"]
+                    )
+                )
+
+            output = temp_stdout.getvalue()
+            assert "No issues found in your airflow.cfg." in output
+
+    def test_lint_detects_multiple_issues(self):
+        with mock.patch(
+            "airflow.configuration.conf.has_option",
+            side_effect=lambda s, o: o in ["check_slas", "strict_asset_uri_validation"],
+        ):
+            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+                config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
+
+            output = temp_stdout.getvalue()
+            assert "Removed deprecated `check_slas` configuration parameter from `core` section." in output
+            assert (
+                "Removed deprecated `strict_asset_uri_validation` configuration parameter from `core` section."
+                in output
+            )
+
+    def test_lint_detects_renamed_configs(self):
+        renamed_config = config_command.CONFIGS_CHANGES[0]
+        with mock.patch("airflow.configuration.conf.has_option", return_value=True):
+            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+                config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
+
+            output = temp_stdout.getvalue()
+            if renamed_config.renamed_to:
+                new_section, new_option = renamed_config.renamed_to
+                assert (
+                    f"Removed deprecated `{renamed_config.option}` configuration parameter from `{renamed_config.section}` section."
+                    in output
+                )
+                assert f"Please use `{new_option}` from section `{new_section}` instead." in output
