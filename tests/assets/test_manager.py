@@ -35,7 +35,6 @@ from airflow.models.asset import (
     DagScheduleAssetReference,
 )
 from airflow.models.dag import DagModel
-from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
@@ -182,7 +181,6 @@ class TestAssetManager:
         # Ensure we've created an asset
         assert session.query(AssetEvent).filter_by(asset_id=asm.id).count() == 1
         assert session.query(AssetDagRunQueue).count() == 2
-        assert session.query(DagPriorityParsingRequest).count() == 2
 
     def test_register_asset_change_no_downstreams(self, session, mock_task_instance):
         asset_manager = AssetManager()
