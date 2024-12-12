@@ -113,13 +113,11 @@ const eventsColumn = (
 
 export const Events = () => {
   const { dagId, runId, taskId } = useParams();
-  const { setTableURLState, tableURLState } = useTableURLState({
-    sorting: [{ desc: true, id: "when" }],
-  });
+  const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
 
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
+  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-when";
 
   const {
     data,

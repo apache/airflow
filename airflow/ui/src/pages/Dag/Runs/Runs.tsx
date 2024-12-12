@@ -111,17 +111,10 @@ export const Runs = () => {
 
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const { setTableURLState, tableURLState } = useTableURLState({
-    sorting: [
-      {
-        desc: true,
-        id: "start_date",
-      },
-    ],
-  });
+  const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
+  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-start_date";
 
   const filteredState = searchParams.get(STATE_PARAM);
 

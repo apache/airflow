@@ -169,14 +169,7 @@ export const DagsList = () => {
   ) as DagRunState;
   const selectedTags = searchParams.getAll(TAGS_PARAM);
 
-  const { setTableURLState, tableURLState } = useTableURLState({
-    sorting: [
-      {
-        desc: true,
-        id: "last_run_start_date",
-      },
-    ],
-  });
+  const { setTableURLState, tableURLState } = useTableURLState();
 
   const { pagination, sorting } = tableURLState;
   const [dagDisplayNamePattern, setDagDisplayNamePattern] = useState(
@@ -184,7 +177,9 @@ export const DagsList = () => {
   );
 
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
+  const orderBy = sort
+    ? `${sort.desc ? "-" : ""}${sort.id}`
+    : "-last_run_start_date";
 
   const handleSearchChange = (value: string) => {
     if (value) {
@@ -260,11 +255,7 @@ export const DagsList = () => {
         <DataTable
           cardDef={cardDef}
           columns={columns}
-          // We need to rename latest_dag_runs so that react-table can handle the sort correctly
-          data={data.dags.map((dag) => ({
-            ...dag,
-            last_run_start_date: dag.latest_dag_runs,
-          }))}
+          data={data.dags}
           displayMode={display}
           errorMessage={<ErrorAlert error={error} />}
           initialState={tableURLState}

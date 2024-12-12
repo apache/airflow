@@ -90,17 +90,10 @@ const columns = (
 
 export const Instances = () => {
   const { dagId = "", taskId } = useParams();
-  const { setTableURLState, tableURLState } = useTableURLState({
-    sorting: [
-      {
-        desc: true,
-        id: "start_date",
-      },
-    ],
-  });
+  const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
+  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-start_date";
 
   const {
     data: task,
