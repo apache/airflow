@@ -27,10 +27,10 @@ Create Date: 2024-11-30 10:47:17.542690
 
 from __future__ import annotations
 
+import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import postgresql
 
-import airflow
+from airflow.migrations.db_types import TIMESTAMP
 
 # revision identifiers, used by Alembic.
 revision = "038dc8bc6284"
@@ -42,27 +42,21 @@ airflow_version = "3.0.0"
 
 def upgrade():
     """Apply update task instance trigger timeout to utcdatetime."""
-    conn = op.get_bind()
-    dialect = conn.dialect.name
-    if dialect == "postgresql":
-        with op.batch_alter_table("task_instance", schema=None) as batch_op:
-            batch_op.alter_column(
-                "trigger_timeout",
-                existing_type=postgresql.TIMESTAMP(),
-                type_=airflow.utils.sqlalchemy.UtcDateTime(timezone=True),
-                existing_nullable=True,
-            )
+    with op.batch_alter_table("task_instance", schema=None) as batch_op:
+        batch_op.alter_column(
+            "trigger_timeout",
+            existing_type=sa.DateTime(),
+            type_=TIMESTAMP(timezone=True),
+            existing_nullable=True,
+        )
 
 
 def downgrade():
     """Unapply update task instance trigger timeout to utcdatetime."""
-    conn = op.get_bind()
-    dialect = conn.dialect.name
-    if dialect == "postgresql":
-        with op.batch_alter_table("task_instance", schema=None) as batch_op:
-            batch_op.alter_column(
-                "trigger_timeout",
-                existing_type=airflow.utils.sqlalchemy.UtcDateTime(timezone=True),
-                type_=postgresql.TIMESTAMP(),
-                existing_nullable=True,
-            )
+    with op.batch_alter_table("task_instance", schema=None) as batch_op:
+        batch_op.alter_column(
+            "trigger_timeout",
+            existing_type=TIMESTAMP(timezone=True),
+            type_=sa.DateTime(),
+            existing_nullable=True,
+        )
