@@ -30,7 +30,7 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
-from airflow.migrations.utils import mysql_drop_constraint_if_exists
+from airflow.migrations.utils import mysql_drop_foreignkey_if_exists
 from airflow.models import ID_LEN
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -44,23 +44,65 @@ airflow_version = "2.10.3"
 
 def upgrade():
     """Rename dag_schedule_dataset_alias_reference constraint."""
-    with op.batch_alter_table("dag_schedule_dataset_alias_reference", schema=None) as batch_op:
-        batch_op.drop_constraint("dsdar_dataset_fkey", type_="foreignkey")
-        batch_op.drop_constraint("dsdar_dag_fkey", type_="foreignkey")
-        batch_op.create_foreign_key(
-            constraint_name="dsdar_dataset_alias_fkey",
-            referent_table="dataset_alias",
-            local_cols=["alias_id"],
-            remote_cols=["id"],
-            ondelete="CASCADE",
-        )
+    dialect = op.get_context().dialect.name
+    if dialect != "sqlite":
+        with op.batch_alter_table("dag_schedule_dataset_alias_reference", schema=None) as batch_op:
+            if dialect == "postgresql":
+                op.execute(
+                    "ALTER TABLE dag_schedule_dataset_alias_reference DROP CONSTRAINT IF EXISTS dsdar_dataset_fkey"
+                )
+                op.execute(
+                    "ALTER TABLE dag_schedule_dataset_alias_reference DROP CONSTRAINT IF EXISTS dsdar_dag_fkey"
+                )
+            if dialect == "mysql":
+                mysql_drop_foreignkey_if_exists(
+                    "dsdar_dataset_fkey", "dag_schedule_dataset_alias_reference", op
+                )
+                mysql_drop_foreignkey_if_exists("dsdar_dag_fkey", "dag_schedule_dataset_alias_reference", op)
+            batch_op.create_foreign_key(
+                constraint_name="dsdar_dataset_alias_fkey",
+                referent_table="dataset_alias",
+                local_cols=["alias_id"],
+                remote_cols=["id"],
+                ondelete="CASCADE",
+            )
 
-        batch_op.create_foreign_key(
-            constraint_name="dsdar_dag_id_fkey",
-            referent_table="dataset_alias",
-            local_cols=["alias_id"],
-            remote_cols=["id"],
-            ondelete="CASCADE",
+            batch_op.create_foreign_key(
+                constraint_name="dsdar_dag_id_fkey",
+                referent_table="dataset_alias",
+                local_cols=["alias_id"],
+                remote_cols=["id"],
+                ondelete="CASCADE",
+            )
+    else:
+        op.create_table(
+            "new_table",
+            sa.Column("alias_id", sa.Integer(), primary_key=True, nullable=False),
+            sa.Column("dag_id", sa.String(ID_LEN), primary_key=True, nullable=False),
+            sa.Column("created_at", UtcDateTime(timezone=True), nullable=False),
+            sa.Column("updated_at", UtcDateTime(timezone=True), nullable=False),
+            sa.ForeignKeyConstraint(
+                ("alias_id",),
+                ["dataset_alias.id"],
+                name="dsdar_dataset_alias_fkey",
+                ondelete="CASCADE",
+            ),
+            sa.ForeignKeyConstraint(
+                columns=("dag_id",),
+                refcolumns=["dag.dag_id"],
+                name="dsdar_dag_id_fkey",
+                ondelete="CASCADE",
+            ),
+            sa.PrimaryKeyConstraint("alias_id", "dag_id", name="dsdar_pkey"),
+        )
+        op.execute(sa.text("INSERT INTO new_table SELECT * FROM dag_schedule_dataset_alias_reference"))
+        op.execute("DROP TABLE dag_schedule_dataset_alias_reference")
+        op.execute("ALTER TABLE new_table RENAME TO dag_schedule_dataset_alias_reference")
+        op.create_index(
+            "idx_dag_schedule_dataset_alias_reference_dag_id",
+            "dag_schedule_dataset_alias_reference",
+            ["dag_id"],
+            unique=False,
         )
 
 
@@ -75,10 +117,10 @@ def downgrade():
             "ALTER TABLE dag_schedule_dataset_alias_reference DROP CONSTRAINT IF EXISTS dsdar_dag_id_fkey"
         )
     elif dialect == "mysql":
-        mysql_drop_constraint_if_exists(
+        mysql_drop_foreignkey_if_exists(
             "dsdar_dataset_alias_fkey", "dag_schedule_dataset_alias_reference", op
         )
-        mysql_drop_constraint_if_exists("dsdar_dag_id_fkey", "dag_schedule_dataset_alias_reference", op)
+        mysql_drop_foreignkey_if_exists("dsdar_dag_id_fkey", "dag_schedule_dataset_alias_reference", op)
     if dialect != "sqlite":
         with op.batch_alter_table("dag_schedule_dataset_alias_reference", schema=None) as batch_op:
             batch_op.create_foreign_key(
@@ -120,3 +162,9 @@ def downgrade():
         op.execute(sa.text("INSERT INTO new_table SELECT * FROM dag_schedule_dataset_alias_reference"))
         op.execute("DROP TABLE dag_schedule_dataset_alias_reference")
         op.execute("ALTER TABLE new_table RENAME TO dag_schedule_dataset_alias_reference")
+        op.create_index(
+            "idx_dag_schedule_dataset_alias_reference_dag_id",
+            "dag_schedule_dataset_alias_reference",
+            ["dag_id"],
+            unique=False,
+        )

@@ -62,7 +62,7 @@ def upgrade():
         batch_op.add_column(sa.Column("name", _STRING_COLUMN_TYPE))
         batch_op.add_column(sa.Column("group", _STRING_COLUMN_TYPE))
     # Fill name from uri column, and group to 'asset'.
-    op.execute(sa.text("update dataset set name=uri, group='asset'"))
+    op.execute("update dataset set name=uri,\"group\"='asset'")
     # Set the name column non-nullable.
     # Now with values in there, we can create the new unique constraint and index.
     # Due to MySQL restrictions, we are also reducing the length on uri.

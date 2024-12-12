@@ -60,7 +60,7 @@ def disable_sqlite_fkeys(op):
         yield op
 
 
-def mysql_drop_constraint_if_exists(constraint_name, table_name, op):
+def mysql_drop_foreignkey_if_exists(constraint_name, table_name, op):
     """Older Mysql versions do not support DROP FOREIGN KEY IF EXISTS."""
     op.execute(f"""
         set @var=if((SELECT true FROM information_schema.TABLE_CONSTRAINTS WHERE
