@@ -35,6 +35,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCom
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
@@ -607,6 +608,11 @@ def test_dag_never_run(admin_client, url):
     clear_db_runs()
     resp = admin_client.post(url, data=form, follow_redirects=True)
     check_content_in_response(f"Cannot mark tasks as {url}, seem that DAG {dag_id} has never run", resp)
+
+
+class _ForceHeartbeatCeleryExecutor(CeleryExecutor):
+    def heartbeat(self):
+        return True
 
 
 def test_delete_dag_button_for_dag_on_scheduler_only(admin_client, dag_maker):
