@@ -61,7 +61,7 @@ if TYPE_CHECKING:
 
     TaskInstanceInCelery = tuple[TaskInstanceKey, CommandType, Optional[str], Task]
 
-OPERATION_TIMEOUT = conf.getfloat("celery", "operation_timeout")
+OPERATION_TIMEOUT = conf.getfloat("celery", "operation_timeout", fallback="1.0")
 
 # Make it constant for unit test.
 CELERY_FETCH_ERR_MSG_HEADER = "Error fetching Celery task state"

@@ -101,24 +101,24 @@ airflow celery worker
 ARG_BROKER_API = Arg(("-a", "--broker-api"), help="Broker API")
 ARG_FLOWER_HOSTNAME = Arg(
     ("-H", "--hostname"),
-    default=conf.get("celery", "FLOWER_HOST"),
+    default=conf.get("celery", "FLOWER_HOST", fallback="localhost"),
     help="Set the hostname on which to run the server",
 )
 ARG_FLOWER_PORT = Arg(
     ("-p", "--port"),
-    default=conf.getint("celery", "FLOWER_PORT"),
+    default=conf.getint("celery", "FLOWER_PORT", fallback=5555),
     type=int,
     help="The port on which to run the server",
 )
 ARG_FLOWER_CONF = Arg(("-c", "--flower-conf"), help="Configuration file for flower")
 ARG_FLOWER_URL_PREFIX = Arg(
     ("-u", "--url-prefix"),
-    default=conf.get("celery", "FLOWER_URL_PREFIX"),
+    default=conf.get("celery", "FLOWER_URL_PREFIX", fallback=""),
     help="URL prefix for Flower",
 )
 ARG_FLOWER_BASIC_AUTH = Arg(
     ("-A", "--basic-auth"),
-    default=conf.get("celery", "FLOWER_BASIC_AUTH"),
+    default=conf.get("celery", "FLOWER_BASIC_AUTH", fallback=""),
     help=(
         "Securing Flower with Basic Authentication. "
         "Accepts user:password pairs separated by a comma. "
@@ -137,7 +137,7 @@ ARG_CONCURRENCY = Arg(
     ("-c", "--concurrency"),
     type=int,
     help="The number of worker processes",
-    default=conf.getint("celery", "worker_concurrency"),
+    default=conf.getint("celery", "worker_concurrency", fallback=8),
 )
 ARG_CELERY_HOSTNAME = Arg(
     ("-H", "--celery-hostname"),

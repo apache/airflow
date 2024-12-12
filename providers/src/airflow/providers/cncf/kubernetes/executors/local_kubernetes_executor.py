@@ -62,7 +62,7 @@ class LocalKubernetesExecutor(BaseExecutor):
 
     callback_sink: BaseCallbackSink | None = None
 
-    KUBERNETES_QUEUE = conf.get("local_kubernetes_executor", "kubernetes_queue")
+    KUBERNETES_QUEUE = conf.get("local_kubernetes_executor", "kubernetes_queue", fallback="kubernetes")
 
     def __init__(self, local_executor: LocalExecutor, kubernetes_executor: KubernetesExecutor):
         super().__init__()
