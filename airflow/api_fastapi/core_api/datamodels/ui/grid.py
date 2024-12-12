@@ -34,7 +34,7 @@ class GridTaskInstanceSummary(BaseModel):
     start_date: datetime | None
     end_date: datetime | None
     queued_dttm: datetime | None
-    states: dict[str, int] | None
+    child_states: dict[str, int] | None
     task_count: int
     state: TaskInstanceState | None
     note: str | None
