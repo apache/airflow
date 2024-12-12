@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-12T07:45:36.520811
+# This constraints file was automatically generated on 2024-12-12T19:40:23.194721
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -136,7 +136,7 @@ cattrs==24.1.2
 celery==5.4.0
 certifi==2024.8.30
 cffi==1.17.1
-cfn-lint==1.22.0
+cfn-lint==1.22.1
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.0
@@ -380,7 +380,7 @@ nh3==0.2.19
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.57.2
+openai==1.57.3
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.25.0
@@ -398,7 +398,7 @@ opentelemetry-proto==1.27.0
 opentelemetry-sdk==1.27.0
 opentelemetry-semantic-conventions==0.48b0
 opsgenie-sdk==2.1.5
-oracledb==2.5.0
+oracledb==2.5.1
 ordered-set==4.1.0
 orjson==3.10.12
 oss2==2.19.1
