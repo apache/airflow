@@ -22,7 +22,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 
@@ -36,7 +36,7 @@ class GridTaskInstanceSummary(BaseModel):
     queued_dttm: datetime | None
     states: dict[str, int] | None
     task_count: int
-    state: str | None
+    state: TaskInstanceState | None
     note: str | None
 
 
