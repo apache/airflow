@@ -42,6 +42,7 @@ from airflow.executors import executor_loader
 from airflow.executors.executor_utils import ExecutorName
 from airflow.executors.local_executor import LocalExecutor
 from airflow.providers.amazon.aws.executors.ecs.ecs_executor import AwsEcsExecutor
+from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 
 from tests_common.test_utils.config import conf_vars
 
@@ -166,7 +167,7 @@ class TestCli:
             # force re-evaluation of cli commands (done in top level code)
             reload(cli_parser)
 
-    @patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.get_cli_commands")
+    @patch.object(CeleryExecutor, "get_cli_commands")
     @patch.object(AwsEcsExecutor, "get_cli_commands")
     def test_hybrid_executor_get_cli_commands(
         self, ecs_executor_cli_commands_mock, celery_executor_cli_commands_mock
@@ -200,7 +201,7 @@ class TestCli:
         assert celery_executor_command.name in commands
         assert ecs_executor_command.name in commands
 
-    @patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.get_cli_commands")
+    @patch.object(CeleryExecutor, "get_cli_commands")
     @patch.object(AwsEcsExecutor, "get_cli_commands")
     def test_hybrid_executor_get_cli_commands_with_error(
         self, ecs_executor_cli_commands_mock, celery_executor_cli_commands_mock, caplog
@@ -377,7 +378,7 @@ class TestCli:
             ("custom_executor.CustomKubernetesExecutor", ["kubernetes"]),
         ],
     )
-    def test_cli_parser_executors(self, custom_executors, executor, expected_args):
+    def test_cli_parser_executors(self, executor, expected_args):
         """Test that CLI commands for the configured executor are present"""
         for expected_arg in expected_args:
             with (

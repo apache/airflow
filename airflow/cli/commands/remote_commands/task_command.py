@@ -405,7 +405,6 @@ class TaskCommandMarker:
 
 
 @cli_utils.action_cli(check_db=False)
-@providers_configuration_loaded
 def task_run(args, dag: DAG | None = None) -> TaskReturnCode | None:
     """
     Run a single task instance.

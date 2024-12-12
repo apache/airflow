@@ -950,12 +950,8 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
         log.info("Log template table does not exist (added in 2.3.0); skipping log template sync.")
         return
 
-    es_log_it_template_fallback = "{dag_id}-{task_id}-{execution_date}-{try_number}"
-
     filename = conf.get("logging", "log_filename_template")
-    elasticsearch_id = conf.get("elasticsearch", "log_id_template", fallback=es_log_it_template_fallback)
-
-    # TODO: The elasticsearch specific stuff here is probably inappropriate - provider is bleeding into core
+    elasticsearch_id = conf.get("elasticsearch", "log_id_template")
 
     stored = session.execute(
         select(
@@ -969,9 +965,7 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     # If we have an empty table, and the default values exist, we will seed the
     # table with values from pre 2.3.0, so old logs will still be retrievable.
     if not stored:
-        is_default_log_id = elasticsearch_id == conf.get_default_value(
-            "elasticsearch", "log_id_template", fallback=es_log_it_template_fallback
-        )
+        is_default_log_id = elasticsearch_id == conf.get_default_value("elasticsearch", "log_id_template")
         is_default_filename = filename == conf.get_default_value("logging", "log_filename_template")
         if is_default_log_id and is_default_filename:
             session.add(
