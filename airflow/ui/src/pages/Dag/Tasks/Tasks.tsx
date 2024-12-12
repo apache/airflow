@@ -69,9 +69,8 @@ export const Tasks = () => {
     dagId,
   });
 
-  // TODO: Replace dagIdPattern with dagId once supported for better matching
   const { data: runsData } = useDagsServiceRecentDagRuns(
-    { dagIdPattern: dagId, dagRunsLimit: 14 },
+    { dagIds: [dagId], dagRunsLimit: 14 },
     undefined,
     {
       enabled: Boolean(dagId),
