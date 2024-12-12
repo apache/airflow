@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Heading, VStack } from "@chakra-ui/react";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 
 import { useDagServiceGetDagDetails } from "openapi/queries";
 import { Alert, Dialog } from "src/components/ui";
@@ -44,7 +44,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   open,
 }) => {
   const { data, error } = useDagServiceGetDagDetails({ dagId });
-  let initialConf: string = "{}";
+  let initialConf = "{}";
   let parseError: unknown = undefined;
 
   if (!Boolean(error)) {
@@ -55,19 +55,23 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
     }
   }
 
-  const initialDagParams = useMemo(
-    () => ({
-      configJson: initialConf,
-      dagId,
-      dataIntervalEnd: "",
-      dataIntervalStart: "",
-      notes: "",
-      runId: "",
-    }),
-    [dagId, initialConf],
-  );
+  const [dagParams, setDagParams] = useState<DagParams>({
+    configJson: initialConf,
+    dagId,
+    dataIntervalEnd: "",
+    dataIntervalStart: "",
+    notes: "",
+    runId: "",
+  });
 
-  const [dagParams, setDagParams] = useState<DagParams>(initialDagParams);
+  useEffect(() => {
+    const newConfigJson = Boolean(error) ? "{}" : initialConf; // Fallback to "{}" if there's an error
+
+    setDagParams((prevParams) => ({
+      ...prevParams,
+      configJson: newConfigJson,
+    }));
+  }, [initialConf, error]);
 
   const handleTrigger = useCallback(
     (updatedDagParams: DagParams) => {
@@ -79,9 +83,16 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
 
   useEffect(() => {
     if (!open) {
-      setDagParams(initialDagParams);
+      setDagParams({
+        configJson: initialConf,
+        dagId,
+        dataIntervalEnd: "",
+        dataIntervalStart: "",
+        notes: "",
+        runId: "",
+      });
     }
-  }, [open, initialDagParams]);
+  }, [open, initialConf, dagId]);
 
   return (
     <Dialog.Root onOpenChange={onClose} open={open} size="xl">
