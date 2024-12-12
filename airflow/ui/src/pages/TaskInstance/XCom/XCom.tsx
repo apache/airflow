@@ -23,18 +23,14 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { useXcomServiceGetXcomEntries } from "openapi/queries";
 import type { XComResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
+import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 
 import { XComEntry } from "./XComEntry";
 
-const XComColumn = ({
-  runId,
-}: {
-  runId: string;
-}): Array<ColumnDef<XComResponse>> => [
+const XComColumn = (): Array<ColumnDef<XComResponse>> => [
   {
     accessorKey: "key",
-    enableSorting: true,
     header: "Key",
     meta: {
       skeletonWidth: 10,
@@ -45,7 +41,7 @@ const XComColumn = ({
       <XComEntry
         dagId={original.dag_id}
         mapIndex={original.map_index}
-        runId={runId}
+        runId={original.run_id}
         taskId={original.task_id}
         xcomKey={original.key}
       />
@@ -58,15 +54,20 @@ const XComColumn = ({
 ];
 
 export const XCom = () => {
-  const { dagId = "", runId = "", taskId = "" } = useParams();
+  const { dagId = "~", runId = "~", taskId = "~" } = useParams();
   const [searchParams] = useSearchParams();
   const mapIndexParam = searchParams.get("map_index");
   const mapIndex = parseInt(mapIndexParam ?? "-1", 10);
 
+  const { setTableURLState, tableURLState } = useTableURLState();
+  const { pagination } = tableURLState;
+
   const { data, error, isFetching, isLoading } = useXcomServiceGetXcomEntries({
     dagId,
     dagRunId: runId,
+    limit: pagination.pageSize,
     mapIndex,
+    offset: pagination.pageIndex * pagination.pageSize,
     taskId,
   });
 
@@ -74,12 +75,14 @@ export const XCom = () => {
     <Box>
       <ErrorAlert error={error} />
       <DataTable
-        columns={XComColumn({ runId })}
+        columns={XComColumn()}
         data={data ? data.xcom_entries : []}
         displayMode="table"
+        initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
         modelName="XCom"
+        onStateChange={setTableURLState}
         skeletonCount={undefined}
         total={data ? data.total_entries : 0}
       />

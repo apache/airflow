@@ -2222,6 +2222,8 @@ paths:
         in: path
         required: true
         schema:
+          enum:
+          - '~'
           const: '~'
           type: string
           title: Dag Id
@@ -5133,6 +5135,8 @@ paths:
         in: path
         required: true
         schema:
+          enum:
+          - '~'
           const: '~'
           type: string
           title: Dag Id
@@ -5140,6 +5144,8 @@ paths:
         in: path
         required: true
         schema:
+          enum:
+          - '~'
           const: '~'
           type: string
           title: Dag Run Id
@@ -9252,7 +9258,7 @@ components:
       properties:
         __type:
           type: string
-          title: Type
+          title: '  Type'
           default: TimeDelta
         days:
           type: integer
@@ -9481,6 +9487,9 @@ components:
         dag_id:
           type: string
           title: Dag Id
+        run_id:
+          type: string
+          title: Run Id
       type: object
       required:
       - key
@@ -9489,6 +9498,7 @@ components:
       - map_index
       - task_id
       - dag_id
+      - run_id
       title: XComResponse
       description: Serializer for a xcom item.
     XComResponseNative:
@@ -9513,6 +9523,9 @@ components:
         dag_id:
           type: string
           title: Dag Id
+        run_id:
+          type: string
+          title: Run Id
         value:
           title: Value
       type: object
@@ -9523,6 +9536,7 @@ components:
       - map_index
       - task_id
       - dag_id
+      - run_id
       - value
       title: XComResponseNative
       description: XCom response serializer with native return type.
@@ -9548,6 +9562,9 @@ components:
         dag_id:
           type: string
           title: Dag Id
+        run_id:
+          type: string
+          title: Run Id
         value:
           anyOf:
           - type: string
@@ -9561,6 +9578,7 @@ components:
       - map_index
       - task_id
       - dag_id
+      - run_id
       - value
       title: XComResponseString
       description: XCom response serializer with string return type.

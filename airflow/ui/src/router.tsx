@@ -53,6 +53,10 @@ export const router = createBrowserRouter(
           path: "events",
         },
         {
+          element: <XCom />,
+          path: "xcoms",
+        },
+        {
           element: <Variables />,
           path: "variables",
         },
