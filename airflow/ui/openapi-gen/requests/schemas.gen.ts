@@ -3185,7 +3185,16 @@ export const $NodeResponse = {
     },
     type: {
       type: "string",
-      enum: ["join", "task", "asset_condition"],
+      enum: [
+        "join",
+        "task",
+        "asset-condition",
+        "asset",
+        "asset-alias",
+        "dag",
+        "sensor",
+        "trigger",
+      ],
       title: "Type",
     },
     operator: {
