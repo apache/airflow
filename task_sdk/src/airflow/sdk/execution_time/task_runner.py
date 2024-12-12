@@ -23,11 +23,11 @@ import os
 import sys
 from datetime import datetime, timezone
 from io import FileIO
-from typing import TYPE_CHECKING, TextIO
+from typing import TYPE_CHECKING, Generic, TextIO, TypeVar
 
 import attrs
 import structlog
-from pydantic import ConfigDict, TypeAdapter
+from pydantic import BaseModel, ConfigDict, TypeAdapter
 
 from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
 from airflow.sdk.definitions.baseoperator import BaseOperator
@@ -77,17 +77,24 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
     return RuntimeTaskInstance.model_construct(**what.ti.model_dump(exclude_unset=True), task=task)
 
 
+SendMsgType = TypeVar("SendMsgType", bound=BaseModel)
+ReceiveMsgType = TypeVar("ReceiveMsgType", bound=BaseModel)
+
+
 @attrs.define()
-class CommsDecoder:
+class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
     """Handle communication between the task in this process and the supervisor parent process."""
 
     input: TextIO
 
     request_socket: FileIO = attrs.field(init=False, default=None)
 
-    decoder: TypeAdapter[ToTask] = attrs.field(init=False, factory=lambda: TypeAdapter(ToTask))
+    # We could be "clever" here and set the default to this based type parameters and a custom
+    # `__class_getitem__`, but that's a lot of code the one subclass we've got currently. So we'll just use a
+    # "sort of wrong default"
+    decoder: TypeAdapter[ReceiveMsgType] = attrs.field(factory=lambda: TypeAdapter(ToTask), repr=False)
 
-    def get_message(self) -> ToTask:
+    def get_message(self) -> ReceiveMsgType:
         """
         Get a message from the parent.
 
@@ -106,7 +113,7 @@ class CommsDecoder:
                 self.request_socket = os.fdopen(msg.requests_fd, "wb", buffering=0)
         return msg
 
-    def send_request(self, log: Logger, msg: ToSupervisor):
+    def send_request(self, log: Logger, msg: SendMsgType):
         encoded_msg = msg.model_dump_json().encode() + b"\n"
 
         log.debug("Sending request", json=encoded_msg)
@@ -123,7 +130,7 @@ class CommsDecoder:
 #   deeply nested execution stack.
 # - By defining `SUPERVISOR_COMMS` as a global, it ensures that this communication mechanism is readily
 #   accessible wherever needed during task execution without modifying every layer of the call stack.
-SUPERVISOR_COMMS: CommsDecoder
+SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 
 # State machine!
 # 1. Start up (receive details from supervisor)
