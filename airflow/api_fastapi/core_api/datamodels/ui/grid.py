@@ -20,7 +20,10 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunType
 
 
 class GridTaskInstanceSummary(BaseModel):
@@ -33,19 +36,19 @@ class GridTaskInstanceSummary(BaseModel):
     queued_dttm: datetime | None
     states: dict[str, int] | None
     task_count: int
-    overall_state: str | None
+    state: str | None
     note: str | None
 
 
 class GridDAGRunwithTIs(BaseModel):
     """DAG Run model for the Grid UI."""
 
-    run_id: str
+    run_id: str = Field(serialization_alias="dag_run_id", validation_alias="run_id")
     queued_at: datetime | None
     start_date: datetime | None
     end_date: datetime | None
-    state: str
-    run_type: str
+    state: DagRunState
+    run_type: DagRunType
     data_interval_start: datetime | None
     data_interval_end: datetime | None
     version_number: UUID | None

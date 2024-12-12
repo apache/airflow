@@ -143,7 +143,7 @@ class TestGetGridDataEndpoint:
                     "end_date": "2024-12-01T00:00:00Z",
                     "note": None,
                     "queued_at": None,
-                    "run_id": "run_1",
+                    "dag_run_id": "run_1",
                     "run_type": "scheduled",
                     "start_date": "2016-01-01T00:00:00Z",
                     "state": "success",
@@ -151,7 +151,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": "success",
+                            "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -176,7 +176,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": "success",
+                            "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -201,7 +201,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": "success",
+                            "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -214,7 +214,7 @@ class TestGetGridDataEndpoint:
                                 "running": 0,
                                 "scheduled": 0,
                                 "skipped": 0,
-                                "success": 6,
+                                "success": 5,
                                 "up_for_reschedule": 0,
                                 "up_for_retry": 0,
                                 "upstream_failed": 0,
@@ -226,7 +226,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": "success",
+                            "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -251,7 +251,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": "success",
+                            "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -276,7 +276,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": "success",
+                            "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -301,7 +301,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": "success",
+                            "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -332,7 +332,7 @@ class TestGetGridDataEndpoint:
                     "end_date": "2024-12-01T00:00:00Z",
                     "note": None,
                     "queued_at": None,
-                    "run_id": "run_2",
+                    "dag_run_id": "run_2",
                     "run_type": "manual",
                     "start_date": "2016-01-01T00:00:00Z",
                     "state": "failed",
@@ -340,7 +340,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": None,
+                            "state": None,
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -365,7 +365,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": None,
+                            "state": None,
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -390,13 +390,13 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": None,
+                            "state": None,
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
                                 "deferred": 0,
                                 "failed": 0,
-                                "no_status": 6,
+                                "no_status": 5,
                                 "queued": 0,
                                 "removed": 0,
                                 "restarting": 0,
@@ -415,7 +415,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": None,
+                            "state": None,
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -440,7 +440,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": "success",
+                            "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -465,7 +465,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": None,
+                            "state": None,
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -490,7 +490,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": None,
+                            "state": None,
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -530,7 +530,7 @@ class TestGetGridDataEndpoint:
                     "end_date": "2024-12-01T00:00:00Z",
                     "note": None,
                     "queued_at": None,
-                    "run_id": "run_2",
+                    "dag_run_id": "run_2",
                     "run_type": "manual",
                     "start_date": "2016-01-01T00:00:00Z",
                     "state": "failed",
@@ -538,7 +538,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": None,
+                            "state": None,
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -563,7 +563,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": None,
+                            "state": None,
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -588,13 +588,13 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": None,
+                            "state": None,
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
                                 "deferred": 0,
                                 "failed": 0,
-                                "no_status": 6,
+                                "no_status": 5,
                                 "queued": 0,
                                 "removed": 0,
                                 "restarting": 0,
@@ -613,7 +613,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": None,
+                            "state": None,
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -638,7 +638,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": "success",
+                            "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -663,7 +663,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": None,
+                            "state": None,
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -688,7 +688,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": None,
+                            "state": None,
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -719,7 +719,7 @@ class TestGetGridDataEndpoint:
                     "end_date": "2024-12-01T00:00:00Z",
                     "note": None,
                     "queued_at": None,
-                    "run_id": "run_1",
+                    "dag_run_id": "run_1",
                     "run_type": "scheduled",
                     "start_date": "2016-01-01T00:00:00Z",
                     "state": "success",
@@ -727,7 +727,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": "success",
+                            "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -752,7 +752,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": "success",
+                            "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -777,7 +777,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": "success",
+                            "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -790,7 +790,7 @@ class TestGetGridDataEndpoint:
                                 "running": 0,
                                 "scheduled": 0,
                                 "skipped": 0,
-                                "success": 6,
+                                "success": 5,
                                 "up_for_reschedule": 0,
                                 "up_for_retry": 0,
                                 "upstream_failed": 0,
@@ -802,7 +802,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": "success",
+                            "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -827,7 +827,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": "success",
+                            "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -852,7 +852,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": "success",
+                            "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -877,7 +877,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": "success",
+                            "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -919,7 +919,7 @@ class TestGetGridDataEndpoint:
                     "end_date": "2024-12-01T00:00:00Z",
                     "note": None,
                     "queued_at": None,
-                    "run_id": "run_1",
+                    "dag_run_id": "run_1",
                     "run_type": "scheduled",
                     "start_date": "2016-01-01T00:00:00Z",
                     "state": "success",
@@ -927,7 +927,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": "success",
+                            "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -952,7 +952,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": "success",
+                            "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -983,7 +983,7 @@ class TestGetGridDataEndpoint:
                     "end_date": "2024-12-01T00:00:00Z",
                     "note": None,
                     "queued_at": None,
-                    "run_id": "run_2",
+                    "dag_run_id": "run_2",
                     "run_type": "manual",
                     "start_date": "2016-01-01T00:00:00Z",
                     "state": "failed",
@@ -991,7 +991,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": None,
+                            "state": None,
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -1016,7 +1016,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": None,
+                            "state": None,
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -1058,7 +1058,7 @@ class TestGetGridDataEndpoint:
                     "end_date": "2024-12-01T00:00:00Z",
                     "note": None,
                     "queued_at": None,
-                    "run_id": "run_1",
+                    "dag_run_id": "run_1",
                     "run_type": "scheduled",
                     "start_date": "2016-01-01T00:00:00Z",
                     "state": "success",
@@ -1066,7 +1066,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": "success",
+                            "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -1091,7 +1091,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": "success",
+                            "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -1122,7 +1122,7 @@ class TestGetGridDataEndpoint:
                     "end_date": "2024-12-01T00:00:00Z",
                     "note": None,
                     "queued_at": None,
-                    "run_id": "run_2",
+                    "dag_run_id": "run_2",
                     "run_type": "manual",
                     "start_date": "2016-01-01T00:00:00Z",
                     "state": "failed",
@@ -1130,7 +1130,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": None,
+                            "state": None,
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
@@ -1155,7 +1155,7 @@ class TestGetGridDataEndpoint:
                         {
                             "end_date": None,
                             "note": None,
-                            "overall_state": None,
+                            "state": None,
                             "queued_dttm": None,
                             "start_date": None,
                             "states": {
