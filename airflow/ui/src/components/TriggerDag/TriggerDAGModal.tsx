@@ -21,6 +21,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import React, { useCallback, useEffect, useState } from "react";
 
 import {
+  useDagRunServiceGetDagRunsKey,
   useDagRunServiceTriggerDagRun,
   useDagServiceGetDagDetails,
   useDagServiceGetDagsKey,
@@ -96,7 +97,10 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
     await queryClient.invalidateQueries({
       queryKey: [useDagsServiceRecentDagRunsKey],
     });
-    onClose();
+
+    await queryClient.invalidateQueries({
+      queryKey: [useDagRunServiceGetDagRunsKey],
+    });
   };
   const { mutate } = useDagRunServiceTriggerDagRun({
     onSuccess,
@@ -134,6 +138,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
 
   const handleTrigger = (updatedDagParams: DagParams) => {
     onTrigger(updatedDagParams);
+    onClose();
   };
 
   useEffect(() => {
