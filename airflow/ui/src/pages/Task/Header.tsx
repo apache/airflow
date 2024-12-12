@@ -20,7 +20,7 @@ import { Box, Flex, Heading, HStack, SimpleGrid, Text } from "@chakra-ui/react";
 
 import type { TaskResponse } from "openapi/requests/types.gen";
 import { TaskIcon } from "src/assets/TaskIcon";
-import DagDocumentation from "src/components/DagDocumentation";
+import DocumentationModal from "src/components/DocumentationModal";
 import { Stat } from "src/components/Stat";
 
 export const Header = ({ task }: { readonly task: TaskResponse }) => (
@@ -38,7 +38,7 @@ export const Header = ({ task }: { readonly task: TaskResponse }) => (
         </Flex>
       </HStack>
       {task.doc_md === null ? undefined : (
-        <DagDocumentation docMd={task.doc_md} />
+        <DocumentationModal docMd={task.doc_md} docType="Task" />
       )}
     </Flex>
     <SimpleGrid columns={4} gap={4}>
