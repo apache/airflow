@@ -53,6 +53,7 @@ _STRING_COLUMN_TYPE = sa.String(length=1500).with_variant(
 
 
 def upgrade():
+    dialect = op.get_bind().dialect.name
     # Fix index name on DatasetAlias.
     with op.batch_alter_table("dataset_alias", schema=None) as batch_op:
         batch_op.drop_index("idx_name_unique")
@@ -62,7 +63,11 @@ def upgrade():
         batch_op.add_column(sa.Column("name", _STRING_COLUMN_TYPE))
         batch_op.add_column(sa.Column("group", _STRING_COLUMN_TYPE))
     # Fill name from uri column, and group to 'asset'.
-    op.execute("update dataset set name=uri,\"group\"='asset'")
+    if dialect == "mysql":
+        stmt = "UPDATE dataset SET name = uri, `group` = 'asset'"
+    else:
+        stmt = "UPDATE dataset SET name = uri, \"group\" = 'asset'"
+    op.execute(stmt)
     # Set the name column non-nullable.
     # Now with values in there, we can create the new unique constraint and index.
     # Due to MySQL restrictions, we are also reducing the length on uri.
