@@ -259,9 +259,9 @@ def fill_task_instance_summaries(
                 start_date=ti_start_date,
                 end_date=ti_end_date,
                 queued_dttm=ti_queued_dttm,
-                states=all_states,
+                child_states=all_states,
                 task_count=_get_total_task_count(run_id, task_node_map[task_id]["task_count"], session),
-                state=overall_states[(task_id, run_id)]
+                state=TaskInstanceState[overall_states[(task_id, run_id)].upper()]
                 if overall_states[(task_id, run_id)] != "no_status"
                 else None,
                 note=ti_note,

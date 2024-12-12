@@ -154,7 +154,7 @@ class TestGetGridDataEndpoint:
                             "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 0,
@@ -179,7 +179,7 @@ class TestGetGridDataEndpoint:
                             "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 0,
@@ -204,7 +204,7 @@ class TestGetGridDataEndpoint:
                             "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 0,
@@ -229,7 +229,7 @@ class TestGetGridDataEndpoint:
                             "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 0,
@@ -254,7 +254,7 @@ class TestGetGridDataEndpoint:
                             "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 0,
@@ -279,7 +279,7 @@ class TestGetGridDataEndpoint:
                             "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 0,
@@ -304,7 +304,7 @@ class TestGetGridDataEndpoint:
                             "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 0,
@@ -343,7 +343,7 @@ class TestGetGridDataEndpoint:
                             "state": None,
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 3,
@@ -368,7 +368,7 @@ class TestGetGridDataEndpoint:
                             "state": None,
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 2,
@@ -393,7 +393,7 @@ class TestGetGridDataEndpoint:
                             "state": None,
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 5,
@@ -418,7 +418,7 @@ class TestGetGridDataEndpoint:
                             "state": None,
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 3,
@@ -443,7 +443,7 @@ class TestGetGridDataEndpoint:
                             "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 0,
@@ -468,7 +468,7 @@ class TestGetGridDataEndpoint:
                             "state": None,
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 2,
@@ -493,7 +493,7 @@ class TestGetGridDataEndpoint:
                             "state": None,
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 4,
@@ -541,7 +541,7 @@ class TestGetGridDataEndpoint:
                             "state": None,
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 3,
@@ -566,7 +566,7 @@ class TestGetGridDataEndpoint:
                             "state": None,
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 2,
@@ -591,7 +591,7 @@ class TestGetGridDataEndpoint:
                             "state": None,
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 5,
@@ -616,7 +616,7 @@ class TestGetGridDataEndpoint:
                             "state": None,
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 3,
@@ -641,7 +641,7 @@ class TestGetGridDataEndpoint:
                             "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 0,
@@ -666,7 +666,7 @@ class TestGetGridDataEndpoint:
                             "state": None,
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 2,
@@ -691,7 +691,7 @@ class TestGetGridDataEndpoint:
                             "state": None,
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 4,
@@ -730,7 +730,7 @@ class TestGetGridDataEndpoint:
                             "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 0,
@@ -755,7 +755,7 @@ class TestGetGridDataEndpoint:
                             "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 0,
@@ -780,7 +780,7 @@ class TestGetGridDataEndpoint:
                             "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 0,
@@ -805,7 +805,7 @@ class TestGetGridDataEndpoint:
                             "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 0,
@@ -830,7 +830,7 @@ class TestGetGridDataEndpoint:
                             "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 0,
@@ -855,7 +855,7 @@ class TestGetGridDataEndpoint:
                             "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 0,
@@ -880,7 +880,7 @@ class TestGetGridDataEndpoint:
                             "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 0,
@@ -930,7 +930,7 @@ class TestGetGridDataEndpoint:
                             "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 0,
@@ -955,7 +955,7 @@ class TestGetGridDataEndpoint:
                             "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 0,
@@ -994,7 +994,7 @@ class TestGetGridDataEndpoint:
                             "state": None,
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 3,
@@ -1019,7 +1019,7 @@ class TestGetGridDataEndpoint:
                             "state": None,
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 3,
@@ -1069,7 +1069,7 @@ class TestGetGridDataEndpoint:
                             "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 0,
@@ -1094,7 +1094,7 @@ class TestGetGridDataEndpoint:
                             "state": "success",
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 0,
@@ -1133,7 +1133,7 @@ class TestGetGridDataEndpoint:
                             "state": None,
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 3,
@@ -1158,7 +1158,7 @@ class TestGetGridDataEndpoint:
                             "state": None,
                             "queued_dttm": None,
                             "start_date": None,
-                            "states": {
+                            "child_states": {
                                 "deferred": 0,
                                 "failed": 0,
                                 "no_status": 3,
