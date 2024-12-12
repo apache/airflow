@@ -20,7 +20,7 @@
  */
 import { render, screen } from "@testing-library/react";
 import type {
-  DagTagPydantic,
+  DagTagResponse,
   DAGWithLatestDagRunsResponse,
 } from "openapi-gen/requests/types.gen";
 import { afterEach, describe, it, vi, expect } from "vitest";
@@ -74,7 +74,7 @@ describe("DagCard", () => {
       { dag_id: "id", name: "tag2" },
       { dag_id: "id", name: "tag3" },
       { dag_id: "id", name: "tag4" },
-    ] satisfies Array<DagTagPydantic>;
+    ] satisfies Array<DagTagResponse>;
 
     const expandedMockDag = {
       ...mockDag,
