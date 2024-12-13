@@ -137,6 +137,8 @@ export const UseAssetServiceGetAssetEventsKeyFn = (
     sourceMapIndex,
     sourceRunId,
     sourceTaskId,
+    timestampGte,
+    timestampLte,
   }: {
     assetId?: number;
     limit?: number;
@@ -146,6 +148,8 @@ export const UseAssetServiceGetAssetEventsKeyFn = (
     sourceMapIndex?: number;
     sourceRunId?: string;
     sourceTaskId?: string;
+    timestampGte?: string;
+    timestampLte?: string;
   } = {},
   queryKey?: Array<unknown>,
 ) => [
@@ -160,6 +164,8 @@ export const UseAssetServiceGetAssetEventsKeyFn = (
       sourceMapIndex,
       sourceRunId,
       sourceTaskId,
+      timestampGte,
+      timestampLte,
     },
   ]),
 ];
@@ -312,6 +318,7 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    dagIds,
     dagRunsLimit,
     lastDagRunState,
     limit,
@@ -323,6 +330,7 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    dagIds?: string[];
     dagRunsLimit?: number;
     lastDagRunState?: DagRunState;
     limit?: number;
@@ -339,6 +347,7 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
     {
       dagDisplayNamePattern,
       dagIdPattern,
+      dagIds,
       dagRunsLimit,
       lastDagRunState,
       limit,
@@ -384,11 +393,13 @@ export const useStructureServiceStructureDataKey =
 export const UseStructureServiceStructureDataKeyFn = (
   {
     dagId,
+    externalDependencies,
     includeDownstream,
     includeUpstream,
     root,
   }: {
     dagId: string;
+    externalDependencies?: boolean;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
     root?: string;
@@ -396,7 +407,9 @@ export const UseStructureServiceStructureDataKeyFn = (
   queryKey?: Array<unknown>,
 ) => [
   useStructureServiceStructureDataKey,
-  ...(queryKey ?? [{ dagId, includeDownstream, includeUpstream, root }]),
+  ...(queryKey ?? [
+    { dagId, externalDependencies, includeDownstream, includeUpstream, root },
+  ]),
 ];
 export type BackfillServiceListBackfillsDefaultResponse = Awaited<
   ReturnType<typeof BackfillService.listBackfills>
@@ -408,6 +421,34 @@ export type BackfillServiceListBackfillsQueryResult<
 export const useBackfillServiceListBackfillsKey =
   "BackfillServiceListBackfills";
 export const UseBackfillServiceListBackfillsKeyFn = (
+  {
+    active,
+    dagId,
+    limit,
+    offset,
+    orderBy,
+  }: {
+    active?: boolean;
+    dagId?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useBackfillServiceListBackfillsKey,
+  ...(queryKey ?? [{ active, dagId, limit, offset, orderBy }]),
+];
+export type BackfillServiceListBackfills1DefaultResponse = Awaited<
+  ReturnType<typeof BackfillService.listBackfills1>
+>;
+export type BackfillServiceListBackfills1QueryResult<
+  TData = BackfillServiceListBackfills1DefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useBackfillServiceListBackfills1Key =
+  "BackfillServiceListBackfills1";
+export const UseBackfillServiceListBackfills1KeyFn = (
   {
     dagId,
     limit,
@@ -421,7 +462,7 @@ export const UseBackfillServiceListBackfillsKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [
-  useBackfillServiceListBackfillsKey,
+  useBackfillServiceListBackfills1Key,
   ...(queryKey ?? [{ dagId, limit, offset, orderBy }]),
 ];
 export type BackfillServiceGetBackfillDefaultResponse = Awaited<
@@ -1144,6 +1185,8 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     startDateGte,
     startDateLte,
     state,
+    taskDisplayNamePattern,
+    taskId,
     updatedAtGte,
     updatedAtLte,
   }: {
@@ -1164,6 +1207,8 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
+    taskDisplayNamePattern?: string;
+    taskId?: string;
     updatedAtGte?: string;
     updatedAtLte?: string;
   },
@@ -1189,6 +1234,8 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
       startDateGte,
       startDateLte,
       state,
+      taskDisplayNamePattern,
+      taskId,
       updatedAtGte,
       updatedAtLte,
     },

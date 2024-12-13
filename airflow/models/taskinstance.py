@@ -60,6 +60,7 @@ from sqlalchemy import (
     inspect,
     or_,
     text,
+    tuple_,
     update,
 )
 from sqlalchemy.dialects import postgresql
@@ -100,7 +101,7 @@ from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import LazyXComSelectSequence, XCom
 from airflow.plugins_manager import integrate_macros_plugins
-from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey
 from airflow.sentry import Sentry
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
@@ -162,8 +163,6 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
     from airflow.sdk.definitions.dag import DAG
-    from airflow.serialization.pydantic.asset import AssetEventPydantic
-    from airflow.serialization.pydantic.dag import DagModelPydantic
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Literal, TypeGuard
     from airflow.utils.task_group import TaskGroup
@@ -983,7 +982,7 @@ def _get_template_context(
             return None
         return timezone.coerce_datetime(dagrun.end_date)
 
-    def get_triggering_events() -> dict[str, list[AssetEvent | AssetEventPydantic]]:
+    def get_triggering_events() -> dict[str, list[AssetEvent]]:
         if TYPE_CHECKING:
             assert session is not None
 
@@ -994,7 +993,7 @@ def _get_template_context(
         if dag_run not in session:
             dag_run = session.merge(dag_run, load=False)
         asset_events = dag_run.consumed_asset_events
-        triggering_events: dict[str, list[AssetEvent | AssetEventPydantic]] = defaultdict(list)
+        triggering_events: dict[str, list[AssetEvent]] = defaultdict(list)
         for event in asset_events:
             if event.asset:
                 triggering_events[event.asset.uri].append(event)
@@ -1714,11 +1713,8 @@ class TaskInstance(Base, LoggingMixin):
     # The trigger to resume on if we are in state DEFERRED
     trigger_id = Column(Integer)
 
-    # Optional timeout datetime for the trigger (past this, we'll fail)
-    trigger_timeout = Column(DateTime)
-    # The trigger_timeout should be TIMESTAMP(using UtcDateTime) but for ease of
-    # migration, we are keeping it as DateTime pending a change where expensive
-    # migration is inevitable.
+    # Optional timeout utcdatetime for the trigger (past this, we'll fail)
+    trigger_timeout = Column(UtcDateTime)
 
     # The method to call next, and any extra arguments to pass to it.
     # Usually used when resuming from DEFERRED.
@@ -1892,7 +1888,7 @@ class TaskInstance(Base, LoggingMixin):
         pool: str | None = None,
         cfg_path: str | None = None,
     ) -> list[str]:
-        dag: DAG | DagModel | DagModelPydantic | None
+        dag: DAG | DagModel | None
         # Use the dag if we have it, else fallback to the ORM dag_model, which might not be loaded
         if hasattr(ti, "task") and getattr(ti.task, "dag", None) is not None:
             if TYPE_CHECKING:
@@ -2735,7 +2731,7 @@ class TaskInstance(Base, LoggingMixin):
         # One task only triggers one asset event for each asset with the same extra.
         # This tuple[asset uri, extra] to sets alias names mapping is used to find whether
         # there're assets with same uri but different extra that we need to emit more than one asset events.
-        asset_alias_names: dict[tuple[str, frozenset], set[str]] = defaultdict(set)
+        asset_alias_names: dict[tuple[AssetUniqueKey, frozenset], set[str]] = defaultdict(set)
         for obj in ti.task.outlets or []:
             ti.log.debug("outlet obj %s", obj)
             # Lineage can have other types of objects besides assets
@@ -2749,26 +2745,34 @@ class TaskInstance(Base, LoggingMixin):
             elif isinstance(obj, AssetAlias):
                 for asset_alias_event in events[obj].asset_alias_events:
                     asset_alias_name = asset_alias_event.source_alias_name
-                    asset_uri = asset_alias_event.dest_asset_uri
+                    asset_unique_key = asset_alias_event.dest_asset_key
                     frozen_extra = frozenset(asset_alias_event.extra.items())
-                    asset_alias_names[(asset_uri, frozen_extra)].add(asset_alias_name)
+                    asset_alias_names[(asset_unique_key, frozen_extra)].add(asset_alias_name)
 
-        asset_models: dict[str, AssetModel] = {
-            asset_obj.uri: asset_obj
+        asset_models: dict[AssetUniqueKey, AssetModel] = {
+            AssetUniqueKey.from_asset(asset_obj): asset_obj
             for asset_obj in session.scalars(
-                select(AssetModel).where(AssetModel.uri.in_(uri for uri, _ in asset_alias_names))
+                select(AssetModel).where(
+                    tuple_(AssetModel.name, AssetModel.uri).in_(
+                        (key.name, key.uri) for key, _ in asset_alias_names
+                    )
+                )
             )
         }
-        if missing_assets := [Asset(uri=u) for u, _ in asset_alias_names if u not in asset_models]:
+        if missing_assets := [
+            asset_unique_key.to_asset()
+            for asset_unique_key, _ in asset_alias_names
+            if asset_unique_key not in asset_models
+        ]:
             asset_models.update(
-                (asset_obj.uri, asset_obj)
+                (AssetUniqueKey.from_asset(asset_obj), asset_obj)
                 for asset_obj in asset_manager.create_assets(missing_assets, session=session)
             )
             ti.log.warning("Created new assets for alias reference: %s", missing_assets)
             session.flush()  # Needed because we need the id for fk.
 
-        for (uri, extra_items), alias_names in asset_alias_names.items():
-            asset_obj = asset_models[uri]
+        for (unique_key, extra_items), alias_names in asset_alias_names.items():
+            asset_obj = asset_models[unique_key]
             ti.log.info(
                 'Creating event for %r through aliases "%s"',
                 asset_obj,

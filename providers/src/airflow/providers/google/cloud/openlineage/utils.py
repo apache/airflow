@@ -218,28 +218,6 @@ class BigQueryJobRunFacet(RunFacet):
         )
 
 
-# TODO: remove BigQueryErrorRunFacet in next release
-@define
-class BigQueryErrorRunFacet(RunFacet):
-    """
-    Represents errors that can happen during execution of BigqueryExtractor.
-
-    :param clientError: represents errors originating in bigquery client
-    :param parserError: represents errors that happened during parsing SQL provided to bigquery
-    """
-
-    clientError: str | None = field(default=None)
-    parserError: str | None = field(default=None)
-
-    @staticmethod
-    def _get_schema() -> str:
-        return (
-            "https://raw.githubusercontent.com/apache/airflow/"
-            f"providers-google/{provider_version}/airflow/providers/google/"
-            "openlineage/BigQueryErrorRunFacet.json"
-        )
-
-
 def get_from_nullable_chain(source: Any, chain: list[str]) -> Any | None:
     """
     Get object from nested structure of objects, where it's not guaranteed that all keys in the nested structure exist.

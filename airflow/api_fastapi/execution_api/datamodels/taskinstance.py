@@ -21,7 +21,7 @@ import uuid
 from datetime import timedelta
 from typing import Annotated, Any, Literal, Union
 
-from pydantic import Discriminator, Field, RootModel, Tag, WithJsonSchema
+from pydantic import Discriminator, Field, Tag, WithJsonSchema
 
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel
@@ -33,7 +33,7 @@ class TIEnterRunningPayload(BaseModel):
 
     state: Annotated[
         Literal[TIState.RUNNING],
-        # Specify a default in the schema, but not in code, so Pydantic marks it as required.
+        # Specify a default in the schema, but not in code.
         WithJsonSchema({"type": "string", "enum": [TIState.RUNNING], "default": TIState.RUNNING}),
     ]
     hostname: str
@@ -135,7 +135,3 @@ class TaskInstance(BaseModel):
     run_id: str
     try_number: int
     map_index: int | None = None
-
-
-"""Schema for setting RTIF for a task instance."""
-RTIFPayload = RootModel[dict[str, str]]
