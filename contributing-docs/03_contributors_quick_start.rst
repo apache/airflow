@@ -129,6 +129,7 @@ Docker Compose
 Install using the repository:
 
 .. code-block:: bash
+
   sudo apt-get update
   sudo apt-get install docker-compose-plugin
 
