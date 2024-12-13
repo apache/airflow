@@ -114,6 +114,7 @@ To delete a replication task you can use
     :start-after: [START howto_operator_dms_delete_task]
     :end-before: [END howto_operator_dms_delete_task]
 
+.. _howto/operator:DmsCreateReplicationConfigOperator:
 
 Create a serverless replication config
 ======================================
@@ -127,6 +128,8 @@ To create a serverless replication config use
     :start-after: [START howto_operator_dms_create_replication_config]
     :end-before: [END howto_operator_dms_create_replication_config]
 
+.. _howto/operator:DmsDescribeReplicationConfigsOperator:
+
 Describe a serverless replication config
 ========================================
 
@@ -138,6 +141,8 @@ To describe a serverless replication config use
     :dedent: 4
     :start-after: [START howto_operator_dms_describe_replication_config]
     :end-before: [END howto_operator_dms_describe_replication_config]
+
+.. _howto/operator:DmsStartReplicationOperator:
 
 Start a serverless replication
 ==============================
@@ -151,6 +156,8 @@ To start a serverless replication use
     :start-after: [START howto_operator_dms_serverless_start_replication]
     :end-before: [END howto_operator_dms_serverless_start_replication]
 
+.. _howto/operator:DmsStopReplicationOperator:
+
 Stop a serverless replication
 ==============================
 
@@ -163,6 +170,7 @@ To stop a serverless replication use
     :start-after: [START howto_operator_dms_serverless_stop_replication]
     :end-before: [END howto_operator_dms_serverless_stop_replication]
 
+.. _howto/operator:DmsDescribeReplicationsOperator:
 
 Get the status of a serverless replication
 ==========================================
@@ -175,6 +183,8 @@ To get the status of a serverless replication use
     :dedent: 4
     :start-after: [START howto_operator_dms_serverless_describe_replication]
     :end-before: [END howto_operator_dms_serverless_describe_replication]
+
+.. _howto/operator:DmsDeleteReplicationConfigOperator:
 
 Delete a serverless replication configuration
 =============================================
