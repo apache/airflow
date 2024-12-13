@@ -215,6 +215,7 @@ class TestDagBag:
         dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_zip.zip"))
         assert dagbag.get_dag("test_zip_dag")
         assert sys.path == syspath_before  # sys.path doesn't change
+        assert not dagbag.import_errors
 
     @patch("airflow.models.dagbag.timeout")
     @patch("airflow.models.dagbag.settings.get_dagbag_import_timeout")
