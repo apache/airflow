@@ -57,12 +57,7 @@ const TaskInstanceTooltip = ({
           {"duration" in taskInstance ? (
             <Text>Duration: {taskInstance.duration?.toFixed(2) ?? 0}s</Text>
           ) : undefined}
-          <Text>
-            State:{" "}
-            {"overall_state" in taskInstance
-              ? taskInstance.overall_state
-              : taskInstance.state}
-          </Text>
+          <Text>State: {taskInstance.state}</Text>
         </Box>
       }
       key={taskInstance.task_id}

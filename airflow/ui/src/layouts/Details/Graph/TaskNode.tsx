@@ -20,7 +20,6 @@ import { Box, Button, Flex, HStack, Text } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
 import { MdRefresh } from "react-icons/md";
 
-import type { TaskInstanceState } from "openapi/requests/types.gen";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import { Status } from "src/components/ui";
 import { useOpenGroups } from "src/context/openGroups";
@@ -73,19 +72,16 @@ export const TaskNode = ({
                 : "bg"
             }
             borderColor={
-              taskInstance?.overall_state === undefined
+              taskInstance?.state === undefined
                 ? "border"
-                : stateColor[
-                    (taskInstance.overall_state as TaskInstanceState | null) ??
-                      "null"
-                  ]
+                : stateColor[taskInstance.state ?? "null"]
             }
             borderRadius={5}
-            borderWidth={isSelected ? 4 : 2}
+            borderWidth={isSelected ? 6 : 2}
             height={`${height}px`}
             justifyContent="space-between"
             px={3}
-            py={2}
+            py={isSelected ? 1 : 2}
             width={`${width}px`}
           >
             <Box>
@@ -108,11 +104,8 @@ export const TaskNode = ({
               </Text>
               {taskInstance === undefined ? undefined : (
                 <HStack>
-                  <Status
-                    fontSize="xs"
-                    state={taskInstance.overall_state as TaskInstanceState}
-                  >
-                    {taskInstance.overall_state}
+                  <Status fontSize="xs" state={taskInstance.state}>
+                    {taskInstance.state}
                   </Status>
                   {taskInstance.try_number > 1 ? <MdRefresh /> : undefined}
                 </HStack>

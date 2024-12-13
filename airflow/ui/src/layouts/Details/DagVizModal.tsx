@@ -45,12 +45,12 @@ const visualizationOptions = [
     icon: <FaChartGantt height={5} width={5} />,
     value: "gantt",
   },
+  { component: <Grid />, icon: <FiGrid height={5} width={5} />, value: "grid" },
   {
     component: <Graph />,
     icon: <DagIcon height={5} width={5} />,
     value: "graph",
   },
-  { component: <Grid />, icon: <FiGrid height={5} width={5} />, value: "grid" },
 ];
 
 export const DagVizModal: React.FC<TriggerDAGModalProps> = ({

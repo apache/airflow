@@ -24,10 +24,7 @@ import { forwardRef, type RefObject } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { useGridServiceGridData } from "openapi/queries";
-import type {
-  DagRunState,
-  GridDAGRunwithTIs,
-} from "openapi/requests/types.gen";
+import type { GridDAGRunwithTIs } from "openapi/requests/types.gen";
 import { Select, Status } from "src/components/ui";
 
 type DagRunSelected = {
@@ -44,6 +41,8 @@ export const DagRunSelect = forwardRef<HTMLDivElement>((_, ref) => {
     {
       dagId,
       limit: 14,
+      offset: 0,
+      orderBy: "-start_date",
     },
     undefined,
   );
@@ -51,13 +50,13 @@ export const DagRunSelect = forwardRef<HTMLDivElement>((_, ref) => {
   const runOptions = createListCollection<DagRunSelected>({
     items: (data?.dag_runs ?? []).map((dr: GridDAGRunwithTIs) => ({
       run: dr,
-      value: dr.run_id,
+      value: dr.dag_run_id,
     })),
   });
 
   const selectDagRun = ({ items }: SelectValueChangeDetails<DagRunSelected>) =>
     navigate({
-      pathname: `/dags/${dagId}/runs/${items[0]?.run.run_id}/${taskId === undefined ? "" : `tasks/${taskId}`}`,
+      pathname: `/dags/${dagId}/runs/${items[0]?.run.dag_run_id}/${taskId === undefined ? "" : `tasks/${taskId}`}`,
       search: searchParams.toString(),
     });
 
@@ -77,7 +76,7 @@ export const DagRunSelect = forwardRef<HTMLDivElement>((_, ref) => {
           {(items: Array<DagRunSelected>) => (
             <Status
               // eslint-disable-next-line unicorn/no-null
-              state={(items[0]?.run.state as DagRunState | undefined) ?? null}
+              state={items[0]?.run.state ?? null}
             >
               {items[0]?.value}
             </Status>
@@ -90,9 +89,7 @@ export const DagRunSelect = forwardRef<HTMLDivElement>((_, ref) => {
       >
         {runOptions.items.map((option) => (
           <Select.Item item={option} key={option.value}>
-            <Status state={option.run.state as DagRunState}>
-              {option.value}
-            </Status>
+            <Status state={option.run.state}>{option.value}</Status>
           </Select.Item>
         ))}
       </Select.Content>

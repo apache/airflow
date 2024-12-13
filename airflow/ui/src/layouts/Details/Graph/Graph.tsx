@@ -31,7 +31,6 @@ import {
   useGridServiceGridData,
   useStructureServiceStructureData,
 } from "openapi/queries";
-import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
 import { stateColor } from "src/utils/stateColor";
@@ -54,8 +53,8 @@ const nodeColor = (
     return "";
   }
 
-  if (taskInstance?.overall_state !== undefined && !isOpen) {
-    return stateColor[taskInstance.overall_state as TaskInstanceState];
+  if (taskInstance?.state !== undefined && !isOpen) {
+    return stateColor[taskInstance.state ?? "null"];
   }
 
   if (isOpen && depth !== undefined && depth % 2 === 0) {
@@ -114,6 +113,8 @@ export const Graph = () => {
     {
       dagId,
       limit: 14,
+      offset: 0,
+      orderBy: "-start_date",
     },
     undefined,
     {
@@ -121,7 +122,10 @@ export const Graph = () => {
     },
   );
 
-  const dagRun = gridData?.dag_runs.find((dr) => dr.run_id === runId);
+  const dagRun = gridData?.dag_runs.find((dr) => dr.dag_run_id === runId);
+
+  console.log(runId);
+  console.log(gridData?.dag_runs);
 
   // Add task instances to the node data but without having to recalculate how the graph is laid out
   const nodes =
