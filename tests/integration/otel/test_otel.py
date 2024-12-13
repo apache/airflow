@@ -21,6 +21,7 @@ import os
 import signal
 import subprocess
 import time
+from typing import Any
 
 import pendulum
 import pytest
@@ -43,7 +44,6 @@ from tests.integration.otel.test_utils import (
     extract_spans_from_output,
     get_parent_child_dict,
 )
-from tests_common.test_utils.db import initial_db_init
 
 log = logging.getLogger("integration.otel.test_otel")
 
@@ -395,6 +395,35 @@ def check_spans_without_continuance(
         )
 
 
+def print_output_for_dag_tis(dag: DAG):
+    with create_session() as session:
+        tis: list[TaskInstance] = dag.get_task_instances(session=session)
+
+    for ti in tis:
+        print_ti_output(ti)
+
+
+def print_ti_output(ti: TaskInstance):
+    from airflow.utils.log.log_reader import TaskLogReader
+
+    task_log_reader = TaskLogReader()
+    if task_log_reader.supports_read:
+        metadata: dict[str, Any] = {}
+        logs, metadata = task_log_reader.read_log_chunks(ti, ti.try_number, metadata)
+        if ti.hostname in dict(logs[0]):
+            output = (
+                str(dict(logs[0])[ti.hostname])
+                .replace("\\n", "\n")
+                .replace("{log.py:232} WARNING - {", "\n{")
+            )
+            while metadata["end_of_log"] is False:
+                logs, metadata = task_log_reader.read_log_chunks(ti, ti.try_number - 1, metadata)
+                if ti.hostname in dict(logs[0]):
+                    output = output + str(dict(logs[0])[ti.hostname]).replace("\\n", "\n")
+            # Logging the output is enough for capfd to capture it.
+            log.info(format(output))
+
+
 @pytest.mark.integration("redis")
 @pytest.mark.backend("postgres")
 class TestOtelIntegration:
@@ -464,12 +493,12 @@ class TestOtelIntegration:
         if cls.log_level == "debug":
             log.setLevel(logging.DEBUG)
 
-        initial_db_init()
-
-        cls.dags = cls.serialize_and_get_dags()
+        db_init_command = ["airflow", "db", "init"]
+        subprocess.run(db_init_command, check=True, env=os.environ.copy())
 
     @classmethod
     def serialize_and_get_dags(cls) -> dict[str, DAG]:
+        log.info("Serializing Dags from directory %s", cls.dag_folder)
         # Load DAGs from the dag directory.
         dag_bag = DagBag(dag_folder=cls.dag_folder, include_examples=False)
 
@@ -509,6 +538,11 @@ class TestOtelIntegration:
         # Reset the db using the cli.
         subprocess.run(reset_command, check=True, env=os.environ.copy())
 
+        migrate_command = ["airflow", "db", "migrate"]
+        subprocess.run(migrate_command, check=True, env=os.environ.copy())
+
+        self.dags = self.serialize_and_get_dags()
+
     def test_same_scheduler_processing_the_entire_dag(
         self, monkeypatch, celery_worker_env_vars, capfd, session
     ):
@@ -544,6 +578,7 @@ class TestOtelIntegration:
                 check_ti_state_and_span_status(
                     task_id=ti.task_id, run_id=run_id, state=State.SUCCESS, span_status=SpanStatus.ENDED
                 )
+                print_ti_output(ti)
         finally:
             if self.log_level == "debug":
                 with create_session() as session:
@@ -651,6 +686,7 @@ class TestOtelIntegration:
                 dag_id=dag_id, run_id=run_id, max_wait_time=30, span_status=SpanStatus.ENDED
             )
 
+            print_output_for_dag_tis(dag=dag)
         finally:
             if self.log_level == "debug":
                 with create_session() as session:
@@ -757,6 +793,8 @@ class TestOtelIntegration:
             wait_for_dag_run_and_check_span_status(
                 dag_id=dag_id, run_id=run_id, max_wait_time=30, span_status=SpanStatus.ENDED
             )
+
+            print_output_for_dag_tis(dag=dag)
         finally:
             if self.log_level == "debug":
                 with create_session() as session:
@@ -840,6 +878,8 @@ class TestOtelIntegration:
             wait_for_dag_run_and_check_span_status(
                 dag_id=dag_id, run_id=run_id, max_wait_time=120, span_status=SpanStatus.ENDED
             )
+
+            print_output_for_dag_tis(dag=dag)
         finally:
             if self.log_level == "debug":
                 with create_session() as session:
@@ -924,6 +964,8 @@ class TestOtelIntegration:
             wait_for_dag_run_and_check_span_status(
                 dag_id=dag_id, run_id=run_id, max_wait_time=120, span_status=SpanStatus.ENDED
             )
+
+            print_output_for_dag_tis(dag=dag)
         finally:
             if self.log_level == "debug":
                 with create_session() as session:
@@ -1014,6 +1056,8 @@ class TestOtelIntegration:
             wait_for_dag_run_and_check_span_status(
                 dag_id=dag_id, run_id=run_id, max_wait_time=120, span_status=SpanStatus.ENDED
             )
+
+            print_output_for_dag_tis(dag=dag)
         finally:
             if self.log_level == "debug":
                 with create_session() as session:

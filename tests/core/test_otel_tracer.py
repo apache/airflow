@@ -25,8 +25,10 @@ import pytest
 from opentelemetry.sdk import util
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
+from airflow.configuration import conf
 from airflow.traces import otel_tracer
-from airflow.traces.tracer import Trace
+from airflow.traces.otel_tracer import OtelTrace
+from airflow.traces.tracer import EmptyTrace, Trace
 from airflow.utils.dates import datetime_to_nano
 
 from tests_common.test_utils.config import env_vars
@@ -38,6 +40,26 @@ def name():
 
 
 class TestOtelTrace:
+    def test_get_otel_tracer_from_trace_metaclass(self):
+        """Test that `Trace.some_method()`, uses an `OtelTrace` instance when otel is configured."""
+        conf.add_section("traces")
+        conf.set("traces", "otel_on", "True")
+        conf.set("traces", "otel_debugging_on", "True")
+
+        tracer = otel_tracer.get_otel_tracer(Trace)
+        assert tracer.use_simple_processor is False
+
+        assert isinstance(Trace.factory(), EmptyTrace)
+
+        Trace.configure_factory()
+        assert isinstance(Trace.factory(), OtelTrace)
+
+        task_tracer = otel_tracer.get_otel_tracer_for_task(Trace)
+        assert task_tracer.use_simple_processor is True
+
+        task_tracer.get_otel_tracer_provider()
+        assert task_tracer.use_simple_processor is True
+
     @patch("opentelemetry.sdk.trace.export.ConsoleSpanExporter")
     @patch("airflow.traces.otel_tracer.conf")
     def test_tracer(self, conf_a, exporter):

@@ -59,8 +59,8 @@ class OtelTrace:
     def __init__(
         self,
         span_exporter: OTLPSpanExporter,
+        use_simple_processor: bool,
         tag_string: str | None = None,
-        use_simple_processor: bool = False,
     ):
         self.span_exporter = span_exporter
         self.use_simple_processor = use_simple_processor
@@ -69,8 +69,10 @@ class OtelTrace:
             # A task can run fast and finish before spans have enough time to get exported to the collector.
             # When creating spans from inside a task, a SimpleSpanProcessor needs to be used because
             # it exports the spans immediately after they are created.
+            log.info("(__init__) - [SimpleSpanProcessor] is being used")
             self.span_processor: SpanProcessor = SimpleSpanProcessor(self.span_exporter)
         else:
+            log.info("(__init__) - [BatchSpanProcessor] is being used")
             self.span_processor = BatchSpanProcessor(self.span_exporter)
         self.tag_string = tag_string
         self.otel_service = conf.get("traces", "otel_service")
@@ -98,8 +100,10 @@ class OtelTrace:
         if debug is True:
             log.info("[ConsoleSpanExporter] is being used")
             if self.use_simple_processor:
+                log.info("[SimpleSpanProcessor] is being used")
                 span_processor_for_tracer_prov: SpanProcessor = SimpleSpanProcessor(ConsoleSpanExporter())
             else:
+                log.info("[BatchSpanProcessor] is being used")
                 span_processor_for_tracer_prov = BatchSpanProcessor(ConsoleSpanExporter())
         else:
             span_processor_for_tracer_prov = self.span_processor
@@ -330,10 +334,11 @@ def get_otel_tracer(cls, use_simple_processor: bool = False) -> OtelTrace:
     protocol = "https" if ssl_active else "http"
     endpoint = f"{protocol}://{host}:{port}/v1/traces"
     log.info("[OTLPSpanExporter] Connecting to OpenTelemetry Collector at %s", endpoint)
+    log.info("Should use simple processor: %s", use_simple_processor)
     return OtelTrace(
         span_exporter=OTLPSpanExporter(endpoint=endpoint),
-        tag_string=tag_string,
         use_simple_processor=use_simple_processor,
+        tag_string=tag_string,
     )
 
 

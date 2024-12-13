@@ -54,7 +54,7 @@ with DAG(
         if context_carrier is not None:
             logger.info("Found ti.context_carrier: %s.", context_carrier)
             logger.info("Extracting the span context from the context_carrier.")
-            parent_context = Trace.extract(context_carrier)
+            parent_context = otel_task_tracer.extract(context_carrier)
             with otel_task_tracer.start_child_span(
                 span_name=f"{ti.task_id}_sub_span1",
                 parent_context=parent_context,

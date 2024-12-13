@@ -552,7 +552,9 @@ ARG_FORCE = Arg(
 )
 ARG_RAW = Arg(("-r", "--raw"), argparse.SUPPRESS, "store_true")
 ARG_CARRIER = Arg(
-    ("-c", "--carrier"), help="Context Carrier, containing the injected context for the task span", nargs="?"
+    ("-c", "--carrier"),
+    help="Context Carrier, containing the injected context for the Otel task span",
+    type=str,
 )
 ARG_IGNORE_ALL_DEPENDENCIES = Arg(
     ("-A", "--ignore-all-dependencies"),

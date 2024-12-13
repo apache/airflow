@@ -34,7 +34,7 @@ logger = logging.getLogger("airflow.otel_test_dag_with_pause")
 
 args = {
     "owner": "airflow",
-    "start_date": datetime(2024, 9, 1),
+    "start_date": datetime(2024, 9, 2),
     "retries": 0,
 }
 
