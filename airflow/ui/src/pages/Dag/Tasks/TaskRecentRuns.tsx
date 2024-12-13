@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
-import { Flex } from "@chakra-ui/react";
+import { Box, Flex } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import duration from "dayjs/plugin/duration";
+import { Link } from "react-router-dom";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
@@ -59,15 +59,19 @@ export const TaskRecentRuns = ({
             key={taskInstance.dag_run_id}
             taskInstance={taskInstance}
           >
-            <Box p={1}>
-              <Box
-                bg={stateColor[taskInstance.state]}
-                borderRadius="4px"
-                height={`${(taskInstance.duration / max) * BAR_HEIGHT}px`}
-                minHeight={1}
-                width="4px"
-              />
-            </Box>
+            <Link
+              to={`/dags/${taskInstance.dag_id}/runs/${taskInstance.dag_run_id}/tasks/${taskInstance.task_id}?map_index=${taskInstance.map_index}`}
+            >
+              <Box p={1}>
+                <Box
+                  bg={stateColor[taskInstance.state]}
+                  borderRadius="4px"
+                  height={`${(taskInstance.duration / max) * BAR_HEIGHT}px`}
+                  minHeight={1}
+                  width="4px"
+                />
+              </Box>
+            </Link>
           </TaskInstanceTooltip>
         ),
       )}
