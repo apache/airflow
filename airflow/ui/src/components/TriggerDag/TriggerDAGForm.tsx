@@ -20,28 +20,44 @@ import { Input, Button, Box, Text, Spacer, HStack } from "@chakra-ui/react";
 import { json } from "@codemirror/lang-json";
 import { githubLight, githubDark } from "@uiw/codemirror-themes-all";
 import CodeMirror from "@uiw/react-codemirror";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { FiPlay } from "react-icons/fi";
 
 import { useColorMode } from "src/context/colorMode";
+import { useDagParams } from "src/queries/useDagParams";
+import { useTrigger } from "src/queries/useTrigger";
 
 import { Accordion } from "../ui";
-import type { DagParams } from "./TriggerDAGModal";
 
 type TriggerDAGFormProps = {
-  dagParams: DagParams;
+  dagId: string;
   onClose: () => void;
-  onTrigger: (updatedDagParams: DagParams) => void;
-  setDagParams: React.Dispatch<React.SetStateAction<DagParams>>;
 };
 
-const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
-  dagParams,
-  onTrigger,
-  setDagParams,
-}) => {
+export type DagRunTriggerParams = {
+  conf: string;
+  dagRunId: string;
+  dataIntervalEnd: string;
+  dataIntervalStart: string;
+  note: string;
+};
+
+const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({ dagId, onClose }) => {
   const [jsonError, setJsonError] = useState<string | undefined>();
+  const conf = useDagParams(dagId);
+  const { isPending, triggerDagRun } = useTrigger();
+
+  const dagRunRequestBody: DagRunTriggerParams = useMemo(
+    () => ({
+      conf,
+      dagRunId: "",
+      dataIntervalEnd: "",
+      dataIntervalStart: "",
+      note: "",
+    }),
+    [conf],
+  );
 
   const {
     control,
@@ -50,22 +66,14 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
     reset,
     setValue,
     watch,
-  } = useForm<DagParams>({
-    defaultValues: dagParams,
-  });
+  } = useForm<DagRunTriggerParams>({ defaultValues: dagRunRequestBody });
 
   const dataIntervalStart = watch("dataIntervalStart");
   const dataIntervalEnd = watch("dataIntervalEnd");
 
   useEffect(() => {
-    reset(dagParams);
-  }, [dagParams, reset]);
-
-  const onSubmit = (data: DagParams) => {
-    onTrigger(data);
-    setDagParams(data);
-    setJsonError(undefined);
-  };
+    reset(dagRunRequestBody);
+  }, [dagRunRequestBody, reset]);
 
   const validateAndPrettifyJson = (value: string) => {
     try {
@@ -82,6 +90,11 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
 
       return value;
     }
+  };
+
+  const onSubmit = (data: DagRunTriggerParams) => {
+    triggerDagRun(dagId, data);
+    onClose();
   };
 
   const validateDates = (
@@ -153,7 +166,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
               </Text>
               <Controller
                 control={control}
-                name="runId"
+                name="dagRunId"
                 render={({ field }) => (
                   <Input
                     {...field}
@@ -168,7 +181,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
               </Text>
               <Controller
                 control={control}
-                name="configJson"
+                name="conf"
                 render={({ field }) => (
                   <Box mb={4}>
                     <CodeMirror
@@ -210,7 +223,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
               </Text>
               <Controller
                 control={control}
-                name="notes"
+                name="note"
                 render={({ field }) => (
                   <Input {...field} placeholder="Optional" size="sm" />
                 )}
@@ -230,7 +243,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
           <Spacer />
           <Button
             colorPalette="blue"
-            disabled={Boolean(jsonError)}
+            disabled={Boolean(jsonError) || isPending}
             onClick={() => void handleSubmit(onSubmit)()}
           >
             <FiPlay /> Trigger

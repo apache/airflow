@@ -17,30 +17,12 @@
  * under the License.
  */
 import { Heading, VStack } from "@chakra-ui/react";
-import { useQueryClient } from "@tanstack/react-query";
-import React, { useCallback, useEffect, useState } from "react";
+import React from "react";
 
-import {
-  useDagRunServiceGetDagRunsKey,
-  useDagRunServiceTriggerDagRun,
-  useDagServiceGetDagDetails,
-  useDagServiceGetDagsKey,
-  useDagsServiceRecentDagRunsKey,
-} from "openapi/queries";
 import { Alert, Dialog } from "src/components/ui";
 
-import { ErrorAlert } from "../ErrorAlert";
 import { TogglePause } from "../TogglePause";
 import TriggerDAGForm from "./TriggerDAGForm";
-
-export type DagParams = {
-  configJson: string;
-  dagId: string;
-  dataIntervalEnd: string;
-  dataIntervalStart: string;
-  notes: string;
-  runId: string;
-};
 
 type TriggerDAGModalProps = {
   dagDisplayName: string;
@@ -56,142 +38,31 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   isPaused,
   onClose,
   open,
-}) => {
-  const { data, error } = useDagServiceGetDagDetails({ dagId });
+}) => (
+  <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+    <Dialog.Content backdrop>
+      <Dialog.Header>
+        <VStack align="start" gap={4}>
+          <Heading size="xl">
+            Trigger DAG - {dagDisplayName}{" "}
+            <TogglePause dagId={dagId} isPaused={isPaused} skipConfirm />
+          </Heading>
+          {isPaused ? (
+            <Alert status="warning" title="Paused DAG">
+              Triggering will create a DAG run, but it will not start until the
+              DAG is unpaused.
+            </Alert>
+          ) : undefined}
+        </VStack>
+      </Dialog.Header>
 
-  const transformedParams = data?.params
-    ? Object.fromEntries(
-        Object.entries(data.params).map(([key, param]) => [
-          key,
-          (param as { value: unknown }).value,
-        ]),
-      )
-    : {};
+      <Dialog.CloseTrigger />
 
-  const initialConf = JSON.stringify(transformedParams, undefined, 2);
-
-  const [dagParams, setDagParams] = useState<DagParams>({
-    configJson: initialConf,
-    dagId,
-    dataIntervalEnd: "",
-    dataIntervalStart: "",
-    notes: "",
-    runId: "",
-  });
-
-  useEffect(() => {
-    const newConfigJson = Boolean(error) ? "{}" : initialConf; // Fallback to "{}" if there's an error
-
-    setDagParams((prevParams) => ({
-      ...prevParams,
-      configJson: newConfigJson,
-    }));
-  }, [initialConf, error]);
-
-  const queryClient = useQueryClient();
-  const onSuccess = async () => {
-    await queryClient.invalidateQueries({
-      queryKey: [useDagServiceGetDagsKey],
-    });
-
-    await queryClient.invalidateQueries({
-      queryKey: [useDagsServiceRecentDagRunsKey],
-    });
-
-    await queryClient.invalidateQueries({
-      queryKey: [useDagRunServiceGetDagRunsKey],
-    });
-  };
-  const { mutate } = useDagRunServiceTriggerDagRun({
-    onSuccess,
-  });
-
-  const onTrigger = useCallback(
-    (updatedDagParams: DagParams) => {
-      // Parse the configJson string into a JavaScript object
-      const parsedConfig = JSON.parse(updatedDagParams.configJson) as Record<
-        string,
-        unknown
-      >;
-
-      // Validate and format data intervals
-      const formattedDataIntervalStart = updatedDagParams.dataIntervalStart
-        ? new Date(updatedDagParams.dataIntervalStart).toISOString()
-        : undefined; // Use null if empty or invalid
-      const formattedDataIntervalEnd = updatedDagParams.dataIntervalEnd
-        ? new Date(updatedDagParams.dataIntervalEnd).toISOString()
-        : undefined; // Use null if empty or invalid
-
-      mutate({
-        dagId: updatedDagParams.dagId,
-        requestBody: {
-          conf: parsedConfig,
-          dag_run_id: updatedDagParams.runId,
-          data_interval_end: formattedDataIntervalEnd,
-          data_interval_start: formattedDataIntervalStart,
-          note: updatedDagParams.notes,
-        },
-      });
-    },
-    [mutate],
-  );
-
-  const handleTrigger = (updatedDagParams: DagParams) => {
-    onTrigger(updatedDagParams);
-    onClose();
-  };
-
-  useEffect(() => {
-    if (!open) {
-      setDagParams({
-        configJson: initialConf,
-        dagId,
-        dataIntervalEnd: "",
-        dataIntervalStart: "",
-        notes: "",
-        runId: "",
-      });
-    }
-  }, [open, initialConf, dagId]);
-
-  return (
-    <Dialog.Root onOpenChange={onClose} open={open} size="xl">
-      <Dialog.Content backdrop>
-        <Dialog.Header>
-          <VStack align="start" gap={4}>
-            <Heading size="xl">
-              Trigger DAG - {dagDisplayName}{" "}
-              <TogglePause
-                dagId={dagParams.dagId}
-                isPaused={isPaused}
-                skipConfirm
-              />
-            </Heading>
-            <ErrorAlert error={error} />
-            {isPaused ? (
-              <Alert status="warning" title="Paused DAG">
-                Triggering will create a DAG run, but it will not start until
-                the DAG is unpaused.
-              </Alert>
-            ) : undefined}
-          </VStack>
-        </Dialog.Header>
-
-        <Dialog.CloseTrigger />
-
-        <Dialog.Body>
-          {Boolean(error) ? undefined : (
-            <TriggerDAGForm
-              dagParams={dagParams}
-              onClose={onClose}
-              onTrigger={handleTrigger}
-              setDagParams={setDagParams}
-            />
-          )}
-        </Dialog.Body>
-      </Dialog.Content>
-    </Dialog.Root>
-  );
-};
+      <Dialog.Body>
+        <TriggerDAGForm dagId={dagId} onClose={onClose} />
+      </Dialog.Body>
+    </Dialog.Content>
+  </Dialog.Root>
+);
 
 export default TriggerDAGModal;
