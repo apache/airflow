@@ -33,6 +33,7 @@ from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
 from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.execution_time.comms import (
     DeferTask,
+    RescheduleTask,
     SetRenderedFields,
     StartupDetails,
     TaskState,
@@ -252,8 +253,10 @@ def run(ti: RuntimeTaskInstance, log: Logger):
             state=TerminalTIState.SKIPPED,
             end_date=datetime.now(tz=timezone.utc),
         )
-    except AirflowRescheduleException:
-        ...
+    except AirflowRescheduleException as reschedule:
+        msg = RescheduleTask(
+            reschedule_date=reschedule.reschedule_date,
+        )
     except (AirflowFailException, AirflowSensorTimeout):
         # If AirflowFailException is raised, task should not retry.
         ...
