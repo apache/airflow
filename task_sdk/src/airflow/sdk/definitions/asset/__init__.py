@@ -429,10 +429,13 @@ class AssetAlias(BaseAsset):
     group: str = attrs.field(kw_only=True, default="asset", validator=_validate_identifier)
 
     def _resolve_assets(self) -> list[Asset]:
+        from airflow import settings
         from airflow.models.asset import expand_alias_to_assets
-        from airflow.utils.session import create_session
 
-        with create_session() as session:
+        # We don't use create_session or provide_session here because this is
+        # called in the scheduler when commit is prohibited (for HA reasons).
+        # Those functions assume you want to commit the result on exit.
+        with settings.Session() as session:
             asset_models = expand_alias_to_assets(self.name, session)
         return [m.to_public() for m in asset_models]
 
