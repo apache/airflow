@@ -636,7 +636,7 @@ Installing airflow in the local venv
 
 .. code-block:: bash
 
-  sudo apt-get install sqlite libsqlite3-dev default-libmysqlclient-dev postgresql
+  sudo apt-get install sqlite3 libsqlite3-dev default-libmysqlclient-dev postgresql
   ./scripts/tools/initialize_virtualenv.py
 
 
