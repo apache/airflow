@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import ast
 import os
 from collections import Counter
 from datetime import date, timedelta
@@ -162,7 +163,12 @@ class TestRenderedTaskInstanceFields:
         assert ti.dag_id == rtif.dag_id
         assert ti.task_id == rtif.task_id
         assert ti.run_id == rtif.run_id
-        assert expected_rendered_field == rtif.rendered_fields.get("bash_command")
+        if type(templated_field) is set:
+            assert ast.literal_eval(expected_rendered_field) == ast.literal_eval(
+                rtif.rendered_fields.get("bash_command")
+            )
+        else:
+            assert expected_rendered_field == rtif.rendered_fields.get("bash_command")
 
         session.add(rtif)
         session.flush()
