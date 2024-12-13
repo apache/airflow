@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import ast
 import os
 from collections import Counter
 from datetime import date, timedelta
@@ -100,8 +101,12 @@ class TestRenderedTaskInstanceFields:
             (None, None),
             ([], []),
             ({}, {}),
+            ((), "()"),
+            (set(), "set()"),
             ("test-string", "test-string"),
             ({"foo": "bar"}, {"foo": "bar"}),
+            (("foo", "bar"), "('foo', 'bar')"),
+            ({"foo", "bar"}, "{'foo', 'bar'}"),
             ("{{ task.task_id }}", "test"),
             (date(2018, 12, 6), "2018-12-06"),
             (datetime(2018, 12, 6, 10, 55), "2018-12-06 10:55:00+00:00"),
@@ -158,16 +163,35 @@ class TestRenderedTaskInstanceFields:
         assert ti.dag_id == rtif.dag_id
         assert ti.task_id == rtif.task_id
         assert ti.run_id == rtif.run_id
-        assert expected_rendered_field == rtif.rendered_fields.get("bash_command")
+        if type(templated_field) is set:
+            # the output order of a set is non-deterministic and can change per process.
+            # this validation can fail if that happens before stringification, so we convert to set and compare.
+            assert ast.literal_eval(expected_rendered_field) == ast.literal_eval(
+                rtif.rendered_fields.get("bash_command")
+            )
+        else:
+            assert expected_rendered_field == rtif.rendered_fields.get("bash_command")
 
         session.add(rtif)
         session.flush()
 
-        assert RTIF.get_templated_fields(ti=ti, session=session) == {
-            "bash_command": expected_rendered_field,
-            "env": None,
-            "cwd": None,
-        }
+        if type(templated_field) is set:
+            # the output order of a set is non-deterministic and can change per process.
+            # this validation can fail if that happens before stringification, so we convert to set and compare.
+            expected = RTIF.get_templated_fields(ti=ti, session=session)
+            expected["bash_command"] = ast.literal_eval(expected["bash_command"])
+            actual = {
+                "bash_command": ast.literal_eval(expected_rendered_field),
+                "env": None,
+                "cwd": None,
+            }
+            assert expected == actual
+        else:
+            assert RTIF.get_templated_fields(ti=ti, session=session) == {
+                "bash_command": expected_rendered_field,
+                "env": None,
+                "cwd": None,
+            }
         # Test the else part of get_templated_fields
         # i.e. for the TIs that are not stored in RTIF table
         # Fetching them will return None
