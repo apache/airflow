@@ -20,6 +20,8 @@ from __future__ import annotations
 from typing import Annotated, Literal, cast
 
 from fastapi import Depends, HTTPException, Query, Request, status
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 from sqlalchemy import or_, select
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import joinedload
@@ -37,10 +39,12 @@ from airflow.api_fastapi.common.parameters import (
     QueryTIPoolFilter,
     QueryTIQueueFilter,
     QueryTIStateFilter,
+    QueryTITaskDisplayNamePatternSearch,
     Range,
     RangeFilter,
     SortParam,
     datetime_range_filter_factory,
+    filter_param_factory,
     float_range_filter_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -330,11 +334,13 @@ def get_task_instances(
     dag_id: str,
     dag_run_id: str,
     request: Request,
+    task_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(TI.task_id, str | None))],
     logical_date: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", TI))],
     start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", TI))],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", TI))],
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", TI))],
     duration_range: Annotated[RangeFilter, Depends(float_range_filter_factory("duration", TI))],
+    task_display_name_pattern: QueryTITaskDisplayNamePatternSearch,
     state: QueryTIStateFilter,
     pool: QueryTIPoolFilter,
     queue: QueryTIQueueFilter,
@@ -387,6 +393,8 @@ def get_task_instances(
             pool,
             queue,
             executor,
+            task_id,
+            task_display_name_pattern,
         ],
         order_by=order_by,
         offset=offset,
@@ -671,9 +679,16 @@ def patch_task_instance(
     fields_to_update = body.model_fields_set
     if update_mask:
         fields_to_update = fields_to_update.intersection(update_mask)
+        data = body.model_dump(include=fields_to_update, by_alias=True)
+    else:
+        try:
+            PatchTaskInstanceBody.model_validate(body)
+        except ValidationError as e:
+            raise RequestValidationError(errors=e.errors())
+        data = body.model_dump(by_alias=True)
 
-    for field in fields_to_update:
-        if field == "new_state":
+    for key, _ in data.items():
+        if key == "new_state":
             if not body.dry_run:
                 tis: list[TI] = dag.set_task_instance_state(
                     task_id=task_id,
@@ -690,7 +705,7 @@ def patch_task_instance(
                 if not ti:
                     raise HTTPException(status.HTTP_404_NOT_FOUND, err_msg_404)
                 ti = tis[0] if isinstance(tis, list) else tis
-        elif field == "note":
+        elif key == "note":
             if update_mask or body.note is not None:
                 # @TODO: replace None passed for user_id with actual user id when
                 # permissions and auth is in place.

@@ -148,6 +148,25 @@ class TestSQLExecuteQueryOperator:
         )
         mock_process_output.assert_not_called()
 
+    @mock.patch.object(SQLExecuteQueryOperator, "get_db_hook")
+    def test_output_processor(self, mock_get_db_hook):
+        data = [(1, "Alice"), (2, "Bob")]
+
+        mock_hook = MagicMock()
+        mock_hook.run.return_value = data
+        mock_hook.descriptions = ("id", "name")
+        mock_get_db_hook.return_value = mock_hook
+
+        operator = self._construct_operator(
+            sql="SELECT * FROM users;",
+            output_processor=lambda results, descriptions: (descriptions, results),
+            return_last=False,
+        )
+        descriptions, result = operator.execute(context=MagicMock())
+
+        assert descriptions == ("id", "name")
+        assert result == [(1, "Alice"), (2, "Bob")]
+
 
 class TestColumnCheckOperator:
     valid_column_mapping = {

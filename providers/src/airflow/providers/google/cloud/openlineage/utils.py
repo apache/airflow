@@ -33,12 +33,15 @@ from airflow.providers.common.compat.openlineage.facet import (
     ColumnLineageDatasetFacet,
     DocumentationDatasetFacet,
     Fields,
+    Identifier,
     InputField,
     RunFacet,
     SchemaDatasetFacet,
     SchemaDatasetFacetFields,
+    SymlinksDatasetFacet,
 )
 from airflow.providers.google import __version__ as provider_version
+from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
 
 BIGQUERY_NAMESPACE = "bigquery"
 BIGQUERY_URI = "bigquery"
@@ -113,6 +116,20 @@ def get_facets_from_bq_table(table: Table) -> dict[str, BaseFacet]:
     if table.description:
         facets["documentation"] = DocumentationDatasetFacet(description=table.description)
 
+    if table.external_data_configuration:
+        symlinks = set()
+        for uri in table.external_data_configuration.source_uris:
+            if uri.startswith("gs://"):
+                bucket, blob = _parse_gcs_url(uri)
+                blob = extract_ds_name_from_gcs_path(blob)
+                symlinks.add((f"gs://{bucket}", blob))
+
+        facets["symlink"] = SymlinksDatasetFacet(
+            identifiers=[
+                Identifier(namespace=namespace, name=name, type="file")
+                for namespace, name in sorted(symlinks)
+            ]
+        )
     return facets
 
 
@@ -198,28 +215,6 @@ class BigQueryJobRunFacet(RunFacet):
             "https://raw.githubusercontent.com/apache/airflow/"
             f"providers-google/{provider_version}/airflow/providers/google/"
             "openlineage/BigQueryJobRunFacet.json"
-        )
-
-
-# TODO: remove BigQueryErrorRunFacet in next release
-@define
-class BigQueryErrorRunFacet(RunFacet):
-    """
-    Represents errors that can happen during execution of BigqueryExtractor.
-
-    :param clientError: represents errors originating in bigquery client
-    :param parserError: represents errors that happened during parsing SQL provided to bigquery
-    """
-
-    clientError: str | None = field(default=None)
-    parserError: str | None = field(default=None)
-
-    @staticmethod
-    def _get_schema() -> str:
-        return (
-            "https://raw.githubusercontent.com/apache/airflow/"
-            f"providers-google/{provider_version}/airflow/providers/google/"
-            "openlineage/BigQueryErrorRunFacet.json"
         )
 
 

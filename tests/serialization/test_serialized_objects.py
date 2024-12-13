@@ -17,19 +17,15 @@
 
 from __future__ import annotations
 
-import inspect
 import json
-import warnings
 from collections.abc import Iterator
 from datetime import datetime, timedelta
-from importlib import import_module
 
 import pendulum
 import pytest
 from dateutil import relativedelta
 from kubernetes.client import models as k8s
 from pendulum.tz.timezone import Timezone
-from pydantic import BaseModel
 
 from airflow.exceptions import (
     AirflowException,
@@ -38,25 +34,16 @@ from airflow.exceptions import (
     SerializationError,
     TaskDeferred,
 )
-from airflow.jobs.job import Job
-from airflow.models.asset import AssetEvent
 from airflow.models.connection import Connection
-from airflow.models.dag import DAG, DagModel, DagTag
+from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.param import Param
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
-from airflow.models.tasklog import LogTemplate
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
-from airflow.serialization.pydantic.asset import AssetEventPydantic, AssetPydantic
-from airflow.serialization.pydantic.dag import DagModelPydantic, DagTagPydantic
-from airflow.serialization.pydantic.dag_run import DagRunPydantic
-from airflow.serialization.pydantic.job import JobPydantic
-from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
-from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
@@ -150,6 +137,16 @@ DAG_RUN = DagRun(
 DAG_RUN.id = 1
 
 
+def create_outlet_event_accessors(
+    key: Asset | AssetAlias, extra: dict, asset_alias_events: list[AssetAliasEvent]
+) -> OutletEventAccessors:
+    o = OutletEventAccessors()
+    o[key].extra = extra
+    o[key].asset_alias_events = asset_alias_events
+
+    return o
+
+
 def equals(a, b) -> bool:
     return a == b
 
@@ -162,8 +159,15 @@ def equal_exception(a: AirflowException, b: AirflowException) -> bool:
     return a.__class__ == b.__class__ and str(a) == str(b)
 
 
+def equal_outlet_event_accessors(a: OutletEventAccessors, b: OutletEventAccessors) -> bool:
+    return a._dict.keys() == b._dict.keys() and all(  # type: ignore[attr-defined]
+        equal_outlet_event_accessor(a._dict[key], b._dict[key])  # type: ignore[attr-defined]
+        for key in a._dict  # type: ignore[attr-defined]
+    )
+
+
 def equal_outlet_event_accessor(a: OutletEventAccessor, b: OutletEventAccessor) -> bool:
-    return a.raw_key == b.raw_key and a.extra == b.extra and a.asset_alias_events == b.asset_alias_events
+    return a.key == b.key and a.extra == b.extra and a.asset_alias_events == b.asset_alias_events
 
 
 class MockLazySelectSequence(LazySelectSequence):
@@ -257,33 +261,26 @@ class MockLazySelectSequence(LazySelectSequence):
             lambda a, b: a.get_uri() == b.get_uri(),
         ),
         (
-            OutletEventAccessor(
-                raw_key=Asset(uri="test://asset1", name="test", group="test-group"),
-                extra={"key": "value"},
-                asset_alias_events=[],
+            create_outlet_event_accessors(
+                Asset(uri="test", name="test", group="test-group"), {"key": "value"}, []
             ),
-            DAT.ASSET_EVENT_ACCESSOR,
-            equal_outlet_event_accessor,
+            DAT.ASSET_EVENT_ACCESSORS,
+            equal_outlet_event_accessors,
         ),
         (
-            OutletEventAccessor(
-                raw_key=AssetAlias(name="test_alias", group="test-alias-group"),
-                extra={"key": "value"},
-                asset_alias_events=[
+            create_outlet_event_accessors(
+                AssetAlias(name="test_alias", group="test-alias-group"),
+                {"key": "value"},
+                [
                     AssetAliasEvent(
                         source_alias_name="test_alias",
-                        dest_asset_uri="test_uri",
+                        dest_asset_key=AssetUniqueKey(name="test_name", uri="test://asset-uri"),
                         extra={},
                     )
                 ],
             ),
-            DAT.ASSET_EVENT_ACCESSOR,
-            equal_outlet_event_accessor,
-        ),
-        (
-            OutletEventAccessor(raw_key="test", extra={"key": "value"}, asset_alias_events=[]),
-            DAT.ASSET_EVENT_ACCESSOR,
-            equal_outlet_event_accessor,
+            DAT.ASSET_EVENT_ACCESSORS,
+            equal_outlet_event_accessors,
         ),
         (
             AirflowException("test123 wohoo!"),
@@ -343,162 +340,6 @@ def test_backcompat_deserialize_connection(conn_uri):
     assert deserialized.get_uri() == conn_uri
 
 
-sample_objects = {
-    JobPydantic: Job(state=State.RUNNING, latest_heartbeat=timezone.utcnow()),
-    TaskInstancePydantic: TI_WITH_START_DAY,
-    DagRunPydantic: DAG_RUN,
-    DagModelPydantic: DagModel(
-        dag_id="TEST_DAG_1",
-        fileloc="/tmp/dag_1.py",
-        timetable_summary="2 2 * * *",
-        is_paused=True,
-    ),
-    LogTemplatePydantic: LogTemplate(
-        id=1,
-        filename="test_file",
-        elasticsearch_id="test_id",
-        created_at=datetime.now(),
-    ),
-    DagTagPydantic: DagTag(),
-    AssetPydantic: Asset(name="test", uri="test://asset1", extra={}),
-    AssetEventPydantic: AssetEvent(),
-}
-
-
-@pytest.mark.parametrize(
-    "input, pydantic_class, encoded_type, cmp_func",
-    [
-        (
-            sample_objects.get(JobPydantic),
-            JobPydantic,
-            DAT.BASE_JOB,
-            lambda a, b: equal_time(a.latest_heartbeat, b.latest_heartbeat),
-        ),
-        (
-            sample_objects.get(TaskInstancePydantic),
-            TaskInstancePydantic,
-            DAT.TASK_INSTANCE,
-            lambda a, b: equal_time(a.start_date, b.start_date),
-        ),
-        (
-            sample_objects.get(DagRunPydantic),
-            DagRunPydantic,
-            DAT.DAG_RUN,
-            lambda a, b: equal_time(a.logical_date, b.logical_date)
-            and equal_time(a.start_date, b.start_date),
-        ),
-        # Asset is already serialized by non-Pydantic serialization. Is AssetPydantic needed then?
-        # (
-        #     Asset(
-        #         uri="foo://bar",
-        #         extra={"foo": "bar"},
-        #     ),
-        #     AssetPydantic,
-        #     DAT.ASSET,
-        #     lambda a, b: a.uri == b.uri and a.extra == b.extra,
-        # ),
-        (
-            sample_objects.get(DagModelPydantic),
-            DagModelPydantic,
-            DAT.DAG_MODEL,
-            lambda a, b: a.fileloc == b.fileloc and a.timetable_summary == b.timetable_summary,
-        ),
-        (
-            sample_objects.get(LogTemplatePydantic),
-            LogTemplatePydantic,
-            DAT.LOG_TEMPLATE,
-            lambda a, b: a.id == b.id and a.filename == b.filename and equal_time(a.created_at, b.created_at),
-        ),
-    ],
-)
-def test_serialize_deserialize_pydantic(input, pydantic_class, encoded_type, cmp_func):
-    """If use_pydantic_models=True the objects should be serialized to Pydantic objects."""
-    pydantic = pytest.importorskip("pydantic", minversion="2.0.0")
-
-    from airflow.serialization.serialized_objects import BaseSerialization
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", category=pydantic.warnings.PydanticDeprecationWarning)
-
-        serialized = BaseSerialization.serialize(input, use_pydantic_models=True)  # does not raise
-        # Verify the result is JSON-serializable
-        json.dumps(serialized)  # does not raise
-        assert serialized["__type"] == encoded_type
-        assert serialized["__var"] is not None
-        deserialized = BaseSerialization.deserialize(serialized, use_pydantic_models=True)
-        assert isinstance(deserialized, pydantic_class)
-        assert cmp_func(input, deserialized)
-
-        # verify that when we round trip a pydantic model we get the same thing
-        reserialized = BaseSerialization.serialize(deserialized, use_pydantic_models=True)
-        dereserialized = BaseSerialization.deserialize(reserialized, use_pydantic_models=True)
-        assert isinstance(dereserialized, pydantic_class)
-
-        if encoded_type == "task_instance":
-            deserialized.task.dag = None
-            dereserialized.task.dag = None
-
-        assert dereserialized == deserialized
-
-        # Verify recursive behavior
-        obj = [[input]]
-        BaseSerialization.serialize(obj, use_pydantic_models=True)  # does not raise
-
-
-def test_all_pydantic_models_round_trip():
-    pytest.importorskip("pydantic", minversion="2.0.0")
-    classes = set()
-    mods_folder = REPO_ROOT / "airflow/serialization/pydantic"
-    for p in mods_folder.iterdir():
-        if p.name.startswith("__"):
-            continue
-        relpath = str(p.relative_to(REPO_ROOT).stem)
-        mod = import_module(f"airflow.serialization.pydantic.{relpath}")
-        for _, obj in inspect.getmembers(mod):
-            if inspect.isclass(obj) and issubclass(obj, BaseModel):
-                if obj == BaseModel:
-                    continue
-                classes.add(obj)
-    exclusion_list = {
-        "AssetPydantic",
-        "DagTagPydantic",
-        "DagScheduleAssetReferencePydantic",
-        "TaskOutletAssetReferencePydantic",
-        "DagOwnerAttributesPydantic",
-        "AssetEventPydantic",
-        "TriggerPydantic",
-    }
-    for c in sorted(classes, key=str):
-        if c.__name__ in exclusion_list:
-            continue
-        orm_instance = sample_objects.get(c)
-        if not orm_instance:
-            pytest.fail(
-                f"Class {c.__name__} not set up for testing. Either (1) add"
-                f" to `sample_objects` an object for testing roundtrip or"
-                f" (2) add class name to `exclusion list` if it does not"
-                f" need to be serialized directly."
-            )
-        orm_ser = BaseSerialization.serialize(orm_instance, use_pydantic_models=True)
-        pydantic_instance = BaseSerialization.deserialize(orm_ser, use_pydantic_models=True)
-        if isinstance(pydantic_instance, str):
-            pytest.fail(
-                f"The model object {orm_instance.__class__} came back as a string "
-                f"after round trip. Probably you need to define a DagAttributeType "
-                f"for it and define it in mappings `_orm_to_model` and `_type_to_class` "
-                f"in `serialized_objects.py`"
-            )
-        assert isinstance(pydantic_instance, c)
-        serialized = BaseSerialization.serialize(pydantic_instance, use_pydantic_models=True)
-        deserialized = BaseSerialization.deserialize(serialized, use_pydantic_models=True)
-        assert isinstance(deserialized, c)
-        if isinstance(pydantic_instance, TaskInstancePydantic):
-            # we can't access the dag on deserialization; but there is no dag here.
-            deserialized.task.dag = None
-            pydantic_instance.task.dag = None
-        assert pydantic_instance == deserialized
-
-
 @pytest.mark.db_test
 def test_serialized_mapped_operator_unmap(dag_maker):
     from airflow.serialization.serialized_objects import SerializedDAG
@@ -525,12 +366,14 @@ def test_serialized_mapped_operator_unmap(dag_maker):
 def test_ser_of_asset_event_accessor():
     # todo: (Airflow 3.0) we should force reserialization on upgrade
     d = OutletEventAccessors()
-    d["hi"].extra = "blah1"  # todo: this should maybe be forbidden?  i.e. can extra be any json or just dict?
-    d["yo"].extra = {"this": "that", "the": "other"}
+    d[
+        Asset("hi")
+    ].extra = "blah1"  # todo: this should maybe be forbidden?  i.e. can extra be any json or just dict?
+    d[Asset(name="yo", uri="test://yo")].extra = {"this": "that", "the": "other"}
     ser = BaseSerialization.serialize(var=d)
     deser = BaseSerialization.deserialize(ser)
-    assert deser["hi"].extra == "blah1"
-    assert d["yo"].extra == {"this": "that", "the": "other"}
+    assert deser[Asset(uri="hi", name="hi")].extra == "blah1"
+    assert d[Asset(name="yo", uri="test://yo")].extra == {"this": "that", "the": "other"}
 
 
 class MyTrigger(BaseTrigger):

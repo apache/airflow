@@ -834,6 +834,12 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             dag.clear(session=self.session)
             dag.sync_to_db(processor_subdir=self.processor_subdir, session=self.session)
+
+            if dag.access_control:
+                from airflow.www.security_appless import ApplessAirflowSecurityManager
+
+                security_manager = ApplessAirflowSecurityManager(session=self.session)
+                security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)
             self.dag_model = self.session.get(DagModel, dag.dag_id)
 
             if self.want_serialized:
@@ -1432,18 +1438,13 @@ def _clear_db(request):
 
 @pytest.fixture(autouse=True)
 def clear_lru_cache():
-    from airflow.executors.executor_loader import ExecutorLoader
     from airflow.utils.entry_points import _get_grouped_entry_points
 
-    ExecutorLoader.validate_database_executor_compatibility.cache_clear()
+    _get_grouped_entry_points.cache_clear()
     try:
-        _get_grouped_entry_points.cache_clear()
-        try:
-            yield
-        finally:
-            _get_grouped_entry_points.cache_clear()
+        yield
     finally:
-        ExecutorLoader.validate_database_executor_compatibility.cache_clear()
+        _get_grouped_entry_points.cache_clear()
 
 
 @pytest.fixture(autouse=True)
