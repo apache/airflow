@@ -87,6 +87,17 @@ class PostgresHook(DbApiHook):
     hook_name = "Postgres"
     supports_autocommit = True
     supports_executemany = True
+    ignored_extra_options = {
+        "iam",
+        "redshift",
+        "redshift-serverless",
+        "cursor",
+        "cluster-identifier",
+        "workgroup-name",
+        "aws_conn_id",
+        "sqlalchemy_scheme",
+        "sqlalchemy_query",
+    }
 
     def __init__(
         self, *args, options: str | None = None, enable_log_db_messages: bool = False, **kwargs
@@ -151,15 +162,7 @@ class PostgresHook(DbApiHook):
             conn_args["options"] = self.options
 
         for arg_name, arg_val in conn.extra_dejson.items():
-            if arg_name not in [
-                "iam",
-                "redshift",
-                "redshift-serverless",
-                "cursor",
-                "cluster-identifier",
-                "workgroup-name",
-                "aws_conn_id",
-            ]:
+            if arg_name not in self.ignored_extra_options:
                 conn_args[arg_name] = arg_val
 
         self.conn = psycopg2.connect(**conn_args)

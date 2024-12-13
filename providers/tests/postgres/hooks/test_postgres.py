@@ -87,7 +87,7 @@ class TestPostgresHookConn:
 
     @mock.patch("airflow.providers.postgres.hooks.postgres.psycopg2.connect")
     def test_get_conn_cursor(self, mock_connect):
-        self.connection.extra = '{"cursor": "dictcursor"}'
+        self.connection.extra = '{"cursor": "dictcursor", "sqlalchemy_query": {"gssencmode": "disable"}}'
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with(
             cursor_factory=psycopg2.extras.DictCursor,
