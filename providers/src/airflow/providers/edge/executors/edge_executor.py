@@ -194,7 +194,7 @@ class EdgeExecutor(BaseExecutor):
                         TaskInstanceState.UP_FOR_RETRY,
                     ]
                 )
-            )```
+            )
             .all()
         )
         for job in jobs:
