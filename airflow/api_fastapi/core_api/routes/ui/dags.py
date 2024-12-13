@@ -52,7 +52,7 @@ from airflow.models import DagModel, DagRun
 dags_router = AirflowRouter(prefix="/dags", tags=["Dags"])
 
 
-@dags_router.get("/recent_dag_runs", include_in_schema=False, response_model_exclude_none=True)
+@dags_router.get("/recent_dag_runs", response_model_exclude_none=True)
 def recent_dag_runs(
     limit: QueryLimit,
     offset: QueryOffset,
