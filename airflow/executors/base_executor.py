@@ -367,8 +367,6 @@ class BaseExecutor(LoggingMixin):
                 # Inject the current context into the carrier.
                 carrier = Trace.inject()
                 # The carrier needs to be set on the ti, but it can't happen here because db calls are expensive.
-                # By the time the db update has finished, another heartbeat will have started
-                # and the tasks will have been triggered again.
                 # So set the carrier as an argument to the command.
                 # The command execution will set it on the ti, and it will be propagated to the task itself.
                 command.append("--carrier")
