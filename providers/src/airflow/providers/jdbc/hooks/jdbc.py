@@ -20,12 +20,12 @@ from __future__ import annotations
 import traceback
 import warnings
 from contextlib import contextmanager
+from threading import RLock
 from typing import TYPE_CHECKING, Any
 
 import jaydebeapi
 import jpype
 from sqlalchemy.engine import URL
-from wrapt import synchronized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -99,6 +99,7 @@ class JdbcHook(DbApiHook):
         super().__init__(*args, **kwargs)
         self._driver_path = driver_path
         self._driver_class = driver_class
+        self.lock = RLock()
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
@@ -178,20 +179,20 @@ class JdbcHook(DbApiHook):
 
         return super().get_sqlalchemy_engine(engine_kwargs)
 
-    @synchronized
     def get_conn(self) -> jaydebeapi.Connection:
         conn: Connection = self.connection
         host: str = conn.host
         login: str = conn.login
         psw: str = conn.password
 
-        conn = jaydebeapi.connect(
-            jclassname=self.driver_class,
-            url=str(host),
-            driver_args=[str(login), str(psw)],
-            jars=self.driver_path.split(",") if self.driver_path else None,
-        )
-        return conn
+        with self.lock:
+            conn = jaydebeapi.connect(
+                jclassname=self.driver_class,
+                url=str(host),
+                driver_args=[str(login), str(psw)],
+                jars=self.driver_path.split(",") if self.driver_path else None,
+            )
+            return conn
 
     def set_autocommit(self, conn: jaydebeapi.Connection, autocommit: bool) -> None:
         """
