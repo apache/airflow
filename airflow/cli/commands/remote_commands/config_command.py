@@ -73,7 +73,7 @@ class ConfigChange:
         self, section: str, option: str, suggestion: str = "", renamed_to: tuple[str, str] | None = None
     ) -> None:
         """
-        Initialize a RemovedConfig instance.
+        Initialize a ConfigChange instance.
 
         :param section: The section of the configuration.
         :param option: The option within the section that is removed or deprecated.
