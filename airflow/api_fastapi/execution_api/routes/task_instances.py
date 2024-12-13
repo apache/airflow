@@ -33,9 +33,11 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
+    TIRescheduleStatePayload,
     TIStateUpdate,
     TITerminalStatePayload,
 )
+from airflow.models import TaskReschedule
 from airflow.models.taskinstance import TaskInstance as TI, _update_rtif
 from airflow.models.trigger import Trigger
 from airflow.utils import timezone
@@ -147,7 +149,26 @@ def ti_update_state(
             next_kwargs=ti_patch_payload.trigger_kwargs,
             trigger_timeout=timeout,
         )
+    elif isinstance(ti_patch_payload, TIRescheduleStatePayload):
+        task_instance = session.scalar(select(TI).where(TI.id == ti_id_str))
+        actual_start_date = timezone.utcnow()
+        # update the task_reschedule table first
+        session.add(
+            TaskReschedule(
+                task_instance.task_id,
+                task_instance.dag_id,
+                task_instance.run_id,
+                task_instance.try_number,
+                actual_start_date,
+                task_instance.end_date,
+                ti_patch_payload.reschedule_date,
+                task_instance.map_index,
+            )
+        )
 
+        query = update(TI).where(TI.id == ti_id_str)
+        # clear the next_method and next_kwargs so that none of the retries pick them up
+        query = query.values(state=State.UP_FOR_RESCHEDULE, next_method=None, next_kwargs=None)
     # TODO: Replace this with FastAPI's Custom Exception handling:
     # https://fastapi.tiangolo.com/tutorial/handling-errors/#install-custom-exception-handlers
     try:
