@@ -614,7 +614,7 @@ class TestGetAssetEvents(TestAssets):
             (
                 {
                     "timestamp_gte": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
-                    "timestamp_lte": from_datetime_to_zulu_without_ms(DEFAULT_DATE)
+                    "timestamp_lte": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                 },
                 [1],  # expected_ids for events exactly on DEFAULT_DATE
             ),
@@ -622,7 +622,7 @@ class TestGetAssetEvents(TestAssets):
             (
                 {
                     "timestamp_gte": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
-                    "timestamp_lte": from_datetime_to_zulu_without_ms(DEFAULT_DATE + timedelta(days=1))
+                    "timestamp_lte": from_datetime_to_zulu_without_ms(DEFAULT_DATE + timedelta(days=1)),
                 },
                 [1, 2],  # expected_ids for events within the date range
             ),
@@ -630,7 +630,7 @@ class TestGetAssetEvents(TestAssets):
             (
                 {
                     "timestamp_gte": from_datetime_to_zulu_without_ms(DEFAULT_DATE + timedelta(days=1)),
-                    "timestamp_lte": from_datetime_to_zulu_without_ms(DEFAULT_DATE - timedelta(days=1))
+                    "timestamp_lte": from_datetime_to_zulu_without_ms(DEFAULT_DATE - timedelta(days=1)),
                 },
                 [],  # expected_ids for events outside the range
             ),
@@ -638,7 +638,7 @@ class TestGetAssetEvents(TestAssets):
             (
                 {
                     "timestamp_gte": from_datetime_to_zulu_without_ms(DEFAULT_DATE + timedelta(days=1)),
-                    "timestamp_lte": from_datetime_to_zulu_without_ms(DEFAULT_DATE + timedelta(days=2))
+                    "timestamp_lte": from_datetime_to_zulu_without_ms(DEFAULT_DATE + timedelta(days=2)),
                 },
                 [2, 3],  # expected_ids for events within the date range
             ),

@@ -167,6 +167,8 @@ export const prefetchUseAssetServiceGetAssetAlias = (
  * @param data.sourceTaskId
  * @param data.sourceRunId
  * @param data.sourceMapIndex
+ * @param data.timestampGte
+ * @param data.timestampLte
  * @returns AssetEventCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -181,6 +183,8 @@ export const prefetchUseAssetServiceGetAssetEvents = (
     sourceMapIndex,
     sourceRunId,
     sourceTaskId,
+    timestampGte,
+    timestampLte,
   }: {
     assetId?: number;
     limit?: number;
@@ -190,6 +194,8 @@ export const prefetchUseAssetServiceGetAssetEvents = (
     sourceMapIndex?: number;
     sourceRunId?: string;
     sourceTaskId?: string;
+    timestampGte?: string;
+    timestampLte?: string;
   } = {},
 ) =>
   queryClient.prefetchQuery({
@@ -202,6 +208,8 @@ export const prefetchUseAssetServiceGetAssetEvents = (
       sourceMapIndex,
       sourceRunId,
       sourceTaskId,
+      timestampGte,
+      timestampLte,
     }),
     queryFn: () =>
       AssetService.getAssetEvents({
@@ -213,6 +221,8 @@ export const prefetchUseAssetServiceGetAssetEvents = (
         sourceMapIndex,
         sourceRunId,
         sourceTaskId,
+        timestampGte,
+        timestampLte,
       }),
   });
 /**
