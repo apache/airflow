@@ -183,16 +183,7 @@ class EdgeExecutor(BaseExecutor):
         jobs: list[EdgeJobModel] = (
             session.query(EdgeJobModel)
             .with_for_update(skip_locked=True)
-            .filter(
-                EdgeJobModel.state.in_(
-                    [
-                        TaskInstanceState.RUNNING,
-                        TaskInstanceState.SUCCESS,
-                        TaskInstanceState.FAILED,
-                        TaskInstanceState.REMOVED,
-                    ]
-                )
-            )
+            .filter(EdgeJobModel.state.isnot(TaskInstanceState.QUEUED))
             .all()
         )
         for job in jobs:
@@ -208,7 +199,11 @@ class EdgeExecutor(BaseExecutor):
                     if job.key in self.last_reported_state:
                         del self.last_reported_state[job.key]
                     self.success(job.key)
-                elif job.state == TaskInstanceState.FAILED:
+                elif job.state in [
+                    TaskInstanceState.FAILED,
+                    TaskInstanceState.RESTARTING,
+                    TaskInstanceState.UP_FOR_RETRY,
+                ]:
                     if job.key in self.last_reported_state:
                         del self.last_reported_state[job.key]
                     self.fail(job.key)
@@ -218,7 +213,13 @@ class EdgeExecutor(BaseExecutor):
                 job.state == TaskInstanceState.SUCCESS
                 and job.last_update_t < (datetime.now() - timedelta(minutes=job_success_purge)).timestamp()
             ) or (
-                job.state in (TaskInstanceState.FAILED, TaskInstanceState.REMOVED)
+                job.state
+                in (
+                    TaskInstanceState.FAILED,
+                    TaskInstanceState.REMOVED,
+                    TaskInstanceState.RESTARTING,
+                    TaskInstanceState.UP_FOR_RETRY,
+                )
                 and job.last_update_t < (datetime.now() - timedelta(minutes=job_fail_purge)).timestamp()
             ):
                 if job.key in self.last_reported_state:
