@@ -1096,9 +1096,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # The scheduler that starts a dag_run or a task is also the one that starts the spans.
         # Each scheduler should end the spans that it has started.
         #
-        # Otel spans are designed so that only the process that starts them,
-        # has full control over their lifecycle.
-        # This also means that the process that started them, is the only one that can end them.
+        # Otel spans are implemented in a certain way so that the objects
+        # can't be shared between processes or get recreated.
+        # It is done so that the process that starts a span, is also the one that ends it.
         #
         # If another scheduler has finished processing a dag_run or a task and there is a reference
         # on the active_spans dictionary, then the current scheduler started the span,
