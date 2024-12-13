@@ -20,6 +20,7 @@ from __future__ import annotations
 import pendulum
 import pytest
 
+from airflow.decorators import task
 from airflow.models import DagRun, TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import BranchPythonOperator
@@ -82,6 +83,50 @@ def test_no_skipmixin_parent(session, dag_maker):
     assert len(list(dep.get_dep_statuses(ti2, session, DepContext()))) == 0
     assert dep.is_met(ti2, session)
     assert ti2.state != State.SKIPPED
+
+
+@pytest.mark.parametrize("condition, final_state", [(True, State.SUCCESS), (False, State.SKIPPED)])
+def test_parent_is_mapped_short_circuit(session, dag_maker, condition, final_state):
+    with dag_maker(session=session):
+
+        @task
+        def op1():
+            return [1]
+
+        @task.short_circuit
+        def op2(i: int):
+            return condition
+
+        @task
+        def op3(res: bool):
+            pass
+
+        op3.expand(res=op2.expand(i=op1()))
+
+    dr = dag_maker.create_dagrun()
+
+    def _one_scheduling_decision_iteration() -> dict[tuple[str, int], TaskInstance]:
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        return {(ti.task_id, ti.map_index): ti for ti in decision.schedulable_tis}
+
+    tis = _one_scheduling_decision_iteration()
+
+    tis["op1", -1].run()
+    assert tis["op1", -1].state == State.SUCCESS
+
+    tis = _one_scheduling_decision_iteration()
+    tis["op2", 0].run()
+
+    assert tis["op2", 0].state == State.SUCCESS
+    tis = _one_scheduling_decision_iteration()
+
+    if condition:
+        ti3 = tis["op3", 0]
+        ti3.run()
+    else:
+        ti3 = dr.get_task_instance("op3", map_index=0, session=session)
+
+    assert ti3.state == final_state
 
 
 def test_parent_follow_branch(session, dag_maker):
