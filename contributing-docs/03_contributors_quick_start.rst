@@ -169,7 +169,7 @@ Setting up virtual-env
 
 .. code-block:: bash
 
-  sudo apt install openssl sqlite default-libmysqlclient-dev libmysqlclient-dev postgresql
+  sudo apt install openssl sqlite3 default-libmysqlclient-dev libmysqlclient-dev postgresql
 
 If you want to install all airflow providers, more system dependencies might be needed. For example on Debian/Ubuntu
 like system, this command will install all necessary dependencies that should be installed when you use
@@ -312,7 +312,6 @@ Setting up Breeze
 
 .. code-block:: bash
 
-  root@b76fcb399bb6:/opt/airflow#
   root@b76fcb399bb6:/opt/airflow# exit
 
 8. You can stop the environment (which means deleting the databases and database servers running in the
@@ -329,7 +328,10 @@ Using Breeze
 1. Starting breeze environment using ``breeze start-airflow`` starts Breeze environment with last configuration run(
    In this case python and backend will be picked up from last execution ``breeze --python 3.9 --backend postgres``)
    It also automatically starts webserver, backend and scheduler. It drops you in tmux with scheduler in bottom left
-   and webserver in bottom right. Use ``[Ctrl + B] and Arrow keys`` to navigate
+   and webserver in bottom right. Use ``[Ctrl + B] and Arrow keys`` to navigate.
+   Keep in mind, you need ``pre-commit`` installed for this to work or you will be prompted with
+   ``FileNotFoundError: [Errno 2] No such file or directory: 'pre-commit'``
+   when attempting to invoke ``breeze start-airflow``.
 
 .. code-block:: bash
 
@@ -427,12 +429,21 @@ Using Breeze
       </div>
 
 4. Stopping breeze
+If Airflow was started with ``breeze start-airflow``:
 
 .. code-block:: bash
 
   root@f3619b74c59a:/opt/airflow# stop_airflow
+  breeze down
+
+If Airflow was started with ``breeze --python 3.9 --backend postgres``:
+
+.. code-block:: bash
+
   root@f3619b74c59a:/opt/airflow# exit
   breeze down
+
+Note : ``stop_airflow`` is available only when Airflow is started with ``breeze start-airflow``.
 
 5. Knowing more about Breeze
 
