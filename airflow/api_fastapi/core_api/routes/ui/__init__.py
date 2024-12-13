@@ -24,7 +24,7 @@ from airflow.api_fastapi.core_api.routes.ui.dags import dags_router
 from airflow.api_fastapi.core_api.routes.ui.dashboard import dashboard_router
 from airflow.api_fastapi.core_api.routes.ui.structure import structure_router
 
-ui_router = AirflowRouter(prefix="/ui")
+ui_router = AirflowRouter(prefix="/ui", include_in_schema=False)
 
 ui_router.include_router(assets_router)
 ui_router.include_router(config_router)

@@ -326,7 +326,13 @@ with DAG(
 
     # This test needs watcher in order to properly mark success/failure
     # when "tearDown" task with trigger rule is part of the DAG
-    list(dag.tasks) >> watcher()
+
+    # Excluding sensor because we expect it to fail due to cancelled operation
+    [
+        task
+        for task in dag.tasks
+        if task.task_id not in ["insert_conversion", "update_conversion", "delete_connection"]
+    ] >> watcher()
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 

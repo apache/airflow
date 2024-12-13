@@ -35,6 +35,7 @@ console = Console(color_system="standard", width=200)
 errors: list[str] = []
 
 WATCHER_APPEND_INSTRUCTION = "list(dag.tasks) >> watcher()"
+WATCHER_APPEND_INSTRUCTION_SHORT = " >> watcher()"
 
 PYTEST_FUNCTION = """
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
@@ -52,13 +53,13 @@ PYTEST_FUNCTION_PATTERN = re.compile(
 def _check_file(file: Path):
     content = file.read_text()
     if "from tests_common.test_utils.watcher import watcher" in content:
-        index = content.find(WATCHER_APPEND_INSTRUCTION)
+        index = content.find(WATCHER_APPEND_INSTRUCTION_SHORT)
         if index == -1:
             errors.append(
                 f"[red]The example {file} imports tests_common.test_utils.watcher "
                 f"but does not use it properly![/]\n\n"
                 "[yellow]Make sure you have:[/]\n\n"
-                f"        {WATCHER_APPEND_INSTRUCTION}\n\n"
+                f"        {WATCHER_APPEND_INSTRUCTION_SHORT}\n\n"
                 "[yellow]as the last instruction in your example DAG.[/]\n"
             )
         else:

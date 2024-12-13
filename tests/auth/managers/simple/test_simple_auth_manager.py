@@ -95,7 +95,7 @@ class TestSimpleAuthManager:
     @patch("airflow.auth.managers.simple.simple_auth_manager.url_for")
     def test_get_url_login(self, mock_url_for, auth_manager):
         auth_manager.get_url_login()
-        mock_url_for.assert_called_once_with("SimpleAuthManagerAuthenticationViews.login")
+        mock_url_for.assert_called_once_with("SimpleAuthManagerAuthenticationViews.login", next=None)
 
     @patch("airflow.auth.managers.simple.simple_auth_manager.url_for")
     def test_get_url_logout(self, mock_url_for, auth_manager):

@@ -20,7 +20,10 @@ import {
   useDagServiceGetDags,
   useDagsServiceRecentDagRuns,
 } from "openapi/queries";
-import type { DagRunState } from "openapi/requests/types.gen";
+import type {
+  DagRunState,
+  DAGWithLatestDagRunsResponse,
+} from "openapi/requests/types.gen";
 
 const queryOptions = {
   refetchOnMount: true,
@@ -28,6 +31,10 @@ const queryOptions = {
   refetchOnWindowFocus: false,
   staleTime: 5 * 60 * 1000,
 };
+
+export type DagWithLatest = {
+  last_run_start_date: string;
+} & DAGWithLatestDagRunsResponse;
 
 export const useDags = (
   searchParams: {
@@ -69,11 +76,13 @@ export const useDags = (
       (runsDag) => runsDag.dag_id === dag.dag_id,
     );
 
-    // For dags with recent dag runs replace the dag data from useDagsServiceRecentDagRuns
-    // which might be stale with updated dag data from useDagServiceGetDags
-    return dagWithRuns
-      ? { ...dagWithRuns, ...dag }
-      : { ...dag, latest_dag_runs: [] };
+    return {
+      latest_dag_runs: [],
+      ...dagWithRuns,
+      ...dag,
+      // We need last_run_start_date to exist on the object in order for react-table sort to work correctly
+      last_run_start_date: "",
+    };
   });
 
   return {

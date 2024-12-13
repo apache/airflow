@@ -52,7 +52,6 @@ from airflow_breeze.global_constants import (
     DOCKER_DEFAULT_PLATFORM,
     MIN_DOCKER_COMPOSE_VERSION,
     MIN_DOCKER_VERSION,
-    SEQUENTIAL_EXECUTOR,
 )
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.run_utils import (
@@ -724,16 +723,13 @@ def execute_command_in_shell(
     :param command:
     """
     shell_params.backend = "sqlite"
-    shell_params.executor = SEQUENTIAL_EXECUTOR
     shell_params.forward_ports = False
     shell_params.project_name = project_name
     shell_params.quiet = True
     shell_params.skip_environment_initialization = True
     shell_params.skip_image_upgrade_check = True
     if get_verbose():
-        get_console().print(f"[warning]Backend forced to: sqlite and {SEQUENTIAL_EXECUTOR}[/]")
         get_console().print("[warning]Sqlite DB is cleaned[/]")
-        get_console().print(f"[warning]Executor forced to {SEQUENTIAL_EXECUTOR}[/]")
         get_console().print("[warning]Disabled port forwarding[/]")
         get_console().print(f"[warning]Project name set to: {project_name}[/]")
         get_console().print("[warning]Forced quiet mode[/]")
@@ -775,13 +771,6 @@ def enter_shell(shell_params: ShellParams, output: Output | None = None) -> RunC
         )
         bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
 
-    if shell_params.backend == "sqlite" and shell_params.executor != SEQUENTIAL_EXECUTOR:
-        get_console().print(
-            f"\n[warning]backend: sqlite is not "
-            f"compatible with executor: {shell_params.executor}. "
-            f"Changing the executor to {SEQUENTIAL_EXECUTOR}.\n"
-        )
-        shell_params.executor = SEQUENTIAL_EXECUTOR
     if shell_params.restart:
         bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
     if shell_params.include_mypy_volume:

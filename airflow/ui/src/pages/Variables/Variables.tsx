@@ -57,9 +57,7 @@ const columns: Array<ColumnDef<VariableResponse>> = [
 ];
 
 export const Variables = () => {
-  const { setTableURLState, tableURLState } = useTableURLState({
-    sorting: [{ desc: false, id: "key" }],
-  });
+  const { setTableURLState, tableURLState } = useTableURLState();
   const [searchParams, setSearchParams] = useSearchParams();
   const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType =
     SearchParamsKeys;
@@ -70,7 +68,7 @@ export const Variables = () => {
   const [sort] = sorting;
   const orderBy = sort
     ? `${sort.desc ? "-" : ""}${sort.id === "value" ? "_val" : sort.id}`
-    : undefined;
+    : "-key";
 
   const { data, error, isFetching, isLoading } = useVariableServiceGetVariables(
     {

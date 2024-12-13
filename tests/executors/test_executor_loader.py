@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from contextlib import nullcontext
 from importlib import reload
 from unittest import mock
 
@@ -33,11 +32,7 @@ from tests_common.test_utils.config import conf_vars
 
 
 class FakeExecutor:
-    is_single_threaded = False
-
-
-class FakeSingleThreadedExecutor:
-    is_single_threaded = True
+    pass
 
 
 class TestExecutorLoader:
@@ -218,31 +213,6 @@ class TestExecutorLoader:
             executor, import_source = ExecutorLoader.import_default_executor_cls()
             assert executor.__name__ == "FakeExecutor"
             assert import_source == ConnectorSource.CUSTOM_PATH
-
-    @pytest.mark.db_test
-    @pytest.mark.backend("mysql", "postgres")
-    @pytest.mark.parametrize("executor", [FakeExecutor, FakeSingleThreadedExecutor])
-    def test_validate_database_executor_compatibility_general(self, monkeypatch, executor):
-        monkeypatch.delenv("_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK")
-        ExecutorLoader.validate_database_executor_compatibility(executor)
-
-    @pytest.mark.db_test
-    @pytest.mark.backend("sqlite")
-    @pytest.mark.parametrize(
-        ["executor", "expectation"],
-        [
-            pytest.param(FakeSingleThreadedExecutor, nullcontext(), id="single-threaded"),
-            pytest.param(
-                FakeExecutor,
-                pytest.raises(AirflowConfigException, match=r"^error: cannot use SQLite with the .+"),
-                id="multi-threaded",
-            ),
-        ],
-    )
-    def test_validate_database_executor_compatibility_sqlite(self, monkeypatch, executor, expectation):
-        monkeypatch.delenv("_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK")
-        with expectation:
-            ExecutorLoader.validate_database_executor_compatibility(executor)
 
     def test_load_executor(self):
         with conf_vars({("core", "executor"): "LocalExecutor"}):

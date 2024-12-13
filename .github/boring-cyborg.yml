@@ -155,8 +155,8 @@ labelPRBasedOnFilePath:
     - providers/tests/cloudant/**/*
 
   provider:cncf-kubernetes:
-    - airflow/**/kubernetes_*.py
     - airflow/example_dags/example_kubernetes_executor.py
+    - airflow/example_dags/example_local_kubernetes_executor.py
     - providers/src/airflow/providers/cncf/kubernetes/**/*
     - providers/src/airflow/providers/celery/executors/celery_kubernetes_executor.py
     - docs/apache-airflow-providers-cncf-kubernetes/**/*

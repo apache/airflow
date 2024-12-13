@@ -57,14 +57,12 @@ from airflow.utils.context import context_copy_partial, context_merge
 from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess, execute_in_subprocess_with_kwargs
-from airflow.utils.session import create_session
 
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from pendulum.datetime import DateTime
 
-    from airflow.serialization.enums import Encoding
     from airflow.utils.context import Context
 
 
@@ -530,18 +528,19 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 render_template_as_native_obj=self.dag.render_template_as_native_obj,
             )
             if self.use_airflow_context:
-                from airflow.serialization.serialized_objects import BaseSerialization
-
-                context = get_current_context()
-                with create_session() as session:
-                    # FIXME: DetachedInstanceError
-                    dag_run, task_instance = context["dag_run"], context["task_instance"]
-                    session.add_all([dag_run, task_instance])
-                    serializable_context: dict[Encoding, Any] = BaseSerialization.serialize(
-                        context, use_pydantic_models=True
-                    )
-                with airflow_context_path.open("w+") as file:
-                    json.dump(serializable_context, file)
+                # TODO: replace with commented code when context serialization is implemented in AIP-72
+                raise AirflowException(
+                    "The `use_airflow_context=True` is not yet implemented. "
+                    "It will work in Airflow 3 after AIP-72 context "
+                    "serialization is ready."
+                )
+                # context = get_current_context()
+                # with create_session() as session:
+                #     dag_run, task_instance = context["dag_run"], context["task_instance"]
+                #     session.add_all([dag_run, task_instance])
+                #     serializable_context: dict[Encoding, Any] = # Get serializable context here
+                # with airflow_context_path.open("w+") as file:
+                #     json.dump(serializable_context, file)
 
             env_vars = dict(os.environ) if self.inherit_env else {}
             if self.env_vars:
@@ -653,6 +652,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         of the parent process (``os.environ``). If set to ``False``, the virtual environment will be
         executed with a clean environment.
     :param use_airflow_context: Whether to provide ``get_current_context()`` to the python_callable.
+        NOT YET IMPLEMENTED - waits for AIP-72 context serialization.
     """
 
     template_fields: Sequence[str] = tuple(
@@ -697,14 +697,17 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             raise AirflowException(
                 "Passing non-string types (e.g. int or float) as python_version not supported"
             )
-        if use_airflow_context and not AIRFLOW_V_3_0_PLUS:
-            raise AirflowException(
-                "The `use_airflow_context=True` is only supported in Airflow 3.0.0 and later."
-            )
         if use_airflow_context and (not expect_airflow and not system_site_packages):
             raise AirflowException(
                 "The `use_airflow_context` parameter is set to True, but "
                 "expect_airflow and system_site_packages are set to False."
+            )
+        # TODO: remove when context serialization is implemented in AIP-72
+        if use_airflow_context and not AIRFLOW_V_3_0_PLUS:
+            raise AirflowException(
+                "The `use_airflow_context=True` is not yet implemented. "
+                "It will work in Airflow 3 after AIP-72 context "
+                "serialization is ready."
             )
         if not requirements:
             self.requirements: list[str] = []
@@ -951,6 +954,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         of the parent process (``os.environ``). If set to ``False``, the virtual environment will be
         executed with a clean environment.
     :param use_airflow_context: Whether to provide ``get_current_context()`` to the python_callable.
+        NOT YET IMPLEMENTED - waits for AIP-72 context serialization.
     """
 
     template_fields: Sequence[str] = tuple({"python"}.union(PythonOperator.template_fields))
@@ -976,13 +980,16 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
     ):
         if not python:
             raise ValueError("Python Path must be defined in ExternalPythonOperator")
-        if use_airflow_context and not AIRFLOW_V_3_0_PLUS:
-            raise AirflowException(
-                "The `use_airflow_context=True` is only supported in Airflow 3.0.0 and later."
-            )
         if use_airflow_context and not expect_airflow:
             raise AirflowException(
                 "The `use_airflow_context` parameter is set to True, but expect_airflow is set to False."
+            )
+        # TODO: remove when context serialization is implemented in AIP-72
+        if use_airflow_context:
+            raise AirflowException(
+                "The `use_airflow_context=True` is not yet implemented. "
+                "It will work in Airflow 3 after AIP-72 context "
+                "serialization is ready."
             )
         self.python = python
         self.expect_pendulum = expect_pendulum

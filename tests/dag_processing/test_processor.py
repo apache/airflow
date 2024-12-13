@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import datetime
 import os
 import pathlib
 import sys
@@ -30,7 +29,6 @@ import pytest
 from airflow import settings
 from airflow.callbacks.callback_requests import TaskCallbackRequest
 from airflow.configuration import TEST_DAGS_FOLDER, conf
-from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.dag_processing.processor import DagFileProcessor, DagFileProcessorProcess
 from airflow.models import DagBag, DagModel, TaskInstance
 from airflow.models.serialized_dag import SerializedDagModel
@@ -109,18 +107,14 @@ class TestDagFileProcessor:
         self.clean_db()
 
     def _process_file(self, file_path, dag_directory, session):
-        dag_file_processor = DagFileProcessor(
-            dag_ids=[], dag_directory=str(dag_directory), log=mock.MagicMock()
-        )
+        dag_file_processor = DagFileProcessor(dag_directory=str(dag_directory), log=mock.MagicMock())
 
         dag_file_processor.process_file(file_path, [])
 
     @patch.object(TaskInstance, "handle_failure")
     def test_execute_on_failure_callbacks(self, mock_ti_handle_failure):
         dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
-        dag_file_processor = DagFileProcessor(
-            dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock()
-        )
+        dag_file_processor = DagFileProcessor(dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock())
         with create_session() as session:
             session.query(TaskInstance).delete()
             dag = dagbag.get_dag("example_branch_operator")
@@ -154,9 +148,7 @@ class TestDagFileProcessor:
     @patch.object(TaskInstance, "handle_failure")
     def test_execute_on_failure_callbacks_without_dag(self, mock_ti_handle_failure, has_serialized_dag):
         dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
-        dag_file_processor = DagFileProcessor(
-            dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock()
-        )
+        dag_file_processor = DagFileProcessor(dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock())
         with create_session() as session:
             session.query(TaskInstance).delete()
             dag = dagbag.get_dag("example_branch_operator")
@@ -190,9 +182,7 @@ class TestDagFileProcessor:
 
     def test_failure_callbacks_should_not_drop_hostname(self):
         dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
-        dag_file_processor = DagFileProcessor(
-            dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock()
-        )
+        dag_file_processor = DagFileProcessor(dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock())
         dag_file_processor.UNIT_TEST_MODE = False
 
         with create_session() as session:
@@ -226,9 +216,7 @@ class TestDagFileProcessor:
         callback_file = tmp_path.joinpath("callback.txt")
         callback_file.touch()
         monkeypatch.setenv("AIRFLOW_CALLBACK_FILE", str(callback_file))
-        dag_file_processor = DagFileProcessor(
-            dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock()
-        )
+        dag_file_processor = DagFileProcessor(dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock())
 
         dag = get_test_dag("test_on_failure_callback")
         task = dag.get_task(task_id="test_on_failure_callback_task")
@@ -578,7 +566,6 @@ class TestDagFileProcessor:
     def test_dag_parser_output_when_logging_to_stdout(self, mock_redirect_stdout_for_file):
         processor = DagFileProcessorProcess(
             file_path="abc.txt",
-            dag_ids=[],
             dag_directory=[],
             callback_requests=[],
         )
@@ -586,7 +573,6 @@ class TestDagFileProcessor:
             result_channel=MagicMock(),
             parent_channel=MagicMock(),
             file_path="fake_file_path",
-            dag_ids=[],
             thread_name="fake_thread_name",
             callback_requests=[],
             dag_directory=[],
@@ -599,7 +585,6 @@ class TestDagFileProcessor:
     def test_dag_parser_output_when_logging_to_file(self, mock_redirect_stdout_for_file):
         processor = DagFileProcessorProcess(
             file_path="abc.txt",
-            dag_ids=[],
             dag_directory=[],
             callback_requests=[],
         )
@@ -607,7 +592,6 @@ class TestDagFileProcessor:
             result_channel=MagicMock(),
             parent_channel=MagicMock(),
             file_path="fake_file_path",
-            dag_ids=[],
             thread_name="fake_thread_name",
             callback_requests=[],
             dag_directory=[],
@@ -624,7 +608,6 @@ class TestDagFileProcessor:
 
         processor = DagFileProcessorProcess(
             file_path=zip_filename,
-            dag_ids=[],
             dag_directory=[],
             callback_requests=[],
         )
@@ -640,7 +623,6 @@ class TestDagFileProcessor:
 
         processor = DagFileProcessorProcess(
             file_path=dag_filename,
-            dag_ids=[],
             dag_directory=[],
             callback_requests=[],
         )
@@ -656,49 +638,3 @@ class TestDagFileProcessor:
                 session=session,
             ):
                 self._process_file(dag_filepath, TEST_DAG_FOLDER, session)
-
-
-class TestProcessorAgent:
-    @pytest.fixture(autouse=True)
-    def per_test(self):
-        self.processor_agent = None
-        yield
-        if self.processor_agent:
-            self.processor_agent.end()
-
-    def test_error_when_waiting_in_async_mode(self, tmp_path):
-        self.processor_agent = DagFileProcessorAgent(
-            dag_directory=tmp_path,
-            max_runs=1,
-            processor_timeout=datetime.timedelta(1),
-            dag_ids=[],
-            async_mode=True,
-        )
-        self.processor_agent.start()
-        with pytest.raises(RuntimeError, match="wait_until_finished should only be called in sync_mode"):
-            self.processor_agent.wait_until_finished()
-
-    def test_default_multiprocessing_behaviour(self, tmp_path):
-        self.processor_agent = DagFileProcessorAgent(
-            dag_directory=tmp_path,
-            max_runs=1,
-            processor_timeout=datetime.timedelta(1),
-            dag_ids=[],
-            async_mode=False,
-        )
-        self.processor_agent.start()
-        self.processor_agent.run_single_parsing_loop()
-        self.processor_agent.wait_until_finished()
-
-    @conf_vars({("core", "mp_start_method"): "spawn"})
-    def test_spawn_multiprocessing_behaviour(self, tmp_path):
-        self.processor_agent = DagFileProcessorAgent(
-            dag_directory=tmp_path,
-            max_runs=1,
-            processor_timeout=datetime.timedelta(1),
-            dag_ids=[],
-            async_mode=False,
-        )
-        self.processor_agent.start()
-        self.processor_agent.run_single_parsing_loop()
-        self.processor_agent.wait_until_finished()

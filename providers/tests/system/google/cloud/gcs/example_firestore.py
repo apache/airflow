@@ -142,7 +142,7 @@ with DAG(
         environment={
             "tempLocation": f"gs://{BUCKET_NAME}/tmp",
         },
-        location="us-central1",
+        location="us-east4",
         append_job_name=False,
         trigger_rule=TriggerRule.ALL_DONE,
     )

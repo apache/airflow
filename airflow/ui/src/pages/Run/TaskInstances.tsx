@@ -41,16 +41,8 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
         </RouterLink>
       </Link>
     ),
-    header: "Task ID",
-  },
-  {
-    accessorKey: "map_index",
-    header: "Map Index",
-  },
-  {
-    accessorKey: "try_number",
     enableSorting: false,
-    header: "Try Number",
+    header: "Task ID",
   },
   {
     accessorKey: "state",
@@ -60,11 +52,6 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
       },
     }) => <Status state={state}>{state}</Status>,
     header: () => "State",
-  },
-  {
-    accessorKey: "operator",
-    enableSorting: false,
-    header: "Operator",
   },
   {
     accessorKey: "start_date",
@@ -77,6 +64,22 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
     header: "End Date",
   },
   {
+    accessorKey: "map_index",
+    header: "Map Index",
+  },
+
+  {
+    accessorKey: "try_number",
+    enableSorting: false,
+    header: "Try Number",
+  },
+  {
+    accessorKey: "operator",
+    enableSorting: false,
+    header: "Operator",
+  },
+
+  {
     cell: ({ row: { original } }) =>
       `${dayjs.duration(dayjs(original.end_date).diff(original.start_date)).asSeconds().toFixed(2)}s`,
     header: "Duration",
@@ -88,7 +91,7 @@ export const TaskInstances = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
+  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-start_date";
 
   const { data, error, isFetching, isLoading } =
     useTaskInstanceServiceGetTaskInstances({

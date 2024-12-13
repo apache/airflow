@@ -34,7 +34,6 @@ dashboard_router = AirflowRouter(tags=["Dashboard"], prefix="/dashboard")
 
 @dashboard_router.get(
     "/historical_metrics_data",
-    include_in_schema=False,
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST]),
 )
 def historical_metrics(

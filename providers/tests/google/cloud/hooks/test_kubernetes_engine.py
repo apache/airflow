@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 from asyncio import Future
 from unittest import mock
 
@@ -24,7 +25,6 @@ import kubernetes.client
 import pytest
 from google.cloud.container_v1 import ClusterManagerAsyncClient
 from google.cloud.container_v1.types import Cluster
-from kubernetes.client.models import V1Deployment, V1DeploymentStatus
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.kubernetes_engine import (
@@ -146,20 +146,6 @@ pods = {
         "status": {"phase": "Running"},
     },
 }
-NOT_READY_DEPLOYMENT = V1Deployment(
-    status=V1DeploymentStatus(
-        observed_generation=1,
-        ready_replicas=None,
-        replicas=None,
-        unavailable_replicas=1,
-        updated_replicas=None,
-    )
-)
-READY_DEPLOYMENT = V1Deployment(
-    status=V1DeploymentStatus(
-        observed_generation=1, ready_replicas=1, replicas=1, unavailable_replicas=None, updated_replicas=1
-    )
-)
 
 
 @pytest.mark.db_test
@@ -462,25 +448,32 @@ class TestGKEKubernetesHookDeployments:
     def _get_credentials(self):
         return self.credentials
 
-    @mock.patch("kubernetes.client.AppsV1Api")
-    def test_check_kueue_deployment_running(self, gke_deployment_hook, caplog):
-        self.gke_hook.get_credentials = self._get_credentials
-        gke_deployment_hook.return_value.read_namespaced_deployment_status.side_effect = [
-            NOT_READY_DEPLOYMENT,
-            READY_DEPLOYMENT,
-        ]
-        self.gke_hook.check_kueue_deployment_running(name=CLUSTER_NAME, namespace=NAMESPACE)
+    @pytest.mark.parametrize(
+        "api_client, expected_client",
+        [
+            (None, mock.MagicMock()),
+            (mock_client := mock.MagicMock(), mock_client),  # type: ignore[name-defined]
+        ],
+    )
+    @mock.patch(GKE_STRING.format("super"))
+    @mock.patch(GKE_STRING.format("GKEKubernetesHook.get_conn"))
+    def test_apply_from_yaml_file(self, mock_get_conn, mock_super, api_client, expected_client):
+        kwargs = dict(
+            api_client=api_client,
+            yaml_file=mock.MagicMock(),
+            yaml_objects=mock.MagicMock(),
+            verbose=mock.MagicMock(),
+            namespace=mock.MagicMock(),
+        )
+        expected_kwargs = copy.deepcopy(kwargs)
+        expected_kwargs["api_client"] = expected_client
+        mock_get_conn.return_value = expected_client
 
-        assert "Waiting until Deployment will be ready..." in caplog.text
+        self.gke_hook.apply_from_yaml_file(**kwargs)
 
-    @mock.patch("kubernetes.client.AppsV1Api")
-    def test_check_kueue_deployment_raise_exception(self, gke_deployment_hook, caplog):
-        self.gke_hook.get_credentials = self._get_credentials
-        gke_deployment_hook.return_value.read_namespaced_deployment_status.side_effect = ValueError()
-        with pytest.raises(ValueError):
-            self.gke_hook.check_kueue_deployment_running(name=CLUSTER_NAME, namespace=NAMESPACE)
-
-        assert "Exception occurred while checking for Deployment status." in caplog.text
+        if api_client is None:
+            mock_get_conn.assert_called_once()
+        mock_super.return_value.apply_from_yaml_file.assert_called_once_with(**expected_kwargs)
 
 
 class TestGKEKubernetesAsyncHook:

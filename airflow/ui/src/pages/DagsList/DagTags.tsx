@@ -19,14 +19,14 @@
 import { Flex, Text, VStack } from "@chakra-ui/react";
 import { FiTag } from "react-icons/fi";
 
-import type { DagTagPydantic } from "openapi/requests/types.gen";
+import type { DagTagResponse } from "openapi/requests/types.gen";
 import { Tooltip } from "src/components/ui";
 
 const MAX_TAGS = 3;
 
 type Props = {
   readonly hideIcon?: boolean;
-  readonly tags: Array<DagTagPydantic>;
+  readonly tags: Array<DagTagResponse>;
 };
 
 export const DagTags = ({ hideIcon = false, tags }: Props) =>

@@ -25,6 +25,8 @@ class CustomOperator(BaseOperator):
     def execute(self, context):
         task_id = context["task_instance"].task_id
         print(f"Hello World {task_id}!")
+        assert context["task_instance"].try_number == 1
+        assert context["dag"].dag_id == "super_basic_run"
 
 
 @dag()

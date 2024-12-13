@@ -29,7 +29,7 @@ import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
 import { stateColor } from "src/utils/stateColor";
 
-const defaultHour = "12";
+const defaultHour = "168";
 
 export const Overview = () => {
   const { dagId } = useParams();

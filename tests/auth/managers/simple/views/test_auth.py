@@ -65,18 +65,29 @@ class TestSimpleAuthManagerAuthenticationViews:
             assert session.get("user") is None
 
     @pytest.mark.parametrize(
-        "username, password, is_successful",
-        [("test", "test", True), ("test", "test2", False), ("", "", False)],
+        "username, password, is_successful, query_params, expected_redirect",
+        [
+            ("test", "test", True, {}, None),
+            ("test", "test2", False, {}, None),
+            ("", "", False, {}, None),
+            ("test", "test", True, {"next": "next_url"}, "next_url?token=token"),
+        ],
     )
     @patch("airflow.auth.managers.simple.views.auth.JWTSigner")
-    def test_login_submit(self, mock_jwt_signer, simple_app, username, password, is_successful):
+    def test_login_submit(
+        self, mock_jwt_signer, simple_app, username, password, is_successful, query_params, expected_redirect
+    ):
         signer = Mock()
         signer.generate_signed_token.return_value = "token"
         mock_jwt_signer.return_value = signer
         with simple_app.test_client() as client:
-            response = client.post("/login_submit", data={"username": username, "password": password})
+            response = client.post(
+                "/login_submit", query_string=query_params, data={"username": username, "password": password}
+            )
             assert response.status_code == 302
             if is_successful:
-                assert response.location == url_for("Airflow.index", token="token")
+                if not expected_redirect:
+                    expected_redirect = url_for("Airflow.index", token="token")
+                assert response.location == expected_redirect
             else:
                 assert response.location == url_for("SimpleAuthManagerAuthenticationViews.login", error=["1"])

@@ -149,6 +149,12 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
                     pytest.mark.skip(reason=f"Not supported for Python {CURRENT_PYTHON_VERSION}")
                 )
 
+            # TODO: remove when context serialization is implemented in AIP-72
+            if "/example_python_context_" in candidate:
+                param_marks.append(
+                    pytest.mark.skip(reason="Temporary excluded until AIP-72 context serialization is done.")
+                )
+
             for optional, dependencies in OPTIONAL_PROVIDERS_DEPENDENCIES.items():
                 if re.match(optional, candidate):
                     for distribution_name, specifier in dependencies.items():

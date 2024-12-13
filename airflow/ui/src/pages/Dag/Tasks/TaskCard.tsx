@@ -16,14 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Heading,
-  VStack,
-  HStack,
-  Box,
-  SimpleGrid,
-  Text,
-} from "@chakra-ui/react";
+import { Heading, VStack, Box, SimpleGrid, Text, Link } from "@chakra-ui/react";
+import { Link as RouterLink } from "react-router-dom";
 
 import type {
   TaskResponse,
@@ -36,22 +30,27 @@ import { Status } from "src/components/ui";
 import { TaskRecentRuns } from "./TaskRecentRuns.tsx";
 
 type Props = {
+  readonly dagId: string;
   readonly task: TaskResponse;
   readonly taskInstances: Array<TaskInstanceResponse>;
 };
 
-export const TaskCard = ({ task, taskInstances }: Props) => (
+export const TaskCard = ({ dagId, task, taskInstances }: Props) => (
   <Box
     borderColor="border.emphasized"
     borderRadius={8}
     borderWidth={1}
     overflow="hidden"
+    px={3}
+    py={2}
   >
-    <Text bg="bg.info" color="fg.info" fontWeight="bold" p={2}>
-      {task.task_display_name ?? task.task_id}
-      {task.is_mapped ? "[]" : undefined}
-    </Text>
-    <SimpleGrid columns={4} gap={4} height={20} px={3} py={2}>
+    <Link asChild color="fg.info" fontWeight="bold">
+      <RouterLink to={`/dags/${dagId}/tasks/${task.task_id}`}>
+        {task.task_display_name ?? task.task_id}
+        {task.is_mapped ? "[]" : undefined}
+      </RouterLink>
+    </Link>
+    <SimpleGrid columns={4} gap={4} height={20}>
       <VStack align="flex-start" gap={1}>
         <Heading color="fg.muted" fontSize="xs">
           Operator
@@ -70,14 +69,18 @@ export const TaskCard = ({ task, taskInstances }: Props) => (
         </Heading>
         {taskInstances[0] ? (
           <TaskInstanceTooltip taskInstance={taskInstances[0]}>
-            <HStack fontSize="sm">
-              <Time datetime={taskInstances[0].start_date} />
-              {taskInstances[0].state === null ? undefined : (
-                <Status state={taskInstances[0].state}>
-                  {taskInstances[0].state}
-                </Status>
-              )}
-            </HStack>
+            <Link asChild color="fg.info" fontSize="sm">
+              <RouterLink
+                to={`/dags/${dagId}/runs/${taskInstances[0].dag_run_id}/tasks/${task.task_id}`}
+              >
+                <Time datetime={taskInstances[0].start_date} />
+                {taskInstances[0].state === null ? undefined : (
+                  <Status state={taskInstances[0].state}>
+                    {taskInstances[0].state}
+                  </Status>
+                )}
+              </RouterLink>
+            </Link>
           </TaskInstanceTooltip>
         ) : undefined}
       </VStack>

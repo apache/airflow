@@ -95,9 +95,7 @@ class TestDagFileProcessor:
         self.clean_db()
 
     def _process_file(self, file_path, dag_directory, session):
-        dag_file_processor = DagFileProcessor(
-            dag_ids=[], dag_directory=str(dag_directory), log=mock.MagicMock()
-        )
+        dag_file_processor = DagFileProcessor(dag_directory=str(dag_directory), log=mock.MagicMock())
 
         dag_file_processor.process_file(file_path, [])
 

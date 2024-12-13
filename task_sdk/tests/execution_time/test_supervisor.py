@@ -98,7 +98,7 @@ class TestWatchedSubprocess:
 
         proc = WatchedSubprocess.start(
             path=os.devnull,
-            ti=TaskInstance(
+            what=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
                 dag_id="c",
@@ -165,7 +165,7 @@ class TestWatchedSubprocess:
 
         proc = WatchedSubprocess.start(
             path=os.devnull,
-            ti=TaskInstance(
+            what=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
                 dag_id="c",
@@ -188,7 +188,7 @@ class TestWatchedSubprocess:
 
         proc = WatchedSubprocess.start(
             path=os.devnull,
-            ti=TaskInstance(
+            what=TaskInstance(
                 id=uuid7(),
                 task_id="b",
                 dag_id="c",
@@ -224,7 +224,7 @@ class TestWatchedSubprocess:
         spy = spy_agency.spy_on(sdk_client.TaskInstanceOperations.heartbeat)
         proc = WatchedSubprocess.start(
             path=os.devnull,
-            ti=TaskInstance(
+            what=TaskInstance(
                 id=ti_id,
                 task_id="b",
                 dag_id="c",
@@ -335,7 +335,7 @@ class TestWatchedSubprocess:
         client = make_client(transport=httpx.MockTransport(handle_request))
 
         with pytest.raises(ServerResponseError, match="Server returned error") as err:
-            WatchedSubprocess.start(path=os.devnull, ti=ti, client=client)
+            WatchedSubprocess.start(path=os.devnull, what=ti, client=client)
 
         assert err.value.response.status_code == 409
         assert err.value.detail == {
@@ -388,7 +388,7 @@ class TestWatchedSubprocess:
 
         proc = WatchedSubprocess.start(
             path=os.devnull,
-            ti=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
+            what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
             client=make_client(transport=httpx.MockTransport(handle_request)),
             target=subprocess_main,
         )
@@ -440,7 +440,7 @@ class TestWatchedSubprocess:
         mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
 
         proc = WatchedSubprocess(
-            ti_id=TI_ID,
+            id=TI_ID,
             pid=mock_process.pid,
             stdin=mocker.MagicMock(),
             client=client,
@@ -528,7 +528,7 @@ class TestWatchedSubprocess:
         monkeypatch.setattr(WatchedSubprocess, "TASK_OVERTIME_THRESHOLD", overtime_threshold)
 
         mock_watched_subprocess = WatchedSubprocess(
-            ti_id=TI_ID,
+            id=TI_ID,
             pid=12345,
             stdin=mocker.Mock(),
             process=mocker.Mock(),
@@ -541,13 +541,13 @@ class TestWatchedSubprocess:
 
         # Call `wait` to trigger the overtime handling
         # This will call the `kill` method if the task has been running for too long
-        mock_watched_subprocess._handle_task_overtime_if_needed()
+        mock_watched_subprocess._handle_process_overtime_if_needed()
 
         # Validate process kill behavior and log messages
         if expected_kill:
             mock_kill.assert_called_once_with(signal.SIGTERM, force=True)
             mock_logger.warning.assert_called_once_with(
-                "Task success overtime reached; terminating process",
+                "Workload success overtime reached; terminating process",
                 ti_id=TI_ID,
             )
         else:
@@ -565,7 +565,7 @@ class TestWatchedSubprocessKill:
     @pytest.fixture
     def watched_subprocess(self, mocker, mock_process):
         proc = WatchedSubprocess(
-            ti_id=TI_ID,
+            id=TI_ID,
             pid=12345,
             stdin=mocker.Mock(),
             client=mocker.Mock(),
@@ -656,7 +656,7 @@ class TestWatchedSubprocessKill:
 
         proc = WatchedSubprocess.start(
             path=os.devnull,
-            ti=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
+            what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
             client=MagicMock(spec=sdk_client.Client),
             target=subprocess_main,
         )
@@ -746,7 +746,7 @@ class TestHandleRequest:
     def watched_subprocess(self, mocker):
         """Fixture to provide a WatchedSubprocess instance."""
         return WatchedSubprocess(
-            ti_id=TI_ID,
+            id=TI_ID,
             pid=12345,
             stdin=BytesIO(),
             client=mocker.Mock(),
