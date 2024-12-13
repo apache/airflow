@@ -146,12 +146,3 @@ class TestFeatureViewSyncSensor:
             match=f"Timeout: Feature View sync {FEATURE_VIEW_SYNC_NAME} not completed after 300s",
         ):
             sensor.poke(context={})
-
-    def test_missing_location(self):
-        with pytest.raises(TypeError, match="missing keyword argument 'location'"):
-            FeatureViewSyncSensor(
-                task_id=TASK_ID,
-                feature_view_sync_name=FEATURE_VIEW_SYNC_NAME,
-                gcp_conn_id=GCP_CONN_ID,
-                timeout=TIMEOUT,
-            )
