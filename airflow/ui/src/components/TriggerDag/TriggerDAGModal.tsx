@@ -39,7 +39,13 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   onClose,
   open,
 }) => (
-  <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+  <Dialog.Root
+    lazyMount
+    onOpenChange={onClose}
+    open={open}
+    size="xl"
+    unmountOnExit
+  >
     <Dialog.Content backdrop>
       <Dialog.Header>
         <VStack align="start" gap={4}>
@@ -59,7 +65,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
       <Dialog.CloseTrigger />
 
       <Dialog.Body>
-        <TriggerDAGForm dagId={dagId} onClose={onClose} />
+        <TriggerDAGForm dagId={dagId} onClose={onClose} open={open} />
       </Dialog.Body>
     </Dialog.Content>
   </Dialog.Root>

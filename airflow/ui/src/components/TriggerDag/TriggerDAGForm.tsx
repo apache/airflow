@@ -33,6 +33,7 @@ import { Accordion } from "../ui";
 type TriggerDAGFormProps = {
   dagId: string;
   onClose: () => void;
+  open: boolean;
 };
 
 export type DagRunTriggerParams = {
@@ -43,9 +44,13 @@ export type DagRunTriggerParams = {
   note: string;
 };
 
-const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({ dagId, onClose }) => {
+const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
+  dagId,
+  onClose,
+  open,
+}) => {
   const [jsonError, setJsonError] = useState<string | undefined>();
-  const conf = useDagParams(dagId);
+  const conf = useDagParams(dagId, open);
   const { isPending, triggerDagRun } = useTrigger();
 
   const dagRunRequestBody: DagRunTriggerParams = useMemo(

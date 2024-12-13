@@ -19,8 +19,10 @@
 import { useDagServiceGetDagDetails } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
-export const useDagParams = (dagId: string) => {
-  const { data, error } = useDagServiceGetDagDetails({ dagId });
+export const useDagParams = (dagId: string, open: boolean) => {
+  const { data, error } = useDagServiceGetDagDetails({ dagId }, undefined, {
+    enabled: open,
+  });
 
   if (Boolean(error)) {
     const errorDescription =
