@@ -89,13 +89,14 @@ class SyncFeatureViewOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-
+        self.log.info("Submitting Feature View sync job now...")
         response = self.hook.sync_feature_view(
             project_id=self.project_id,
             location=self.location,
             feature_online_store_id=self.feature_online_store_id,
             feature_view_id=self.feature_view_id,
         )
+        self.log.info("Retrieved Feature View sync: %s", response)
 
         return response
 
@@ -152,9 +153,11 @@ class GetFeatureViewSyncOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-
+        self.log.info("Retrieving Feature View sync job now...")
         response = self.hook.get_feature_view_sync(
             location=self.location, feature_view_sync_name=self.feature_view_sync_name
         )
+        self.log.info("Retrieved Feature View sync: %s", self.feature_view_sync_name)
+        self.log.info(response)
 
         return response

@@ -18,8 +18,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-
 from google.api_core.client_options import ClientOptions
 from google.cloud.aiplatform_v1beta1 import (
     FeatureOnlineStoreAdminServiceClient,
@@ -49,18 +47,6 @@ class FeatureStoreHook(GoogleBaseHook):
         preceding identity, with first account from the list granting this role to the
         originating account.
     """
-
-    def __init__(
-        self,
-        gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            impersonation_chain=impersonation_chain,
-            **kwargs,
-        )
 
     def get_feature_online_store_admin_service_client(
         self,
