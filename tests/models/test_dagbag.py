@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import inspect
 import logging
 import os
@@ -51,6 +52,13 @@ from tests_common.test_utils.config import conf_vars
 pytestmark = pytest.mark.db_test
 
 example_dags_folder = pathlib.Path(airflow.example_dags.__path__[0])  # type: ignore[attr-defined]
+
+PY311 = sys.version_info >= (3, 11)
+
+# Include the words "airflow" and "dag" in the file contents,
+# tricking airflow into thinking these
+# files contain a DAG (otherwise Airflow will skip them)
+INVALID_DAG_WITH_DEPTH_FILE_CONTENTS = "def something():\n    return airflow_DAG\nsomething()"
 
 
 def db_clean_up():
@@ -606,6 +614,50 @@ with airflow.DAG(
         assert dag is not None
         assert "tmp_file.py" in dagbag.import_errors
         assert "DagBag import timeout for" in caplog.text
+
+    @staticmethod
+    def _make_test_traceback(unparseable_filename: str, depth=None) -> str:
+        marker = "           ^^^^^^^^^^^\n" if PY311 else ""
+        frames = (
+            f'  File "{unparseable_filename}", line 3, in <module>\n    something()\n',
+            f'  File "{unparseable_filename}", line 2, in something\n    return airflow_DAG\n{marker}',
+        )
+        depth = 0 if depth is None else -depth
+        return (
+            "Traceback (most recent call last):\n"
+            + "".join(frames[depth:])
+            + "NameError: name 'airflow_DAG' is not defined\n"
+        )
+
+    @pytest.mark.parametrize(("depth",), ((None,), (1,)))
+    def test_import_error_tracebacks(self, tmp_path, depth):
+        unparseable_filename = tmp_path.joinpath("dag.py").as_posix()
+        with open(unparseable_filename, "w") as unparseable_file:
+            unparseable_file.writelines(INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
+
+        with contextlib.ExitStack() as cm:
+            if depth is not None:
+                cm.enter_context(conf_vars({("core", "dagbag_import_error_traceback_depth"): str(depth)}))
+            dagbag = DagBag(dag_folder=unparseable_filename, include_examples=False)
+        import_errors = dagbag.import_errors
+
+        assert unparseable_filename in import_errors
+        assert import_errors[unparseable_filename] == self._make_test_traceback(unparseable_filename, depth)
+
+    @pytest.mark.parametrize(("depth",), ((None,), (1,)))
+    def test_import_error_tracebacks_zip(self, tmp_path, depth):
+        invalid_zip_filename = (tmp_path / "test_zip_invalid.zip").as_posix()
+        invalid_dag_filename = os.path.join(invalid_zip_filename, "dag.py")
+        with zipfile.ZipFile(invalid_zip_filename, "w") as invalid_zip_file:
+            invalid_zip_file.writestr("dag.py", INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
+
+        with contextlib.ExitStack() as cm:
+            if depth is not None:
+                cm.enter_context(conf_vars({("core", "dagbag_import_error_traceback_depth"): str(depth)}))
+            dagbag = DagBag(dag_folder=invalid_zip_filename, include_examples=False)
+        import_errors = dagbag.import_errors
+        assert invalid_dag_filename in import_errors
+        assert import_errors[invalid_dag_filename] == self._make_test_traceback(invalid_dag_filename, depth)
 
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
