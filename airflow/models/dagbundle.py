@@ -23,7 +23,15 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 
 class DagBundleModel(Base):
-    """A table for DAG Bundle information."""
+    """
+    A table for storing DAG bundle metadata.
+
+    We track the following information about each bundle, as it can be useful for
+    informational purposes and for debugging:
+     - enabled: Is the bundle currently found in configuration?
+     - latest_version: The latest version Airflow has seen for the bundle.
+     - last_refreshed: When the bundle was last refreshed.
+    """
 
     __tablename__ = "dag_bundle"
     name = Column(StringID(), primary_key=True)

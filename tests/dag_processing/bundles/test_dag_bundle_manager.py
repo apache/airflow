@@ -128,6 +128,7 @@ def clear_db():
     clear_db_dag_bundles()
 
 
+@pytest.mark.db_test
 def test_sync_bundles_to_db(clear_db):
     bundle_manager = DagBundlesManager()
 

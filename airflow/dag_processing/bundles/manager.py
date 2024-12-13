@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 
 class DagBundlesManager(LoggingMixin):
-    """Manager for Dag Bundles."""
+    """Manager for DAG bundles."""
 
     @property
     def bundle_configs(self) -> dict[str, dict]:
