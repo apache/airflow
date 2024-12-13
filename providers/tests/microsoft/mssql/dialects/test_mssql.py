@@ -72,7 +72,7 @@ class TestMsSqlDialect:
         assert (
             sql
             == """
-            MERGE INTO hollywood.actors AS target
+            MERGE INTO hollywood.actors WITH (ROWLOCK) AS target
             USING (SELECT ? AS id, ? AS name, ? AS firstname, ? AS age) AS source
             ON target.id = source.id
             WHEN MATCHED THEN
