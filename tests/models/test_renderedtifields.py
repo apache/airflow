@@ -164,6 +164,8 @@ class TestRenderedTaskInstanceFields:
         assert ti.task_id == rtif.task_id
         assert ti.run_id == rtif.run_id
         if type(templated_field) is set:
+            # the output order of a set is non-deterministic and can change per process.
+            # this validation can fail if that happens before stringification, so we convert to set and compare.
             assert ast.literal_eval(expected_rendered_field) == ast.literal_eval(
                 rtif.rendered_fields.get("bash_command")
             )
@@ -174,6 +176,8 @@ class TestRenderedTaskInstanceFields:
         session.flush()
 
         if type(templated_field) is set:
+            # the output order of a set is non-deterministic and can change per process.
+            # this validation can fail if that happens before stringification, so we convert to set and compare.
             expected = RTIF.get_templated_fields(ti=ti, session=session)
             expected["bash_command"] = ast.literal_eval(expected["bash_command"])
             actual = {
