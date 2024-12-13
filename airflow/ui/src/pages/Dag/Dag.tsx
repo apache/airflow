@@ -50,7 +50,7 @@ export const Dag = () => {
     data: runsData,
     error: runsError,
     isLoading: isLoadingRuns,
-  } = useDagsServiceRecentDagRuns({ dagIdPattern: dagId }, undefined, {
+  } = useDagsServiceRecentDagRuns({ dagIds: [dagId] }, undefined, {
     enabled: Boolean(dagId),
   });
 

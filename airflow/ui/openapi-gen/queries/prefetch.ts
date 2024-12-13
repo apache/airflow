@@ -389,6 +389,7 @@ export const prefetchUseConfigServiceGetConfigValue = (
  * @param data.offset
  * @param data.tags
  * @param data.owners
+ * @param data.dagIds
  * @param data.dagIdPattern
  * @param data.dagDisplayNamePattern
  * @param data.onlyActive
@@ -402,6 +403,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    dagIds,
     dagRunsLimit,
     lastDagRunState,
     limit,
@@ -413,6 +415,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    dagIds?: string[];
     dagRunsLimit?: number;
     lastDagRunState?: DagRunState;
     limit?: number;
@@ -427,6 +430,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
     queryKey: Common.UseDagsServiceRecentDagRunsKeyFn({
       dagDisplayNamePattern,
       dagIdPattern,
+      dagIds,
       dagRunsLimit,
       lastDagRunState,
       limit,
@@ -440,6 +444,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
       DagsService.recentDagRuns({
         dagDisplayNamePattern,
         dagIdPattern,
+        dagIds,
         dagRunsLimit,
         lastDagRunState,
         limit,
@@ -484,6 +489,7 @@ export const prefetchUseDashboardServiceHistoricalMetrics = (
  * @param data.root
  * @param data.includeUpstream
  * @param data.includeDownstream
+ * @param data.externalDependencies
  * @returns StructureDataResponse Successful Response
  * @throws ApiError
  */
@@ -491,11 +497,13 @@ export const prefetchUseStructureServiceStructureData = (
   queryClient: QueryClient,
   {
     dagId,
+    externalDependencies,
     includeDownstream,
     includeUpstream,
     root,
   }: {
     dagId: string;
+    externalDependencies?: boolean;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
     root?: string;
@@ -504,6 +512,7 @@ export const prefetchUseStructureServiceStructureData = (
   queryClient.prefetchQuery({
     queryKey: Common.UseStructureServiceStructureDataKeyFn({
       dagId,
+      externalDependencies,
       includeDownstream,
       includeUpstream,
       root,
@@ -511,10 +520,49 @@ export const prefetchUseStructureServiceStructureData = (
     queryFn: () =>
       StructureService.structureData({
         dagId,
+        externalDependencies,
         includeDownstream,
         includeUpstream,
         root,
       }),
+  });
+/**
+ * List Backfills
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @param data.dagId
+ * @param data.active
+ * @returns BackfillCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseBackfillServiceListBackfills = (
+  queryClient: QueryClient,
+  {
+    active,
+    dagId,
+    limit,
+    offset,
+    orderBy,
+  }: {
+    active?: boolean;
+    dagId?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseBackfillServiceListBackfillsKeyFn({
+      active,
+      dagId,
+      limit,
+      offset,
+      orderBy,
+    }),
+    queryFn: () =>
+      BackfillService.listBackfills({ active, dagId, limit, offset, orderBy }),
   });
 /**
  * List Backfills
@@ -526,7 +574,7 @@ export const prefetchUseStructureServiceStructureData = (
  * @returns BackfillCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseBackfillServiceListBackfills = (
+export const prefetchUseBackfillServiceListBackfills1 = (
   queryClient: QueryClient,
   {
     dagId,
@@ -541,14 +589,14 @@ export const prefetchUseBackfillServiceListBackfills = (
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseBackfillServiceListBackfillsKeyFn({
+    queryKey: Common.UseBackfillServiceListBackfills1KeyFn({
       dagId,
       limit,
       offset,
       orderBy,
     }),
     queryFn: () =>
-      BackfillService.listBackfills({ dagId, limit, offset, orderBy }),
+      BackfillService.listBackfills1({ dagId, limit, offset, orderBy }),
   });
 /**
  * Get Backfill

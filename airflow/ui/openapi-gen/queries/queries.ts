@@ -497,6 +497,7 @@ export const useConfigServiceGetConfigValue = <
  * @param data.offset
  * @param data.tags
  * @param data.owners
+ * @param data.dagIds
  * @param data.dagIdPattern
  * @param data.dagDisplayNamePattern
  * @param data.onlyActive
@@ -513,6 +514,7 @@ export const useDagsServiceRecentDagRuns = <
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    dagIds,
     dagRunsLimit,
     lastDagRunState,
     limit,
@@ -524,6 +526,7 @@ export const useDagsServiceRecentDagRuns = <
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    dagIds?: string[];
     dagRunsLimit?: number;
     lastDagRunState?: DagRunState;
     limit?: number;
@@ -541,6 +544,7 @@ export const useDagsServiceRecentDagRuns = <
       {
         dagDisplayNamePattern,
         dagIdPattern,
+        dagIds,
         dagRunsLimit,
         lastDagRunState,
         limit,
@@ -556,6 +560,7 @@ export const useDagsServiceRecentDagRuns = <
       DagsService.recentDagRuns({
         dagDisplayNamePattern,
         dagIdPattern,
+        dagIds,
         dagRunsLimit,
         lastDagRunState,
         limit,
@@ -608,6 +613,7 @@ export const useDashboardServiceHistoricalMetrics = <
  * @param data.root
  * @param data.includeUpstream
  * @param data.includeDownstream
+ * @param data.externalDependencies
  * @returns StructureDataResponse Successful Response
  * @throws ApiError
  */
@@ -618,11 +624,13 @@ export const useStructureServiceStructureData = <
 >(
   {
     dagId,
+    externalDependencies,
     includeDownstream,
     includeUpstream,
     root,
   }: {
     dagId: string;
+    externalDependencies?: boolean;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
     root?: string;
@@ -632,15 +640,63 @@ export const useStructureServiceStructureData = <
 ) =>
   useQuery<TData, TError>({
     queryKey: Common.UseStructureServiceStructureDataKeyFn(
-      { dagId, includeDownstream, includeUpstream, root },
+      { dagId, externalDependencies, includeDownstream, includeUpstream, root },
       queryKey,
     ),
     queryFn: () =>
       StructureService.structureData({
         dagId,
+        externalDependencies,
         includeDownstream,
         includeUpstream,
         root,
+      }) as TData,
+    ...options,
+  });
+/**
+ * List Backfills
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @param data.dagId
+ * @param data.active
+ * @returns BackfillCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useBackfillServiceListBackfills = <
+  TData = Common.BackfillServiceListBackfillsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    active,
+    dagId,
+    limit,
+    offset,
+    orderBy,
+  }: {
+    active?: boolean;
+    dagId?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseBackfillServiceListBackfillsKeyFn(
+      { active, dagId, limit, offset, orderBy },
+      queryKey,
+    ),
+    queryFn: () =>
+      BackfillService.listBackfills({
+        active,
+        dagId,
+        limit,
+        offset,
+        orderBy,
       }) as TData,
     ...options,
   });
@@ -654,8 +710,8 @@ export const useStructureServiceStructureData = <
  * @returns BackfillCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useBackfillServiceListBackfills = <
-  TData = Common.BackfillServiceListBackfillsDefaultResponse,
+export const useBackfillServiceListBackfills1 = <
+  TData = Common.BackfillServiceListBackfills1DefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -674,12 +730,17 @@ export const useBackfillServiceListBackfills = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseBackfillServiceListBackfillsKeyFn(
+    queryKey: Common.UseBackfillServiceListBackfills1KeyFn(
       { dagId, limit, offset, orderBy },
       queryKey,
     ),
     queryFn: () =>
-      BackfillService.listBackfills({ dagId, limit, offset, orderBy }) as TData,
+      BackfillService.listBackfills1({
+        dagId,
+        limit,
+        offset,
+        orderBy,
+      }) as TData,
     ...options,
   });
 /**

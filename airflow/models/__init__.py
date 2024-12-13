@@ -82,6 +82,7 @@ def __getattr__(name):
 
 
 __lazy_imports = {
+    "Job": "airflow.jobs.job",
     "DAG": "airflow.models.dag",
     "ID_LEN": "airflow.models.base",
     "Base": "airflow.models.base",
@@ -112,6 +113,7 @@ __lazy_imports = {
 if TYPE_CHECKING:
     # I was unable to get mypy to respect a airflow/models/__init__.pyi, so
     # having to resort back to this hacky method
+    from airflow.jobs.job import Job
     from airflow.models.base import ID_LEN, Base
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.baseoperatorlink import BaseOperatorLink
