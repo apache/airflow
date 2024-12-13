@@ -18,7 +18,11 @@ from __future__ import annotations
 
 from sqlalchemy import Boolean, Column, String
 
+from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.models.base import Base, StringID
+from airflow.settings import Session
+from airflow.utils.module_loading import import_string
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
@@ -41,3 +45,24 @@ class DagBundleModel(Base):
 
     def __init__(self, *, name: str):
         self.name = name
+
+    @classmethod
+    @provide_session
+    def get_all_dag_bundles(
+        cls, *, session: Session = NEW_SESSION
+    ) -> list[tuple[DagBundleModel, BaseDagBundle]]:
+        """
+        Get all DAG bundles.
+
+        :param session: A database session.
+        :return: list of DAG bundles.
+        """
+        bundle_configs = session.query(cls).all()
+
+        bundles = []
+        for bundle_config in bundle_configs:
+            bundle_class = import_string(bundle_config.classpath)
+            bundle = bundle_class(name=bundle_config.name, **bundle_config.kwargs)
+            bundles.append((bundle_config, bundle))
+
+        return bundles
