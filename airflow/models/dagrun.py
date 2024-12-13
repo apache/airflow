@@ -139,8 +139,7 @@ class DagRun(Base, LoggingMixin):
     external trigger (i.e. manual runs).
     """
 
-    active_dagrun_spans = ThreadSafeDict()
-    active_ti_spans = ThreadSafeDict()
+    active_spans = ThreadSafeDict()
 
     __tablename__ = "dag_run"
 
@@ -313,9 +312,8 @@ class DagRun(Base, LoggingMixin):
         return prune_dict({"dag_id": self.dag_id, "run_type": self.run_type})
 
     @classmethod
-    def set_active_spans(cls, active_dagrun_spans: ThreadSafeDict, active_ti_spans: ThreadSafeDict):
-        cls.active_dagrun_spans = active_dagrun_spans
-        cls.active_ti_spans = active_ti_spans
+    def set_active_spans(cls, active_spans: ThreadSafeDict):
+        cls.active_spans = active_spans
 
     def get_state(self):
         return self._state
@@ -1044,8 +1042,8 @@ class DagRun(Base, LoggingMixin):
 
         # finally, if the leaves aren't done, the dag is still running
         else:
-            # If there is no value in active_dagrun_spans, then the span hasn't already been started.
-            if self.active_dagrun_spans is not None and self.active_dagrun_spans.get(self.run_id) is None:
+            # If there is no value in active_spans, then the span hasn't already been started.
+            if self.active_spans is not None and self.active_spans.get(self.run_id) is None:
                 if (
                     self.span_status == SpanStatus.NOT_STARTED
                     or self.span_status == SpanStatus.NEEDS_CONTINUANCE
@@ -1081,7 +1079,7 @@ class DagRun(Base, LoggingMixin):
                     self.set_context_carrier(context_carrier=carrier, session=session, with_commit=False)
                     self.set_span_status(status=SpanStatus.ACTIVE, session=session, with_commit=False)
                     # Set the span in a synchronized dictionary, so that the variable can be used to end the span.
-                    self.active_dagrun_spans.set(self.run_id, dr_span)
+                    self.active_spans.set(self.run_id, dr_span)
                     self.log.debug(
                         "DagRun span has been started and the injected context_carrier is: %s",
                         self.context_carrier,
@@ -1103,7 +1101,7 @@ class DagRun(Base, LoggingMixin):
                                 ti.set_span_status(
                                     status=SpanStatus.ACTIVE, session=session, with_commit=False
                                 )
-                                self.active_ti_spans.set(ti.key, ti_span)
+                                self.active_spans.set(ti.key, ti_span)
                 else:
                     self.log.info(
                         "Found span_status '%s', while updating state for dag_run '%s'",
@@ -1141,8 +1139,8 @@ class DagRun(Base, LoggingMixin):
                 dagv.version if dagv else None,
             )
 
-            if self.active_dagrun_spans is not None:
-                active_span = self.active_dagrun_spans.get(self.run_id)
+            if self.active_spans is not None:
+                active_span = self.active_spans.get(self.run_id)
                 if active_span is not None:
                     self.log.debug(
                         "Found active span with span_id: %s, for dag_id: %s, run_id: %s, state: %s",
@@ -1155,7 +1153,7 @@ class DagRun(Base, LoggingMixin):
                     self.set_dagrun_span_attrs(span=active_span, dag_run=self, dagv=dagv)
                     active_span.end(end_time=datetime_to_nano(self.end_date))
                     # Remove the span from the dict.
-                    self.active_dagrun_spans.delete(self.run_id)
+                    self.active_spans.delete(self.run_id)
                     self.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
                 else:
                     if self.span_status == SpanStatus.ACTIVE:
