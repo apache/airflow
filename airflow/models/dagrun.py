@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING, Any, Callable, NamedTuple, TypeVar, overload
 
 import re2
 from sqlalchemy import (
-    JSON,
     Boolean,
     Column,
     Enum,
@@ -33,6 +32,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
+    PickleType,
     PrimaryKeyConstraint,
     String,
     Text,
@@ -44,7 +44,6 @@ from sqlalchemy import (
     text,
     update,
 )
-from sqlalchemy.dialects import postgresql
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates
@@ -138,7 +137,8 @@ class DagRun(Base, LoggingMixin):
     triggered_by = Column(
         Enum(DagRunTriggeredByType, native_enum=False, length=50)
     )  # Airflow component that triggered the run.
-    conf = Column(JSON().with_variant(postgresql.JSONB, "postgresql"))
+    # conf = Column(JSON().with_variant(postgresql.JSONB, "postgresql"))
+    conf = Column(PickleType)
     # These two must be either both NULL or both datetime.
     data_interval_start = Column(UtcDateTime)
     data_interval_end = Column(UtcDateTime)

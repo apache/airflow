@@ -42,54 +42,32 @@ airflow_version = "3.0.0"
 
 def upgrade():
     """Apply remove pickled data from dagrun table."""
-    # Summary of the change:
-    # 1. Updating dag_run.conf column value to NULL.
-    # 2. Update the dag_run.conf column type to JSON from bytea
-
     conn = op.get_bind()
-    dialect = conn.dialect.name
 
     # Update the dag_run.conf column value to NULL
     conn.execute(text("UPDATE dag_run set conf=null WHERE conf IS NOT NULL"))
 
-    if dialect == "postgresql":
-        op.alter_column(
-            "dag_run",
-            "conf",
-            existing_type=sa.dialects.postgresql.BYTEA,
-            type_=postgresql.JSONB,
-            existing_nullable=True,
-        )
+    conf_type = sa.JSON().with_variant(postgresql.JSONB, "postgresql")
 
-    else:
-        op.alter_column(
-            "dag_run",
-            "conf",
-            existing_type=sa.LargeBinary,
-            type_=sa.JSON(),
-            existing_nullable=True,
-        )
+    with op.batch_alter_table("dag_run", schema=None) as batch_op:
+        # Drop the existing column for SQLite (due to its limitations)
+        batch_op.drop_column("conf")
+        # Add the new column with the correct type for the all dialect
+        batch_op.add_column(sa.Column("conf", conf_type, nullable=True))
 
 
 def downgrade():
     """Unapply Remove pickled data from dagrun table."""
     conn = op.get_bind()
-    dialect = conn.dialect.name
-
     conn.execute(text("UPDATE dag_run set conf=null WHERE conf IS NOT NULL"))
 
-    if dialect == "postgresql":
-        op.alter_column(
-            "dag_run",
-            "conf",
-            existing_type=postgresql.JSONB,
-            type_=sa.dialects.postgresql.BYTEA,
-            postgresql_using="encode(conf::TEXT, 'escape')",
-        )
-    else:
-        op.alter_column(
-            "dag_run",
-            "conf",
-            existing_type=sa.JSON(),
-            type_=sa.LargeBinary,
-        )
+    # Update the dag_run.conf column value to NULL to avoid issues during the type change
+    conn.execute(text("UPDATE dag_run set conf=null WHERE conf IS NOT NULL"))
+
+    conf_type = sa.LargeBinary().with_variant(postgresql.BYTEA, "postgresql")
+
+    # Apply the same logic for all dialects, including SQLite
+    with op.batch_alter_table("dag_run", schema=None) as batch_op:
+        # Drop the existing column for SQLite (due to its limitations)
+        batch_op.drop_column("conf")
+        batch_op.add_column(sa.Column("conf", conf_type, nullable=True))
