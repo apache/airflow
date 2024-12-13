@@ -113,7 +113,7 @@ export const Variables = () => {
           initialState={tableURLState}
           isFetching={isFetching}
           isLoading={isLoading}
-          modelName="Variables"
+          modelName="Variable"
           onStateChange={setTableURLState}
           total={data ? data.total_entries : 0}
         />
