@@ -25,11 +25,10 @@ from unittest import mock
 import psycopg2.extras
 import pytest
 
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.types import NOTSET
-
-from airflow.exceptions import AirflowException
 
 
 class TestPostgresHookConn:
@@ -73,13 +72,28 @@ class TestPostgresHookConn:
         assert str(hook.sqlalchemy_url) == "postgresql://login-conn:password-conn@host/database"
 
     def test_sqlalchemy_url_with_sqlalchemy_query(self):
-        conn = Connection(login="login-conn", password="password-conn", host="host", schema="database", extra=dict(sqlalchemy_query={"gssencmode": "disable"}))
+        conn = Connection(
+            login="login-conn",
+            password="password-conn",
+            host="host",
+            schema="database",
+            extra=dict(sqlalchemy_query={"gssencmode": "disable"}),
+        )
         hook = PostgresHook(connection=conn)
 
-        assert str(hook.sqlalchemy_url) == "postgresql://login-conn:password-conn@host/database?gssencmode=disable"
+        assert (
+            str(hook.sqlalchemy_url)
+            == "postgresql://login-conn:password-conn@host/database?gssencmode=disable"
+        )
 
     def test_sqlalchemy_url_with_wrong_sqlalchemy_query_value(self):
-        conn = Connection(login="login-conn", password="password-conn", host="host", schema="database", extra=dict(sqlalchemy_query="wrong type"))
+        conn = Connection(
+            login="login-conn",
+            password="password-conn",
+            host="host",
+            schema="database",
+            extra=dict(sqlalchemy_query="wrong type"),
+        )
         hook = PostgresHook(connection=conn)
 
         with pytest.raises(AirflowException):
