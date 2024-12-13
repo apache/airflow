@@ -27,7 +27,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.exc import OperationalError, SAWarning
 
 import airflow.dag_processing.collection
@@ -341,7 +341,21 @@ class TestUpdateDagParsingResults:
             processor_subdir=None,
         )
         session.add(prev_error)
+
+        # And one for another file we haven't been given results for -- this shouldn't be deleted
+        session.add(
+            ParseImportError(
+                filename="def.py",
+                timestamp=tz.utcnow(),
+                stacktrace="Some error",
+                processor_subdir=None,
+            )
+        )
         session.flush()
+
+        # Sanity check of pre-condition
+        import_errors = set(session.scalars(select(ParseImportError.filename)))
+        assert import_errors == {"abc.py", "def.py"}
 
         dag = DAG(dag_id="test")
         dag.fileloc = filename
@@ -352,9 +366,9 @@ class TestUpdateDagParsingResults:
         dag_model: DagModel = session.get(DagModel, (dag.dag_id,))
         assert dag_model.has_import_errors is False
 
-        import_errors = session.query(ParseImportError).all()
+        import_errors = set(session.scalars(select(ParseImportError.filename)))
 
-        assert len(import_errors) == 0
+        assert import_errors == {"def.py"}
 
     def test_sync_perm_for_dag_with_dict_access_control(self, session, spy_agency: SpyAgency):
         """

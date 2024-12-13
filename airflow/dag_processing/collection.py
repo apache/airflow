@@ -47,6 +47,7 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DAG, DagModel, DagOwnerAttributes, DagTag
 from airflow.models.dagrun import DagRun
+from airflow.models.dagwarning import DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.trigger import Trigger
 from airflow.sdk.definitions.asset import Asset, AssetAlias
@@ -168,7 +169,7 @@ def _update_dag_owner_links(dag_owner_links: dict[str, str], dm: DagModel, *, se
     )
 
 
-def _serialize_dag_capturing_errors(dag, session, processor_subdir):
+def _serialize_dag_capturing_errors(dag: DAG, session: Session, processor_subdir: str | None):
     """
     Try to serialize the dag to the DB, but make a note of any errors.
 
@@ -196,7 +197,7 @@ def _serialize_dag_capturing_errors(dag, session, processor_subdir):
     except OperationalError:
         raise
     except Exception:
-        log.exception("Failed to write serialized DAG: %s", dag.fileloc)
+        log.exception("Failed to write serialized DAG dag_id=%s fileloc=%s", dag.dag_id, dag.fileloc)
         dagbag_import_error_traceback_depth = conf.getint("core", "dagbag_import_error_traceback_depth")
         return [(dag.fileloc, traceback.format_exc(limit=-dagbag_import_error_traceback_depth))]
 
@@ -212,15 +213,16 @@ def _sync_dag_perms(dag: DAG, session: Session):
     security_manager.sync_perm_for_dag(dag_id, dag.access_control)
 
 
-def _update_dag_warnings(dag_ids: list[str], warnings: set[DagWarning], session: Session):
+def _update_dag_warnings(
+    dag_ids: list[str], warnings: set[DagWarning], warning_types: tuple[DagWarningType], session: Session
+):
     from airflow.models.dagwarning import DagWarning
 
     stored_warnings = set(
         session.scalars(
             select(DagWarning).where(
                 DagWarning.dag_id.in_(dag_ids),
-                # TODO: Previously this removed only DagWarningType.NONEXISTENT_POOL -- is it safe to remove
-                # everything?
+                DagWarning.warning_type.in_(warning_types),
             )
         )
     )
@@ -238,7 +240,7 @@ def _update_import_errors(
     from airflow.listeners.listener import get_listener_manager
 
     # We can remove anything from files parsed in this batch that doesn't have an error. We need to remove old
-    # errors (i.e. form files that are removed) separately
+    # errors (i.e. from files that are removed) separately
 
     session.execute(delete(ParseImportError).where(ParseImportError.filename.in_(list(files_parsed))))
 
@@ -273,13 +275,15 @@ def update_dag_parsing_results_in_db(
     processor_subdir: str | None,
     warnings: set[DagWarning],
     session: Session,
+    *,
+    warning_types: tuple[DagWarningType] = (DagWarningType.NONEXISTENT_POOL,),
 ):
     """
     Update everything to do with DAG parsing in the DB.
 
     This function will create or update rows in the following tables:
 
-    - DagModel (`dag` table) and DagTag etc.
+    - DagModel (`dag` table), DagTag, DagCode and DagVersion
     - SerializedDagModel (`serialized_dag` table)
     - ParseImportError (including with any errors as a result of serialization, not just parsing)
     - DagWarning
@@ -333,7 +337,7 @@ def update_dag_parsing_results_in_db(
 
     # Record DAG warnings in the metadatabase.
     try:
-        _update_dag_warnings([dag.dag_id for dag in dags], warnings, session)
+        _update_dag_warnings([dag.dag_id for dag in dags], warnings, warning_types, session)
     except Exception:
         log.exception("Error logging DAG warnings.")
 
