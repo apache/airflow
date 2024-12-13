@@ -46,29 +46,27 @@ def mysql_create_foreignkey_if_not_exists(
     constraint_name, table_name, column_name, ref_table, ref_column, op
 ):
     op.execute(f"""
-        set @var = (
-        SELECT CASE
-            WHEN EXISTS (
-                SELECT 1
-                FROM information_schema.TABLE_CONSTRAINTS
-                WHERE
-                    CONSTRAINT_SCHEMA = DATABASE() AND
-                    TABLE_NAME = '{table_name}' AND
-                    CONSTRAINT_NAME = '{constraint_name}' AND
-                    CONSTRAINT_TYPE = 'FOREIGN KEY'
-            ) THEN 'SELECT 1'
-            ELSE CONCAT(
-                'ALTER TABLE {table_name} ',
-                'ADD CONSTRAINT {constraint_name} FOREIGN KEY ({column_name}) ',
-                'REFERENCES {ref_table}({ref_column}) ',
-                'ON DELETE CASCADE'
-            )
-        END
-    );
-
-    PREPARE stmt FROM @var;
-    EXECUTE stmt;
-    DEALLOCATE PREPARE stmt;
+    CREATE PROCEDURE create_foreign_key_if_not_exists()
+    BEGIN
+        IF EXISTS (
+            SELECT 1
+            FROM information_schema.TABLE_CONSTRAINTS
+            WHERE
+                CONSTRAINT_SCHEMA = DATABASE() AND
+                TABLE_NAME = '{table_name}' AND
+                CONSTRAINT_NAME = '{constraint_name}' AND
+                CONSTRAINT_TYPE = 'FOREIGN KEY'
+        ) THEN
+            SELECT 1;
+        ELSE
+            ALTER TABLE {table_name}
+            ADD CONSTRAINT {constraint_name} FOREIGN KEY ({column_name})
+            REFERENCES {ref_table}({ref_column})
+            ON DELETE CASCADE;
+        END IF;
+    END;
+    CALL create_foreign_key_if_not_exists();
+    DROP PROCEDURE create_foreign_key_if_not_exists;
     """)
 
 
@@ -118,9 +116,9 @@ def upgrade():
             ),
             sa.PrimaryKeyConstraint("alias_id", "dag_id", name="dsdar_pkey"),
         )
-        op.execute(sa.text("INSERT INTO new_table SELECT * FROM dag_schedule_dataset_alias_reference"))
-        op.execute("DROP TABLE dag_schedule_dataset_alias_reference")
-        op.execute("ALTER TABLE new_table RENAME TO dag_schedule_dataset_alias_reference")
+        op.execute("INSERT INTO new_table SELECT * FROM dag_schedule_dataset_alias_reference")
+        op.drop_table("dag_schedule_dataset_alias_reference")
+        op.rename_table("new_table", "dag_schedule_dataset_alias_reference")
         op.create_index(
             "idx_dag_schedule_dataset_alias_reference_dag_id",
             "dag_schedule_dataset_alias_reference",
@@ -229,9 +227,9 @@ def downgrade():
             ),
             sa.PrimaryKeyConstraint("alias_id", "dag_id", name="dsdar_pkey"),
         )
-        op.execute(sa.text("INSERT INTO new_table SELECT * FROM dag_schedule_dataset_alias_reference"))
-        op.execute("DROP TABLE dag_schedule_dataset_alias_reference")
-        op.execute("ALTER TABLE new_table RENAME TO dag_schedule_dataset_alias_reference")
+        op.execute("INSERT INTO new_table SELECT * FROM dag_schedule_dataset_alias_reference")
+        op.drop_table("dag_schedule_dataset_alias_reference")
+        op.rename_table("new_table", "dag_schedule_dataset_alias_reference")
         op.create_index(
             "idx_dag_schedule_dataset_alias_reference_dag_id",
             "dag_schedule_dataset_alias_reference",
