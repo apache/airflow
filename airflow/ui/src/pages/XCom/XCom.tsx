@@ -28,14 +28,11 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 
 import { XComEntry } from "./XComEntry";
 
-const XComColumn = (): Array<ColumnDef<XComResponse>> => [
+const columns: Array<ColumnDef<XComResponse>> = [
   {
     accessorKey: "key",
     enableSorting: false,
     header: "Key",
-    meta: {
-      skeletonWidth: 10,
-    },
   },
   {
     cell: ({ row: { original } }) => (
@@ -49,9 +46,6 @@ const XComColumn = (): Array<ColumnDef<XComResponse>> => [
     ),
     enableSorting: false,
     header: "Value",
-    meta: {
-      skeletonWidth: 10,
-    },
   },
 ];
 
@@ -77,7 +71,7 @@ export const XCom = () => {
     <Box>
       <ErrorAlert error={error} />
       <DataTable
-        columns={XComColumn()}
+        columns={columns}
         data={data ? data.xcom_entries : []}
         displayMode="table"
         initialState={tableURLState}

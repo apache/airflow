@@ -32,7 +32,7 @@ import { Run } from "src/pages/Run";
 import { TaskInstances } from "src/pages/Run/TaskInstances";
 import { Task, Instances } from "src/pages/Task";
 import { TaskInstance } from "src/pages/TaskInstance";
-import { XCom } from "src/pages/TaskInstance/XCom";
+import { XCom } from "src/pages/XCom";
 
 import { Variables } from "./pages/Variables";
 

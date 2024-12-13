@@ -20,10 +20,7 @@ import { Skeleton, HStack, Text } from "@chakra-ui/react";
 
 import { useXcomServiceGetXcomEntry } from "openapi/queries";
 import type { XComResponseString } from "openapi/requests/types.gen";
-import {
-  ClipboardIconButton,
-  ClipboardRoot,
-} from "src/components/ui/clipboard";
+import { ClipboardIconButton, ClipboardRoot } from "src/components/ui";
 
 type XComEntryProps = {
   readonly dagId: string;
@@ -53,8 +50,8 @@ export const XComEntry = ({
     <Skeleton
       data-testid="skeleton"
       display="inline-block"
-      height={4}
-      width={300}
+      height="10px"
+      width={200} // TODO: Make Skeleton take style from column definition
     />
   ) : (data?.value?.length ?? 0) > 0 ? (
     <HStack>
