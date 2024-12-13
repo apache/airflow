@@ -36,6 +36,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIHeartbeatInfo,
     TITerminalStatePayload,
     ValidationError as RemoteValidationError,
+    VariablePostBody,
     VariableResponse,
     XComResponse,
 )
@@ -133,6 +134,14 @@ class TaskInstanceOperations:
         # Create a deferred state payload from msg
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
+    def set_rtif(self, id: uuid.UUID, body: dict[str, str]) -> dict[str, bool]:
+        """Set Rendered Task Instance Fields via the API server."""
+        self.client.put(f"task-instances/{id}/rtif", json=body)
+        # Any error from the server will anyway be propagated down to the supervisor,
+        # so we choose to send a generic response to the supervisor over the server response to
+        # decouple from the server response string
+        return {"ok": True}
+
 
 class ConnectionOperations:
     __slots__ = ("client",)
@@ -157,6 +166,15 @@ class VariableOperations:
         resp = self.client.get(f"variables/{key}")
         return VariableResponse.model_validate_json(resp.read())
 
+    def set(self, key: str, value: str | None, description: str | None = None):
+        """Set an Airflow Variable via the API server."""
+        body = VariablePostBody(value=value, description=description)
+        self.client.put(f"variables/{key}", content=body.model_dump_json())
+        # Any error from the server will anyway be propagated down to the supervisor,
+        # so we choose to send a generic response to the supervisor over the server response to
+        # decouple from the server response string
+        return {"ok": True}
+
 
 class XComOperations:
     __slots__ = ("client",)
@@ -166,8 +184,25 @@ class XComOperations:
 
     def get(self, dag_id: str, run_id: str, task_id: str, key: str, map_index: int = -1) -> XComResponse:
         """Get a XCom value from the API server."""
+        # TODO: check if we need to use map_index as params in the uri
+        # ref: https://github.com/apache/airflow/blob/v2-10-stable/airflow/api_connexion/openapi/v1.yaml#L1785C1-L1785C81
         resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params={"map_index": map_index})
         return XComResponse.model_validate_json(resp.read())
+
+    def set(
+        self, dag_id: str, run_id: str, task_id: str, key: str, value, map_index: int | None = None
+    ) -> dict[str, bool]:
+        """Set a XCom value via the API server."""
+        # TODO: check if we need to use map_index as params in the uri
+        # ref: https://github.com/apache/airflow/blob/v2-10-stable/airflow/api_connexion/openapi/v1.yaml#L1785C1-L1785C81
+        params = {}
+        if map_index:
+            params = {"map_index": map_index}
+        self.client.post(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params, json=value)
+        # Any error from the server will anyway be propagated down to the supervisor,
+        # so we choose to send a generic response to the supervisor over the server response to
+        # decouple from the server response string
+        return {"ok": True}
 
 
 class BearerAuth(httpx.Auth):

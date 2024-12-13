@@ -573,16 +573,6 @@ To get a pipeline job list you can use
 Interacting with Generative AI
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To generate a prediction via language model you can use
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.TextGenerationModelPredictOperator`.
-The operator returns the model's response in :ref:`XCom <concepts:xcom>` under ``model_response`` key.
-
-.. exampleinclude:: /../../providers/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
-    :language: python
-    :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_text_generation_model_predict_operator]
-    :end-before: [END how_to_cloud_vertex_ai_text_generation_model_predict_operator]
-
 To generate text embeddings you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.TextEmbeddingModelGetEmbeddingsOperator`.
 The operator returns the model's response in :ref:`XCom <concepts:xcom>` under ``model_response`` key.

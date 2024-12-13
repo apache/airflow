@@ -205,24 +205,18 @@ class TestGenerativeModelWithDefaultProjectIdHook:
 
     @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_text_generation_model"))
     def test_text_generation_model_predict(self, mock_model) -> None:
-        self.hook.text_generation_model_predict(
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            prompt=TEST_PROMPT,
-            pretrained_model=TEST_LANGUAGE_PRETRAINED_MODEL,
-            temperature=TEST_TEMPERATURE,
-            max_output_tokens=TEST_MAX_OUTPUT_TOKENS,
-            top_p=TEST_TOP_P,
-            top_k=TEST_TOP_K,
-        )
-        mock_model.assert_called_once_with(TEST_LANGUAGE_PRETRAINED_MODEL)
-        mock_model.return_value.predict.assert_called_once_with(
-            prompt=TEST_PROMPT,
-            temperature=TEST_TEMPERATURE,
-            max_output_tokens=TEST_MAX_OUTPUT_TOKENS,
-            top_p=TEST_TOP_P,
-            top_k=TEST_TOP_K,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
+            self.hook.text_generation_model_predict(
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                prompt=TEST_PROMPT,
+                pretrained_model=TEST_LANGUAGE_PRETRAINED_MODEL,
+                temperature=TEST_TEMPERATURE,
+                max_output_tokens=TEST_MAX_OUTPUT_TOKENS,
+                top_p=TEST_TOP_P,
+                top_k=TEST_TOP_K,
+            )
+            assert_warning("generative_model_generate_content", warnings)
 
     @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_text_embedding_model"))
     def test_text_embedding_model_get_embeddings(self, mock_model) -> None:

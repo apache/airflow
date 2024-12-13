@@ -184,6 +184,69 @@ Basic usage of the operator:
     :end-before: [END howto_operator_translate_automl_delete_dataset]
 
 
+.. _howto/operator:TranslateCreateModelOperator:
+
+TranslateCreateModelOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Create a native translation model using Cloud Translate API (Advanced V3).
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.translate.TranslateCreateModelOperator`
+
+Using the operator
+""""""""""""""""""
+
+Basic usage of the operator:
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/translate/example_translate_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_translate_automl_create_model]
+    :end-before: [END howto_operator_translate_automl_create_model]
+
+
+.. _howto/operator:TranslateModelsListOperator:
+
+TranslateModelsListOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Get list of native translation models using Cloud Translate API (Advanced V3).
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.translate.TranslateModelsListOperator`
+
+Using the operator
+""""""""""""""""""
+
+Basic usage of the operator:
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/translate/example_translate_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_translate_automl_list_models]
+    :end-before: [END howto_operator_translate_automl_list_models]
+
+
+.. _howto/operator:TranslateDeleteModelOperator:
+
+TranslateDeleteModelOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Delete a native translation model using Cloud Translate API (Advanced V3).
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.translate.TranslateDeleteModelOperator`
+
+Using the operator
+""""""""""""""""""
+
+Basic usage of the operator:
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/translate/example_translate_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_translate_automl_delete_model]
+    :end-before: [END howto_operator_translate_automl_delete_model]
+
+
 More information
 """"""""""""""""""
 See:

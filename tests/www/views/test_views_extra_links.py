@@ -29,13 +29,14 @@ from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, BaseOperatorLink
+from tests_common.test_utils.compat import BaseOperatorLink
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.mock_operators import (
     AirflowLink,
     EmptyExtraLinkTestOperator,
     EmptyNoExtraLinkTestOperator,
 )
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType

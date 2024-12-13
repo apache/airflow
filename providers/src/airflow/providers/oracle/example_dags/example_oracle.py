@@ -19,7 +19,6 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.oracle.operators.oracle import OracleStoredProcedureOperator
 
 with DAG(
@@ -29,14 +28,6 @@ with DAG(
     start_date=datetime(2023, 1, 1),
     dag_id="example_oracle",
 ) as dag:
-    # [START howto_oracle_operator]
-
-    opr_sql = SQLExecuteQueryOperator(
-        task_id="task_sql", conn_id="oracle", sql="SELECT 1 FROM DUAL", autocommit=True
-    )
-
-    # [END howto_oracle_operator]
-
     # [START howto_oracle_stored_procedure_operator_with_list_inout]
 
     opr_stored_procedure_with_list_input_output = OracleStoredProcedureOperator(

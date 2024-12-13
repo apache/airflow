@@ -22,7 +22,7 @@ import flask
 import markupsafe
 import pytest
 
-from airflow.dag_processing.processor import DagFileProcessor
+from airflow.models.errors import ParseImportError
 from airflow.security import permissions
 from airflow.utils.state import State
 from airflow.www.utils import UIAlert
@@ -37,7 +37,7 @@ from tests_common.test_utils.www import (
     client_with_login,
 )
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
 
 def clean_db():
@@ -203,81 +203,58 @@ TEST_FILTER_DAG_IDS = ["filter_test_1", "filter_test_2", "a_first_dag_id_asc", "
 TEST_TAGS = ["example", "test", "team", "group"]
 
 
-def _process_file(file_path):
-    dag_file_processor = DagFileProcessor(dag_ids=[], dag_directory="/tmp", log=mock.MagicMock())
-    dag_file_processor.process_file(file_path, [])
+@pytest.fixture
+def _working_dags(dag_maker):
+    for dag_id, tag in zip(TEST_FILTER_DAG_IDS, TEST_TAGS):
+        with dag_maker(dag_id=dag_id, fileloc=f"/{dag_id}.py", tags=[tag]):
+            # We need to enter+exit the dag maker context for it to create the dag
+            pass
 
 
 @pytest.fixture
-def _working_dags(tmp_path):
-    dag_contents_template = "from airflow import DAG\ndag = DAG('{}', schedule=None, tags=['{}'])"
+def _working_dags_with_read_perm(dag_maker):
     for dag_id, tag in zip(TEST_FILTER_DAG_IDS, TEST_TAGS):
-        path = tmp_path / f"{dag_id}.py"
-        path.write_text(dag_contents_template.format(dag_id, tag))
-        _process_file(path)
-
-
-@pytest.fixture
-def _working_dags_with_read_perm(tmp_path):
-    dag_contents_template = "from airflow import DAG\ndag = DAG('{}', schedule=None, tags=['{}'])"
-    dag_contents_template_with_read_perm = (
-        "from airflow import DAG\ndag = DAG('{}', schedule=None, tags=['{}'], "
-        "access_control={{'role_single_dag':{{'can_read'}}}}) "
-    )
-    for dag_id, tag in zip(TEST_FILTER_DAG_IDS, TEST_TAGS):
-        path = tmp_path / f"{dag_id}.py"
         if dag_id == "filter_test_1":
-            path.write_text(dag_contents_template_with_read_perm.format(dag_id, tag))
+            access_control = {"role_single_dag": {"can_read"}}
         else:
-            path.write_text(dag_contents_template.format(dag_id, tag))
-        _process_file(path)
+            access_control = None
+
+        with dag_maker(dag_id=dag_id, fileloc=f"/{dag_id}.py", tags=[tag], access_control=access_control):
+            pass
 
 
 @pytest.fixture
-def _working_dags_with_edit_perm(tmp_path):
-    dag_contents_template = "from airflow import DAG\ndag = DAG('{}', schedule=None, tags=['{}'])"
-    dag_contents_template_with_read_perm = (
-        "from airflow import DAG\ndag = DAG('{}', schedule=None, tags=['{}'], "
-        "access_control={{'role_single_dag':{{'can_edit'}}}}) "
-    )
+def _working_dags_with_edit_perm(dag_maker):
     for dag_id, tag in zip(TEST_FILTER_DAG_IDS, TEST_TAGS):
-        path = tmp_path / f"{dag_id}.py"
         if dag_id == "filter_test_1":
-            path.write_text(dag_contents_template_with_read_perm.format(dag_id, tag))
+            access_control = {"role_single_dag": {"can_edit"}}
         else:
-            path.write_text(dag_contents_template.format(dag_id, tag))
-        _process_file(path)
+            access_control = None
+
+        with dag_maker(dag_id=dag_id, fileloc=f"/{dag_id}.py", tags=[tag], access_control=access_control):
+            pass
 
 
 @pytest.fixture
-def _broken_dags(tmp_path, _working_dags):
+def _broken_dags(session):
+    from airflow.models.errors import ParseImportError
+
     for dag_id in TEST_FILTER_DAG_IDS:
-        path = tmp_path / f"{dag_id}.py"
-        path.write_text("airflow DAG")
-        _process_file(path)
+        session.add(ParseImportError(filename=f"/{dag_id}.py", stacktrace="Some Error\nTraceback:\n"))
+    session.commit()
 
 
 @pytest.fixture
-def _broken_dags_with_read_perm(tmp_path, _working_dags_with_read_perm):
-    for dag_id in TEST_FILTER_DAG_IDS:
-        path = tmp_path / f"{dag_id}.py"
-        path.write_text("airflow DAG")
-        _process_file(path)
-
-
-@pytest.fixture
-def _broken_dags_after_working(tmp_path):
+def _broken_dags_after_working(dag_maker, session):
     # First create and process a DAG file that works
-    path = tmp_path / "all_in_one.py"
-    contents = "from airflow import DAG\n"
-    for i, dag_id in enumerate(TEST_FILTER_DAG_IDS):
-        contents += f"dag{i} = DAG('{dag_id}', schedule=None)\n"
-    path.write_text(contents)
-    _process_file(path)
+    path = "/all_in_one.py"
+    for dag_id in TEST_FILTER_DAG_IDS:
+        with dag_maker(dag_id=dag_id, fileloc=path, session=session):
+            pass
 
-    contents += "foobar()"
-    path.write_text(contents)
-    _process_file(path)
+    # Then create an import error against that file
+    session.add(ParseImportError(filename=path, stacktrace="Some Error\nTraceback:\n"))
+    session.commit()
 
 
 def test_home_filter_tags(_working_dags, admin_client):
@@ -289,6 +266,7 @@ def test_home_filter_tags(_working_dags, admin_client):
         assert flask.session[FILTER_TAGS_COOKIE] is None
 
 
+@pytest.mark.usefixtures("_broken_dags", "_working_dags")
 def test_home_importerrors(_broken_dags, user_client):
     # Users with "can read on DAGs" gets all DAG import errors
     resp = user_client.get("home", follow_redirects=True)
@@ -297,6 +275,7 @@ def test_home_importerrors(_broken_dags, user_client):
         check_content_in_response(f"/{dag_id}.py", resp)
 
 
+@pytest.mark.usefixtures("_broken_dags", "_working_dags")
 def test_home_no_importerrors_perm(_broken_dags, client_no_importerror):
     # Users without "can read on import errors" don't see any import errors
     resp = client_no_importerror.get("home", follow_redirects=True)
@@ -315,7 +294,8 @@ def test_home_no_importerrors_perm(_broken_dags, client_no_importerror):
         "home?lastrun=all_states",
     ],
 )
-def test_home_importerrors_filtered_singledag_user(_broken_dags_with_read_perm, client_single_dag, page):
+@pytest.mark.usefixtures("_working_dags_with_read_perm", "_broken_dags")
+def test_home_importerrors_filtered_singledag_user(client_single_dag, page):
     # Users that can only see certain DAGs get a filtered list of import errors
     resp = client_single_dag.get(page, follow_redirects=True)
     check_content_in_response("Import Errors", resp)

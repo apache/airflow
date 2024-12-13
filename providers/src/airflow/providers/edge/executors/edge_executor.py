@@ -135,6 +135,7 @@ class EdgeExecutor(BaseExecutor):
         heartbeat_interval: int = conf.getint("edge", "heartbeat_interval")
         lifeless_workers: list[EdgeWorkerModel] = (
             session.query(EdgeWorkerModel)
+            .with_for_update(skip_locked=True)
             .filter(
                 EdgeWorkerModel.state.not_in([EdgeWorkerState.UNKNOWN, EdgeWorkerState.OFFLINE]),
                 EdgeWorkerModel.last_update < (timezone.utcnow() - timedelta(seconds=heartbeat_interval * 5)),
@@ -154,6 +155,7 @@ class EdgeExecutor(BaseExecutor):
         heartbeat_interval: int = conf.getint("scheduler", "scheduler_zombie_task_threshold")
         lifeless_jobs: list[EdgeJobModel] = (
             session.query(EdgeJobModel)
+            .with_for_update(skip_locked=True)
             .filter(
                 EdgeJobModel.state == TaskInstanceState.RUNNING,
                 EdgeJobModel.last_update < (timezone.utcnow() - timedelta(seconds=heartbeat_interval)),
@@ -180,6 +182,7 @@ class EdgeExecutor(BaseExecutor):
         job_fail_purge = conf.getint("edge", "job_fail_purge")
         jobs: list[EdgeJobModel] = (
             session.query(EdgeJobModel)
+            .with_for_update(skip_locked=True)
             .filter(
                 EdgeJobModel.state.in_(
                     [
@@ -187,11 +190,18 @@ class EdgeExecutor(BaseExecutor):
                         TaskInstanceState.SUCCESS,
                         TaskInstanceState.FAILED,
                         TaskInstanceState.REMOVED,
+                        TaskInstanceState.RESTARTING,
+                        TaskInstanceState.UP_FOR_RETRY,
                     ]
                 )
             )
             .all()
         )
+
+        # Sync DB with executor otherwise runs out of sync in multi scheduler deployment
+        already_removed = self.running - set(job.key for job in jobs)
+        self.running = self.running - already_removed
+
         for job in jobs:
             if job.key in self.running:
                 if job.state == TaskInstanceState.RUNNING:
@@ -205,7 +215,11 @@ class EdgeExecutor(BaseExecutor):
                     if job.key in self.last_reported_state:
                         del self.last_reported_state[job.key]
                     self.success(job.key)
-                elif job.state == TaskInstanceState.FAILED:
+                elif job.state in [
+                    TaskInstanceState.FAILED,
+                    TaskInstanceState.RESTARTING,
+                    TaskInstanceState.UP_FOR_RETRY,
+                ]:
                     if job.key in self.last_reported_state:
                         del self.last_reported_state[job.key]
                     self.fail(job.key)
@@ -215,7 +229,13 @@ class EdgeExecutor(BaseExecutor):
                 job.state == TaskInstanceState.SUCCESS
                 and job.last_update_t < (datetime.now() - timedelta(minutes=job_success_purge)).timestamp()
             ) or (
-                job.state in (TaskInstanceState.FAILED, TaskInstanceState.REMOVED)
+                job.state
+                in (
+                    TaskInstanceState.FAILED,
+                    TaskInstanceState.REMOVED,
+                    TaskInstanceState.RESTARTING,
+                    TaskInstanceState.UP_FOR_RETRY,
+                )
                 and job.last_update_t < (datetime.now() - timedelta(minutes=job_fail_purge)).timestamp()
             ):
                 if job.key in self.last_reported_state:

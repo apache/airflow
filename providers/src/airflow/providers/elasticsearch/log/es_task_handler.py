@@ -22,7 +22,6 @@ import inspect
 import logging
 import sys
 import time
-import warnings
 from collections import defaultdict
 from operator import attrgetter
 from typing import TYPE_CHECKING, Any, Callable, Literal
@@ -32,22 +31,18 @@ from urllib.parse import quote, urlparse
 import elasticsearch
 import pendulum
 from elasticsearch.exceptions import NotFoundError
-from packaging.version import Version
 
-from airflow import __version__ as airflow_version
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit
+from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import create_session
-
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -77,20 +72,6 @@ def get_es_kwargs_from_config() -> dict[str, Any]:
         if elastic_search_config
         else {}
     )
-    # TODO: Remove in next major release (drop support for elasticsearch<8 parameters)
-    if (
-        elastic_search_config
-        and "retry_timeout" in elastic_search_config
-        and not kwargs_dict.get("retry_on_timeout")
-    ):
-        warnings.warn(
-            "retry_timeout is not supported with elasticsearch>=8. Please use `retry_on_timeout`.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-        retry_timeout = elastic_search_config.get("retry_timeout")
-        if retry_timeout is not None:
-            kwargs_dict["retry_on_timeout"] = retry_timeout
     return kwargs_dict
 
 
@@ -162,8 +143,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         index_patterns: str = conf.get("elasticsearch", "index_patterns"),
         index_patterns_callable: str = conf.get("elasticsearch", "index_patterns_callable", fallback=""),
         es_kwargs: dict | None | Literal["default_es_kwargs"] = "default_es_kwargs",
-        *,
-        log_id_template: str | None = None,
         **kwargs,
     ):
         es_kwargs = es_kwargs or {}
@@ -175,14 +154,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         self.client = elasticsearch.Elasticsearch(host, **es_kwargs)
         # in airflow.cfg, host of elasticsearch has to be http://dockerhostXxxx:9200
-        if USE_PER_RUN_LOG_ID and log_id_template is not None:
-            warnings.warn(
-                "Passing log_id_template to ElasticsearchTaskHandler is deprecated and has no effect",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
 
-        self.log_id_template = log_id_template  # Only used on Airflow < 2.3.2.
         self.frontend = frontend
         self.mark_end_on_close = True
         self.end_of_log_mark = end_of_log_mark.strip()
@@ -244,8 +216,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             dag_run = ti.get_dagrun(session=session)
             if USE_PER_RUN_LOG_ID:
                 log_id_template = dag_run.get_log_template(session=session).elasticsearch_id
-            else:
-                log_id_template = self.log_id_template
 
         if TYPE_CHECKING:
             assert ti.task

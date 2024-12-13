@@ -27,6 +27,38 @@
 Changelog
 ---------
 
+0.9.4pre0
+.........
+
+Misc
+~~~~
+
+* ``Fix to keep edge executor and edge job table in sync. Important in multi scheduler deployments.``
+
+0.9.3pre0
+.........
+
+Misc
+~~~~
+
+* ``Handle purging of restarting edge jobs.``
+
+0.9.2pre0
+.........
+
+Misc
+~~~~
+
+* ``Fix check edge worker api call authentication with different base url. Authentication failed when Airflow is not installed in webserver root.``
+
+0.9.1pre0
+.........
+
+Misc
+~~~~
+
+* ``Make edge executor DB access is multi instance save.``
+
 0.9.0pre0
 .........
 

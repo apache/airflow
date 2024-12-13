@@ -96,7 +96,6 @@ from tests.plugins.priority_weight_strategy import (
     TestPriorityWeightStrategyPlugin,
 )
 from tests_common.test_utils.asserts import assert_queries_count
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
@@ -107,6 +106,7 @@ from tests_common.test_utils.db import (
 from tests_common.test_utils.mapping import expand_mapped_task
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
 from tests_common.test_utils.timetables import cron_timetable, delta_timetable
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -630,7 +630,7 @@ class TestDag:
             for i in range(4)
         ]
 
-        with assert_queries_count(5):
+        with assert_queries_count(6):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
@@ -647,14 +647,14 @@ class TestDag:
                 assert row[0] is not None
 
         # Re-sync should do fewer queries
-        with assert_queries_count(8):
+        with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
-        with assert_queries_count(8):
+        with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
         # Adding tags
         for dag in dags:
             dag.tags.add("test-dag2")
-        with assert_queries_count(9):
+        with assert_queries_count(10):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
@@ -673,7 +673,7 @@ class TestDag:
         # Removing tags
         for dag in dags:
             dag.tags.remove("test-dag")
-        with assert_queries_count(9):
+        with assert_queries_count(10):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
@@ -692,7 +692,7 @@ class TestDag:
         # Removing all tags
         for dag in dags:
             dag.tags = set()
-        with assert_queries_count(9):
+        with assert_queries_count(10):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
@@ -713,7 +713,7 @@ class TestDag:
             for i in range(1)
         ]
 
-        with assert_queries_count(5):
+        with assert_queries_count(6):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0"} == {row[0] for row in session.query(DagModel.dag_id).all()}
@@ -740,7 +740,7 @@ class TestDag:
             for i in range(4)
         ]
 
-        with assert_queries_count(5):
+        with assert_queries_count(6):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
@@ -757,9 +757,9 @@ class TestDag:
                 assert row[0] is not None
 
         # Re-sync should do fewer queries
-        with assert_queries_count(8):
+        with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
-        with assert_queries_count(8):
+        with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
 
     @pytest.mark.parametrize("interval", [None, "@daily"])
@@ -2250,7 +2250,6 @@ class TestDagModel:
 
         # add queue records so we'll need a run
         dag_model = dag_maker.dag_model
-        asset_model: AssetModel = dag_model.schedule_assets[0]
         session.add(AssetDagRunQueue(asset_id=asset_model.id, target_dag_id=dag_model.dag_id))
         session.flush()
         query, _ = DagModel.dags_needing_dagruns(session)

@@ -52,8 +52,9 @@ from airflow.providers.openlineage.plugins.facets import (
 from airflow.providers.openlineage.utils.utils import get_airflow_job_facet
 from airflow.utils.task_group import TaskGroup
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, BashOperator
+from tests_common.test_utils.compat import BashOperator
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -594,6 +595,7 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
         dag_id=dag_id,
         start_date=event_time,
         logical_date=event_time,
+        clear_number=0,
         nominal_start_time=event_time.isoformat(),
         nominal_end_time=event_time.isoformat(),
         owners=["airflow"],
@@ -708,6 +710,7 @@ def test_emit_dag_complete_event(
         run_id=run_id,
         end_date=event_time,
         logical_date=event_time,
+        clear_number=0,
         dag_run_state=DagRunState.SUCCESS,
         task_ids=["task_0", "task_1", "task_2.test"],
     )
@@ -797,6 +800,7 @@ def test_emit_dag_failed_event(
         run_id=run_id,
         end_date=event_time,
         logical_date=event_time,
+        clear_number=0,
         dag_run_state=DagRunState.FAILED,
         task_ids=["task_0", "task_1", "task_2.test"],
         msg="error msg",
@@ -864,6 +868,7 @@ def test_build_dag_run_id_is_valid_uuid():
     result = OpenLineageAdapter.build_dag_run_id(
         dag_id=dag_id,
         logical_date=logical_date,
+        clear_number=0,
     )
     uuid_result = uuid.UUID(result)
     assert uuid_result
@@ -872,24 +877,30 @@ def test_build_dag_run_id_is_valid_uuid():
 
 def test_build_dag_run_id_same_input_give_same_result():
     result1 = OpenLineageAdapter.build_dag_run_id(
-        dag_id="dag1",
-        logical_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
+        dag_id="dag1", logical_date=datetime.datetime(2024, 1, 1, 1, 1, 1), clear_number=0
     )
     result2 = OpenLineageAdapter.build_dag_run_id(
-        dag_id="dag1",
-        logical_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
+        dag_id="dag1", logical_date=datetime.datetime(2024, 1, 1, 1, 1, 1), clear_number=0
     )
     assert result1 == result2
 
 
 def test_build_dag_run_id_different_inputs_give_different_results():
     result1 = OpenLineageAdapter.build_dag_run_id(
-        dag_id="dag1",
-        logical_date=datetime.datetime.now(),
+        dag_id="dag1", logical_date=datetime.datetime.now(), clear_number=0
     )
     result2 = OpenLineageAdapter.build_dag_run_id(
-        dag_id="dag2",
-        logical_date=datetime.datetime.now(),
+        dag_id="dag2", logical_date=datetime.datetime.now(), clear_number=0
+    )
+    assert result1 != result2
+
+
+def test_build_dag_run_id_different_clear_number_give_different_results():
+    result1 = OpenLineageAdapter.build_dag_run_id(
+        dag_id="dag1", logical_date=datetime.datetime(2024, 1, 1, 1, 1, 1), clear_number=0
+    )
+    result2 = OpenLineageAdapter.build_dag_run_id(
+        dag_id="dag1", logical_date=datetime.datetime(2024, 1, 1, 1, 1, 1), clear_number=1
     )
     assert result1 != result2
 

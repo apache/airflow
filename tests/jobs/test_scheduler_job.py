@@ -79,7 +79,6 @@ from tests.listeners.test_listeners import get_listener_manager
 from tests.models import TEST_DAGS_FOLDER
 from tests.utils.test_timezone import UTC
 from tests_common.test_utils.asserts import assert_queries_count
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars, env_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
@@ -94,6 +93,7 @@ from tests_common.test_utils.db import (
 )
 from tests_common.test_utils.mock_executor import MockExecutor
 from tests_common.test_utils.mock_operators import CustomOperator
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -6319,10 +6319,11 @@ class TestSchedulerJob:
             )
         )
         assert dag_warning.message == (
-            'Cannot activate asset AssetModel(name="it\'s also a duplicate",'
-            " uri='s3://bucket/key/1', extra={'foo': 'bar'}); uri is already associated to 'asset1'\n"
-            "Cannot activate asset AssetModel(name='asset1', uri"
-            "=\"it's duplicate\", extra={'foo': 'bar'}); name is already associated to 's3://bucket/key/1'"
+            'Cannot activate asset Asset(name="asset1", uri="it\'s duplica'
+            'te", group="asset"); name is already associated to \'s3://buck'
+            "et/key/1'\nCannot activate asset Asset(name=\"it's also a dup"
+            'licate", uri="s3://bucket/key/1", group="asset"); uri is alrea'
+            "dy associated to 'asset1'"
         )
 
     def test_activate_referenced_assets_with_existing_warnings(self, session):
@@ -6357,7 +6358,7 @@ class TestSchedulerJob:
             )
         )
         assert dag_warning.message == (
-            "Cannot activate asset AssetModel(name='asset1', uri=\"it's duplicate\", extra={'foo': 'bar'}); "
+            'Cannot activate asset Asset(name="asset1", uri="it\'s duplicate", group="asset"); '
             "name is already associated to 's3://bucket/key/1'"
         )
 
@@ -6374,7 +6375,7 @@ class TestSchedulerJob:
             )
         )
         assert dag_warning.message == (
-            "Cannot activate asset AssetModel(name='asset1', uri=\"it's duplicate 2\", extra={'foo': 'bar'}); "
+            'Cannot activate asset Asset(name="asset1", uri="it\'s duplicate 2", group="asset"); '
             "name is already associated to 's3://bucket/key/1'"
         )
 

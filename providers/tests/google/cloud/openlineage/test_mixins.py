@@ -64,6 +64,7 @@ class TestBigQueryOpenLineageMixin:
         class BQOperator(_BigQueryOpenLineageMixin):
             sql = ""
             job_id = "job_id"
+            location = None
 
             @property
             def hook(self):
@@ -82,9 +83,6 @@ class TestBigQueryOpenLineageMixin:
 
         self.job_details["configuration"]["query"].pop("query")
         assert lineage.run_facets == {
-            "bigQuery_job": BigQueryJobRunFacet(
-                cached=False, billedBytes=111149056, properties=json.dumps(self.job_details)
-            ),
             "bigQueryJob": BigQueryJobRunFacet(
                 cached=False, billedBytes=111149056, properties=json.dumps(self.job_details)
             ),
@@ -133,9 +131,6 @@ class TestBigQueryOpenLineageMixin:
         self.script_job_details["configuration"]["query"].pop("query")
         assert lineage.run_facets == {
             "bigQueryJob": BigQueryJobRunFacet(
-                cached=False, billedBytes=120586240, properties=json.dumps(self.script_job_details)
-            ),
-            "bigQuery_job": BigQueryJobRunFacet(
                 cached=False, billedBytes=120586240, properties=json.dumps(self.script_job_details)
             ),
             "externalQuery": ExternalQueryRunFacet(externalQueryId="job_id", source="bigquery"),

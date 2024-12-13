@@ -560,3 +560,157 @@ class TranslateHook(GoogleBaseHook):
             metadata=metadata,
         )
         return result
+
+    def create_model(
+        self,
+        dataset_id: str,
+        display_name: str,
+        project_id: str,
+        location: str,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Operation:
+        """
+        Create the native model by training on translation dataset provided.
+
+        :param dataset_id: ID of dataset to be used for model training.
+        :param display_name: Display name of the model trained.
+            A-Z and a-z, underscores (_), and ASCII digits 0-9.
+        :param project_id: ID of the Google Cloud project where dataset is located. If not provided
+            default project_id is used.
+        :param location: The location of the project.
+        :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
+            retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+            `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+
+        :return: `Operation` object with the model creation results, when finished.
+        """
+        client = self.get_client()
+        project_id = project_id or self.project_id
+        parent = f"projects/{project_id}/locations/{location}"
+        dataset = f"projects/{project_id}/locations/{location}/datasets/{dataset_id}"
+        result = client.create_model(
+            request={
+                "parent": parent,
+                "model": {
+                    "display_name": display_name,
+                    "dataset": dataset,
+                },
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    def get_model(
+        self,
+        model_id: str,
+        project_id: str,
+        location: str,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | _MethodDefault = DEFAULT,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> automl_translation.Model:
+        """
+        Retrieve the dataset for the given model_id.
+
+        :param model_id: ID of translation model to be retrieved.
+        :param project_id: ID of the Google Cloud project where dataset is located. If not provided
+            default project_id is used.
+        :param location: The location of the project.
+        :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
+            retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+            `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+
+        :return: `automl_translation.Model` instance.
+        """
+        client = self.get_client()
+        name = f"projects/{project_id}/locations/{location}/models/{model_id}"
+        return client.get_model(
+            request={"name": name},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    def list_models(
+        self,
+        project_id: str,
+        location: str,
+        filter_str: str | None = None,
+        page_size: int | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | _MethodDefault = DEFAULT,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> pagers.ListModelsPager:
+        """
+        List translation models in a project.
+
+        :param project_id: ID of the Google Cloud project where models are located. If not provided
+            default project_id is used.
+        :param location: The location of the project.
+        :param filter_str: An optional expression for filtering the models that will
+            be returned. Supported filter: ``dataset_id=${dataset_id}``.
+        :param page_size: Optional custom page size value. The server can
+            return fewer results than requested.
+        :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
+            retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+            `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+
+        :return: ``pagers.ListDatasetsPager`` instance, iterable object to retrieve the datasets list.
+        """
+        client = self.get_client()
+        parent = f"projects/{project_id}/locations/{location}"
+        result = client.list_models(
+            request={
+                "parent": parent,
+                "filter": filter_str,
+                "page_size": page_size,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    def delete_model(
+        self,
+        model_id: str,
+        project_id: str,
+        location: str,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Operation:
+        """
+        Delete the translation model and all of its contents.
+
+        :param model_id: ID of model to be deleted.
+        :param project_id: ID of the Google Cloud project where dataset is located. If not provided
+            default project_id is used.
+        :param location: The location of the project.
+        :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
+            retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+            `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+
+        :return: `Operation` object with dataset deletion results, when finished.
+        """
+        client = self.get_client()
+        name = f"projects/{project_id}/locations/{location}/models/{model_id}"
+        result = client.delete_model(
+            request={"name": name},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result

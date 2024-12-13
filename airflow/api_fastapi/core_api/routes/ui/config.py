@@ -48,7 +48,6 @@ WEBSERVER_CONFIG_KEYS = [
 
 @config_router.get(
     "/config",
-    include_in_schema=False,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_configs() -> ConfigResponse:

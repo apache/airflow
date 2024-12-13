@@ -231,3 +231,24 @@ def validate_cmd_result(cmd_result, include_ci_env_check=False):
             "run `breeze ci-image build --python 3.9` and try again."
         )
     sys.exit(cmd_result.returncode)
+
+
+def get_provider_from_path(file_path: Path) -> str | None:
+    """
+    Get the provider name from the path of the file it belongs to.
+    """
+    for parent in file_path.parents:
+        if (parent / "provider.yaml").exists():
+            for providers_candidate in parent.parents:
+                if providers_candidate.name == "providers":
+                    return parent.relative_to(providers_candidate).as_posix().replace("/", ".")
+            else:
+                return None
+    return None
+
+
+def get_provider_dir(provider_id: str) -> Path:
+    """
+    Get the provider directory from the provider =id.
+    """
+    return Path("providers") / "src" / "airflow" / "providers" / provider_id.replace(".", os.sep)

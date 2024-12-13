@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dag import DAG
 from airflow.providers.apache.spark.operators.spark_sql import SparkSqlOperator
 from airflow.utils import timezone
@@ -82,7 +81,3 @@ class TestSparkSqlOperator:
         ti.render_templates()
         task: SparkSqlOperator = ti.task
         assert task.sql == "sql"
-
-        # Deprecated aliases
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            assert task._sql == "sql"
