@@ -197,6 +197,11 @@ class EdgeExecutor(BaseExecutor):
             )
             .all()
         )
+
+        # Sync DB with executor otherwise runs out of sync in multi scheduler deployment
+        already_removed = self.running - set(job.key for job in jobs)
+        self.running = self.running - already_removed
+
         for job in jobs:
             if job.key in self.running:
                 if job.state == TaskInstanceState.RUNNING:
