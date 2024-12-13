@@ -57,6 +57,8 @@ def upgrade():
         batch_op.add_column(sa.Column("bundle_id", UUIDType(binary=False), nullable=True))
         batch_op.add_column(sa.Column("latest_bundle_version", sa.String(length=200), nullable=True))
         batch_op.create_foreign_key(batch_op.f("dag_bundle_id_fkey"), "dag_bundle", ["bundle_id"], ["id"])
+    with op.batch_alter_table("dag_run", schema=None) as batch_op:
+        batch_op.add_column(sa.Column("bundle_version", sa.String(length=200), nullable=True))
 
 
 def downgrade():
@@ -65,5 +67,7 @@ def downgrade():
         batch_op.drop_constraint(batch_op.f("dag_bundle_id_fkey"), type_="foreignkey")
         batch_op.drop_column("latest_bundle_version")
         batch_op.drop_column("bundle_id")
+    with op.batch_alter_table("dag_run", schema=None) as batch_op:
+        batch_op.drop_column("bundle_version")
 
     op.drop_table("dag_bundle")
