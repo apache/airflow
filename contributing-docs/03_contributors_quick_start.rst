@@ -125,6 +125,7 @@ Docker Compose
 --------------
 
 1. Installing latest version of the Docker Compose plugin
+
 Install using the repository:
 
 .. code-block:: bash
@@ -429,6 +430,7 @@ Using Breeze
       </div>
 
 4. Stopping breeze
+
 If Airflow was started with ``breeze start-airflow``:
 
 .. code-block:: bash
