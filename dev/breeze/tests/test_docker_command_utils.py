@@ -127,6 +127,28 @@ def test_check_docker_version_higher(mock_get_console, mock_run_command, mock_ch
     mock_get_console.return_value.print.assert_called_with("[success]Good version of Docker: 24.0.0.[/]")
 
 
+@mock.patch("airflow_breeze.utils.docker_command_utils.check_docker_permission_denied")
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+@mock.patch("airflow_breeze.utils.docker_command_utils.get_console")
+def test_check_docker_version_higher_rancher_desktop(
+    mock_get_console, mock_run_command, mock_check_docker_permission_denied
+):
+    mock_check_docker_permission_denied.return_value = False
+    mock_run_command.return_value.returncode = 0
+    mock_run_command.return_value.stdout = "24.0.0-rd"
+    check_docker_version()
+    mock_check_docker_permission_denied.assert_called()
+    mock_run_command.assert_called_with(
+        ["docker", "version", "--format", "{{.Client.Version}}"],
+        no_output_dump_on_exception=True,
+        capture_output=True,
+        text=True,
+        check=False,
+        dry_run_override=False,
+    )
+    mock_get_console.return_value.print.assert_called_with("[success]Good version of Docker: 24.0.0-r.[/]")
+
+
 @mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
 @mock.patch("airflow_breeze.utils.docker_command_utils.get_console")
 def test_check_docker_compose_version_unknown(mock_get_console, mock_run_command):
