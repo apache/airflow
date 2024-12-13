@@ -42,39 +42,62 @@ depends_on = None
 airflow_version = "2.10.3"
 
 
+def mysql_create_foreignkey_if_not_exists(
+    constraint_name, table_name, column_name, ref_table, ref_column, op
+):
+    op.execute(f"""
+        set @var = (
+        SELECT CASE
+            WHEN EXISTS (
+                SELECT 1
+                FROM information_schema.TABLE_CONSTRAINTS
+                WHERE
+                    CONSTRAINT_SCHEMA = DATABASE() AND
+                    TABLE_NAME = '{table_name}' AND
+                    CONSTRAINT_NAME = '{constraint_name}' AND
+                    CONSTRAINT_TYPE = 'FOREIGN KEY'
+            ) THEN 'SELECT 1'
+            ELSE CONCAT(
+                'ALTER TABLE {table_name} ',
+                'ADD CONSTRAINT {constraint_name} FOREIGN KEY ({column_name}) ',
+                'REFERENCES {ref_table}({ref_column}) ',
+                'ON DELETE CASCADE'
+            )
+        END
+    );
+
+    PREPARE stmt FROM @var;
+    EXECUTE stmt;
+    DEALLOCATE PREPARE stmt;
+    """)
+
+
+def postgres_create_foreignkey_if_not_exists(
+    constraint_name, table_name, column_name, ref_table, ref_column, op
+):
+    op.execute(f"""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM information_schema.table_constraints
+                WHERE constraint_type = 'FOREIGN KEY'
+                  AND constraint_name = '{constraint_name}'
+            ) THEN
+                ALTER TABLE {table_name}
+                ADD CONSTRAINT {constraint_name}
+                FOREIGN KEY ({column_name})
+                REFERENCES {ref_table} ({ref_column})
+                ON DELETE CASCADE;
+            END IF;
+        END $$;
+    """)
+
+
 def upgrade():
     """Rename dag_schedule_dataset_alias_reference constraint."""
     dialect = op.get_context().dialect.name
-    if dialect != "sqlite":
-        with op.batch_alter_table("dag_schedule_dataset_alias_reference", schema=None) as batch_op:
-            if dialect == "postgresql":
-                op.execute(
-                    "ALTER TABLE dag_schedule_dataset_alias_reference DROP CONSTRAINT IF EXISTS dsdar_dataset_fkey"
-                )
-                op.execute(
-                    "ALTER TABLE dag_schedule_dataset_alias_reference DROP CONSTRAINT IF EXISTS dsdar_dag_fkey"
-                )
-            if dialect == "mysql":
-                mysql_drop_foreignkey_if_exists(
-                    "dsdar_dataset_fkey", "dag_schedule_dataset_alias_reference", op
-                )
-                mysql_drop_foreignkey_if_exists("dsdar_dag_fkey", "dag_schedule_dataset_alias_reference", op)
-            batch_op.create_foreign_key(
-                constraint_name="dsdar_dataset_alias_fkey",
-                referent_table="dataset_alias",
-                local_cols=["alias_id"],
-                remote_cols=["id"],
-                ondelete="CASCADE",
-            )
-
-            batch_op.create_foreign_key(
-                constraint_name="dsdar_dag_id_fkey",
-                referent_table="dataset_alias",
-                local_cols=["alias_id"],
-                remote_cols=["id"],
-                ondelete="CASCADE",
-            )
-    else:
+    if dialect == "sqlite":
         op.create_table(
             "new_table",
             sa.Column("alias_id", sa.Integer(), primary_key=True, nullable=False),
@@ -104,6 +127,38 @@ def upgrade():
             ["dag_id"],
             unique=False,
         )
+    if dialect == "postgresql":
+        op.execute(
+            "ALTER TABLE dag_schedule_dataset_alias_reference DROP CONSTRAINT IF EXISTS dsdar_dataset_fkey"
+        )
+        op.execute(
+            "ALTER TABLE dag_schedule_dataset_alias_reference DROP CONSTRAINT IF EXISTS dsdar_dag_fkey"
+        )
+        postgres_create_foreignkey_if_not_exists(
+            "dsdar_dataset_alias_fkey",
+            "dag_schedule_dataset_alias_reference",
+            "alias_id",
+            "dataset_alias",
+            "id",
+            op,
+        )
+        postgres_create_foreignkey_if_not_exists(
+            "dsdar_dag_id_fkey", "dag_schedule_dataset_alias_reference", "alias_id", "dataset_alias", "id", op
+        )
+    if dialect == "mysql":
+        mysql_drop_foreignkey_if_exists("dsdar_dataset_fkey", "dag_schedule_dataset_alias_reference", op)
+        mysql_drop_foreignkey_if_exists("dsdar_dag_fkey", "dag_schedule_dataset_alias_reference", op)
+        mysql_create_foreignkey_if_not_exists(
+            "dsdar_dataset_alias_fkey",
+            "dag_schedule_dataset_alias_reference",
+            "alias_id",
+            "dataset_alias",
+            "id",
+            op,
+        )
+        mysql_create_foreignkey_if_not_exists(
+            "dsdar_dag_id_fkey", "dag_schedule_dataset_alias_reference", "alias_id", "dataset_alias", "id", op
+        )
 
 
 def downgrade():
@@ -116,29 +171,44 @@ def downgrade():
         op.execute(
             "ALTER TABLE dag_schedule_dataset_alias_reference DROP CONSTRAINT IF EXISTS dsdar_dag_id_fkey"
         )
-    elif dialect == "mysql":
+        postgres_create_foreignkey_if_not_exists(
+            "dsdar_dataset_fkey",
+            "dag_schedule_dataset_alias_reference",
+            "alias_id",
+            "dataset_alias",
+            "id",
+            op,
+        )
+        postgres_create_foreignkey_if_not_exists(
+            "dsdar_dag_fkey",
+            "dag_schedule_dataset_alias_reference",
+            "alias_id",
+            "dataset_alias",
+            "id",
+            op,
+        )
+    if dialect == "mysql":
         mysql_drop_foreignkey_if_exists(
             "dsdar_dataset_alias_fkey", "dag_schedule_dataset_alias_reference", op
         )
         mysql_drop_foreignkey_if_exists("dsdar_dag_id_fkey", "dag_schedule_dataset_alias_reference", op)
-    if dialect != "sqlite":
-        with op.batch_alter_table("dag_schedule_dataset_alias_reference", schema=None) as batch_op:
-            batch_op.create_foreign_key(
-                constraint_name="dsdar_dataset_fkey",
-                referent_table="dataset_alias",
-                local_cols=["alias_id"],
-                remote_cols=["id"],
-                ondelete="CASCADE",
-            )
-
-            batch_op.create_foreign_key(
-                constraint_name="dsdar_dag_fkey",
-                referent_table="dataset_alias",
-                local_cols=["alias_id"],
-                remote_cols=["id"],
-                ondelete="CASCADE",
-            )
-    else:
+        mysql_create_foreignkey_if_not_exists(
+            "dsdar_dataset_fkey",
+            "dag_schedule_dataset_alias_reference",
+            "alias_id",
+            "dataset_alias",
+            "id",
+            op,
+        )
+        mysql_create_foreignkey_if_not_exists(
+            "dsdar_dag_fkey",
+            "dag_schedule_dataset_alias_reference",
+            "alias_id",
+            "dataset_alias",
+            "id",
+            op,
+        )
+    if dialect == "sqlite":
         op.create_table(
             "new_table",
             sa.Column("alias_id", sa.Integer(), primary_key=True, nullable=False),
