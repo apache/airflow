@@ -103,6 +103,22 @@ export const UseAssetServiceGetAssetAliasesKeyFn = (
   useAssetServiceGetAssetAliasesKey,
   ...(queryKey ?? [{ limit, namePattern, offset, orderBy }]),
 ];
+export type AssetServiceGetAssetAliasDefaultResponse = Awaited<
+  ReturnType<typeof AssetService.getAssetAlias>
+>;
+export type AssetServiceGetAssetAliasQueryResult<
+  TData = AssetServiceGetAssetAliasDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useAssetServiceGetAssetAliasKey = "AssetServiceGetAssetAlias";
+export const UseAssetServiceGetAssetAliasKeyFn = (
+  {
+    assetAliasId,
+  }: {
+    assetAliasId: number;
+  },
+  queryKey?: Array<unknown>,
+) => [useAssetServiceGetAssetAliasKey, ...(queryKey ?? [{ assetAliasId }])];
 export type AssetServiceGetAssetEventsDefaultResponse = Awaited<
   ReturnType<typeof AssetService.getAssetEvents>
 >;
@@ -158,16 +174,16 @@ export const useAssetServiceGetAssetQueuedEventsKey =
   "AssetServiceGetAssetQueuedEvents";
 export const UseAssetServiceGetAssetQueuedEventsKeyFn = (
   {
+    assetId,
     before,
-    uri,
   }: {
+    assetId: number;
     before?: string;
-    uri: string;
   },
   queryKey?: Array<unknown>,
 ) => [
   useAssetServiceGetAssetQueuedEventsKey,
-  ...(queryKey ?? [{ before, uri }]),
+  ...(queryKey ?? [{ assetId, before }]),
 ];
 export type AssetServiceGetAssetDefaultResponse = Awaited<
   ReturnType<typeof AssetService.getAsset>
@@ -179,12 +195,12 @@ export type AssetServiceGetAssetQueryResult<
 export const useAssetServiceGetAssetKey = "AssetServiceGetAsset";
 export const UseAssetServiceGetAssetKeyFn = (
   {
-    uri,
+    assetId,
   }: {
-    uri: string;
+    assetId: number;
   },
   queryKey?: Array<unknown>,
-) => [useAssetServiceGetAssetKey, ...(queryKey ?? [{ uri }])];
+) => [useAssetServiceGetAssetKey, ...(queryKey ?? [{ assetId }])];
 export type AssetServiceGetDagAssetQueuedEventsDefaultResponse = Awaited<
   ReturnType<typeof AssetService.getDagAssetQueuedEvents>
 >;
@@ -218,18 +234,18 @@ export const useAssetServiceGetDagAssetQueuedEventKey =
   "AssetServiceGetDagAssetQueuedEvent";
 export const UseAssetServiceGetDagAssetQueuedEventKeyFn = (
   {
+    assetId,
     before,
     dagId,
-    uri,
   }: {
+    assetId: number;
     before?: string;
     dagId: string;
-    uri: string;
   },
   queryKey?: Array<unknown>,
 ) => [
   useAssetServiceGetDagAssetQueuedEventKey,
-  ...(queryKey ?? [{ before, dagId, uri }]),
+  ...(queryKey ?? [{ assetId, before, dagId }]),
 ];
 export type ConfigServiceGetConfigsDefaultResponse = Awaited<
   ReturnType<typeof ConfigService.getConfigs>
@@ -296,6 +312,7 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    dagIds,
     dagRunsLimit,
     lastDagRunState,
     limit,
@@ -307,6 +324,7 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    dagIds?: string[];
     dagRunsLimit?: number;
     lastDagRunState?: DagRunState;
     limit?: number;
@@ -323,6 +341,7 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
     {
       dagDisplayNamePattern,
       dagIdPattern,
+      dagIds,
       dagRunsLimit,
       lastDagRunState,
       limit,
@@ -393,6 +412,34 @@ export const useBackfillServiceListBackfillsKey =
   "BackfillServiceListBackfills";
 export const UseBackfillServiceListBackfillsKeyFn = (
   {
+    active,
+    dagId,
+    limit,
+    offset,
+    orderBy,
+  }: {
+    active?: boolean;
+    dagId?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useBackfillServiceListBackfillsKey,
+  ...(queryKey ?? [{ active, dagId, limit, offset, orderBy }]),
+];
+export type BackfillServiceListBackfills1DefaultResponse = Awaited<
+  ReturnType<typeof BackfillService.listBackfills1>
+>;
+export type BackfillServiceListBackfills1QueryResult<
+  TData = BackfillServiceListBackfills1DefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useBackfillServiceListBackfills1Key =
+  "BackfillServiceListBackfills1";
+export const UseBackfillServiceListBackfills1KeyFn = (
+  {
     dagId,
     limit,
     offset,
@@ -405,7 +452,7 @@ export const UseBackfillServiceListBackfillsKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [
-  useBackfillServiceListBackfillsKey,
+  useBackfillServiceListBackfills1Key,
   ...(queryKey ?? [{ dagId, limit, offset, orderBy }]),
 ];
 export type BackfillServiceGetBackfillDefaultResponse = Awaited<
@@ -1128,6 +1175,8 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     startDateGte,
     startDateLte,
     state,
+    taskDisplayNamePattern,
+    taskId,
     updatedAtGte,
     updatedAtLte,
   }: {
@@ -1148,6 +1197,8 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
+    taskDisplayNamePattern?: string;
+    taskId?: string;
     updatedAtGte?: string;
     updatedAtLte?: string;
   },
@@ -1173,6 +1224,8 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
       startDateGte,
       startDateLte,
       state,
+      taskDisplayNamePattern,
+      taskId,
       updatedAtGte,
       updatedAtLte,
     },
@@ -1581,15 +1634,17 @@ export const UseVariableServiceGetVariablesKeyFn = (
     limit,
     offset,
     orderBy,
+    variableKeyPattern,
   }: {
     limit?: number;
     offset?: number;
     orderBy?: string;
+    variableKeyPattern?: string;
   } = {},
   queryKey?: Array<unknown>,
 ) => [
   useVariableServiceGetVariablesKey,
-  ...(queryKey ?? [{ limit, offset, orderBy }]),
+  ...(queryKey ?? [{ limit, offset, orderBy, variableKeyPattern }]),
 ];
 export type MonitorServiceGetHealthDefaultResponse = Awaited<
   ReturnType<typeof MonitorService.getHealth>

@@ -20,7 +20,7 @@
 remove pickled data from dagrun table.
 
 Revision ID: e39a26ac59f6
-Revises: e229247a6cb1
+Revises: 038dc8bc6284
 Create Date: 2024-12-01 08:33:15.425141
 
 """
@@ -30,11 +30,11 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import text
-from sqlalchemy.dialects.mysql import LONGBLOB
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = "e39a26ac59f6"
-down_revision = "e229247a6cb1"
+down_revision = "038dc8bc6284"
 branch_labels = None
 depends_on = None
 airflow_version = "3.0.0"
@@ -52,32 +52,23 @@ def upgrade():
     # Update the dag_run.conf column value to NULL
     conn.execute(text("UPDATE dag_run set conf=null WHERE conf IS NOT NULL"))
 
-    # Update the conf column type to JSON
     if dialect == "postgresql":
-        op.execute(
-            """
-            ALTER TABLE dag_run
-            ALTER COLUMN conf TYPE JSONB
-            USING CAST(CONVERT_FROM(conf, 'UTF8') AS JSONB);
-
-            """
+        op.alter_column(
+            "dag_run",
+            "conf",
+            existing_type=sa.dialects.postgresql.BYTEA,
+            type_=postgresql.JSONB,
+            existing_nullable=True,
         )
-    elif dialect == "mysql":
-        op.add_column("dag_run", sa.Column("conf_json", sa.JSON(), nullable=True))
-        op.drop_column("dag_run", "conf")
-        op.alter_column("dag_run", "conf_json", existing_type=sa.JSON(), new_column_name="conf")
-    elif dialect == "sqlite":
-        # Rename the existing `conf` column to `conf_old`
-        with op.batch_alter_table("dag_run", schema=None) as batch_op:
-            batch_op.alter_column("conf", new_column_name="conf_old")
 
-        # Add the new `conf` column with JSON type
-        with op.batch_alter_table("dag_run", schema=None) as batch_op:
-            batch_op.add_column(sa.Column("conf", sa.JSON(), nullable=True))
-
-        # Drop the old `conf_old` column
-        with op.batch_alter_table("dag_run", schema=None) as batch_op:
-            batch_op.drop_column("conf_old")
+    else:
+        op.alter_column(
+            "dag_run",
+            "conf",
+            existing_type=sa.LargeBinary,
+            type_=sa.JSON(),
+            existing_nullable=True,
+        )
 
 
 def downgrade():
@@ -87,24 +78,18 @@ def downgrade():
 
     conn.execute(text("UPDATE dag_run set conf=null WHERE conf IS NOT NULL"))
 
-    # Revert the conf column back to LargeBinary
     if dialect == "postgresql":
-        op.execute(
-            """
-            ALTER TABLE dag_run
-            ALTER COLUMN conf TYPE BYTEA
-            USING CONVERT_TO(conf::TEXT, 'UTF8');
-
-            """
+        op.alter_column(
+            "dag_run",
+            "conf",
+            existing_type=postgresql.JSONB,
+            type_=sa.dialects.postgresql.BYTEA,
+            postgresql_using="encode(conf::TEXT, 'escape')",
         )
-
-    elif dialect == "mysql":
-        op.drop_column("dag_run", "conf")
-        op.add_column("dag_run", sa.Column("conf", LONGBLOB, nullable=True))
-
-    elif dialect == "sqlite":
-        with op.batch_alter_table("dag_run", schema=None) as batch_op:
-            batch_op.drop_column("conf")
-
-        with op.batch_alter_table("dag_run", schema=None) as batch_op:
-            batch_op.add_column(sa.Column("conf", sa.LargeBinary, nullable=True))
+    else:
+        op.alter_column(
+            "dag_run",
+            "conf",
+            existing_type=sa.JSON(),
+            type_=sa.LargeBinary,
+        )

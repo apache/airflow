@@ -16,15 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Box,
-  Flex,
-  Heading,
-  HStack,
-  SimpleGrid,
-  Text,
-  VStack,
-} from "@chakra-ui/react";
+import { Box, Flex, Heading, HStack, SimpleGrid, Text } from "@chakra-ui/react";
 import { FiCalendar } from "react-icons/fi";
 
 import type {
@@ -35,11 +27,12 @@ import { DagIcon } from "src/assets/DagIcon";
 import DagDocumentation from "src/components/DagDocumentation";
 import DagRunInfo from "src/components/DagRunInfo";
 import ParseDag from "src/components/ParseDag";
+import { Stat } from "src/components/Stat";
 import { TogglePause } from "src/components/TogglePause";
 import TriggerDAGTextButton from "src/components/TriggerDag/TriggerDAGTextButton";
 import { Tooltip } from "src/components/ui";
 
-import { DagTags } from "../DagTags";
+import { DagTags } from "../DagsList/DagTags";
 
 export const Header = ({
   dag,
@@ -50,7 +43,7 @@ export const Header = ({
   readonly dagId?: string;
   readonly latestRun?: DAGRunResponse;
 }) => (
-  <Box borderColor="border" borderRadius={8} borderWidth={1} overflow="hidden">
+  <Box borderColor="border" borderRadius={8} borderWidth={1} p={2}>
     <Box p={2}>
       <Flex alignItems="center" justifyContent="space-between">
         <HStack alignItems="center" gap={2}>
@@ -77,10 +70,7 @@ export const Header = ({
         </Flex>
       </Flex>
       <SimpleGrid columns={4} gap={4} my={2}>
-        <VStack align="flex-start" gap={1}>
-          <Heading color="fg.muted" fontSize="xs">
-            Schedule
-          </Heading>
+        <Stat label="Schedule">
           {Boolean(dag?.timetable_summary) ? (
             <Tooltip content={dag?.timetable_description} showArrow>
               <Text fontSize="sm">
@@ -89,11 +79,8 @@ export const Header = ({
               </Text>
             </Tooltip>
           ) : undefined}
-        </VStack>
-        <VStack align="flex-start" gap={1}>
-          <Heading color="fg.muted" fontSize="xs">
-            Last Run
-          </Heading>
+        </Stat>
+        <Stat label="Last Run">
           {Boolean(latestRun) && latestRun !== undefined ? (
             <DagRunInfo
               dataIntervalEnd={latestRun.data_interval_end}
@@ -103,11 +90,8 @@ export const Header = ({
               state={latestRun.state}
             />
           ) : undefined}
-        </VStack>
-        <VStack align="flex-start" gap={1}>
-          <Heading color="fg.muted" fontSize="xs">
-            Next Run
-          </Heading>
+        </Stat>
+        <Stat label="Next Run">
           {Boolean(dag?.next_dagrun) && dag !== undefined ? (
             <DagRunInfo
               dataIntervalEnd={dag.next_dagrun_data_interval_end}
@@ -115,7 +99,7 @@ export const Header = ({
               nextDagrunCreateAfter={dag.next_dagrun_create_after}
             />
           ) : undefined}
-        </VStack>
+        </Stat>
         <div />
         <div />
       </SimpleGrid>

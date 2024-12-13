@@ -92,7 +92,6 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
     Runs DAG processing in a separate process using DagFileProcessor.
 
     :param file_path: a Python file containing Airflow DAG definitions
-    :param dag_ids: If specified, only look at these DAG ID's
     :param callback_requests: failure callback to execute
     """
 
@@ -102,13 +101,11 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
     def __init__(
         self,
         file_path: str,
-        dag_ids: list[str] | None,
         dag_directory: str,
         callback_requests: list[CallbackRequest],
     ):
         super().__init__()
         self._file_path = file_path
-        self._dag_ids = dag_ids
         self._dag_directory = dag_directory
         self._callback_requests = callback_requests
 
@@ -136,7 +133,6 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
         result_channel: MultiprocessingConnection,
         parent_channel: MultiprocessingConnection,
         file_path: str,
-        dag_ids: list[str] | None,
         thread_name: str,
         dag_directory: str,
         callback_requests: list[CallbackRequest],
@@ -147,8 +143,6 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
         :param result_channel: the connection to use for passing back the result
         :param parent_channel: the parent end of the channel to close in the child
         :param file_path: the file to process
-        :param dag_ids: if specified, only examine DAG ID's that are
-            in this list
         :param thread_name: the name to use for the process that is launched
         :param callback_requests: failure callback to execute
         :return: the process that was launched
@@ -174,7 +168,7 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
             threading.current_thread().name = thread_name
 
             log.info("Started process (PID=%s) to work on %s", os.getpid(), file_path)
-            dag_file_processor = DagFileProcessor(dag_ids=dag_ids, dag_directory=dag_directory, log=log)
+            dag_file_processor = DagFileProcessor(dag_directory=dag_directory, log=log)
             result: tuple[int, int, int] = dag_file_processor.process_file(
                 file_path=file_path,
                 callback_requests=callback_requests,
@@ -241,7 +235,6 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
                 _child_channel,
                 _parent_channel,
                 self.file_path,
-                self._dag_ids,
                 f"DagFileProcessor{self._instance_id}",
                 self._dag_directory,
                 self._callback_requests,
@@ -415,15 +408,13 @@ class DagFileProcessor(LoggingMixin):
 
     Returns a tuple of 'number of dags found' and 'the count of import errors'
 
-    :param dag_ids: If specified, only look at these DAG ID's
     :param log: Logger to save the processing process
     """
 
     UNIT_TEST_MODE: bool = conf.getboolean("core", "UNIT_TEST_MODE")
 
-    def __init__(self, dag_ids: list[str] | None, dag_directory: str, log: logging.Logger):
+    def __init__(self, dag_directory: str, log: logging.Logger):
         super().__init__()
-        self.dag_ids = dag_ids
         self._log = log
         self._dag_directory = dag_directory
         self.dag_warnings: set[tuple[str, str]] = set()

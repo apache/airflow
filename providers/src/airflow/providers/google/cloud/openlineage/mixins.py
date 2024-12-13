@@ -88,7 +88,7 @@ class _BigQueryOpenLineageMixin:
 
         job_facets = {"sql": SQLJobFacet(query=SQLParser.normalize_sql(self.sql))}
 
-        self.client = self.hook.get_client(project_id=self.hook.project_id)
+        self.client = self.hook.get_client(project_id=self.hook.project_id, location=self.location)
         job_ids = self.job_id
         if isinstance(self.job_id, str):
             job_ids = [self.job_id]
@@ -108,10 +108,7 @@ class _BigQueryOpenLineageMixin:
 
     def get_facets(self, job_id: str):
         from airflow.providers.common.compat.openlineage.facet import ErrorMessageRunFacet
-        from airflow.providers.google.cloud.openlineage.utils import (
-            BigQueryErrorRunFacet,
-            get_from_nullable_chain,
-        )
+        from airflow.providers.google.cloud.openlineage.utils import get_from_nullable_chain
 
         inputs = []
         outputs = []
@@ -125,8 +122,7 @@ class _BigQueryOpenLineageMixin:
             if get_from_nullable_chain(props, ["status", "state"]) != "DONE":
                 raise ValueError(f"Trying to extract data from running bigquery job: `{job_id}`")
 
-            # TODO: remove bigQuery_job in next release
-            run_facets["bigQuery_job"] = run_facets["bigQueryJob"] = self._get_bigquery_job_run_facet(props)
+            run_facets["bigQueryJob"] = self._get_bigquery_job_run_facet(props)
 
             if get_from_nullable_chain(props, ["statistics", "numChildJobs"]):
                 if hasattr(self, "log"):
@@ -145,16 +141,12 @@ class _BigQueryOpenLineageMixin:
             if hasattr(self, "log"):
                 self.log.warning("Cannot retrieve job details from BigQuery.Client. %s", e, exc_info=True)
             exception_msg = traceback.format_exc()
-            # TODO: remove BigQueryErrorRunFacet in next release
             run_facets.update(
                 {
                     "errorMessage": ErrorMessageRunFacet(
                         message=f"{e}: {exception_msg}",
                         programmingLanguage="python",
-                    ),
-                    "bigQuery_error": BigQueryErrorRunFacet(
-                        clientError=f"{e}: {exception_msg}",
-                    ),
+                    )
                 }
             )
         deduplicated_outputs = self._deduplicate_outputs(outputs)

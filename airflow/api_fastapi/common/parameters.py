@@ -49,6 +49,7 @@ from airflow.models.asset import (
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.variable import Variable
 from airflow.typing_compat import Self
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -231,6 +232,7 @@ class FilterOptionEnum(Enum):
     IN = "in"
     NOT_IN = "not_in"
     ANY_EQUAL = "any_eq"
+    IS_NONE = "is_none"
 
 
 class FilterParam(BaseParam[T]):
@@ -249,7 +251,7 @@ class FilterParam(BaseParam[T]):
         self.filter_option: FilterOptionEnum = filter_option
 
     def to_orm(self, select: Select) -> Select:
-        if isinstance(self.value, list) and not self.value and self.skip_none:
+        if isinstance(self.value, (list, str)) and not self.value and self.skip_none:
             return select
         if self.value is None and self.skip_none:
             return select
@@ -278,6 +280,13 @@ class FilterParam(BaseParam[T]):
             return select.where(self.attribute > self.value)
         if self.filter_option == FilterOptionEnum.GREATER_THAN_EQUAL:
             return select.where(self.attribute >= self.value)
+        if self.filter_option == FilterOptionEnum.IS_NONE:
+            if self.value is None:
+                return select
+            if self.value is False:
+                return select.where(self.attribute.is_not(None))
+            if self.value is True:
+                return select.where(self.attribute.is_(None))
         raise ValueError(f"Invalid filter option {self.filter_option} for value {self.value}")
 
     def depends(self, *args: Any, **kwargs: Any) -> Self:
@@ -571,6 +580,9 @@ QueryTIExecutorFilter = Annotated[
         )
     ),
 ]
+QueryTITaskDisplayNamePatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(TaskInstance.task_display_name, "task_display_name_pattern"))
+]
 
 # Assets
 QueryAssetNamePatternSearch = Annotated[
@@ -582,4 +594,9 @@ QueryAssetAliasNamePatternSearch = Annotated[
 ]
 QueryAssetDagIdPatternSearch = Annotated[
     _DagIdAssetReferenceFilter, Depends(_DagIdAssetReferenceFilter().depends)
+]
+
+# Variables
+QueryVariableKeyPatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(Variable.key, "variable_key_pattern"))
 ]
