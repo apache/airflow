@@ -124,14 +124,14 @@ If you use Colima as your container runtimes engine, please follow the next step
 Docker Compose
 --------------
 
-1. Installing latest version of Docker Compose
-Install plugin using the repository:
+1. Installing latest version of the Docker Compose plugin
+Install using the repository:
 
 .. code-block:: bash
   sudo apt-get update
   sudo apt-get install docker-compose-plugin
 
-Install plugin manually:
+Install manually:
 
 .. code-block:: bash
 
