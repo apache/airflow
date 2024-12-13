@@ -154,9 +154,7 @@ class JdbcHook(DbApiHook):
         conn = self.connection
         sqlalchemy_query = conn.extra_dejson.get("sqlalchemy_query", {})
         if not isinstance(sqlalchemy_query, dict):
-            raise AirflowException(
-                "The parameter 'sqlalchemy_query' must be of type dict!"
-            )
+            raise AirflowException("The parameter 'sqlalchemy_query' must be of type dict!")
         sqlalchemy_scheme = conn.extra_dejson.get("sqlalchemy_scheme")
         if sqlalchemy_scheme is None:
             raise AirflowException(

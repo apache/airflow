@@ -29,9 +29,8 @@ import psycopg2.extras
 from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor
 from sqlalchemy.engine import URL
 
-from airflow.providers.common.sql.hooks.sql import DbApiHook
-
 from airflow.exceptions import AirflowException
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
     from psycopg2.extensions import connection
@@ -113,9 +112,7 @@ class PostgresHook(DbApiHook):
         conn = self.connection
         query = conn.extra_dejson.get("sqlalchemy_query", {})
         if not isinstance(query, dict):
-            raise AirflowException(
-                "The parameter 'sqlalchemy_query' must be of type dict!"
-            )
+            raise AirflowException("The parameter 'sqlalchemy_query' must be of type dict!")
         return URL.create(
             drivername="postgresql",
             username=conn.login,
