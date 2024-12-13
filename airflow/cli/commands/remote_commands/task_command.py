@@ -47,7 +47,6 @@ from airflow.models.dag import DAG, _run_inline_trigger
 from airflow.models.dagrun import DagRun
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskReturnCode
-from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.settings import IS_EXECUTOR_CONTAINER, IS_K8S_EXECUTOR_POD
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
@@ -74,7 +73,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.models.operator import Operator
-    from airflow.serialization.pydantic.dag_run import DagRunPydantic
 
 log = logging.getLogger(__name__)
 
@@ -96,7 +94,7 @@ def _fetch_dag_run_from_run_id_or_logical_date_string(
     dag_id: str,
     value: str,
     session: Session,
-) -> tuple[DagRun | DagRunPydantic, pendulum.DateTime | None]:
+) -> tuple[DagRun, pendulum.DateTime | None]:
     """
     Try to find a DAG run with a given string value.
 
@@ -132,7 +130,7 @@ def _get_dag_run(
     create_if_necessary: CreateIfNecessary,
     logical_date_or_run_id: str | None = None,
     session: Session | None = None,
-) -> tuple[DagRun | DagRunPydantic, bool]:
+) -> tuple[DagRun, bool]:
     """
     Try to retrieve a DAG run from a string representing either a run ID or logical date.
 
@@ -259,8 +257,6 @@ def _run_task_by_selected_method(args, dag: DAG, ti: TaskInstance) -> None | Tas
     - as raw task
     - by executor
     """
-    if TYPE_CHECKING:
-        assert not isinstance(ti, TaskInstancePydantic)  # Wait for AIP-44 implementation to complete
     if args.local:
         return _run_task_by_local_task_job(args, ti)
     if args.raw:
@@ -497,9 +493,6 @@ def task_failed_deps(args) -> None:
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id)
-    # tasks_failed-deps is executed with access to the database.
-    if isinstance(ti, TaskInstancePydantic):
-        raise ValueError("not a TaskInstance")
     dep_context = DepContext(deps=SCHEDULER_QUEUED_DEPS)
     failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
     # TODO, Do we want to print or log this
@@ -524,9 +517,6 @@ def task_state(args) -> None:
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id)
-    # task_state is executed with access to the database.
-    if isinstance(ti, TaskInstancePydantic):
-        raise ValueError("not a TaskInstance")
     print(ti.current_state())
 
 
@@ -654,9 +644,6 @@ def task_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> N
     ti, dr_created = _get_ti(
         task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id, create_if_necessary="db"
     )
-    # task_test is executed with access to the database.
-    if isinstance(ti, TaskInstancePydantic):
-        raise ValueError("not a TaskInstance")
     try:
         with redirect_stdout(RedactedIO()):
             if args.dry_run:
@@ -705,9 +692,6 @@ def task_render(args, dag: DAG | None = None) -> None:
     ti, _ = _get_ti(
         task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id, create_if_necessary="memory"
     )
-    # task_render is executed with access to the database.
-    if isinstance(ti, TaskInstancePydantic):
-        raise ValueError("not a TaskInstance")
     with create_session() as session, set_current_task_instance_session(session=session):
         ti.render_templates()
     for attr in task.template_fields:

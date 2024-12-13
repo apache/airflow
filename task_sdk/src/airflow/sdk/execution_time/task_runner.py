@@ -23,11 +23,11 @@ import os
 import sys
 from datetime import datetime, timezone
 from io import FileIO
-from typing import TYPE_CHECKING, TextIO
+from typing import TYPE_CHECKING, Any, Generic, TextIO, TypeVar
 
 import attrs
 import structlog
-from pydantic import ConfigDict, TypeAdapter
+from pydantic import BaseModel, ConfigDict, TypeAdapter
 
 from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
 from airflow.sdk.definitions.baseoperator import BaseOperator
@@ -48,6 +48,45 @@ class RuntimeTaskInstance(TaskInstance):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     task: BaseOperator
+
+    def get_template_context(self):
+        context: dict[str, Any] = {
+            "dag": self.task.dag,
+            "inlets": self.task.inlets,
+            "map_index_template": self.task.map_index_template,
+            "outlets": self.task.outlets,
+            "run_id": self.run_id,
+            "task": self.task,
+            "task_instance": self,
+            "ti": self,
+            # "dag_run": dag_run,
+            # "data_interval_end": timezone.coerce_datetime(data_interval.end),
+            # "data_interval_start": timezone.coerce_datetime(data_interval.start),
+            # "outlet_events": OutletEventAccessors(),
+            # "ds": ds,
+            # "ds_nodash": ds_nodash,
+            # "expanded_ti_count": expanded_ti_count,
+            # "inlet_events": InletEventsAccessors(task.inlets, session=session),
+            # "logical_date": logical_date,
+            # "macros": macros,
+            # "params": validated_params,
+            # "prev_data_interval_start_success": get_prev_data_interval_start_success(),
+            # "prev_data_interval_end_success": get_prev_data_interval_end_success(),
+            # "prev_start_date_success": get_prev_start_date_success(),
+            # "prev_end_date_success": get_prev_end_date_success(),
+            # "task_instance_key_str": f"{task.dag_id}__{task.task_id}__{ds_nodash}",
+            # "test_mode": task_instance.test_mode,
+            # "triggering_asset_events": lazy_object_proxy.Proxy(get_triggering_events),
+            # "ts": ts,
+            # "ts_nodash": ts_nodash,
+            # "ts_nodash_with_tz": ts_nodash_with_tz,
+            # "var": {
+            #     "json": VariableAccessor(deserialize_json=True),
+            #     "value": VariableAccessor(deserialize_json=False),
+            # },
+            # "conn": ConnectionAccessor(),
+        }
+        return context
 
 
 def parse(what: StartupDetails) -> RuntimeTaskInstance:
@@ -77,17 +116,24 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
     return RuntimeTaskInstance.model_construct(**what.ti.model_dump(exclude_unset=True), task=task)
 
 
+SendMsgType = TypeVar("SendMsgType", bound=BaseModel)
+ReceiveMsgType = TypeVar("ReceiveMsgType", bound=BaseModel)
+
+
 @attrs.define()
-class CommsDecoder:
+class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
     """Handle communication between the task in this process and the supervisor parent process."""
 
     input: TextIO
 
     request_socket: FileIO = attrs.field(init=False, default=None)
 
-    decoder: TypeAdapter[ToTask] = attrs.field(init=False, factory=lambda: TypeAdapter(ToTask))
+    # We could be "clever" here and set the default to this based type parameters and a custom
+    # `__class_getitem__`, but that's a lot of code the one subclass we've got currently. So we'll just use a
+    # "sort of wrong default"
+    decoder: TypeAdapter[ReceiveMsgType] = attrs.field(factory=lambda: TypeAdapter(ToTask), repr=False)
 
-    def get_message(self) -> ToTask:
+    def get_message(self) -> ReceiveMsgType:
         """
         Get a message from the parent.
 
@@ -106,7 +152,7 @@ class CommsDecoder:
                 self.request_socket = os.fdopen(msg.requests_fd, "wb", buffering=0)
         return msg
 
-    def send_request(self, log: Logger, msg: ToSupervisor):
+    def send_request(self, log: Logger, msg: SendMsgType):
         encoded_msg = msg.model_dump_json().encode() + b"\n"
 
         log.debug("Sending request", json=encoded_msg)
@@ -123,7 +169,7 @@ class CommsDecoder:
 #   deeply nested execution stack.
 # - By defining `SUPERVISOR_COMMS` as a global, it ensures that this communication mechanism is readily
 #   accessible wherever needed during task execution without modifying every layer of the call stack.
-SUPERVISOR_COMMS: CommsDecoder
+SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 
 # State machine!
 # 1. Start up (receive details from supervisor)
@@ -188,7 +234,8 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         # TODO: pre execute etc.
         # TODO next_method to support resuming from deferred
         # TODO: Get a real context object
-        ti.task.execute({"task_instance": ti})  # type: ignore[attr-defined]
+        context = ti.get_template_context()
+        ti.task.execute(context)  # type: ignore[attr-defined]
         msg = TaskState(state=TerminalTIState.SUCCESS, end_date=datetime.now(tz=timezone.utc))
     except TaskDeferred as defer:
         classpath, trigger_kwargs = defer.trigger.serialize()
