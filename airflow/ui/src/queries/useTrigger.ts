@@ -40,20 +40,18 @@ export const useTrigger = () => {
   const queryClient = useQueryClient();
 
   const onSuccess = async () => {
-    // Invalidate necessary queries
-    await queryClient.invalidateQueries({
-      queryKey: [useDagServiceGetDagsKey],
-    });
+    const queryKeys = [
+      useDagServiceGetDagsKey,
+      useDagsServiceRecentDagRunsKey,
+      useDagRunServiceGetDagRunsKey,
+    ];
 
-    await queryClient.invalidateQueries({
-      queryKey: [useDagsServiceRecentDagRunsKey],
-    });
+    await Promise.all(
+      queryKeys.map((key) =>
+        queryClient.invalidateQueries({ queryKey: [key] }),
+      ),
+    );
 
-    await queryClient.invalidateQueries({
-      queryKey: [useDagRunServiceGetDagRunsKey],
-    });
-
-    // Show success toaster
     toaster.create({
       description: "DAG run has been successfully triggered.",
       title: "DAG Run Request Submitted",
@@ -66,7 +64,6 @@ export const useTrigger = () => {
     onSuccess,
   });
 
-  // Function to trigger a Dag run
   const triggerDagRun = (
     dagId: string,
     dagRunRequestBody: DagRunTriggerParams,
@@ -76,7 +73,6 @@ export const useTrigger = () => {
       unknown
     >;
 
-    // Validate and format data intervals
     const formattedDataIntervalStart = dagRunRequestBody.dataIntervalStart
       ? new Date(dagRunRequestBody.dataIntervalStart).toISOString()
       : undefined;
@@ -84,7 +80,6 @@ export const useTrigger = () => {
       ? new Date(dagRunRequestBody.dataIntervalEnd).toISOString()
       : undefined;
 
-    // Call mutate with the required parameters
     mutate({
       dagId,
       requestBody: {
