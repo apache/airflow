@@ -59,6 +59,7 @@ runs:
         COMPOSE_PROJECT_NAME: "docker-compose"
       env:
         COMPOSE_PROJECT_NAME: "docker-compose"
+      if: env.BACKEND != 'sqlite'
     - name: "Bring any containers left down"
       shell: bash
       run: breeze down
