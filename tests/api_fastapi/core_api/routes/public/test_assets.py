@@ -104,7 +104,7 @@ def _create_provided_asset_alias(session, asset_alias: AssetAliasModel) -> None:
     session.commit()
 
 
-def _create_assets_events(session, num: int = 2, varying_timestamps = False) -> None:
+def _create_assets_events(session, num: int = 2, varying_timestamps=False) -> None:
     assets_events = [
         AssetEvent(
             id=i,
@@ -113,7 +113,7 @@ def _create_assets_events(session, num: int = 2, varying_timestamps = False) -> 
             source_task_id="source_task_id",
             source_dag_id="source_dag_id",
             source_run_id=f"source_run_id_{i}",
-            timestamp=DEFAULT_DATE + timedelta(days = i - 1) if varying_timestamps else DEFAULT_DATE,
+            timestamp=DEFAULT_DATE + timedelta(days=i - 1) if varying_timestamps else DEFAULT_DATE,
         )
         for i in range(1, 1 + num)
     ]
@@ -612,28 +612,37 @@ class TestGetAssetEvents(TestAssets):
         [
             # Test Case 1: Filtering with both timestamp_gte and timestamp_lte set to the same date
             (
-                {"timestamp_gte": from_datetime_to_zulu_without_ms(DEFAULT_DATE), "timestamp_lte": from_datetime_to_zulu_without_ms(DEFAULT_DATE)},
+                {
+                    "timestamp_gte": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+                    "timestamp_lte": from_datetime_to_zulu_without_ms(DEFAULT_DATE)
+                },
                 [1],  # expected_ids for events exactly on DEFAULT_DATE
             ),
-            
             # Test Case 2: Filtering events greater than or equal to a certain timestamp and less than or equal to another
             (
-                {"timestamp_gte": from_datetime_to_zulu_without_ms(DEFAULT_DATE), "timestamp_lte": from_datetime_to_zulu_without_ms(DEFAULT_DATE + timedelta(days=1))},
+                {
+                    "timestamp_gte": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+                    "timestamp_lte": from_datetime_to_zulu_without_ms(DEFAULT_DATE + timedelta(days=1))
+                },
                 [1, 2],  # expected_ids for events within the date range
             ),
-            
             # Test Case 3: timestamp_gte later than timestamp_lte with no events in range
             (
-                {"timestamp_gte": from_datetime_to_zulu_without_ms(DEFAULT_DATE + timedelta(days=1)), "timestamp_lte": from_datetime_to_zulu_without_ms(DEFAULT_DATE - timedelta(days=1))},
+                {
+                    "timestamp_gte": from_datetime_to_zulu_without_ms(DEFAULT_DATE + timedelta(days=1)),
+                    "timestamp_lte": from_datetime_to_zulu_without_ms(DEFAULT_DATE - timedelta(days=1))
+                },
                 [],  # expected_ids for events outside the range
             ),
-            
             # Test Case 4: timestamp_gte earlier than timestamp_lte, allowing events within the range
             (
-                {"timestamp_gte": from_datetime_to_zulu_without_ms(DEFAULT_DATE + timedelta(days=1)), "timestamp_lte": from_datetime_to_zulu_without_ms(DEFAULT_DATE + timedelta(days=2))},
+                {
+                    "timestamp_gte": from_datetime_to_zulu_without_ms(DEFAULT_DATE + timedelta(days=1)),
+                    "timestamp_lte": from_datetime_to_zulu_without_ms(DEFAULT_DATE + timedelta(days=2))
+                },
                 [2, 3],  # expected_ids for events within the date range
             ),
-        ]
+        ],
     )
     def test_filter_by_timestamp_gte_and_lte(self, test_client, params, expected_ids, session):
         # Create sample assets and asset events with specified timestamps
@@ -644,10 +653,10 @@ class TestGetAssetEvents(TestAssets):
 
         # Test with both timestamp_gte and timestamp_lte filters
         response = test_client.get("/public/assets/events", params=params)
-        
+
         assert response.status_code == 200
         asset_event_ids = [asset_event["id"] for asset_event in response.json()["asset_events"]]
-        
+
         assert asset_event_ids == expected_ids
 
     def test_order_by_raises_400_for_invalid_attr(self, test_client, session):

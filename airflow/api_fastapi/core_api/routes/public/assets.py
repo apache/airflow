@@ -36,8 +36,8 @@ from airflow.api_fastapi.common.parameters import (
     QueryUriPatternSearch,
     RangeFilter,
     SortParam,
-    filter_param_factory,
     datetime_range_filter_factory,
+    filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.assets import (
