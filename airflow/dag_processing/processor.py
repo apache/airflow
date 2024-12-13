@@ -29,7 +29,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from setproctitle import setproctitle
-from sqlalchemy import delete, event, select
+from sqlalchemy import event
 
 from airflow import settings
 from airflow.callbacks.callback_requests import (
@@ -38,11 +38,8 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.listeners.listener import get_listener_manager
-from airflow.models.dag import DAG, DagModel
+from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
-from airflow.models.dagwarning import DagWarning, DagWarningType
-from airflow.models.errors import ParseImportError
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, _run_finished_callback
@@ -136,6 +133,7 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
         thread_name: str,
         dag_directory: str,
         callback_requests: list[CallbackRequest],
+        known_pools: set[str] | None = None,
     ) -> None:
         """
         Process the given file.
@@ -172,6 +170,7 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
             result: tuple[int, int, int] = dag_file_processor.process_file(
                 file_path=file_path,
                 callback_requests=callback_requests,
+                known_pools=known_pools,
             )
             result_channel.send(result)
 
@@ -228,6 +227,8 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
 
         context = self._get_multiprocessing_context()
 
+        pool_names = {p.pool for p in Pool.get_pools()}
+
         _parent_channel, _child_channel = context.Pipe(duplex=False)
         process = context.Process(
             target=type(self)._run_file_processor,
@@ -238,6 +239,7 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
                 f"DagFileProcessor{self._instance_id}",
                 self._dag_directory,
                 self._callback_requests,
+                pool_names,
             ),
             name=f"DagFileProcessor{self._instance_id}-Process",
         )
@@ -417,112 +419,7 @@ class DagFileProcessor(LoggingMixin):
         super().__init__()
         self._log = log
         self._dag_directory = dag_directory
-        self.dag_warnings: set[tuple[str, str]] = set()
         self._last_num_of_db_queries = 0
-
-    @staticmethod
-    @provide_session
-    def update_import_errors(
-        file_last_changed: dict[str, datetime],
-        import_errors: dict[str, str],
-        processor_subdir: str | None,
-        session: Session = NEW_SESSION,
-    ) -> None:
-        """
-        Update any import errors to be displayed in the UI.
-
-        For the DAGs in the given DagBag, record any associated import errors and clears
-        errors for files that no longer have them. These are usually displayed through the
-        Airflow UI so that users know that there are issues parsing DAGs.
-        :param file_last_changed: Dictionary containing the last changed time of the files
-        :param import_errors: Dictionary containing the import errors
-        :param session: session for ORM operations
-        """
-        files_without_error = file_last_changed - import_errors.keys()
-
-        # Clear the errors of the processed files
-        # that no longer have errors
-        for dagbag_file in files_without_error:
-            session.execute(
-                delete(ParseImportError)
-                .where(ParseImportError.filename.startswith(dagbag_file))
-                .execution_options(synchronize_session="fetch")
-            )
-
-        # files that still have errors
-        existing_import_error_files = [x.filename for x in session.query(ParseImportError.filename).all()]
-
-        # Add the errors of the processed files
-        for filename, stacktrace in import_errors.items():
-            if filename in existing_import_error_files:
-                session.query(ParseImportError).filter(ParseImportError.filename == filename).update(
-                    {"filename": filename, "timestamp": timezone.utcnow(), "stacktrace": stacktrace},
-                    synchronize_session="fetch",
-                )
-                # sending notification when an existing dag import error occurs
-                get_listener_manager().hook.on_existing_dag_import_error(
-                    filename=filename, stacktrace=stacktrace
-                )
-            else:
-                session.add(
-                    ParseImportError(
-                        filename=filename,
-                        timestamp=timezone.utcnow(),
-                        stacktrace=stacktrace,
-                        processor_subdir=processor_subdir,
-                    )
-                )
-                # sending notification when a new dag import error occurs
-                get_listener_manager().hook.on_new_dag_import_error(filename=filename, stacktrace=stacktrace)
-            (
-                session.query(DagModel)
-                .filter(DagModel.fileloc == filename)
-                .update({"has_import_errors": True}, synchronize_session="fetch")
-            )
-
-        session.commit()
-        session.flush()
-
-    @classmethod
-    @provide_session
-    def update_dag_warnings(cla, *, dagbag: DagBag, session: Session = NEW_SESSION) -> None:
-        """Validate and raise exception if any task in a dag is using a non-existent pool."""
-
-        def get_pools(dag) -> dict[str, set[str]]:
-            return {dag.dag_id: {task.pool for task in dag.tasks}}
-
-        pool_dict: dict[str, set[str]] = {}
-        for dag in dagbag.dags.values():
-            pool_dict.update(get_pools(dag))
-        dag_ids = {dag.dag_id for dag in dagbag.dags.values()}
-
-        all_pools = {p.pool for p in Pool.get_pools(session)}
-        warnings: set[DagWarning] = set()
-        for dag_id, dag_pools in pool_dict.items():
-            nonexistent_pools = dag_pools - all_pools
-            if nonexistent_pools:
-                warnings.add(
-                    DagWarning(
-                        dag_id,
-                        DagWarningType.NONEXISTENT_POOL,
-                        f"Dag '{dag_id}' references non-existent pools: {sorted(nonexistent_pools)!r}",
-                    )
-                )
-
-        stored_warnings = set(
-            session.scalars(
-                select(DagWarning).where(
-                    DagWarning.dag_id.in_(dag_ids),
-                    DagWarning.warning_type == DagWarningType.NONEXISTENT_POOL,
-                )
-            )
-        )
-
-        for warning_to_delete in stored_warnings - warnings:
-            session.delete(warning_to_delete)
-
-        for warning_to_add in warnings:
-            session.merge(warning_to_add)
 
     @classmethod
     @provide_session
@@ -666,9 +563,9 @@ class DagFileProcessor(LoggingMixin):
         session.flush()
 
     @classmethod
-    def _get_dagbag(cls, file_path: str):
+    def _get_dagbag(cls, file_path: str, known_pools: set[str] | None):
         try:
-            return DagBag(file_path, include_examples=False)
+            return DagBag(file_path, include_examples=False, known_pools=known_pools)
         except Exception:
             cls.logger().exception("Failed at reloading the DAG file %s", file_path)
             Stats.incr("dag_file_refresh_error", tags={"file_path": file_path})
@@ -679,6 +576,7 @@ class DagFileProcessor(LoggingMixin):
         self,
         file_path: str,
         callback_requests: list[CallbackRequest],
+        known_pools: set[str] | None = None,
         session: Session = NEW_SESSION,
     ) -> tuple[int, int, int]:
         """
@@ -700,7 +598,7 @@ class DagFileProcessor(LoggingMixin):
 
         with count_queries(session) as query_counter:
             try:
-                dagbag = DagFileProcessor._get_dagbag(file_path)
+                dagbag = DagFileProcessor._get_dagbag(file_path, known_pools)
             except Exception:
                 self.log.exception("Failed at reloading the DAG file %s", file_path)
                 Stats.incr("dag_file_refresh_error", 1, 1, tags={"file_path": file_path})
@@ -708,44 +606,16 @@ class DagFileProcessor(LoggingMixin):
 
             if dagbag.dags:
                 self.log.info("DAG(s) %s retrieved from %s", ", ".join(map(repr, dagbag.dags)), file_path)
+                self.execute_callbacks(dagbag, callback_requests, self.UNIT_TEST_MODE)
             else:
                 self.log.warning("No viable dags retrieved from %s", file_path)
-                DagFileProcessor.update_import_errors(
-                    file_last_changed=dagbag.file_last_changed,
-                    import_errors=dagbag.import_errors,
-                    processor_subdir=self._dag_directory,
-                )
                 if callback_requests:
                     # If there were callback requests for this file but there was a
                     # parse error we still need to progress the state of TIs,
                     # otherwise they might be stuck in queued/running for ever!
                     DagFileProcessor.execute_callbacks_without_dag(callback_requests, self.UNIT_TEST_MODE)
-                return 0, len(dagbag.import_errors), self._cache_last_num_of_db_queries(query_counter)
 
-            self.execute_callbacks(dagbag, callback_requests, self.UNIT_TEST_MODE)
-
-            serialize_errors = DagFileProcessor.save_dag_to_db(
-                dags=dagbag.dags,
-                dag_directory=self._dag_directory,
-            )
-
-            dagbag.import_errors.update(dict(serialize_errors))
-
-            # Record import errors into the ORM
-            try:
-                DagFileProcessor.update_import_errors(
-                    file_last_changed=dagbag.file_last_changed,
-                    import_errors=dagbag.import_errors,
-                    processor_subdir=self._dag_directory,
-                )
-            except Exception:
-                self.log.exception("Error logging import errors!")
-
-            # Record DAG warnings in the metadatabase.
-            try:
-                self.update_dag_warnings(dagbag=dagbag)
-            except Exception:
-                self.log.exception("Error logging DAG warnings.")
+            dagbag.sync_to_db(self._dag_directory, session=session)
 
         return len(dagbag.dags), len(dagbag.import_errors), self._cache_last_num_of_db_queries(query_counter)
 
@@ -753,14 +623,3 @@ class DagFileProcessor(LoggingMixin):
         if query_counter:
             self._last_num_of_db_queries = query_counter.queries_number
         return self._last_num_of_db_queries
-
-    @staticmethod
-    @provide_session
-    def save_dag_to_db(
-        dags: dict[str, DAG],
-        dag_directory: str,
-        session=NEW_SESSION,
-    ):
-        import_errors = DagBag._sync_to_db(dags=dags, processor_subdir=dag_directory, session=session)
-        session.commit()
-        return import_errors

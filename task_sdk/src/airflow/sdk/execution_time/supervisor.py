@@ -412,8 +412,13 @@ class WatchedSubprocess:
 
         # Send the message to tell the process what it needs to execute
         log.debug("Sending", msg=msg)
-        self.stdin.write(msg.model_dump_json().encode())
-        self.stdin.write(b"\n")
+
+        try:
+            self.stdin.write(msg.model_dump_json().encode())
+            self.stdin.write(b"\n")
+        except BrokenPipeError:
+            # Debug is fine, the process will have shown _something_ in it's last_chance exception handler
+            log.debug("Couldn't send startup message to Subprocess - it died very early", pid=self.pid)
 
     def kill(
         self,

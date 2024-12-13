@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import inspect
 import logging
 import os
@@ -31,19 +32,16 @@ from unittest.mock import patch
 
 import pytest
 import time_machine
-from sqlalchemy import func
-from sqlalchemy.exc import OperationalError
 
 import airflow.example_dags
 from airflow import settings
-from airflow.exceptions import SerializationError
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
+from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone as tz
 from airflow.utils.session import create_session
-from airflow.www.security_appless import ApplessAirflowSecurityManager
 
 from tests import cluster_policies
 from tests.models import TEST_DAGS_FOLDER
@@ -54,6 +52,13 @@ from tests_common.test_utils.config import conf_vars
 pytestmark = pytest.mark.db_test
 
 example_dags_folder = pathlib.Path(airflow.example_dags.__path__[0])  # type: ignore[attr-defined]
+
+PY311 = sys.version_info >= (3, 11)
+
+# Include the words "airflow" and "dag" in the file contents,
+# tricking airflow into thinking these
+# files contain a DAG (otherwise Airflow will skip them)
+INVALID_DAG_WITH_DEPTH_FILE_CONTENTS = "def something():\n    return airflow_DAG\nsomething()"
 
 
 def db_clean_up():
@@ -210,6 +215,7 @@ class TestDagBag:
         dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_zip.zip"))
         assert dagbag.get_dag("test_zip_dag")
         assert sys.path == syspath_before  # sys.path doesn't change
+        assert not dagbag.import_errors
 
     @patch("airflow.models.dagbag.timeout")
     @patch("airflow.models.dagbag.settings.get_dagbag_import_timeout")
@@ -569,51 +575,6 @@ class TestDagBag:
         with create_session() as session:
             session.query(DagModel).filter(DagModel.dag_id == "test_deactivate_unknown_dags").delete()
 
-    def test_serialized_dags_are_written_to_db_on_sync(self):
-        """
-        Test that when dagbag.sync_to_db is called the DAGs are Serialized and written to DB
-        even when dagbag.read_dags_from_db is False
-        """
-        with create_session() as session:
-            serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
-            assert serialized_dags_count == 0
-
-            dagbag = DagBag(
-                dag_folder=os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py"),
-                include_examples=False,
-            )
-            dagbag.sync_to_db()
-
-            assert not dagbag.read_dags_from_db
-
-            new_serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
-            assert new_serialized_dags_count == 1
-
-    @patch("airflow.models.serialized_dag.SerializedDagModel.write_dag")
-    def test_serialized_dag_errors_are_import_errors(self, mock_serialize, caplog):
-        """
-        Test that errors serializing a DAG are recorded as import_errors in the DB
-        """
-        mock_serialize.side_effect = SerializationError
-
-        with create_session() as session:
-            path = os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py")
-
-            dagbag = DagBag(
-                dag_folder=path,
-                include_examples=False,
-            )
-            assert dagbag.import_errors == {}
-
-            caplog.set_level(logging.ERROR)
-            dagbag.sync_to_db(session=session)
-            assert "SerializationError" in caplog.text
-
-            assert path in dagbag.import_errors
-            err = dagbag.import_errors[path]
-            assert "SerializationError" in err
-            session.rollback()
-
     def test_timeout_dag_errors_are_import_errors(self, tmp_path, caplog):
         """
         Test that if the DAG contains Timeout error it will be still loaded to DB as import_errors
@@ -655,153 +616,49 @@ with airflow.DAG(
         assert "tmp_file.py" in dagbag.import_errors
         assert "DagBag import timeout for" in caplog.text
 
-    @patch("airflow.models.dagbag.DagBag.collect_dags")
-    @patch("airflow.models.serialized_dag.SerializedDagModel.write_dag")
-    @patch("airflow.models.dag.DAG.bulk_write_to_db")
-    def test_sync_to_db_is_retried(self, mock_bulk_write_to_db, mock_s10n_write_dag, mock_collect_dags):
-        """Test that dagbag.sync_to_db is retried on OperationalError"""
-
-        dagbag = DagBag("/dev/null")
-        mock_dag = mock.MagicMock()
-        dagbag.dags["mock_dag"] = mock_dag
-
-        op_error = OperationalError(statement=mock.ANY, params=mock.ANY, orig=mock.ANY)
-
-        # Mock error for the first 2 tries and a successful third try
-        side_effect = [op_error, op_error, mock.ANY]
-
-        mock_bulk_write_to_db.side_effect = side_effect
-
-        mock_session = mock.MagicMock()
-        dagbag.sync_to_db(session=mock_session)
-
-        # Test that 3 attempts were made to run 'DAG.bulk_write_to_db' successfully
-        mock_bulk_write_to_db.assert_has_calls(
-            [
-                mock.call(mock.ANY, processor_subdir=None, session=mock.ANY),
-                mock.call(mock.ANY, processor_subdir=None, session=mock.ANY),
-                mock.call(mock.ANY, processor_subdir=None, session=mock.ANY),
-            ]
+    @staticmethod
+    def _make_test_traceback(unparseable_filename: str, depth=None) -> str:
+        marker = "           ^^^^^^^^^^^\n" if PY311 else ""
+        frames = (
+            f'  File "{unparseable_filename}", line 3, in <module>\n    something()\n',
+            f'  File "{unparseable_filename}", line 2, in something\n    return airflow_DAG\n{marker}',
         )
-        # Assert that rollback is called twice (i.e. whenever OperationalError occurs)
-        mock_session.rollback.assert_has_calls([mock.call(), mock.call()])
-        # Check that 'SerializedDagModel.write_dag' is also called
-        # Only called once since the other two times the 'DAG.bulk_write_to_db' error'd
-        # and the session was roll-backed before even reaching 'SerializedDagModel.write_dag'
-        mock_s10n_write_dag.assert_has_calls(
-            [
-                mock.call(
-                    mock_dag, min_update_interval=mock.ANY, processor_subdir=None, session=mock_session
-                ),
-            ]
+        depth = 0 if depth is None else -depth
+        return (
+            "Traceback (most recent call last):\n"
+            + "".join(frames[depth:])
+            + "NameError: name 'airflow_DAG' is not defined\n"
         )
 
-    @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
-    @patch("airflow.models.dagbag.DagBag._sync_perm_for_dag")
-    def test_sync_to_db_syncs_dag_specific_perms_on_update(self, mock_sync_perm_for_dag):
-        """
-        Test that dagbag.sync_to_db will sync DAG specific permissions when a DAG is
-        new or updated
-        """
-        db_clean_up()
-        session = settings.Session()
-        with time_machine.travel(tz.datetime(2020, 1, 5, 0, 0, 0), tick=False) as frozen_time:
-            dagbag = DagBag(
-                dag_folder=os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py"),
-                include_examples=False,
-            )
+    @pytest.mark.parametrize(("depth",), ((None,), (1,)))
+    def test_import_error_tracebacks(self, tmp_path, depth):
+        unparseable_filename = tmp_path.joinpath("dag.py").as_posix()
+        with open(unparseable_filename, "w") as unparseable_file:
+            unparseable_file.writelines(INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
 
-            def _sync_to_db():
-                mock_sync_perm_for_dag.reset_mock()
-                frozen_time.shift(20)
-                dagbag.sync_to_db(session=session)
+        with contextlib.ExitStack() as cm:
+            if depth is not None:
+                cm.enter_context(conf_vars({("core", "dagbag_import_error_traceback_depth"): str(depth)}))
+            dagbag = DagBag(dag_folder=unparseable_filename, include_examples=False)
+        import_errors = dagbag.import_errors
 
-            dag = dagbag.dags["test_example_bash_operator"]
-            dag.sync_to_db()
-            _sync_to_db()
-            mock_sync_perm_for_dag.assert_called_once_with(dag, session=session)
+        assert unparseable_filename in import_errors
+        assert import_errors[unparseable_filename] == self._make_test_traceback(unparseable_filename, depth)
 
-            # DAG isn't updated
-            _sync_to_db()
-            mock_sync_perm_for_dag.assert_not_called()
+    @pytest.mark.parametrize(("depth",), ((None,), (1,)))
+    def test_import_error_tracebacks_zip(self, tmp_path, depth):
+        invalid_zip_filename = (tmp_path / "test_zip_invalid.zip").as_posix()
+        invalid_dag_filename = os.path.join(invalid_zip_filename, "dag.py")
+        with zipfile.ZipFile(invalid_zip_filename, "w") as invalid_zip_file:
+            invalid_zip_file.writestr("dag.py", INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
 
-            # DAG is updated
-            dag.tags = ["new_tag"]
-            _sync_to_db()
-            session.commit()
-            mock_sync_perm_for_dag.assert_called_once_with(dag, session=session)
-
-    @patch("airflow.www.security_appless.ApplessAirflowSecurityManager")
-    def test_sync_perm_for_dag(self, mock_security_manager):
-        """
-        Test that dagbag._sync_perm_for_dag will call ApplessAirflowSecurityManager.sync_perm_for_dag
-        """
-        db_clean_up()
-        with create_session() as session:
-            security_manager = ApplessAirflowSecurityManager(session)
-            mock_sync_perm_for_dag = mock_security_manager.return_value.sync_perm_for_dag
-            mock_sync_perm_for_dag.side_effect = security_manager.sync_perm_for_dag
-
-            dagbag = DagBag(
-                dag_folder=os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py"),
-                include_examples=False,
-            )
-            dag = dagbag.dags["test_example_bash_operator"]
-
-            def _sync_perms():
-                mock_sync_perm_for_dag.reset_mock()
-                DagBag._sync_perm_for_dag(dag, session=session)
-
-            # perms dont exist
-            _sync_perms()
-            mock_sync_perm_for_dag.assert_called_once_with("test_example_bash_operator", None)
-
-            # perms now exist
-            _sync_perms()
-            mock_sync_perm_for_dag.assert_called_once_with("test_example_bash_operator", None)
-
-            # Always sync if we have access_control
-            dag.access_control = {"Public": {"can_read"}}
-            _sync_perms()
-            mock_sync_perm_for_dag.assert_called_once_with(
-                "test_example_bash_operator", {"Public": {"DAGs": {"can_read"}}}
-            )
-
-    @patch("airflow.www.security_appless.ApplessAirflowSecurityManager")
-    def test_sync_perm_for_dag_with_dict_access_control(self, mock_security_manager):
-        """
-        Test that dagbag._sync_perm_for_dag will call ApplessAirflowSecurityManager.sync_perm_for_dag
-        """
-        db_clean_up()
-        with create_session() as session:
-            security_manager = ApplessAirflowSecurityManager(session)
-            mock_sync_perm_for_dag = mock_security_manager.return_value.sync_perm_for_dag
-            mock_sync_perm_for_dag.side_effect = security_manager.sync_perm_for_dag
-
-            dagbag = DagBag(
-                dag_folder=os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py"),
-                include_examples=False,
-            )
-            dag = dagbag.dags["test_example_bash_operator"]
-
-            def _sync_perms():
-                mock_sync_perm_for_dag.reset_mock()
-                DagBag._sync_perm_for_dag(dag, session=session)
-
-            # perms dont exist
-            _sync_perms()
-            mock_sync_perm_for_dag.assert_called_once_with("test_example_bash_operator", None)
-
-            # perms now exist
-            _sync_perms()
-            mock_sync_perm_for_dag.assert_called_once_with("test_example_bash_operator", None)
-
-            # Always sync if we have access_control
-            dag.access_control = {"Public": {"DAGs": {"can_read"}, "DAG Runs": {"can_create"}}}
-            _sync_perms()
-            mock_sync_perm_for_dag.assert_called_once_with(
-                "test_example_bash_operator", {"Public": {"DAGs": {"can_read"}, "DAG Runs": {"can_create"}}}
-            )
+        with contextlib.ExitStack() as cm:
+            if depth is not None:
+                cm.enter_context(conf_vars({("core", "dagbag_import_error_traceback_depth"): str(depth)}))
+            dagbag = DagBag(dag_folder=invalid_zip_filename, include_examples=False)
+        import_errors = dagbag.import_errors
+        assert invalid_dag_filename in import_errors
+        assert import_errors[invalid_dag_filename] == self._make_test_traceback(invalid_dag_filename, depth)
 
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
@@ -1030,3 +887,36 @@ with airflow.DAG(
         assert len(captured_warnings) == 2
         assert captured_warnings[0] == (f"{in_zip_dag_file}:47: DeprecationWarning: Deprecated Parameter")
         assert captured_warnings[1] == f"{in_zip_dag_file}:49: UserWarning: Some Warning"
+
+    @pytest.mark.parametrize(
+        ("known_pools", "expected"),
+        (
+            pytest.param(None, set(), id="disabled"),
+            pytest.param(
+                {"default_pool"},
+                {
+                    DagWarning(
+                        "test",
+                        DagWarningType.NONEXISTENT_POOL,
+                        "Dag 'test' references non-existent pools: ['pool1']",
+                    ),
+                },
+                id="only-default",
+            ),
+            pytest.param(
+                {"default_pool", "pool1"},
+                set(),
+                id="known-pools",
+            ),
+        ),
+    )
+    def test_dag_warnings_invalid_pool(self, known_pools, expected):
+        from airflow.models.baseoperator import BaseOperator
+
+        with DAG(dag_id="test") as dag:
+            BaseOperator(task_id="1")
+            BaseOperator(task_id="2", pool="pool1")
+
+        dagbag = DagBag(dag_folder="", include_examples=False, collect_dags=False, known_pools=known_pools)
+        dagbag.bag_dag(dag)
+        assert dagbag.dag_warnings == expected

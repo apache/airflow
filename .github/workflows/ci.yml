@@ -739,7 +739,7 @@ jobs:
       - tests-kubernetes
       - tests-task-sdk
       - finalize-tests
-    if: github.event_name == 'schedule' && failure()
+    if: github.event_name == 'schedule' && failure() && github.run_attempt == 1
     runs-on: ["ubuntu-22.04"]
     steps:
       - name: Notify Slack
