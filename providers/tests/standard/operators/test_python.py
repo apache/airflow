@@ -90,9 +90,7 @@ DILL_MARKER = pytest.mark.skipif(not DILL_INSTALLED, reason="`dill` is not insta
 CLOUDPICKLE_INSTALLED = find_spec("cloudpickle") is not None
 CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed")
 
-AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE = (
-    r"The `use_airflow_context=True` is only supported in Airflow 3.0.0 and later."
-)
+AIRFLOW_CONTEXT_NOT_IMPLEMENTED_YET_MESSAGE = r"The `use_airflow_context=True` is not yet implemented."
 
 
 class BasePythonTest:
@@ -1054,12 +1052,12 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
 
             return []
 
-        if AIRFLOW_V_3_0_PLUS:
-            ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
-            assert ti.state == TaskInstanceState.SUCCESS
-        else:
-            with pytest.raises(AirflowException, match=AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE):
-                self.run_as_task(f, return_ti=True, use_airflow_context=True)
+        # TODO: replace with commented code when context serialization is implemented in AIP-72
+        with pytest.raises(Exception, match=AIRFLOW_CONTEXT_NOT_IMPLEMENTED_YET_MESSAGE):
+            self.run_as_task(f, return_ti=True, use_airflow_context=True)
+
+        # ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
+        # assert ti.state == TaskInstanceState.SUCCESS
 
     def test_current_context_not_found_error(self):
         def f():
@@ -1085,6 +1083,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
 
     def test_current_context_airflow_not_found_error(self):
         airflow_flag: dict[str, bool] = {"expect_airflow": False}
+
         error_msg = r"The `use_airflow_context` parameter is set to True, but expect_airflow is set to False."
 
         if not issubclass(self.opcls, ExternalPythonOperator):
@@ -1100,14 +1099,10 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             get_current_context()
             return []
 
-        if AIRFLOW_V_3_0_PLUS:
-            with pytest.raises(AirflowException, match=error_msg):
-                self.run_as_task(
-                    f, return_ti=True, multiple_outputs=False, use_airflow_context=True, **airflow_flag
-                )
-        else:
-            with pytest.raises(AirflowException, match=AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE):
-                self.run_as_task(f, return_ti=True, use_airflow_context=True, **airflow_flag)
+        with pytest.raises(AirflowException, match=error_msg):
+            self.run_as_task(
+                f, return_ti=True, multiple_outputs=False, use_airflow_context=True, **airflow_flag
+            )
 
     def test_use_airflow_context_touch_other_variables(self):
         def f():
@@ -1121,12 +1116,12 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
 
             return []
 
-        if AIRFLOW_V_3_0_PLUS:
-            ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
-            assert ti.state == TaskInstanceState.SUCCESS
-        else:
-            with pytest.raises(AirflowException, match=AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE):
-                self.run_as_task(f, return_ti=True, use_airflow_context=True)
+        # TODO: replace with commented code when context serialization is implemented in AIP-72
+        with pytest.raises(AirflowException, match=AIRFLOW_CONTEXT_NOT_IMPLEMENTED_YET_MESSAGE):
+            self.run_as_task(f, return_ti=True, use_airflow_context=True)
+
+        # ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
+        # assert ti.state == TaskInstanceState.SUCCESS
 
 
 venv_cache_path = tempfile.mkdtemp(prefix="venv_cache_path")
@@ -1499,27 +1494,27 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
             return []
 
-        if AIRFLOW_V_3_0_PLUS:
-            ti = self.run_as_task(
+        # TODO: replace with commented code when context serialization is implemented in AIP-72
+        with pytest.raises(AirflowException, match=AIRFLOW_CONTEXT_NOT_IMPLEMENTED_YET_MESSAGE):
+            self.run_as_task(
                 f,
                 return_ti=True,
-                multiple_outputs=False,
                 use_airflow_context=True,
                 session=session,
                 expect_airflow=False,
                 system_site_packages=True,
             )
-            assert ti.state == TaskInstanceState.SUCCESS
-        else:
-            with pytest.raises(AirflowException, match=AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE):
-                self.run_as_task(
-                    f,
-                    return_ti=True,
-                    use_airflow_context=True,
-                    session=session,
-                    expect_airflow=False,
-                    system_site_packages=True,
-                )
+
+        # ti = self.run_as_task(
+        #     f,
+        #     return_ti=True,
+        #     multiple_outputs=False,
+        #     use_airflow_context=True,
+        #     session=session,
+        #     expect_airflow=False,
+        #     system_site_packages=True,
+        # )
+        # assert ti.state == TaskInstanceState.SUCCESS
 
 
 # when venv tests are run in parallel to other test they create new processes and this might take
@@ -1862,27 +1857,27 @@ class TestBranchPythonVirtualenvOperator(BaseTestBranchPythonVirtualenvOperator)
 
             return []
 
-        if AIRFLOW_V_3_0_PLUS:
-            ti = self.run_as_task(
+        # TODO: replace with commented code when context serialization is implemented in AIP-72
+        with pytest.raises(AirflowException, match=AIRFLOW_CONTEXT_NOT_IMPLEMENTED_YET_MESSAGE):
+            self.run_as_task(
                 f,
                 return_ti=True,
-                multiple_outputs=False,
                 use_airflow_context=True,
                 session=session,
                 expect_airflow=False,
                 system_site_packages=True,
             )
-            assert ti.state == TaskInstanceState.SUCCESS
-        else:
-            with pytest.raises(AirflowException, match=AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE):
-                self.run_as_task(
-                    f,
-                    return_ti=True,
-                    use_airflow_context=True,
-                    session=session,
-                    expect_airflow=False,
-                    system_site_packages=True,
-                )
+
+        # ti = self.run_as_task(
+        #     f,
+        #     return_ti=True,
+        #     multiple_outputs=False,
+        #     use_airflow_context=True,
+        #     session=session,
+        #     expect_airflow=False,
+        #     system_site_packages=True,
+        # )
+        # assert ti.state == TaskInstanceState.SUCCESS
 
 
 # when venv tests are run in parallel to other test they create new processes and this might take
