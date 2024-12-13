@@ -82,22 +82,26 @@ Docker Community Edition
 .. code-block:: bash
 
   sudo apt-get update
-  sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+  sudo apt-get install docker-ce docker-ce-cli containerd.io
 
-3. Creating group for docker and adding current user to it
+3. Manage docker as non-root user
 
 .. code-block:: bash
 
   sudo groupadd docker
   sudo usermod -aG docker $USER
 
-Note : After adding user to docker group Logout and Login again for group membership re-evaluation.
+Note : This is done so a non-root user can access the `docker` command.
+After adding user to docker group Logout and Login again for group membership re-evaluation.
+On some Linux distributions, the system automatically creates this group.
 
 4. Test Docker installation
 
 .. code-block:: bash
 
   docker run hello-world
+
+Note : Read more about `Linux post-installation steps for Docker Engine <https://docs.docker.com/engine/install/linux-postinstall/>`_.
 
 Colima
 ------
@@ -121,6 +125,13 @@ Docker Compose
 --------------
 
 1. Installing latest version of Docker Compose
+Install plugin using the repository:
+
+.. code-block:: bash
+  sudo apt-get update
+  sudo apt-get install docker-compose-plugin
+
+Install plugin manually:
 
 .. code-block:: bash
 
@@ -133,6 +144,9 @@ Docker Compose
   sudo curl -L "${COMPOSE_URL}" -o /usr/local/bin/docker-compose
 
   sudo chmod +x /usr/local/bin/docker-compose
+
+Note: This option requires you to manage updates manually.
+It is recommended that you set up Docker's repository for easier maintenance.
 
 2. Verifying installation
 
