@@ -173,11 +173,21 @@ class TestRenderedTaskInstanceFields:
         session.add(rtif)
         session.flush()
 
-        assert RTIF.get_templated_fields(ti=ti, session=session) == {
-            "bash_command": expected_rendered_field,
-            "env": None,
-            "cwd": None,
-        }
+        if type(templated_field) is set:
+            expected = RTIF.get_templated_fields(ti=ti, session=session)
+            expected["bash_command"] = ast.literal_eval(expected["bash_command"])
+            actual = {
+                "bash_command": ast.literal_eval(expected_rendered_field),
+                "env": None,
+                "cwd": None,
+            }
+            assert expected == actual
+        else:
+            assert RTIF.get_templated_fields(ti=ti, session=session) == {
+                "bash_command": expected_rendered_field,
+                "env": None,
+                "cwd": None,
+            }
         # Test the else part of get_templated_fields
         # i.e. for the TIs that are not stored in RTIF table
         # Fetching them will return None
