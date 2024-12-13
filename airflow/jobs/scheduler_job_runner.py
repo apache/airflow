@@ -1091,8 +1091,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.active_spans.clear()
         self.active_spans.clear()
 
-    @provide_session
-    def _end_spans_of_externally_ended_ops(self, session: Session = NEW_SESSION):
+    def _end_spans_of_externally_ended_ops(self, session: Session):
         # The scheduler that starts a dag_run or a task is also the one that starts the spans.
         # Each scheduler should end the spans that it has started.
         #
@@ -1136,52 +1135,39 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @provide_session
     def _recreate_unhealthy_scheduler_spans_if_needed(self, dag_run: DagRun, session: Session = NEW_SESSION):
-        scheduler_health_timeout = conf.getint("scheduler", "scheduler_health_check_threshold")
-
         # There are two scenarios:
         #   1. scheduler is unhealthy but managed to update span_status
         #   2. scheduler is unhealthy and didn't manage to make any updates
         # Check the span_status first, in case the 2nd db query can be avoided (scenario 1).
 
-        # Get the latest values from the db.
-        dr: DagRun = session.scalars(
-            select(DagRun).where(
-                DagRun.run_id == dag_run.run_id,
-                DagRun.dag_id == dag_run.dag_id,
-            )
-        ).one()
-
         # If the dag_run is scheduled by a different scheduler, and it's still running and the span is active,
         # then check the Job table to determine if the initial scheduler is still healthy.
         if (
-            dr.scheduled_by_job_id != self.job.id
-            and dr.state in State.unfinished_dr_states
-            and dr.span_status == SpanStatus.ACTIVE
+            dag_run.scheduled_by_job_id != self.job.id
+            and dag_run.state in State.unfinished_dr_states
+            and dag_run.span_status == SpanStatus.ACTIVE
         ):
             job: Job = session.scalars(
                 select(Job).where(
-                    Job.id == dr.scheduled_by_job_id,
+                    Job.id == dag_run.scheduled_by_job_id,
                     Job.job_type == "SchedulerJob",
                 )
             ).one()
 
-            # If the time passed since the last heartbeat is less than the timeout.
-            is_healthy = scheduler_health_timeout > (timezone.utcnow() - job.latest_heartbeat).total_seconds()
-
-            if not is_healthy:
+            if not job.is_alive():
                 # Start a new span for the dag_run.
                 dr_span = Trace.start_root_span(
-                    span_name=f"{dr.dag_id}_recreated",
+                    span_name=f"{dag_run.dag_id}_recreated",
                     component="dag",
-                    start_time=dr.queued_at,
+                    start_time=dag_run.queued_at,
                     start_as_current=False,
                 )
                 carrier = Trace.inject()
                 # Update the context_carrier and leave the SpanStatus as ACTIVE.
-                dr.set_context_carrier(context_carrier=carrier, session=session, with_commit=False)
-                self.active_spans.set(dr.run_id, dr_span)
+                dag_run.set_context_carrier(context_carrier=carrier, session=session, with_commit=False)
+                self.active_spans.set(dag_run.run_id, dr_span)
 
-                tis = dr.get_task_instances(session=session)
+                tis = dag_run.get_task_instances(session=session)
 
                 # At this point, any tis will have been adopted by the current scheduler.
                 # If the span_status is ACTIVE but there isn't an entry on the active spans,
@@ -1192,7 +1178,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     if ti.span_status == SpanStatus.ACTIVE and self.active_spans.get(ti.key) is None
                 ]
 
-                dr_context = Trace.extract(dr.context_carrier)
+                dr_context = Trace.extract(dag_run.context_carrier)
                 for ti in tis_needing_spans:
                     ti_span = Trace.start_child_span(
                         span_name=f"{ti.task_id}_recreated",
@@ -1295,9 +1281,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     self.log.debug("Waiting for processors to finish since we're using sqlite")
                     self.processor_agent.wait_until_finished()
 
-                # This is using a new session.
-                self._end_spans_of_externally_ended_ops()
-
                 # Pass a reference to the dictionary.
                 # Any changes made by a dag_run instance, will be reflected to the dictionary of this class.
                 DagRun.set_active_spans(active_spans=self.active_spans)
@@ -1308,6 +1291,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 BaseExecutor.set_active_spans(active_spans=self.active_spans)
 
                 with create_session() as session:
+                    self._end_spans_of_externally_ended_ops(session)
+
                     # This will schedule for as many executors as possible.
                     num_queued_tis = self._do_scheduling(session)
 
@@ -1948,7 +1933,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             if (
                 dag_run.scheduled_by_job_id is not None
-                and dag_run.set_scheduled_by_job_id != self.job.id
+                and dag_run.scheduled_by_job_id != self.job.id
                 and self.active_spans.get(dag_run.run_id) is None
             ):
                 # If the dag_run has been previously scheduled by another job and there is no active span,
@@ -1956,7 +1941,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # If it's not healthy, then recreate the spans.
                 self._recreate_unhealthy_scheduler_spans_if_needed(dag_run, session)
 
-            dag_run.set_scheduled_by_job_id(job_id=self.job.id, session=session, with_commit=False)
+            dag_run.scheduled_by_job_id = self.job.id
 
             # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
             schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
