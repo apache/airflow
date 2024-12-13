@@ -58,11 +58,7 @@ def upgrade():
         sa.Index("idx_asset_active_name_unique", "name", unique=True),
         sa.Index("idx_asset_active_uri_unique", "uri", unique=True),
     )
-    op.execute(
-        sa.text(
-            "insert into asset_active (name, uri) select name, uri from dataset where is_orphaned = false"
-        )
-    )
+    op.execute("insert into asset_active (name, uri) select name, uri from dataset where is_orphaned = false")
     with op.batch_alter_table("dataset", schema=None) as batch_op:
         batch_op.drop_column("is_orphaned")
 
@@ -73,10 +69,9 @@ def downgrade():
             sa.Column("is_orphaned", sa.Boolean, default=False, nullable=False, server_default="0")
         )
     op.execute(
-        sa.text(
-            "update dataset set is_orphaned = true "
-            "where exists (select 1 from asset_active "
-            "where dataset.name = asset_active.name and dataset.uri = asset_active.uri)"
-        )
+        "update dataset set is_orphaned = true "
+        "where exists (select 1 from asset_active "
+        "where dataset.name = asset_active.name and dataset.uri = asset_active.uri)"
     )
+
     op.drop_table("asset_active")
