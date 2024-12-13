@@ -183,7 +183,18 @@ class EdgeExecutor(BaseExecutor):
         jobs: list[EdgeJobModel] = (
             session.query(EdgeJobModel)
             .with_for_update(skip_locked=True)
-            .filter(EdgeJobModel.state.isnot(TaskInstanceState.QUEUED))
+            .filter(
+                EdgeJobModel.state.in_(
+                    [
+                        TaskInstanceState.RUNNING,
+                        TaskInstanceState.SUCCESS,
+                        TaskInstanceState.FAILED,
+                        TaskInstanceState.REMOVED,
+                        TaskInstanceState.RESTARTING,
+                        TaskInstanceState.UP_FOR_RETRY,
+                    ]
+                )
+            )```
             .all()
         )
         for job in jobs:
