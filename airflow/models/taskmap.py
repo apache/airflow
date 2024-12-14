@@ -25,7 +25,6 @@ from collections.abc import Collection
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Integer, String
-from sqlalchemy.dialects import postgresql
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.utils.sqlalchemy import ExtendedJSON
@@ -57,8 +56,6 @@ class TaskMap(TaskInstanceDependencies):
     __tablename__ = "task_map"
 
     # Link to upstream TaskInstance creating this dynamic mapping information.
-
-    ti_id = Column(postgresql.UUID(as_uuid=True), nullable=False)
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
     run_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
@@ -80,12 +77,6 @@ class TaskMap(TaskInstanceDependencies):
             name="task_map_task_instance_fkey",
             ondelete="CASCADE",
             onupdate="CASCADE",
-        ),
-        ForeignKeyConstraint(
-            [ti_id],
-            ["task_instance.id"],
-            name="task_map_task_instance_fkey2",
-            ondelete="CASCADE",
         ),
     )
 

@@ -1634,7 +1634,6 @@ def _handle_reschedule(
     # see https://github.com/apache/airflow/pull/21362 for more info
     session.add(
         TaskReschedule(
-            ti.ti_id,
             ti.task_id,
             ti.dag_id,
             ti.run_id,
@@ -3739,7 +3738,6 @@ class TaskInstanceNote(TaskInstanceDependencies):
 
     __tablename__ = "task_instance_note"
 
-    ti_id = Column(postgresql.UUID(as_uuid=True), nullable=False)
     user_id = Column(String(128), nullable=True)
     task_id = Column(StringID(), primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)
@@ -3754,9 +3752,14 @@ class TaskInstanceNote(TaskInstanceDependencies):
     __table_args__ = (
         PrimaryKeyConstraint("task_id", "dag_id", "run_id", "map_index", name="task_instance_note_pkey"),
         ForeignKeyConstraint(
-            [ti_id],
-            ["task_instance.id"],
-            name="task_instance_note_ti_fkey2",
+            (dag_id, task_id, run_id, map_index),
+            [
+                "task_instance.dag_id",
+                "task_instance.task_id",
+                "task_instance.run_id",
+                "task_instance.map_index",
+            ],
+            name="task_instance_note_ti_fkey",
             ondelete="CASCADE",
         ),
     )
