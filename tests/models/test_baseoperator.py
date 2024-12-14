@@ -568,8 +568,8 @@ class TestBaseOperator:
         """Test exception is raised when operator task id + taskgroup id > 250 chars."""
         dag = DAG(dag_id="foo", schedule=None, start_date=datetime.now())
 
+        tg1 = TaskGroup("A" * 20, dag=dag)
         with pytest.raises(AirflowException, match="The key has to be less than 250 characters"):
-            tg1 = TaskGroup("A" * 20, dag=dag)
             BaseOperator(task_id="1" * 250, task_group=tg1, dag=dag)
 
     def test_chain_linear(self):
