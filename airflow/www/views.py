@@ -3228,6 +3228,7 @@ class Airflow(AirflowBaseView):
         else:
             return {"url": None, "error": f"No URL found for {link_name}"}, 404
 
+    @mark_fastapi_migration_done
     @expose("/object/graph_data")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
     @gzipped

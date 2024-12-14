@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+0.9.4pre0
+.........
+
+Misc
+~~~~
+
+* ``Fix to keep edge executor and edge job table in sync. Important in multi scheduler deployments.``
+
+0.9.3pre0
+.........
+
+Misc
+~~~~
+
+* ``Handle purging of restarting edge jobs.``
+
 0.9.2pre0
 .........
 

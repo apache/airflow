@@ -24,8 +24,8 @@ import type {
   DAGRunResponse,
 } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
-import DagDocumentation from "src/components/DagDocumentation";
 import DagRunInfo from "src/components/DagRunInfo";
+import DocumentationModal from "src/components/DocumentationModal";
 import ParseDag from "src/components/ParseDag";
 import { Stat } from "src/components/Stat";
 import { TogglePause } from "src/components/TogglePause";
@@ -61,7 +61,7 @@ export const Header = ({
           {dag ? (
             <HStack>
               {dag.doc_md === null ? undefined : (
-                <DagDocumentation docMd={dag.doc_md} />
+                <DocumentationModal docMd={dag.doc_md} docType="Dag" />
               )}
               <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />
               <TriggerDAGTextButton dag={dag} />

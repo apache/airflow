@@ -70,7 +70,6 @@ if len(sys.argv) > 5:
     from types import ModuleType
 
     from airflow.providers.standard.operators import python as airflow_python
-    from airflow.serialization.serialized_objects import BaseSerialization
 
 
     class _MockPython(ModuleType):
@@ -78,7 +77,8 @@ if len(sys.argv) > 5:
         def get_current_context():
             with open(sys.argv[5]) as file:
                 context = json.load(file)
-                return BaseSerialization.deserialize(context, use_pydantic_models=True)
+                raise Exception("Not yet implemented")
+                # TODO: return deserialized context
 
         def __getattr__(self, name: str):
             return getattr(airflow_python, name)
