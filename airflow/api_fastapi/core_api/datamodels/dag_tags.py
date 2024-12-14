@@ -17,7 +17,18 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import ConfigDict
+
+from airflow.api_fastapi.core_api.base import BaseModel
+
+
+class DagTagResponse(BaseModel):
+    """DAG Tag serializer for responses."""
+
+    model_config = ConfigDict(populate_by_name=True, from_attributes=True)
+
+    name: str
+    dag_id: str
 
 
 class DAGTagCollectionResponse(BaseModel):

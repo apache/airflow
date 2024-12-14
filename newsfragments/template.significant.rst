@@ -16,4 +16,9 @@
 
 .. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
 
-* Migrations rules needed
+* [ ] Migration rules needed
+
+.. e.g.,
+.. * Remove context key ``execution_date``
+.. * context key ``triggering_dataset_events`` → ``triggering_asset_events``
+.. * Remove method ``airflow.providers_manager.ProvidersManager.initialize_providers_dataset_uri_resources`` → ``airflow.providers_manager.ProvidersManager.initialize_providers_asset_uri_resources``

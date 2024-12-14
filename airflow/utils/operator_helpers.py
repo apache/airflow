@@ -276,10 +276,10 @@ def ExecutionCallableRunner(
 
             for metadata in _run():
                 if isinstance(metadata, Metadata):
-                    outlet_events[metadata.uri].extra.update(metadata.extra)
+                    outlet_events[metadata.asset].extra.update(metadata.extra)
 
-                    if metadata.alias_name:
-                        outlet_events[metadata.alias_name].add(metadata.uri, extra=metadata.extra)
+                    if metadata.alias:
+                        outlet_events[metadata.alias].add(metadata.asset, extra=metadata.extra)
 
                     continue
                 logger.warning("Ignoring unknown data of %r received from task", type(metadata))

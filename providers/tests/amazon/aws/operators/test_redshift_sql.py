@@ -79,10 +79,10 @@ class TestRedshiftSQLOpenLineage:
         ],
     )
     @patch(
-        "airflow.providers.amazon.aws.hooks.redshift_sql._IS_AIRFLOW_2_10_OR_HIGHER",
+        "airflow.providers.amazon.aws.hooks.redshift_sql.AIRFLOW_V_2_10_PLUS",
         new_callable=PropertyMock,
     )
-    @patch("airflow.providers.openlineage.utils.utils.IS_AIRFLOW_2_10_OR_HIGHER", new_callable=PropertyMock)
+    @patch("airflow.providers.openlineage.utils.utils.AIRFLOW_V_2_10_PLUS", new_callable=PropertyMock)
     @patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn")
     def test_execute_openlineage_events(
         self,

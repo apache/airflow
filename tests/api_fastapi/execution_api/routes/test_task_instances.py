@@ -17,18 +17,20 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from unittest import mock
 
 import pytest
+import uuid6
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
-from airflow.models import Trigger
+from airflow.models import RenderedTaskInstanceFields, Trigger
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 
-from tests_common.test_utils.db import clear_db_runs
+from tests_common.test_utils.db import clear_db_runs, clear_rendered_ti_fields
 
 pytestmark = pytest.mark.db_test
 
@@ -233,8 +235,7 @@ class TestTIUpdateState:
         assert tis[0].state == TaskInstanceState.DEFERRED
         assert tis[0].next_method == "execute_callback"
         assert tis[0].next_kwargs == {"key": "value"}
-        # TODO: Make TI.trigger_timeout a UtcDateTime instead of DateTime
-        assert tis[0].trigger_timeout == timezone.datetime(2024, 11, 23).replace(tzinfo=None)
+        assert tis[0].trigger_timeout == timezone.make_aware(datetime(2024, 11, 23), timezone=timezone.utc)
 
         t = session.query(Trigger).all()
         assert len(t) == 1
@@ -410,3 +411,68 @@ class TestTIHealthEndpoint:
         # If successful, ensure last_heartbeat_at is updated
         session.refresh(ti)
         assert ti.last_heartbeat_at == time_now.add(minutes=10)
+
+
+class TestTIPutRTIF:
+    def setup_method(self):
+        clear_db_runs()
+        clear_rendered_ti_fields()
+
+    def teardown_method(self):
+        clear_db_runs()
+        clear_rendered_ti_fields()
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            # string value
+            {"field1": "string_value", "field2": "another_string"},
+            # dictionary value
+            {"field1": {"nested_key": "nested_value"}},
+            # string lists value
+            {"field1": ["123"], "field2": ["a", "b", "c"]},
+            # list of JSON values
+            {"field1": [1, "string", 3.14, True, None, {"nested": "dict"}]},
+            # nested dictionary with mixed types in lists
+            {
+                "field1": {"nested_dict": {"key1": 123, "key2": "value"}},
+                "field2": [3.14, {"sub_key": "sub_value"}, [1, 2]],
+            },
+        ],
+    )
+    def test_ti_put_rtif_success(self, client, session, create_task_instance, payload):
+        ti = create_task_instance(
+            task_id="test_ti_put_rtif_success",
+            state=State.RUNNING,
+            session=session,
+        )
+        session.commit()
+        response = client.put(f"/execution/task-instances/{ti.id}/rtif", json=payload)
+        assert response.status_code == 201
+        assert response.json() == {"message": "Rendered task instance fields successfully set"}
+
+        session.expire_all()
+
+        rtifs = session.query(RenderedTaskInstanceFields).all()
+        assert len(rtifs) == 1
+
+        assert rtifs[0].dag_id == "dag"
+        assert rtifs[0].run_id == "test"
+        assert rtifs[0].task_id == "test_ti_put_rtif_success"
+        assert rtifs[0].map_index == -1
+        assert rtifs[0].rendered_fields == payload
+
+    def test_ti_put_rtif_missing_ti(self, client, session, create_task_instance):
+        create_task_instance(
+            task_id="test_ti_put_rtif_missing_ti",
+            state=State.RUNNING,
+            session=session,
+        )
+        session.commit()
+
+        payload = {"field1": "rendered_value1", "field2": "rendered_value2"}
+
+        random_id = uuid6.uuid7()
+        response = client.put(f"/execution/task-instances/{random_id}/rtif", json=payload)
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Not Found"

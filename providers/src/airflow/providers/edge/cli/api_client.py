@@ -22,7 +22,7 @@ from datetime import datetime
 from http import HTTPStatus
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from urllib.parse import quote, urljoin, urlparse
+from urllib.parse import quote, urljoin
 
 import requests
 import tenacity
@@ -74,11 +74,10 @@ def _is_retryable_exception(exception: BaseException) -> bool:
 def _make_generic_request(method: str, rest_path: str, data: str | None = None) -> Any:
     signer = jwt_signer()
     api_url = conf.get("edge", "api_url")
-    path = urlparse(api_url).path.replace("/rpcapi", "")
     headers = {
         "Content-Type": "application/json",
         "Accept": "application/json",
-        "Authorization": signer.generate_signed_token({"method": str(Path(path, rest_path))}),
+        "Authorization": signer.generate_signed_token({"method": rest_path}),
     }
     api_endpoint = urljoin(api_url, rest_path)
     response = requests.request(method, url=api_endpoint, data=data, headers=headers)

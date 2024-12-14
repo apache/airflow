@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from contextlib import nullcontext
 from importlib import reload
 from unittest import mock
 
@@ -33,11 +32,7 @@ from tests_common.test_utils.config import conf_vars
 
 
 class FakeExecutor:
-    is_single_threaded = False
-
-
-class FakeSingleThreadedExecutor:
-    is_single_threaded = True
+    pass
 
 
 class TestExecutorLoader:
@@ -88,21 +83,46 @@ class TestExecutorLoader:
             assert executor.name.connector_source == ConnectorSource.CUSTOM_PATH
 
     @pytest.mark.parametrize(
-        ("executor_config", "expected_executors_list"),
+        ("executor_config", "team_executor_config", "expected_executors_list"),
         [
-            # Just one executor
-            (
+            pytest.param(
                 "CeleryExecutor",
+                [],
                 [
                     ExecutorName(
                         "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
                         "CeleryExecutor",
                     ),
                 ],
+                id="one_executor",
             ),
-            # Core executors and custom module path executor
-            (
+            pytest.param(
+                "CeleryExecutor",
+                [
+                    ("team_a", ["CeleryExecutor"]),
+                    ("team_b", ["LocalExecutor"]),
+                ],
+                [
+                    ExecutorName(
+                        "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        "CeleryExecutor",
+                    ),
+                    ExecutorName(
+                        "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        "CeleryExecutor",
+                        "team_a",
+                    ),
+                    ExecutorName(
+                        "airflow.executors.local_executor.LocalExecutor",
+                        "LocalExecutor",
+                        "team_b",
+                    ),
+                ],
+                id="one_executor_per_team",
+            ),
+            pytest.param(
                 "CeleryExecutor, LocalExecutor, tests.executors.test_executor_loader.FakeExecutor",
+                [],
                 [
                     ExecutorName(
                         "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
@@ -117,12 +137,50 @@ class TestExecutorLoader:
                         None,
                     ),
                 ],
+                id="core_executors_and_custom_module_path_executor",
             ),
-            # Core executors and custom module path executor with aliases
-            (
+            pytest.param(
+                "CeleryExecutor, LocalExecutor, tests.executors.test_executor_loader.FakeExecutor",
+                [
+                    ("team_a", ["CeleryExecutor", "tests.executors.test_executor_loader.FakeExecutor"]),
+                    ("team_b", ["tests.executors.test_executor_loader.FakeExecutor"]),
+                ],
+                [
+                    ExecutorName(
+                        "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        "CeleryExecutor",
+                    ),
+                    ExecutorName(
+                        "airflow.executors.local_executor.LocalExecutor",
+                        "LocalExecutor",
+                    ),
+                    ExecutorName(
+                        "tests.executors.test_executor_loader.FakeExecutor",
+                        None,
+                    ),
+                    ExecutorName(
+                        "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        "CeleryExecutor",
+                        "team_a",
+                    ),
+                    ExecutorName(
+                        "tests.executors.test_executor_loader.FakeExecutor",
+                        None,
+                        "team_a",
+                    ),
+                    ExecutorName(
+                        "tests.executors.test_executor_loader.FakeExecutor",
+                        None,
+                        "team_b",
+                    ),
+                ],
+                id="core_executors_and_custom_module_path_executor_per_team",
+            ),
+            pytest.param(
                 (
                     "CeleryExecutor, LocalExecutor, fake_exec:tests.executors.test_executor_loader.FakeExecutor"
                 ),
+                [],
                 [
                     ExecutorName(
                         "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
@@ -137,13 +195,62 @@ class TestExecutorLoader:
                         "fake_exec",
                     ),
                 ],
+                id="core_executors_and_custom_module_path_executor_with_aliases",
+            ),
+            pytest.param(
+                (
+                    "CeleryExecutor, LocalExecutor, fake_exec:tests.executors.test_executor_loader.FakeExecutor"
+                ),
+                [
+                    (
+                        "team_a",
+                        ["CeleryExecutor", "fake_exec:tests.executors.test_executor_loader.FakeExecutor"],
+                    ),
+                    ("team_b", ["fake_exec:tests.executors.test_executor_loader.FakeExecutor"]),
+                ],
+                [
+                    ExecutorName(
+                        "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        "CeleryExecutor",
+                    ),
+                    ExecutorName(
+                        "airflow.executors.local_executor.LocalExecutor",
+                        "LocalExecutor",
+                    ),
+                    ExecutorName(
+                        "tests.executors.test_executor_loader.FakeExecutor",
+                        "fake_exec",
+                    ),
+                    ExecutorName(
+                        "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        "CeleryExecutor",
+                        "team_a",
+                    ),
+                    ExecutorName(
+                        "tests.executors.test_executor_loader.FakeExecutor",
+                        "fake_exec",
+                        "team_a",
+                    ),
+                    ExecutorName(
+                        "tests.executors.test_executor_loader.FakeExecutor",
+                        "fake_exec",
+                        "team_b",
+                    ),
+                ],
+                id="core_executors_and_custom_module_path_executor_with_aliases_per_team",
             ),
         ],
     )
-    def test_get_hybrid_executors_from_config(self, executor_config, expected_executors_list):
+    def test_get_hybrid_executors_from_config(
+        self, executor_config, team_executor_config, expected_executors_list
+    ):
         with conf_vars({("core", "executor"): executor_config}):
-            executors = ExecutorLoader._get_executor_names()
-            assert executors == expected_executors_list
+            with mock.patch(
+                "airflow.executors.executor_loader.ExecutorLoader._get_team_executor_configs",
+                return_value=team_executor_config,
+            ):
+                executors = ExecutorLoader._get_executor_names()
+                assert executors == expected_executors_list
 
     def test_init_executors(self):
         with conf_vars({("core", "executor"): "CeleryExecutor"}):
@@ -218,31 +325,6 @@ class TestExecutorLoader:
             executor, import_source = ExecutorLoader.import_default_executor_cls()
             assert executor.__name__ == "FakeExecutor"
             assert import_source == ConnectorSource.CUSTOM_PATH
-
-    @pytest.mark.db_test
-    @pytest.mark.backend("mysql", "postgres")
-    @pytest.mark.parametrize("executor", [FakeExecutor, FakeSingleThreadedExecutor])
-    def test_validate_database_executor_compatibility_general(self, monkeypatch, executor):
-        monkeypatch.delenv("_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK")
-        ExecutorLoader.validate_database_executor_compatibility(executor)
-
-    @pytest.mark.db_test
-    @pytest.mark.backend("sqlite")
-    @pytest.mark.parametrize(
-        ["executor", "expectation"],
-        [
-            pytest.param(FakeSingleThreadedExecutor, nullcontext(), id="single-threaded"),
-            pytest.param(
-                FakeExecutor,
-                pytest.raises(AirflowConfigException, match=r"^error: cannot use SQLite with the .+"),
-                id="multi-threaded",
-            ),
-        ],
-    )
-    def test_validate_database_executor_compatibility_sqlite(self, monkeypatch, executor, expectation):
-        monkeypatch.delenv("_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK")
-        with expectation:
-            ExecutorLoader.validate_database_executor_compatibility(executor)
 
     def test_load_executor(self):
         with conf_vars({("core", "executor"): "LocalExecutor"}):
