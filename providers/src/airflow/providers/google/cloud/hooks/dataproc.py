@@ -118,19 +118,11 @@ class DataProcJobBuilder:
 
     def add_query(self, query: str) -> None:
         """
-        Set query for Dataproc job.
+        Add query for Dataproc job.
 
         :param query: query for the job.
         """
-        self.job["job"][self.job_type]["query_list"] = {"queries": [query]}
-
-    def set_queries(self, queries: list[str]) -> None:
-        """
-        Set queries for Dataproc job.
-
-        :param queries: queries for the job.
-        """
-        self.job["job"][self.job_type]["query_list"] = {"queries": queries}
+        self.job["job"][self.job_type].setdefault("query_list", {"queries": []})["queries"].append(query)
 
     def add_query_uri(self, query_uri: str) -> None:
         """

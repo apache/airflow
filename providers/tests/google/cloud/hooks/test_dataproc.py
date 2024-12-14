@@ -1097,14 +1097,11 @@ class TestDataProcJobBuilder:
         assert args == self.builder.job["job"][self.job_type]["args"]
 
     def test_add_query(self):
-        query = ["query"]
-        self.builder.add_query(query)
-        assert self.builder.job["job"][self.job_type]["query_list"] == {"queries": [query]}
-
-    def test_set_queries(self):
-        queries = ["query1", "query2"]
-        self.builder.set_queries(queries)
-        assert self.builder.job["job"][self.job_type]["query_list"] == {"queries": queries}
+        query1 = "query1"
+        self.builder.add_query(query1)
+        query2 = "query2"
+        self.builder.add_query(query2)
+        assert self.builder.job["job"][self.job_type]["query_list"] == {"queries": [query1, query2]}
 
     def test_add_query_uri(self):
         query_uri = "query_uri"
