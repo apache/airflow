@@ -50,7 +50,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
   onClose,
   open,
 }) => {
-  const [jsonError, setJsonError] = useState<string | undefined>();
+  const [errors, setErrors] = useState<{ conf?: string; date?: string }>({});
   const conf = useDagParams(dagId, open);
   const { error: errorTrigger, isPending, triggerDagRun } = useTrigger(onClose);
 
@@ -85,20 +85,31 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
     try {
       const parsedJson = JSON.parse(value) as JSON;
 
-      setJsonError(undefined);
+      setErrors((prev) => ({ ...prev, conf: undefined }));
 
       return JSON.stringify(parsedJson, undefined, 2);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred.";
 
-      setJsonError(`Invalid JSON format: ${errorMessage}`);
+      setErrors((prev) => ({
+        ...prev,
+        conf: `Invalid JSON format: ${errorMessage}`,
+      }));
 
       return value;
     }
   };
 
   const onSubmit = (data: DagRunTriggerParams) => {
+    if (Boolean(data.dataIntervalStart) !== Boolean(data.dataIntervalEnd)) {
+      setErrors((prev) => ({
+        ...prev,
+        date: "Either both Data Interval Start and End must be provided, or both must be empty.",
+      }));
+
+      return;
+    }
     triggerDagRun(dagId, data);
   };
 
@@ -109,6 +120,8 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
       ? new Date(dataIntervalStart)
       : undefined;
     const endDate = dataIntervalEnd ? new Date(dataIntervalEnd) : undefined;
+
+    setErrors((prev) => ({ ...prev, date: undefined }));
 
     if (startDate && endDate) {
       if (fieldName === "dataIntervalStart" && startDate > endDate) {
@@ -215,11 +228,11 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                       }}
                       theme={colorMode === "dark" ? githubDark : githubLight}
                     />
-                    {Boolean(jsonError) ? (
+                    {Boolean(errors.conf) && (
                       <Text color="red.500" fontSize="sm" mt={2}>
-                        {jsonError}
+                        {errors.conf}
                       </Text>
-                    ) : undefined}
+                    )}
                   </Box>
                 )}
               />
@@ -238,6 +251,11 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
           </Accordion.ItemContent>
         </Accordion.Item>
       </Accordion.Root>
+      {Boolean(errors.date) && (
+        <Text color="red.500" fontSize="sm" mt={2}>
+          {errors.date}
+        </Text>
+      )}
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         <HStack w="full">
           {isDirty ? (
@@ -248,7 +266,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
           <Spacer />
           <Button
             colorPalette="blue"
-            disabled={Boolean(jsonError) || isPending}
+            disabled={Boolean(errors.conf) || Boolean(errors.date) || isPending}
             onClick={() => void handleSubmit(onSubmit)()}
           >
             <FiPlay /> Trigger
