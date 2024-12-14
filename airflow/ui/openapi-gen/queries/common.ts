@@ -137,6 +137,8 @@ export const UseAssetServiceGetAssetEventsKeyFn = (
     sourceMapIndex,
     sourceRunId,
     sourceTaskId,
+    timestampGte,
+    timestampLte,
   }: {
     assetId?: number;
     limit?: number;
@@ -146,6 +148,8 @@ export const UseAssetServiceGetAssetEventsKeyFn = (
     sourceMapIndex?: number;
     sourceRunId?: string;
     sourceTaskId?: string;
+    timestampGte?: string;
+    timestampLte?: string;
   } = {},
   queryKey?: Array<unknown>,
 ) => [
@@ -160,6 +164,8 @@ export const UseAssetServiceGetAssetEventsKeyFn = (
       sourceMapIndex,
       sourceRunId,
       sourceTaskId,
+      timestampGte,
+      timestampLte,
     },
   ]),
 ];
