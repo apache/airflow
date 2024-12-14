@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy import text
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
@@ -42,11 +41,6 @@ airflow_version = "3.0.0"
 
 def upgrade():
     """Apply remove pickled data from dagrun table."""
-    conn = op.get_bind()
-
-    # Update the dag_run.conf column value to NULL
-    conn.execute(text("UPDATE dag_run set conf=null WHERE conf IS NOT NULL"))
-
     conf_type = sa.JSON().with_variant(postgresql.JSONB, "postgresql")
 
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
@@ -58,12 +52,6 @@ def upgrade():
 
 def downgrade():
     """Unapply Remove pickled data from dagrun table."""
-    conn = op.get_bind()
-    conn.execute(text("UPDATE dag_run set conf=null WHERE conf IS NOT NULL"))
-
-    # Update the dag_run.conf column value to NULL to avoid issues during the type change
-    conn.execute(text("UPDATE dag_run set conf=null WHERE conf IS NOT NULL"))
-
     conf_type = sa.LargeBinary().with_variant(postgresql.BYTEA, "postgresql")
 
     # Apply the same logic for all dialects, including SQLite
