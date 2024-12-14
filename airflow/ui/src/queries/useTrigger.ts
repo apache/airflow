@@ -17,6 +17,7 @@
  * under the License.
  */
 import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 
 import {
   useDagRunServiceGetDagRunsKey,
@@ -27,17 +28,9 @@ import {
 import type { DagRunTriggerParams } from "src/components/TriggerDag/TriggerDAGForm";
 import { toaster } from "src/components/ui";
 
-const onError = () => {
-  toaster.create({
-    description:
-      "Failed to initiate the DAG run request. An unexpected error occurred.",
-    title: "Dag Run Request Failed",
-    type: "error",
-  });
-};
-
-export const useTrigger = () => {
+export const useTrigger = (onClose: () => void) => {
   const queryClient = useQueryClient();
+  const [error, setError] = useState<unknown>(undefined);
 
   const onSuccess = async () => {
     const queryKeys = [
@@ -57,6 +50,12 @@ export const useTrigger = () => {
       title: "DAG Run Request Submitted",
       type: "success",
     });
+
+    onClose();
+  };
+
+  const onError = (_error: unknown) => {
+    setError(_error);
   };
 
   const { isPending, mutate } = useDagRunServiceTriggerDagRun({
@@ -92,5 +91,5 @@ export const useTrigger = () => {
     });
   };
 
-  return { isPending, triggerDagRun };
+  return { error, isPending, triggerDagRun };
 };

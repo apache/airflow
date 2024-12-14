@@ -28,6 +28,7 @@ import { useColorMode } from "src/context/colorMode";
 import { useDagParams } from "src/queries/useDagParams";
 import { useTrigger } from "src/queries/useTrigger";
 
+import { ErrorAlert } from "../ErrorAlert";
 import { Accordion } from "../ui";
 
 type TriggerDAGFormProps = {
@@ -51,7 +52,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
 }) => {
   const [jsonError, setJsonError] = useState<string | undefined>();
   const conf = useDagParams(dagId, open);
-  const { isPending, triggerDagRun } = useTrigger();
+  const { error: errorTrigger, isPending, triggerDagRun } = useTrigger(onClose);
 
   const dagRunRequestBody: DagRunTriggerParams = useMemo(
     () => ({
@@ -99,7 +100,6 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
 
   const onSubmit = (data: DagRunTriggerParams) => {
     triggerDagRun(dagId, data);
-    onClose();
   };
 
   const validateDates = (
@@ -123,7 +123,8 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
 
   return (
     <>
-      <Accordion.Root collapsible size="lg" variant="enclosed">
+      <ErrorAlert error={errorTrigger} />
+      <Accordion.Root collapsible mt={4} size="lg" variant="enclosed">
         <Accordion.Item key="advancedOptions" value="advancedOptions">
           <Accordion.ItemTrigger cursor="button">
             Advanced Options
@@ -237,7 +238,6 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
           </Accordion.ItemContent>
         </Accordion.Item>
       </Accordion.Root>
-
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         <HStack w="full">
           {isDirty ? (
