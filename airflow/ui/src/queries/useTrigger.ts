@@ -79,14 +79,21 @@ export const useTrigger = (onClose: () => void) => {
       ? new Date(dagRunRequestBody.dataIntervalEnd).toISOString()
       : undefined;
 
+    const checkDagRunId =
+      dagRunRequestBody.dagRunId === ""
+        ? undefined
+        : dagRunRequestBody.dagRunId;
+    const checkNote =
+      dagRunRequestBody.note === "" ? undefined : dagRunRequestBody.note;
+
     mutate({
       dagId,
       requestBody: {
         conf: parsedConfig,
-        dag_run_id: dagRunRequestBody.dagRunId,
+        dag_run_id: checkDagRunId,
         data_interval_end: formattedDataIntervalEnd,
         data_interval_start: formattedDataIntervalStart,
-        note: dagRunRequestBody.note,
+        note: checkNote,
       },
     });
   };
