@@ -63,8 +63,7 @@ class _UpstreamTIStates(NamedTuple):
         ``counter`` is inclusive of ``setup_counter`` -- e.g. if there are 2 skipped upstreams, one
         of which is a setup, then counter will show 2 skipped and setup counter will show 1.
 
-        :param ti: the ti that we want to calculate deps for
-        :param finished_tis: all the finished tasks of the dag_run
+        :param finished_upstreams: all the finished upstreams of the dag_run
         """
         counter: dict[str, int] = Counter()
         setup_counter: dict[str, int] = Counter()
@@ -217,7 +216,7 @@ class TriggerRuleDep(BaseTIDep):
             for upstream_id in relevant_tasks:
                 map_indexes = _get_relevant_upstream_map_indexes(upstream_id)
                 if map_indexes is None:  # All tis of this upstream are dependencies.
-                    yield (TaskInstance.task_id == upstream_id)
+                    yield TaskInstance.task_id == upstream_id
                     continue
                 # At this point we know we want to depend on only selected tis
                 # of this upstream task. Since the upstream may not have been
@@ -237,11 +236,9 @@ class TriggerRuleDep(BaseTIDep):
 
         def _evaluate_setup_constraint(*, relevant_setups) -> Iterator[tuple[TIDepStatus, bool]]:
             """
-            Evaluate whether ``ti``'s trigger rule was met.
+            Evaluate whether ``ti``'s trigger rule was met as part of the setup constraint.
 
-            :param ti: Task instance to evaluate the trigger rule of.
-            :param dep_context: The current dependency context.
-            :param session: Database session.
+            :param relevant_setups: Relevant setups for the current task instance.
             """
             if TYPE_CHECKING:
                 assert ti.task
@@ -327,13 +324,7 @@ class TriggerRuleDep(BaseTIDep):
                 )
 
         def _evaluate_direct_relatives() -> Iterator[TIDepStatus]:
-            """
-            Evaluate whether ``ti``'s trigger rule was met.
-
-            :param ti: Task instance to evaluate the trigger rule of.
-            :param dep_context: The current dependency context.
-            :param session: Database session.
-            """
+            """ Evaluate whether ``ti``'s trigger rule in direct relatives was met. """
             if TYPE_CHECKING:
                 assert ti.task
 
