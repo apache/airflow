@@ -2677,7 +2677,7 @@ dag_bundles:
     dags_folder:
       description: |
         This is the default DAG bundle that loads DAGs from the traditional ``[core] dags_folder``.
-        By default, ``refresh_interval`` it set to ``[scheduler] dag_dir_list_interval``, but that can be
+        By default, ``refresh_interval`` is set to ``[scheduler] dag_dir_list_interval``, but that can be
         overridden here if desired.
         Parsing DAGs from the DAG folder can be disabled by setting this option to an empty string.
       version_added: ~
