@@ -1784,3 +1784,34 @@ class TestMappedSetupTeardown:
             "group.last": {0: "success", 1: "skipped", 2: "success"},
         }
         assert states == expected
+
+
+def test_mapped_tasks_in_mapped_task_group_waits_for_upstreams_to_complete(dag_maker, session):
+    """Test that one failed trigger rule works well in mapped task group"""
+    with dag_maker() as dag:
+
+        @dag.task
+        def t1():
+            return [1, 2, 3]
+
+        @task_group("tg1")
+        def tg1(a):
+            @dag.task()
+            def t2(a):
+                return a
+
+            @dag.task(trigger_rule=TriggerRule.ONE_FAILED)
+            def t3(a):
+                return a
+
+            t2(a) >> t3(a)
+
+        t = t1()
+        tg1.expand(a=t)
+
+    dr = dag_maker.create_dagrun()
+    ti = dr.get_task_instance(task_id="t1")
+    ti.run()
+    dr.task_instance_scheduling_decisions()
+    ti3 = dr.get_task_instance(task_id="tg1.t3")
+    assert not ti3.state
