@@ -542,6 +542,7 @@ class TestGetAssetEvents(TestAssets):
                 {
                     "id": 1,
                     "asset_id": 1,
+                    "uri": "s3://bucket/key/1",
                     "extra": {"foo": "bar"},
                     "source_task_id": "source_task_id",
                     "source_dag_id": "source_dag_id",
@@ -564,6 +565,7 @@ class TestGetAssetEvents(TestAssets):
                 {
                     "id": 2,
                     "asset_id": 2,
+                    "uri": "s3://bucket/key/2",
                     "extra": {"foo": "bar"},
                     "source_task_id": "source_task_id",
                     "source_dag_id": "source_dag_id",
@@ -704,6 +706,7 @@ class TestGetAssetEvents(TestAssets):
                 {
                     "id": 1,
                     "asset_id": 1,
+                    "uri": "s3://bucket/key/1",
                     "extra": {"password": "***"},
                     "source_task_id": "source_task_id",
                     "source_dag_id": "source_dag_id",
@@ -726,6 +729,7 @@ class TestGetAssetEvents(TestAssets):
                 {
                     "id": 2,
                     "asset_id": 2,
+                    "uri": "s3://bucket/key/2",
                     "extra": {"password": "***"},
                     "source_task_id": "source_task_id",
                     "source_dag_id": "source_dag_id",
@@ -912,6 +916,7 @@ class TestPostAssetEvents(TestAssets):
         assert response.json() == {
             "id": mock.ANY,
             "asset_id": 1,
+            "uri": "s3://bucket/key/1",
             "extra": {"foo": "bar", "from_rest_api": True},
             "source_task_id": None,
             "source_dag_id": None,
@@ -938,6 +943,7 @@ class TestPostAssetEvents(TestAssets):
         assert response.json() == {
             "id": mock.ANY,
             "asset_id": 1,
+            "uri": "s3://bucket/key/1",
             "extra": {"password": "***", "from_rest_api": True},
             "source_task_id": None,
             "source_dag_id": None,

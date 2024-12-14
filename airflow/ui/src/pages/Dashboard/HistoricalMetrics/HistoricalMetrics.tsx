@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, VStack } from "@chakra-ui/react";
+import { Box, VStack, SimpleGrid, GridItem } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useState } from "react";
 
@@ -24,6 +24,7 @@ import { useDashboardServiceHistoricalMetrics } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 
+import { AssetEvents } from "./AssetEvents";
 import { DagRunMetrics } from "./DagRunMetrics";
 import { MetricSectionSkeleton } from "./MetricSectionSkeleton";
 import { TaskInstanceMetrics } from "./TaskInstanceMetrics";
@@ -59,13 +60,26 @@ export const HistoricalMetrics = () => {
           setStartDate={setStartDate}
           startDate={startDate}
         />
-        {isLoading ? <MetricSectionSkeleton /> : undefined}
-        {!isLoading && data !== undefined && (
-          <Box>
-            <DagRunMetrics dagRunStates={data.dag_run_states} total={dagRunTotal} />
-            <TaskInstanceMetrics taskInstanceStates={data.task_instance_states} total={taskRunTotal} />
-          </Box>
-        )}
+        <SimpleGrid columns={{ base: 10 }}>
+          <GridItem colSpan={{ base: 7 }}>
+            {isLoading ? <MetricSectionSkeleton /> : undefined}
+            {!isLoading && data !== undefined && (
+              <Box>
+                <DagRunMetrics
+                  dagRunStates={data.dag_run_states}
+                  total={dagRunTotal}
+                />
+                <TaskInstanceMetrics
+                  taskInstanceStates={data.task_instance_states}
+                  total={taskRunTotal}
+                />
+              </Box>
+            )}
+          </GridItem>
+          <GridItem colSpan={{ base: 3 }}>
+            <AssetEvents endDate={endDate} startDate={startDate} />
+          </GridItem>
+        </SimpleGrid>
       </VStack>
     </Box>
   );
