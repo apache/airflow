@@ -564,6 +564,14 @@ class TestBaseOperator:
         assert [op2] == tgop3.get_direct_relatives(upstream=False)
         assert [op2] == tgop4.get_direct_relatives(upstream=False)
 
+    def test_baseoperator_raises_exception_when_task_id_invalid(self):
+        """Test exception is raised when operator task id + taskgroup id > 250 chars."""
+        dag = DAG(dag_id="foo", schedule=None, start_date=datetime.now())
+
+        with pytest.raises(AirflowException, match="The key has to be less than 250 characters"):
+            tg1 = TaskGroup("A" * 20, dag=dag)
+            BaseOperator(task_id="1" * 250, task_group=tg1, dag=dag)
+
     def test_chain_linear(self):
         dag = DAG(dag_id="test_chain_linear", schedule=None, start_date=datetime.now())
 
