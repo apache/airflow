@@ -180,6 +180,17 @@ export const $AssetEventResponse = {
       type: "integer",
       title: "Asset Id",
     },
+    uri: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Uri",
+    },
     extra: {
       anyOf: [
         {
@@ -245,6 +256,7 @@ export const $AssetEventResponse = {
   required: [
     "id",
     "asset_id",
+    "uri",
     "source_map_index",
     "created_dagruns",
     "timestamp",

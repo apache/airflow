@@ -6098,6 +6098,11 @@ components:
         asset_id:
           type: integer
           title: Asset Id
+        uri:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Uri
         extra:
           anyOf:
           - type: object
@@ -6134,6 +6139,7 @@ components:
       required:
       - id
       - asset_id
+      - uri
       - source_map_index
       - created_dagruns
       - timestamp
