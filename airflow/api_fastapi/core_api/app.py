@@ -20,7 +20,7 @@ import logging
 import os
 import warnings
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -34,7 +34,35 @@ from airflow.exceptions import AirflowException
 from airflow.settings import AIRFLOW_PATH
 from airflow.www.extensions.init_dagbag import get_dag_bag
 
+if TYPE_CHECKING:
+    from airflow.auth.managers.base_auth_manager import BaseAuthManager
+
 log = logging.getLogger(__name__)
+
+
+def init_auth_manager_endpoints(app: FastAPI, auth_manager: BaseAuthManager) -> None:
+    """
+    Expose the auth manager endpoints to the FastAPI application.
+
+    :param app: The FastAPI application
+    :param auth_manager: The auth manager
+    """
+    from fastapi.middleware.wsgi import WSGIMiddleware
+
+    try:
+        from airflow.providers.fab.www.app import create_app
+        from airflow.www.extensions.init_security import init_api_auth
+    except ImportError:
+        raise AirflowException(
+            "Some Airflow 2 plugins have been detected in your environment. "
+            "To run them with Airflow 3, you must install the FAB provider in your Airflow environment."
+        )
+
+    flask_app = create_app()
+    flask_app.register_blueprint(auth_manager.get_api_endpoints())
+    # must initiate authentication backends, or it will raise `Flask' object has no attribute 'api_auth'`
+    init_api_auth(flask_app)
+    app.mount("/", WSGIMiddleware(flask_app))
 
 
 def init_dag_bag(app: FastAPI) -> None:
