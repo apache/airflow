@@ -2661,9 +2661,10 @@ dag_bundles:
     Airflow will consume all options added to this section. Below you will see only the default,
     ``dags_folder``. The option name is the bundle name and the value is a json object with the following
     keys:
-      - classpath: The classpath of the bundle class
-      - kwargs: The keyword arguments to pass to the bundle class
-      - refresh_interval: The interval in seconds to refresh the bundle from its source.
+
+    * classpath: The classpath of the bundle class
+    * kwargs: The keyword arguments to pass to the bundle class
+    * refresh_interval: The interval in seconds to refresh the bundle from its source.
 
     For example, to add a new bundle named ``hello`` to my Airflow instance, add the following to your
     airflow.cfg (this is just an example, the classpath and kwargs are not real):
@@ -2682,5 +2683,5 @@ dag_bundles:
       version_added: ~
       type: string
       example: ~
-      default: |
-        {{"classpath": "airflow.dag_processing.bundles.dagfolder.DagsFolderDagBundle", "kwargs": {{}}}}
+      default: '{{"classpath": "airflow.dag_processing.bundles.dagfolder.DagsFolderDagBundle",
+               "kwargs": {{}}}}'

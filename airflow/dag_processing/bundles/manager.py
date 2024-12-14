@@ -76,6 +76,7 @@ class DagBundlesManager(LoggingMixin):
         Get all DAG bundles.
 
         :param session: A database session.
+
         :return: list of DAG bundles.
         """
         return [self.get_bundle(name, version=None) for name in self.bundle_configs.keys()]
@@ -85,7 +86,8 @@ class DagBundlesManager(LoggingMixin):
         Get a DAG bundle by name.
 
         :param name: The name of the DAG bundle.
-        :param version: The version of the DAG bundle you need (optional). If not provided, `tracking_ref` will be used instead.
+        :param version: The version of the DAG bundle you need (optional). If not provided, ``tracking_ref`` will be used instead.
+
         :return: The DAG bundle.
         """
         # TODO: proper validation of the bundle configuration so we have better error messages
