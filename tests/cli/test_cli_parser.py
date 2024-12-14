@@ -237,7 +237,7 @@ class TestCli:
         assert celery_executor_command.name in commands
         assert ecs_executor_command.name not in commands
         assert (
-            "Failed to load CLI commands from executor: airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"
+            "Failed to load CLI commands from executor: ::airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"
             in caplog.messages[0]
         )
 
@@ -265,7 +265,7 @@ class TestCli:
         commands = [command.name for command in cli_parser.airflow_commands]
         assert ecs_executor_command.name in commands
         assert (
-            "Failed to load CLI commands from executor: airflow.providers.incorrect.executor.Executor"
+            "Failed to load CLI commands from executor: ::airflow.providers.incorrect.executor.Executor"
             in caplog.messages[0]
         )
 
