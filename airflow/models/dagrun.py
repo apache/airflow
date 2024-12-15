@@ -1073,8 +1073,8 @@ class DagRun(Base, LoggingMixin):
                         # New task span will use this span as the parent.
                         continue_ti_spans = True
                     carrier = Trace.inject()
-                    self.set_context_carrier(context_carrier=carrier, session=session, with_commit=False)
-                    self.set_span_status(status=SpanStatus.ACTIVE, session=session, with_commit=False)
+                    self.context_carrier = carrier
+                    self.span_status = SpanStatus.ACTIVE
                     # Set the span in a synchronized dictionary, so that the variable can be used to end the span.
                     self.active_spans.set(self.run_id, dr_span)
                     self.log.debug(
@@ -1092,12 +1092,8 @@ class DagRun(Base, LoggingMixin):
                                     start_as_current=False,
                                 )
                                 ti_carrier = Trace.inject()
-                                ti.set_context_carrier(
-                                    context_carrier=ti_carrier, session=session, with_commit=False
-                                )
-                                ti.set_span_status(
-                                    status=SpanStatus.ACTIVE, session=session, with_commit=False
-                                )
+                                ti.context_carrier = ti_carrier
+                                ti.span_status = SpanStatus.ACTIVE
                                 self.active_spans.set(ti.key, ti_span)
                 else:
                     self.log.info(
@@ -1151,19 +1147,19 @@ class DagRun(Base, LoggingMixin):
                     active_span.end(end_time=datetime_to_nano(self.end_date))
                     # Remove the span from the dict.
                     self.active_spans.delete(self.run_id)
-                    self.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
+                    self.span_status = SpanStatus.ENDED
                 else:
                     if self.span_status == SpanStatus.ACTIVE:
                         # Another scheduler has started the span.
                         # Update the DB SpanStatus to notify the owner to end it.
-                        self.set_span_status(status=SpanStatus.SHOULD_END, session=session, with_commit=False)
+                        self.span_status = SpanStatus.SHOULD_END
                     elif self.span_status == SpanStatus.NEEDS_CONTINUANCE:
                         # This is a corner case where the scheduler exited gracefully
                         # while the dag_run was almost done.
                         # Since it reached this point, the dag has finished but there has been no time
                         # to create a new span for the current scheduler.
                         # There is no need for more spans, update the status on the db.
-                        self.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
+                        self.span_status = SpanStatus.ENDED
                     else:
                         self.log.debug(
                             "No active span has been found for dag_id: %s, run_id: %s, state: %s",
@@ -1231,123 +1227,6 @@ class DagRun(Base, LoggingMixin):
             unfinished_tis=unfinished_tis,
             finished_tis=finished_tis,
         )
-
-    @staticmethod
-    def _set_scheduled_by_job_id(dag_run: DagRun, job_id: int, session: Session, with_commit: bool) -> bool:
-        if not isinstance(dag_run, DagRun):
-            dag_run = session.scalars(
-                select(DagRun).where(
-                    DagRun.dag_id == dag_run.dag_id,
-                    DagRun.run_id == dag_run.run_id,
-                )
-            ).one()
-
-        if dag_run.scheduled_by_job_id == job_id:
-            return False
-
-        dag_run.log.debug("Setting dag_run scheduled_by_job_id for run_id: %s", dag_run.run_id)
-        dag_run.scheduled_by_job_id = job_id
-
-        session.merge(dag_run)
-
-        if with_commit:
-            session.commit()
-
-        return True
-
-    @provide_session
-    def set_scheduled_by_job_id(
-        self, job_id: int, session: Session = NEW_SESSION, with_commit: bool = False
-    ) -> bool:
-        """
-        Set DagRun scheduled_by_job_id.
-
-        :param job_id: integer with the scheduled_by_job_id to set for the dag_run
-        :param session: SQLAlchemy ORM Session
-        :param with_commit: should the scheduled_by_job_id be committed?
-        :return: has the scheduled_by_job_id been changed?
-        """
-        return self._set_scheduled_by_job_id(
-            dag_run=self, job_id=job_id, session=session, with_commit=with_commit
-        )
-
-    @staticmethod
-    def _set_context_carrier(
-        dag_run: DagRun, context_carrier: dict, session: Session, with_commit: bool
-    ) -> bool:
-        if not isinstance(dag_run, DagRun):
-            dag_run = session.scalars(
-                select(DagRun).where(
-                    DagRun.dag_id == dag_run.dag_id,
-                    DagRun.run_id == dag_run.run_id,
-                )
-            ).one()
-
-        if dag_run.context_carrier == context_carrier:
-            return False
-
-        dag_run.log.debug("Setting dag_run context_carrier for run_id: %s", dag_run.run_id)
-        dag_run.context_carrier = context_carrier
-
-        session.merge(dag_run)
-
-        if with_commit:
-            session.commit()
-
-        return True
-
-    @provide_session
-    def set_context_carrier(
-        self, context_carrier: dict, session: Session = NEW_SESSION, with_commit: bool = False
-    ) -> bool:
-        """
-        Set DagRun span context_carrier.
-
-        :param context_carrier: dict with the injected carrier to set for the dag_run
-        :param session: SQLAlchemy ORM Session
-        :param with_commit: should the carrier be committed?
-        :return: has the context_carrier been changed?
-        """
-        return self._set_context_carrier(
-            dag_run=self, context_carrier=context_carrier, session=session, with_commit=with_commit
-        )
-
-    @staticmethod
-    def _set_span_status(dag_run: DagRun, status: SpanStatus, session: Session, with_commit: bool) -> bool:
-        if not isinstance(dag_run, DagRun):
-            dag_run = session.scalars(
-                select(DagRun).where(
-                    DagRun.dag_id == dag_run.dag_id,
-                    DagRun.run_id == dag_run.run_id,
-                )
-            ).one()
-
-        if dag_run.span_status == status:
-            return False
-
-        dag_run.log.debug("Setting dag_run span_status for run_id: %s", dag_run.run_id)
-        dag_run.span_status = status
-
-        session.merge(dag_run)
-
-        if with_commit:
-            session.commit()
-
-        return True
-
-    @provide_session
-    def set_span_status(
-        self, status: SpanStatus, session: Session = NEW_SESSION, with_commit: bool = False
-    ) -> bool:
-        """
-        Set DagRun span_status.
-
-        :param status: dict with the injected carrier to set for the dag_run
-        :param session: SQLAlchemy ORM Session
-        :param with_commit: should the status be committed?
-        :return: has the span_status been changed?
-        """
-        return self._set_span_status(dag_run=self, status=status, session=session, with_commit=with_commit)
 
     def notify_dagrun_state_changed(self, msg: str = ""):
         if self.state == DagRunState.RUNNING:

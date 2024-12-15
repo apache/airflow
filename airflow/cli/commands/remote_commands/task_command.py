@@ -467,8 +467,11 @@ def task_run(args, dag: DAG | None = None) -> TaskReturnCode | None:
         log.info("Found args.carrier: %s. Setting the value on the ti instance.", args.carrier)
         # The arg value is a dict string, and it needs to be converted back to a dict.
         carrier_dict = json.loads(args.carrier)
-        ti.set_context_carrier(context_carrier=carrier_dict, with_commit=True)
-        ti.set_span_status(status=SpanStatus.ACTIVE, with_commit=True)
+        with create_session() as session:
+            ti.context_carrier = carrier_dict
+            ti.span_status = SpanStatus.ACTIVE
+            session.merge(ti)
+            session.commit()
 
     task_return_code = None
     try:

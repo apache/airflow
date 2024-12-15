@@ -845,12 +845,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # End the span and remove it from the active_spans dict.
                 active_ti_span.end(end_time=datetime_to_nano(ti.end_date))
                 cls.active_spans.delete(ti.key)
-                ti.set_span_status(status=SpanStatus.ENDED, session=session)
+                ti.span_status = SpanStatus.ENDED
             else:
                 if ti.span_status == SpanStatus.ACTIVE:
                     # Another scheduler has started the span.
                     # Update the SpanStatus to let the process know that it must end it.
-                    ti.set_span_status(status=SpanStatus.SHOULD_END, session=session)
+                    ti.span_status = SpanStatus.SHOULD_END
 
             # There are two scenarios why the same TI with the same try_number is queued
             # after executor is finished with it:
@@ -1075,12 +1075,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if ti.state in State.finished:
                     self.set_ti_span_attrs(span=span, state=ti.state, ti=ti)
                     span.end(end_time=datetime_to_nano(ti.end_date))
-                    ti.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
+                    ti.span_status = SpanStatus.ENDED
                 else:
                     span.end()
-                    ti.set_span_status(
-                        status=SpanStatus.NEEDS_CONTINUANCE, session=session, with_commit=False
-                    )
+                    ti.span_status = SpanStatus.NEEDS_CONTINUANCE
             else:
                 dag_run: DagRun = session.scalars(select(DagRun).where(DagRun.run_id == key)).one()
                 if dag_run.state in State.finished_dr_states:
@@ -1088,12 +1086,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag_run.set_dagrun_span_attrs(span=span, dagv=dagv)
 
                     span.end(end_time=datetime_to_nano(dag_run.end_date))
-                    dag_run.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
+                    dag_run.span_status = SpanStatus.ENDED
                 else:
                     span.end()
-                    dag_run.set_span_status(
-                        status=SpanStatus.NEEDS_CONTINUANCE, session=session, with_commit=False
-                    )
+                    dag_run.span_status = SpanStatus.NEEDS_CONTINUANCE
                     initial_dag_run_context = Trace.extract(dag_run.context_carrier)
                     with Trace.start_child_span(
                         span_name="current_scheduler_exited", parent_context=initial_dag_run_context
@@ -1132,7 +1128,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 else:
                     active_dagrun_span.end()
                 self.active_spans.delete(dag_run.run_id)
-                dag_run.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
+                dag_run.span_status = SpanStatus.ENDED
 
         for ti in tis_should_end:
             active_ti_span = self.active_spans.get(ti.key)
@@ -1143,7 +1139,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 else:
                     active_ti_span.end()
                 self.active_spans.delete(ti.key)
-                ti.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
+                ti.span_status = SpanStatus.ENDED
 
     def _recreate_unhealthy_scheduler_spans_if_needed(self, dag_run: DagRun, session: Session):
         # There are two scenarios:
@@ -1175,7 +1171,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 carrier = Trace.inject()
                 # Update the context_carrier and leave the SpanStatus as ACTIVE.
-                dag_run.set_context_carrier(context_carrier=carrier, session=session, with_commit=False)
+                dag_run.context_carrier = carrier
                 self.active_spans.set(dag_run.run_id, dr_span)
 
                 tis = dag_run.get_task_instances(session=session)
@@ -1198,14 +1194,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         start_as_current=False,
                     )
                     ti_carrier = Trace.inject()
-                    ti.set_context_carrier(context_carrier=ti_carrier, session=session, with_commit=False)
+                    ti.context_carrier = ti_carrier
 
                     if ti.state in State.finished:
                         self.set_ti_span_attrs(span=ti_span, state=ti.state, ti=ti)
                         ti_span.end(end_time=datetime_to_nano(ti.end_date))
-                        ti.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
+                        ti.span_status = SpanStatus.ENDED
                     else:
-                        ti.set_span_status(status=SpanStatus.ACTIVE, session=session, with_commit=False)
+                        ti.span_status = SpanStatus.ACTIVE
                         self.active_spans.set(ti.key, ti_span)
 
     def _run_scheduler_loop(self) -> None:

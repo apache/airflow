@@ -2209,84 +2209,6 @@ class TaskInstance(Base, LoggingMixin):
         """
         return self._set_state(ti=self, state=state, session=session)
 
-    @staticmethod
-    def _set_context_carrier(ti: TaskInstance, context_carrier, session: Session, with_commit: bool) -> bool:
-        if not isinstance(ti, TaskInstance):
-            ti = session.scalars(
-                select(TaskInstance).where(
-                    TaskInstance.task_id == ti.task_id,
-                    TaskInstance.dag_id == ti.dag_id,
-                    TaskInstance.run_id == ti.run_id,
-                )
-            ).one()
-
-        if ti.context_carrier == context_carrier:
-            return False
-
-        ti.log.debug("Setting task context_carrier for %s", ti.task_id)
-        ti.context_carrier = context_carrier
-
-        session.merge(ti)
-
-        if with_commit:
-            session.commit()
-
-        return True
-
-    @provide_session
-    def set_context_carrier(
-        self, context_carrier: dict, session: Session = NEW_SESSION, with_commit: bool = False
-    ) -> bool:
-        """
-        Set TaskInstance span context_carrier.
-
-        :param context_carrier: dict with the injected carrier to set for the TI
-        :param session: SQLAlchemy ORM Session
-        :param with_commit: should the carrier be committed?
-        :return: has the context_carrier been changed?
-        """
-        return self._set_context_carrier(
-            ti=self, context_carrier=context_carrier, session=session, with_commit=with_commit
-        )
-
-    @staticmethod
-    def _set_span_status(ti: TaskInstance, status: SpanStatus, session: Session, with_commit: bool) -> bool:
-        if not isinstance(ti, TaskInstance):
-            ti = session.scalars(
-                select(TaskInstance).where(
-                    TaskInstance.task_id == ti.task_id,
-                    TaskInstance.dag_id == ti.dag_id,
-                    TaskInstance.run_id == ti.run_id,
-                )
-            ).one()
-
-        if ti.span_status == status:
-            return False
-
-        ti.log.debug("Setting task span_status for %s", ti.task_id)
-        ti.span_status = status
-
-        session.merge(ti)
-
-        if with_commit:
-            session.commit()
-
-        return True
-
-    @provide_session
-    def set_span_status(
-        self, status: SpanStatus, session: Session = NEW_SESSION, with_commit: bool = False
-    ) -> bool:
-        """
-        Set TaskInstance span_status.
-
-        :param status: dict with the injected carrier to set for the TI
-        :param session: SQLAlchemy ORM Session
-        :param with_commit: should the status be committed?
-        :return: has the span_status been changed?
-        """
-        return self._set_span_status(ti=self, status=status, session=session, with_commit=with_commit)
-
     @property
     def is_premature(self) -> bool:
         """Returns whether a task is in UP_FOR_RETRY state and its retry interval has elapsed."""
@@ -3819,7 +3741,7 @@ class SimpleTaskInstance:
             if "dag_run" not in inspect(ti).unloaded
             else None,
             context_carrier=ti.context_carrier if hasattr(ti, "context_carrier") else None,
-            span_status=ti.span_status if hasattr(ti, "span_status") else None,
+            span_status=ti.span_status,
         )
 
 

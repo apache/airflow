@@ -2482,7 +2482,6 @@ class TestSchedulerJob:
         assert self.job_runner.active_spans.get(ti.key) is None
         assert ti.state == ti_state
         assert ti.span_status == SpanStatus.ACTIVE
-        assert ti.context_carrier == {}
 
         # When
         self.job_runner._recreate_unhealthy_scheduler_spans_if_needed(dr, session)
