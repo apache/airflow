@@ -36,7 +36,7 @@ type AddVariableFormProps = {
 };
 
 const AddVariableForm: React.FC<AddVariableFormProps> = ({ onClose }) => {
-  const { addVariable, error: errorAdd, isPending } = useAddVariable(onClose);
+  const { addVariable, error, isPending } = useAddVariable(onClose);
   const addVariableParams: AddVariableBody = useMemo(
     () => ({
       description: undefined,
@@ -68,7 +68,7 @@ const AddVariableForm: React.FC<AddVariableFormProps> = ({ onClose }) => {
 
   return (
     <>
-      <ErrorAlert error={errorAdd} />
+      <ErrorAlert error={error} />
       <Text fontSize="md" mb={2} mt={4}>
         Key <span style={{ color: "red" }}>*</span>
       </Text>
