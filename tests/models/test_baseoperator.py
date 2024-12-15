@@ -400,7 +400,7 @@ class TestBaseOperator:
         dag = DAG(dag_id="foo", schedule=None, start_date=datetime.now())
 
         tg1 = TaskGroup("A" * 20, dag=dag)
-        with pytest.raises(AirflowException, match="The key has to be less than 250 characters"):
+        with pytest.raises(ValueError, match="The key has to be less than 250 characters"):
             BaseOperator(task_id="1" * 250, task_group=tg1, dag=dag)
 
     def test_baseoperator_with_task_id_and_taskgroup_id_less_than_250_chars(self):
