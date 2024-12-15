@@ -1052,41 +1052,45 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @provide_session
     def _end_active_spans(self, session: Session = NEW_SESSION):
         # No need to do a commit for every update. The annotation will commit all of them once at the end.
-        for run_id, span in self.active_spans.get_all().items():
-            dag_run: DagRun = session.scalars(select(DagRun).where(DagRun.run_id == run_id)).one()
-            if dag_run.state in State.finished_dr_states:
-                dagv = session.scalar(select(DagVersion).where(DagVersion.id == dag_run.dag_version_id))
-                DagRun.set_dagrun_span_attrs(span=span, dag_run=dag_run, dagv=dagv)
-
-                span.end(end_time=datetime_to_nano(dag_run.end_date))
-                dag_run.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
-            else:
-                span.end()
-                dag_run.set_span_status(
-                    status=SpanStatus.NEEDS_CONTINUANCE, session=session, with_commit=False
-                )
-                initial_dag_run_context = Trace.extract(dag_run.context_carrier)
-                with Trace.start_child_span(
-                    span_name="current_scheduler_exited", parent_context=initial_dag_run_context
-                ) as s:
-                    s.set_attribute("trace_status", "needs continuance")
-
         for key, span in self.active_spans.get_all().items():
-            # Can't compare the key directly because the try_number or the map_index might not be the same.
-            ti: TaskInstance = session.scalars(
-                select(TaskInstance).where(
-                    TaskInstance.dag_id == key.dag_id,
-                    TaskInstance.task_id == key.task_id,
-                    TaskInstance.run_id == key.run_id,
-                )
-            ).one()
-            if ti.state in State.finished:
-                self.set_ti_span_attrs(span=span, state=ti.state, ti=ti)
-                span.end(end_time=datetime_to_nano(ti.end_date))
-                ti.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
+            from airflow.models.taskinstance import TaskInstanceKey
+
+            if isinstance(key, TaskInstanceKey):  # ti span.
+                # Can't compare the key directly because the try_number or the map_index might not be the same.
+                ti: TaskInstance = session.scalars(
+                    select(TaskInstance).where(
+                        TaskInstance.dag_id == key.dag_id,
+                        TaskInstance.task_id == key.task_id,
+                        TaskInstance.run_id == key.run_id,
+                    )
+                ).one()
+                if ti.state in State.finished:
+                    self.set_ti_span_attrs(span=span, state=ti.state, ti=ti)
+                    span.end(end_time=datetime_to_nano(ti.end_date))
+                    ti.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
+                else:
+                    span.end()
+                    ti.set_span_status(
+                        status=SpanStatus.NEEDS_CONTINUANCE, session=session, with_commit=False
+                    )
             else:
-                span.end()
-                ti.set_span_status(status=SpanStatus.NEEDS_CONTINUANCE, session=session, with_commit=False)
+                dag_run: DagRun = session.scalars(select(DagRun).where(DagRun.run_id == key)).one()
+                if dag_run.state in State.finished_dr_states:
+                    dagv = session.scalar(select(DagVersion).where(DagVersion.id == dag_run.dag_version_id))
+                    DagRun.set_dagrun_span_attrs(span=span, dag_run=dag_run, dagv=dagv)
+
+                    span.end(end_time=datetime_to_nano(dag_run.end_date))
+                    dag_run.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
+                else:
+                    span.end()
+                    dag_run.set_span_status(
+                        status=SpanStatus.NEEDS_CONTINUANCE, session=session, with_commit=False
+                    )
+                    initial_dag_run_context = Trace.extract(dag_run.context_carrier)
+                    with Trace.start_child_span(
+                        span_name="current_scheduler_exited", parent_context=initial_dag_run_context
+                    ) as s:
+                        s.set_attribute("trace_status", "needs continuance")
 
         self.active_spans.clear()
         self.active_spans.clear()
@@ -1133,8 +1137,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.active_spans.delete(ti.key)
                 ti.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
 
-    @provide_session
-    def _recreate_unhealthy_scheduler_spans_if_needed(self, dag_run: DagRun, session: Session = NEW_SESSION):
+    def _recreate_unhealthy_scheduler_spans_if_needed(self, dag_run: DagRun, session: Session):
         # There are two scenarios:
         #   1. scheduler is unhealthy but managed to update span_status
         #   2. scheduler is unhealthy and didn't manage to make any updates
