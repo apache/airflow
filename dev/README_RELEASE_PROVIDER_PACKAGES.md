@@ -36,7 +36,7 @@
   - [Build provider packages for SVN apache upload](#build-provider-packages-for-svn-apache-upload)
   - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages)
   - [Commit the source packages to Apache SVN repo](#commit-the-source-packages-to-apache-svn-repo)
-  - [Publish the Regular convenience package to PyPI](#publish-the-regular-convenience-package-to-pypi)
+  - [Prepare and publish the Regular convenience package to PyPI](#prepare-and-publish-the-regular-convenience-package-to-pypi)
   - [Add tags in git](#add-tags-in-git)
   - [Prepare documentation](#prepare-documentation)
   - [Prepare issue in GitHub to keep status of testing](#prepare-issue-in-github-to-keep-status-of-testing)
@@ -47,6 +47,7 @@
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
   - [Publish the packages to PyPI](#publish-the-packages-to-pypi)
+  - [Clean old provider artifacts in SVN](#clean-old-provider-artifacts-in-svn)
   - [Publish documentation prepared before](#publish-documentation-prepared-before)
   - [Add tags in git](#add-tags-in-git-1)
   - [Update providers metadata](#update-providers-metadata)
@@ -408,7 +409,7 @@ svn rm *
 # Move the artifacts to svn folder
 mv ${AIRFLOW_REPO_ROOT}/dist/* .
 
-# Add and commit
+# Add the artifacts and commit
 svn add *
 svn commit -m "Add artifacts for Airflow Providers $(date "+%Y-%m-%d%n")"
 
@@ -427,7 +428,7 @@ svn rm file_name  // repeate that for every file
 svn commit -m "delete old providers"
 ```
 
-## Publish the Regular convenience package to PyPI
+## Prepare and publish the Regular convenience package to PyPI
 
 In order to publish release candidate to PyPI you just need to build and release packages.
 The packages should however contain the rcN suffix in the version file name but not internally in the package,
@@ -448,26 +449,31 @@ breeze release-management prepare-provider-packages  --include-removed-providers
 If you only build few packages, run:
 
 ```shell script
-breeze release-management prepare-provider-packages \
---version-suffix-for-pypi rc1 --package-format both PACKAGE PACKAGE ....
+  breeze release-management prepare-provider-packages \
+  --version-suffix-for-pypi rc1 --package-format both PACKAGE PACKAGE ....
 ```
 
 Alternatively, if you have set the environment variable: `PACKAGE_LIST` above, just run the command:
 
 ```shell script
-breeze release-management prepare-provider-packages
+breeze release-management prepare-provider-packages --version-suffix-for-pypi rc1
 ```
 
 Or using `--package-list` argument:
 
 ```shell script
-breeze release-management prepare-provider-packages --package-list PACKAGE1,PACKAGE2
+breeze release-management prepare-provider-packages --package-list PACKAGE1,PACKAGE2 --version-suffix-for-pypi rc1
 ```
 
 In case some packages already had rc1 suffix prepared and released, and they still need to be released, they
 will have automatically appropriate rcN suffix added to them. The suffix will be increased for each release
 candidate and checked if tag has been already created for that release candidate. If yes, the suffix will be
 increased until the tag is not found.
+
+> [!NOTE]
+> We are now in a transition period where we move from manual publishing to "Trusted Publishing" to PyPI.
+> Therefore some of the steps are just for the transition period and will be removed in the future.
+> The next steps is current manual publishing process
 
 * Verify the artifacts that would be uploaded:
 
@@ -482,6 +488,37 @@ twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
 ```
 
 * Confirm that the packages are available under the links printed and look good.
+
+> [!NOTE]
+> The next steps until "Add tags in git" is part of the future Trusted Publishing process which we dry-run
+
+* Move and publish the `PyPI` packages to SVN
+
+```shell script
+# First clone the repo if you do not have it
+cd ..
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+svn update --set-depth=infinity asf-dist/dev/airflow
+
+# Create a new folder for the release.
+mkdir -p asf-dist/dev/airflow/providers/pypi-rc
+cd asf-dist/dev/airflow/providers/pypi-rc
+
+# Remove previously released providers
+svn rm *
+
+# Move the artifacts to svn folder
+mv ${AIRFLOW_REPO_ROOT}/dist/* .
+
+# Add and commit
+svn add *
+svn commit -m "Add PyPI RC artifacts for Airflow Providers $(date "+%Y-%m-%d%n")"
+
+cd ${AIRFLOW_REPO_ROOT}
+```
+
+* Run the "Publish RC Providers" Trusted Publishing workflow in the
+  [airflow-publish](https://github.com/apache/airflow-publish/actions) repository.
 
 
 ## Add tags in git
@@ -1180,13 +1217,15 @@ SOURCE_DIR="${ASF_DIST_PARENT}/asf-dist/dev/airflow/providers"
 ls ${SOURCE_DIR}/*<provider>*
 # Remove them
 svn rm ${SOURCE_DIR}/*<provider>*
+```
 
-# Create providers folder if it does not exist
-# All latest releases are kept in this one folder without version sub-folder
-cd "${ASF_DIST_PARENT}/asf-dist/release/airflow"
-mkdir -pv providers
-cd providers
+> [!NOTE]
+> This step is done in order to test the new "Trusted Publishing" workflow
 
+* Run the "Publish RC Providers" Trusted Publishing workflow in the
+  [airflow-publish](https://github.com/apache/airflow-publish/actions) repository.
+
+```bash
 # Copy your providers with the target name to dist directory and to SVN
 rm -rf "${AIRFLOW_REPO_ROOT}"/dist/*
 
@@ -1197,6 +1236,39 @@ do
  svn mv "${file}" "${base_file//rc[0-9]/}"
 done
 
+# Delete the old `pypi-rc` providers
+svn rm ${SOURCE_DIR}/pypi-rc/*
+svn commit -m "Promote RC artifacts for Airflow Providers to released $(date "+%Y-%m-%d%n")"
+```
+
+> [!NOTE]
+> The twine steps below are done only for the manual PyPI publishing
+
+## Publish the packages to PyPI
+
+By that time the packages should be in your dist folder.
+
+* Verify the artifacts that would be uploaded:
+
+```shell script
+twine check ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
+```
+
+* Upload the package to PyPi:
+
+```shell script
+twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
+```
+
+* Verify that the packages are available under the links printed.
+
+Copy links to updated packages, sort it alphabetically and save it on the side. You will need it for the announcement message.
+
+* Again, confirm that the packages are available under the links printed.
+
+## Clean old provider artifacts in SVN
+
+```bash
 # Check which old packages will be removed using dry run
 breeze release-management clean-old-provider-artifacts --directory $(pwd -P) --dry-run
 
@@ -1233,37 +1305,6 @@ If you had this issue you will need also to make adjustments in the next step to
 This is simply by removing the relevant files locally.
 
 
-## Publish the packages to PyPI
-
-By that time the packages should be in your dist folder.
-
-```shell script
-cd ${AIRFLOW_REPO_ROOT}
-git checkout <ONE_OF_THE_RC_TAGS_FOR_ONE_OF_THE_RELEASED_PROVIDERS>
-```
-
-example `git checkout providers-amazon/7.0.0rc2`
-
-Note you probably will see message `You are in 'detached HEAD' state.`
-This is expected, the RC tag is most likely behind the main branch.
-
-* Verify the artifacts that would be uploaded:
-
-```shell script
-twine check ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
-```
-
-* Upload the package to PyPi:
-
-```shell script
-twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
-```
-
-* Verify that the packages are available under the links printed.
-
-Copy links to updated packages, sort it alphabetically and save it on the side. You will need it for the announcement message.
-
-* Again, confirm that the packages are available under the links printed.
 
 ## Publish documentation prepared before
 
