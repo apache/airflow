@@ -34,7 +34,6 @@ from sqlalchemy import (
     Column,
     String,
 )
-from sqlalchemy.exc import OperationalError
 from tabulate import tabulate
 
 from airflow import settings
@@ -50,7 +49,6 @@ from airflow.exceptions import (
 )
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base
-from airflow.models.dagcode import DagCode
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
@@ -62,7 +60,6 @@ from airflow.utils.file import (
     might_contain_dag,
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.timeout import timeout
 from airflow.utils.types import NOTSET
@@ -72,6 +69,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.dag import DAG
+    from airflow.models.dagwarning import DagWarning
     from airflow.utils.types import ArgNotSet
 
 
@@ -117,6 +115,7 @@ class DagBag(LoggingMixin):
         de-serializing the DAG? This flag is set to False in Scheduler so that Extra Operator links
         are not loaded to not run User code in Scheduler.
     :param collect_dags: when True, collects dags during class initialization.
+    :param known_pools: If not none, then generate warnings if a Task attempts to use an unknown pool.
     """
 
     def __init__(
@@ -127,9 +126,8 @@ class DagBag(LoggingMixin):
         read_dags_from_db: bool = False,
         load_op_links: bool = True,
         collect_dags: bool = True,
+        known_pools: set[str] | None = None,
     ):
-        # Avoid circular import
-
         super().__init__()
 
         include_examples = (
@@ -154,6 +152,8 @@ class DagBag(LoggingMixin):
         self.dags_last_fetched: dict[str, datetime] = {}
         # Only used by SchedulerJob to compare the dag_hash to identify change in DAGs
         self.dags_hash: dict[str, str] = {}
+
+        self.known_pools = known_pools
 
         self.dagbag_import_error_tracebacks = conf.getboolean("core", "dagbag_import_error_tracebacks")
         self.dagbag_import_error_traceback_depth = conf.getint("core", "dagbag_import_error_traceback_depth")
@@ -327,6 +327,35 @@ class DagBag(LoggingMixin):
 
         self.file_last_changed[filepath] = file_last_changed_on_disk
         return found_dags
+
+    @property
+    def dag_warnings(self) -> set[DagWarning]:
+        """Get the set of DagWarnings for the bagged dags."""
+        from airflow.models.dagwarning import DagWarning, DagWarningType
+
+        # None means this feature is not enabled. Empty set means we don't know about any pools at all!
+        if self.known_pools is None:
+            return set()
+
+        def get_pools(dag) -> dict[str, set[str]]:
+            return {dag.dag_id: {task.pool for task in dag.tasks}}
+
+        pool_dict: dict[str, set[str]] = {}
+        for dag in self.dags.values():
+            pool_dict.update(get_pools(dag))
+
+        warnings: set[DagWarning] = set()
+        for dag_id, dag_pools in pool_dict.items():
+            nonexistent_pools = dag_pools - self.known_pools
+            if nonexistent_pools:
+                warnings.add(
+                    DagWarning(
+                        dag_id,
+                        DagWarningType.NONEXISTENT_POOL,
+                        f"Dag '{dag_id}' references non-existent pools: {sorted(nonexistent_pools)!r}",
+                    )
+                )
+        return warnings
 
     def _load_modules_from_file(self, filepath, safe_mode):
         from airflow.sdk.definitions.contextmanager import DagContext
@@ -596,95 +625,18 @@ class DagBag(LoggingMixin):
         )
         return report
 
-    @classmethod
-    @provide_session
-    def _sync_to_db(
-        cls,
-        dags: dict[str, DAG],
-        processor_subdir: str | None = None,
-        session: Session = NEW_SESSION,
-    ):
-        """Save attributes about list of DAG to the DB."""
-        # To avoid circular import - airflow.models.dagbag -> airflow.models.dag -> airflow.models.dagbag
-        from airflow.models.dag import DAG
-        from airflow.models.serialized_dag import SerializedDagModel
-
-        log = cls.logger()
-
-        def _serialize_dag_capturing_errors(dag, session, processor_subdir):
-            """
-            Try to serialize the dag to the DB, but make a note of any errors.
-
-            We can't place them directly in import_errors, as this may be retried, and work the next time
-            """
-            try:
-                # We can't use bulk_write_to_db as we want to capture each error individually
-                dag_was_updated = SerializedDagModel.write_dag(
-                    dag,
-                    min_update_interval=settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
-                    session=session,
-                    processor_subdir=processor_subdir,
-                )
-                if dag_was_updated:
-                    DagBag._sync_perm_for_dag(dag, session=session)
-                else:
-                    # Check and update DagCode
-                    DagCode.update_source_code(dag)
-                return []
-            except OperationalError:
-                raise
-            except Exception:
-                log.exception("Failed to write serialized DAG: %s", dag.fileloc)
-                dagbag_import_error_traceback_depth = conf.getint(
-                    "core", "dagbag_import_error_traceback_depth"
-                )
-                return [(dag.fileloc, traceback.format_exc(limit=-dagbag_import_error_traceback_depth))]
-
-        # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
-        # of any Operational Errors
-        # In case of failures, provide_session handles rollback
-        import_errors = {}
-        for attempt in run_with_db_retries(logger=log):
-            with attempt:
-                serialize_errors = []
-                log.debug(
-                    "Running dagbag.sync_to_db with retries. Try %d of %d",
-                    attempt.retry_state.attempt_number,
-                    MAX_DB_RETRIES,
-                )
-                log.debug("Calling the DAG.bulk_sync_to_db method")
-                try:
-                    DAG.bulk_write_to_db(dags.values(), processor_subdir=processor_subdir, session=session)
-                    # Write Serialized DAGs to DB, capturing errors
-                    for dag in dags.values():
-                        serialize_errors.extend(
-                            _serialize_dag_capturing_errors(dag, session, processor_subdir)
-                        )
-                except OperationalError:
-                    session.rollback()
-                    raise
-                # Only now we are "complete" do we update import_errors - don't want to record errors from
-                # previous failed attempts
-                import_errors.update(dict(serialize_errors))
-
-        return import_errors
-
     @provide_session
     def sync_to_db(self, processor_subdir: str | None = None, session: Session = NEW_SESSION):
-        import_errors = DagBag._sync_to_db(dags=self.dags, processor_subdir=processor_subdir, session=session)
-        self.import_errors.update(import_errors)
+        """Save attributes about list of DAG to the DB."""
+        from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 
-    @classmethod
-    @provide_session
-    def _sync_perm_for_dag(cls, dag: DAG, session: Session = NEW_SESSION):
-        """Sync DAG specific permissions."""
-        dag_id = dag.dag_id
-
-        cls.logger().debug("Syncing DAG permissions: %s to the DB", dag_id)
-        from airflow.www.security_appless import ApplessAirflowSecurityManager
-
-        security_manager = ApplessAirflowSecurityManager(session=session)
-        security_manager.sync_perm_for_dag(dag_id, dag.access_control)
+        update_dag_parsing_results_in_db(
+            self.dags.values(),
+            self.import_errors,
+            processor_subdir,
+            self.dag_warnings,
+            session=session,
+        )
 
 
 def generate_md5_hash(context):

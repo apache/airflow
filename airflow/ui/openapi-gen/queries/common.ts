@@ -137,6 +137,8 @@ export const UseAssetServiceGetAssetEventsKeyFn = (
     sourceMapIndex,
     sourceRunId,
     sourceTaskId,
+    timestampGte,
+    timestampLte,
   }: {
     assetId?: number;
     limit?: number;
@@ -146,6 +148,8 @@ export const UseAssetServiceGetAssetEventsKeyFn = (
     sourceMapIndex?: number;
     sourceRunId?: string;
     sourceTaskId?: string;
+    timestampGte?: string;
+    timestampLte?: string;
   } = {},
   queryKey?: Array<unknown>,
 ) => [
@@ -160,6 +164,8 @@ export const UseAssetServiceGetAssetEventsKeyFn = (
       sourceMapIndex,
       sourceRunId,
       sourceTaskId,
+      timestampGte,
+      timestampLte,
     },
   ]),
 ];
@@ -387,11 +393,13 @@ export const useStructureServiceStructureDataKey =
 export const UseStructureServiceStructureDataKeyFn = (
   {
     dagId,
+    externalDependencies,
     includeDownstream,
     includeUpstream,
     root,
   }: {
     dagId: string;
+    externalDependencies?: boolean;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
     root?: string;
@@ -399,7 +407,9 @@ export const UseStructureServiceStructureDataKeyFn = (
   queryKey?: Array<unknown>,
 ) => [
   useStructureServiceStructureDataKey,
-  ...(queryKey ?? [{ dagId, includeDownstream, includeUpstream, root }]),
+  ...(queryKey ?? [
+    { dagId, externalDependencies, includeDownstream, includeUpstream, root },
+  ]),
 ];
 export type BackfillServiceListBackfillsDefaultResponse = Awaited<
   ReturnType<typeof BackfillService.listBackfills>

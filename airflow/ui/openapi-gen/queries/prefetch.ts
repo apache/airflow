@@ -167,6 +167,8 @@ export const prefetchUseAssetServiceGetAssetAlias = (
  * @param data.sourceTaskId
  * @param data.sourceRunId
  * @param data.sourceMapIndex
+ * @param data.timestampGte
+ * @param data.timestampLte
  * @returns AssetEventCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -181,6 +183,8 @@ export const prefetchUseAssetServiceGetAssetEvents = (
     sourceMapIndex,
     sourceRunId,
     sourceTaskId,
+    timestampGte,
+    timestampLte,
   }: {
     assetId?: number;
     limit?: number;
@@ -190,6 +194,8 @@ export const prefetchUseAssetServiceGetAssetEvents = (
     sourceMapIndex?: number;
     sourceRunId?: string;
     sourceTaskId?: string;
+    timestampGte?: string;
+    timestampLte?: string;
   } = {},
 ) =>
   queryClient.prefetchQuery({
@@ -202,6 +208,8 @@ export const prefetchUseAssetServiceGetAssetEvents = (
       sourceMapIndex,
       sourceRunId,
       sourceTaskId,
+      timestampGte,
+      timestampLte,
     }),
     queryFn: () =>
       AssetService.getAssetEvents({
@@ -213,6 +221,8 @@ export const prefetchUseAssetServiceGetAssetEvents = (
         sourceMapIndex,
         sourceRunId,
         sourceTaskId,
+        timestampGte,
+        timestampLte,
       }),
   });
 /**
@@ -489,6 +499,7 @@ export const prefetchUseDashboardServiceHistoricalMetrics = (
  * @param data.root
  * @param data.includeUpstream
  * @param data.includeDownstream
+ * @param data.externalDependencies
  * @returns StructureDataResponse Successful Response
  * @throws ApiError
  */
@@ -496,11 +507,13 @@ export const prefetchUseStructureServiceStructureData = (
   queryClient: QueryClient,
   {
     dagId,
+    externalDependencies,
     includeDownstream,
     includeUpstream,
     root,
   }: {
     dagId: string;
+    externalDependencies?: boolean;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
     root?: string;
@@ -509,6 +522,7 @@ export const prefetchUseStructureServiceStructureData = (
   queryClient.prefetchQuery({
     queryKey: Common.UseStructureServiceStructureDataKeyFn({
       dagId,
+      externalDependencies,
       includeDownstream,
       includeUpstream,
       root,
@@ -516,6 +530,7 @@ export const prefetchUseStructureServiceStructureData = (
     queryFn: () =>
       StructureService.structureData({
         dagId,
+        externalDependencies,
         includeDownstream,
         includeUpstream,
         root,

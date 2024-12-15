@@ -2281,7 +2281,7 @@ class DagModel(Base):
             # we may be dealing with old version.  In that case,
             # just wait for the dag to be reserialized.
             try:
-                return cond.evaluate(statuses)
+                return cond.evaluate(statuses, session=session)
             except AttributeError:
                 log.warning("dag '%s' has old serialization; skipping DAG run creation.", dag_id)
                 return None

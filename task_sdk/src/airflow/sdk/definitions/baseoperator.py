@@ -732,7 +732,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 f"Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). "
                 f"Invalid arguments were:\n**kwargs: {kwargs}",
             )
-        validate_key(task_id)
+        validate_key(self.task_id)
 
         self.owner = owner
         self.email = email
