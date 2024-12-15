@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-10T22:35:51.552778
+# This constraints file was automatically generated on 2024-12-15T06:34:01.873618
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -54,7 +54,7 @@ bcrypt==4.2.1
 blinker==1.8.2
 botocore==1.35.36
 cachelib==0.9.0
-certifi==2024.8.30
+certifi==2024.12.14
 cffi==1.17.1
 cgroupspy==0.2.3
 charset-normalizer==3.4.0
@@ -74,7 +74,7 @@ dnspython==2.6.1
 docopt==0.6.2
 email_validator==2.2.0
 eval_type_backport==0.2.0
-eventlet==0.38.1
+eventlet==0.38.2
 exceptiongroup==1.2.2
 fastavro==1.9.7
 filelock==3.16.1
@@ -118,15 +118,15 @@ methodtools==0.4.7
 more-itertools==10.5.0
 multidict==6.1.0
 numpy==1.24.4
-opentelemetry-api==1.28.2
-opentelemetry-exporter-otlp-proto-common==1.28.2
-opentelemetry-exporter-otlp-proto-grpc==1.28.2
-opentelemetry-exporter-otlp-proto-http==1.28.2
-opentelemetry-exporter-otlp==1.28.2
-opentelemetry-exporter-prometheus==0.49b2
-opentelemetry-proto==1.28.2
-opentelemetry-sdk==1.28.2
-opentelemetry-semantic-conventions==0.49b2
+opentelemetry-api==1.29.0
+opentelemetry-exporter-otlp-proto-common==1.29.0
+opentelemetry-exporter-otlp-proto-grpc==1.29.0
+opentelemetry-exporter-otlp-proto-http==1.29.0
+opentelemetry-exporter-otlp==1.29.0
+opentelemetry-exporter-prometheus==0.50b0
+opentelemetry-proto==1.29.0
+opentelemetry-sdk==1.29.0
+opentelemetry-semantic-conventions==0.50b0
 ordered-set==4.1.0
 packaging==24.2
 pandas==2.0.3
@@ -181,7 +181,7 @@ time-machine==2.15.0
 typing_extensions==4.12.2
 tzdata==2024.2
 uc-micro-py==1.0.3
-universal_pathlib==0.2.5
+universal_pathlib==0.2.6
 urllib3==1.26.20
 uv==0.4.29
 vine==5.1.0
