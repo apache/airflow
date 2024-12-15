@@ -860,9 +860,8 @@ class DagRun(Base, LoggingMixin):
         leaf_tis = {ti for ti in tis if ti.task_id in leaf_task_ids if ti.state != TaskInstanceState.REMOVED}
         return leaf_tis
 
-    @staticmethod
-    def set_dagrun_span_attrs(span: Span | EmptySpan, dag_run: DagRun, dagv: DagVersion):
-        if dag_run._state == DagRunState.FAILED:
+    def set_dagrun_span_attrs(self, span: Span | EmptySpan, dagv: DagVersion):
+        if self._state == DagRunState.FAILED:
             span.set_attribute("airflow.dag_run.error", True)
 
         attribute_value_type = Union[
@@ -879,29 +878,27 @@ class DagRun(Base, LoggingMixin):
         # Explicitly set the value type to Union[...] to avoid a mypy error.
         attributes: dict[str, attribute_value_type] = {
             "airflow.category": "DAG runs",
-            "airflow.dag_run.dag_id": str(dag_run.dag_id),
-            "airflow.dag_run.logical_date": str(dag_run.logical_date),
-            "airflow.dag_run.run_id": str(dag_run.run_id),
-            "airflow.dag_run.queued_at": str(dag_run.queued_at),
-            "airflow.dag_run.run_start_date": str(dag_run.start_date),
-            "airflow.dag_run.run_end_date": str(dag_run.end_date),
+            "airflow.dag_run.dag_id": str(self.dag_id),
+            "airflow.dag_run.logical_date": str(self.logical_date),
+            "airflow.dag_run.run_id": str(self.run_id),
+            "airflow.dag_run.queued_at": str(self.queued_at),
+            "airflow.dag_run.run_start_date": str(self.start_date),
+            "airflow.dag_run.run_end_date": str(self.end_date),
             "airflow.dag_run.run_duration": str(
-                (dag_run.end_date - dag_run.start_date).total_seconds()
-                if dag_run.start_date and dag_run.end_date
-                else 0
+                (self.end_date - self.start_date).total_seconds() if self.start_date and self.end_date else 0
             ),
-            "airflow.dag_run.state": str(dag_run._state),
-            "airflow.dag_run.external_trigger": str(dag_run.external_trigger),
-            "airflow.dag_run.run_type": str(dag_run.run_type),
-            "airflow.dag_run.data_interval_start": str(dag_run.data_interval_start),
-            "airflow.dag_run.data_interval_end": str(dag_run.data_interval_end),
+            "airflow.dag_run.state": str(self._state),
+            "airflow.dag_run.external_trigger": str(self.external_trigger),
+            "airflow.dag_run.run_type": str(self.run_type),
+            "airflow.dag_run.data_interval_start": str(self.data_interval_start),
+            "airflow.dag_run.data_interval_end": str(self.data_interval_end),
             "airflow.dag_version.version": str(dagv.version if dagv else None),
-            "airflow.dag_run.conf": str(dag_run.conf),
+            "airflow.dag_run.conf": str(self.conf),
         }
         if span.is_recording():
-            span.add_event(name="airflow.dag_run.queued", timestamp=datetime_to_nano(dag_run.queued_at))
-            span.add_event(name="airflow.dag_run.started", timestamp=datetime_to_nano(dag_run.start_date))
-            span.add_event(name="airflow.dag_run.ended", timestamp=datetime_to_nano(dag_run.end_date))
+            span.add_event(name="airflow.dag_run.queued", timestamp=datetime_to_nano(self.queued_at))
+            span.add_event(name="airflow.dag_run.started", timestamp=datetime_to_nano(self.start_date))
+            span.add_event(name="airflow.dag_run.ended", timestamp=datetime_to_nano(self.end_date))
         span.set_attributes(attributes)
 
     @provide_session
@@ -1150,7 +1147,7 @@ class DagRun(Base, LoggingMixin):
                         self.state,
                     )
 
-                    self.set_dagrun_span_attrs(span=active_span, dag_run=self, dagv=dagv)
+                    self.set_dagrun_span_attrs(span=active_span, dagv=dagv)
                     active_span.end(end_time=datetime_to_nano(self.end_date))
                     # Remove the span from the dict.
                     self.active_spans.delete(self.run_id)
