@@ -37,6 +37,7 @@ export const HistoricalMetrics = () => {
     now.subtract(Number(defaultHour), "hour").toISOString(),
   );
   const [endDate, setEndDate] = useState(now.toISOString());
+  const [assetSortBy, setAssetSortBy] = useState("-timestamp");
 
   const { data, error, isLoading } = useDashboardServiceHistoricalMetrics({
     endDate,
@@ -85,7 +86,12 @@ export const HistoricalMetrics = () => {
             )}
           </GridItem>
           <GridItem colSpan={{ base: 3 }}>
-            <AssetEvents endDate={endDate} startDate={startDate} />
+            <AssetEvents
+              assetSortBy={assetSortBy}
+              endDate={endDate}
+              setAssetSortBy={setAssetSortBy}
+              startDate={startDate}
+            />
           </GridItem>
         </SimpleGrid>
       </VStack>
