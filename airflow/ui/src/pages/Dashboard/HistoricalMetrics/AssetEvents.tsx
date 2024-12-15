@@ -19,39 +19,80 @@
 import {
   Box,
   Heading,
+  Flex,
   HStack,
   VStack,
   StackSeparator,
   Skeleton,
 } from "@chakra-ui/react";
+import { createListCollection } from "@chakra-ui/react/collection";
 
 import { useAssetServiceGetAssetEvents } from "openapi/queries";
 import { MetricsBadge } from "src/components/MetricsBadge";
+import { Select } from "src/components/ui";
 
 import { AssetEvent } from "./AssetEvent";
 
 type AssetEventProps = {
+  readonly assetSortBy: string;
   readonly endDate: string;
+  readonly setAssetSortBy: React.Dispatch<React.SetStateAction<string>>;
   readonly startDate: string;
 };
 
-export const AssetEvents = ({ endDate, startDate }: AssetEventProps) => {
+export const AssetEvents = ({
+  assetSortBy,
+  endDate,
+  setAssetSortBy,
+  startDate,
+}: AssetEventProps) => {
   const { data, isLoading } = useAssetServiceGetAssetEvents({
-    limit: 5,
-    orderBy: "-timestamp", // Make it sortable from UI
+    limit: 6,
+    orderBy: assetSortBy,
     timestampGte: startDate,
     timestampLte: endDate,
   });
 
+  const assetSortOptions = createListCollection({
+    items: [
+      { label: "Newest first", value: "-timestamp" },
+      { label: "Oldest first", value: "timestamp" },
+    ],
+  });
+
   return (
     <Box borderWidth={1} ml={2} pb={2}>
-      <HStack mt={0} p={3}>
-        <MetricsBadge
-          backgroundColor="blue.solid"
-          runs={isLoading ? 0 : data?.total_entries}
-        />
-        <Heading size="md">Asset Events</Heading>
-      </HStack>
+      <Flex justify="space-between" mt={0} p={3}>
+        <HStack>
+          <MetricsBadge
+            backgroundColor="blue.solid"
+            runs={isLoading ? 0 : data?.total_entries}
+          />
+          <Heading marginEnd="auto" size="md">
+            Asset Events
+          </Heading>
+        </HStack>
+        <Select.Root
+          collection={assetSortOptions}
+          data-testid="asset-sort-duration"
+          defaultValue={["-timestamp"]}
+          onValueChange={(option) => setAssetSortBy(option.value[0] as string)}
+          variant="outline" // Flushed seems to be right option to remove border but is not valid as per typescript
+          width={130}
+        >
+          <Select.Trigger>
+            <Select.ValueText placeholder="Sort by" />
+          </Select.Trigger>
+
+          <Select.Content>
+            {assetSortOptions.items.map((option) => (
+              <Select.Item item={option} key={option.value[0]}>
+                {option.label}
+              </Select.Item>
+            ))}
+          </Select.Content>
+        </Select.Root>
+      </Flex>
       {isLoading ? (
         <VStack px={3} separator={<StackSeparator />}>
           {Array.from({ length: 5 }, (_, index) => index).map((index) => (
