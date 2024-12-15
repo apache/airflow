@@ -988,6 +988,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             execute_start_time = timezone.utcnow()
 
+            # local import due to type_checking.
+            from airflow.executors.base_executor import BaseExecutor
+
+            # Pass a reference to the dictionary.
+            # Any changes made by a dag_run instance, will be reflected to the dictionary of this class.
+            DagRun.set_active_spans(active_spans=self.active_spans)
+            BaseExecutor.set_active_spans(active_spans=self.active_spans)
+
             self._run_scheduler_loop()
 
             if self.processor_agent:
@@ -1283,15 +1291,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # is finished to avoid concurrent access to the DB.
                     self.log.debug("Waiting for processors to finish since we're using sqlite")
                     self.processor_agent.wait_until_finished()
-
-                # Pass a reference to the dictionary.
-                # Any changes made by a dag_run instance, will be reflected to the dictionary of this class.
-                DagRun.set_active_spans(active_spans=self.active_spans)
-
-                # local import due to type_checking.
-                from airflow.executors.base_executor import BaseExecutor
-
-                BaseExecutor.set_active_spans(active_spans=self.active_spans)
 
                 with create_session() as session:
                     self._end_spans_of_externally_ended_ops(session)
