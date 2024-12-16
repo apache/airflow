@@ -1011,7 +1011,7 @@ class TestSchedulerServiceAccount:
         assert jmespath.search("automountServiceAccountToken", docs[0]) is default_automount_service_account
 
     @pytest.mark.parametrize(
-        "executor, automount_service_account, shoud_automount_service_account",
+        "executor, automount_service_account, should_automount_service_account",
         [
             ("LocalExecutor", True, None),
             ("CeleryExecutor", False, False),
@@ -1021,7 +1021,7 @@ class TestSchedulerServiceAccount:
         ],
     )
     def test_overridden_automount_service_account_token(
-        self, executor, automount_service_account, shoud_automount_service_account
+        self, executor, automount_service_account, should_automount_service_account
     ):
         docs = render_chart(
             values={
@@ -1035,7 +1035,7 @@ class TestSchedulerServiceAccount:
             },
             show_only=["templates/scheduler/scheduler-serviceaccount.yaml"],
         )
-        assert jmespath.search("automountServiceAccountToken", docs[0]) is shoud_automount_service_account
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is should_automount_service_account
 
 
 class TestSchedulerCreation:
