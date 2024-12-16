@@ -71,6 +71,9 @@ class AssetUniqueKey:
     def to_asset(self) -> Asset:
         return Asset(name=self.name, uri=self.uri)
 
+    def to_tuple(self) -> tuple[str, str]:
+        return (self.name, self.uri)
+
 
 @attrs.define(frozen=True)
 class AssetAliasUniqueKey:

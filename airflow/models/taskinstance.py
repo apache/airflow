@@ -79,6 +79,8 @@ from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
+    AirflowInactiveAssetAddedToAssetAliasException,
+    AirflowInactiveAssetInInletOrOutletException,
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
@@ -2750,25 +2752,22 @@ class TaskInstance(Base, LoggingMixin):
                     frozen_extra = frozenset(asset_alias_event.extra.items())
                     asset_alias_names[(asset_unique_key, frozen_extra)].add(asset_alias_name)
 
-        assets_name_uri = {(key.name, key.uri) for key, _ in asset_alias_names.keys()}
+        asset_unique_keys = {key for key, _ in asset_alias_names}
         asset_models: dict[AssetUniqueKey, AssetModel] = {
             AssetUniqueKey.from_asset(asset_obj): asset_obj
             for asset_obj in session.scalars(
-                select(AssetModel).where(tuple_(AssetModel.name, AssetModel.uri).in_(assets_name_uri))
+                select(AssetModel).where(
+                    tuple_(AssetModel.name, AssetModel.uri).in_(key.to_tuple() for key in asset_unique_keys)
+                )
             )
         }
-        inactive_assets_name_uri = TaskInstance._get_inactive_assets(
-            assets_name_uri={
-                (name, uri) for name, uri in assets_name_uri if AssetUniqueKey(name, uri) in asset_models
-            },
+        inactive_asset_unique_keys = TaskInstance._get_inactive_asset_unique_keys(
+            asset_unique_keys={key for key in asset_unique_keys if key in asset_models},
             session=session,
         )
-        if inactive_assets_name_uri:
-            error_msg = "The following assets accessed by an AssetAlias are inactive: "
-            error_msg += ", ".join(
-                f'Asset(name="{name}", uri="{uri}")' for name, uri in inactive_assets_name_uri
-            )
-            raise AirflowExecuteWithInactiveAssetExecption(error_msg)
+        if inactive_asset_unique_keys:
+            raise AirflowInactiveAssetAddedToAssetAliasException(inactive_asset_unique_keys)
+
         if missing_assets := [
             asset_unique_key.to_asset()
             for asset_unique_key, _ in asset_alias_names
@@ -3656,29 +3655,30 @@ class TaskInstance(Base, LoggingMixin):
         if not self.task or not (self.task.outlets or self.task.inlets):
             return
 
-        all_assets_name_uri: set[tuple[str, str]] = {
-            (inlet_or_outlet.name, inlet_or_outlet.uri)
+        all_asset_unique_keys = {
+            AssetUniqueKey.from_asset(inlet_or_outlet)
             for inlet_or_outlet in itertools.chain(self.task.inlets, self.task.outlets)
             if isinstance(inlet_or_outlet, Asset)
         }
-        inactive_assets_name_uri = self._get_inactive_assets(all_assets_name_uri, session)
-        if inactive_assets_name_uri:
-            error_msg = "Task has the following inactive assets in its inlets or outlets: "
-            error_msg += ", ".join(
-                f'Asset(name="{name}", uri="{uri}")' for name, uri in inactive_assets_name_uri
-            )
-            raise AirflowExecuteWithInactiveAssetExecption(error_msg)
+        inactive_asset_unique_keys = self._get_inactive_asset_unique_keys(all_asset_unique_keys, session)
+        if inactive_asset_unique_keys:
+            raise AirflowInactiveAssetInInletOrOutletException(inactive_asset_unique_keys)
 
     @staticmethod
-    def _get_inactive_assets(assets_name_uri: set[tuple[str, str]], session: Session) -> set[tuple[str, str]]:
-        active_assets_name_uri = set(
-            session.execute(
+    def _get_inactive_asset_unique_keys(
+        asset_unique_keys: set[AssetUniqueKey], session: Session
+    ) -> set[AssetUniqueKey]:
+        active_asset_unique_keys = {
+            AssetUniqueKey(name, uri)
+            for name, uri in session.execute(
                 select(AssetActive.name, AssetActive.uri).where(
-                    tuple_in_condition((AssetActive.name, AssetActive.uri), assets_name_uri)
+                    tuple_in_condition(
+                        (AssetActive.name, AssetActive.uri), [key.to_tuple() for key in asset_unique_keys]
+                    )
                 )
             )
-        )
-        return assets_name_uri - active_assets_name_uri
+        }
+        return asset_unique_keys - active_asset_unique_keys
 
 
 def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> MappedTaskGroup | None:
