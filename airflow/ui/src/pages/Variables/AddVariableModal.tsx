@@ -19,7 +19,7 @@
 import { Heading, useDisclosure } from "@chakra-ui/react";
 import { FiPlusCircle } from "react-icons/fi";
 
-import { Button, Dialog } from "src/components/ui";
+import { Button, Dialog, Toaster } from "src/components/ui";
 
 import AddVariableForm from "./AddVariableForm";
 
@@ -28,6 +28,7 @@ const AddVariableModal: React.FC = () => {
 
   return (
     <>
+      <Toaster />
       <Button colorPalette="blue" onClick={onOpen}>
         <FiPlusCircle /> Add Variable
       </Button>
