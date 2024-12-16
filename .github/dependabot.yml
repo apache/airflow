@@ -21,6 +21,7 @@ updates:
     directories:
       - "/clients/python"
       - "/docker_tests"
+      - "/task_sdk"
       - "/"
     schedule:
       interval: "daily"
