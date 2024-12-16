@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Input, Spacer, Text } from "@chakra-ui/react";
+import { Box, HStack, Input, Spacer, Text, Textarea } from "@chakra-ui/react";
 import { useEffect, useMemo } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { FiSave } from "react-icons/fi";
@@ -26,7 +26,7 @@ import { Button } from "src/components/ui";
 import { useAddVariable } from "src/queries/useAddVariable";
 
 export type AddVariableBody = {
-  description: string;
+  description: string | undefined;
   key: string;
   value: string;
 };
@@ -84,7 +84,7 @@ const AddVariableForm: React.FC<AddVariableFormProps> = ({ onClose }) => {
       <Controller
         control={control}
         name="value"
-        render={({ field }) => <Input {...field} required size="sm" />}
+        render={({ field }) => <Textarea {...field} required size="sm" />}
       />
 
       <Text fontSize="md" mb={2} mt={4}>
@@ -93,7 +93,7 @@ const AddVariableForm: React.FC<AddVariableFormProps> = ({ onClose }) => {
       <Controller
         control={control}
         name="description"
-        render={({ field }) => <Input {...field} required size="sm" />}
+        render={({ field }) => <Textarea {...field} size="sm" />}
       />
       <Box as="footer" display="flex" justifyContent="flex-end" mt={8}>
         <HStack w="full">
