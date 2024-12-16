@@ -25,19 +25,21 @@ from typing import TYPE_CHECKING
 import sqlalchemy_jsonfield
 from sqlalchemy import (
     Column,
-    ForeignKeyConstraint,
+    ForeignKey,
     Integer,
     PrimaryKeyConstraint,
+    String,
     delete,
     exists,
     select,
     text,
 )
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
 
 from airflow.configuration import conf
-from airflow.models.base import StringID, TaskInstanceDependencies
+from airflow.models.base import COLLATION_ARGS, StringID, TaskInstanceDependencies
 from airflow.serialization.helpers import serialize_template_field
 from airflow.settings import json
 from airflow.utils.retries import retry_db_transaction
@@ -69,6 +71,13 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
     __tablename__ = "rendered_task_instance_fields"
 
+    ti_id = Column(
+        String(36, **COLLATION_ARGS).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+        ForeignKey("task_instance.id", name="rtif_ti_fkey", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    # TODO: Add primary key constraint to ti_id
     dag_id = Column(StringID(), primary_key=True)
     task_id = Column(StringID(), primary_key=True)
     run_id = Column(StringID(), primary_key=True)
@@ -83,17 +92,6 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
             "run_id",
             "map_index",
             name="rendered_task_instance_fields_pkey",
-        ),
-        ForeignKeyConstraint(
-            [dag_id, task_id, run_id, map_index],
-            [
-                "task_instance.dag_id",
-                "task_instance.task_id",
-                "task_instance.run_id",
-                "task_instance.map_index",
-            ],
-            name="rtif_ti_fkey",
-            ondelete="CASCADE",
         ),
     )
     task_instance = relationship(

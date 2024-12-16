@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, cast
 from sqlalchemy import (
     JSON,
     Column,
-    ForeignKeyConstraint,
+    ForeignKey,
     Index,
     Integer,
     PrimaryKeyConstraint,
@@ -71,6 +71,15 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
 
     __tablename__ = "xcom"
 
+    ti_id = Column(
+        String(36, **COLLATION_ARGS).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+        ForeignKey(
+            "task_instance.id",
+            name="xcom_task_instance_fkey",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+    )
     dag_run_id = Column(Integer(), nullable=False, primary_key=True)
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False, primary_key=True)
     map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
@@ -90,17 +99,6 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         Index("idx_xcom_key", key),
         Index("idx_xcom_task_instance", dag_id, task_id, run_id, map_index),
         PrimaryKeyConstraint("dag_run_id", "task_id", "map_index", "key", name="xcom_pkey"),
-        ForeignKeyConstraint(
-            [dag_id, task_id, run_id, map_index],
-            [
-                "task_instance.dag_id",
-                "task_instance.task_id",
-                "task_instance.run_id",
-                "task_instance.map_index",
-            ],
-            name="xcom_task_instance_fkey",
-            ondelete="CASCADE",
-        ),
     )
 
     dag_run = relationship(
@@ -133,6 +131,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         key: str,
         value: Any,
         *,
+        ti_id: str,
         dag_id: str,
         task_id: str,
         run_id: str,
@@ -202,6 +201,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
             )
         )
         new = cast(Any, cls)(  # Work around Mypy complaining model not defining '__init__'.
+            ti_id=ti_id,
             dag_run_id=dag_run_id,
             key=key,
             value=value,

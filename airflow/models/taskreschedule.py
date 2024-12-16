@@ -21,7 +21,19 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc, desc, select, text
+from sqlalchemy import (
+    Column,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Integer,
+    String,
+    asc,
+    desc,
+    select,
+    text,
+)
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
 
@@ -42,6 +54,15 @@ class TaskReschedule(TaskInstanceDependencies):
     __tablename__ = "task_reschedule"
 
     id = Column(Integer, primary_key=True)
+    ti_id = Column(
+        String(36, **COLLATION_ARGS).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+        ForeignKey(
+            "task_instance.id",
+            name="task_reschedule_ti_fkey",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+    )
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     run_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
@@ -54,17 +75,6 @@ class TaskReschedule(TaskInstanceDependencies):
 
     __table_args__ = (
         Index("idx_task_reschedule_dag_task_run", dag_id, task_id, run_id, map_index, unique=False),
-        ForeignKeyConstraint(
-            [dag_id, task_id, run_id, map_index],
-            [
-                "task_instance.dag_id",
-                "task_instance.task_id",
-                "task_instance.run_id",
-                "task_instance.map_index",
-            ],
-            name="task_reschedule_ti_fkey",
-            ondelete="CASCADE",
-        ),
         Index("idx_task_reschedule_dag_run", dag_id, run_id),
         ForeignKeyConstraint(
             [dag_id, run_id],
@@ -78,6 +88,7 @@ class TaskReschedule(TaskInstanceDependencies):
 
     def __init__(
         self,
+        ti_id: str,
         task_id: str,
         dag_id: str,
         run_id: str,
@@ -87,6 +98,7 @@ class TaskReschedule(TaskInstanceDependencies):
         reschedule_date: datetime.datetime,
         map_index: int = -1,
     ) -> None:
+        self.ti_id = ti_id
         self.dag_id = dag_id
         self.task_id = task_id
         self.run_id = run_id
