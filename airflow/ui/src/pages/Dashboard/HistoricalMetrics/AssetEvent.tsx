@@ -30,13 +30,7 @@ export const AssetEvent = ({
   readonly event: AssetEventResponse;
 }) => {
   const hasDagRuns = event.created_dagruns.length > 0;
-  let source = "";
-
-  if (event.extra?.from_rest_api === true) {
-    source = "API";
-  } else if (event.extra?.from_trigger === true) {
-    source = "Trigger";
-  }
+  const source = event.extra?.from_rest_api === true ? "API" : "";
 
   return (
     <Box fontSize={13} mt={1} w="full">
