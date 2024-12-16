@@ -27,13 +27,14 @@ from unittest.mock import AsyncMock, patch
 
 import paramiko
 import pytest
+from asyncssh import SFTPAttrs, SFTPNoSuchFile
+from asyncssh.sftp import SFTPName
+
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.sftp.hooks.sftp import SFTPHook, SFTPHookAsync
 from airflow.utils.session import provide_session
-from asyncssh import SFTPAttrs, SFTPNoSuchFile
-from asyncssh.sftp import SFTPName
 
 pytestmark = pytest.mark.db_test
 
@@ -406,8 +407,10 @@ class TestSFTPHook:
         connection = Connection(login="login", host="host")
         mock_get_connection.return_value = connection
 
-        with mock.patch.object(SFTPHook, "get_conn") as mock_get_conn, \
-            mock.patch.object(SFTPHook, "close_conn") as mock_close_conn:
+        with (
+            mock.patch.object(SFTPHook, "get_conn") as mock_get_conn,
+            mock.patch.object(SFTPHook, "close_conn") as mock_close_conn,
+        ):
             mock_get_conn.return_value.pwd = "/home/someuser"
 
             with SFTPHook() as hook:

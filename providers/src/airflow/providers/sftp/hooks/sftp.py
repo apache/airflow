@@ -23,17 +23,19 @@ import datetime
 import os
 import stat
 import warnings
-from contextlib import contextmanager, closing
+
 from collections.abc import Sequence
+from contextlib import closing, contextmanager
 from fnmatch import fnmatch
 from io import BytesIO
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from typing import TYPE_CHECKING, Any, Callable
 
 import asyncssh
+from asgiref.sync import sync_to_async
+
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
-from asgiref.sync import sync_to_async
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
