@@ -263,7 +263,7 @@ class OperatorPartial:
         # We don't want to time out the whole stream operator, we only time out the individual tasks
         kwargs["timeout"] = kwargs.pop("execution_timeout", None)
 
-        return StreamedOperator(
+        return IterableOperator(
             **kwargs,
             operator_class=self.operator_class,
             expand_input=expand_input,
