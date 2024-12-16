@@ -121,7 +121,9 @@ def get_connections(
 @connections_router.post(
     "",
     status_code=status.HTTP_201_CREATED,
-    responses=create_openapi_http_exception_doc([status.HTTP_409_CONFLICT]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_409_CONFLICT]
+    ),  # handled by global exception handler
 )
 def post_connection(
     post_body: ConnectionBody,
