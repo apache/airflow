@@ -38,7 +38,6 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.orm import Session
 
 # revision identifiers, used by Alembic.
 revision = "0d9e73a75ee4"
@@ -54,6 +53,7 @@ _STRING_COLUMN_TYPE = sa.String(length=1500).with_variant(
 
 
 def upgrade():
+    dialect = op.get_bind().dialect.name
     # Fix index name on DatasetAlias.
     with op.batch_alter_table("dataset_alias", schema=None) as batch_op:
         batch_op.drop_index("idx_name_unique")
@@ -63,11 +63,12 @@ def upgrade():
         batch_op.add_column(sa.Column("name", _STRING_COLUMN_TYPE))
         batch_op.add_column(sa.Column("group", _STRING_COLUMN_TYPE))
     # Fill name from uri column, and group to 'asset'.
-    dataset_table = sa.table("dataset", sa.column("name"), sa.column("uri"), sa.column("group"))
-    with Session(bind=op.get_bind()) as session:
-        session.execute(sa.update(dataset_table).values(name=dataset_table.c.uri, group="asset"))
-        session.commit()
-    # Set the name and group columns non-nullable.
+    if dialect == "mysql":
+        stmt = "UPDATE dataset SET name = uri, `group` = 'asset'"
+    else:
+        stmt = "UPDATE dataset SET name = uri, \"group\" = 'asset'"
+    op.execute(stmt)
+    # Set the name column non-nullable.
     # Now with values in there, we can create the new unique constraint and index.
     # Due to MySQL restrictions, we are also reducing the length on uri.
     with op.batch_alter_table("dataset", schema=None) as batch_op:
