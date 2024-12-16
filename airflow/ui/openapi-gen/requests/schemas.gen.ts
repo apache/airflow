@@ -256,7 +256,6 @@ export const $AssetEventResponse = {
   required: [
     "id",
     "asset_id",
-    "uri",
     "source_map_index",
     "created_dagruns",
     "timestamp",
