@@ -61,8 +61,8 @@ export const AssetEvents = ({
   });
 
   return (
-    <Box borderWidth={1} ml={2} pb={2}>
-      <Flex justify="space-between" mt={0} p={3}>
+    <Box borderRadius={5} borderWidth={1} ml={2} pb={2}>
+      <Flex justify="space-between" mr={1} mt={0} pl={3} pt={1}>
         <HStack>
           <MetricsBadge
             backgroundColor="blue.solid"
