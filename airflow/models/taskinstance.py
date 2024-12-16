@@ -2751,9 +2751,17 @@ class TaskInstance(Base, LoggingMixin):
                     asset_alias_names[(asset_unique_key, frozen_extra)].add(asset_alias_name)
 
         assets_name_uri = {(key.name, key.uri) for key, _ in asset_alias_names.keys()}
-
+        asset_models: dict[AssetUniqueKey, AssetModel] = {
+            AssetUniqueKey.from_asset(asset_obj): asset_obj
+            for asset_obj in session.scalars(
+                select(AssetModel).where(tuple_(AssetModel.name, AssetModel.uri).in_(assets_name_uri))
+            )
+        }
         inactive_assets_name_uri = TaskInstance._get_inactive_assets(
-            assets_name_uri=assets_name_uri, session=session
+            assets_name_uri={
+                (name, uri) for name, uri in assets_name_uri if AssetUniqueKey(name, uri) in asset_models
+            },
+            session=session,
         )
         if inactive_assets_name_uri:
             error_msg = "The following assets accessed by an AssetAlias are inactive: "
@@ -2761,13 +2769,6 @@ class TaskInstance(Base, LoggingMixin):
                 f'Asset(name="{name}", uri="{uri}")' for name, uri in inactive_assets_name_uri
             )
             raise AirflowExecuteWithInactiveAssetExecption(error_msg)
-
-        asset_models: dict[AssetUniqueKey, AssetModel] = {
-            AssetUniqueKey.from_asset(asset_obj): asset_obj
-            for asset_obj in session.scalars(
-                select(AssetModel).where(tuple_(AssetModel.name, AssetModel.uri).in_(assets_name_uri))
-            )
-        }
         if missing_assets := [
             asset_unique_key.to_asset()
             for asset_unique_key, _ in asset_alias_names
