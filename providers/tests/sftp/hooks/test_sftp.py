@@ -30,7 +30,6 @@ import pytest
 from asyncssh import SFTPAttrs, SFTPNoSuchFile
 from asyncssh.sftp import SFTPName
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.sftp.hooks.sftp import SFTPHook, SFTPHookAsync
