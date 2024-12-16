@@ -2750,14 +2750,22 @@ class TaskInstance(Base, LoggingMixin):
                     frozen_extra = frozenset(asset_alias_event.extra.items())
                     asset_alias_names[(asset_unique_key, frozen_extra)].add(asset_alias_name)
 
+        assets_name_uri = {(key.name, key.uri) for key, _ in asset_alias_names.keys()}
+
+        inactive_assets_name_uri = TaskInstance._get_inactive_assets(
+            assets_name_uri=assets_name_uri, session=session
+        )
+        if inactive_assets_name_uri:
+            error_msg = "The following assets accessed by an AssetAlias are inactive: "
+            error_msg += ", ".join(
+                f'Asset(name="{name}", uri="{uri}")' for name, uri in inactive_assets_name_uri
+            )
+            raise AirflowExecuteWithInactiveAssetExecption(error_msg)
+
         asset_models: dict[AssetUniqueKey, AssetModel] = {
             AssetUniqueKey.from_asset(asset_obj): asset_obj
             for asset_obj in session.scalars(
-                select(AssetModel).where(
-                    tuple_(AssetModel.name, AssetModel.uri).in_(
-                        (key.name, key.uri) for key, _ in asset_alias_names
-                    )
-                )
+                select(AssetModel).where(tuple_(AssetModel.name, AssetModel.uri).in_(assets_name_uri))
             )
         }
         if missing_assets := [
@@ -3647,25 +3655,29 @@ class TaskInstance(Base, LoggingMixin):
         if not self.task or not (self.task.outlets or self.task.inlets):
             return
 
-        all_assets_name_uri = {
+        all_assets_name_uri: set[tuple[str, str]] = {
             (inlet_or_outlet.name, inlet_or_outlet.uri)
             for inlet_or_outlet in itertools.chain(self.task.inlets, self.task.outlets)
             if isinstance(inlet_or_outlet, Asset)
         }
-        active_assets_name_uri = set(
-            session.execute(
-                select(AssetActive.name, AssetActive.uri).where(
-                    tuple_in_condition((AssetActive.name, AssetActive.uri), all_assets_name_uri)
-                )
-            )
-        )
-        inactive_assets_name_uri = all_assets_name_uri - active_assets_name_uri
+        inactive_assets_name_uri = self._get_inactive_assets(all_assets_name_uri, session)
         if inactive_assets_name_uri:
             error_msg = "Task has the following inactive assets in its inlets or outlets: "
             error_msg += ", ".join(
                 f'Asset(name="{name}", uri="{uri}")' for name, uri in inactive_assets_name_uri
             )
             raise AirflowExecuteWithInactiveAssetExecption(error_msg)
+
+    @staticmethod
+    def _get_inactive_assets(assets_name_uri: set[tuple[str, str]], session: Session) -> set[tuple[str, str]]:
+        active_assets_name_uri = set(
+            session.execute(
+                select(AssetActive.name, AssetActive.uri).where(
+                    tuple_in_condition((AssetActive.name, AssetActive.uri), assets_name_uri)
+                )
+            )
+        )
+        return assets_name_uri - active_assets_name_uri
 
 
 def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> MappedTaskGroup | None:
