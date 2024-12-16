@@ -36,7 +36,7 @@ from airflow.utils.types import DagRunType
 from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests_common.test_utils.db import clear_db_runs
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module")
@@ -190,7 +190,7 @@ class TestGetLog:
 
         info = serializer.loads(response.json["continuation_token"])
         assert info == {"end_of_log": True, "log_pos": 16 if try_number == 1 else 18}
-        assert 200 == response.status_code
+        assert response.status_code == 200
 
     @pytest.mark.parametrize(
         "request_url, expected_filename, extra_query_string, try_number",
@@ -237,7 +237,7 @@ class TestGetLog:
             headers={"Accept": "text/plain"},
             environ_overrides={"REMOTE_USER": "test"},
         )
-        assert 200 == response.status_code
+        assert response.status_code == 200
 
         log_content = "Log for testing." if try_number == 1 else "Log for testing 2."
         assert "localhost\n" in response.data.decode("utf-8")
@@ -293,7 +293,7 @@ class TestGetLog:
             environ_overrides={"REMOTE_USER": "test"},
         )
 
-        assert 200 == response.status_code
+        assert response.status_code == 200
 
         log_content = "Log for testing." if try_number == 1 else "Log for testing 2."
         assert "localhost\n" in response.data.decode("utf-8")
@@ -356,7 +356,7 @@ class TestGetLog:
             headers={"Content-Type": "application/jso"},
             environ_overrides={"REMOTE_USER": "test"},
         )
-        assert 400 == response.status_code
+        assert response.status_code == 400
         assert "Task log handler does not support read logs." in response.data.decode("utf-8")
 
     def test_bad_signature_raises(self):

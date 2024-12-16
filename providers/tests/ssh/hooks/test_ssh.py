@@ -28,7 +28,7 @@ import paramiko
 import pytest
 
 from airflow import settings
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.utils import db
@@ -541,7 +541,7 @@ class TestSSHHook:
             hook.get_tunnel(local_port=2135, remote_port=2134),
         ):
             server_output = server_handle.stdout.read(5)
-            assert b"ready" == server_output
+            assert server_output == b"ready"
             socket = socket.socket()
             socket.connect(("localhost", 2135))
             response = socket.recv(5)
@@ -676,180 +676,6 @@ class TestSSHHook:
                 auth_timeout=10,
             )
 
-    @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
-    def test_ssh_connection_with_conn_timeout_and_timeout(self, ssh_mock):
-        with pytest.warns(AirflowProviderDeprecationWarning, match=".*Please use `conn_timeout` instead..*"):
-            hook = SSHHook(
-                remote_host="remote_host",
-                port="port",
-                username="username",
-                password="password",
-                timeout=10,
-                conn_timeout=20,
-                key_file="fake.file",
-            )
-
-        with hook.get_conn():
-            ssh_mock.return_value.connect.assert_called_once_with(
-                banner_timeout=30.0,
-                hostname="remote_host",
-                username="username",
-                password="password",
-                key_filename="fake.file",
-                timeout=20,
-                compress=True,
-                port="port",
-                sock=None,
-                look_for_keys=True,
-                auth_timeout=None,
-            )
-
-    @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
-    def test_ssh_connection_with_timeout_extra(self, ssh_mock):
-        with pytest.warns(AirflowProviderDeprecationWarning, match=".*Please use `conn_timeout` instead..*"):
-            hook = SSHHook(
-                ssh_conn_id=self.CONN_SSH_WITH_TIMEOUT_EXTRA,
-                remote_host="remote_host",
-                port="port",
-                username="username",
-                timeout=10,
-            )
-
-        with hook.get_conn():
-            ssh_mock.return_value.connect.assert_called_once_with(
-                banner_timeout=30.0,
-                hostname="remote_host",
-                username="username",
-                timeout=20,
-                compress=True,
-                port="port",
-                sock=None,
-                look_for_keys=True,
-                auth_timeout=None,
-            )
-
-    @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
-    def test_ssh_connection_with_conn_timeout_extra(self, ssh_mock):
-        with pytest.warns(AirflowProviderDeprecationWarning, match=".*Please use `conn_timeout` instead..*"):
-            hook = SSHHook(
-                ssh_conn_id=self.CONN_SSH_WITH_CONN_TIMEOUT_EXTRA,
-                remote_host="remote_host",
-                port="port",
-                username="username",
-                timeout=10,
-                conn_timeout=15,
-            )
-
-        # conn_timeout parameter wins over extra options
-        with hook.get_conn():
-            ssh_mock.return_value.connect.assert_called_once_with(
-                banner_timeout=30.0,
-                hostname="remote_host",
-                username="username",
-                timeout=15,
-                compress=True,
-                port="port",
-                sock=None,
-                look_for_keys=True,
-                auth_timeout=None,
-            )
-
-    @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
-    def test_ssh_connection_with_timeout_extra_and_conn_timeout_extra(self, ssh_mock):
-        with pytest.warns(AirflowProviderDeprecationWarning, match=".*Please use `conn_timeout` instead..*"):
-            hook = SSHHook(
-                ssh_conn_id=self.CONN_SSH_WITH_TIMEOUT_AND_CONN_TIMEOUT_EXTRA,
-                remote_host="remote_host",
-                port="port",
-                username="username",
-                timeout=10,
-                conn_timeout=15,
-            )
-
-        # conn_timeout parameter wins over extra options
-        with hook.get_conn():
-            ssh_mock.return_value.connect.assert_called_once_with(
-                banner_timeout=30.0,
-                hostname="remote_host",
-                username="username",
-                timeout=15,
-                compress=True,
-                port="port",
-                sock=None,
-                look_for_keys=True,
-                auth_timeout=None,
-            )
-
-    @pytest.mark.parametrize(
-        "timeout, conn_timeout, timeoutextra, conn_timeoutextra, expected_value",
-        [
-            (TEST_TIMEOUT, TEST_CONN_TIMEOUT, True, True, TEST_CONN_TIMEOUT),
-            (TEST_TIMEOUT, TEST_CONN_TIMEOUT, True, False, TEST_CONN_TIMEOUT),
-            (TEST_TIMEOUT, TEST_CONN_TIMEOUT, False, True, TEST_CONN_TIMEOUT),
-            (TEST_TIMEOUT, TEST_CONN_TIMEOUT, False, False, TEST_CONN_TIMEOUT),
-            (TEST_TIMEOUT, None, True, True, TEST_CONN_TIMEOUT),
-            (TEST_TIMEOUT, None, True, False, TEST_TIMEOUT),
-            (TEST_TIMEOUT, None, False, True, TEST_CONN_TIMEOUT),
-            (TEST_TIMEOUT, None, False, False, TEST_TIMEOUT),
-            (None, TEST_CONN_TIMEOUT, True, True, TEST_CONN_TIMEOUT),
-            (None, TEST_CONN_TIMEOUT, True, False, TEST_CONN_TIMEOUT),
-            (None, TEST_CONN_TIMEOUT, False, True, TEST_CONN_TIMEOUT),
-            (None, TEST_CONN_TIMEOUT, False, False, TEST_CONN_TIMEOUT),
-            (None, None, True, True, TEST_CONN_TIMEOUT),
-            (None, None, True, False, TEST_TIMEOUT),
-            (None, None, False, True, TEST_CONN_TIMEOUT),
-            (None, None, False, False, 10),
-        ],
-    )
-    @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
-    def test_ssh_connection_with_all_timeout_param_and_extra_combinations(
-        self, ssh_mock, timeout, conn_timeout, timeoutextra, conn_timeoutextra, expected_value
-    ):
-        if timeoutextra and conn_timeoutextra:
-            ssh_conn_id = self.CONN_SSH_WITH_TIMEOUT_AND_CONN_TIMEOUT_EXTRA
-        elif timeoutextra and not conn_timeoutextra:
-            ssh_conn_id = self.CONN_SSH_WITH_TIMEOUT_EXTRA
-        elif not timeoutextra and conn_timeoutextra:
-            ssh_conn_id = self.CONN_SSH_WITH_CONN_TIMEOUT_EXTRA
-        else:
-            ssh_conn_id = self.CONN_SSH_WITH_NO_EXTRA
-
-        if timeout or timeoutextra:
-            with pytest.warns(
-                AirflowProviderDeprecationWarning, match=".*Please use `conn_timeout` instead..*"
-            ):
-                hook = SSHHook(
-                    ssh_conn_id=ssh_conn_id,
-                    remote_host="remote_host",
-                    port="port",
-                    username="username",
-                    timeout=timeout,
-                    conn_timeout=conn_timeout,
-                )
-        else:
-            hook = SSHHook(
-                ssh_conn_id=ssh_conn_id,
-                remote_host="remote_host",
-                port="port",
-                username="username",
-                timeout=timeout,
-                conn_timeout=conn_timeout,
-            )
-
-        # conn_timeout parameter wins over extra options
-        with hook.get_conn():
-            ssh_mock.return_value.connect.assert_called_once_with(
-                banner_timeout=30.0,
-                hostname="remote_host",
-                username="username",
-                timeout=expected_value,
-                compress=True,
-                port="port",
-                sock=None,
-                look_for_keys=True,
-                auth_timeout=None,
-            )
-
     @pytest.mark.parametrize(
         "cmd_timeout, cmd_timeoutextra, null_cmd_timeoutextra, expected_value",
         [
@@ -899,6 +725,7 @@ class TestSSHHook:
             remote_host="remote_host",
             port="port",
             username="username",
+            conn_timeout=42,
         )
 
         with hook.get_conn():
@@ -907,7 +734,7 @@ class TestSSHHook:
                 hostname="remote_host",
                 username="username",
                 compress=True,
-                timeout=10,
+                timeout=42,
                 port="port",
                 sock=None,
                 look_for_keys=True,
@@ -1128,3 +955,33 @@ class TestSSHHook:
         client2 = hook.get_conn()
         assert client1 is not client2
         assert client2.get_transport().is_active()
+
+    @mock.patch("paramiko.SSHClient")
+    @mock.patch("paramiko.ProxyCommand")
+    def test_ssh_hook_with_proxy_command(self, mock_proxy_command, mock_ssh_client):
+        # Mock transport and proxy command behavior
+        mock_transport = mock.MagicMock()
+        mock_ssh_client.return_value.get_transport.return_value = mock_transport
+        mock_proxy_command.return_value = mock.MagicMock()
+
+        # Create the SSHHook with the proxy command
+        host_proxy_cmd = "ncat --proxy-auth proxy_user:**** --proxy proxy_host:port %h %p"
+        hook = SSHHook(
+            remote_host="example.com",
+            username="user",
+            host_proxy_cmd=host_proxy_cmd,
+        )
+        hook.get_conn()
+
+        mock_proxy_command.assert_called_once_with(host_proxy_cmd)
+        mock_ssh_client.return_value.connect.assert_called_once_with(
+            hostname="example.com",
+            username="user",
+            timeout=None,
+            compress=True,
+            port=22,
+            sock=mock_proxy_command.return_value,
+            look_for_keys=True,
+            banner_timeout=30.0,
+            auth_timeout=None,
+        )

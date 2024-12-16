@@ -21,13 +21,11 @@ from functools import cached_property
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Any
 
-from deprecated import deprecated
 from typing_extensions import Literal
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.slack.hooks.slack import SlackHook
 from airflow.providers.slack.transfers.base_sql_to_slack import BaseSqlToSlackOperator
-from airflow.providers.slack.transfers.sql_to_slack_webhook import SqlToSlackWebhookOperator
 from airflow.providers.slack.utils import parse_filename
 
 if TYPE_CHECKING:
@@ -169,22 +167,3 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
                 initial_comment=self.slack_initial_comment,
                 title=self.slack_title,
             )
-
-
-@deprecated(
-    reason=(
-        "`airflow.providers.slack.transfers.sql_to_slack.SqlToSlackOperator` has been renamed "
-        "and moved `airflow.providers.slack.transfers.sql_to_slack_webhook.SqlToSlackWebhookOperator` "
-        "this operator deprecated and will be removed in future"
-    ),
-    category=AirflowProviderDeprecationWarning,
-)
-class SqlToSlackOperator(SqlToSlackWebhookOperator):
-    """
-    Executes an SQL statement in a given SQL connection and sends the results to Slack Incoming Webhook.
-
-    Deprecated, use :class:`airflow.providers.slack.transfers.sql_to_slack_webhook.SqlToSlackWebhookOperator`
-    """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)

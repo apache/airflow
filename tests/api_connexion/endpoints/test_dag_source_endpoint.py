@@ -26,7 +26,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests_common.test_utils.db import clear_db_dags
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 EXAMPLE_DAG_ID = "example_bash_operator"
@@ -80,9 +80,9 @@ class TestGetSource:
             url, headers={"Accept": "text/plain"}, environ_overrides={"REMOTE_USER": "test"}
         )
 
-        assert 200 == response.status_code
+        assert response.status_code == 200
         assert dag_content == response.data.decode()
-        assert "text/plain" == response.headers["Content-Type"]
+        assert response.headers["Content-Type"] == "text/plain"
 
     def test_should_respond_200_json(self, session, test_dag):
         dag_content = self._get_dag_file_code(test_dag.fileloc)
@@ -92,13 +92,13 @@ class TestGetSource:
             url, headers={"Accept": "application/json"}, environ_overrides={"REMOTE_USER": "test"}
         )
 
-        assert 200 == response.status_code
+        assert response.status_code == 200
         assert response.json == {
             "content": dag_content,
             "dag_id": TEST_DAG_ID,
             "version_number": 1,
         }
-        assert "application/json" == response.headers["Content-Type"]
+        assert response.headers["Content-Type"] == "application/json"
 
     @pytest.mark.parametrize("accept", ["application/json", "text/plain"])
     def test_should_respond_200_version(self, accept, session, test_dag):
@@ -123,15 +123,15 @@ class TestGetSource:
         url = f"/api/v1/dagSources/{TEST_DAG_ID}"
         response = self.client.get(url, headers={"Accept": accept}, environ_overrides={"REMOTE_USER": "test"})
 
-        assert 200 == response.status_code
+        assert response.status_code == 200
         if accept == "text/plain":
             assert dag_content2 == response.data.decode()
             assert dag_content != response.data.decode()
-            assert "text/plain" == response.headers["Content-Type"]
+            assert response.headers["Content-Type"] == "text/plain"
         else:
             assert dag_content2 == response.json["content"]
             assert dag_content != response.json["content"]
-            assert "application/json" == response.headers["Content-Type"]
+            assert response.headers["Content-Type"] == "application/json"
             assert response.json == {
                 "content": dag_content2,
                 "dag_id": TEST_DAG_ID,
@@ -145,7 +145,7 @@ class TestGetSource:
             url, headers={"Accept": "application/json"}, environ_overrides={"REMOTE_USER": "test"}
         )
 
-        assert 404 == response.status_code
+        assert response.status_code == 404
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get(

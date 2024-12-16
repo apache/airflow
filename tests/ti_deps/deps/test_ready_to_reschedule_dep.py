@@ -33,7 +33,7 @@ from airflow.utils.state import State
 
 from tests_common.test_utils import db
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)

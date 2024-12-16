@@ -37,8 +37,6 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 
-pytestmark = pytest.mark.skip_if_database_isolation_mode
-
 
 def test_supports_sentry():
     assert not BaseExecutor.supports_sentry
@@ -46,10 +44,6 @@ def test_supports_sentry():
 
 def test_is_local_default_value():
     assert not BaseExecutor.is_local
-
-
-def test_is_single_threaded_default_value():
-    assert not BaseExecutor.is_single_threaded
 
 
 def test_is_production_default_value():

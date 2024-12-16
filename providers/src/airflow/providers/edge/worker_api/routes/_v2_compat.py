@@ -18,17 +18,13 @@
 
 from __future__ import annotations
 
-from packaging.version import Version
-
-from airflow import __version__ as airflow_version
-
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
+from airflow.providers.edge.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     # Just re-import the types from FastAPI and Airflow Core
-    from fastapi import Depends, Header, HTTPException, status
+    from fastapi import Body, Depends, Header, HTTPException, Path, Request, status
 
+    from airflow.api_fastapi.common.db.common import SessionDep
     from airflow.api_fastapi.common.router import AirflowRouter
     from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 else:
@@ -37,17 +33,33 @@ else:
 
     from connexion import ProblemException
 
+    class Body:  # type: ignore[no-redef]
+        def __init__(self, *_, **__):
+            pass
+
     class Depends:  # type: ignore[no-redef]
         def __init__(self, *_, **__):
             pass
 
     class Header:  # type: ignore[no-redef]
+        def __init__(self, *_, **__):
+            pass
+
+    class Path:  # type: ignore[no-redef]
+        def __init__(self, *_, **__):
+            pass
+
+    class Request:  # type: ignore[no-redef]
+        pass
+
+    class SessionDep:  # type: ignore[no-redef]
         pass
 
     def create_openapi_http_exception_doc(responses_status_code: list[int]) -> dict:
         return {}
 
     class status:  # type: ignore[no-redef]
+        HTTP_204_NO_CONTENT = 204
         HTTP_400_BAD_REQUEST = 400
         HTTP_403_FORBIDDEN = 403
         HTTP_500_INTERNAL_SERVER_ERROR = 500
@@ -96,6 +108,12 @@ else:
             return decorator
 
         def post(self, *_, **__):
+            def decorator(func: Callable) -> Callable:
+                return func
+
+            return decorator
+
+        def patch(self, *_, **__):
             def decorator(func: Callable) -> Callable:
                 return func
 

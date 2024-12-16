@@ -164,7 +164,7 @@ ARG_WITHOUT_GOSSIP = Arg(
 CELERY_CLI_COMMAND_PATH = (
     "airflow.providers.celery.cli.celery_command"
     if Version(airflow_version) >= Version("2.8.0")
-    else "airflow.cli.commands.celery_command"
+    else "airflow.cli.commands.local_commands.celery_command"
 )
 
 CELERY_COMMANDS = (

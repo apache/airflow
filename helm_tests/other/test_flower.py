@@ -44,8 +44,8 @@ class TestFlowerDeployment:
 
         assert bool(docs) is created
         if created:
-            assert "release-name-flower" == jmespath.search("metadata.name", docs[0])
-            assert "flower" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
+            assert jmespath.search("metadata.name", docs[0]) == "release-name-flower"
+            assert jmespath.search("spec.template.spec.containers[0].name", docs[0]) == "flower"
 
     @pytest.mark.parametrize(
         "revision_history_limit, global_revision_history_limit",
@@ -123,8 +123,8 @@ class TestFlowerDeployment:
             show_only=["templates/flower/flower-deployment.yaml"],
         )
 
-        assert ["release-name"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
-        assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+        assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) == ["release-name"]
+        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == ["Helm"]
 
     def test_should_create_flower_deployment_with_authorization(self):
         docs = render_chart(
@@ -135,15 +135,22 @@ class TestFlowerDeployment:
             show_only=["templates/flower/flower-deployment.yaml"],
         )
 
-        assert "AIRFLOW__CELERY__FLOWER_BASIC_AUTH" == jmespath.search(
-            "spec.template.spec.containers[0].env[0].name", docs[0]
+        assert (
+            jmespath.search("spec.template.spec.containers[0].env[0].name", docs[0])
+            == "AIRFLOW__CELERY__FLOWER_BASIC_AUTH"
         )
-        assert ["curl", "--user", "$AIRFLOW__CELERY__FLOWER_BASIC_AUTH", "localhost:7777"] == jmespath.search(
-            "spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]
-        )
-        assert ["curl", "--user", "$AIRFLOW__CELERY__FLOWER_BASIC_AUTH", "localhost:7777"] == jmespath.search(
-            "spec.template.spec.containers[0].readinessProbe.exec.command", docs[0]
-        )
+        assert jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]) == [
+            "curl",
+            "--user",
+            "$AIRFLOW__CELERY__FLOWER_BASIC_AUTH",
+            "localhost:7777",
+        ]
+        assert jmespath.search("spec.template.spec.containers[0].readinessProbe.exec.command", docs[0]) == [
+            "curl",
+            "--user",
+            "$AIRFLOW__CELERY__FLOWER_BASIC_AUTH",
+            "localhost:7777",
+        ]
 
     def test_should_create_flower_deployment_without_authorization(self):
         docs = render_chart(
@@ -154,15 +161,18 @@ class TestFlowerDeployment:
             show_only=["templates/flower/flower-deployment.yaml"],
         )
 
-        assert "AIRFLOW__CORE__FERNET_KEY" == jmespath.search(
-            "spec.template.spec.containers[0].env[0].name", docs[0]
+        assert (
+            jmespath.search("spec.template.spec.containers[0].env[0].name", docs[0])
+            == "AIRFLOW__CORE__FERNET_KEY"
         )
-        assert ["curl", "localhost:7777"] == jmespath.search(
-            "spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]
-        )
-        assert ["curl", "localhost:7777"] == jmespath.search(
-            "spec.template.spec.containers[0].readinessProbe.exec.command", docs[0]
-        )
+        assert jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]) == [
+            "curl",
+            "localhost:7777",
+        ]
+        assert jmespath.search("spec.template.spec.containers[0].readinessProbe.exec.command", docs[0]) == [
+            "curl",
+            "localhost:7777",
+        ]
 
     def test_scheduler_name(self):
         docs = render_chart(
@@ -170,9 +180,12 @@ class TestFlowerDeployment:
             show_only=["templates/flower/flower-deployment.yaml"],
         )
 
-        assert "airflow-scheduler" == jmespath.search(
-            "spec.template.spec.schedulerName",
-            docs[0],
+        assert (
+            jmespath.search(
+                "spec.template.spec.schedulerName",
+                docs[0],
+            )
+            == "airflow-scheduler"
         )
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
@@ -202,22 +215,31 @@ class TestFlowerDeployment:
             show_only=["templates/flower/flower-deployment.yaml"],
         )
 
-        assert "Deployment" == jmespath.search("kind", docs[0])
-        assert "foo" == jmespath.search(
-            "spec.template.spec.affinity.nodeAffinity."
-            "requiredDuringSchedulingIgnoredDuringExecution."
-            "nodeSelectorTerms[0]."
-            "matchExpressions[0]."
-            "key",
-            docs[0],
+        assert jmespath.search("kind", docs[0]) == "Deployment"
+        assert (
+            jmespath.search(
+                "spec.template.spec.affinity.nodeAffinity."
+                "requiredDuringSchedulingIgnoredDuringExecution."
+                "nodeSelectorTerms[0]."
+                "matchExpressions[0]."
+                "key",
+                docs[0],
+            )
+            == "foo"
         )
-        assert "ssd" == jmespath.search(
-            "spec.template.spec.nodeSelector.diskType",
-            docs[0],
+        assert (
+            jmespath.search(
+                "spec.template.spec.nodeSelector.diskType",
+                docs[0],
+            )
+            == "ssd"
         )
-        assert "dynamic-pods" == jmespath.search(
-            "spec.template.spec.tolerations[0].key",
-            docs[0],
+        assert (
+            jmespath.search(
+                "spec.template.spec.tolerations[0].key",
+                docs[0],
+            )
+            == "dynamic-pods"
         )
 
     def test_flower_resources_are_configurable(self):
@@ -233,11 +255,11 @@ class TestFlowerDeployment:
             },
             show_only=["templates/flower/flower-deployment.yaml"],
         )
-        assert "128Mi" == jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0])
-        assert "169Mi" == jmespath.search(
-            "spec.template.spec.containers[0].resources.requests.memory", docs[0]
+        assert jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0]) == "128Mi"
+        assert (
+            jmespath.search("spec.template.spec.containers[0].resources.requests.memory", docs[0]) == "169Mi"
         )
-        assert "300m" == jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0])
+        assert jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0]) == "300m"
 
     def test_flower_resources_are_not_added_by_default(self):
         docs = render_chart(
@@ -259,10 +281,10 @@ class TestFlowerDeployment:
             show_only=["templates/flower/flower-deployment.yaml"],
         )
 
-        assert {
+        assert jmespath.search("spec.template.spec.containers[-1]", docs[0]) == {
             "name": "airflow",
             "image": "test-registry/test-repo:test-tag",
-        } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
+        }
 
     def test_should_add_extra_volume_and_extra_volume_mount(self):
         docs = render_chart(
@@ -398,12 +420,12 @@ class TestFlowerDeployment:
             show_only=["templates/flower/flower-deployment.yaml"],
         )
 
-        assert 111 == jmespath.search(
-            f"spec.template.spec.containers[0].{probe}.initialDelaySeconds", docs[0]
+        assert (
+            jmespath.search(f"spec.template.spec.containers[0].{probe}.initialDelaySeconds", docs[0]) == 111
         )
-        assert 222 == jmespath.search(f"spec.template.spec.containers[0].{probe}.timeoutSeconds", docs[0])
-        assert 333 == jmespath.search(f"spec.template.spec.containers[0].{probe}.failureThreshold", docs[0])
-        assert 444 == jmespath.search(f"spec.template.spec.containers[0].{probe}.periodSeconds", docs[0])
+        assert jmespath.search(f"spec.template.spec.containers[0].{probe}.timeoutSeconds", docs[0]) == 222
+        assert jmespath.search(f"spec.template.spec.containers[0].{probe}.failureThreshold", docs[0]) == 333
+        assert jmespath.search(f"spec.template.spec.containers[0].{probe}.periodSeconds", docs[0]) == 444
 
 
 class TestFlowerService:
@@ -428,7 +450,7 @@ class TestFlowerService:
 
         assert bool(docs) is created
         if created:
-            assert "release-name-flower" == jmespath.search("metadata.name", docs[0])
+            assert jmespath.search("metadata.name", docs[0]) == "release-name-flower"
 
     def test_default_service(self):
         docs = render_chart(
@@ -436,12 +458,14 @@ class TestFlowerService:
             show_only=["templates/flower/flower-service.yaml"],
         )
 
-        assert "release-name-flower" == jmespath.search("metadata.name", docs[0])
+        assert jmespath.search("metadata.name", docs[0]) == "release-name-flower"
         assert jmespath.search("metadata.annotations", docs[0]) is None
-        assert {"tier": "airflow", "component": "flower", "release": "release-name"} == jmespath.search(
-            "spec.selector", docs[0]
-        )
-        assert "ClusterIP" == jmespath.search("spec.type", docs[0])
+        assert jmespath.search("spec.selector", docs[0]) == {
+            "tier": "airflow",
+            "component": "flower",
+            "release": "release-name",
+        }
+        assert jmespath.search("spec.type", docs[0]) == "ClusterIP"
         assert {"name": "flower-ui", "port": 5555} in jmespath.search("spec.ports", docs[0])
 
     def test_overrides(self):
@@ -461,11 +485,11 @@ class TestFlowerService:
             show_only=["templates/flower/flower-service.yaml"],
         )
 
-        assert {"foo": "bar"} == jmespath.search("metadata.annotations", docs[0])
-        assert "LoadBalancer" == jmespath.search("spec.type", docs[0])
+        assert jmespath.search("metadata.annotations", docs[0]) == {"foo": "bar"}
+        assert jmespath.search("spec.type", docs[0]) == "LoadBalancer"
         assert {"name": "flower-ui", "port": 9000} in jmespath.search("spec.ports", docs[0])
-        assert "127.0.0.1" == jmespath.search("spec.loadBalancerIP", docs[0])
-        assert ["10.123.0.0/16"] == jmespath.search("spec.loadBalancerSourceRanges", docs[0])
+        assert jmespath.search("spec.loadBalancerIP", docs[0]) == "127.0.0.1"
+        assert jmespath.search("spec.loadBalancerSourceRanges", docs[0]) == ["10.123.0.0/16"]
 
     @pytest.mark.parametrize(
         "ports, expected_ports",
@@ -520,7 +544,7 @@ class TestFlowerNetworkPolicy:
         docs = render_chart(
             show_only=["templates/flower/flower-networkpolicy.yaml"],
         )
-        assert 0 == len(docs)
+        assert len(docs) == 0
 
     def test_defaults(self):
         docs = render_chart(
@@ -538,12 +562,12 @@ class TestFlowerNetworkPolicy:
             show_only=["templates/flower/flower-networkpolicy.yaml"],
         )
 
-        assert 1 == len(docs)
-        assert "NetworkPolicy" == docs[0]["kind"]
-        assert [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}] == jmespath.search(
-            "spec.ingress[0].from", docs[0]
-        )
-        assert [{"port": 5555}] == jmespath.search("spec.ingress[0].ports", docs[0])
+        assert len(docs) == 1
+        assert docs[0]["kind"] == "NetworkPolicy"
+        assert jmespath.search("spec.ingress[0].from", docs[0]) == [
+            {"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}
+        ]
+        assert jmespath.search("spec.ingress[0].ports", docs[0]) == [{"port": 5555}]
 
     @pytest.mark.parametrize(
         "ports, expected_ports",
@@ -594,9 +618,9 @@ class TestFlowerNetworkPolicy:
             show_only=["templates/flower/flower-networkpolicy.yaml"],
         )
 
-        assert [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}] == jmespath.search(
-            "spec.ingress[0].from", docs[0]
-        )
+        assert jmespath.search("spec.ingress[0].from", docs[0]) == [
+            {"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}
+        ]
 
     def test_should_add_component_specific_labels(self):
         docs = render_chart(

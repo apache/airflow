@@ -21,12 +21,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ConnectionResponse(BaseModel):
@@ -56,6 +56,18 @@ class IntermediateTIState(str, Enum):
     UP_FOR_RESCHEDULE = "up_for_reschedule"
     UPSTREAM_FAILED = "upstream_failed"
     DEFERRED = "deferred"
+
+
+class TIDeferredStatePayload(BaseModel):
+    """
+    Schema for updating TaskInstance to a deferred state.
+    """
+
+    state: Annotated[Literal["deferred"] | None, Field(title="State")] = "deferred"
+    classpath: Annotated[str, Field(title="Classpath")]
+    trigger_kwargs: Annotated[dict[str, Any] | None, Field(title="Trigger Kwargs")] = None
+    next_method: Annotated[str, Field(title="Next Method")]
+    trigger_timeout: Annotated[timedelta | None, Field(title="Trigger Timeout")] = None
 
 
 class TIEnterRunningPayload(BaseModel):
@@ -102,6 +114,18 @@ class ValidationError(BaseModel):
     loc: Annotated[list[str | int], Field(title="Location")]
     msg: Annotated[str, Field(title="Message")]
     type: Annotated[str, Field(title="Error Type")]
+
+
+class VariablePostBody(BaseModel):
+    """
+    Request body schema for creating variables.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: Annotated[str | None, Field(title="Value")] = None
+    description: Annotated[str | None, Field(title="Description")] = None
 
 
 class VariableResponse(BaseModel):

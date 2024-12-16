@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock
 
+import pytest
 from google.cloud.bigquery.table import Table
 
 from airflow.providers.common.compat.openlineage.facet import (
@@ -26,11 +27,14 @@ from airflow.providers.common.compat.openlineage.facet import (
     Dataset,
     DocumentationDatasetFacet,
     Fields,
+    Identifier,
     InputField,
     SchemaDatasetFacet,
     SchemaDatasetFacetFields,
+    SymlinksDatasetFacet,
 )
 from airflow.providers.google.cloud.openlineage.utils import (
+    extract_ds_name_from_gcs_path,
     get_facets_from_bq_table,
     get_identity_column_lineage_facet,
 )
@@ -46,6 +50,10 @@ TEST_TABLE_API_REPR = {
             {"name": "field1", "type": "STRING", "description": "field1 description"},
             {"name": "field2", "type": "INTEGER"},
         ]
+    },
+    "externalDataConfiguration": {
+        "sourceFormat": "CSV",
+        "sourceUris": ["gs://bucket/path/to/files*", "gs://second_bucket/path/to/other/files*"],
     },
 }
 TEST_TABLE: Table = Table.from_api_repr(TEST_TABLE_API_REPR)
@@ -82,6 +90,12 @@ def test_get_facets_from_bq_table():
             ]
         ),
         "documentation": DocumentationDatasetFacet(description="Table description."),
+        "symlink": SymlinksDatasetFacet(
+            identifiers=[
+                Identifier(namespace="gs://bucket", name="path/to", type="file"),
+                Identifier(namespace="gs://second_bucket", name="path/to/other", type="file"),
+            ]
+        ),
     }
     result = get_facets_from_bq_table(TEST_TABLE)
     assert result == expected_facets
@@ -263,3 +277,26 @@ def test_get_identity_column_lineage_facet_no_input_datasets():
 
     result = get_identity_column_lineage_facet(dest_field_names=field_names, input_datasets=input_datasets)
     assert result == {}
+
+
+@pytest.mark.parametrize(
+    "input_path, expected_output",
+    [
+        ("/path/to/file.txt", "path/to/file.txt"),  # Full file path
+        ("file.txt", "file.txt"),  # File path in root directory
+        ("/path/to/dir/", "path/to/dir"),  # Directory path
+        ("/path/to/dir/*", "path/to/dir"),  # Path with wildcard at the end
+        ("/path/to/dir/*.csv", "path/to/dir"),  # Path with wildcard in file name
+        ("/path/to/dir/file.*", "path/to/dir"),  # Path with wildcard in file extension
+        ("/path/to/*/dir/file.csv", "path/to"),  # Path with wildcard in the middle
+        ("/path/to/dir/pre_", "path/to/dir"),  # Path with prefix
+        ("/pre", "/"),  # Prefix only
+        ("/*", "/"),  # Wildcard after root slash
+        ("/", "/"),  # Root path
+        ("", "/"),  # Empty path
+        (".", "/"),  # Current directory
+        ("*", "/"),  # Wildcard only
+    ],
+)
+def test_extract_ds_name_from_gcs_path(input_path, expected_output):
+    assert extract_ds_name_from_gcs_path(input_path) == expected_output

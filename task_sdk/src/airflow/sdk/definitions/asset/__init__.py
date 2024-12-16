@@ -17,32 +17,26 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
+import operator
 import os
 import urllib.parse
 import warnings
-from collections.abc import Iterable, Iterator
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    ClassVar,
-    cast,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Union, overload
 
 import attrs
-from sqlalchemy import select
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.serialization.dag_dependency import DagDependency
-from airflow.typing_compat import TypedDict
-from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable, Iterator
     from urllib.parse import SplitResult
 
-    from sqlalchemy.orm.session import Session
+    from sqlalchemy.orm import Session
+
+    from airflow.models.asset import AssetModel
+    from airflow.triggers.base import BaseTrigger
 
 
 __all__ = [
@@ -51,13 +45,52 @@ __all__ = [
     "Model",
     "AssetRef",
     "AssetAlias",
-    "AssetAliasCondition",
     "AssetAll",
     "AssetAny",
 ]
 
 
 log = logging.getLogger(__name__)
+
+
+@attrs.define(frozen=True)
+class AssetUniqueKey:
+    """
+    Columns to identify an unique asset.
+
+    :meta private:
+    """
+
+    name: str
+    uri: str
+
+    @staticmethod
+    def from_asset(asset: Asset | AssetModel) -> AssetUniqueKey:
+        return AssetUniqueKey(name=asset.name, uri=asset.uri)
+
+    def to_asset(self) -> Asset:
+        return Asset(name=self.name, uri=self.uri)
+
+
+@attrs.define(frozen=True)
+class AssetAliasUniqueKey:
+    """
+    Columns to identify an unique asset alias.
+
+    :meta private:
+    """
+
+    name: str
+
+    @staticmethod
+    def from_asset_alias(asset_alias: AssetAlias) -> AssetAliasUniqueKey:
+        return AssetAliasUniqueKey(name=asset_alias.name)
+
+    def to_asset_alias(self) -> AssetAlias:
+        return AssetAlias(name=self.name)
+
+
+BaseAssetUniqueKey = Union[AssetUniqueKey, AssetAliasUniqueKey]
 
 
 def normalize_noop(parts: SplitResult) -> SplitResult:
@@ -197,10 +230,10 @@ class BaseAsset:
         """
         raise NotImplementedError
 
-    def evaluate(self, statuses: dict[str, bool]) -> bool:
+    def evaluate(self, statuses: dict[str, bool], *, session: Session | None = None) -> bool:
         raise NotImplementedError
 
-    def iter_assets(self) -> Iterator[tuple[str, Asset]]:
+    def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
         raise NotImplementedError
 
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
@@ -219,24 +252,60 @@ class BaseAsset:
 class Asset(os.PathLike, BaseAsset):
     """A representation of data asset dependencies between workflows."""
 
-    name: str
-    uri: str
-    group: str
-    extra: dict[str, Any]
+    name: str = attrs.field(
+        validator=[_validate_asset_name],
+    )
+    uri: str = attrs.field(
+        validator=[_validate_non_empty_identifier],
+        converter=_sanitize_uri,
+    )
+    group: str = attrs.field(
+        default=attrs.Factory(operator.attrgetter("asset_type"), takes_self=True),
+        validator=[_validate_identifier],
+    )
+    extra: dict[str, Any] = attrs.field(
+        factory=dict,
+        converter=_set_extra_default,
+    )
+    watchers: list[BaseTrigger] = attrs.field(
+        factory=list,
+    )
 
     asset_type: ClassVar[str] = "asset"
     __version__: ClassVar[int] = 1
 
     @overload
-    def __init__(self, name: str, uri: str, *, group: str = "", extra: dict | None = None) -> None:
+    def __init__(
+        self,
+        name: str,
+        uri: str,
+        *,
+        group: str = ...,
+        extra: dict | None = None,
+        watchers: list[BaseTrigger] = ...,
+    ) -> None:
         """Canonical; both name and uri are provided."""
 
     @overload
-    def __init__(self, name: str, *, group: str = "", extra: dict | None = None) -> None:
+    def __init__(
+        self,
+        name: str,
+        *,
+        group: str = ...,
+        extra: dict | None = None,
+        watchers: list[BaseTrigger] = ...,
+    ) -> None:
         """It's possible to only provide the name, either by keyword or as the only positional argument."""
 
     @overload
-    def __init__(self, *, uri: str, group: str = "", extra: dict | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        uri: str,
+        group: str = ...,
+        extra: dict | None = None,
+        watchers: list[BaseTrigger] = ...,
+    ) -> None:
         """It's possible to only provide the URI as a keyword argument."""
 
     def __init__(
@@ -244,8 +313,9 @@ class Asset(os.PathLike, BaseAsset):
         name: str | None = None,
         uri: str | None = None,
         *,
-        group: str = "",
+        group: str | None = None,
         extra: dict | None = None,
+        watchers: list[BaseTrigger] | None = None,
     ) -> None:
         if name is None and uri is None:
             raise TypeError("Asset() requires either 'name' or 'uri'")
@@ -253,14 +323,34 @@ class Asset(os.PathLike, BaseAsset):
             name = uri
         elif uri is None:
             uri = name
-        fields = attrs.fields_dict(Asset)
-        self.name = _validate_asset_name(self, fields["name"], name)
-        self.uri = _sanitize_uri(_validate_non_empty_identifier(self, fields["uri"], uri))
-        self.group = _validate_identifier(self, fields["group"], group) if group else self.asset_type
-        self.extra = _set_extra_default(extra)
+
+        if TYPE_CHECKING:
+            assert name is not None
+            assert uri is not None
+
+        # attrs default (and factory) does not kick in if any value is given to
+        # the argument. We need to exclude defaults from the custom ___init___.
+        kwargs: dict[str, Any] = {}
+        if group is not None:
+            kwargs["group"] = group
+        if extra is not None:
+            kwargs["extra"] = extra
+        if watchers is not None:
+            kwargs["watchers"] = watchers
+
+        self.__attrs_init__(name=name, uri=uri, **kwargs)
 
     def __fspath__(self) -> str:
         return self.uri
+
+    def __eq__(self, other: Any) -> bool:
+        # The Asset class can be subclassed, and we don't want fields added by a
+        # subclass to break equality. This explicitly filters out only fields
+        # defined by the Asset class for comparison.
+        if not isinstance(other, Asset):
+            return NotImplemented
+        f = attrs.filters.include(*attrs.fields_dict(Asset))
+        return attrs.asdict(self, filter=f) == attrs.asdict(other, filter=f)
 
     @property
     def normalized_uri(self) -> str | None:
@@ -290,15 +380,15 @@ class Asset(os.PathLike, BaseAsset):
 
         :meta private:
         """
-        return self.uri
+        return {"asset": {"uri": self.uri, "name": self.name, "group": self.group}}
 
-    def iter_assets(self) -> Iterator[tuple[str, Asset]]:
-        yield self.uri, self
+    def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
+        yield AssetUniqueKey.from_asset(self), self
 
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
         return iter(())
 
-    def evaluate(self, statuses: dict[str, bool]) -> bool:
+    def evaluate(self, statuses: dict[str, bool], *, session: Session | None = None) -> bool:
         return statuses.get(self.uri, False)
 
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
@@ -311,7 +401,7 @@ class Asset(os.PathLike, BaseAsset):
             source=source or "asset",
             target=target or "asset",
             dependency_type="asset",
-            dependency_id=self.uri,
+            dependency_id=self.name,
         )
 
 
@@ -336,37 +426,66 @@ class Model(Asset):
 
 @attrs.define(unsafe_hash=False)
 class AssetAlias(BaseAsset):
-    """A represeation of asset alias which is used to create asset during the runtime."""
+    """A representation of asset alias which is used to create asset during the runtime."""
 
     name: str = attrs.field(validator=_validate_non_empty_identifier)
-    group: str = attrs.field(kw_only=True, default="", validator=_validate_identifier)
+    group: str = attrs.field(kw_only=True, default="asset", validator=_validate_identifier)
 
-    def iter_assets(self) -> Iterator[tuple[str, Asset]]:
+    def _resolve_assets(self, session: Session | None = None) -> list[Asset]:
+        from airflow.models.asset import expand_alias_to_assets
+        from airflow.utils.session import create_session
+
+        with contextlib.nullcontext(session) if session else create_session() as session:
+            asset_models = expand_alias_to_assets(self.name, session)
+        return [m.to_public() for m in asset_models]
+
+    def as_expression(self) -> Any:
+        """
+        Serialize the asset alias into its scheduling expression.
+
+        :meta private:
+        """
+        return {"alias": {"name": self.name, "group": self.group}}
+
+    def evaluate(self, statuses: dict[str, bool], *, session: Session | None = None) -> bool:
+        return any(x.evaluate(statuses=statuses, session=session) for x in self._resolve_assets(session))
+
+    def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
         return iter(())
 
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
         yield self.name, self
 
-    def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
+    def iter_dag_dependencies(self, *, source: str = "", target: str = "") -> Iterator[DagDependency]:
         """
-        Iterate an asset alias as dag dependency.
+        Iterate an asset alias and its resolved assets as dag dependency.
 
         :meta private:
         """
-        yield DagDependency(
-            source=source or "asset-alias",
-            target=target or "asset-alias",
-            dependency_type="asset-alias",
-            dependency_id=self.name,
-        )
-
-
-class AssetAliasEvent(TypedDict):
-    """A represeation of asset event to be triggered by an asset alias."""
-
-    source_alias_name: str
-    dest_asset_uri: str
-    extra: dict[str, Any]
+        if not (resolved_assets := self._resolve_assets()):
+            yield DagDependency(
+                source=source or "asset-alias",
+                target=target or "asset-alias",
+                dependency_type="asset-alias",
+                dependency_id=self.name,
+            )
+            return
+        for asset in resolved_assets:
+            asset_name = asset.name
+            # asset
+            yield DagDependency(
+                source=f"asset-alias:{self.name}" if source else "asset",
+                target="asset" if source else f"asset-alias:{self.name}",
+                dependency_type="asset",
+                dependency_id=asset_name,
+            )
+            # asset alias
+            yield DagDependency(
+                source=source or f"asset:{asset_name}",
+                target=target or f"asset:{asset_name}",
+                dependency_type="asset-alias",
+                dependency_id=self.name,
+            )
 
 
 class _AssetBooleanCondition(BaseAsset):
@@ -377,16 +496,13 @@ class _AssetBooleanCondition(BaseAsset):
     def __init__(self, *objects: BaseAsset) -> None:
         if not all(isinstance(o, BaseAsset) for o in objects):
             raise TypeError("expect asset expressions in condition")
+        self.objects = objects
 
-        self.objects = [
-            AssetAliasCondition(obj.name) if isinstance(obj, AssetAlias) else obj for obj in objects
-        ]
+    def evaluate(self, statuses: dict[str, bool], *, session: Session | None = None) -> bool:
+        return self.agg_func(x.evaluate(statuses=statuses, session=session) for x in self.objects)
 
-    def evaluate(self, statuses: dict[str, bool]) -> bool:
-        return self.agg_func(x.evaluate(statuses=statuses) for x in self.objects)
-
-    def iter_assets(self) -> Iterator[tuple[str, Asset]]:
-        seen = set()  # We want to keep the first instance.
+    def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
+        seen: set[AssetUniqueKey] = set()  # We want to keep the first instance.
         for o in self.objects:
             for k, v in o.iter_assets():
                 if k in seen:
@@ -396,8 +512,13 @@ class _AssetBooleanCondition(BaseAsset):
 
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
         """Filter asset aliases in the condition."""
+        seen: set[str] = set()  # We want to keep the first instance.
         for o in self.objects:
-            yield from o.iter_asset_aliases()
+            for k, v in o.iter_asset_aliases():
+                if k in seen:
+                    continue
+                yield k, v
+                seen.add(k)
 
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
         """
@@ -430,80 +551,6 @@ class AssetAny(_AssetBooleanCondition):
         :meta private:
         """
         return {"any": [o.as_expression() for o in self.objects]}
-
-
-@internal_api_call
-@provide_session
-def expand_alias_to_assets(alias: str | AssetAlias, *, session: Session = NEW_SESSION) -> list[BaseAsset]:
-    """Expand asset alias to resolved assets."""
-    from airflow.models.asset import AssetAliasModel
-
-    alias_name = alias.name if isinstance(alias, AssetAlias) else alias
-
-    asset_alias_obj = session.scalar(
-        select(AssetAliasModel).where(AssetAliasModel.name == alias_name).limit(1)
-    )
-    if asset_alias_obj:
-        return [asset.to_public() for asset in asset_alias_obj.assets]
-    return []
-
-
-class AssetAliasCondition(AssetAny):
-    """
-    Use to expand AssetAlias as AssetAny of its resolved Assets.
-
-    :meta private:
-    """
-
-    def __init__(self, name: str) -> None:
-        self.name = name
-        self.objects = expand_alias_to_assets(name)
-
-    def __repr__(self) -> str:
-        return f"AssetAliasCondition({', '.join(map(str, self.objects))})"
-
-    def as_expression(self) -> Any:
-        """
-        Serialize the asset alias into its scheduling expression.
-
-        :meta private:
-        """
-        return {"alias": self.name}
-
-    def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
-        yield self.name, AssetAlias(self.name)
-
-    def iter_dag_dependencies(self, *, source: str = "", target: str = "") -> Iterator[DagDependency]:
-        """
-        Iterate an asset alias and its resolved assets as dag dependency.
-
-        :meta private:
-        """
-        if self.objects:
-            for obj in self.objects:
-                asset = cast(Asset, obj)
-                uri = asset.uri
-                # asset
-                yield DagDependency(
-                    source=f"asset-alias:{self.name}" if source else "asset",
-                    target="asset" if source else f"asset-alias:{self.name}",
-                    dependency_type="asset",
-                    dependency_id=uri,
-                )
-                # asset alias
-                yield DagDependency(
-                    source=source or f"asset:{uri}",
-                    target=target or f"asset:{uri}",
-                    dependency_type="asset-alias",
-                    dependency_id=self.name,
-                )
-        else:
-            yield DagDependency(
-                source=source or "asset-alias",
-                target=target or "asset-alias",
-                dependency_type="asset-alias",
-                dependency_id=self.name,
-            )
 
 
 class AssetAll(_AssetBooleanCondition):

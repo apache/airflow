@@ -179,8 +179,8 @@ class TestSmtpHook:
             )
             assert mock_send_mime.called
             _, call_args = mock_send_mime.call_args
-            assert "from" == call_args["from_addr"]
-            assert ["to"] == call_args["to_addrs"]
+            assert call_args["from_addr"] == "from"
+            assert call_args["to_addrs"] == ["to"]
             msg = call_args["msg"]
             assert "Subject: subject" in msg
             assert "From: from" in msg

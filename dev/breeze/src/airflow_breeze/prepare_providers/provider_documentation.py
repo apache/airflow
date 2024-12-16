@@ -1068,6 +1068,7 @@ def update_changelog(
     :param reapply_templates_only: only reapply templates, no changelog generation
     :param with_breaking_changes: whether there are any breaking changes
     :param maybe_with_new_features: whether there are any new features
+    :param only_min_version_update: whether to only update the min version
     """
     provider_details = get_provider_details(package_id)
     jinja_context = get_provider_documentation_jinja_context(

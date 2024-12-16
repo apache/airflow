@@ -426,7 +426,7 @@ class TestLocalFileBackend:
         path = tmp_path / "testfile.var.env"
         path.write_text("KEY_A=VAL_A")
         backend = LocalFilesystemBackend(variables_file_path=os.fspath(path))
-        assert "VAL_A" == backend.get_variable("KEY_A")
+        assert backend.get_variable("KEY_A") == "VAL_A"
         assert backend.get_variable("KEY_B") is None
 
     @conf_vars(
@@ -450,10 +450,10 @@ class TestLocalFileBackend:
         path = tmp_path / "testfile.env"
         path.write_text("CONN_A=mysql://host_a")
         backend = LocalFilesystemBackend(connections_file_path=os.fspath(path))
-        assert "mysql://host_a" == backend.get_connection("CONN_A").get_uri()
+        assert backend.get_connection("CONN_A").get_uri() == "mysql://host_a"
         assert backend.get_variable("CONN_B") is None
 
     def test_files_are_optional(self):
         backend = LocalFilesystemBackend()
-        assert None is backend.get_connection("CONN_A")
+        assert backend.get_connection("CONN_A") is None
         assert backend.get_variable("VAR_A") is None

@@ -30,7 +30,7 @@ class TestLogsPersistentVolumeClaim:
             show_only=["templates/logs-persistent-volume-claim.yaml"],
         )
 
-        assert 0 == len(docs)
+        assert len(docs) == 0
 
     def test_should_not_generate_a_document_when_using_an_existing_claim(self):
         docs = render_chart(
@@ -38,7 +38,7 @@ class TestLogsPersistentVolumeClaim:
             show_only=["templates/logs-persistent-volume-claim.yaml"],
         )
 
-        assert 0 == len(docs)
+        assert len(docs) == 0
 
     def test_should_generate_a_document_if_persistence_is_enabled_and_not_using_an_existing_claim(self):
         docs = render_chart(
@@ -46,7 +46,7 @@ class TestLogsPersistentVolumeClaim:
             show_only=["templates/logs-persistent-volume-claim.yaml"],
         )
 
-        assert 1 == len(docs)
+        assert len(docs) == 1
 
     def test_should_set_pvc_details_correctly(self):
         docs = render_chart(
@@ -63,11 +63,11 @@ class TestLogsPersistentVolumeClaim:
             show_only=["templates/logs-persistent-volume-claim.yaml"],
         )
 
-        assert {
+        assert jmespath.search("spec", docs[0]) == {
             "accessModes": ["ReadWriteMany"],
             "resources": {"requests": {"storage": "1G"}},
             "storageClassName": "MyStorageClass",
-        } == jmespath.search("spec", docs[0])
+        }
 
     def test_logs_persistent_volume_claim_template_storage_class_name(self):
         docs = render_chart(
@@ -82,4 +82,4 @@ class TestLogsPersistentVolumeClaim:
             },
             show_only=["templates/logs-persistent-volume-claim.yaml"],
         )
-        assert "release-name-storage-class" == jmespath.search("spec.storageClassName", docs[0])
+        assert jmespath.search("spec.storageClassName", docs[0]) == "release-name-storage-class"

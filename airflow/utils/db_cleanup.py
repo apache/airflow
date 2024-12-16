@@ -125,6 +125,7 @@ config_list: list[_TableConfig] = [
     _TableConfig(table_name="celery_taskmeta", recency_column_name="date_done"),
     _TableConfig(table_name="celery_tasksetmeta", recency_column_name="date_done"),
     _TableConfig(table_name="trigger", recency_column_name="created_date"),
+    _TableConfig(table_name="dag_version", recency_column_name="created_at"),
 ]
 
 if conf.get("webserver", "session_backend") == "database":

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from contextlib import suppress
 from unittest import mock
@@ -25,7 +26,7 @@ from unittest.mock import ANY, MagicMock
 
 import pandas as pd
 import pytest
-from google.cloud.bigquery import DEFAULT_RETRY, ScalarQueryParameter
+from google.cloud.bigquery import DEFAULT_RETRY, ScalarQueryParameter, Table
 from google.cloud.exceptions import Conflict
 
 from airflow.exceptions import (
@@ -35,11 +36,17 @@ from airflow.exceptions import (
     TaskDeferred,
 )
 from airflow.providers.common.compat.openlineage.facet import (
+    DocumentationDatasetFacet,
     ErrorMessageRunFacet,
     ExternalQueryRunFacet,
+    Identifier,
     InputDataset,
+    SchemaDatasetFacet,
+    SchemaDatasetFacetFields,
     SQLJobFacet,
+    SymlinksDatasetFacet,
 )
+from airflow.providers.google.cloud.openlineage.utils import BIGQUERY_NAMESPACE
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCheckOperator,
     BigQueryColumnCheckOperator,
@@ -103,6 +110,15 @@ TEST_JOB_ID_1 = "test-job-id"
 TEST_JOB_ID_2 = "test-123"
 TEST_FULL_JOB_ID = f"{TEST_GCP_PROJECT_ID}:{TEST_DATASET_LOCATION}:{TEST_JOB_ID_1}"
 TEST_FULL_JOB_ID_2 = f"{TEST_GCP_PROJECT_ID}:{TEST_DATASET_LOCATION}:{TEST_JOB_ID_2}"
+
+
+def create_bigquery_job(errors=None, error_result=None, state="DONE"):
+    mock_job = MagicMock()
+    mock_job.errors = errors or []
+    mock_job.error_result = error_result
+    mock_job.state = state
+    mock_job.job_id = "mock-job-id"
+    return mock_job
 
 
 class TestBigQueryCreateEmptyTableOperator:
@@ -249,6 +265,63 @@ class TestBigQueryCreateEmptyTableOperator:
         if log_msg is not None:
             assert log_msg in caplog.text
 
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_get_openlineage_facets_on_complete(self, mock_hook):
+        schema_fields = [
+            {"name": "field1", "type": "STRING", "description": "field1 description"},
+            {"name": "field2", "type": "INTEGER"},
+        ]
+        table_resource = {
+            "tableReference": {
+                "projectId": TEST_GCP_PROJECT_ID,
+                "datasetId": TEST_DATASET,
+                "tableId": TEST_TABLE_ID,
+            },
+            "description": "Table description.",
+            "schema": {"fields": schema_fields},
+        }
+        mock_hook.return_value.create_empty_table.return_value = Table.from_api_repr(table_resource)
+        operator = BigQueryCreateEmptyTableOperator(
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            project_id=TEST_GCP_PROJECT_ID,
+            table_id=TEST_TABLE_ID,
+            schema_fields=schema_fields,
+        )
+        operator.execute(context=MagicMock())
+
+        mock_hook.return_value.create_empty_table.assert_called_once_with(
+            dataset_id=TEST_DATASET,
+            project_id=TEST_GCP_PROJECT_ID,
+            table_id=TEST_TABLE_ID,
+            schema_fields=schema_fields,
+            time_partitioning={},
+            cluster_fields=None,
+            labels=None,
+            view=None,
+            materialized_view=None,
+            encryption_configuration=None,
+            table_resource=None,
+            exists_ok=False,
+        )
+
+        result = operator.get_openlineage_facets_on_complete(None)
+        assert not result.run_facets
+        assert not result.job_facets
+        assert not result.inputs
+        assert len(result.outputs) == 1
+        assert result.outputs[0].namespace == BIGQUERY_NAMESPACE
+        assert result.outputs[0].name == f"{TEST_GCP_PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}"
+        assert result.outputs[0].facets == {
+            "schema": SchemaDatasetFacet(
+                fields=[
+                    SchemaDatasetFacetFields(name="field1", type="STRING", description="field1 description"),
+                    SchemaDatasetFacetFields(name="field2", type="INTEGER"),
+                ]
+            ),
+            "documentation": DocumentationDatasetFacet(description="Table description."),
+        }
+
 
 class TestBigQueryCreateExternalTableOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
@@ -333,6 +406,65 @@ class TestBigQueryCreateExternalTableOperator:
 
         operator.execute(context=MagicMock())
         mock_hook.return_value.create_empty_table.assert_called_once_with(table_resource=table_resource)
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_get_openlineage_facets_on_complete(self, mock_hook):
+        table_resource = {
+            "tableReference": {
+                "projectId": TEST_GCP_PROJECT_ID,
+                "datasetId": TEST_DATASET,
+                "tableId": TEST_TABLE_ID,
+            },
+            "description": "Table description.",
+            "schema": {
+                "fields": [
+                    {"name": "field1", "type": "STRING", "description": "field1 description"},
+                    {"name": "field2", "type": "INTEGER"},
+                ]
+            },
+            "externalDataConfiguration": {
+                "sourceUris": [
+                    f"gs://{TEST_GCS_BUCKET}/{source_object}" for source_object in TEST_GCS_CSV_DATA
+                ],
+                "sourceFormat": TEST_SOURCE_CSV_FORMAT,
+            },
+        }
+        mock_hook.return_value.create_empty_table.return_value = Table.from_api_repr(table_resource)
+        operator = BigQueryCreateExternalTableOperator(
+            task_id=TASK_ID,
+            bucket=TEST_GCS_BUCKET,
+            source_objects=TEST_GCS_CSV_DATA,
+            table_resource=table_resource,
+        )
+
+        mock_hook.return_value.split_tablename.return_value = (
+            TEST_GCP_PROJECT_ID,
+            TEST_DATASET,
+            TEST_TABLE_ID,
+        )
+
+        operator.execute(context=MagicMock())
+        mock_hook.return_value.create_empty_table.assert_called_once_with(table_resource=table_resource)
+
+        result = operator.get_openlineage_facets_on_complete(None)
+        assert not result.run_facets
+        assert not result.job_facets
+        assert not result.inputs
+        assert len(result.outputs) == 1
+        assert result.outputs[0].namespace == BIGQUERY_NAMESPACE
+        assert result.outputs[0].name == f"{TEST_GCP_PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}"
+        assert result.outputs[0].facets == {
+            "schema": SchemaDatasetFacet(
+                fields=[
+                    SchemaDatasetFacetFields(name="field1", type="STRING", description="field1 description"),
+                    SchemaDatasetFacetFields(name="field2", type="INTEGER"),
+                ]
+            ),
+            "documentation": DocumentationDatasetFacet(description="Table description."),
+            "symlink": SymlinksDatasetFacet(
+                identifiers=[Identifier(namespace=f"gs://{TEST_GCS_BUCKET}", name="dir1", type="file")]
+            ),
+        }
 
 
 class TestBigQueryDeleteDatasetOperator:
@@ -823,7 +955,9 @@ class TestBigQueryInsertJobOperator:
                 "useLegacySql": False,
             }
         }
-        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            state="DONE", job_id=real_job_id, error_result=False
+        )
         mock_hook.return_value.generate_job_id.return_value = real_job_id
 
         op = BigQueryInsertJobOperator(
@@ -864,7 +998,9 @@ class TestBigQueryInsertJobOperator:
             "configuration": configuration,
             "jobReference": "a",
         }
-        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            state="DONE", job_id=real_job_id, error_result=False
+        )
         mock_hook.return_value.generate_job_id.return_value = real_job_id
         mock_hook.return_value.insert_job.return_value.to_api_repr.return_value = mock_configuration
 
@@ -902,7 +1038,9 @@ class TestBigQueryInsertJobOperator:
                 "useLegacySql": False,
             }
         }
-        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            state="DONE", job_id=real_job_id, error_result=False
+        )
         mock_hook.return_value.generate_job_id.return_value = real_job_id
 
         op = BigQueryInsertJobOperator(
@@ -942,6 +1080,7 @@ class TestBigQueryInsertJobOperator:
 
         mock_job.job_id = real_job_id
         mock_job.error_result = False
+        mock_job.state = "DONE"
         mock_job.result.side_effect = AirflowTaskTimeout()
 
         mock_hook.return_value.insert_job.return_value = mock_job
@@ -977,7 +1116,9 @@ class TestBigQueryInsertJobOperator:
                 "useLegacySql": False,
             }
         }
-        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=True)
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            state="DONE", job_id=real_job_id, error_result=True
+        )
         mock_hook.return_value.generate_job_id.return_value = real_job_id
 
         op = BigQueryInsertJobOperator(
@@ -990,8 +1131,11 @@ class TestBigQueryInsertJobOperator:
         with pytest.raises(AirflowException):
             op.execute(context=MagicMock())
 
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.bigquery.BigQueryInsertJobOperator._handle_job_error"
+    )
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_execute_reattach(self, mock_hook):
+    def test_execute_reattach(self, mock_hook, _handle_job_error):
         job_id = "123456"
         hash_ = "hash"
         real_job_id = f"{job_id}_{hash_}"
@@ -1085,6 +1229,7 @@ class TestBigQueryInsertJobOperator:
         }
 
         job = MagicMock(
+            state="DONE",
             job_id=real_job_id,
             error_result=False,
         )
@@ -1161,7 +1306,9 @@ class TestBigQueryInsertJobOperator:
                 "useLegacySql": False,
             }
         }
-        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            state="DONE", job_id=real_job_id, error_result=False
+        )
         mock_hook.return_value.insert_job.return_value.running.return_value = False
 
         op = BigQueryInsertJobOperator(
@@ -1190,7 +1337,9 @@ class TestBigQueryInsertJobOperator:
                 "useLegacySql": False,
             }
         }
-        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=True)
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            state="DONE", job_id=real_job_id, error_result=True
+        )
         mock_hook.return_value.insert_job.return_value.running.return_value = False
 
         op = BigQueryInsertJobOperator(
@@ -1365,9 +1514,12 @@ class TestBigQueryInsertJobOperator:
         assert operator.job_id == job_id
 
     @pytest.mark.db_test
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.bigquery.BigQueryInsertJobOperator._handle_job_error"
+    )
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_bigquery_insert_job_operator_with_job_id_generate(
-        self, mock_hook, create_task_instance_of_operator
+        self, mock_hook, _handle_job_error, create_task_instance_of_operator
     ):
         job_id = "123456"
         hash_ = "hash"
@@ -1425,7 +1577,9 @@ class TestBigQueryInsertJobOperator:
                 "useLegacySql": False,
             }
         }
-        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            state="DONE", job_id=real_job_id, error_result=False
+        )
         mock_hook.return_value.generate_job_id.return_value = real_job_id
 
         op = BigQueryInsertJobOperator(
@@ -1460,7 +1614,6 @@ class TestBigQueryInsertJobOperator:
         ]
 
         assert lineage.run_facets == {
-            "bigQuery_job": mock.ANY,
             "bigQueryJob": mock.ANY,
             "externalQuery": ExternalQueryRunFacet(externalQueryId=mock.ANY, source="bigquery"),
         }
@@ -1559,7 +1712,9 @@ class TestBigQueryInsertJobOperator:
             },
             "labels": {"foo": "bar"},
         }
-        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            state="DONE", job_id=real_job_id, error_result=False
+        )
         mock_hook.return_value.generate_job_id.return_value = real_job_id
 
         op = BigQueryInsertJobOperator(
@@ -1589,7 +1744,9 @@ class TestBigQueryInsertJobOperator:
             },
             "labels": None,
         }
-        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            state="DONE", job_id=real_job_id, error_result=False
+        )
         mock_hook.return_value.generate_job_id.return_value = real_job_id
 
         op = BigQueryInsertJobOperator(
@@ -1733,6 +1890,39 @@ class TestBigQueryInsertJobOperator:
         )
         op._add_job_labels()
         assert "labels" not in configuration
+
+    def test_handle_job_error_raises_on_error_result_or_error(self, caplog):
+        caplog.set_level(logging.ERROR)
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+        }
+        op = BigQueryInsertJobOperator(
+            task_id="task.with.dots.is.allowed",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            project_id=TEST_GCP_PROJECT_ID,
+            job_id="12345",
+        )
+        # Test error_result
+        job_with_error_result = create_bigquery_job(error_result="Job failed due to some issue")
+        with pytest.raises(
+            AirflowException, match="BigQuery job mock-job-id failed: Job failed due to some issue"
+        ):
+            op._handle_job_error(job_with_error_result)
+
+        # Test errors
+        job_with_error = create_bigquery_job(errors=["Some transient error"])
+        op._handle_job_error(job_with_error)
+
+        assert "Some transient error" in caplog.text
+
+        # Test empty error object
+        job_empty_error = create_bigquery_job(state="RUNNING")
+        with pytest.raises(AirflowException, match="Job failed with state: RUNNING"):
+            op._handle_job_error(job_empty_error)
 
 
 class TestBigQueryIntervalCheckOperator:

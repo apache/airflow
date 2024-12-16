@@ -174,32 +174,6 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("airflow/api_internal/file.py",),
-                {
-                    "all-python-versions": "['3.9']",
-                    "all-python-versions-list-as-string": "3.9",
-                    "python-versions": "['3.9']",
-                    "python-versions-list-as-string": "3.9",
-                    "ci-image-build": "true",
-                    "prod-image-build": "false",
-                    "needs-helm-tests": "false",
-                    "run-tests": "true",
-                    "run-amazon-tests": "false",
-                    "docs-build": "true",
-                    "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,"
-                    "mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui,ts-compile-format-lint-www",
-                    "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": "API Always",
-                    "providers-test-types-list-as-string": "",
-                    "individual-providers-test-types-list-as-string": "",
-                    "needs-mypy": "true",
-                    "mypy-checks": "['mypy-airflow']",
-                },
-                id="Only API tests and DOCS should run (no provider tests) when only internal api changed",
-            )
-        ),
-        (
-            pytest.param(
                 ("airflow/api_fastapi/file.py",),
                 {
                     "all-python-versions": "['3.9']",

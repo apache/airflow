@@ -26,6 +26,20 @@
 Changelog
 ---------
 
+main
+....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the MySQL provider package.
+  The following breaking changes were introduced:
+
+  * Operators
+     * Remove ``airflow.providers.mysql.operators.mysql.MySqlOperator``. Please use ``airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator``.
+       Also, you can provide `hook_params={'schema': <database>}`.
+
 5.7.4
 .....
 

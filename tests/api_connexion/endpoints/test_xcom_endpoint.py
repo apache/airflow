@@ -35,7 +35,7 @@ from tests_common.test_utils.api_connexion_utils import assert_401, create_user,
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 class CustomXCom(BaseXCom):
@@ -118,7 +118,7 @@ class TestGetXComEntry(TestXComEndpoint):
             f"/api/v1/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
             environ_overrides={"REMOTE_USER": "test"},
         )
-        assert 200 == response.status_code
+        assert response.status_code == 200
 
         current_data = response.json
         current_data["timestamp"] = "TIMESTAMP"
@@ -144,7 +144,7 @@ class TestGetXComEntry(TestXComEndpoint):
             f"/api/v1/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}?stringify=false",
             environ_overrides={"REMOTE_USER": "test"},
         )
-        assert 200 == response.status_code
+        assert response.status_code == 200
 
         current_data = response.json
         current_data["timestamp"] = "TIMESTAMP"
@@ -170,7 +170,7 @@ class TestGetXComEntry(TestXComEndpoint):
             f"/api/v1/dags/nonexistentdagid/dagRuns/{run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
             environ_overrides={"REMOTE_USER": "test"},
         )
-        assert 404 == response.status_code
+        assert response.status_code == 404
         assert response.json["title"] == "XCom entry not found"
 
     def test_should_raises_401_unauthenticated(self):
@@ -297,7 +297,7 @@ class TestGetXComEntries(TestXComEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
 
-        assert 200 == response.status_code
+        assert response.status_code == 200
         response_data = response.json
         for xcom_entry in response_data["xcom_entries"]:
             xcom_entry["timestamp"] = "TIMESTAMP"
@@ -344,7 +344,7 @@ class TestGetXComEntries(TestXComEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
 
-        assert 200 == response.status_code
+        assert response.status_code == 200
         response_data = response.json
         for xcom_entry in response_data["xcom_entries"]:
             xcom_entry["timestamp"] = "TIMESTAMP"
@@ -404,7 +404,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 environ_overrides={"REMOTE_USER": "test"},
             )
 
-            assert 200 == response.status_code
+            assert response.status_code == 200
             response_data = response.json
             for xcom_entry in response_data["xcom_entries"]:
                 xcom_entry["timestamp"] = "TIMESTAMP"
@@ -447,7 +447,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 environ_overrides={"REMOTE_USER": "test"},
             )
 
-            assert 200 == response.status_code
+            assert response.status_code == 200
             response_data = response.json
             for xcom_entry in response_data["xcom_entries"]:
                 xcom_entry["timestamp"] = "TIMESTAMP"

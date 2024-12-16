@@ -17,13 +17,11 @@
 
 from __future__ import annotations
 
-import warnings
 from collections.abc import Iterable
 from functools import cached_property
 
 from apprise import AppriseConfig, NotifyFormat, NotifyType
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.apprise.hooks.apprise import AppriseHook
 
@@ -53,38 +51,14 @@ class AppriseNotifier(BaseNotifier):
         *,
         body: str,
         title: str | None = None,
-        notify_type: NotifyType | None = None,
-        body_format: NotifyFormat | None = None,
-        tag: str | Iterable[str] | None = None,
+        notify_type: NotifyType = NotifyType.INFO,
+        body_format: NotifyFormat = NotifyFormat.TEXT,
+        tag: str | Iterable[str] = "all",
         attach: str | None = None,
         interpret_escapes: bool | None = None,
         config: AppriseConfig | None = None,
         apprise_conn_id: str = AppriseHook.default_conn_name,
     ):
-        if tag is None:
-            warnings.warn(
-                "`tag` cannot be None. Assign it to be MATCH_ALL_TAG",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            tag = "all"
-
-        if notify_type is None:
-            warnings.warn(
-                "`notify_type` cannot be None. Assign it to be NotifyType.INFO",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            notify_type = NotifyType.INFO
-
-        if body_format is None:
-            warnings.warn(
-                "`body_format` cannot be None. Assign it to be  NotifyFormat.TEXT",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            body_format = NotifyFormat.TEXT
-
         super().__init__()
         self.apprise_conn_id = apprise_conn_id
         self.body = body

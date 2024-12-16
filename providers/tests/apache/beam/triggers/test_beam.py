@@ -44,6 +44,7 @@ TEST_PY_PACKAGES = False
 TEST_RUNNER = "DirectRunner"
 TEST_JAR_FILE = "example.jar"
 TEST_GCS_JAR_FILE = "gs://my-bucket/example/test.jar"
+TEST_GCS_PY_FILE = "gs://my-bucket/my-object.py"
 TEST_JOB_CLASS = "TestClass"
 TEST_CHECK_IF_RUNNING = False
 TEST_JOB_NAME = "test_job_name"
@@ -61,6 +62,7 @@ def python_trigger():
         py_requirements=TEST_PY_REQUIREMENTS,
         py_system_site_packages=TEST_PY_PACKAGES,
         runner=TEST_RUNNER,
+        gcp_conn_id=TEST_GCP_CONN_ID,
     )
 
 
@@ -98,6 +100,7 @@ class TestBeamPythonPipelineTrigger:
             "py_requirements": TEST_PY_REQUIREMENTS,
             "py_system_site_packages": TEST_PY_PACKAGES,
             "runner": TEST_RUNNER,
+            "gcp_conn_id": TEST_GCP_CONN_ID,
         }
 
     @pytest.mark.asyncio
@@ -138,6 +141,18 @@ class TestBeamPythonPipelineTrigger:
         generator = python_trigger.run()
         actual = await generator.asend(None)
         assert TriggerEvent({"status": "error", "message": "Test exception"}) == actual
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.apache.beam.triggers.beam.GCSHook")
+    async def test_beam_trigger_gcs_provide_file_should_execute_successfully(self, gcs_hook, python_trigger):
+        """
+        Test that BeamPythonPipelineTrigger downloads GCS provide file correct.
+        """
+        gcs_provide_file = gcs_hook.return_value.provide_file
+        python_trigger.py_file = TEST_GCS_PY_FILE
+        generator = python_trigger.run()
+        await generator.asend(None)
+        gcs_provide_file.assert_called_once_with(object_url=TEST_GCS_PY_FILE)
 
 
 class TestBeamJavaPipelineTrigger:

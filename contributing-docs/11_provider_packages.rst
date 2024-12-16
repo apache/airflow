@@ -28,20 +28,28 @@ Airflow 2.0 is split into core and providers. They are delivered as separate pac
 Where providers are kept in our repository
 ------------------------------------------
 
-Airflow Providers are stored in the same source tree as Airflow Core (under ``airflow.providers``) package. This
-means that Airflow's repository is a monorepo, that keeps multiple packages in a single repository. This has a number
+Airflow Providers are stored in a separate tree other than the Airflow Core (under ``providers`` directory).
+Airflow's repository is a monorepo, that keeps multiple packages in a single repository. This has a number
 of advantages, because code and CI infrastructure and tests can be shared. Also contributions are happening to a
 single repository - so no matter if you contribute to Airflow or Providers, you are contributing to the same
 repository and project.
 
 It has also some disadvantages as this introduces some coupling between those - so contributing to providers might
 interfere with contributing to Airflow. Python ecosystem does not yet have proper monorepo support for keeping
-several packages in one repository and being able to work on multiple of them at the same time, but we have
-high hopes Hatch project that use as our recommended packaging frontend
-will `solve this problem in the future <https://github.com/pypa/hatch/issues/233>`__
+several packages in one repository and being able to work on more than one of them at the same time. The tool ``uv`` is
+recommended to help manage this through it's ``workspace`` feature. While developing, dependencies and extras for a
+provider can be installed using ``uv``'s ``sync`` command. Here is an example for the microsoft.azure provider:
+
+.. code:: bash
+
+    uv sync --extra devel --extra devel-tests --extra microsoft.azure
+
+This will synchronize all extras that you need for development and testing of Airflow and the Microsoft Azure provider
+dependencies including runtime dependencies. See `local virtualenv <../07_local_virtualenv.rst>`_ or the uv project
+for more information.
 
 Therefore, until we can introduce multiple ``pyproject.toml`` for providers information/meta-data about the providers
-is kept in ``provider.yaml`` file in the right sub-directory of ``airflow\providers``. This file contains:
+is kept in ``provider.yaml`` file in the right sub-directory of ``providers``. This file contains:
 
 * package name (``apache-airflow-provider-*``)
 * user-facing name of the provider package
@@ -81,6 +89,19 @@ and pre-commit will generate new entry in ``generated/provider_dependencies.json
 ``pyproject.toml`` so that the package extra dependencies are properly handled when package
 might be installed when breeze is restarted or by your IDE or by running ``pip install -e ".[devel]"``.
 
+Chicken-egg providers
+---------------------
+
+Sometimes, when a provider depends on another provider, and you want to add a new feature that spans across
+two providers, you might need to add a new feature to the "dependent" provider, you need
+to add a new feature to the "dependency" provider as well. This is a chicken-egg problem and by default
+some CI jobs (like generating PyPI constraints) will fail because they cannot use the source version of
+the provider package. This is handled by adding the "dependent" provider to the chicken-egg list of
+"providers" in ``dev/breeze/src/airflow_breeze/global_constants.py``. By doing this, the provider is build
+locally from sources rather than downloaded from PyPI when generating constraints.
+
+More information about the chicken-egg providers and how release is handled can be found in
+the `Release Provider Packages documentation <../dev/README_RELEASE_PROVIDER_PACKAGES.md#chicken-egg-providers>`_
 
 Developing community managed provider packages
 ----------------------------------------------

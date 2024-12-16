@@ -45,9 +45,10 @@ This creates a virtual machine that can run code specified in the trainer file, 
 contains the main application code. A job can be initiated with the
 :class:`~airflow.providers.google.cloud.operators.mlengine.MLEngineStartTrainingJobOperator`.
 
-This operator is deprecated. Please, use
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomPythonPackageTrainingJobOperator`
-instead.
+.. warning::
+    This operator is deprecated. Please, use
+    :class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomPythonPackageTrainingJobOperator`
+    instead.
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/ml_engine/example_mlengine.py
     :language: python
@@ -64,10 +65,11 @@ A model is a container that can hold multiple model versions. A new model can be
 The ``model`` field should be defined with a dictionary containing the information about the model.
 ``name`` is a required field in this dictionary.
 
-This operator is deprecated. The model is created as a result of running Vertex AI operators that create training jobs
-of any types. For example, you can use
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomPythonPackageTrainingJobOperator`.
-The result of running this operator will be ready-to-use model saved in Model Registry.
+.. warning::
+    This operator is deprecated. The model is created as a result of running Vertex AI operators that create training jobs
+    of any types. For example, you can use
+    :class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomPythonPackageTrainingJobOperator`.
+    The result of running this operator will be ready-to-use model saved in Model Registry.
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/ml_engine/example_mlengine.py
     :language: python
@@ -83,9 +85,10 @@ The :class:`~airflow.providers.google.cloud.operators.mlengine.MLEngineGetModelO
 can be used to obtain a model previously created. To obtain the correct model, ``model_name``
 must be defined in the operator.
 
-This operator is deprecated. Please, use
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.GetModelOperator`
-instead.
+.. warning::
+    This operator is deprecated. Please, use
+    :class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.GetModelOperator`
+    instead.
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/ml_engine/example_mlengine.py
     :language: python
@@ -114,11 +117,12 @@ The model must be specified by ``model_name``, and the ``version`` parameter sho
 all the information about the version. Within the ``version`` parameter's dictionary, the ``name`` field is
 required.
 
-This operator is deprecated. Please, use
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomPythonPackageTrainingJobOperator`
-instead. In this case, the new version of specific model could be created by specifying existing model id in
-``parent_model`` parameter when running Training Job. This will ensure that new version of model will be trained except
-of creating new model.
+.. warning::
+    This operator is deprecated. Please, use
+    :class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomPythonPackageTrainingJobOperator`
+    instead. In this case, the new version of specific model could be created by specifying existing model id in
+    ``parent_model`` parameter when running Training Job. This will ensure that new version of model will be trained except
+    of creating new model.
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/ml_engine/example_mlengine.py
     :language: python
@@ -144,12 +148,13 @@ By default, the model code will run using the default model version. You can set
 :class:`~airflow.providers.google.cloud.operators.mlengine.MLEngineSetDefaultVersionOperator`
 by specifying the ``model_name`` and ``version_name`` parameters.
 
-This operator is deprecated. Please, use
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.SetDefaultVersionOnModelOperator`
-instead. The desired model version to be set as default could be passed with the model ID in ``model_id`` parameter
-in format ``projects/{project}/locations/{location}/models/{model_id}@{version_id}`` or
-``projects/{project}/locations/{location}/models/{model_id}@{version_alias}``. By default, the first model version
-created will be marked as default.
+.. warning::
+    This operator is deprecated. Please, use
+    :class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.SetDefaultVersionOnModelOperator`
+    instead. The desired model version to be set as default could be passed with the model ID in ``model_id`` parameter
+    in format ``projects/{project}/locations/{location}/models/{model_id}@{version_id}`` or
+    ``projects/{project}/locations/{location}/models/{model_id}@{version_alias}``. By default, the first model version
+    created will be marked as default.
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/ml_engine/example_mlengine.py
     :language: python
@@ -161,10 +166,11 @@ To list the model versions available, use the
 :class:`~airflow.providers.google.cloud.operators.mlengine.MLEngineListVersionsOperator`
 while specifying the ``model_name`` parameter.
 
-This operator is deprecated. Please, use
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.ListModelVersionsOperator`
-instead. You can pass the name of the desired model in ``model_id`` parameter. If the model ID is passed
-with version aliases, the operator will output all the versions available for this model.
+.. warning::
+    This operator is deprecated. Please, use
+    :class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.ListModelVersionsOperator`
+    instead. You can pass the name of the desired model in ``model_id`` parameter. If the model ID is passed
+    with version aliases, the operator will output all the versions available for this model.
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/ml_engine/example_mlengine.py
     :language: python
@@ -181,9 +187,10 @@ A Google Cloud AI Platform prediction job can be started with the
 For specifying the model origin, you need to provide either the ``model_name``, ``uri``, or ``model_name`` and
 ``version_name``. If you do not provide the ``version_name``, the operator will use the default model version.
 
-This operator is deprecated. Please, use
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.CreateBatchPredictionJobOperator`
-instead.
+.. warning::
+    This operator is deprecated. Please, use
+    :class:`~airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.CreateBatchPredictionJobOperator`
+    instead.
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/ml_engine/example_mlengine.py
     :language: python
@@ -200,9 +207,10 @@ A model version can be deleted with the
 :class:`~airflow.providers.google.cloud.operators.mlengine.MLEngineDeleteVersionOperator` by
 the ``version_name`` and ``model_name`` parameters.
 
-This operator is deprecated. Please, use
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.DeleteModelVersionOperator`
-instead. The default version could not be deleted on the model.
+.. warning::
+    This operator is deprecated. Please, use
+    :class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.DeleteModelVersionOperator`
+    instead. The default version could not be deleted on the model.
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/ml_engine/example_mlengine.py
     :language: python
@@ -214,9 +222,10 @@ You can also delete a model with the
 :class:`~airflow.providers.google.cloud.operators.mlengine.MLEngineDeleteModelOperator`
 by providing the ``model_name`` parameter.
 
-This operator is deprecated. Please, use
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.DeleteModelOperator`
-instead.
+.. warning::
+    This operator is deprecated. Please, use
+    :class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.DeleteModelOperator`
+    instead.
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/ml_engine/example_mlengine.py
     :language: python

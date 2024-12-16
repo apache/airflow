@@ -19,18 +19,20 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Query, status
+from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.common.db.common import (
-    get_session,
+    SessionDep,
     paginated_select,
 )
 from airflow.api_fastapi.common.parameters import (
+    FilterOptionEnum,
+    FilterParam,
     QueryLimit,
     QueryOffset,
     SortParam,
+    filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.event_logs import (
@@ -49,7 +51,7 @@ event_logs_router = AirflowRouter(tags=["Event Log"], prefix="/eventLogs")
 )
 def get_event_log(
     event_log_id: int,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> EventLogResponse:
     event_log = session.scalar(select(Log).where(Log.id == event_log_id))
     if event_log is None:
@@ -63,7 +65,7 @@ def get_event_log(
 def get_event_logs(
     limit: QueryLimit,
     offset: QueryOffset,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     order_by: Annotated[
         SortParam,
         Depends(
@@ -84,46 +86,50 @@ def get_event_logs(
             ).dynamic_depends()
         ),
     ],
-    dag_id: str | None = None,
-    task_id: str | None = None,
-    run_id: str | None = None,
-    map_index: int | None = None,
-    try_number: int | None = None,
-    owner: str | None = None,
-    event: str | None = None,
-    excluded_events: list[str] | None = Query(None),
-    included_events: list[str] | None = Query(None),
-    before: datetime | None = None,
-    after: datetime | None = None,
+    dag_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.dag_id, str | None))],
+    task_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.task_id, str | None))],
+    run_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.run_id, str | None))],
+    map_index: Annotated[FilterParam[int | None], Depends(filter_param_factory(Log.map_index, int | None))],
+    try_number: Annotated[FilterParam[int | None], Depends(filter_param_factory(Log.try_number, int | None))],
+    owner: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.owner, str | None))],
+    event: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.event, str | None))],
+    excluded_events: Annotated[
+        FilterParam[list[str] | None],
+        Depends(
+            filter_param_factory(Log.event, list[str] | None, FilterOptionEnum.NOT_IN, "excluded_events")
+        ),
+    ],
+    included_events: Annotated[
+        FilterParam[list[str] | None],
+        Depends(filter_param_factory(Log.event, list[str] | None, FilterOptionEnum.IN, "included_events")),
+    ],
+    before: Annotated[
+        FilterParam[datetime | None],
+        Depends(filter_param_factory(Log.dttm, datetime | None, FilterOptionEnum.LESS_THAN, "before")),
+    ],
+    after: Annotated[
+        FilterParam[datetime | None],
+        Depends(filter_param_factory(Log.dttm, datetime | None, FilterOptionEnum.GREATER_THAN, "after")),
+    ],
 ) -> EventLogCollectionResponse:
     """Get all Event Logs."""
-    base_select = select(Log).group_by(Log.id)
-    # TODO: Refactor using the `FilterParam` class in commit `574b72e41cc5ed175a2bbf4356522589b836bb11`
-    if dag_id is not None:
-        base_select = base_select.where(Log.dag_id == dag_id)
-    if task_id is not None:
-        base_select = base_select.where(Log.task_id == task_id)
-    if run_id is not None:
-        base_select = base_select.where(Log.run_id == run_id)
-    if map_index is not None:
-        base_select = base_select.where(Log.map_index == map_index)
-    if try_number is not None:
-        base_select = base_select.where(Log.try_number == try_number)
-    if owner is not None:
-        base_select = base_select.where(Log.owner == owner)
-    if event is not None:
-        base_select = base_select.where(Log.event == event)
-    if excluded_events is not None:
-        base_select = base_select.where(Log.event.notin_(excluded_events))
-    if included_events is not None:
-        base_select = base_select.where(Log.event.in_(included_events))
-    if before is not None:
-        base_select = base_select.where(Log.dttm < before)
-    if after is not None:
-        base_select = base_select.where(Log.dttm > after)
+    query = select(Log).group_by(Log.id)
     event_logs_select, total_entries = paginated_select(
-        select=base_select,
+        statement=query,
         order_by=order_by,
+        filters=[
+            dag_id,
+            task_id,
+            run_id,
+            map_index,
+            try_number,
+            owner,
+            event,
+            excluded_events,
+            included_events,
+            before,
+            after,
+        ],
         offset=offset,
         limit=limit,
         session=session,

@@ -23,6 +23,7 @@ import os
 import sys
 import warnings
 from functools import cache
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO, Callable, Generic, TextIO, TypeVar
 
 import msgspec
@@ -285,9 +286,11 @@ def configure_logging(
         std_lib_formatter.append(named["json"])
 
     global _warnings_showwarning
-    _warnings_showwarning = warnings.showwarning
-    # Capture warnings and show them via structlog
-    warnings.showwarning = _showwarning
+
+    if _warnings_showwarning is None:
+        _warnings_showwarning = warnings.showwarning
+        # Capture warnings and show them via structlog
+        warnings.showwarning = _showwarning
 
     logging.config.dictConfig(
         {
@@ -327,11 +330,13 @@ def configure_logging(
                     "propagate": True,
                 },
                 # Some modules we _never_ want at debug level
-                "asyncio": {"level": "INFO"},
                 "alembic": {"level": "INFO"},
+                "asyncio": {"level": "INFO"},
+                "cron_descriptor.GetText": {"level": "INFO"},
                 "httpcore": {"level": "INFO"},
                 "httpx": {"level": "WARN"},
                 "psycopg.pq": {"level": "INFO"},
+                # These ones are too chatty even at info
                 "sqlalchemy.engine": {"level": "WARN"},
             },
         }
@@ -344,17 +349,17 @@ def reset_logging():
     configure_logging.cache_clear()
 
 
-_warnings_showwarning = None
+_warnings_showwarning: Any = None
 
 
 def _showwarning(
-    message: str | Warning,
+    message: Warning | str,
     category: type[Warning],
     filename: str,
     lineno: int,
     file: TextIO | None = None,
     line: str | None = None,
-):
+) -> Any:
     """
     Redirects warnings to structlog so they appear in task logs etc.
 
@@ -370,3 +375,65 @@ def _showwarning(
     else:
         log = structlog.get_logger(logger_name="py.warnings")
         log.warning(str(message), category=category.__name__, filename=filename, lineno=lineno)
+
+
+def _prepare_log_folder(directory: Path, mode: int):
+    """
+    Prepare the log folder and ensure its mode is as configured.
+
+    To handle log writing when tasks are impersonated, the log files need to
+    be writable by the user that runs the Airflow command and the user
+    that is impersonated. This is mainly to handle corner cases with the
+    SubDagOperator. When the SubDagOperator is run, all of the operators
+    run under the impersonated user and create appropriate log files
+    as the impersonated user. However, if the user manually runs tasks
+    of the SubDagOperator through the UI, then the log files are created
+    by the user that runs the Airflow command. For example, the Airflow
+    run command may be run by the `airflow_sudoable` user, but the Airflow
+    tasks may be run by the `airflow` user. If the log files are not
+    writable by both users, then it's possible that re-running a task
+    via the UI (or vice versa) results in a permission error as the task
+    tries to write to a log file created by the other user.
+
+    We leave it up to the user to manage their permissions by exposing configuration for both
+    new folders and new log files. Default is to make new log folders and files group-writeable
+    to handle most common impersonation use cases. The requirement in this case will be to make
+    sure that the same group is set as default group for both - impersonated user and main airflow
+    user.
+    """
+    for parent in reversed(directory.parents):
+        parent.mkdir(mode=mode, exist_ok=True)
+    directory.mkdir(mode=mode, exist_ok=True)
+
+
+def init_log_file(local_relative_path: str) -> Path:
+    """
+    Ensure log file and parent directories are created.
+
+    Any directories that are missing are created with the right permission bits.
+
+    See above ``_prepare_log_folder`` method for more detailed explanation.
+    """
+    # NOTE: This is duplicated from airflow.utils.log.file_task_handler:FileTaskHandler._init_file, but we
+    # want to remove that
+    from airflow.configuration import conf
+
+    new_file_permissions = int(
+        conf.get("logging", "file_task_handler_new_file_permissions", fallback="0o664"), 8
+    )
+    new_folder_permissions = int(
+        conf.get("logging", "file_task_handler_new_folder_permissions", fallback="0o775"), 8
+    )
+
+    base_log_folder = conf.get("logging", "base_log_folder")
+    full_path = Path(base_log_folder, local_relative_path)
+
+    _prepare_log_folder(full_path.parent, new_folder_permissions)
+
+    try:
+        full_path.touch(new_file_permissions)
+    except OSError as e:
+        log = structlog.get_logger()
+        log.warning("OSError while changing ownership of the log file. %s", e)
+
+    return full_path

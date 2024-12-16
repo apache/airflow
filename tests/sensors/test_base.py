@@ -45,6 +45,7 @@ from airflow.executors.executor_constants import (
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.models import TaskInstance, TaskReschedule
+from airflow.models.trigger import TriggerFailureReason
 from airflow.models.xcom import XCom
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
@@ -109,7 +110,6 @@ class DummySensorWithXcomValue(BaseSensorOperator):
         return PokeReturnValue(self.return_value, self.xcom_value)
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 class TestBaseSensor:
     @staticmethod
     def clean_db():
@@ -1061,6 +1061,15 @@ class TestBaseSensor:
             load_executor.return_value = (executor_cls, None)
             task = sensor.prepare_for_execution()
             assert task.mode == mode
+
+    def test_resume_execution(self):
+        op = BaseSensorOperator(task_id="hi")
+        with pytest.raises(AirflowSensorTimeout):
+            op.resume_execution(
+                next_method="__fail__",
+                next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
+                context={},
+            )
 
 
 @poke_mode_only

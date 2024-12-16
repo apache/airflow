@@ -183,6 +183,10 @@ class BaseK8STest:
 
                 if state == expected_final_state:
                     break
+                if state in {"failed", "upstream_failed", "removed"}:
+                    # If the TI is in failed state (and that's not the state we want) there's no point
+                    # continuing to poll, it won't change
+                    break
                 self._describe_resources(namespace="airflow")
                 self._describe_resources(namespace="default")
                 tries += 1
@@ -214,6 +218,9 @@ class BaseK8STest:
             print(f"Attempt {tries}: Current state of dag is {state}")
 
             if state == expected_final_state:
+                break
+            if state == "failed":
+                # If the DR is in failed state there's no point continuing to poll!
                 break
             self._describe_resources("airflow")
             self._describe_resources("default")

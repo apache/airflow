@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING, NoReturn
@@ -48,6 +49,12 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("norecursedirs", "tests/test_dags")
 
 
+@pytest.hookimpl(tryfirst=True)
+def pytest_runtest_setup(item):
+    if next(item.iter_markers(name="db_test"), None):
+        pytest.fail("Task SDK tests must not use database")
+
+
 class LogCapture:
     # Like structlog.typing.LogCapture, but that doesn't add log_level in to the event dict
     entries: list[EventDict]
@@ -72,7 +79,7 @@ def test_dags_dir():
 
 
 @pytest.fixture
-def captured_logs():
+def captured_logs(request):
     import structlog
 
     from airflow.sdk.log import configure_logging, reset_logging
@@ -80,6 +87,12 @@ def captured_logs():
     # Use our real log config
     reset_logging()
     configure_logging(enable_pretty_log=False)
+
+    # Get log level from test parameter, defaulting to INFO if not provided
+    log_level = getattr(request, "param", logging.INFO)
+
+    # We want to capture all logs, but we don't want to see them in the test output
+    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(log_level))
 
     # But we need to replace remove the last processor (the one that turns JSON into text, as we want the
     # event dict for tests)
@@ -96,3 +109,22 @@ def captured_logs():
         yield cap.entries
     finally:
         structlog.configure(processors=cur_processors)
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _disable_ol_plugin():
+    # The OpenLineage plugin imports setproctitle, and that now causes (C) level thread calls, which on Py
+    # 3.12+ issues a warning when os.fork happens. So for this plugin we disable it
+
+    # And we load plugins when setting the priorty_weight field
+    import airflow.plugins_manager
+
+    old = airflow.plugins_manager.plugins
+
+    assert old is None, "Plugins already loaded, too late to stop them being loaded!"
+
+    airflow.plugins_manager.plugins = []
+
+    yield
+
+    airflow.plugins_manager.plugins = None

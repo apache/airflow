@@ -46,10 +46,10 @@ def upgrade():
     op.create_table(
         "backfill",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("dag_id", sa.String(length=250), nullable=True),
+        sa.Column("dag_id", sa.String(length=250), nullable=False),
         sa.Column("from_date", airflow.utils.sqlalchemy.UtcDateTime(timezone=True), nullable=False),
         sa.Column("to_date", airflow.utils.sqlalchemy.UtcDateTime(timezone=True), nullable=False),
-        sa.Column("dag_run_conf", sqlalchemy_jsonfield.jsonfield.JSONField(), nullable=True),
+        sa.Column("dag_run_conf", sqlalchemy_jsonfield.jsonfield.JSONField(), nullable=False),
         sa.Column("is_paused", sa.Boolean(), nullable=True),
         sa.Column("max_active_runs", sa.Integer(), nullable=False),
         sa.Column("created_at", airflow.utils.sqlalchemy.UtcDateTime(timezone=True), nullable=False),
@@ -65,6 +65,10 @@ def upgrade():
         sa.Column("sort_ordinal", sa.Integer(), nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("backfill_dag_run_pkey")),
         sa.UniqueConstraint("backfill_id", "dag_run_id", name="ix_bdr_backfill_id_dag_run_id"),
+        sa.ForeignKeyConstraint(
+            ["backfill_id"], ["backfill.id"], name="bdr_backfill_fkey", ondelete="cascade"
+        ),
+        sa.ForeignKeyConstraint(["dag_run_id"], ["dag_run.id"], name="bdr_dag_run_fkey", ondelete="set null"),
     )
 
 

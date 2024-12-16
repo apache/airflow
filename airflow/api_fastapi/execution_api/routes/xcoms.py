@@ -21,11 +21,10 @@ import json
 import logging
 from typing import Annotated
 
-from fastapi import Body, Depends, HTTPException, Query, status
+from fastapi import Body, HTTPException, Query, status
 from pydantic import Json
-from sqlalchemy.orm import Session
 
-from airflow.api_fastapi.common.db.common import get_session
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.execution_api import deps
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
@@ -53,7 +52,7 @@ def get_xcom(
     task_id: str,
     key: str,
     token: deps.TokenDep,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     map_index: Annotated[int, Query()] = -1,
 ) -> XComResponse:
     """Get an Airflow XCom from database - not other XCom Backends."""
@@ -139,7 +138,7 @@ def set_xcom(
         ),
     ],
     token: deps.TokenDep,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     map_index: Annotated[int, Query()] = -1,
 ):
     """Set an Airflow XCom."""

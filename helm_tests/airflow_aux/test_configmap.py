@@ -34,7 +34,7 @@ class TestConfigmap:
         )
 
         annotations = jmespath.search("metadata.annotations", docs[0])
-        assert "value" == annotations.get("key")
+        assert annotations.get("key") == "value"
 
     def test_multiple_annotations(self):
         docs = render_chart(
@@ -45,8 +45,8 @@ class TestConfigmap:
         )
 
         annotations = jmespath.search("metadata.annotations", docs[0])
-        assert "value" == annotations.get("key")
-        assert "value-two" == annotations.get("key-two")
+        assert annotations.get("key") == "value"
+        assert annotations.get("key-two") == "value-two"
 
     @pytest.mark.parametrize(
         "af_version, secret_key, secret_key_name, expected",
@@ -73,7 +73,7 @@ class TestConfigmap:
                 in jmespath.search('data."airflow_local_settings.py"', docs[0]).strip()
             )
         else:
-            assert "" == jmespath.search('data."airflow_local_settings.py"', docs[0]).strip()
+            assert jmespath.search('data."airflow_local_settings.py"', docs[0]).strip() == ""
 
     def test_airflow_local_settings(self):
         docs = render_chart(
@@ -82,8 +82,8 @@ class TestConfigmap:
         )
 
         assert (
-            "# Well hello release-name!"
-            == jmespath.search('data."airflow_local_settings.py"', docs[0]).strip()
+            jmespath.search('data."airflow_local_settings.py"', docs[0]).strip()
+            == "# Well hello release-name!"
         )
 
     def test_kerberos_config_available_with_celery_executor(self):

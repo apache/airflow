@@ -16,18 +16,15 @@
 # under the License.
 from __future__ import annotations
 
-from contextlib import nullcontext
 from unittest import mock
 
 import pandas as pd
 import pytest
 
 from airflow import DAG
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.slack.transfers.sql_to_slack_webhook import SqlToSlackWebhookOperator
 from airflow.utils import timezone
-from airflow.utils.task_instance_session import set_current_task_instance_session
 
 TEST_DAG_ID = "sql_to_slack_unit_test"
 TEST_TASK_ID = "sql_to_slack_unit_test_task"
@@ -128,14 +125,13 @@ class TestSqlToSlackWebhookOperator:
         )
 
     @pytest.mark.parametrize(
-        "slack_webhook_conn_id, slack_conn_id, warning_expected, expected_conn_id",
+        "slack_webhook_conn_id, warning_expected, expected_conn_id",
         [
-            pytest.param("foo", None, False, "foo", id="slack-webhook-conn-id"),
-            pytest.param(None, "bar", True, "bar", id="slack-conn-id"),
-            pytest.param("spam", "spam", True, "spam", id="mixin-conn-ids"),
+            pytest.param("foo", False, "foo", id="slack-webhook-conn-id"),
+            pytest.param("spam", True, "spam", id="mixin-conn-ids"),
         ],
     )
-    def test_resolve_conn_ids(self, slack_webhook_conn_id, slack_conn_id, warning_expected, expected_conn_id):
+    def test_resolve_conn_ids(self, slack_webhook_conn_id, warning_expected, expected_conn_id):
         operator_args = {
             "sql_conn_id": "snowflake_connection",
             "slack_message": "message: {{ ds }}, {{ xxxx }}",
@@ -143,32 +139,10 @@ class TestSqlToSlackWebhookOperator:
         }
         if slack_webhook_conn_id:
             operator_args["slack_webhook_conn_id"] = slack_webhook_conn_id
-        if slack_conn_id:
-            operator_args["slack_conn_id"] = slack_conn_id
-        ctx = (
-            pytest.warns(AirflowProviderDeprecationWarning, match="Parameter `slack_conn_id` is deprecated")
-            if warning_expected
-            else nullcontext()
-        )
 
-        with ctx:
-            op = self._construct_operator(**operator_args)
+        op = self._construct_operator(**operator_args)
 
         assert op.slack_webhook_conn_id == expected_conn_id
-        with pytest.warns(AirflowProviderDeprecationWarning, match="slack_conn_id` property deprecated"):
-            assert op.slack_conn_id == expected_conn_id
-
-    def test_conflicting_conn_id(self):
-        operator_args = {
-            "sql_conn_id": "snowflake_connection",
-            "slack_message": "message: {{ ds }}, {{ xxxx }}",
-            "sql": "sql {{ ds }}",
-        }
-        with (
-            pytest.raises(ValueError, match="Conflicting Connection ids provided"),
-            pytest.warns(AirflowProviderDeprecationWarning, match="Parameter `slack_conn_id` is deprecated"),
-        ):
-            self._construct_operator(**operator_args, slack_webhook_conn_id="foo", slack_conn_id="bar")
 
     def test_non_existing_slack_webhook_conn_id(self):
         operator_args = {
@@ -271,50 +245,3 @@ class TestSqlToSlackWebhookOperator:
         assert hook.database == "database"
         assert hook.role == "role"
         assert hook.schema == "schema"
-
-    @pytest.mark.parametrize(
-        "slack_conn_id, slack_webhook_conn_id",
-        [
-            pytest.param("slack_conn_id", None, id="slack-conn-id-only"),
-            pytest.param("slack_conn_id", "slack_conn_id", id="non-ambiguous-params"),
-        ],
-    )
-    def test_partial_deprecated_slack_conn_id(self, slack_conn_id, slack_webhook_conn_id, dag_maker, session):
-        with dag_maker(dag_id="test_partial_deprecated_slack_conn_id", session=session):
-            SqlToSlackWebhookOperator.partial(
-                task_id="fake-task-id",
-                slack_conn_id=slack_conn_id,
-                slack_webhook_conn_id=slack_webhook_conn_id,
-                sql_conn_id="fake-sql-conn-id",
-                slack_message="<https://github.com/apache/airflow|Apache Airflow®>",
-            ).expand(sql=["SELECT 1", "SELECT 2"])
-
-        dr = dag_maker.create_dagrun()
-        tis = dr.get_task_instances(session=session)
-        with set_current_task_instance_session(session=session):
-            warning_match = r"Parameter `slack_conn_id` is deprecated"
-            for ti in tis:
-                with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
-                    ti.render_templates()
-                assert ti.task.slack_webhook_conn_id == slack_conn_id
-
-    def test_partial_ambiguous_slack_connections(self, dag_maker, session):
-        with dag_maker("test_partial_ambiguous_slack_connections", session=session):
-            SqlToSlackWebhookOperator.partial(
-                task_id="fake-task-id",
-                slack_conn_id="slack_conn_id",
-                slack_webhook_conn_id="slack_webhook_conn_id",
-                sql_conn_id="fake-sql-conn-id",
-                slack_message="<https://github.com/apache/airflow|Apache Airflow®>",
-            ).expand(sql=["SELECT 1", "SELECT 2"])
-
-        dr = dag_maker.create_dagrun(session=session)
-        tis = dr.get_task_instances(session=session)
-        with set_current_task_instance_session(session=session):
-            warning_match = r"Parameter `slack_conn_id` is deprecated"
-            for ti in tis:
-                with (
-                    pytest.warns(AirflowProviderDeprecationWarning, match=warning_match),
-                    pytest.raises(ValueError, match="Conflicting Connection ids provided"),
-                ):
-                    ti.render_templates()

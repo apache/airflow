@@ -321,4 +321,8 @@ $(document).ready(() => {
 
   // Global Tooltip selector
   $(".js-tooltip").tooltip();
+
+  // Turn off autocomplete for login form
+  $("#username:input")[0].autocomplete = "off";
+  $("#password:input")[0].autocomplete = "off";
 });
