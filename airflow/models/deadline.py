@@ -47,7 +47,7 @@ class Deadline(Base, LoggingMixin):
     # The time after which the Deadline has passed and the callback should be triggered.
     deadline = Column(DateTime, nullable=False)
     # The Callback to be called when the Deadline has passed.
-    callback = Column(String(), nullable=False)
+    callback = Column(String(500), nullable=False)
     # Serialized kwargs to pass to the callback.
     callback_kwargs = Column(sqlalchemy_jsonfield.JSONField(json=json))
 
