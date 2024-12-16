@@ -23,7 +23,6 @@ import datetime
 import os
 import stat
 import warnings
-
 from collections.abc import Sequence
 from contextlib import closing, contextmanager
 from fnmatch import fnmatch
