@@ -22,10 +22,11 @@ import os
 import tempfile
 from asyncio import Future
 from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import kubernetes
 import pytest
+from kubernetes.client import V1Deployment, V1DeploymentStatus
 from kubernetes.client.rest import ApiException
 from kubernetes.config import ConfigException
 from sqlalchemy.orm import make_transient
@@ -52,6 +53,23 @@ NAMESPACE = "test-namespace"
 JOB_NAME = "test-job"
 CONTAINER_NAME = "test-container"
 POLL_INTERVAL = 100
+YAML_URL = "https://test-yaml-url.com"
+
+NOT_READY_DEPLOYMENT = V1Deployment(
+    status=V1DeploymentStatus(
+        observed_generation=1,
+        ready_replicas=None,
+        replicas=None,
+        unavailable_replicas=1,
+        updated_replicas=None,
+    )
+)
+READY_DEPLOYMENT = V1Deployment(
+    status=V1DeploymentStatus(
+        observed_generation=1, ready_replicas=1, replicas=1, unavailable_replicas=None, updated_replicas=1
+    )
+)
+DEPLOYMENT_NAME = "test-deployment-name"
 
 
 class DeprecationRemovalRequired(AirflowException): ...
@@ -665,6 +683,112 @@ class TestKubernetesHook:
             hook.create_job(job=mock.MagicMock())
 
         assert mock_client.create_namespaced_job.call_count == 3
+
+    @pytest.mark.parametrize(
+        "given_namespace, expected_namespace",
+        [
+            (None, "default-namespace"),
+            ("given-namespace", "given-namespace"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "given_client, expected_client",
+        [
+            (None, mock.MagicMock()),
+            (mock_client := mock.MagicMock(), mock_client),  # type: ignore[name-defined]
+        ],
+    )
+    @patch(f"{HOOK_MODULE}.utils.create_from_yaml")
+    @patch(f"{HOOK_MODULE}.KubernetesHook.get_namespace")
+    @patch(f"{HOOK_MODULE}.KubernetesHook.api_client", new_callable=PropertyMock)
+    def test_apply_from_yaml_file(
+        self,
+        mock_api_client,
+        mock_get_namespace,
+        mock_create_from_yaml,
+        given_client,
+        expected_client,
+        given_namespace,
+        expected_namespace,
+    ):
+        initial_kwargs = dict(
+            api_client=given_client,
+            yaml_objects=mock.MagicMock(),
+            yaml_file=mock.MagicMock(),
+            verbose=mock.MagicMock(),
+            namespace=given_namespace,
+        )
+        expected_kwargs = dict(
+            k8s_client=expected_client,
+            yaml_objects=initial_kwargs["yaml_objects"],
+            yaml_file=initial_kwargs["yaml_file"],
+            verbose=initial_kwargs["verbose"],
+            namespace=expected_namespace,
+        )
+        mock_api_client.return_value = expected_client
+        mock_get_namespace.return_value = expected_namespace
+
+        KubernetesHook().apply_from_yaml_file(**initial_kwargs)
+
+        mock_create_from_yaml.assert_called_once_with(**expected_kwargs)
+        if given_client is None:
+            mock_api_client.assert_called_once()
+        if given_namespace is None:
+            mock_get_namespace.assert_called_once()
+
+    @mock.patch(HOOK_MODULE + ".sleep")
+    @mock.patch(HOOK_MODULE + ".KubernetesHook.log")
+    @mock.patch(HOOK_MODULE + ".KubernetesHook.get_deployment_status")
+    def test_check_kueue_deployment_running(self, mock_get_deployment_status, mock_log, mock_sleep):
+        mock_get_deployment_status.side_effect = [
+            NOT_READY_DEPLOYMENT,
+            READY_DEPLOYMENT,
+        ]
+
+        KubernetesHook().check_kueue_deployment_running(name=DEPLOYMENT_NAME, namespace=NAMESPACE)
+
+        mock_log.info.assert_called_once_with("Waiting until Deployment will be ready...")
+        mock_sleep.assert_called_once_with(2.0)
+
+    @mock.patch(HOOK_MODULE + ".KubernetesHook.log")
+    @mock.patch(HOOK_MODULE + ".KubernetesHook.get_deployment_status")
+    def test_check_kueue_deployment_raise_exception(self, mock_get_deployment_status, mock_log):
+        mock_get_deployment_status.side_effect = ValueError
+
+        with pytest.raises(ValueError):
+            KubernetesHook().check_kueue_deployment_running(name=DEPLOYMENT_NAME, namespace=NAMESPACE)
+
+        mock_log.exception.assert_called_once_with("Exception occurred while checking for Deployment status.")
+
+    @mock.patch(f"{HOOK_MODULE}.yaml")
+    @mock.patch(f"{HOOK_MODULE}.requests")
+    def test_get_yaml_content_from_file(self, mock_requests, mock_yaml):
+        mock_get = mock_requests.get
+        mock_response = mock_get.return_value
+        expected_response_text = "test response text"
+        mock_response.text = expected_response_text
+        mock_response.status_code = 200
+        expected_result = list(mock_yaml.safe_load_all.return_value)
+
+        result = KubernetesHook().get_yaml_content_from_file(YAML_URL)
+
+        mock_get.assert_called_with(YAML_URL, allow_redirects=True)
+        mock_yaml.safe_load_all.assert_called_with(expected_response_text)
+        assert result == expected_result
+
+    @mock.patch(f"{HOOK_MODULE}.yaml")
+    @mock.patch(f"{HOOK_MODULE}.requests")
+    def test_get_yaml_content_from_file_error(self, mock_requests, mock_yaml):
+        mock_get = mock_requests.get
+        mock_response = mock_get.return_value
+        mock_response.status_code = 500
+        expected_error_message = "Was not able to read the yaml file from given URL"
+
+        with pytest.raises(AirflowException, match=expected_error_message):
+            KubernetesHook().get_yaml_content_from_file(YAML_URL)
+
+        mock_get.assert_called_with(YAML_URL, allow_redirects=True)
+        mock_yaml.safe_load_all.assert_not_called()
 
 
 class TestKubernetesHookIncorrectConfiguration:

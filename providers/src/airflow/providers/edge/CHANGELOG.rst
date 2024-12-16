@@ -27,6 +27,38 @@
 Changelog
 ---------
 
+0.9.6pre0
+.........
+
+Misc
+~~~~
+
+* ``Replace null value in log file chunk with question mark to fix exception by pushing log into DB.``
+
+0.9.5pre0
+.........
+
+Misc
+~~~~
+
+* ``Revert removal of Pydantic model support from PR 44552 to restore compatibility with Airflow 2.10.``
+
+0.9.4pre0
+.........
+
+Misc
+~~~~
+
+* ``Fix to keep edge executor and edge job table in sync. Important in multi scheduler deployments.``
+
+0.9.3pre0
+.........
+
+Misc
+~~~~
+
+* ``Handle purging of restarting edge jobs.``
+
 0.9.2pre0
 .........
 

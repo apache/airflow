@@ -21,6 +21,8 @@ from typing import Annotated, Literal, cast
 
 import pendulum
 from fastapi import Depends, HTTPException, Query, Request, status
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 from sqlalchemy import select
 
 from airflow.api.common.mark_tasks import (
@@ -140,10 +142,17 @@ def patch_dag_run(
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 
+    fields_to_update = patch_body.model_fields_set
+
     if update_mask:
-        data = patch_body.model_dump(include=set(update_mask))
+        fields_to_update = fields_to_update.intersection(update_mask)
+        data = patch_body.model_dump(include=fields_to_update, by_alias=True)
     else:
-        data = patch_body.model_dump()
+        try:
+            DAGRunPatchBody(**patch_body.model_dump())
+        except ValidationError as e:
+            raise RequestValidationError(errors=e.errors())
+        data = patch_body.model_dump(by_alias=True)
 
     for attr_name, attr_value in data.items():
         if attr_name == "state":

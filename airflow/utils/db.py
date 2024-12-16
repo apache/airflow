@@ -1086,7 +1086,7 @@ def _revisions_above_min_for_offline(config, revisions) -> None:
     dbname = settings.engine.dialect.name
     if dbname == "sqlite":
         raise SystemExit("Offline migration not supported for SQLite.")
-    min_version, min_revision = ("3.0.0", "22ed7efa9da2")
+    min_version, min_revision = ("2.7.0", "937cbd173ca1")
 
     # Check if there is history between the revisions and the start revision
     # This ensures that the revisions are above `min_revision`

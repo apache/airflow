@@ -34,3 +34,5 @@ export * from "./Accordion";
 export * from "./Status";
 export * from "./Button";
 export * from "./Toaster";
+export * from "./Breadcrumb";
+export * from "./Clipboard";

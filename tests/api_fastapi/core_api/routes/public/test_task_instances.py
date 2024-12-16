@@ -344,7 +344,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
-            "rendered_fields": {"op_args": [], "op_kwargs": {}, "templates_dict": None},
+            "rendered_fields": {"op_args": "()", "op_kwargs": {}, "templates_dict": None},
             "rendered_map_index": None,
             "trigger": None,
             "triggerer_job": None,
@@ -444,7 +444,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 "try_number": 0,
                 "unixname": getuser(),
                 "dag_run_id": "TEST_DAG_RUN_ID",
-                "rendered_fields": {"op_args": [], "op_kwargs": {}, "templates_dict": None},
+                "rendered_fields": {"op_args": "()", "op_kwargs": {}, "templates_dict": None},
                 "rendered_map_index": None,
                 "trigger": None,
                 "triggerer_job": None,
@@ -938,6 +938,30 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 2,
                 id="test executor filter ~",
             ),
+            pytest.param(
+                [
+                    {"_task_display_property_value": "task_name_1"},
+                    {"_task_display_property_value": "task_name_2"},
+                    {"_task_display_property_value": "task_not_match_name_3"},
+                ],
+                True,
+                ("/public/dags/~/dagRuns/~/taskInstances"),
+                {"task_display_name_pattern": "task_name"},
+                2,
+                id="test task_display_name_pattern filter",
+            ),
+            pytest.param(
+                [
+                    {"task_id": "task_match_id_1"},
+                    {"task_id": "task_match_id_2"},
+                    {"task_id": "task_match_id_3"},
+                ],
+                True,
+                ("/public/dags/~/dagRuns/~/taskInstances"),
+                {"task_id": "task_match_id_2"},
+                1,
+                id="test task_id filter",
+            ),
         ],
     )
     def test_should_respond_200(
@@ -949,6 +973,10 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             task_instances=task_instances,
         )
         response = test_client.get(url, params=params)
+        if params == {"task_id_pattern": "task_match_id"}:
+            import pprint
+
+            pprint.pprint(response.json())
         assert response.status_code == 200
         assert response.json()["total_entries"] == expected_ti
         assert len(response.json()["task_instances"]) == expected_ti
@@ -3042,7 +3070,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "try_number": 0,
                 "unixname": getuser(),
                 "dag_run_id": self.RUN_ID,
-                "rendered_fields": {"op_args": [], "op_kwargs": {}, "templates_dict": None},
+                "rendered_fields": {"op_args": "()", "op_kwargs": {}, "templates_dict": None},
                 "rendered_map_index": None,
                 "trigger": None,
                 "triggerer_job": None,

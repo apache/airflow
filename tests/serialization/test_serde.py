@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import datetime
 import enum
-import warnings
 from collections import namedtuple
 from dataclasses import dataclass
 from importlib import import_module
@@ -437,15 +436,6 @@ class TestSerDe:
         i = T(y=Y(10), u=(1, 2), x=10, w=W(11))
         e = serialize(i)
         s = deserialize(e)
-        assert i == s
-
-    def test_pydantic(self):
-        pydantic = pytest.importorskip("pydantic", minversion="2.0.0")
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", category=pydantic.warnings.PydanticDeprecationWarning)
-            i = U(x=10, v=V(W(10), ["l1", "l2"], (1, 2), 10), u=(1, 2))
-            e = serialize(i)
-            s = deserialize(e)
         assert i == s
 
     def test_error_when_serializing_callable_without_name(self):

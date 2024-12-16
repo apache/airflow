@@ -40,37 +40,17 @@ depends_on = None
 airflow_version = "3.0.0"
 
 
-def _column_exists(inspector, column_name):
-    return column_name in [col["name"] for col in inspector.get_columns("dag")]
-
-
-def _index_exists(inspector, index_name):
-    return index_name in [index["name"] for index in inspector.get_indexes("dag")]
-
-
 def upgrade():
     """Remove ``is_subdag`` column from DAGs table."""
-    conn = op.get_bind()
-    inspector = sa.inspect(conn)
-
-    with op.batch_alter_table("dag", schema=None) as batch_op:
-        if _index_exists(inspector, "idx_root_dag_id"):
-            batch_op.drop_index("idx_root_dag_id")
-        if _column_exists(inspector, "is_subdag"):
-            batch_op.drop_column("is_subdag")
-        if _column_exists(inspector, "root_dag_id"):
-            batch_op.drop_column("root_dag_id")
+    with op.batch_alter_table("dag") as batch_op:
+        batch_op.drop_column("is_subdag")
+        batch_op.drop_index("idx_root_dag_id")
+        batch_op.drop_column("root_dag_id")
 
 
 def downgrade():
     """Add ``is_subdag`` column in DAGs table."""
-    conn = op.get_bind()
-    inspector = sa.inspect(conn)
-
     with op.batch_alter_table("dag", schema=None) as batch_op:
-        if not _column_exists(inspector, "is_subdag"):
-            batch_op.add_column(sa.Column("is_subdag", sa.BOOLEAN(), nullable=True))
-        if not _column_exists(inspector, "root_dag_id"):
-            batch_op.add_column(sa.Column("root_dag_id", StringID(), nullable=True))
-        if not _index_exists(inspector, "idx_root_dag_id"):
-            batch_op.create_index("idx_root_dag_id", ["root_dag_id"], unique=False)
+        batch_op.add_column(sa.Column("is_subdag", sa.BOOLEAN(), nullable=True))
+        batch_op.add_column(sa.Column("root_dag_id", StringID(), nullable=True))
+        batch_op.create_index("idx_root_dag_id", ["root_dag_id"], unique=False)

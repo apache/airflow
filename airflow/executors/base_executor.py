@@ -119,7 +119,6 @@ class BaseExecutor(LoggingMixin):
     supports_sentry: bool = False
 
     is_local: bool = False
-    is_single_threaded: bool = False
     is_production: bool = True
 
     change_sensor_mode_to_reschedule: bool = False
@@ -129,9 +128,10 @@ class BaseExecutor(LoggingMixin):
     name: None | ExecutorName = None
     callback_sink: BaseCallbackSink | None = None
 
-    def __init__(self, parallelism: int = PARALLELISM):
+    def __init__(self, parallelism: int = PARALLELISM, team_id: str | None = None):
         super().__init__()
         self.parallelism: int = parallelism
+        self.team_id: str | None = team_id
         self.queued_tasks: dict[TaskInstanceKey, QueuedTaskInstanceType] = {}
         self.running: set[TaskInstanceKey] = set()
         self.event_buffer: dict[TaskInstanceKey, EventBufferValueType] = {}

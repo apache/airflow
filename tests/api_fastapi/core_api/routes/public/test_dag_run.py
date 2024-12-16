@@ -887,7 +887,8 @@ class TestPatchDagRun:
                 {"note": "new_note2", "state": "failed"},
                 200,
             ),
-            ({"update_mask": ["note"]}, {}, {"state": "success", "note": None}, 200),
+            ({"update_mask": ["note"]}, {}, {"state": "success", "note": "test_note"}, 200),
+            ({"update_mask": ["note"]}, {"note": None}, {"state": "success", "note": None}, 200),
             (
                 {"update_mask": ["random"]},
                 {"state": DagRunState.FAILED},
@@ -941,7 +942,7 @@ class TestDeleteDagRun:
 
 class TestGetDagRunAssetTriggerEvents:
     def test_should_respond_200(self, test_client, dag_maker, session):
-        asset1 = Asset(uri="ds1")
+        asset1 = Asset(name="ds1", uri="file:///da1")
 
         with dag_maker(dag_id="source_dag", start_date=START_DATE1, session=session):
             EmptyOperator(task_id="task", outlets=[asset1])
@@ -975,7 +976,6 @@ class TestGetDagRunAssetTriggerEvents:
                 {
                     "timestamp": from_datetime_to_zulu(event.timestamp),
                     "asset_id": asset1_id,
-                    "uri": asset1.uri,
                     "extra": {},
                     "id": event.id,
                     "source_dag_id": ti.dag_id,
@@ -1353,4 +1353,6 @@ class TestTriggerDagRun:
     def test_response_409(self, test_client):
         response = test_client.post(f"/public/dags/{DAG1_ID}/dagRuns", json={"dag_run_id": DAG1_RUN1_ID})
         assert response.status_code == 409
-        assert response.json()["detail"] == "Unique constraint violation"
+        response_json = response.json()
+        assert "detail" in response_json
+        assert list(response_json["detail"].keys()) == ["reason", "statement", "orig_error"]

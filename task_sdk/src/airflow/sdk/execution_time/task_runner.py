@@ -23,15 +23,22 @@ import os
 import sys
 from datetime import datetime, timezone
 from io import FileIO
-from typing import TYPE_CHECKING, TextIO
+from typing import TYPE_CHECKING, Annotated, Any, Generic, TextIO, TypeVar
 
 import attrs
 import structlog
-from pydantic import ConfigDict, TypeAdapter
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
-from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
+from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState, TIRunContext
 from airflow.sdk.definitions.baseoperator import BaseOperator
-from airflow.sdk.execution_time.comms import DeferTask, StartupDetails, TaskState, ToSupervisor, ToTask
+from airflow.sdk.execution_time.comms import (
+    DeferTask,
+    SetRenderedFields,
+    StartupDetails,
+    TaskState,
+    ToSupervisor,
+    ToTask,
+)
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
@@ -41,6 +48,64 @@ class RuntimeTaskInstance(TaskInstance):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     task: BaseOperator
+    _ti_context_from_server: Annotated[TIRunContext | None, Field(repr=False)] = None
+    """The Task Instance context from the API server, if any."""
+
+    def get_template_context(self):
+        # TODO: Assess if we need to it through airflow.utils.timezone.coerce_datetime()
+        context: dict[str, Any] = {
+            # From the Task Execution interface
+            "dag": self.task.dag,
+            "inlets": self.task.inlets,
+            "map_index_template": self.task.map_index_template,
+            "outlets": self.task.outlets,
+            "run_id": self.run_id,
+            "task": self.task,
+            "task_instance": self,
+            "ti": self,
+            # "outlet_events": OutletEventAccessors(),
+            # "expanded_ti_count": expanded_ti_count,
+            # "inlet_events": InletEventsAccessors(task.inlets, session=session),
+            # "macros": macros,
+            # "params": validated_params,
+            # "prev_data_interval_start_success": get_prev_data_interval_start_success(),
+            # "prev_data_interval_end_success": get_prev_data_interval_end_success(),
+            # "prev_start_date_success": get_prev_start_date_success(),
+            # "prev_end_date_success": get_prev_end_date_success(),
+            # "task_instance_key_str": f"{task.dag_id}__{task.task_id}__{ds_nodash}",
+            # "test_mode": task_instance.test_mode,
+            # "triggering_asset_events": lazy_object_proxy.Proxy(get_triggering_events),
+            # "var": {
+            #     "json": VariableAccessor(deserialize_json=True),
+            #     "value": VariableAccessor(deserialize_json=False),
+            # },
+            # "conn": ConnectionAccessor(),
+        }
+        if self._ti_context_from_server:
+            dag_run = self._ti_context_from_server.dag_run
+
+            logical_date = dag_run.logical_date
+            ds = logical_date.strftime("%Y-%m-%d")
+            ds_nodash = ds.replace("-", "")
+            ts = logical_date.isoformat()
+            ts_nodash = logical_date.strftime("%Y%m%dT%H%M%S")
+            ts_nodash_with_tz = ts.replace("-", "").replace(":", "")
+
+            context_from_server = {
+                # TODO: Assess if we need to pass these through timezone.coerce_datetime
+                "dag_run": dag_run,
+                "data_interval_end": dag_run.data_interval_end,
+                "data_interval_start": dag_run.data_interval_start,
+                "logical_date": logical_date,
+                "ds": ds,
+                "ds_nodash": ds_nodash,
+                "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{ds_nodash}",
+                "ts": ts,
+                "ts_nodash": ts_nodash,
+                "ts_nodash_with_tz": ts_nodash_with_tz,
+            }
+            context.update(context_from_server)
+        return context
 
 
 def parse(what: StartupDetails) -> RuntimeTaskInstance:
@@ -67,20 +132,31 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
     if not isinstance(task, BaseOperator):
         raise TypeError(f"task is of the wrong type, got {type(task)}, wanted {BaseOperator}")
 
-    return RuntimeTaskInstance.model_construct(**what.ti.model_dump(exclude_unset=True), task=task)
+    return RuntimeTaskInstance.model_construct(
+        **what.ti.model_dump(exclude_unset=True),
+        task=task,
+        _ti_context_from_server=what.ti_context,
+    )
+
+
+SendMsgType = TypeVar("SendMsgType", bound=BaseModel)
+ReceiveMsgType = TypeVar("ReceiveMsgType", bound=BaseModel)
 
 
 @attrs.define()
-class CommsDecoder:
+class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
     """Handle communication between the task in this process and the supervisor parent process."""
 
     input: TextIO
 
     request_socket: FileIO = attrs.field(init=False, default=None)
 
-    decoder: TypeAdapter[ToTask] = attrs.field(init=False, factory=lambda: TypeAdapter(ToTask))
+    # We could be "clever" here and set the default to this based type parameters and a custom
+    # `__class_getitem__`, but that's a lot of code the one subclass we've got currently. So we'll just use a
+    # "sort of wrong default"
+    decoder: TypeAdapter[ReceiveMsgType] = attrs.field(factory=lambda: TypeAdapter(ToTask), repr=False)
 
-    def get_message(self) -> ToTask:
+    def get_message(self) -> ReceiveMsgType:
         """
         Get a message from the parent.
 
@@ -99,7 +175,7 @@ class CommsDecoder:
                 self.request_socket = os.fdopen(msg.requests_fd, "wb", buffering=0)
         return msg
 
-    def send_request(self, log: Logger, msg: ToSupervisor):
+    def send_request(self, log: Logger, msg: SendMsgType):
         encoded_msg = msg.model_dump_json().encode() + b"\n"
 
         log.debug("Sending request", json=encoded_msg)
@@ -116,7 +192,7 @@ class CommsDecoder:
 #   deeply nested execution stack.
 # - By defining `SUPERVISOR_COMMS` as a global, it ensures that this communication mechanism is readily
 #   accessible wherever needed during task execution without modifying every layer of the call stack.
-SUPERVISOR_COMMS: CommsDecoder
+SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 
 # State machine!
 # 1. Start up (receive details from supervisor)
@@ -136,11 +212,31 @@ def startup() -> tuple[RuntimeTaskInstance, Logger]:
         # TODO: set the "magic loop" context vars for parsing
         ti = parse(msg)
         log.debug("DAG file parsed", file=msg.file)
-        return ti, log
     else:
         raise RuntimeError(f"Unhandled  startup message {type(msg)} {msg}")
 
     # TODO: Render fields here
+    # 1. Implementing the part where we pull in the logic to render fields and add that here
+    # for all operators, we should do setattr(task, templated_field, rendered_templated_field)
+    # task.templated_fields should give all the templated_fields and each of those fields should
+    # give the rendered values. task.templated_fields should already be in a JSONable format and
+    # we should not have to handle that here.
+
+    # 2. Once rendered, we call the `set_rtif` API to store the rtif in the metadata DB
+
+    # so that we do not call the API unnecessarily
+    if rendered_fields := _get_rendered_fields(ti.task):
+        SUPERVISOR_COMMS.send_request(log=log, msg=SetRenderedFields(rendered_fields=rendered_fields))
+    return ti, log
+
+
+def _get_rendered_fields(task: BaseOperator) -> dict[str, JsonValue]:
+    # TODO: Port one of the following to Task SDK
+    #   airflow.serialization.helpers.serialize_template_field or
+    #   airflow.models.renderedtifields.get_serialized_template_fields
+    from airflow.serialization.helpers import serialize_template_field
+
+    return {field: serialize_template_field(getattr(task, field), field) for field in task.template_fields}
 
 
 def run(ti: RuntimeTaskInstance, log: Logger):
@@ -165,7 +261,8 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         # TODO: pre execute etc.
         # TODO next_method to support resuming from deferred
         # TODO: Get a real context object
-        ti.task.execute({"task_instance": ti})  # type: ignore[attr-defined]
+        context = ti.get_template_context()
+        ti.task.execute(context)  # type: ignore[attr-defined]
         msg = TaskState(state=TerminalTIState.SUCCESS, end_date=datetime.now(tz=timezone.utc))
     except TaskDeferred as defer:
         classpath, trigger_kwargs = defer.trigger.serialize()
@@ -178,7 +275,10 @@ def run(ti: RuntimeTaskInstance, log: Logger):
             trigger_timeout=timeout,
         )
     except AirflowSkipException:
-        ...
+        msg = TaskState(
+            state=TerminalTIState.SKIPPED,
+            end_date=datetime.now(tz=timezone.utc),
+        )
     except AirflowRescheduleException:
         ...
     except (AirflowFailException, AirflowSensorTimeout):

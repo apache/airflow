@@ -54,6 +54,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstance,
     TerminalTIState,
     TIDeferredStatePayload,
+    TIRunContext,
     VariableResponse,
     XComResponse,
 )
@@ -70,6 +71,7 @@ class StartupDetails(BaseModel):
 
     Responses will come back on stdin
     """
+    ti_context: TIRunContext
     type: Literal["StartupDetails"] = "StartupDetails"
 
 
@@ -170,7 +172,17 @@ class PutVariable(BaseModel):
     type: Literal["PutVariable"] = "PutVariable"
 
 
+class SetRenderedFields(BaseModel):
+    """Payload for setting RTIF for a task instance."""
+
+    # We are using a BaseModel here compared to server using RootModel because we
+    # have a discriminator running with "type", and RootModel doesn't support type
+
+    rendered_fields: dict[str, JsonValue]
+    type: Literal["SetRenderedFields"] = "SetRenderedFields"
+
+
 ToSupervisor = Annotated[
-    Union[TaskState, GetXCom, GetConnection, GetVariable, DeferTask, PutVariable, SetXCom],
+    Union[TaskState, GetXCom, GetConnection, GetVariable, DeferTask, PutVariable, SetXCom, SetRenderedFields],
     Field(discriminator="type"),
 ]

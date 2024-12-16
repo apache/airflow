@@ -50,7 +50,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.8.0
+  - apache-airflow>=2.9.0
   - airbyte-api>=0.52.0
 
 integrations:

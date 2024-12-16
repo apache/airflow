@@ -29,6 +29,7 @@ from airflow.sdk.definitions.asset import (
     AssetAlias,
     AssetAll,
     AssetAny,
+    AssetUniqueKey,
     BaseAsset,
     Dataset,
     Model,
@@ -157,7 +158,7 @@ def test_asset_logic_operations():
 
 
 def test_asset_iter_assets():
-    assert list(asset1.iter_assets()) == [(("asset-1", "s3://bucket1/data1"), asset1)]
+    assert list(asset1.iter_assets()) == [(AssetUniqueKey("asset-1", "s3://bucket1/data1"), asset1)]
 
 
 def test_asset_iter_asset_aliases():
@@ -212,12 +213,12 @@ def test_assset_boolean_condition_evaluate_iter():
     assets_any = dict(any_condition.iter_assets())
     assets_all = dict(all_condition.iter_assets())
     assert assets_any == {
-        ("asset-1", "s3://bucket1/data1"): asset1,
-        ("asset-2", "s3://bucket2/data2"): asset2,
+        AssetUniqueKey("asset-1", "s3://bucket1/data1"): asset1,
+        AssetUniqueKey("asset-2", "s3://bucket2/data2"): asset2,
     }
     assert assets_all == {
-        ("asset-1", "s3://bucket1/data1"): asset1,
-        ("asset-2", "s3://bucket2/data2"): asset2,
+        AssetUniqueKey("asset-1", "s3://bucket1/data1"): asset1,
+        AssetUniqueKey("asset-2", "s3://bucket2/data2"): asset2,
     }
 
 
@@ -513,11 +514,11 @@ class TestAssetAlias:
 
     def test_evalute_empty(self, asset_alias_1, asset):
         assert asset_alias_1.evaluate({asset.uri: True}) is False
-        assert asset_alias_1._resolve_assets.mock_calls == [mock.call()]
+        assert asset_alias_1._resolve_assets.mock_calls == [mock.call(None)]
 
     def test_evalute_resolved(self, resolved_asset_alias_2, asset):
         assert resolved_asset_alias_2.evaluate({asset.uri: True}) is True
-        assert resolved_asset_alias_2._resolve_assets.mock_calls == [mock.call()]
+        assert resolved_asset_alias_2._resolve_assets.mock_calls == [mock.call(None)]
 
 
 class TestAssetSubclasses:

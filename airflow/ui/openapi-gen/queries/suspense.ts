@@ -153,6 +153,35 @@ export const useAssetServiceGetAssetAliasesSuspense = <
     ...options,
   });
 /**
+ * Get Asset Alias
+ * Get an asset alias.
+ * @param data The data for the request.
+ * @param data.assetAliasId
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useAssetServiceGetAssetAliasSuspense = <
+  TData = Common.AssetServiceGetAssetAliasDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    assetAliasId,
+  }: {
+    assetAliasId: number;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseAssetServiceGetAssetAliasKeyFn(
+      { assetAliasId },
+      queryKey,
+    ),
+    queryFn: () => AssetService.getAssetAlias({ assetAliasId }) as TData,
+    ...options,
+  });
+/**
  * Get Asset Events
  * Get asset events.
  * @param data The data for the request.
@@ -164,6 +193,8 @@ export const useAssetServiceGetAssetAliasesSuspense = <
  * @param data.sourceTaskId
  * @param data.sourceRunId
  * @param data.sourceMapIndex
+ * @param data.timestampGte
+ * @param data.timestampLte
  * @returns AssetEventCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -181,6 +212,8 @@ export const useAssetServiceGetAssetEventsSuspense = <
     sourceMapIndex,
     sourceRunId,
     sourceTaskId,
+    timestampGte,
+    timestampLte,
   }: {
     assetId?: number;
     limit?: number;
@@ -190,6 +223,8 @@ export const useAssetServiceGetAssetEventsSuspense = <
     sourceMapIndex?: number;
     sourceRunId?: string;
     sourceTaskId?: string;
+    timestampGte?: string;
+    timestampLte?: string;
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -205,6 +240,8 @@ export const useAssetServiceGetAssetEventsSuspense = <
         sourceMapIndex,
         sourceRunId,
         sourceTaskId,
+        timestampGte,
+        timestampLte,
       },
       queryKey,
     ),
@@ -218,6 +255,8 @@ export const useAssetServiceGetAssetEventsSuspense = <
         sourceMapIndex,
         sourceRunId,
         sourceTaskId,
+        timestampGte,
+        timestampLte,
       }) as TData,
     ...options,
   });
@@ -225,7 +264,7 @@ export const useAssetServiceGetAssetEventsSuspense = <
  * Get Asset Queued Events
  * Get queued asset events for an asset.
  * @param data The data for the request.
- * @param data.uri
+ * @param data.assetId
  * @param data.before
  * @returns QueuedEventCollectionResponse Successful Response
  * @throws ApiError
@@ -236,28 +275,29 @@ export const useAssetServiceGetAssetQueuedEventsSuspense = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
+    assetId,
     before,
-    uri,
   }: {
+    assetId: number;
     before?: string;
-    uri: string;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseAssetServiceGetAssetQueuedEventsKeyFn(
-      { before, uri },
+      { assetId, before },
       queryKey,
     ),
-    queryFn: () => AssetService.getAssetQueuedEvents({ before, uri }) as TData,
+    queryFn: () =>
+      AssetService.getAssetQueuedEvents({ assetId, before }) as TData,
     ...options,
   });
 /**
  * Get Asset
  * Get an asset.
  * @param data The data for the request.
- * @param data.uri
+ * @param data.assetId
  * @returns AssetResponse Successful Response
  * @throws ApiError
  */
@@ -267,16 +307,16 @@ export const useAssetServiceGetAssetSuspense = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
-    uri,
+    assetId,
   }: {
-    uri: string;
+    assetId: number;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceGetAssetKeyFn({ uri }, queryKey),
-    queryFn: () => AssetService.getAsset({ uri }) as TData,
+    queryKey: Common.UseAssetServiceGetAssetKeyFn({ assetId }, queryKey),
+    queryFn: () => AssetService.getAsset({ assetId }) as TData,
     ...options,
   });
 /**
@@ -317,7 +357,7 @@ export const useAssetServiceGetDagAssetQueuedEventsSuspense = <
  * Get a queued asset event for a DAG.
  * @param data The data for the request.
  * @param data.dagId
- * @param data.uri
+ * @param data.assetId
  * @param data.before
  * @returns QueuedEventResponse Successful Response
  * @throws ApiError
@@ -328,24 +368,24 @@ export const useAssetServiceGetDagAssetQueuedEventSuspense = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
+    assetId,
     before,
     dagId,
-    uri,
   }: {
+    assetId: number;
     before?: string;
     dagId: string;
-    uri: string;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseAssetServiceGetDagAssetQueuedEventKeyFn(
-      { before, dagId, uri },
+      { assetId, before, dagId },
       queryKey,
     ),
     queryFn: () =>
-      AssetService.getDagAssetQueuedEvent({ before, dagId, uri }) as TData,
+      AssetService.getDagAssetQueuedEvent({ assetId, before, dagId }) as TData,
     ...options,
   });
 /**
@@ -442,6 +482,7 @@ export const useConfigServiceGetConfigValueSuspense = <
  * @param data.offset
  * @param data.tags
  * @param data.owners
+ * @param data.dagIds
  * @param data.dagIdPattern
  * @param data.dagDisplayNamePattern
  * @param data.onlyActive
@@ -458,6 +499,7 @@ export const useDagsServiceRecentDagRunsSuspense = <
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    dagIds,
     dagRunsLimit,
     lastDagRunState,
     limit,
@@ -469,6 +511,7 @@ export const useDagsServiceRecentDagRunsSuspense = <
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    dagIds?: string[];
     dagRunsLimit?: number;
     lastDagRunState?: DagRunState;
     limit?: number;
@@ -486,6 +529,7 @@ export const useDagsServiceRecentDagRunsSuspense = <
       {
         dagDisplayNamePattern,
         dagIdPattern,
+        dagIds,
         dagRunsLimit,
         lastDagRunState,
         limit,
@@ -501,6 +545,7 @@ export const useDagsServiceRecentDagRunsSuspense = <
       DagsService.recentDagRuns({
         dagDisplayNamePattern,
         dagIdPattern,
+        dagIds,
         dagRunsLimit,
         lastDagRunState,
         limit,
@@ -553,6 +598,7 @@ export const useDashboardServiceHistoricalMetricsSuspense = <
  * @param data.root
  * @param data.includeUpstream
  * @param data.includeDownstream
+ * @param data.externalDependencies
  * @returns StructureDataResponse Successful Response
  * @throws ApiError
  */
@@ -563,11 +609,13 @@ export const useStructureServiceStructureDataSuspense = <
 >(
   {
     dagId,
+    externalDependencies,
     includeDownstream,
     includeUpstream,
     root,
   }: {
     dagId: string;
+    externalDependencies?: boolean;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
     root?: string;
@@ -577,15 +625,63 @@ export const useStructureServiceStructureDataSuspense = <
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseStructureServiceStructureDataKeyFn(
-      { dagId, includeDownstream, includeUpstream, root },
+      { dagId, externalDependencies, includeDownstream, includeUpstream, root },
       queryKey,
     ),
     queryFn: () =>
       StructureService.structureData({
         dagId,
+        externalDependencies,
         includeDownstream,
         includeUpstream,
         root,
+      }) as TData,
+    ...options,
+  });
+/**
+ * List Backfills
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @param data.dagId
+ * @param data.active
+ * @returns BackfillCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useBackfillServiceListBackfillsSuspense = <
+  TData = Common.BackfillServiceListBackfillsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    active,
+    dagId,
+    limit,
+    offset,
+    orderBy,
+  }: {
+    active?: boolean;
+    dagId?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseBackfillServiceListBackfillsKeyFn(
+      { active, dagId, limit, offset, orderBy },
+      queryKey,
+    ),
+    queryFn: () =>
+      BackfillService.listBackfills({
+        active,
+        dagId,
+        limit,
+        offset,
+        orderBy,
       }) as TData,
     ...options,
   });
@@ -599,8 +695,8 @@ export const useStructureServiceStructureDataSuspense = <
  * @returns BackfillCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useBackfillServiceListBackfillsSuspense = <
-  TData = Common.BackfillServiceListBackfillsDefaultResponse,
+export const useBackfillServiceListBackfills1Suspense = <
+  TData = Common.BackfillServiceListBackfills1DefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -619,12 +715,17 @@ export const useBackfillServiceListBackfillsSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseBackfillServiceListBackfillsKeyFn(
+    queryKey: Common.UseBackfillServiceListBackfills1KeyFn(
       { dagId, limit, offset, orderBy },
       queryKey,
     ),
     queryFn: () =>
-      BackfillService.listBackfills({ dagId, limit, offset, orderBy }) as TData,
+      BackfillService.listBackfills1({
+        dagId,
+        limit,
+        offset,
+        orderBy,
+      }) as TData,
     ...options,
   });
 /**
@@ -1757,6 +1858,7 @@ export const useTaskInstanceServiceGetMappedTaskInstanceSuspense = <
  * @param data The data for the request.
  * @param data.dagId
  * @param data.dagRunId
+ * @param data.taskId
  * @param data.logicalDateGte
  * @param data.logicalDateLte
  * @param data.startDateGte
@@ -1767,6 +1869,7 @@ export const useTaskInstanceServiceGetMappedTaskInstanceSuspense = <
  * @param data.updatedAtLte
  * @param data.durationGte
  * @param data.durationLte
+ * @param data.taskDisplayNamePattern
  * @param data.state
  * @param data.pool
  * @param data.queue
@@ -1800,6 +1903,8 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
     startDateGte,
     startDateLte,
     state,
+    taskDisplayNamePattern,
+    taskId,
     updatedAtGte,
     updatedAtLte,
   }: {
@@ -1820,6 +1925,8 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
+    taskDisplayNamePattern?: string;
+    taskId?: string;
     updatedAtGte?: string;
     updatedAtLte?: string;
   },
@@ -1846,6 +1953,8 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
         startDateGte,
         startDateLte,
         state,
+        taskDisplayNamePattern,
+        taskId,
         updatedAtGte,
         updatedAtLte,
       },
@@ -1870,6 +1979,8 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
         startDateGte,
         startDateLte,
         state,
+        taskDisplayNamePattern,
+        taskId,
         updatedAtGte,
         updatedAtLte,
       }) as TData,
@@ -2526,6 +2637,7 @@ export const useVariableServiceGetVariableSuspense = <
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
+ * @param data.variableKeyPattern
  * @returns VariableCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -2538,21 +2650,28 @@ export const useVariableServiceGetVariablesSuspense = <
     limit,
     offset,
     orderBy,
+    variableKeyPattern,
   }: {
     limit?: number;
     offset?: number;
     orderBy?: string;
+    variableKeyPattern?: string;
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseVariableServiceGetVariablesKeyFn(
-      { limit, offset, orderBy },
+      { limit, offset, orderBy, variableKeyPattern },
       queryKey,
     ),
     queryFn: () =>
-      VariableService.getVariables({ limit, offset, orderBy }) as TData,
+      VariableService.getVariables({
+        limit,
+        offset,
+        orderBy,
+        variableKeyPattern,
+      }) as TData,
     ...options,
   });
 /**
