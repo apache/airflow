@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-16T07:42:28.773531
+# This constraints file was automatically generated on 2024-12-16T13:47:22.100353
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -103,7 +103,7 @@ azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==10.3.0
 azure-mgmt-core==1.5.0
 azure-mgmt-cosmosdb==9.7.0
-azure-mgmt-datafactory==9.0.0
+azure-mgmt-datafactory==9.1.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
