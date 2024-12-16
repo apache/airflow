@@ -42,8 +42,8 @@ from airflow import settings
 from airflow.decorators import task, task_group
 from airflow.exceptions import (
     AirflowException,
-    AirflowExecuteWithInactiveAssetExecption,
     AirflowFailException,
+    AirflowInactiveAssetInInletOrOutletException,
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
@@ -4078,7 +4078,7 @@ class TestTaskInstance:
         tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
 
         tis["asset_task_in_inlet"].run(session=session)
-        with pytest.raises(AirflowExecuteWithInactiveAssetExecption) as exc:
+        with pytest.raises(AirflowInactiveAssetInInletOrOutletException) as exc:
             tis["duplicate_asset_task_in_outlet"].run(session=session)
 
         assert 'Asset(name="asset_second", uri="asset_second")' in exc.value.args[0]
@@ -4102,7 +4102,7 @@ class TestTaskInstance:
 
         tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
         tis["first_asset_task"].run(session=session)
-        with pytest.raises(AirflowExecuteWithInactiveAssetExecption) as exc:
+        with pytest.raises(AirflowInactiveAssetInInletOrOutletException) as exc:
             tis["duplicate_asset_task"].run(session=session)
 
         assert exc.value.args[0] == (
@@ -4131,7 +4131,7 @@ class TestTaskInstance:
             duplicate_asset_task()
 
         tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
-        with pytest.raises(AirflowExecuteWithInactiveAssetExecption) as exc:
+        with pytest.raises(AirflowInactiveAssetInInletOrOutletException) as exc:
             tis["duplicate_asset_task"].run(session=session)
 
         assert exc.value.args[0] == (
@@ -4156,7 +4156,7 @@ class TestTaskInstance:
             first_asset_task() >> duplicate_asset_task()
 
         tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
-        with pytest.raises(AirflowExecuteWithInactiveAssetExecption) as exc:
+        with pytest.raises(AirflowInactiveAssetInInletOrOutletException) as exc:
             tis["first_asset_task"].run(session=session)
 
         assert exc.value.args[0] == (
@@ -4185,7 +4185,7 @@ class TestTaskInstance:
             duplicate_asset_task()
 
         tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
-        with pytest.raises(AirflowExecuteWithInactiveAssetExecption) as exc:
+        with pytest.raises(AirflowInactiveAssetInInletOrOutletException) as exc:
             tis["duplicate_asset_task"].run(session=session)
 
         assert exc.value.args[0] == (
