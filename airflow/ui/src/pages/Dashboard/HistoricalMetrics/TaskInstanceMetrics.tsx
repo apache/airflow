@@ -19,8 +19,9 @@
 import { Box, Heading, HStack } from "@chakra-ui/react";
 import type { TaskInstanceStateCount } from "openapi-gen/requests/types.gen";
 
+import { MetricsBadge } from "src/components/MetricsBadge";
+
 import { MetricSection } from "./MetricSection";
-import { MetricsBadge } from "./MetricsBadge";
 
 type TaskInstanceMetricsProps = {
   readonly taskInstanceStates: TaskInstanceStateCount;

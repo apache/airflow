@@ -32,7 +32,7 @@ from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeysUnchanged
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 

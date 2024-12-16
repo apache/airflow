@@ -42,7 +42,7 @@ from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from providers.tests.standard.operators.test_python import BasePythonTest
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType

@@ -43,7 +43,7 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TE
 CLUSTER_NAME_BASE = f"cluster-{DAG_ID}".replace("_", "-")
 CLUSTER_NAME_FULL = CLUSTER_NAME_BASE + f"-{ENV_ID}".replace("_", "-")
 CLUSTER_NAME = CLUSTER_NAME_BASE if len(CLUSTER_NAME_FULL) >= 33 else CLUSTER_NAME_FULL
-REGION = "europe-north1"
+REGION = "us-east4"
 
 
 # Cluster definition

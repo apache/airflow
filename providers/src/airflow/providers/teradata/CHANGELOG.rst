@@ -25,6 +25,16 @@
 Changelog
 ---------
 
+main
+....
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the teradata provider package.
+  The following breaking changes were introduced:
+
+  * Removed deprecated ``bulk_insert_rows`` method from ``hooks``. Use ``insert_rows`` instead.
+
+
 2.6.1
 .....
 

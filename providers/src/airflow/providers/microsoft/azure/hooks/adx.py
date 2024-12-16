@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING, Any
 from azure.kusto.data import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
 from azure.kusto.data.exceptions import KustoServiceError
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
@@ -161,14 +161,6 @@ class AzureDataExplorerHook(BaseHook):
             value = extras.get(name)
             if value:
                 warn_if_collison(name, backcompat_key)
-            if not value and extras.get(backcompat_key):
-                warnings.warn(
-                    f"`{backcompat_key}` is deprecated in azure connection extra,"
-                    f" please use `{name}` instead",
-                    AirflowProviderDeprecationWarning,
-                    stacklevel=2,
-                )
-                value = extras.get(backcompat_key)
             if not value:
                 raise AirflowException(f"Required connection parameter is missing: `{name}`")
             return value

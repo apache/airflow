@@ -19,15 +19,21 @@
 import { createBrowserRouter } from "react-router-dom";
 
 import { BaseLayout } from "src/layouts/BaseLayout";
+import { Dag } from "src/pages/Dag";
+import { Code } from "src/pages/Dag/Code";
+import { Overview } from "src/pages/Dag/Overview";
+import { Runs } from "src/pages/Dag/Runs";
+import { Tasks } from "src/pages/Dag/Tasks";
 import { DagsList } from "src/pages/DagsList";
-import { Dag } from "src/pages/DagsList/Dag";
-import { Code } from "src/pages/DagsList/Dag/Code";
-import { Overview } from "src/pages/DagsList/Dag/Overview";
-import { Runs } from "src/pages/DagsList/Dag/Runs";
-import { Run } from "src/pages/DagsList/Run";
 import { Dashboard } from "src/pages/Dashboard";
 import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
+import { Run } from "src/pages/Run";
+import { TaskInstances } from "src/pages/Run/TaskInstances";
+import { Task, Instances } from "src/pages/Task";
+import { TaskInstance } from "src/pages/TaskInstance";
+
+import { Variables } from "./pages/Variables";
 
 export const router = createBrowserRouter(
   [
@@ -46,17 +52,48 @@ export const router = createBrowserRouter(
           path: "events",
         },
         {
+          element: <Variables />,
+          path: "variables",
+        },
+        {
           children: [
             { element: <Overview />, index: true },
             { element: <Runs />, path: "runs" },
-            { element: <div>Tasks</div>, path: "tasks" },
+            { element: <Tasks />, path: "tasks" },
             { element: <Events />, path: "events" },
             { element: <Code />, path: "code" },
           ],
           element: <Dag />,
           path: "dags/:dagId",
         },
-        { element: <Run />, path: "dags/:dagId/runs/:runId" },
+        {
+          children: [
+            { element: <TaskInstances />, index: true },
+            { element: <Events />, path: "events" },
+            { element: <Code />, path: "code" },
+          ],
+          element: <Run />,
+          path: "dags/:dagId/runs/:runId",
+        },
+        {
+          children: [
+            { element: <div>Logs</div>, index: true },
+            { element: <Events />, path: "events" },
+            { element: <div>Xcom</div>, path: "xcom" },
+            { element: <Code />, path: "code" },
+            { element: <div>Details</div>, path: "details" },
+          ],
+          element: <TaskInstance />,
+          path: "dags/:dagId/runs/:runId/tasks/:taskId",
+        },
+        {
+          children: [
+            { element: <Instances />, index: true },
+            { element: <Events />, path: "events" },
+          ],
+          element: <Task />,
+          path: "dags/:dagId/tasks/:taskId",
+        },
       ],
       element: <BaseLayout />,
       errorElement: (

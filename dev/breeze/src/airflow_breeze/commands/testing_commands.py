@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import os
+import signal
 import sys
 from datetime import datetime
 from time import sleep
@@ -99,6 +101,7 @@ from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.selective_checks import ALL_CI_SELECTIVE_TEST_TYPES
 
 LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024
+DEFAULT_TOTAL_TEST_TIMEOUT = 6500  # 6500 seconds = 1h 48 minutes
 
 
 @click.group(cls=BreezeGroup, name="testing", help="Tools that developers can use to run tests")
@@ -528,6 +531,15 @@ option_force_sa_warnings = click.option(
     show_default=True,
     envvar="SQLALCHEMY_WARN_20",
 )
+option_total_test_timeout = click.option(
+    "--total-test-timeout",
+    help="Total test timeout in seconds. This is the maximum time parallel tests will run. If there is "
+    "an underlying pytest command that hangs, the process will be stop with system exit after "
+    "that time. This should give a chance to upload logs as artifacts on CI.",
+    default=DEFAULT_TOTAL_TEST_TIMEOUT,
+    type=int,
+    envvar="TOTAL_TEST_TIMEOUT",
+)
 
 
 @group_for_testing.command(
@@ -573,6 +585,7 @@ option_force_sa_warnings = click.option(
 @option_skip_docker_compose_down
 @option_test_timeout
 @option_test_type_core_group
+@option_total_test_timeout
 @option_upgrade_boto
 @option_use_airflow_version
 @option_use_packages_from_dist
@@ -638,6 +651,7 @@ def core_tests(**kwargs):
 @option_skip_providers
 @option_test_timeout
 @option_test_type_providers_group
+@option_total_test_timeout
 @option_upgrade_boto
 @option_use_airflow_version
 @option_use_packages_from_dist
@@ -657,7 +671,6 @@ def providers_tests(**kwargs):
     ),
 )
 @option_collect_only
-@option_debug_resources
 @option_dry_run
 @option_enable_coverage
 @option_force_sa_warnings
@@ -665,11 +678,8 @@ def providers_tests(**kwargs):
 @option_github_repository
 @option_image_tag_for_running
 @option_keep_env_variables
-@option_include_success_outputs
 @option_mount_sources
-@option_parallelism
 @option_python
-@option_skip_cleanup
 @option_skip_docker_compose_down
 @option_test_timeout
 @option_verbose
@@ -680,9 +690,11 @@ def task_sdk_tests(**kwargs):
         airflow_constraints_reference="constraints-main",
         backend="none",
         clean_airflow_installation=False,
+        debug_resources=False,
         downgrade_pendulum=False,
         downgrade_sqlalchemy=False,
         db_reset=False,
+        include_success_outputs=False,
         integration=(),
         install_airflow_with_constraints=False,
         run_db_tests_only=False,
@@ -694,12 +706,15 @@ def task_sdk_tests(**kwargs):
         force_lowest_dependencies=False,
         no_db_cleanup=True,
         parallel_test_types="",
+        parallelism=0,
         package_format="wheel",
         providers_constraints_location="",
         providers_skip_constraints=False,
         remove_arm_packages=False,
+        skip_cleanup=False,
         skip_providers="",
         test_type=ALL_TEST_TYPE,
+        total_test_timeout=DEFAULT_TOTAL_TEST_TIMEOUT,
         upgrade_boto=False,
         use_airflow_version=None,
         use_packages_from_dist=False,
@@ -1100,6 +1115,31 @@ def python_api_client_tests(
     sys.exit(returncode)
 
 
+@contextlib.contextmanager
+def run_with_timeout(timeout: int):
+    def timeout_handler(signum, frame):
+        get_console().print("[error]Timeout reached. Killing the container(s)[/]")
+        list_of_containers = run_command(
+            ["docker", "ps", "-q"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        run_command(
+            ["docker", "kill", "--signal", "SIGQUIT"] + list_of_containers.stdout.splitlines(),
+            check=True,
+            capture_output=False,
+            text=True,
+        )
+
+    signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(timeout)
+    try:
+        yield
+    finally:
+        signal.alarm(0)
+
+
 def _run_test_command(
     *,
     test_group: GroupOfTests,
@@ -1141,6 +1181,7 @@ def _run_test_command(
     skip_providers: str,
     test_timeout: int,
     test_type: str,
+    total_test_timeout: int,
     upgrade_boto: bool,
     use_airflow_version: str | None,
     use_packages_from_dist: bool,
@@ -1212,16 +1253,17 @@ def _run_test_command(
                 f"Your test type = {test_type}\n"
             )
             sys.exit(1)
-        run_tests_in_parallel(
-            shell_params=shell_params,
-            extra_pytest_args=extra_pytest_args,
-            test_timeout=test_timeout,
-            include_success_outputs=include_success_outputs,
-            parallelism=parallelism,
-            skip_cleanup=skip_cleanup,
-            debug_resources=debug_resources,
-            skip_docker_compose_down=skip_docker_compose_down,
-        )
+        with run_with_timeout(total_test_timeout):
+            run_tests_in_parallel(
+                shell_params=shell_params,
+                extra_pytest_args=extra_pytest_args,
+                test_timeout=test_timeout,
+                include_success_outputs=include_success_outputs,
+                parallelism=parallelism,
+                skip_cleanup=skip_cleanup,
+                debug_resources=debug_resources,
+                skip_docker_compose_down=skip_docker_compose_down,
+            )
     else:
         if shell_params.test_type == ALL_TEST_TYPE:
             if any(["tests/" in arg and not arg.startswith("-") for arg in extra_pytest_args]):

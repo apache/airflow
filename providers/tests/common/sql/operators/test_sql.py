@@ -45,8 +45,8 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.providers import get_provider_min_airflow_version
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -147,6 +147,25 @@ class TestSQLExecuteQueryOperator:
             return_last=True,
         )
         mock_process_output.assert_not_called()
+
+    @mock.patch.object(SQLExecuteQueryOperator, "get_db_hook")
+    def test_output_processor(self, mock_get_db_hook):
+        data = [(1, "Alice"), (2, "Bob")]
+
+        mock_hook = MagicMock()
+        mock_hook.run.return_value = data
+        mock_hook.descriptions = ("id", "name")
+        mock_get_db_hook.return_value = mock_hook
+
+        operator = self._construct_operator(
+            sql="SELECT * FROM users;",
+            output_processor=lambda results, descriptions: (descriptions, results),
+            return_last=False,
+        )
+        descriptions, result = operator.execute(context=MagicMock())
+
+        assert descriptions == ("id", "name")
+        assert result == [(1, "Alice"), (2, "Bob")]
 
 
 class TestColumnCheckOperator:

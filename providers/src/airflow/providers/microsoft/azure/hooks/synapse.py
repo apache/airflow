@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import time
-import warnings
 from typing import TYPE_CHECKING, Any, Union
 
 from azure.core.exceptions import ServiceRequestError
@@ -25,7 +24,7 @@ from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.synapse.artifacts import ArtifactsClient
 from azure.synapse.spark import SparkClient
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowTaskTimeout
+from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
@@ -307,13 +306,6 @@ class AzureSynapsePipelineHook(BaseAzureSynapseHook):
         azure_synapse_conn_id: str = default_conn_name,
         **kwargs,
     ):
-        # Handling deprecation of "default_conn_name"
-        if azure_synapse_conn_id == self.default_conn_name:
-            warnings.warn(
-                "The usage of `default_conn_name=azure_synapse_connection` is deprecated and will be removed in future. Please update your code to use the new default connection name: `default_conn_name=azure_synapse_default`. ",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
         self._conn: ArtifactsClient | None = None
         self.azure_synapse_workspace_dev_endpoint = azure_synapse_workspace_dev_endpoint
         super().__init__(azure_synapse_conn_id=azure_synapse_conn_id, **kwargs)

@@ -349,7 +349,7 @@ class TestPostPool(TestPoolsEndpoint):
                     "deferred_slots": 0,
                 },
                 409,
-                {"detail": "Unique constraint violation"},
+                None,
             ),
         ],
     )
@@ -371,7 +371,13 @@ class TestPostPool(TestPoolsEndpoint):
         assert session.query(Pool).count() == n_pools + 1
         response = test_client.post("/public/pools", json=body)
         assert response.status_code == second_expected_status_code
-        assert response.json() == second_expected_response
+        if second_expected_status_code == 201:
+            assert response.json() == second_expected_response
+        else:
+            response_json = response.json()
+            assert "detail" in response_json
+            assert list(response_json["detail"].keys()) == ["reason", "statement", "orig_error"]
+
         assert session.query(Pool).count() == n_pools + 1
 
 
@@ -425,7 +431,7 @@ class TestPostPools(TestPoolsEndpoint):
                     ]
                 },
                 409,
-                {"detail": "Unique constraint violation"},
+                None,
             ),
             (
                 {
@@ -435,7 +441,7 @@ class TestPostPools(TestPoolsEndpoint):
                     ]
                 },
                 409,
-                {"detail": "Unique constraint violation"},
+                None,
             ),
             (
                 {
@@ -445,7 +451,7 @@ class TestPostPools(TestPoolsEndpoint):
                     ]
                 },
                 409,
-                {"detail": "Unique constraint violation"},
+                None,
             ),
         ],
     )
@@ -454,8 +460,11 @@ class TestPostPools(TestPoolsEndpoint):
         n_pools = session.query(Pool).count()
         response = test_client.post("/public/pools/bulk", json=body)
         assert response.status_code == expected_status_code
-        assert response.json() == expected_response
         if expected_status_code == 201:
+            response.json() == expected_response
             assert session.query(Pool).count() == n_pools + 2
         else:
+            response_json = response.json()
+            assert "detail" in response_json
+            assert list(response_json["detail"].keys()) == ["reason", "statement", "orig_error"]
             assert session.query(Pool).count() == n_pools

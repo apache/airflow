@@ -1365,7 +1365,7 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
 
         try:
             self.log.info("Creating table")
-            table = bq_hook.create_empty_table(
+            self._table = bq_hook.create_empty_table(
                 project_id=self.project_id,
                 dataset_id=self.dataset_id,
                 table_id=self.table_id,
@@ -1382,12 +1382,15 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
             persist_kwargs = {
                 "context": context,
                 "task_instance": self,
-                "project_id": table.to_api_repr()["tableReference"]["projectId"],
-                "dataset_id": table.to_api_repr()["tableReference"]["datasetId"],
-                "table_id": table.to_api_repr()["tableReference"]["tableId"],
+                "project_id": self._table.to_api_repr()["tableReference"]["projectId"],
+                "dataset_id": self._table.to_api_repr()["tableReference"]["datasetId"],
+                "table_id": self._table.to_api_repr()["tableReference"]["tableId"],
             }
             self.log.info(
-                "Table %s.%s.%s created successfully", table.project, table.dataset_id, table.table_id
+                "Table %s.%s.%s created successfully",
+                self._table.project,
+                self._table.dataset_id,
+                self._table.table_id,
             )
         except Conflict:
             error_msg = f"Table {self.dataset_id}.{self.table_id} already exists."
@@ -1406,6 +1409,24 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
                 raise AirflowSkipException(error_msg)
 
         BigQueryTableLink.persist(**persist_kwargs)
+
+    def get_openlineage_facets_on_complete(self, task_instance):
+        from airflow.providers.common.compat.openlineage.facet import Dataset
+        from airflow.providers.google.cloud.openlineage.utils import (
+            BIGQUERY_NAMESPACE,
+            get_facets_from_bq_table,
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        table_info = self._table.to_api_repr()["tableReference"]
+        table_id = ".".join((table_info["projectId"], table_info["datasetId"], table_info["tableId"]))
+        output_dataset = Dataset(
+            namespace=BIGQUERY_NAMESPACE,
+            name=table_id,
+            facets=get_facets_from_bq_table(self._table),
+        )
+
+        return OperatorLineage(outputs=[output_dataset])
 
 
 class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
@@ -1632,15 +1653,15 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         if self.table_resource:
-            table = bq_hook.create_empty_table(
+            self._table = bq_hook.create_empty_table(
                 table_resource=self.table_resource,
             )
             BigQueryTableLink.persist(
                 context=context,
                 task_instance=self,
-                dataset_id=table.to_api_repr()["tableReference"]["datasetId"],
-                project_id=table.to_api_repr()["tableReference"]["projectId"],
-                table_id=table.to_api_repr()["tableReference"]["tableId"],
+                dataset_id=self._table.to_api_repr()["tableReference"]["datasetId"],
+                project_id=self._table.to_api_repr()["tableReference"]["projectId"],
+                table_id=self._table.to_api_repr()["tableReference"]["tableId"],
             )
             return
 
@@ -1691,17 +1712,35 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             "encryptionConfiguration": self.encryption_configuration,
         }
 
-        table = bq_hook.create_empty_table(
+        self._table = bq_hook.create_empty_table(
             table_resource=table_resource,
         )
 
         BigQueryTableLink.persist(
             context=context,
             task_instance=self,
-            dataset_id=table.to_api_repr()["tableReference"]["datasetId"],
-            project_id=table.to_api_repr()["tableReference"]["projectId"],
-            table_id=table.to_api_repr()["tableReference"]["tableId"],
+            dataset_id=self._table.to_api_repr()["tableReference"]["datasetId"],
+            project_id=self._table.to_api_repr()["tableReference"]["projectId"],
+            table_id=self._table.to_api_repr()["tableReference"]["tableId"],
         )
+
+    def get_openlineage_facets_on_complete(self, task_instance):
+        from airflow.providers.common.compat.openlineage.facet import Dataset
+        from airflow.providers.google.cloud.openlineage.utils import (
+            BIGQUERY_NAMESPACE,
+            get_facets_from_bq_table,
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        table_info = self._table.to_api_repr()["tableReference"]
+        table_id = ".".join((table_info["projectId"], table_info["datasetId"], table_info["tableId"]))
+        output_dataset = Dataset(
+            namespace=BIGQUERY_NAMESPACE,
+            name=table_id,
+            facets=get_facets_from_bq_table(self._table),
+        )
+
+        return OperatorLineage(outputs=[output_dataset])
 
 
 class BigQueryDeleteDatasetOperator(GoogleCloudBaseOperator):

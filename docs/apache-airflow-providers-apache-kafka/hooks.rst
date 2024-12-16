@@ -42,6 +42,20 @@ Reference
 For further information, look at `Apache Kafka Admin config documentation <https://kafka.apache.org/documentation/#adminclientconfigs>`_.
 
 
+.. _howto/hook:KafkaAuthenticationError:
+
+KafkaAuthenticationError
+------------------------
+
+Custom exception for Kafka authentication failures.
+
+Reference
+"""""""""
+
+For further information, look at
+`Confluent Kafka Documentation <https://docs.confluent.io/platform/current/clients/confluent-kafka-python/html/index.html#pythonclient-kafkaerror>`_.
+
+
 .. _howto/hook:KafkaConsumerHook:
 
 KafkaConsumerHook

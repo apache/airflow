@@ -32,7 +32,7 @@ from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import ExtractorManager
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
 from airflow.providers.openlineage.utils.utils import (
-    IS_AIRFLOW_2_10_OR_HIGHER,
+    AIRFLOW_V_2_10_PLUS,
     get_airflow_dag_run_facet,
     get_airflow_debug_facet,
     get_airflow_job_facet,
@@ -61,7 +61,7 @@ _openlineage_listener: OpenLineageListener | None = None
 
 def _get_try_number_success(val):
     # todo: remove when min airflow version >= 2.10.0
-    if IS_AIRFLOW_2_10_OR_HIGHER:
+    if AIRFLOW_V_2_10_PLUS:
         return val.try_number
     return val.try_number - 1
 
@@ -143,6 +143,7 @@ class OpenLineageListener:
             parent_run_id = self.adapter.build_dag_run_id(
                 dag_id=dag.dag_id,
                 logical_date=dagrun.logical_date,
+                clear_number=dagrun.clear_number,
             )
 
             if hasattr(task_instance, "logical_date"):
@@ -228,6 +229,7 @@ class OpenLineageListener:
             parent_run_id = self.adapter.build_dag_run_id(
                 dag_id=dag.dag_id,
                 logical_date=dagrun.logical_date,
+                clear_number=dagrun.clear_number,
             )
 
             if hasattr(task_instance, "logical_date"):
@@ -271,7 +273,7 @@ class OpenLineageListener:
 
         self._execute(on_success, "on_success", use_fork=True)
 
-    if IS_AIRFLOW_2_10_OR_HIGHER:
+    if AIRFLOW_V_2_10_PLUS:
 
         @hookimpl
         def on_task_instance_failed(
@@ -332,6 +334,7 @@ class OpenLineageListener:
             parent_run_id = self.adapter.build_dag_run_id(
                 dag_id=dag.dag_id,
                 logical_date=dagrun.logical_date,
+                clear_number=dagrun.clear_number,
             )
 
             if hasattr(task_instance, "logical_date"):
@@ -467,6 +470,7 @@ class OpenLineageListener:
                 nominal_start_time=data_interval_start,
                 nominal_end_time=data_interval_end,
                 run_facets=run_facets,
+                clear_number=dag_run.clear_number,
                 owners=[x.strip() for x in dag_run.dag.owner.split(",")] if dag_run.dag else None,
                 description=dag_run.dag.description if dag_run.dag else None,
                 # AirflowJobFacet should be created outside ProcessPoolExecutor that pickles objects,
@@ -492,7 +496,7 @@ class OpenLineageListener:
                 self.log.debug("Executor have not started before `on_dag_run_success`")
                 return
 
-            if IS_AIRFLOW_2_10_OR_HIGHER:
+            if AIRFLOW_V_2_10_PLUS:
                 task_ids = DagRun._get_partial_task_ids(dag_run.dag)
             else:
                 task_ids = dag_run.dag.task_ids if dag_run.dag and dag_run.dag.partial else None
@@ -502,6 +506,7 @@ class OpenLineageListener:
                 run_id=dag_run.run_id,
                 end_date=dag_run.end_date,
                 logical_date=dag_run.logical_date,
+                clear_number=dag_run.clear_number,
                 task_ids=task_ids,
                 dag_run_state=dag_run.get_state(),
             )
@@ -524,7 +529,7 @@ class OpenLineageListener:
                 self.log.debug("Executor have not started before `on_dag_run_failed`")
                 return
 
-            if IS_AIRFLOW_2_10_OR_HIGHER:
+            if AIRFLOW_V_2_10_PLUS:
                 task_ids = DagRun._get_partial_task_ids(dag_run.dag)
             else:
                 task_ids = dag_run.dag.task_ids if dag_run.dag and dag_run.dag.partial else None
@@ -534,6 +539,7 @@ class OpenLineageListener:
                 run_id=dag_run.run_id,
                 end_date=dag_run.end_date,
                 logical_date=dag_run.logical_date,
+                clear_number=dag_run.clear_number,
                 dag_run_state=dag_run.get_state(),
                 task_ids=task_ids,
                 msg=msg,
