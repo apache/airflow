@@ -71,11 +71,6 @@ integrations:
       - /docs/apache-airflow-providers-microsoft-mssql/operators.rst
     tags: [software]
 
-operators:
-  - integration-name: Microsoft SQL Server (MSSQL)
-    python-modules:
-      - airflow.providers.microsoft.mssql.operators.mssql
-
 hooks:
   - integration-name: Microsoft SQL Server (MSSQL)
     python-modules:

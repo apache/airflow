@@ -24,8 +24,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from airflow.cli import cli_parser
-from airflow.cli.commands import config_command
 from airflow.cli.commands.legacy_commands import COMMAND_MAP, check_legacy_command
+from airflow.cli.commands.remote_commands import config_command
 
 LEGACY_COMMANDS = [
     "worker",

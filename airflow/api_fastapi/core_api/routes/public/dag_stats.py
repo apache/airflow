@@ -17,14 +17,20 @@
 
 from __future__ import annotations
 
-from fastapi import status
+from typing import Annotated
+
+from fastapi import Depends, status
 
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
     paginated_select,
 )
 from airflow.api_fastapi.common.db.dag_runs import dagruns_select_with_state_count
-from airflow.api_fastapi.common.parameters import QueryDagIdsFilter
+from airflow.api_fastapi.common.parameters import (
+    FilterOptionEnum,
+    FilterParam,
+    filter_param_factory,
+)
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.dag_stats import (
     DagStatsCollectionResponse,
@@ -32,6 +38,7 @@ from airflow.api_fastapi.core_api.datamodels.dag_stats import (
     DagStatsStateResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.models.dagrun import DagRun
 from airflow.utils.state import DagRunState
 
 dag_stats_router = AirflowRouter(tags=["DagStats"], prefix="/dagStats")
@@ -48,7 +55,10 @@ dag_stats_router = AirflowRouter(tags=["DagStats"], prefix="/dagStats")
 )
 def get_dag_stats(
     session: SessionDep,
-    dag_ids: QueryDagIdsFilter,
+    dag_ids: Annotated[
+        FilterParam[list[str]],
+        Depends(filter_param_factory(DagRun.dag_id, list[str], FilterOptionEnum.IN, "dag_ids")),
+    ],
 ) -> DagStatsCollectionResponse:
     """Get Dag statistics."""
     dagruns_select, _ = paginated_select(

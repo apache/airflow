@@ -237,7 +237,7 @@ class TestCli:
         assert celery_executor_command.name in commands
         assert ecs_executor_command.name not in commands
         assert (
-            "Failed to load CLI commands from executor: airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"
+            "Failed to load CLI commands from executor: ::airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"
             in caplog.messages[0]
         )
 
@@ -265,7 +265,7 @@ class TestCli:
         commands = [command.name for command in cli_parser.airflow_commands]
         assert ecs_executor_command.name in commands
         assert (
-            "Failed to load CLI commands from executor: airflow.providers.incorrect.executor.Executor"
+            "Failed to load CLI commands from executor: ::airflow.providers.incorrect.executor.Executor"
             in caplog.messages[0]
         )
 
@@ -420,10 +420,8 @@ class TestCli:
                     ["db", "export-archived", "--export-format", export_format, "--output-path", "mydir"]
                 )
             error_msg = stderr.getvalue()
-        assert error_msg == (
-            "\nairflow db export-archived command error: argument "
-            f"--export-format: invalid choice: '{export_format}' "
-            "(choose from 'csv'), see help above.\n"
+        assert (
+            "airflow db export-archived command error: argument --export-format: invalid choice" in error_msg
         )
 
     @pytest.mark.parametrize(

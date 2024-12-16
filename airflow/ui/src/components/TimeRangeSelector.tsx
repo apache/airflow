@@ -39,10 +39,9 @@ type Props = {
 const defaultTimeOptions = createListCollection({
   items: [
     { label: "Last 1 hour", value: "1" },
-    { label: "Last 8 hours", value: "8" },
     { label: "Last 12 hours", value: "12" },
     { label: "Last 24 hours", value: "24" },
-    { label: "Last week", value: "168" },
+    { label: "Past week", value: "168" },
   ],
 });
 

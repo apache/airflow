@@ -20,7 +20,6 @@ from __future__ import annotations
 import datetime
 import logging
 import sys
-from typing import TYPE_CHECKING
 from unittest.mock import ANY, Mock, patch
 
 import pytest
@@ -36,9 +35,6 @@ from airflow.utils.state import State
 from tests.listeners import lifecycle_listener
 from tests.utils.test_helpers import MockJobRunner, SchedulerJobRunner, TriggererJobRunner
 from tests_common.test_utils.config import conf_vars
-
-if TYPE_CHECKING:
-    from airflow.serialization.pydantic.job import JobPydantic
 
 pytestmark = pytest.mark.db_test
 
@@ -131,7 +127,7 @@ class TestJob:
             # heartrate should be 12 since we passed that to the constructor directly
             assert job.heartrate == 12
 
-    def _compare_jobs(self, job1: Job | JobPydantic, job2: Job | JobPydantic):
+    def _compare_jobs(self, job1: Job, job2: Job):
         """Helper to compare two jobs where one can by Pydantic and the other not."""
         assert job1.id == job2.id
         assert job1.dag_id == job2.dag_id

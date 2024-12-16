@@ -82,9 +82,6 @@ class SnowflakeHook(DbApiHook):
     .. note::
         ``get_sqlalchemy_engine()`` depends on ``snowflake-sqlalchemy``
 
-    .. seealso::
-        For more information on how to use this Snowflake connection, take a look at the guide:
-        :ref:`howto/operator:SnowflakeOperator`
     """
 
     conn_name_attr = "snowflake_conn_id"

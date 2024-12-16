@@ -22,7 +22,6 @@ from __future__ import annotations
 import datetime
 import os
 import stat
-import warnings
 from collections.abc import Sequence
 from fnmatch import fnmatch
 from typing import TYPE_CHECKING, Any, Callable
@@ -30,7 +29,7 @@ from typing import TYPE_CHECKING, Any, Callable
 import asyncssh
 from asgiref.sync import sync_to_async
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
@@ -62,7 +61,6 @@ class SFTPHook(SSHHook):
     For consistency reasons with SSHHook, the preferred parameter is "ssh_conn_id".
 
     :param ssh_conn_id: The :ref:`sftp connection id<howto/connection:sftp>`
-    :param ssh_hook: Optional SSH hook (included to support passing of an SSH hook to the SFTP operator)
     """
 
     conn_name_attr = "ssh_conn_id"
@@ -82,38 +80,11 @@ class SFTPHook(SSHHook):
     def __init__(
         self,
         ssh_conn_id: str | None = "sftp_default",
-        ssh_hook: SSHHook | None = None,
         host_proxy_cmd: str | None = None,
         *args,
         **kwargs,
     ) -> None:
         self.conn: paramiko.SFTPClient | None = None
-
-        # TODO: remove support for ssh_hook when it is removed from SFTPOperator
-        self.ssh_hook = ssh_hook
-
-        if self.ssh_hook is not None:
-            warnings.warn(
-                "Parameter `ssh_hook` is deprecated and will be removed in a future version.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            if not isinstance(self.ssh_hook, SSHHook):
-                raise AirflowException(
-                    f"ssh_hook must be an instance of SSHHook, but got {type(self.ssh_hook)}"
-                )
-            self.log.info("ssh_hook is provided. It will be used to generate SFTP connection.")
-            self.ssh_conn_id = self.ssh_hook.ssh_conn_id
-            return
-
-        ftp_conn_id = kwargs.pop("ftp_conn_id", None)
-        if ftp_conn_id:
-            warnings.warn(
-                "Parameter `ftp_conn_id` is deprecated. Please use `ssh_conn_id` instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            ssh_conn_id = ftp_conn_id
 
         kwargs["ssh_conn_id"] = ssh_conn_id
         kwargs["host_proxy_cmd"] = host_proxy_cmd
@@ -124,11 +95,7 @@ class SFTPHook(SSHHook):
     def get_conn(self) -> paramiko.SFTPClient:  # type: ignore[override]
         """Open an SFTP connection to the remote host."""
         if self.conn is None:
-            # TODO: remove support for ssh_hook when it is removed from SFTPOperator
-            if self.ssh_hook is not None:
-                self.conn = self.ssh_hook.get_conn().open_sftp()
-            else:
-                self.conn = super().get_conn().open_sftp()
+            self.conn = super().get_conn().open_sftp()
         return self.conn
 
     def close_conn(self) -> None:
@@ -167,6 +134,15 @@ class SFTPHook(SSHHook):
         conn = self.get_conn()
         files = sorted(conn.listdir(path))
         return files
+
+    def list_directory_with_attr(self, path: str) -> list[paramiko.SFTPAttributes]:
+        """
+        List files in a directory on the remote system including their SFTPAttributes.
+
+        :param path: full path to the remote directory to list
+        """
+        conn = self.get_conn()
+        return [file for file in conn.listdir_attr(path)]
 
     def mkdir(self, path: str, mode: int = 0o777) -> None:
         """
@@ -344,10 +320,9 @@ class SFTPHook(SSHHook):
             (form: ``func(str)``)
         :param bool recurse: *Default: True* - should it recurse
         """
-        conn = self.get_conn()
-        for entry in self.list_directory(path):
-            pathname = os.path.join(path, entry)
-            mode = conn.stat(pathname).st_mode
+        for entry in self.list_directory_with_attr(path):
+            pathname = os.path.join(path, entry.filename)
+            mode = entry.st_mode
             if stat.S_ISDIR(mode):  # type: ignore
                 # It's a directory, call the dcallback function
                 dcallback(pathname)
@@ -423,9 +398,9 @@ class SFTPHook(SSHHook):
         :return: list of string containing the found files, or an empty list if none matched
         """
         matched_files = []
-        for file in self.list_directory(path):
-            if fnmatch(file, fnmatch_pattern):
-                matched_files.append(file)
+        for file in self.list_directory_with_attr(path):
+            if fnmatch(file.filename, fnmatch_pattern):
+                matched_files.append(file.filename)
 
         return matched_files
 

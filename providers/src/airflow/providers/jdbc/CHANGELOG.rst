@@ -26,6 +26,19 @@
 Changelog
 ---------
 
+main
+....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the JDBC provider package.
+  The following breaking changes were introduced:
+
+  * Operators
+     * Remove ``airflow.providers.jdbc.operators.jdbc.JdbcOperator``. Please use ``airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`` instead.
+
 4.5.3
 .....
 

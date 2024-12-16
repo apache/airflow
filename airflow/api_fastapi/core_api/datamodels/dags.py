@@ -32,8 +32,8 @@ from pydantic import (
 )
 
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.datamodels.dag_tags import DagTagResponse
 from airflow.configuration import conf
-from airflow.serialization.pydantic.dag import DagTagPydantic
 
 
 class DAGResponse(BaseModel):
@@ -50,7 +50,7 @@ class DAGResponse(BaseModel):
     description: str | None
     timetable_summary: str | None
     timetable_description: str | None
-    tags: list[DagTagPydantic]
+    tags: list[DagTagResponse]
     max_active_tasks: int
     max_active_runs: int | None
     max_consecutive_failed_dag_runs: int
@@ -154,10 +154,3 @@ class DAGDetailsResponse(DAGResponse):
     def concurrency(self) -> int:
         """Return max_active_tasks as concurrency."""
         return self.max_active_tasks
-
-
-class DAGTagCollectionResponse(BaseModel):
-    """DAG Tags Collection serializer for responses."""
-
-    tags: list[str]
-    total_entries: int

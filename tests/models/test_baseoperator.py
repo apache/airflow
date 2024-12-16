@@ -29,7 +29,7 @@ import jinja2
 import pytest
 
 from airflow.decorators import task as task_decorator
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferralTimeout
 from airflow.lineage.entities import File
 from airflow.models.baseoperator import (
     BaseOperator,
@@ -40,6 +40,7 @@ from airflow.models.baseoperator import (
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.trigger import TriggerFailureReason
 from airflow.providers.common.sql.operators import sql
 from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup
@@ -394,6 +395,33 @@ class TestBaseOperator:
         assert [op2] == tgop3.get_direct_relatives(upstream=False)
         assert [op2] == tgop4.get_direct_relatives(upstream=False)
 
+    def test_baseoperator_raises_exception_when_task_id_plus_taskgroup_id_exceeds_250_chars(self):
+        """Test exception is raised when operator task id + taskgroup id > 250 chars."""
+        dag = DAG(dag_id="foo", schedule=None, start_date=datetime.now())
+
+        tg1 = TaskGroup("A" * 20, dag=dag)
+        with pytest.raises(ValueError, match="The key has to be less than 250 characters"):
+            BaseOperator(task_id="1" * 250, task_group=tg1, dag=dag)
+
+    def test_baseoperator_with_task_id_and_taskgroup_id_less_than_250_chars(self):
+        """Test exception is not raised when operator task id + taskgroup id < 250 chars."""
+        dag = DAG(dag_id="foo", schedule=None, start_date=datetime.now())
+
+        tg1 = TaskGroup("A" * 10, dag=dag)
+        try:
+            BaseOperator(task_id="1" * 239, task_group=tg1, dag=dag)
+        except Exception as e:
+            pytest.fail(f"Exception raised: {e}")
+
+    def test_baseoperator_with_task_id_less_than_250_chars(self):
+        """Test exception is not raised when operator task id  < 250 chars."""
+        dag = DAG(dag_id="foo", schedule=None, start_date=datetime.now())
+
+        try:
+            BaseOperator(task_id="1" * 249, dag=dag)
+        except Exception as e:
+            pytest.fail(f"Exception raised: {e}")
+
     def test_chain_linear(self):
         dag = DAG(dag_id="test_chain_linear", schedule=None, start_date=datetime.now())
 
@@ -581,6 +609,15 @@ class TestBaseOperator:
         # the other case (that when we have set_context it goes to the file is harder to achieve without
         # leaking a lot of state)
         assert caplog.messages == ["test"]
+
+    def test_resume_execution(self):
+        op = BaseOperator(task_id="hi")
+        with pytest.raises(TaskDeferralTimeout):
+            op.resume_execution(
+                next_method="__fail__",
+                next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
+                context={},
+            )
 
 
 def test_deepcopy():

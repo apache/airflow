@@ -26,10 +26,8 @@ from functools import cached_property
 from logging import Logger
 from typing import TYPE_CHECKING, Any
 
-from deprecated import deprecated
-
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunLifeCycleState, RunState
 from airflow.providers.databricks.operators.databricks_workflow import (
@@ -641,27 +639,6 @@ class DatabricksSubmitRunOperator(BaseOperator):
         _handle_deferrable_databricks_operator_completion(event, self.log)
 
 
-@deprecated(
-    reason=(
-        "`DatabricksSubmitRunDeferrableOperator` has been deprecated. "
-        "Please use `airflow.providers.databricks.operators.DatabricksSubmitRunOperator` "
-        "with `deferrable=True` instead."
-    ),
-    category=AirflowProviderDeprecationWarning,
-)
-class DatabricksSubmitRunDeferrableOperator(DatabricksSubmitRunOperator):
-    """Deferrable version of ``DatabricksSubmitRunOperator``."""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(deferrable=True, *args, **kwargs)
-
-    def execute(self, context):
-        hook = self._get_hook(caller="DatabricksSubmitRunDeferrableOperator")
-        json_normalised = normalise_json_content(self.json)
-        self.run_id = hook.submit_run(json_normalised)
-        _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
-
-
 class DatabricksRunNowOperator(BaseOperator):
     """
     Runs an existing Spark job run to Databricks using the api/2.1/jobs/run-now API endpoint.
@@ -953,13 +930,15 @@ class DatabricksRunNowOperator(BaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         if event:
+            if event.get("run_state"):
+                run_state = RunState.from_json(event["run_state"])
+                if event.get("repair_run"):
+                    event["repair_run"] = event["repair_run"] and (
+                        not self.databricks_repair_reason_new_settings
+                        or is_repair_reason_match_exist(self, run_state)
+                    )
             _handle_deferrable_databricks_operator_completion(event, self.log)
-            run_state = RunState.from_json(event["run_state"])
-            should_repair = event["repair_run"] and (
-                not self.databricks_repair_reason_new_settings
-                or is_repair_reason_match_exist(self, run_state)
-            )
-            if should_repair:
+            if event.get("repair_run"):
                 self.repair_run = False
                 self.run_id = event["run_id"]
                 job_id = self._hook.get_job_id(self.run_id)
@@ -979,21 +958,6 @@ class DatabricksRunNowOperator(BaseOperator):
             )
         else:
             self.log.error("Error: Task: %s with invalid run_id was requested to be cancelled.", self.task_id)
-
-
-@deprecated(
-    reason=(
-        "`DatabricksRunNowDeferrableOperator` has been deprecated. "
-        "Please use `airflow.providers.databricks.operators.DatabricksRunNowOperator` "
-        "with `deferrable=True` instead."
-    ),
-    category=AirflowProviderDeprecationWarning,
-)
-class DatabricksRunNowDeferrableOperator(DatabricksRunNowOperator):
-    """Deferrable version of ``DatabricksRunNowOperator``."""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(deferrable=True, *args, **kwargs)
 
 
 class DatabricksTaskBaseOperator(BaseOperator, ABC):

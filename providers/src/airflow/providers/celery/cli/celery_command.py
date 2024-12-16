@@ -42,7 +42,7 @@ WORKER_PROCESS_NAME = "worker"
 
 def _run_command_with_daemon_option(*args, **kwargs):
     try:
-        from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
+        from airflow.cli.commands.local_commands.daemon_utils import run_command_with_daemon_option
 
         run_command_with_daemon_option(*args, **kwargs)
     except ImportError:

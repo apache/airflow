@@ -20,7 +20,9 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, Request, Response, status
-from sqlalchemy import select, update
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
+from sqlalchemy import update
 
 from airflow.api.common import delete_dag as delete_dag_module
 from airflow.api_fastapi.common.db.common import (
@@ -32,7 +34,6 @@ from airflow.api_fastapi.common.parameters import (
     QueryDagDisplayNamePatternSearch,
     QueryDagIdPatternSearch,
     QueryDagIdPatternSearchWithNone,
-    QueryDagTagPatternSearch,
     QueryLastDagRunStateFilter,
     QueryLimit,
     QueryOffset,
@@ -48,11 +49,10 @@ from airflow.api_fastapi.core_api.datamodels.dags import (
     DAGDetailsResponse,
     DAGPatchBody,
     DAGResponse,
-    DAGTagCollectionResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.exceptions import AirflowException, DagNotFound
-from airflow.models import DAG, DagModel, DagTag
+from airflow.models import DAG, DagModel
 from airflow.models.dagrun import DagRun
 
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
@@ -105,38 +105,6 @@ def get_dags(
         dags=dags,
         total_entries=total_entries,
     )
-
-
-@dags_router.get(
-    "/tags",
-)
-def get_dag_tags(
-    limit: QueryLimit,
-    offset: QueryOffset,
-    order_by: Annotated[
-        SortParam,
-        Depends(
-            SortParam(
-                ["name"],
-                DagTag,
-            ).dynamic_depends()
-        ),
-    ],
-    tag_name_pattern: QueryDagTagPatternSearch,
-    session: SessionDep,
-) -> DAGTagCollectionResponse:
-    """Get all DAG tags."""
-    query = select(DagTag.name).group_by(DagTag.name)
-    dag_tags_select, total_entries = paginated_select(
-        statement=query,
-        filters=[tag_name_pattern],
-        order_by=order_by,
-        offset=offset,
-        limit=limit,
-        session=session,
-    )
-    dag_tags = session.execute(dag_tags_select).scalars().all()
-    return DAGTagCollectionResponse(tags=[x for x in dag_tags], total_entries=total_entries)
 
 
 @dags_router.get(
@@ -213,15 +181,20 @@ def patch_dag(
     if dag is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id: {dag_id} was not found")
 
+    fields_to_update = patch_body.model_fields_set
     if update_mask:
         if update_mask != ["is_paused"]:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST, "Only `is_paused` field can be updated through the REST API"
             )
-
-        data = patch_body.model_dump(include=set(update_mask))
+        fields_to_update = fields_to_update.intersection(update_mask)
+        data = patch_body.model_dump(include=fields_to_update, by_alias=True)
     else:
-        data = patch_body.model_dump()
+        try:
+            DAGPatchBody(**patch_body.model_dump())
+        except ValidationError as e:
+            raise RequestValidationError(errors=e.errors())
+        data = patch_body.model_dump(by_alias=True)
 
     for key, val in data.items():
         setattr(dag, key, val)
@@ -258,6 +231,11 @@ def patch_dags(
                 status.HTTP_400_BAD_REQUEST, "Only `is_paused` field can be updated through the REST API"
             )
     else:
+        try:
+            DAGPatchBody.model_validate(patch_body)
+        except ValidationError as e:
+            raise RequestValidationError(errors=e.errors())
+
         # todo: this is not used?
         update_mask = ["is_paused"]
 

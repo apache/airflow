@@ -26,6 +26,15 @@
 Changelog
 ---------
 
+main
+.....
+
+.. warning::
+  All deprecated classes, parameters, and features have been removed from the Airbyte provider package.
+  The following breaking changes were introduced:
+
+  * Removed ``BeamPipelineTrigger`` class from ``trigger``. Use the ``class:`airflow.providers.apache.beam.triggers.beam.BeamPythonPipelineTrigger`` class instead.
+
 5.9.1
 .....
 

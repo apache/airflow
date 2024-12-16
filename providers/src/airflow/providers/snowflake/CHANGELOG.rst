@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+main
+....
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the snowflake provider package.
+  The following breaking changes were introduced:
+
+  * Removed deprecated ``SnowflakeOperator``. Use ``SQLExecuteQueryOperator`` instead.
+
 5.8.1
 .....
 

@@ -44,7 +44,7 @@ from airflow.utils import timezone
 from airflow.version import version
 
 from providers.tests.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
-from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 GCS_STRING = "airflow.providers.google.cloud.hooks.gcs.{}"

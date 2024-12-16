@@ -25,8 +25,7 @@ How-to Guide for Mysql using SQLExecuteQueryOperator
 Use the :class:`~airflow.providers.common.sql.operators.SQLExecuteQueryOperator` to execute
 SQL commands in a `MySql <https://dev.mysql.com/doc/>`__ database.
 
-.. warning::
-     Previously, MySqlOperator was used to perform this kind of operation. But at the moment MySqlOperator is deprecated and will be removed in future versions of the provider. Please consider to switch to SQLExecuteQueryOperator as soon as possible.
+Previously, MySqlOperator was used to perform this kind of operation. But after deprecation it was removed. Please use SQLExecuteQueryOperator instead.
 
 Using the Operator
 ^^^^^^^^^^^^^^^^^^

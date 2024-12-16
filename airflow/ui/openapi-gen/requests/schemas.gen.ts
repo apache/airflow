@@ -89,7 +89,27 @@ export const $AppBuilderViewResponse = {
   description: "Serializer for AppBuilder View responses.",
 } as const;
 
-export const $AssetAliasSchema = {
+export const $AssetAliasCollectionResponse = {
+  properties: {
+    asset_aliases: {
+      items: {
+        $ref: "#/components/schemas/AssetAliasResponse",
+      },
+      type: "array",
+      title: "Asset Aliases",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["asset_aliases", "total_entries"],
+  title: "AssetAliasCollectionResponse",
+  description: "Asset alias collection response.",
+} as const;
+
+export const $AssetAliasResponse = {
   properties: {
     id: {
       type: "integer",
@@ -106,8 +126,8 @@ export const $AssetAliasSchema = {
   },
   type: "object",
   required: ["id", "name", "group"],
-  title: "AssetAliasSchema",
-  description: "Asset alias serializer for assets.",
+  title: "AssetAliasResponse",
+  description: "Asset alias serializer for responses.",
 } as const;
 
 export const $AssetCollectionResponse = {
@@ -159,10 +179,6 @@ export const $AssetEventResponse = {
     asset_id: {
       type: "integer",
       title: "Asset Id",
-    },
-    uri: {
-      type: "string",
-      title: "Uri",
     },
     extra: {
       anyOf: [
@@ -229,7 +245,6 @@ export const $AssetEventResponse = {
   required: [
     "id",
     "asset_id",
-    "uri",
     "source_map_index",
     "created_dagruns",
     "timestamp",
@@ -293,7 +308,7 @@ export const $AssetResponse = {
     },
     aliases: {
       items: {
-        $ref: "#/components/schemas/AssetAliasSchema",
+        $ref: "#/components/schemas/AssetAliasResponse",
       },
       type: "array",
       title: "Aliases",
@@ -1005,9 +1020,9 @@ export const $ConnectionTestResponse = {
 
 export const $CreateAssetEventsBody = {
   properties: {
-    uri: {
-      type: "string",
-      title: "Uri",
+    asset_id: {
+      type: "integer",
+      title: "Asset Id",
     },
     extra: {
       type: "object",
@@ -1016,7 +1031,7 @@ export const $CreateAssetEventsBody = {
   },
   additionalProperties: false,
   type: "object",
-  required: ["uri"],
+  required: ["asset_id"],
   title: "CreateAssetEventsBody",
   description: "Create asset events request.",
 } as const;
@@ -1133,7 +1148,7 @@ export const $DAGDetailsResponse = {
     },
     tags: {
       items: {
-        $ref: "#/components/schemas/DagTagPydantic",
+        $ref: "#/components/schemas/DagTagResponse",
       },
       type: "array",
       title: "Tags",
@@ -1506,7 +1521,7 @@ export const $DAGResponse = {
     },
     tags: {
       items: {
-        $ref: "#/components/schemas/DagTagPydantic",
+        $ref: "#/components/schemas/DagTagResponse",
       },
       type: "array",
       title: "Tags",
@@ -2252,7 +2267,7 @@ export const $DAGWithLatestDagRunsResponse = {
     },
     tags: {
       items: {
-        $ref: "#/components/schemas/DagTagPydantic",
+        $ref: "#/components/schemas/DagTagResponse",
       },
       type: "array",
       title: "Tags",
@@ -2590,7 +2605,7 @@ export const $DagStatsStateResponse = {
   description: "DagStatsState serializer for responses.",
 } as const;
 
-export const $DagTagPydantic = {
+export const $DagTagResponse = {
   properties: {
     name: {
       type: "string",
@@ -2603,9 +2618,8 @@ export const $DagTagPydantic = {
   },
   type: "object",
   required: ["name", "dag_id"],
-  title: "DagTagPydantic",
-  description:
-    "Serializable representation of the DagTag ORM SqlAlchemyModel used by internal API.",
+  title: "DagTagResponse",
+  description: "DAG Tag serializer for responses.",
 } as const;
 
 export const $DagWarningType = {
@@ -3128,14 +3142,7 @@ export const $NodeResponse = {
       title: "Children",
     },
     id: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "string",
       title: "Id",
     },
     is_mapped: {
@@ -3150,14 +3157,7 @@ export const $NodeResponse = {
       title: "Is Mapped",
     },
     label: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "string",
       title: "Label",
     },
     tooltip: {
@@ -3185,12 +3185,32 @@ export const $NodeResponse = {
     },
     type: {
       type: "string",
-      enum: ["join", "sensor", "task", "task_group"],
+      enum: [
+        "join",
+        "task",
+        "asset-condition",
+        "asset",
+        "asset-alias",
+        "dag",
+        "sensor",
+        "trigger",
+      ],
       title: "Type",
+    },
+    operator: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Operator",
     },
   },
   type: "object",
-  required: ["id", "type"],
+  required: ["id", "label", "type"],
   title: "NodeResponse",
   description: "Node serializer for responses.",
 } as const;
@@ -3623,13 +3643,13 @@ export const $QueuedEventCollectionResponse = {
 
 export const $QueuedEventResponse = {
   properties: {
-    uri: {
-      type: "string",
-      title: "Uri",
-    },
     dag_id: {
       type: "string",
       title: "Dag Id",
+    },
+    asset_id: {
+      type: "integer",
+      title: "Asset Id",
     },
     created_at: {
       type: "string",
@@ -3638,7 +3658,7 @@ export const $QueuedEventResponse = {
     },
   },
   type: "object",
-  required: ["uri", "dag_id", "created_at"],
+  required: ["dag_id", "asset_id", "created_at"],
   title: "QueuedEventResponse",
   description: "Queued Event serializer for responses..",
 } as const;
