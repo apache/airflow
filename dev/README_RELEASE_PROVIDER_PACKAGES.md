@@ -90,9 +90,8 @@ the versions of Airflow that are not applicable anymore.
 searching and replacing old version occurrences with newer one. For example 2.8.0 to 2.9.0
 
 3. Update minimum airflow version for all packages, you should modify `MIN_AIRFLOW_VERSION`
-in `src/airflow_breeze/utils/packages.py` and run the `prepare-provider-documentation`
-command with the `--only-min-version-update` flag. This will only update the min version in
-the `__init__.py` files and package documentation without bumping the provider versions.
+in `src/airflow_breeze/utils/packages.py` and run the `breeze release-management prepare-provider-documentation --only-min-version-update`
+This will only update the min version in  the `__init__.py` files and package documentation without bumping the provider versions.
 
 4. Remove `AIRFLOW_V_2_X_PLUS` in all tests (review and update skipif and other conditional
    behaviour and test_compat.py, where X is the TARGET version we change to. For example
