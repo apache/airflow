@@ -79,8 +79,6 @@ Variable                                    Type                  Description
 ``{{ conn }}``                                                    Airflow connections. See `Airflow Connections in Templates`_ below.
 ``{{ task_instance_key_str }}``             str                   | A unique, human-readable key to the task instance. The format is
                                                                   | ``{dag_id}__{task_id}__{ds_nodash}``.
-``{{ conf }}``                              AirflowConfigParser   | The full configuration object representing the content of your
-                                                                  | ``airflow.cfg``. See :mod:`airflow.configuration.conf`.
 ``{{ run_id }}``                            str                   The currently running :class:`~airflow.models.dagrun.DagRun` run ID.
 ``{{ dag_run }}``                           DagRun                The currently running :class:`~airflow.models.dagrun.DagRun`.
 ``{{ test_mode }}``                         bool                  Whether the task instance was run by the ``airflow test`` CLI.
@@ -133,6 +131,8 @@ Deprecated Variable                     Description
                                         you may be able to use ``prev_data_interval_start_success`` instead if
                                         the timetable/schedule you use for the DAG defines ``data_interval_start``
                                         compatible with the legacy ``execution_date``.
+``{{ conf }}``                          The full configuration object representing the content of your
+                                        ``airflow.cfg``. See :mod:`airflow.configuration.conf`.
 =====================================   ==========================================================================
 
 Note that you can access the object's attributes and methods with simple
