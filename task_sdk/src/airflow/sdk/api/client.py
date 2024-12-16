@@ -47,6 +47,7 @@ from airflow.utils.platform import getuser
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from airflow.sdk.execution_time.comms import RescheduleTask
     from airflow.typing_compat import ParamSpec
 
     P = ParamSpec("P")
@@ -135,7 +136,7 @@ class TaskInstanceOperations:
         # Create a deferred state payload from msg
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
-    def reschedule(self, id: uuid.UUID, msg):
+    def reschedule(self, id: uuid.UUID, msg: RescheduleTask):
         """Tell the API server that this TI has been reschduled."""
         body = TIRescheduleStatePayload(**msg.model_dump(exclude_unset=True))
 
