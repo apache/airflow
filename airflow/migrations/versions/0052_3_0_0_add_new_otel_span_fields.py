@@ -41,10 +41,10 @@ airflow_version = "3.0.0"
 def upgrade():
     """Apply add new otel span fields."""
     op.add_column("dag_run", sa.Column("scheduled_by_job_id", sa.Integer, nullable=True))
-    op.add_column("dag_run", sa.Column("context_carrier", sa.String(2000), nullable=False))
+    op.add_column("dag_run", sa.Column("context_carrier", sa.JSON, nullable=True))
     op.add_column("dag_run", sa.Column("span_status", sa.String(2000), nullable=False))
 
-    op.add_column("task_instance", sa.Column("context_carrier", sa.String(2000), nullable=False))
+    op.add_column("task_instance", sa.Column("context_carrier", sa.JSON, nullable=True))
     op.add_column("task_instance", sa.Column("span_status", sa.String(2000), nullable=False))
 
 
