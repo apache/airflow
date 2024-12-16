@@ -30,6 +30,7 @@ from __future__ import annotations
 import sqlalchemy as sa
 import sqlalchemy_jsonfield
 from alembic import op
+from sqlalchemy_utils import UUIDType
 
 # revision identifiers, used by Alembic.
 revision = "237cef8dfea1"
@@ -42,7 +43,7 @@ airflow_version = "3.0.0"
 def upgrade():
     op.create_table(
         "deadline",
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("id", UUIDType(binary=False), nullable=False),
         sa.Column("dag_id", sa.String(length=250), nullable=True),
         sa.Column("run_id", sa.Integer(), nullable=True),
         sa.Column("deadline", sa.DateTime(), nullable=False),

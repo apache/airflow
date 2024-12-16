@@ -20,7 +20,9 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import sqlalchemy_jsonfield
+import uuid6
 from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy_utils import UUIDType
 
 from airflow.models.base import Base, StringID
 from airflow.settings import json
@@ -36,7 +38,7 @@ class Deadline(Base, LoggingMixin):
 
     __tablename__ = "deadline"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
 
     # If the Deadline Alert is for a DAG, store the DAG ID and Run ID from the dag_run.
     dag_id = Column(StringID(), ForeignKey("dag.dag_id"))
