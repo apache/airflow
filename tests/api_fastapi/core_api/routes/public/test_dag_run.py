@@ -1016,6 +1016,7 @@ class TestGetDagRunAssetTriggerEvents:
                 {
                     "timestamp": from_datetime_to_zulu(event.timestamp),
                     "asset_id": asset1_id,
+                    "uri": "file:///da1",
                     "extra": {},
                     "id": event.id,
                     "source_dag_id": ti.dag_id,
