@@ -17,11 +17,11 @@
 ---
 version: 2
 updates:
-  - package-ecosystem: "pip"
+  - package-ecosystem: pip
     directories:
-      - "/clients/python"
-      - "/docker_tests"
-      - "/task_sdk"
-      - "/"
+      - /clients/python
+      - /docker_tests
+      - /task_sdk
+      - /
     schedule:
       interval: daily
