@@ -32,7 +32,6 @@ from typing import Any, overload
 from pendulum import DateTime
 from sqlalchemy.orm import Session
 
-from airflow.configuration import AirflowConfigParser
 from airflow.models.asset import AssetEvent
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
@@ -100,7 +99,6 @@ class InletEventsAccessors(Mapping[Asset | AssetAlias, InletEventsAccessor]):
 # * KNOWN_CONTEXT_KEYS in airflow/utils/context.py
 # * Table in docs/apache-airflow/templates-ref.rst
 class Context(TypedDict, total=False):
-    conf: AirflowConfigParser
     conn: Any
     dag: DAG
     dag_run: DagRun | DagRunPydantic
