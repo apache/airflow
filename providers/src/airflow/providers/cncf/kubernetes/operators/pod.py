@@ -588,7 +588,7 @@ class KubernetesPodOperator(BaseOperator):
             if self.pod_request_obj is None:
                 self.pod_request_obj = self.build_pod_request_obj(context)
             for callback in self.callbacks:
-                callback.on_manifest_finalization(
+                callback.on_pod_manifest_created(
                     pod_request=self.pod_request_obj, mode=ExecutionMode.SYNC, context=context, operator=self
                 )
             if self.pod is None:

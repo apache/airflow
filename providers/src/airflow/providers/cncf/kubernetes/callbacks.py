@@ -54,7 +54,7 @@ class KubernetesPodOperatorCallback:
         pass
 
     @staticmethod
-    def on_manifest_finalization(
+    def on_pod_manifest_created(
         *, pod_request: k8s.V1Pod, mode: str, operator: KubernetesPodOperator, context: Context, **kwargs
     ) -> None:
         """

@@ -1523,8 +1523,8 @@ class TestKubernetesPodOperator:
         mock_callbacks.on_sync_client_creation.assert_called_once()
         assert mock_callbacks.on_sync_client_creation.call_args.kwargs == {"client": k.client, "operator": k}
 
-        # check on_manifest_finalization callback
-        mock_callbacks.on_manifest_finalization.assert_called_once()
+        # check on_pod_manifest_created callback
+        mock_callbacks.on_pod_manifest_created.assert_called_once()
 
         # check on_pod_creation callback
         mock_callbacks.on_pod_creation.assert_called_once()
