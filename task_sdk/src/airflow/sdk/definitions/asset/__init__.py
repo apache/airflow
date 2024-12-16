@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import operator
 import os
@@ -31,6 +32,8 @@ from airflow.serialization.dag_dependency import DagDependency
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
     from urllib.parse import SplitResult
+
+    from sqlalchemy.orm import Session
 
     from airflow.models.asset import AssetModel
     from airflow.triggers.base import BaseTrigger
@@ -227,7 +230,7 @@ class BaseAsset:
         """
         raise NotImplementedError
 
-    def evaluate(self, statuses: dict[str, bool]) -> bool:
+    def evaluate(self, statuses: dict[str, bool], *, session: Session | None = None) -> bool:
         raise NotImplementedError
 
     def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
@@ -385,7 +388,7 @@ class Asset(os.PathLike, BaseAsset):
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
         return iter(())
 
-    def evaluate(self, statuses: dict[str, bool]) -> bool:
+    def evaluate(self, statuses: dict[str, bool], *, session: Session | None = None) -> bool:
         return statuses.get(self.uri, False)
 
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
@@ -428,11 +431,11 @@ class AssetAlias(BaseAsset):
     name: str = attrs.field(validator=_validate_non_empty_identifier)
     group: str = attrs.field(kw_only=True, default="asset", validator=_validate_identifier)
 
-    def _resolve_assets(self) -> list[Asset]:
+    def _resolve_assets(self, session: Session | None = None) -> list[Asset]:
         from airflow.models.asset import expand_alias_to_assets
         from airflow.utils.session import create_session
 
-        with create_session() as session:
+        with contextlib.nullcontext(session) if session else create_session() as session:
             asset_models = expand_alias_to_assets(self.name, session)
         return [m.to_public() for m in asset_models]
 
@@ -444,8 +447,8 @@ class AssetAlias(BaseAsset):
         """
         return {"alias": {"name": self.name, "group": self.group}}
 
-    def evaluate(self, statuses: dict[str, bool]) -> bool:
-        return any(x.evaluate(statuses=statuses) for x in self._resolve_assets())
+    def evaluate(self, statuses: dict[str, bool], *, session: Session | None = None) -> bool:
+        return any(x.evaluate(statuses=statuses, session=session) for x in self._resolve_assets(session))
 
     def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
         return iter(())
@@ -495,8 +498,8 @@ class _AssetBooleanCondition(BaseAsset):
             raise TypeError("expect asset expressions in condition")
         self.objects = objects
 
-    def evaluate(self, statuses: dict[str, bool]) -> bool:
-        return self.agg_func(x.evaluate(statuses=statuses) for x in self.objects)
+    def evaluate(self, statuses: dict[str, bool], *, session: Session | None = None) -> bool:
+        return self.agg_func(x.evaluate(statuses=statuses, session=session) for x in self.objects)
 
     def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
         seen: set[AssetUniqueKey] = set()  # We want to keep the first instance.
