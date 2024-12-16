@@ -29,6 +29,7 @@ import { Dashboard } from "src/pages/Dashboard";
 import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
 import { Run } from "src/pages/Run";
+import { Details } from "src/pages/Run/Details";
 import { TaskInstances } from "src/pages/Run/TaskInstances";
 import { Task, Instances } from "src/pages/Task";
 import { TaskInstance } from "src/pages/TaskInstance";
@@ -86,7 +87,7 @@ export const router = createBrowserRouter(
             { element: <Events />, path: "events" },
             { element: <XCom />, path: "xcom" },
             { element: <Code />, path: "code" },
-            { element: <div>Details</div>, path: "details" },
+            { element: <Details />, path: "details" },
           ],
           element: <TaskInstance />,
           path: "dags/:dagId/runs/:runId/tasks/:taskId",
