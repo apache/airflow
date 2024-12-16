@@ -26,7 +26,7 @@ import { Button } from "src/components/ui";
 import { useAddVariable } from "src/queries/useAddVariable";
 
 export type AddVariableBody = {
-  description: string | undefined;
+  description: string;
   key: string;
   value: string;
 };
@@ -39,7 +39,7 @@ const AddVariableForm: React.FC<AddVariableFormProps> = ({ onClose }) => {
   const { addVariable, error, isPending } = useAddVariable(onClose);
   const addVariableParams: AddVariableBody = useMemo(
     () => ({
-      description: undefined,
+      description: "",
       key: "",
       value: "",
     }),
