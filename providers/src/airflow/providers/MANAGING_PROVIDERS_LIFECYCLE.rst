@@ -130,7 +130,7 @@ Add chicken-egg-provider to compatibility checks
 ................................................
 
 Providers that have "min-airflow-version" set to the new, upcoming versions should be excluded in
-all previous versions of compatibility check matrix in ``BASE_PROVIDERS_COMPATIBILITY_CHECKS`` in
+all previous versions of compatibility check matrix in ``PROVIDERS_COMPATIBILITY_TESTS_MATRIX`` in
 ``src/airflow_breeze/global_constants.py``. Please add it to all previous versions
 
 Add chicken-egg-provider to constraint generation

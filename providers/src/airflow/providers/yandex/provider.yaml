@@ -52,7 +52,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.8.0
+  - apache-airflow>=2.9.0
   - yandexcloud>=0.308.0
   - yandex-query-client>=0.1.4
 

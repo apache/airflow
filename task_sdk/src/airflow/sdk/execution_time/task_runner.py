@@ -23,13 +23,13 @@ import os
 import sys
 from datetime import datetime, timezone
 from io import FileIO
-from typing import TYPE_CHECKING, Any, Generic, TextIO, TypeVar
+from typing import TYPE_CHECKING, Annotated, Any, Generic, TextIO, TypeVar
 
 import attrs
 import structlog
-from pydantic import BaseModel, ConfigDict, JsonValue, TypeAdapter
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
-from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
+from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState, TIRunContext
 from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.execution_time.comms import (
     DeferTask,
@@ -48,9 +48,13 @@ class RuntimeTaskInstance(TaskInstance):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     task: BaseOperator
+    _ti_context_from_server: Annotated[TIRunContext | None, Field(repr=False)] = None
+    """The Task Instance context from the API server, if any."""
 
     def get_template_context(self):
+        # TODO: Assess if we need to it through airflow.utils.timezone.coerce_datetime()
         context: dict[str, Any] = {
+            # From the Task Execution interface
             "dag": self.task.dag,
             "inlets": self.task.inlets,
             "map_index_template": self.task.map_index_template,
@@ -59,15 +63,9 @@ class RuntimeTaskInstance(TaskInstance):
             "task": self.task,
             "task_instance": self,
             "ti": self,
-            # "dag_run": dag_run,
-            # "data_interval_end": timezone.coerce_datetime(data_interval.end),
-            # "data_interval_start": timezone.coerce_datetime(data_interval.start),
             # "outlet_events": OutletEventAccessors(),
-            # "ds": ds,
-            # "ds_nodash": ds_nodash,
             # "expanded_ti_count": expanded_ti_count,
             # "inlet_events": InletEventsAccessors(task.inlets, session=session),
-            # "logical_date": logical_date,
             # "macros": macros,
             # "params": validated_params,
             # "prev_data_interval_start_success": get_prev_data_interval_start_success(),
@@ -77,15 +75,36 @@ class RuntimeTaskInstance(TaskInstance):
             # "task_instance_key_str": f"{task.dag_id}__{task.task_id}__{ds_nodash}",
             # "test_mode": task_instance.test_mode,
             # "triggering_asset_events": lazy_object_proxy.Proxy(get_triggering_events),
-            # "ts": ts,
-            # "ts_nodash": ts_nodash,
-            # "ts_nodash_with_tz": ts_nodash_with_tz,
             # "var": {
             #     "json": VariableAccessor(deserialize_json=True),
             #     "value": VariableAccessor(deserialize_json=False),
             # },
             # "conn": ConnectionAccessor(),
         }
+        if self._ti_context_from_server:
+            dag_run = self._ti_context_from_server.dag_run
+
+            logical_date = dag_run.logical_date
+            ds = logical_date.strftime("%Y-%m-%d")
+            ds_nodash = ds.replace("-", "")
+            ts = logical_date.isoformat()
+            ts_nodash = logical_date.strftime("%Y%m%dT%H%M%S")
+            ts_nodash_with_tz = ts.replace("-", "").replace(":", "")
+
+            context_from_server = {
+                # TODO: Assess if we need to pass these through timezone.coerce_datetime
+                "dag_run": dag_run,
+                "data_interval_end": dag_run.data_interval_end,
+                "data_interval_start": dag_run.data_interval_start,
+                "logical_date": logical_date,
+                "ds": ds,
+                "ds_nodash": ds_nodash,
+                "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{ds_nodash}",
+                "ts": ts,
+                "ts_nodash": ts_nodash,
+                "ts_nodash_with_tz": ts_nodash_with_tz,
+            }
+            context.update(context_from_server)
         return context
 
 
@@ -113,7 +132,11 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
     if not isinstance(task, BaseOperator):
         raise TypeError(f"task is of the wrong type, got {type(task)}, wanted {BaseOperator}")
 
-    return RuntimeTaskInstance.model_construct(**what.ti.model_dump(exclude_unset=True), task=task)
+    return RuntimeTaskInstance.model_construct(
+        **what.ti.model_dump(exclude_unset=True),
+        task=task,
+        _ti_context_from_server=what.ti_context,
+    )
 
 
 SendMsgType = TypeVar("SendMsgType", bound=BaseModel)

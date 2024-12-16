@@ -39,7 +39,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.8.0
+  - apache-airflow>=2.9.0
   - asgiref>=2.3.0
   - confluent-kafka>=2.3.0
 

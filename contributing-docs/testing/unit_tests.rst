@@ -1029,7 +1029,7 @@ Our CI runs provider tests for providers with previous compatible airflow releas
 if the providers still work when installed for older airflow versions.
 
 The back-compatibility tests based on the configuration specified in the
-``BASE_PROVIDERS_COMPATIBILITY_CHECKS`` constant in the ``./dev/breeze/src/airflow_breeze/global_constants.py``
+``PROVIDERS_COMPATIBILITY_TESTS_MATRIX`` constant in the ``./dev/breeze/src/airflow_breeze/global_constants.py``
 file - where we specify:
 
 * Python version
@@ -1185,7 +1185,7 @@ Herr id how to reproduce it.
    breeze release-management generate-constraints --airflow-constraints-mode constraints-source-providers --answer yes
 
 4. Remove providers that are not compatible with Airflow version installed by default. You can look up
-   the incompatible providers in the ``BASE_PROVIDERS_COMPATIBILITY_CHECKS`` constant in the
+   the incompatible providers in the ``PROVIDERS_COMPATIBILITY_TESTS_MATRIX`` constant in the
    ``./dev/breeze/src/airflow_breeze/global_constants.py`` file.
 
 5. Enter breeze environment, installing selected airflow version and the provider packages prepared from main

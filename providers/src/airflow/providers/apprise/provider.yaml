@@ -47,7 +47,7 @@ integrations:
     tags: [software]
 
 dependencies:
-  - apache-airflow>=2.8.0
+  - apache-airflow>=2.9.0
   - apprise>=1.8.0
 
 hooks:

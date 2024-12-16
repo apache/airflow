@@ -45,7 +45,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.8.0
+  - apache-airflow>=2.9.0
   - spython>=0.0.56
 
 integrations:

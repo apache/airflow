@@ -49,7 +49,7 @@ integrations:
     tags: [software]
 
 dependencies:
-  - apache-airflow>=2.8.0
+  - apache-airflow>=2.9.0
   - httpx>=0.25.0
   - weaviate-client>=4.4.0
   # In pandas 2.2 minimal version of the sqlalchemy is 2.0

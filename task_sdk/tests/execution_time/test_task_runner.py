@@ -94,7 +94,12 @@ class TestCommsDecoder:
         w.makefile("wb").write(
             b'{"type":"StartupDetails", "ti": {'
             b'"id": "4d828a62-a417-4936-a7a6-2b3fabacecab", "task_id": "a", "try_number": 1, "run_id": "b", "dag_id": "c" }, '
-            b'"file": "/dev/null", "requests_fd": ' + str(w2.fileno()).encode("ascii") + b"}\n"
+            b'"ti_context":{"dag_run":{"dag_id":"c","run_id":"b","logical_date":"2024-12-01T01:00:00Z",'
+            b'"data_interval_start":"2024-12-01T00:00:00Z","data_interval_end":"2024-12-01T01:00:00Z",'
+            b'"start_date":"2024-12-01T01:00:00Z","end_date":null,"run_type":"manual","conf":null},'
+            b'"variables":null,"connections":null},"file": "/dev/null", "requests_fd": '
+            + str(w2.fileno()).encode("ascii")
+            + b"}\n"
         )
 
         decoder = CommsDecoder(input=r.makefile("r"))
@@ -112,12 +117,13 @@ class TestCommsDecoder:
         assert decoder.request_socket.fileno() == w2.fileno()
 
 
-def test_parse(test_dags_dir: Path):
+def test_parse(test_dags_dir: Path, make_ti_context):
     """Test that checks parsing of a basic dag with an un-mocked parse."""
     what = StartupDetails(
         ti=TaskInstance(id=uuid7(), task_id="a", dag_id="super_basic", run_id="c", try_number=1),
         file=str(test_dags_dir / "super_basic.py"),
         requests_fd=0,
+        ti_context=make_ti_context(),
     )
 
     ti = parse(what)
@@ -128,12 +134,13 @@ def test_parse(test_dags_dir: Path):
     assert isinstance(ti.task.dag, DAG)
 
 
-def test_run_basic(time_machine, mocked_parse):
+def test_run_basic(time_machine, mocked_parse, make_ti_context):
     """Test running a basic task."""
     what = StartupDetails(
         ti=TaskInstance(id=uuid7(), task_id="hello", dag_id="super_basic_run", run_id="c", try_number=1),
         file="",
         requests_fd=0,
+        ti_context=make_ti_context(),
     )
 
     instant = timezone.datetime(2024, 12, 3, 10, 0)
@@ -150,7 +157,7 @@ def test_run_basic(time_machine, mocked_parse):
         )
 
 
-def test_run_deferred_basic(time_machine, mocked_parse):
+def test_run_deferred_basic(time_machine, mocked_parse, make_ti_context):
     """Test that a task can transition to a deferred state."""
     import datetime
 
@@ -169,6 +176,7 @@ def test_run_deferred_basic(time_machine, mocked_parse):
         ti=TaskInstance(id=uuid7(), task_id="async", dag_id="basic_deferred_run", run_id="c", try_number=1),
         file="",
         requests_fd=0,
+        ti_context=make_ti_context(),
     )
 
     # Expected DeferTask
@@ -194,7 +202,7 @@ def test_run_deferred_basic(time_machine, mocked_parse):
         mock_supervisor_comms.send_request.assert_called_once_with(msg=expected_defer_task, log=mock.ANY)
 
 
-def test_run_basic_skipped(time_machine, mocked_parse):
+def test_run_basic_skipped(time_machine, mocked_parse, make_ti_context):
     """Test running a basic task that marks itself skipped."""
     from airflow.providers.standard.operators.python import PythonOperator
 
@@ -209,6 +217,7 @@ def test_run_basic_skipped(time_machine, mocked_parse):
         ti=TaskInstance(id=uuid7(), task_id="skip", dag_id="basic_skipped", run_id="c", try_number=1),
         file="",
         requests_fd=0,
+        ti_context=make_ti_context(),
     )
 
     ti = mocked_parse(what, "basic_skipped", task)
@@ -226,7 +235,7 @@ def test_run_basic_skipped(time_machine, mocked_parse):
         )
 
 
-def test_startup_basic_templated_dag(mocked_parse):
+def test_startup_basic_templated_dag(mocked_parse, make_ti_context):
     """Test running a DAG with templated task."""
     from airflow.providers.standard.operators.bash import BashOperator
 
@@ -241,6 +250,7 @@ def test_startup_basic_templated_dag(mocked_parse):
         ),
         file="",
         requests_fd=0,
+        ti_context=make_ti_context(),
     )
     mocked_parse(what, "basic_templated_dag", task)
 
@@ -288,7 +298,9 @@ def test_startup_basic_templated_dag(mocked_parse):
         ),
     ],
 )
-def test_startup_dag_with_templated_fields(mocked_parse, task_params, expected_rendered_fields):
+def test_startup_dag_with_templated_fields(
+    mocked_parse, task_params, expected_rendered_fields, make_ti_context
+):
     """Test startup of a DAG with various templated fields."""
 
     class CustomOperator(BaseOperator):
@@ -305,6 +317,7 @@ def test_startup_dag_with_templated_fields(mocked_parse, task_params, expected_r
         ti=TaskInstance(id=uuid7(), task_id="templated_task", dag_id="basic_dag", run_id="c", try_number=1),
         file="",
         requests_fd=0,
+        ti_context=make_ti_context(),
     )
     mocked_parse(what, "basic_dag", task)
 
@@ -318,3 +331,73 @@ def test_startup_dag_with_templated_fields(mocked_parse, task_params, expected_r
             msg=SetRenderedFields(rendered_fields=expected_rendered_fields),
             log=mock.ANY,
         )
+
+
+class TestRuntimeTaskInstance:
+    def test_get_context_without_ti_context_from_server(self, mocked_parse, make_ti_context):
+        """Test get_template_context without ti_context_from_server."""
+
+        task = BaseOperator(task_id="hello")
+
+        ti_id = uuid7()
+        ti = TaskInstance(
+            id=ti_id, task_id=task.task_id, dag_id="basic_task", run_id="test_run", try_number=1
+        )
+
+        what = StartupDetails(ti=ti, file="", requests_fd=0, ti_context=make_ti_context())
+        runtime_ti = mocked_parse(what, ti.dag_id, task)
+        context = runtime_ti.get_template_context()
+
+        # Verify the context keys and values
+        assert context == {
+            "dag": runtime_ti.task.dag,
+            "inlets": task.inlets,
+            "map_index_template": task.map_index_template,
+            "outlets": task.outlets,
+            "run_id": "test_run",
+            "task": task,
+            "task_instance": runtime_ti,
+            "ti": runtime_ti,
+        }
+
+    def test_get_context_with_ti_context_from_server(self, mocked_parse, make_ti_context):
+        """Test the context keys are added when sent from API server (mocked)"""
+        from airflow.utils import timezone
+
+        ti = TaskInstance(id=uuid7(), task_id="hello", dag_id="basic_task", run_id="test_run", try_number=1)
+
+        task = BaseOperator(task_id=ti.task_id)
+
+        ti_context = make_ti_context(dag_id=ti.dag_id, run_id=ti.run_id)
+        what = StartupDetails(ti=ti, file="", requests_fd=0, ti_context=ti_context)
+
+        runtime_ti = mocked_parse(what, ti.dag_id, task)
+
+        # Assume the context is sent from the API server
+        # `task_sdk/tests/api/test_client.py::test_task_instance_start` checks the context is received
+        # from the API server
+        runtime_ti._ti_context_from_server = ti_context
+        dr = ti_context.dag_run
+
+        context = runtime_ti.get_template_context()
+
+        assert context == {
+            "dag": runtime_ti.task.dag,
+            "inlets": task.inlets,
+            "map_index_template": task.map_index_template,
+            "outlets": task.outlets,
+            "run_id": "test_run",
+            "task": task,
+            "task_instance": runtime_ti,
+            "ti": runtime_ti,
+            "dag_run": dr,
+            "data_interval_end": timezone.datetime(2024, 12, 1, 1, 0, 0),
+            "data_interval_start": timezone.datetime(2024, 12, 1, 0, 0, 0),
+            "logical_date": timezone.datetime(2024, 12, 1, 1, 0, 0),
+            "ds": "2024-12-01",
+            "ds_nodash": "20241201",
+            "task_instance_key_str": "basic_task__hello__20241201",
+            "ts": "2024-12-01T01:00:00+00:00",
+            "ts_nodash": "20241201T010000",
+            "ts_nodash_with_tz": "20241201T010000+0000",
+        }

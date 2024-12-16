@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from enum import Enum
 from typing import Generic, TypeVar
 
 from fastapi import HTTPException, Request, status
@@ -38,25 +39,45 @@ class BaseErrorHandler(Generic[T], ABC):
         raise NotImplementedError
 
 
+class _DatabaseDialect(Enum):
+    SQLITE = "sqlite"
+    MYSQL = "mysql"
+    POSTGRES = "postgres"
+
+
 class _UniqueConstraintErrorHandler(BaseErrorHandler[IntegrityError]):
     """Exception raised when trying to insert a duplicate value in a unique column."""
 
+    unique_constraint_error_prefix_dict: dict[_DatabaseDialect, str] = {
+        _DatabaseDialect.SQLITE: "UNIQUE constraint failed",
+        _DatabaseDialect.MYSQL: "Duplicate entry",
+        _DatabaseDialect.POSTGRES: "violates unique constraint",
+    }
+
     def __init__(self):
         super().__init__(IntegrityError)
-        self.unique_constraint_error_messages = [
-            "UNIQUE constraint failed",  # SQLite
-            "Duplicate entry",  # MySQL
-            "violates unique constraint",  # PostgreSQL
-        ]
+        self.dialect: _DatabaseDialect.value | None = None
 
     def exception_handler(self, request: Request, exc: IntegrityError):
         """Handle IntegrityError exception."""
-        exc_orig_str = str(exc.orig)
-        if any(error_msg in exc_orig_str for error_msg in self.unique_constraint_error_messages):
+        if self._is_dialect_matched(exc):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Unique constraint violation",
+                detail={
+                    "reason": "Unique constraint violation",
+                    "statement": str(exc.statement),
+                    "orig_error": str(exc.orig),
+                },
             )
+
+    def _is_dialect_matched(self, exc: IntegrityError) -> bool:
+        """Check if the exception matches the unique constraint error message for any dialect."""
+        exc_orig_str = str(exc.orig)
+        for dialect, error_msg in self.unique_constraint_error_prefix_dict.items():
+            if error_msg in exc_orig_str:
+                self.dialect = dialect
+                return True
+        return False
 
 
 DatabaseErrorHandlers = [

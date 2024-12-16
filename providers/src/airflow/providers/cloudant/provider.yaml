@@ -49,7 +49,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.8.0
+  - apache-airflow>=2.9.0
   # Even though 3.9 is excluded below, we need to make this python_version aware so that `uv` can generate a
   # full lock file when building lock file from provider sources
   - 'ibmcloudant==0.9.1 ; python_version >= "3.10"'

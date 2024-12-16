@@ -275,7 +275,8 @@ class _EdgeWorkerCli:
                     read_data = logfile.read()
                     job.logsize += len(read_data)
                     # backslashreplace to keep not decoded characters and not raising exception
-                    log_data = read_data.decode(errors="backslashreplace")
+                    # replace null with question mark to fix issue during DB push
+                    log_data = read_data.decode(errors="backslashreplace").replace("\x00", "\ufffd")
                     while True:
                         chunk_data = log_data[:push_log_chunk_size]
                         log_data = log_data[push_log_chunk_size:]
