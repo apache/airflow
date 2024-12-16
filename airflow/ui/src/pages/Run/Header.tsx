@@ -69,7 +69,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => (
       </Stat>
       <Stat label="Duration">
         {dayjs
-          .duration(dayjs(dagRun.end_date).diff(dagRun.start_date))
+          .duration(dayjs(dagRun.end_date ?? dayjs()).diff(dagRun.start_date))
           .asSeconds()
           .toFixed(2)}
         s

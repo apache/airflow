@@ -90,7 +90,10 @@ const columns: Array<ColumnDef<DAGRunResponse>> = [
   },
   {
     cell: ({ row: { original } }) =>
-      `${dayjs.duration(dayjs(original.end_date).diff(original.start_date)).asSeconds().toFixed(2)}s`,
+      `${dayjs
+        .duration(dayjs(original.end_date ?? dayjs()).diff(original.start_date))
+        .asSeconds()
+        .toFixed(2)}s`,
     header: "Duration",
   },
   {
@@ -133,13 +136,17 @@ export const Runs = () => {
 
   const filteredState = searchParams.get(STATE_PARAM);
 
-  const { data, error, isFetching, isLoading } = useDagRunServiceGetDagRuns({
-    dagId: dagId ?? "~",
-    limit: pagination.pageSize,
-    offset: pagination.pageIndex * pagination.pageSize,
-    orderBy,
-    state: filteredState === null ? undefined : [filteredState],
-  });
+  const { data, error, isFetching, isLoading } = useDagRunServiceGetDagRuns(
+    {
+      dagId: dagId ?? "~",
+      limit: pagination.pageSize,
+      offset: pagination.pageIndex * pagination.pageSize,
+      orderBy,
+      state: filteredState === null ? undefined : [filteredState],
+    },
+    undefined,
+    { enabled: !isNaN(pagination.pageSize) },
+  );
 
   const handleStateChange = useCallback(
     ({ value }: SelectValueChangeDetails<string>) => {

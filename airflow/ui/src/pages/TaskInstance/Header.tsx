@@ -72,7 +72,11 @@ export const Header = ({
       </Stat>
       <Stat label="Duration">
         {dayjs
-          .duration(dayjs(taskInstance.end_date).diff(taskInstance.start_date))
+          .duration(
+            dayjs(taskInstance.end_date ?? dayjs()).diff(
+              taskInstance.start_date,
+            ),
+          )
           .asSeconds()
           .toFixed(2)}
         s
