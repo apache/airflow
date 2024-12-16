@@ -54,6 +54,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstance,
     TerminalTIState,
     TIDeferredStatePayload,
+    TIRunContext,
     VariableResponse,
     XComResponse,
 )
@@ -70,6 +71,7 @@ class StartupDetails(BaseModel):
 
     Responses will come back on stdin
     """
+    ti_context: TIRunContext
     type: Literal["StartupDetails"] = "StartupDetails"
 
 
