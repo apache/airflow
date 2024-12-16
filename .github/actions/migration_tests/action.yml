@@ -45,6 +45,20 @@ runs:
         COMPOSE_PROJECT_NAME: "docker-compose"
       env:
         COMPOSE_PROJECT_NAME: "docker-compose"
+    - name: "Bring compose down again"
+      shell: bash
+      run: breeze down
+      env:
+        COMPOSE_PROJECT_NAME: "docker-compose"
+    - name: "Test offline migration ${{env.BACKEND}}"
+      shell: bash
+      run: >
+        breeze shell "airflow db reset -y &&
+        airflow db downgrade -n 2.7.0 -y &&
+        airflow db migrate -s"
+      env:
+        COMPOSE_PROJECT_NAME: "docker-compose"
+      if: env.BACKEND != 'sqlite'
     - name: "Bring any containers left down"
       shell: bash
       run: breeze down

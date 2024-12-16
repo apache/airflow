@@ -193,6 +193,8 @@ export const useAssetServiceGetAssetAliasSuspense = <
  * @param data.sourceTaskId
  * @param data.sourceRunId
  * @param data.sourceMapIndex
+ * @param data.timestampGte
+ * @param data.timestampLte
  * @returns AssetEventCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -210,6 +212,8 @@ export const useAssetServiceGetAssetEventsSuspense = <
     sourceMapIndex,
     sourceRunId,
     sourceTaskId,
+    timestampGte,
+    timestampLte,
   }: {
     assetId?: number;
     limit?: number;
@@ -219,6 +223,8 @@ export const useAssetServiceGetAssetEventsSuspense = <
     sourceMapIndex?: number;
     sourceRunId?: string;
     sourceTaskId?: string;
+    timestampGte?: string;
+    timestampLte?: string;
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -234,6 +240,8 @@ export const useAssetServiceGetAssetEventsSuspense = <
         sourceMapIndex,
         sourceRunId,
         sourceTaskId,
+        timestampGte,
+        timestampLte,
       },
       queryKey,
     ),
@@ -247,6 +255,8 @@ export const useAssetServiceGetAssetEventsSuspense = <
         sourceMapIndex,
         sourceRunId,
         sourceTaskId,
+        timestampGte,
+        timestampLte,
       }) as TData,
     ...options,
   });

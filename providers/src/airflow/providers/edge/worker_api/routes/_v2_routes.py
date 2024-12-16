@@ -88,7 +88,8 @@ def rpcapi_v2(body: dict[str, Any]) -> APIResponse:
         params = {}
         try:
             if request_obj.params:
-                params = BaseSerialization.deserialize(request_obj.params)
+                # Note, this is Airflow 2.10 specific, as it uses Pydantic models for serialization
+                params = BaseSerialization.deserialize(request_obj.params, use_pydantic_models=True)  # type: ignore[call-arg]
         except Exception:
             raise error_response("Error deserializing parameters.", status.HTTP_400_BAD_REQUEST)
 
@@ -97,13 +98,15 @@ def rpcapi_v2(body: dict[str, Any]) -> APIResponse:
             # Session must be created there as it may be needed by serializer for lazy-loaded fields.
             with create_session() as session:
                 output = handler(**params, session=session)
-                output_json = BaseSerialization.serialize(output)
+                # Note, this is Airflow 2.10 specific, as it uses Pydantic models for serialization
+                output_json = BaseSerialization.serialize(output, use_pydantic_models=True)  # type: ignore[call-arg]
                 log.debug(
                     "Sending response: %s", json.dumps(output_json) if output_json is not None else None
                 )
         # In case of AirflowException or other selective known types, transport the exception class back to caller
         except (KeyError, AttributeError, AirflowException) as e:
-            output_json = BaseSerialization.serialize(e)
+            # Note, this is Airflow 2.10 specific, as it uses Pydantic models for serialization
+            output_json = BaseSerialization.serialize(e, use_pydantic_models=True)  # type: ignore[call-arg]
             log.debug(
                 "Sending exception response: %s", json.dumps(output_json) if output_json is not None else None
             )

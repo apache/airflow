@@ -305,6 +305,3 @@ The following features are known missing and will be implemented in increments:
   - Describe more details on deployment options and tuning
   - Provide scripts and guides to install edge components as service (systemd)
   - Extend Helm-Chart for needed support
-    While it is in not-ready state, a wheel release package must be manually built from source tree
-    via ``breeze release-management prepare-provider-packages --include-not-ready-providers edge``
-    and then installed via pip from the generated wheel file.

@@ -602,6 +602,24 @@ paths:
           - type: integer
           - type: 'null'
           title: Source Map Index
+      - name: timestamp_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Timestamp Gte
+      - name: timestamp_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Timestamp Lte
       responses:
         '200':
           description: Successful Response

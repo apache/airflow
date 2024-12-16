@@ -41,7 +41,6 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.orm import Session
 
 # Revision identifiers, used by Alembic.
 revision = "fb2d4922cd79"
@@ -61,10 +60,11 @@ def upgrade():
     with op.batch_alter_table("dataset_alias", schema=None) as batch_op:
         batch_op.alter_column("name", type_=_STRING_COLUMN_TYPE, nullable=False)
         batch_op.add_column(sa.Column("group", _STRING_COLUMN_TYPE))
-    dataset_alias_table = sa.table("dataset_alias", sa.column("group"))
-    with Session(bind=op.get_bind()) as session:
-        session.execute(sa.update(dataset_alias_table).values(group="asset"))
-        session.commit()
+    if op.get_bind().dialect.name == "mysql":
+        stmt = "UPDATE dataset SET `group` = 'asset'"
+    else:
+        stmt = "UPDATE dataset SET \"group\" = 'asset'"
+    op.execute(stmt)
     with op.batch_alter_table("dataset_alias", schema=None) as batch_op:
         batch_op.alter_column("group", type_=_STRING_COLUMN_TYPE, default="asset", nullable=False)
 

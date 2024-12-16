@@ -16,7 +16,7 @@
 # under the License.
 
 [build-system]
-requires = ["hatchling==1.26.3"]
+requires = ["hatchling==1.27.0"]
 build-backend = "hatchling.build"
 
 [project]

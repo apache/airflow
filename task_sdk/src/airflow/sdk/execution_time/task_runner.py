@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Any, Generic, TextIO, TypeVar
 
 import attrs
 import structlog
-from pydantic import BaseModel, ConfigDict, TypeAdapter
+from pydantic import BaseModel, ConfigDict, JsonValue, TypeAdapter
 
 from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
 from airflow.sdk.definitions.baseoperator import BaseOperator
@@ -196,20 +196,24 @@ def startup() -> tuple[RuntimeTaskInstance, Logger]:
     # 1. Implementing the part where we pull in the logic to render fields and add that here
     # for all operators, we should do setattr(task, templated_field, rendered_templated_field)
     # task.templated_fields should give all the templated_fields and each of those fields should
-    # give the rendered values.
+    # give the rendered values. task.templated_fields should already be in a JSONable format and
+    # we should not have to handle that here.
 
     # 2. Once rendered, we call the `set_rtif` API to store the rtif in the metadata DB
-    templated_fields = ti.task.template_fields
-    payload = {}
-
-    for field in templated_fields:
-        if field not in payload:
-            payload[field] = getattr(ti.task, field)
 
     # so that we do not call the API unnecessarily
-    if payload:
-        SUPERVISOR_COMMS.send_request(log=log, msg=SetRenderedFields(rendered_fields=payload))
+    if rendered_fields := _get_rendered_fields(ti.task):
+        SUPERVISOR_COMMS.send_request(log=log, msg=SetRenderedFields(rendered_fields=rendered_fields))
     return ti, log
+
+
+def _get_rendered_fields(task: BaseOperator) -> dict[str, JsonValue]:
+    # TODO: Port one of the following to Task SDK
+    #   airflow.serialization.helpers.serialize_template_field or
+    #   airflow.models.renderedtifields.get_serialized_template_fields
+    from airflow.serialization.helpers import serialize_template_field
+
+    return {field: serialize_template_field(getattr(task, field), field) for field in task.template_fields}
 
 
 def run(ti: RuntimeTaskInstance, log: Logger):

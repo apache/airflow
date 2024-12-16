@@ -36,6 +36,11 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
     def is_jsonable(x):
         try:
             json.dumps(x)
+            if isinstance(x, tuple):
+                # Tuple is converted to list in json.dumps
+                # so while it is jsonable, it changes the type which might be a surprise
+                # for the user, so instead we return False here -- which will convert it to string
+                return False
         except (TypeError, OverflowError):
             return False
         else:

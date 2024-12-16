@@ -244,6 +244,7 @@ class KubernetesExecutor(BaseExecutor):
             from airflow.executors.executor_loader import ExecutorLoader
 
             default_executor = str(ExecutorLoader.get_default_executor_name())
+            default_executor = default_executor.strip(":")
 
         with Stats.timer("kubernetes_executor.clear_not_launched_queued_tasks.duration"):
             self.log.debug("Clearing tasks that have not been launched")

@@ -1357,6 +1357,8 @@ export type GetAssetEventsData = {
   sourceMapIndex?: number | null;
   sourceRunId?: string | null;
   sourceTaskId?: string | null;
+  timestampGte?: string | null;
+  timestampLte?: string | null;
 };
 
 export type GetAssetEventsResponse = AssetEventCollectionResponse;

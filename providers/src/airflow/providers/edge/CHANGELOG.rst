@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.9.5pre0
+.........
+
+Misc
+~~~~
+
+* ``Revert removal of Pydantic model support from PR 44552 to restore compatibility with Airflow 2.10.``
+
 0.9.4pre0
 .........
 

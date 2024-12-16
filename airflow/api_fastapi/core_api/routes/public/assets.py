@@ -34,7 +34,9 @@ from airflow.api_fastapi.common.parameters import (
     QueryLimit,
     QueryOffset,
     QueryUriPatternSearch,
+    RangeFilter,
     SortParam,
+    datetime_range_filter_factory,
     filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -193,12 +195,13 @@ def get_asset_events(
     source_map_index: Annotated[
         FilterParam[int | None], Depends(filter_param_factory(AssetEvent.source_map_index, int | None))
     ],
+    timestamp_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("timestamp", AssetEvent))],
     session: SessionDep,
 ) -> AssetEventCollectionResponse:
     """Get asset events."""
     assets_event_select, total_entries = paginated_select(
         statement=select(AssetEvent),
-        filters=[asset_id, source_dag_id, source_task_id, source_run_id, source_map_index],
+        filters=[asset_id, source_dag_id, source_task_id, source_run_id, source_map_index, timestamp_range],
         order_by=order_by,
         offset=offset,
         limit=limit,

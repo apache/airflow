@@ -22,6 +22,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import Body, HTTPException, status
+from pydantic import JsonValue
 from sqlalchemy import update
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.sql import select
@@ -29,7 +30,6 @@ from sqlalchemy.sql import select
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
-    RTIFPayload,
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
@@ -237,7 +237,7 @@ def ti_heartbeat(
 )
 def ti_put_rtif(
     task_instance_id: UUID,
-    put_rtif_payload: RTIFPayload,
+    put_rtif_payload: Annotated[dict[str, JsonValue], Body()],
     session: SessionDep,
 ):
     """Add an RTIF entry for a task instance, sent by the worker."""
@@ -247,6 +247,6 @@ def ti_put_rtif(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
         )
-    _update_rtif(task_instance, put_rtif_payload.model_dump(), session)
+    _update_rtif(task_instance, put_rtif_payload, session)
 
     return {"message": "Rendered task instance fields successfully set"}

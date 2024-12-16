@@ -514,11 +514,11 @@ class TestAssetAlias:
 
     def test_evalute_empty(self, asset_alias_1, asset):
         assert asset_alias_1.evaluate({asset.uri: True}) is False
-        assert asset_alias_1._resolve_assets.mock_calls == [mock.call()]
+        assert asset_alias_1._resolve_assets.mock_calls == [mock.call(None)]
 
     def test_evalute_resolved(self, resolved_asset_alias_2, asset):
         assert resolved_asset_alias_2.evaluate({asset.uri: True}) is True
-        assert resolved_asset_alias_2._resolve_assets.mock_calls == [mock.call()]
+        assert resolved_asset_alias_2._resolve_assets.mock_calls == [mock.call(None)]
 
 
 class TestAssetSubclasses:

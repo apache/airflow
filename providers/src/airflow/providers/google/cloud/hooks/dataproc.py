@@ -116,13 +116,17 @@ class DataProcJobBuilder:
         if args is not None:
             self.job["job"][self.job_type]["args"] = args
 
-    def add_query(self, query: str) -> None:
+    def add_query(self, query: str | list[str]) -> None:
         """
-        Set query for Dataproc job.
+        Add query for Dataproc job.
 
         :param query: query for the job.
         """
-        self.job["job"][self.job_type]["query_list"] = {"queries": [query]}
+        queries = self.job["job"][self.job_type].setdefault("query_list", {"queries": []})["queries"]
+        if isinstance(query, str):
+            queries.append(query)
+        elif isinstance(query, list):
+            queries.extend(query)
 
     def add_query_uri(self, query_uri: str) -> None:
         """

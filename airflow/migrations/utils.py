@@ -58,3 +58,48 @@ def disable_sqlite_fkeys(op):
         op.execute("PRAGMA foreign_keys=on")
     else:
         yield op
+
+
+def mysql_drop_foreignkey_if_exists(constraint_name, table_name, op):
+    """Older Mysql versions do not support DROP FOREIGN KEY IF EXISTS."""
+    op.execute(f"""
+    CREATE PROCEDURE DropForeignKeyIfExists()
+    BEGIN
+        IF EXISTS (
+            SELECT 1
+            FROM information_schema.TABLE_CONSTRAINTS
+            WHERE
+                CONSTRAINT_SCHEMA = DATABASE() AND
+                TABLE_NAME = '{table_name}' AND
+                CONSTRAINT_NAME = '{constraint_name}' AND
+                CONSTRAINT_TYPE = 'FOREIGN KEY'
+        ) THEN
+            ALTER TABLE {table_name}
+            DROP CONSTRAINT {constraint_name};
+        ELSE
+            SELECT 1;
+        END IF;
+    END;
+    CALL DropForeignKeyIfExists();
+    DROP PROCEDURE DropForeignKeyIfExists;
+    """)
+
+
+def mysql_drop_index_if_exists(index_name, table_name, op):
+    """Older Mysql versions do not support DROP INDEX IF EXISTS."""
+    op.execute(f"""
+        IF EXISTS (
+            SELECT 1
+            FROM information_schema.TABLE_CONSTRAINTS
+            WHERE
+                CONSTRAINT_SCHEMA = DATABASE() AND
+                TABLE_NAME = '{table_name}' AND
+                CONSTRAINT_NAME = '{index_name}' AND
+                CONSTRAINT_TYPE = 'INDEX'
+        ) THEN
+            ALTER TABLE {table_name}
+            DROP INDEX {index_name};
+        ELSE
+            SELECT 1;
+        END IF;
+    """)
