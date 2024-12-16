@@ -1576,6 +1576,93 @@ class TestKubernetesPodOperator:
         }
 
     @patch(HOOK_CLASS, new=MagicMock)
+    @patch(KUB_OP_PATH.format("find_pod"))
+    def test_execute_sync_multiple_callbacks(self, find_pod_mock):
+        from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
+
+        from providers.tests.cncf.kubernetes.test_callbacks import (
+            MockKubernetesPodOperatorCallback,
+            MockWrapper,
+        )
+
+        MockWrapper.reset()
+        mock_callbacks = MockWrapper.mock_callbacks
+        found_pods = [MagicMock(), MagicMock(), MagicMock()]
+        find_pod_mock.side_effect = [None] + found_pods
+
+        remote_pod_mock = MagicMock()
+        remote_pod_mock.status.phase = "Succeeded"
+        self.await_pod_mock.return_value = remote_pod_mock
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            do_xcom_push=False,
+            callbacks=[MockKubernetesPodOperatorCallback, MockKubernetesPodOperatorCallback]
+        )
+        _, context = self.run_pod(k)
+
+        # check on_sync_client_creation callback
+        assert mock_callbacks.on_sync_client_creation.call_count == 2
+        assert mock_callbacks.on_sync_client_creation.call_args.kwargs == {"client": k.client, "operator": k}
+
+        # check on_pod_manifest_created callback
+        assert mock_callbacks.on_pod_manifest_created.call_count == 2
+
+        # check on_pod_creation callback
+        assert mock_callbacks.on_pod_creation.call_count == 2
+        assert mock_callbacks.on_pod_creation.call_args.kwargs == {
+            "client": k.client,
+            "mode": ExecutionMode.SYNC,
+            "pod": found_pods[0],
+            "operator": k,
+            "context": context,
+        }
+
+        # check on_pod_starting callback
+        assert mock_callbacks.on_pod_starting.call_count == 2
+        assert mock_callbacks.on_pod_starting.call_args.kwargs == {
+            "client": k.client,
+            "mode": ExecutionMode.SYNC,
+            "pod": found_pods[1],
+            "operator": k,
+            "context": context,
+        }
+
+        # check on_pod_completion callback
+        assert mock_callbacks.on_pod_completion.call_count == 2
+        assert mock_callbacks.on_pod_completion.call_args.kwargs == {
+            "client": k.client,
+            "mode": ExecutionMode.SYNC,
+            "pod": found_pods[2],
+            "operator": k,
+            "context": context,
+        }
+
+        assert mock_callbacks.on_pod_wrapup.call_count == 2
+        assert mock_callbacks.on_pod_wrapup.call_args.kwargs == {
+            "client": k.client,
+            "mode": ExecutionMode.SYNC,
+            "pod": found_pods[2],
+            "operator": k,
+            "context": context,
+        }
+
+        # check on_pod_cleanup callback
+        assert mock_callbacks.on_pod_cleanup.call_count == 2
+        assert mock_callbacks.on_pod_cleanup.call_args.kwargs == {
+            "client": k.client,
+            "mode": ExecutionMode.SYNC,
+            "pod": k.pod,
+            "operator": k,
+            "context": context,
+        }
+
+    @patch(HOOK_CLASS, new=MagicMock)
     def test_execute_async_callbacks(self):
         from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
 
