@@ -304,6 +304,7 @@ class IterableOperator(BaseOperator):
         tasks: Iterable[TaskInstance],
         results: list[Any] | None = None,
     ) -> list[Any]:
+        now = timezone.utcnow()
         exception: BaseException | None = None
         results = results or []
         reschedule_date = timezone.utcnow()
@@ -369,7 +370,7 @@ class IterableOperator(BaseOperator):
         # TaskInstance._set_state(context["ti"], TaskInstanceState.UP_FOR_RETRY, session)
 
         # Calculate delay before the next retry
-        delay = reschedule_date - timezone.utcnow()
+        delay = reschedule_date - now
         delay_seconds = ceil(delay.total_seconds())
 
         self.log.debug("delay_seconds: %s", delay_seconds)
