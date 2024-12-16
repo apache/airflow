@@ -5403,6 +5403,10 @@ export const $XComResponse = {
       type: "string",
       title: "Dag Id",
     },
+    run_id: {
+      type: "string",
+      title: "Run Id",
+    },
   },
   type: "object",
   required: [
@@ -5412,6 +5416,7 @@ export const $XComResponse = {
     "map_index",
     "task_id",
     "dag_id",
+    "run_id",
   ],
   title: "XComResponse",
   description: "Serializer for a xcom item.",
@@ -5445,6 +5450,10 @@ export const $XComResponseNative = {
       type: "string",
       title: "Dag Id",
     },
+    run_id: {
+      type: "string",
+      title: "Run Id",
+    },
     value: {
       title: "Value",
     },
@@ -5457,6 +5466,7 @@ export const $XComResponseNative = {
     "map_index",
     "task_id",
     "dag_id",
+    "run_id",
     "value",
   ],
   title: "XComResponseNative",
@@ -5491,6 +5501,10 @@ export const $XComResponseString = {
       type: "string",
       title: "Dag Id",
     },
+    run_id: {
+      type: "string",
+      title: "Run Id",
+    },
     value: {
       anyOf: [
         {
@@ -5511,6 +5525,7 @@ export const $XComResponseString = {
     "map_index",
     "task_id",
     "dag_id",
+    "run_id",
     "value",
   ],
   title: "XComResponseString",
