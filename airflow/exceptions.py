@@ -31,7 +31,7 @@ from airflow.utils.trigger_rule import TriggerRule
 if TYPE_CHECKING:
     from collections.abc import Sized
 
-    from airflow.models import DAG, DagRun, TaskInstance
+    from airflow.models import DagRun, TaskInstance
 
 
 class AirflowException(Exception):
