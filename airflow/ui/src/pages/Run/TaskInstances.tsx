@@ -81,7 +81,10 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
 
   {
     cell: ({ row: { original } }) =>
-      `${dayjs.duration(dayjs(original.end_date).diff(original.start_date)).asSeconds().toFixed(2)}s`,
+      `${dayjs
+        .duration(dayjs(original.end_date ?? dayjs()).diff(original.start_date))
+        .asSeconds()
+        .toFixed(2)}s`,
     header: "Duration",
   },
 ];
@@ -94,13 +97,17 @@ export const TaskInstances = () => {
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-start_date";
 
   const { data, error, isFetching, isLoading } =
-    useTaskInstanceServiceGetTaskInstances({
-      dagId,
-      dagRunId: runId,
-      limit: pagination.pageSize,
-      offset: pagination.pageIndex * pagination.pageSize,
-      orderBy,
-    });
+    useTaskInstanceServiceGetTaskInstances(
+      {
+        dagId,
+        dagRunId: runId,
+        limit: pagination.pageSize,
+        offset: pagination.pageIndex * pagination.pageSize,
+        orderBy,
+      },
+      undefined,
+      { enabled: !isNaN(pagination.pageSize) },
+    );
 
   return (
     <Box>
