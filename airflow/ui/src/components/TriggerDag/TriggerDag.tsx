@@ -22,6 +22,7 @@ export type DagParams = {
   dagId: string;
   dataIntervalEnd: string;
   dataIntervalStart: string;
+  notes: string;
   runId: string;
 };
 

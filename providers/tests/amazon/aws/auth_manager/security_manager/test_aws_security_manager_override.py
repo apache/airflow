@@ -31,8 +31,6 @@ with ignore_provider_compatibility_error("2.8.0", __file__):
     )
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 
-pytestmark = pytest.mark.skip_if_database_isolation_mode
-
 
 @pytest.fixture
 def appbuilder():

@@ -187,8 +187,6 @@ jobs:
       skip-pre-commits: ${{needs.build-info.outputs.skip-pre-commits}}
       canary-run: ${{needs.build-info.outputs.canary-run}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
-      enable-aip-44: "false"
-
   build-ci-images:
     name: >
       ${{ needs.build-info.outputs.in-workflow-build == 'true' && 'Build' || 'Skip building' }}
@@ -297,10 +295,10 @@ jobs:
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
 
-  static-checks-mypy-docs:
-    name: "Static checks, mypy, docs"
+  ci-image-checks:
+    name: "CI image checks"
     needs: [build-info, wait-for-ci-images]
-    uses: ./.github/workflows/static-checks-mypy-docs.yml
+    uses: ./.github/workflows/ci-image-checks.yml
     secrets: inherit
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
@@ -322,6 +320,9 @@ jobs:
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       docs-build: ${{ needs.build-info.outputs.docs-build }}
+      needs-api-codegen: ${{ needs.build-info.outputs.needs-api-codegen }}
+      default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
+      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
 
   providers:
     name: "Provider packages tests"
@@ -702,7 +703,7 @@ jobs:
       - generate-constraints
       - wait-for-ci-images
       - wait-for-prod-images
-      - static-checks-mypy-docs
+      - ci-image-checks
       - tests-sqlite
       - tests-mysql
       - tests-postgres
@@ -738,28 +739,22 @@ jobs:
       - tests-kubernetes
       - tests-task-sdk
       - finalize-tests
-    if: github.event_name == 'schedule' && failure()
+    if: github.event_name == 'schedule' && failure() && github.run_attempt == 1
     runs-on: ["ubuntu-22.04"]
     steps:
       - name: Notify Slack
         id: slack
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: slackapi/slack-github-action@485a9d42d3a73031f12ec201c457e2162c45d02d  # v2.0.0
         with:
-          channel-id: 'internal-airflow-ci-cd'
+          method: chat.postMessage
+          token: ${{ env.SLACK_BOT_TOKEN }}
           # yamllint disable rule:line-length
           payload: |
-            {
-              "text": "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>",
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
-                  }
-                }
-              ]
-            }
+            channel: "internal-airflow-ci-cd"
+            text: "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+            blocks:
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
           # yamllint enable rule:line-length
-        env:
-          SLACK_BOT_TOKEN: ${{ env.SLACK_BOT_TOKEN }}

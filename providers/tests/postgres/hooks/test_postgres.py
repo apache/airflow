@@ -25,7 +25,6 @@ from unittest import mock
 import psycopg2.extras
 import pytest
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.types import NOTSET
@@ -324,7 +323,7 @@ class TestPostgresHookConn:
                 port=1,
             )
         )
-        assert "postgresql://login:password@host:1/database" == self.db_hook.get_uri()
+        assert self.db_hook.get_uri() == "postgresql://login:password@host:1/database"
 
     def test_get_uri_from_connection_with_database_override(self):
         hook = PostgresHook(database="database-override")
@@ -338,16 +337,7 @@ class TestPostgresHookConn:
                 port=1,
             )
         )
-        assert "postgresql://login:password@host:1/database-override" == hook.get_uri()
-
-    def test_schema_kwarg_database_kwarg_compatibility(self):
-        database = "database-override"
-        with pytest.warns(
-            AirflowProviderDeprecationWarning,
-            match='The "schema" arg has been renamed to "database" as it contained the database name.Please use "database" to set the database name.',
-        ):
-            hook = PostgresHook(schema=database)
-        assert hook.database == database
+        assert hook.get_uri() == "postgresql://login:password@host:1/database-override"
 
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook")
     @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])

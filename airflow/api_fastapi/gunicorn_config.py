@@ -27,7 +27,7 @@ def post_worker_init(_):
     """
     Set process title.
 
-    This is used by airflow.cli.commands.fastapi_api_command to track the status of the worker.
+    This is used by airflow.cli.commands.local_commands.fastapi_api_command to track the status of the worker.
     """
     old_title = setproctitle.getproctitle()
     setproctitle.setproctitle(settings.GUNICORN_WORKER_READY_PREFIX + old_title)

@@ -32,9 +32,9 @@ from airflow.utils.types import DagRunType
 from airflow.www.views import FILTER_STATUS_COOKIE
 
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user_scope
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.permissions import _resource_name
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.www import (
     check_content_in_response,
     check_content_not_in_response,

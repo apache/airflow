@@ -89,18 +89,6 @@ if not keep_env_variables:
         "celery": {"celery": {"*"}, "celery_broker_transport_options": {"*"}},
         "kerberos": {"kerberos": {"*"}},
     }
-    if os.environ.get("RUN_TESTS_WITH_DATABASE_ISOLATION", "false").lower() == "true":
-        _KEEP_CONFIGS_SETTINGS["always"].update(
-            {
-                "core": {
-                    "internal_api_url",
-                    "fernet_key",
-                    "database_access_isolation",
-                    "internal_api_secret_key",
-                    "internal_api_clock_grace",
-                },
-            }
-        )
     _ENABLED_INTEGRATIONS = {e.split("_", 1)[-1].lower() for e in os.environ if e.startswith("INTEGRATION_")}
     _KEEP_CONFIGS: dict[str, set[str]] = {}
     for keep_settings_key in ("always", *_ENABLED_INTEGRATIONS):
@@ -154,7 +142,6 @@ os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.fspath(AIRFLOW_TESTS_DIR / "dags")
 os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
 os.environ["CREDENTIALS_DIR"] = os.environ.get("CREDENTIALS_DIR") or "/files/airflow-breeze-config/keys"
-os.environ["AIRFLOW_ENABLE_AIP_44"] = os.environ.get("AIRFLOW_ENABLE_AIP_44") or "true"
 
 if platform.system() == "Darwin":
     # mocks from unittest.mock work correctly in subprocesses only if they are created by "fork" method
@@ -217,20 +204,6 @@ def trace_sql(request):
             )
 
         yield
-
-
-@pytest.fixture(autouse=True, scope="session")
-def set_db_isolation_mode():
-    if os.environ.get("RUN_TESTS_WITH_DATABASE_ISOLATION", "false").lower() == "true":
-        from airflow.api_internal.internal_api_call import InternalApiConfig
-
-        InternalApiConfig.set_use_internal_api("tests", allow_tests_to_use_db=True)
-
-
-def skip_if_database_isolation_mode(item):
-    if os.environ.get("RUN_TESTS_WITH_DATABASE_ISOLATION", "false").lower() == "true":
-        for _ in item.iter_markers(name="skip_if_database_isolation_mode"):
-            pytest.skip("This test is skipped because it is not allowed in database isolation mode.")
 
 
 def pytest_addoption(parser: pytest.Parser):
@@ -440,7 +413,6 @@ def pytest_configure(config: pytest.Config) -> None:
         "external_python_operator: external python operator tests are 'long', we should run them separately",
     )
     config.addinivalue_line("markers", "enable_redact: do not mock redact secret masker")
-    config.addinivalue_line("markers", "skip_if_database_isolation_mode: skip if DB isolation is enabled")
 
     os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
 
@@ -657,7 +629,6 @@ def pytest_runtest_setup(item):
         skip_if_platform_doesnt_match(marker)
     for marker in item.iter_markers(name="backend"):
         skip_if_wrong_backend(marker, item)
-    skip_if_database_isolation_mode(item)
     selected_backend = item.config.option.backend
     if selected_backend:
         skip_if_not_marked_with_backend(selected_backend, item)
@@ -802,7 +773,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
     from airflow.utils.log.logging_mixin import LoggingMixin
 
-    from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
     class DagFactory(LoggingMixin, DagMaker):
         _own_session = False
@@ -863,6 +834,12 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             dag.clear(session=self.session)
             dag.sync_to_db(processor_subdir=self.processor_subdir, session=self.session)
+
+            if dag.access_control:
+                from airflow.www.security_appless import ApplessAirflowSecurityManager
+
+                security_manager = ApplessAirflowSecurityManager(session=self.session)
+                security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)
             self.dag_model = self.session.get(DagModel, dag.dag_id)
 
             if self.want_serialized:
@@ -1131,7 +1108,7 @@ def create_dummy_dag(dag_maker: DagMaker) -> CreateDummyDAG:
         **kwargs,
     ):
         op_kwargs = {}
-        from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
+        from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS
 
         if AIRFLOW_V_2_9_PLUS:
             op_kwargs["task_display_name"] = task_display_name
@@ -1197,7 +1174,7 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
     """
     from airflow.operators.empty import EmptyOperator
 
-    from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
+    from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS
 
     def maker(
         logical_date=None,
@@ -1413,7 +1390,7 @@ def reset_logging_config():
 def suppress_info_logs_for_dag_and_fab():
     import logging
 
-    from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
+    from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS
 
     dag_logger = logging.getLogger("airflow.models.dag")
     dag_logger.setLevel(logging.WARNING)
@@ -1461,18 +1438,13 @@ def _clear_db(request):
 
 @pytest.fixture(autouse=True)
 def clear_lru_cache():
-    from airflow.executors.executor_loader import ExecutorLoader
     from airflow.utils.entry_points import _get_grouped_entry_points
 
-    ExecutorLoader.validate_database_executor_compatibility.cache_clear()
+    _get_grouped_entry_points.cache_clear()
     try:
-        _get_grouped_entry_points.cache_clear()
-        try:
-            yield
-        finally:
-            _get_grouped_entry_points.cache_clear()
+        yield
     finally:
-        ExecutorLoader.validate_database_executor_compatibility.cache_clear()
+        _get_grouped_entry_points.cache_clear()
 
 
 @pytest.fixture(autouse=True)

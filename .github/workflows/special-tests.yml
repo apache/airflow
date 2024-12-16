@@ -76,6 +76,7 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to debug resources or not (true/false)"
         required: true
         type: string
+
 jobs:
   tests-min-sqlalchemy:
     name: "Min SQLAlchemy test"
@@ -137,31 +138,6 @@ jobs:
       runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       downgrade-pendulum: "true"
       test-name: "Pendulum2-Postgres"
-      test-scope: "All"
-      test-groups: ${{ inputs.test-groups }}
-      backend: "postgres"
-      image-tag: ${{ inputs.image-tag }}
-      python-versions: "['${{ inputs.default-python-version }}']"
-      backend-versions: "['${{ inputs.default-postgres-version }}']"
-      excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
-      excludes: "[]"
-      core-test-types-list-as-string: ${{ inputs.core-test-types-list-as-string }}
-      providers-test-types-list-as-string: ${{ inputs.providers-test-types-list-as-string }}
-      include-success-outputs: ${{ inputs.include-success-outputs }}
-      run-coverage: ${{ inputs.run-coverage }}
-      debug-resources: ${{ inputs.debug-resources }}
-
-  tests-in-progress-disabled:
-    name: "In progress disabled test"
-    uses: ./.github/workflows/run-unit-tests.yml
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    with:
-      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
-      enable-aip-44: "false"
-      test-name: "InProgressDisabled-Postgres"
       test-scope: "All"
       test-groups: ${{ inputs.test-groups }}
       backend: "postgres"

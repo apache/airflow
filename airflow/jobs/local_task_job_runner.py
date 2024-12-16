@@ -42,7 +42,6 @@ if TYPE_CHECKING:
 
     from airflow.jobs.job import Job
     from airflow.models.taskinstance import TaskInstance
-    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 SIGSEGV_MESSAGE = """
 ******************************************* Received SIGSEGV *******************************************
@@ -83,7 +82,7 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
     def __init__(
         self,
         job: Job,
-        task_instance: TaskInstance | TaskInstancePydantic,
+        task_instance: TaskInstance,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
         wait_for_past_depends_before_skipping: bool = False,

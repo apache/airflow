@@ -62,7 +62,7 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - :mod:`airflow.operators.generic_transfer`
      -
 
-   * - :mod:`airflow.operators.latest_only`
+   * - :mod:`airflow.providers.standard.operators.latest_only`
      -
 
    * - :mod:`airflow.providers.standard.operators.trigger_dagrun`
@@ -76,9 +76,8 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - Sensors
      - Guides
 
-   * - :mod:`airflow.sensors.external_task`
-     - :doc:`How to use <howto/operator/external_task_sensor>`
-
+   * - :mod:`airflow.sensors.base`
+     -
 
 **Hooks:**
 

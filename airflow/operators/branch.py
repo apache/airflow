@@ -27,7 +27,6 @@ from airflow.models.skipmixin import SkipMixin
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
-    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.utils.context import Context
 
 
@@ -42,7 +41,7 @@ class BranchMixIn(SkipMixin):
         return branches_to_execute
 
     def _expand_task_group_roots(
-        self, ti: TaskInstance | TaskInstancePydantic, branches_to_execute: str | Iterable[str]
+        self, ti: TaskInstance, branches_to_execute: str | Iterable[str]
     ) -> Iterable[str]:
         """Expand any task group into its root task ids."""
         if TYPE_CHECKING:

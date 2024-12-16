@@ -17,17 +17,20 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from unittest import mock
 
 import pytest
+import uuid6
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
+from airflow.models import RenderedTaskInstanceFields, Trigger
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 
-from tests_common.test_utils.db import clear_db_runs
+from tests_common.test_utils.db import clear_db_runs, clear_rendered_ti_fields
 
 pytestmark = pytest.mark.db_test
 
@@ -79,14 +82,17 @@ class TestTIUpdateState:
         assert ti.pid == 100
         assert ti.start_date.isoformat() == "2024-10-31T12:00:00+00:00"
 
-    def test_ti_update_state_conflict_if_not_queued(self, client, session, create_task_instance):
+    @pytest.mark.parametrize("initial_ti_state", [s for s in TaskInstanceState if s != State.QUEUED])
+    def test_ti_update_state_conflict_if_not_queued(
+        self, client, session, create_task_instance, initial_ti_state
+    ):
         """
         Test that a 409 error is returned when the Task Instance is not in a state where it can be marked as
         running. In this case, the Task Instance is first in NONE state so it cannot be marked as running.
         """
         ti = create_task_instance(
             task_id="test_ti_update_state_conflict_if_not_queued",
-            state=State.NONE,
+            state=initial_ti_state,
         )
         session.commit()
 
@@ -105,12 +111,12 @@ class TestTIUpdateState:
         assert response.json() == {
             "detail": {
                 "message": "TI was not in a state where it could be marked as running",
-                "previous_state": State.NONE,
+                "previous_state": initial_ti_state,
                 "reason": "invalid_state",
             }
         }
 
-        assert session.scalar(select(TaskInstance.state).where(TaskInstance.id == ti.id)) == State.NONE
+        assert session.scalar(select(TaskInstance.state).where(TaskInstance.id == ti.id)) == initial_ti_state
 
     @pytest.mark.parametrize(
         ("state", "end_date", "expected_state"),
@@ -183,7 +189,7 @@ class TestTIUpdateState:
         }
 
         with mock.patch(
-            "airflow.api_fastapi.execution_api.routes.task_instances.Session.execute",
+            "airflow.api_fastapi.common.db.common.Session.execute",
             side_effect=[
                 mock.Mock(one=lambda: ("queued",)),  # First call returns "queued"
                 SQLAlchemyError("Database error"),  # Second call raises an error
@@ -192,6 +198,50 @@ class TestTIUpdateState:
             response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
             assert response.status_code == 500
             assert response.json()["detail"] == "Database error occurred"
+
+    def test_ti_update_state_to_deferred(self, client, session, create_task_instance, time_machine):
+        """
+        Test that tests if the transition to deferred state is handled correctly.
+        """
+
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_deferred",
+            state=State.RUNNING,
+            session=session,
+        )
+        session.commit()
+
+        instant = timezone.datetime(2024, 11, 22)
+        time_machine.move_to(instant, tick=False)
+
+        payload = {
+            "state": "deferred",
+            "trigger_kwargs": {"key": "value"},
+            "classpath": "my-classpath",
+            "next_method": "execute_callback",
+            "trigger_timeout": "P1D",  # 1 day
+        }
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        tis = session.query(TaskInstance).all()
+        assert len(tis) == 1
+
+        assert tis[0].state == TaskInstanceState.DEFERRED
+        assert tis[0].next_method == "execute_callback"
+        assert tis[0].next_kwargs == {"key": "value"}
+        assert tis[0].trigger_timeout == timezone.make_aware(datetime(2024, 11, 23), timezone=timezone.utc)
+
+        t = session.query(Trigger).all()
+        assert len(t) == 1
+        assert t[0].created_date == instant
+        assert t[0].classpath == "my-classpath"
+        assert t[0].kwargs == {"key": "value"}
 
 
 class TestTIHealthEndpoint:
@@ -361,3 +411,68 @@ class TestTIHealthEndpoint:
         # If successful, ensure last_heartbeat_at is updated
         session.refresh(ti)
         assert ti.last_heartbeat_at == time_now.add(minutes=10)
+
+
+class TestTIPutRTIF:
+    def setup_method(self):
+        clear_db_runs()
+        clear_rendered_ti_fields()
+
+    def teardown_method(self):
+        clear_db_runs()
+        clear_rendered_ti_fields()
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            # string value
+            {"field1": "string_value", "field2": "another_string"},
+            # dictionary value
+            {"field1": {"nested_key": "nested_value"}},
+            # string lists value
+            {"field1": ["123"], "field2": ["a", "b", "c"]},
+            # list of JSON values
+            {"field1": [1, "string", 3.14, True, None, {"nested": "dict"}]},
+            # nested dictionary with mixed types in lists
+            {
+                "field1": {"nested_dict": {"key1": 123, "key2": "value"}},
+                "field2": [3.14, {"sub_key": "sub_value"}, [1, 2]],
+            },
+        ],
+    )
+    def test_ti_put_rtif_success(self, client, session, create_task_instance, payload):
+        ti = create_task_instance(
+            task_id="test_ti_put_rtif_success",
+            state=State.RUNNING,
+            session=session,
+        )
+        session.commit()
+        response = client.put(f"/execution/task-instances/{ti.id}/rtif", json=payload)
+        assert response.status_code == 201
+        assert response.json() == {"message": "Rendered task instance fields successfully set"}
+
+        session.expire_all()
+
+        rtifs = session.query(RenderedTaskInstanceFields).all()
+        assert len(rtifs) == 1
+
+        assert rtifs[0].dag_id == "dag"
+        assert rtifs[0].run_id == "test"
+        assert rtifs[0].task_id == "test_ti_put_rtif_success"
+        assert rtifs[0].map_index == -1
+        assert rtifs[0].rendered_fields == payload
+
+    def test_ti_put_rtif_missing_ti(self, client, session, create_task_instance):
+        create_task_instance(
+            task_id="test_ti_put_rtif_missing_ti",
+            state=State.RUNNING,
+            session=session,
+        )
+        session.commit()
+
+        payload = {"field1": "rendered_value1", "field2": "rendered_value2"}
+
+        random_id = uuid6.uuid7()
+        response = client.put(f"/execution/task-instances/{random_id}/rtif", json=payload)
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Not Found"

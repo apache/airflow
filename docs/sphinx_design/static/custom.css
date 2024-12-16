@@ -31,3 +31,12 @@
     --sd-color-tabs-underline-hover: #68d1ff;
     --sd-color-tabs-underline: transparent;
 }
+
+div.admonition.warning {
+  background: #e8cccc;
+  font-weight: bolder;
+}
+
+.rst-content .warning .admonition-title {
+  background: #cc341d;
+}

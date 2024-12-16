@@ -104,7 +104,7 @@ class TestCli:
             for com in command:
                 conflict_arg = [arg for arg, count in Counter(com.args).items() if count > 1]
                 assert (
-                    [] == conflict_arg
+                    conflict_arg == []
                 ), f"Command group {group} function {com.name} have conflict args name {conflict_arg}"
 
     def test_subcommand_arg_flag_conflict(self):
@@ -122,7 +122,7 @@ class TestCli:
                     a.flags[0] for a in com.args if (len(a.flags) == 1 and not a.flags[0].startswith("-"))
                 ]
                 conflict_position = [arg for arg, count in Counter(position).items() if count > 1]
-                assert [] == conflict_position, (
+                assert conflict_position == [], (
                     f"Command group {group} function {com.name} have conflict "
                     f"position flags {conflict_position}"
                 )
@@ -131,14 +131,14 @@ class TestCli:
                     a.flags[0] for a in com.args if (len(a.flags) == 1 and a.flags[0].startswith("-"))
                 ] + [a.flags[1] for a in com.args if len(a.flags) == 2]
                 conflict_long_option = [arg for arg, count in Counter(long_option).items() if count > 1]
-                assert [] == conflict_long_option, (
+                assert conflict_long_option == [], (
                     f"Command group {group} function {com.name} have conflict "
                     f"long option flags {conflict_long_option}"
                 )
 
                 short_option = [a.flags[0] for a in com.args if len(a.flags) == 2]
                 conflict_short_option = [arg for arg, count in Counter(short_option).items() if count > 1]
-                assert [] == conflict_short_option, (
+                assert conflict_short_option == [], (
                     f"Command group {group} function {com.name} have conflict "
                     f"short option flags {conflict_short_option}"
                 )
@@ -237,7 +237,7 @@ class TestCli:
         assert celery_executor_command.name in commands
         assert ecs_executor_command.name not in commands
         assert (
-            "Failed to load CLI commands from executor: airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"
+            "Failed to load CLI commands from executor: ::airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"
             in caplog.messages[0]
         )
 
@@ -265,7 +265,7 @@ class TestCli:
         commands = [command.name for command in cli_parser.airflow_commands]
         assert ecs_executor_command.name in commands
         assert (
-            "Failed to load CLI commands from executor: airflow.providers.incorrect.executor.Executor"
+            "Failed to load CLI commands from executor: ::airflow.providers.incorrect.executor.Executor"
             in caplog.messages[0]
         )
 
@@ -333,8 +333,8 @@ class TestCli:
                 parser.parse_args([*cmd_args, "--help"])
 
     def test_positive_int(self):
-        assert 1 == cli_config.positive_int(allow_zero=True)("1")
-        assert 0 == cli_config.positive_int(allow_zero=True)("0")
+        assert cli_config.positive_int(allow_zero=True)("1") == 1
+        assert cli_config.positive_int(allow_zero=True)("0") == 0
 
         with pytest.raises(argparse.ArgumentTypeError):
             cli_config.positive_int(allow_zero=False)("0")
@@ -420,10 +420,8 @@ class TestCli:
                     ["db", "export-archived", "--export-format", export_format, "--output-path", "mydir"]
                 )
             error_msg = stderr.getvalue()
-        assert error_msg == (
-            "\nairflow db export-archived command error: argument "
-            f"--export-format: invalid choice: '{export_format}' "
-            "(choose from 'csv'), see help above.\n"
+        assert (
+            "airflow db export-archived command error: argument --export-format: invalid choice" in error_msg
         )
 
     @pytest.mark.parametrize(

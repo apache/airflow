@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+.. warning::
+   All deprecated classes, parameters and features have been removed from the Atlassian Jira provider package.
+   The following breaking changes were introduced:
+
+   * Hooks
+
+      * Removed the use of the ``verify`` extra parameters as a ``str`` from ``JiraHook``. Use ``verify`` extra parameters as a ``bool`` instead.
+
 2.7.1
 .....
 

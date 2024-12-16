@@ -23,12 +23,18 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from arango import AQLQueryExecuteError, ArangoClient as ArangoDBClient
+from arango.cursor import Cursor
+from arango.exceptions import (
+    DocumentDeleteError,
+    DocumentInsertError,
+    DocumentReplaceError,
+    DocumentUpdateError,
+)
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
-    from arango.cursor import Cursor
     from arango.database import StandardDatabase
 
     from airflow.models import Connection
@@ -101,8 +107,8 @@ class ArangoDBHook(BaseHook):
         try:
             if self.db_conn:
                 result = self.db_conn.aql.execute(query, **kwargs)
-                if TYPE_CHECKING:
-                    assert isinstance(result, Cursor)
+                if not isinstance(result, Cursor):
+                    raise AirflowException("Failed to execute AQLQuery, expected result to be of type Cursor")
                 return result
             else:
                 raise AirflowException(
@@ -113,10 +119,19 @@ class ArangoDBHook(BaseHook):
 
     def create_collection(self, name):
         if not self.db_conn.has_collection(name):
+            self.log.info("Collection '%s' does not exist. Creating a new collection.", name)
             self.db_conn.create_collection(name)
             return True
         else:
             self.log.info("Collection already exists: %s", name)
+            return False
+
+    def delete_collection(self, name):
+        if self.db_conn.has_collection(name):
+            self.db_conn.delete_collection(name)
+            return True
+        else:
+            self.log.info("Collection does not exist: %s", name)
             return False
 
     def create_database(self, name):
@@ -134,6 +149,50 @@ class ArangoDBHook(BaseHook):
         else:
             self.log.info("Graph already exists: %s", name)
             return False
+
+    def insert_documents(self, collection_name, documents):
+        if not self.db_conn.has_collection(collection_name):
+            self.create_collection(collection_name)
+
+        try:
+            collection = self.db_conn.collection(collection_name)
+            collection.insert_many(documents, silent=True)
+        except DocumentInsertError as e:
+            self.log.error("Failed to insert documents: %s", str(e))
+            raise
+
+    def update_documents(self, collection_name, documents):
+        if not self.db_conn.has_collection(collection_name):
+            raise AirflowException(f"Collection does not exist: {collection_name}")
+
+        try:
+            collection = self.db_conn.collection(collection_name)
+            collection.update_many(documents, silent=True)
+        except DocumentUpdateError as e:
+            self.log.error("Failed to update documents: %s", str(e))
+            raise
+
+    def replace_documents(self, collection_name, documents):
+        if not self.db_conn.has_collection(collection_name):
+            raise AirflowException(f"Collection does not exist: {collection_name}")
+
+        try:
+            collection = self.db_conn.collection(collection_name)
+            collection.replace_many(documents, silent=True)
+        except DocumentReplaceError as e:
+            self.log.error("Failed to replace documents: %s", str(e))
+            raise
+
+    def delete_documents(self, collection_name, documents):
+        if not self.db_conn.has_collection(collection_name):
+            raise AirflowException(f"Collection does not exist: {collection_name}")
+
+        try:
+            collection = self.db_conn.collection(collection_name)
+            collection.delete_many(documents, silent=True)
+        except DocumentDeleteError as e:
+            self.log.error("Failed to delete documents: %s", str(e))
+            raise
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:

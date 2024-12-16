@@ -36,7 +36,7 @@ from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN
 from airflow.utils import db, timezone
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")

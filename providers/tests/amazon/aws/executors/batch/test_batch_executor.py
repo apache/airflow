@@ -633,7 +633,7 @@ class TestAwsBatchExecutor:
         # Two of the three tasks should be adopted.
         assert len(orphaned_tasks) - 1 == len(mock_executor.active_workers)
         # The remaining one task is unable to be adopted.
-        assert 1 == len(not_adopted_tasks)
+        assert len(not_adopted_tasks) == 1
 
 
 class TestBatchExecutorConfig:

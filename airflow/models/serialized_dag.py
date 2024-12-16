@@ -31,7 +31,6 @@ from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 from sqlalchemy_utils import UUIDType
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.exceptions import TaskNotFound
 from airflow.models.base import ID_LEN, Base
 from airflow.models.dag import DagModel
@@ -456,7 +455,6 @@ class SerializedDagModel(Base):
         return {dag_id: [DagDependency(**d) for d in (deps_data or [])] for dag_id, deps_data in iterator}
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def get_serialized_dag(dag_id: str, task_id: str, session: Session = NEW_SESSION) -> Operator | None:
         try:

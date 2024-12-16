@@ -41,7 +41,6 @@ from typing import (
 import attrs
 from sqlalchemy import (
     Table,
-    delete,
     exc,
     func,
     inspect,
@@ -95,7 +94,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "2.9.2": "686269002441",
     "2.10.0": "22ed7efa9da2",
     "2.10.3": "5f2621c13b39",
-    "3.0.0": "eed27faa34e3",
+    "3.0.0": "038dc8bc6284",
 }
 
 
@@ -924,9 +923,7 @@ def check_and_run_migrations():
 
 def _reserialize_dags(*, session: Session) -> None:
     from airflow.models.dagbag import DagBag
-    from airflow.models.serialized_dag import SerializedDagModel
 
-    session.execute(delete(SerializedDagModel).execution_options(synchronize_session=False))
     dagbag = DagBag(collect_dags=False)
     dagbag.collect_dags(only_if_updated=False)
     dagbag.sync_to_db(session=session)
@@ -1089,7 +1086,7 @@ def _revisions_above_min_for_offline(config, revisions) -> None:
     dbname = settings.engine.dialect.name
     if dbname == "sqlite":
         raise SystemExit("Offline migration not supported for SQLite.")
-    min_version, min_revision = ("3.0.0", "22ed7efa9da2")
+    min_version, min_revision = ("2.7.0", "937cbd173ca1")
 
     # Check if there is history between the revisions and the start revision
     # This ensures that the revisions are above `min_revision`
@@ -1222,19 +1219,6 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
 
     if not skip_init:
         initdb(session=session)
-
-
-@provide_session
-def bootstrap_dagbag(session: Session = NEW_SESSION):
-    from airflow.models.dag import DAG
-    from airflow.models.dagbag import DagBag
-
-    dagbag = DagBag()
-    # Save DAGs in the ORM
-    dagbag.sync_to_db(session=session)
-
-    # Deactivate the unknown ones
-    DAG.deactivate_unknown_dags(dagbag.dags.keys(), session=session)
 
 
 @provide_session
@@ -1448,7 +1432,7 @@ def get_query_count(query_stmt: Select, *, session: Session) -> int:
     return session.scalar(count_stmt)
 
 
-async def get_query_count_async(query: Select, *, session: AsyncSession) -> int:
+async def get_query_count_async(statement: Select, *, session: AsyncSession) -> int:
     """
     Get count of a query.
 
@@ -1459,7 +1443,7 @@ async def get_query_count_async(query: Select, *, session: AsyncSession) -> int:
 
     :meta private:
     """
-    count_stmt = select(func.count()).select_from(query.order_by(None).subquery())
+    count_stmt = select(func.count()).select_from(statement.order_by(None).subquery())
     return await session.scalar(count_stmt)
 
 
@@ -1474,7 +1458,8 @@ def check_query_exists(query_stmt: Select, *, session: Session) -> bool:
     :meta private:
     """
     count_stmt = select(literal(True)).select_from(query_stmt.order_by(None).subquery())
-    return session.scalar(count_stmt)
+    # we must cast to bool because scalar() can return None
+    return bool(session.scalar(count_stmt))
 
 
 def exists_query(*where: ClauseElement, session: Session) -> bool:

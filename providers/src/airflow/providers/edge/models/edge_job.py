@@ -16,32 +16,21 @@
 # under the License.
 from __future__ import annotations
 
-from ast import literal_eval
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
 
-from pydantic import BaseModel, ConfigDict
 from sqlalchemy import (
     Column,
     Index,
     Integer,
     String,
-    select,
     text,
 )
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.models.base import Base, StringID
 from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.serialization.serialized_objects import add_pydantic_class_type_mapping
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
-from airflow.utils.state import TaskInstanceState
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm.session import Session
+from airflow.utils.sqlalchemy import UtcDateTime
 
 
 class EdgeJobModel(Base, LoggingMixin):
@@ -59,6 +48,7 @@ class EdgeJobModel(Base, LoggingMixin):
     try_number = Column(Integer, primary_key=True, default=0)
     state = Column(String(20))
     queue = Column(String(256))
+    concurrency_slots = Column(Integer)
     command = Column(String(1000))
     queued_dttm = Column(UtcDateTime)
     edge_worker = Column(String(64))
@@ -73,6 +63,7 @@ class EdgeJobModel(Base, LoggingMixin):
         try_number: int,
         state: str,
         queue: str,
+        concurrency_slots: int,
         command: str,
         queued_dttm: datetime | None = None,
         edge_worker: str | None = None,
@@ -85,6 +76,7 @@ class EdgeJobModel(Base, LoggingMixin):
         self.try_number = try_number
         self.state = state
         self.queue = queue
+        self.concurrency_slots = concurrency_slots
         self.command = command
         self.queued_dttm = queued_dttm or timezone.utcnow()
         self.edge_worker = edge_worker
@@ -100,86 +92,3 @@ class EdgeJobModel(Base, LoggingMixin):
     @property
     def last_update_t(self) -> float:
         return self.last_update.timestamp()
-
-
-class EdgeJob(BaseModel, LoggingMixin):
-    """Accessor for edge jobs as logical model."""
-
-    dag_id: str
-    task_id: str
-    run_id: str
-    map_index: int
-    try_number: int
-    state: TaskInstanceState
-    queue: str
-    command: list[str]
-    queued_dttm: datetime
-    edge_worker: Optional[str]  # noqa: UP007 - prevent Sphinx failing
-    last_update: Optional[datetime]  # noqa: UP007 - prevent Sphinx failing
-    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
-
-    @property
-    def key(self) -> TaskInstanceKey:
-        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
-
-    @staticmethod
-    @internal_api_call
-    @provide_session
-    def reserve_task(
-        worker_name: str, queues: list[str] | None = None, session: Session = NEW_SESSION
-    ) -> EdgeJob | None:
-        query = (
-            select(EdgeJobModel)
-            .where(EdgeJobModel.state == TaskInstanceState.QUEUED)
-            .order_by(EdgeJobModel.queued_dttm)
-        )
-        if queues:
-            query = query.where(EdgeJobModel.queue.in_(queues))
-        query = query.limit(1)
-        query = with_row_locks(query, of=EdgeJobModel, session=session, skip_locked=True)
-        job: EdgeJobModel = session.scalar(query)
-        if not job:
-            return None
-        job.state = TaskInstanceState.RUNNING
-        job.edge_worker = worker_name
-        job.last_update = timezone.utcnow()
-        session.commit()
-        return EdgeJob(
-            dag_id=job.dag_id,
-            task_id=job.task_id,
-            run_id=job.run_id,
-            map_index=job.map_index,
-            try_number=job.try_number,
-            state=job.state,
-            queue=job.queue,
-            command=literal_eval(job.command),
-            queued_dttm=job.queued_dttm,
-            edge_worker=job.edge_worker,
-            last_update=job.last_update,
-        )
-
-    @staticmethod
-    @internal_api_call
-    @provide_session
-    def set_state(task: TaskInstanceKey | tuple, state: TaskInstanceState, session: Session = NEW_SESSION):
-        if isinstance(task, tuple):
-            task = TaskInstanceKey(*task)
-        query = select(EdgeJobModel).where(
-            EdgeJobModel.dag_id == task.dag_id,
-            EdgeJobModel.task_id == task.task_id,
-            EdgeJobModel.run_id == task.run_id,
-            EdgeJobModel.map_index == task.map_index,
-            EdgeJobModel.try_number == task.try_number,
-        )
-        job: EdgeJobModel = session.scalar(query)
-        job.state = state
-        job.last_update = timezone.utcnow()
-        session.commit()
-
-    def __hash__(self):
-        return f"{self.dag_id}|{self.task_id}|{self.run_id}|{self.map_index}|{self.try_number}".__hash__()
-
-
-EdgeJob.model_rebuild()
-
-add_pydantic_class_type_mapping("edge_job", EdgeJobModel, EdgeJob)

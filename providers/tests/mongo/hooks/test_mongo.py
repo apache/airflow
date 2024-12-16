@@ -18,13 +18,12 @@
 from __future__ import annotations
 
 import importlib
-import warnings
 from typing import TYPE_CHECKING
 
 import pymongo
 import pytest
 
-from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowConfigException
 from airflow.models import Connection
 from airflow.providers.mongo.hooks.mongo import MongoHook
 
@@ -99,22 +98,10 @@ class TestMongoHook:
         self.conn = self.hook.get_conn()
 
     def test_mongo_conn_id(self):
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", category=AirflowProviderDeprecationWarning)
-            # Use default "mongo_default"
-            assert MongoHook().mongo_conn_id == "mongo_default"
-            # Positional argument
-            assert MongoHook("fake_connection").mongo_conn_id == "fake_connection"
-
-        warning_message = "Parameter `conn_id` is deprecated"
-        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
-            assert MongoHook(conn_id="fake_connection").mongo_conn_id == "fake_connection"
-
-        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
-            assert (
-                MongoHook(conn_id="fake_connection", mongo_conn_id="foo-bar").mongo_conn_id
-                == "fake_connection"
-            )
+        # Use default "mongo_default"
+        assert MongoHook().mongo_conn_id == "mongo_default"
+        # Positional argument
+        assert MongoHook("fake_connection").mongo_conn_id == "fake_connection"
 
     def test_get_conn(self):
         assert self.hook.connection.port == 27017
@@ -171,7 +158,7 @@ class TestMongoHook:
         self.hook.update_one(collection, filter_doc, update_doc)
 
         result_obj = collection.find_one(filter="1")
-        assert 123 == result_obj["field"]
+        assert result_obj["field"] == 123
 
     def test_update_one_with_upsert(self):
         collection = mongomock.MongoClient().db.collection
@@ -182,7 +169,7 @@ class TestMongoHook:
         self.hook.update_one(collection, filter_doc, update_doc, upsert=True)
 
         result_obj = collection.find_one(filter="1")
-        assert 123 == result_obj["field"]
+        assert result_obj["field"] == 123
 
     def test_update_many(self):
         collection = mongomock.MongoClient().db.collection
@@ -196,10 +183,10 @@ class TestMongoHook:
         self.hook.update_many(collection, filter_doc, update_doc)
 
         result_obj = collection.find_one(filter="1")
-        assert 123 == result_obj["field"]
+        assert result_obj["field"] == 123
 
         result_obj = collection.find_one(filter="2")
-        assert 123 == result_obj["field"]
+        assert result_obj["field"] == 123
 
     def test_update_many_with_upsert(self):
         collection = mongomock.MongoClient().db.collection
@@ -210,7 +197,7 @@ class TestMongoHook:
         self.hook.update_many(collection, filter_doc, update_doc, upsert=True)
 
         result_obj = collection.find_one(filter="1")
-        assert 123 == result_obj["field"]
+        assert result_obj["field"] == 123
 
     def test_replace_one(self):
         collection = mongomock.MongoClient().db.collection
@@ -222,11 +209,11 @@ class TestMongoHook:
         self.hook.replace_one(collection, obj1)
 
         result_obj = collection.find_one(filter="1")
-        assert "test_value_1_updated" == result_obj["field"]
+        assert result_obj["field"] == "test_value_1_updated"
 
         # Other document should stay intact
         result_obj = collection.find_one(filter="2")
-        assert "test_value_2" == result_obj["field"]
+        assert result_obj["field"] == "test_value_2"
 
     def test_replace_one_with_filter(self):
         collection = mongomock.MongoClient().db.collection
@@ -238,11 +225,11 @@ class TestMongoHook:
         self.hook.replace_one(collection, obj1, {"field": "test_value_1"})
 
         result_obj = collection.find_one(filter="1")
-        assert "test_value_1_updated" == result_obj["field"]
+        assert result_obj["field"] == "test_value_1_updated"
 
         # Other document should stay intact
         result_obj = collection.find_one(filter="2")
-        assert "test_value_2" == result_obj["field"]
+        assert result_obj["field"] == "test_value_2"
 
     def test_replace_one_with_upsert(self):
         collection = mongomock.MongoClient().db.collection
@@ -251,7 +238,7 @@ class TestMongoHook:
         self.hook.replace_one(collection, obj, upsert=True)
 
         result_obj = collection.find_one(filter="1")
-        assert "test_value_1" == result_obj["field"]
+        assert result_obj["field"] == "test_value_1"
 
     def test_replace_many(self):
         collection = mongomock.MongoClient().db.collection
@@ -264,10 +251,10 @@ class TestMongoHook:
         self.hook.replace_many(collection, [obj1, obj2])
 
         result_obj = collection.find_one(filter="1")
-        assert "test_value_1_updated" == result_obj["field"]
+        assert result_obj["field"] == "test_value_1_updated"
 
         result_obj = collection.find_one(filter="2")
-        assert "test_value_2_updated" == result_obj["field"]
+        assert result_obj["field"] == "test_value_2_updated"
 
     def test_replace_many_with_upsert(self):
         collection = mongomock.MongoClient().db.collection
@@ -277,10 +264,10 @@ class TestMongoHook:
         self.hook.replace_many(collection, [obj1, obj2], upsert=True)
 
         result_obj = collection.find_one(filter="1")
-        assert "test_value_1" == result_obj["field"]
+        assert result_obj["field"] == "test_value_1"
 
         result_obj = collection.find_one(filter="2")
-        assert "test_value_2" == result_obj["field"]
+        assert result_obj["field"] == "test_value_2"
 
     def test_create_uri_with_all_creds(self):
         self.hook.connection.login = "test_user"
@@ -312,7 +299,7 @@ class TestMongoHook:
 
         self.hook.delete_one(collection, {"_id": "1"})
 
-        assert 0 == collection.count_documents({})
+        assert collection.count_documents({}) == 0
 
     def test_delete_many(self):
         collection = mongomock.MongoClient().db.collection
@@ -322,7 +309,7 @@ class TestMongoHook:
 
         self.hook.delete_many(collection, {"field": "value"})
 
-        assert 0 == collection.count_documents({})
+        assert collection.count_documents({}) == 0
 
     def test_find_one(self):
         collection = mongomock.MongoClient().db.collection

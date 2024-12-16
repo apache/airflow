@@ -244,6 +244,7 @@ class KubernetesExecutor(BaseExecutor):
             from airflow.executors.executor_loader import ExecutorLoader
 
             default_executor = str(ExecutorLoader.get_default_executor_name())
+            default_executor = default_executor.strip(":")
 
         with Stats.timer("kubernetes_executor.clear_not_launched_queued_tasks.duration"):
             self.log.debug("Clearing tasks that have not been launched")
@@ -253,7 +254,7 @@ class KubernetesExecutor(BaseExecutor):
             )
             if self.kubernetes_queue:
                 query = query.where(TaskInstance.queue == self.kubernetes_queue)
-            elif hybrid_executor_enabled and KUBERNETES_EXECUTOR == default_executor:
+            elif hybrid_executor_enabled and default_executor == KUBERNETES_EXECUTOR:
                 query = query.where(
                     or_(
                         TaskInstance.executor == KUBERNETES_EXECUTOR,

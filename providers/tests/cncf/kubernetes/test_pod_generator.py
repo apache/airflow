@@ -37,7 +37,7 @@ from airflow.providers.cncf.kubernetes.pod_generator import (
 )
 from airflow.providers.cncf.kubernetes.secret import Secret
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 now = pendulum.now("UTC")
 
@@ -486,8 +486,8 @@ class TestPodGenerator:
         for v in result.metadata.labels.values():
             assert len(v) <= 63
 
-        assert "a" * 512 == result.metadata.annotations["dag_id"]
-        assert "a" * 512 == result.metadata.annotations["task_id"]
+        assert result.metadata.annotations["dag_id"] == "a" * 512
+        assert result.metadata.annotations["task_id"] == "a" * 512
 
     def test_merge_objects_empty(self):
         annotations = {"foo1": "bar1"}

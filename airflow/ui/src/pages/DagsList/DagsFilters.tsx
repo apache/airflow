@@ -32,8 +32,7 @@ import { useSearchParams } from "react-router-dom";
 import { useDagServiceGetDagTags } from "openapi/queries";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { QuickFilterButton } from "src/components/QuickFilterButton";
-import { StateCircle } from "src/components/StateCircle";
-import { Select } from "src/components/ui";
+import { Select, Status } from "src/components/ui";
 import {
   SearchParamsKeys,
   type SearchParamsKeysType,
@@ -70,12 +69,10 @@ export const DagsFilters = () => {
     orderBy: "name",
   });
 
-  const hidePausedDagsByDefault = useConfig(
-    "webserver",
-    "hide_paused_dags_by_default",
+  const hidePausedDagsByDefault = Boolean(
+    useConfig("hide_paused_dags_by_default"),
   );
-  const defaultShowPaused =
-    hidePausedDagsByDefault === "True" ? "false" : "all";
+  const defaultShowPaused = hidePausedDagsByDefault ? "false" : "all";
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -166,24 +163,21 @@ export const DagsFilters = () => {
             onClick={handleStateChange}
             value="failed"
           >
-            <StateCircle state="failed" />
-            Failed
+            <Status state="failed">Failed</Status>
           </QuickFilterButton>
           <QuickFilterButton
             isActive={isRunning}
             onClick={handleStateChange}
             value="running"
           >
-            <StateCircle state="running" />
-            Running
+            <Status state="running">Running</Status>
           </QuickFilterButton>
           <QuickFilterButton
             isActive={isSuccess}
             onClick={handleStateChange}
             value="success"
           >
-            <StateCircle state="success" />
-            Success
+            <Status state="success">Success</Status>
           </QuickFilterButton>
         </HStack>
         <Select.Root

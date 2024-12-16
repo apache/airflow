@@ -84,10 +84,6 @@ The grid view also provides visibility into your mapped tasks in the details pan
 
     Although we show a "reduce" task here (``sum_it``) you don't have to have one, the mapped tasks will still be executed even if they have no downstream tasks.
 
-.. warning:: ``TriggerRule.ALWAYS`` cannot be utilized in expanded tasks
-
-    Assigning ``trigger_rule=TriggerRule.ALWAYS`` in expanded tasks is forbidden, as expanded parameters will be undefined with the task's immediate execution.
-    This is enforced at the time of the DAG parsing, and will raise an error if you try to use it.
 
 Task-generated Mapping
 ----------------------
@@ -112,6 +108,12 @@ The above examples we've shown could all be achieved with a ``for`` loop in the 
         consumer.expand(arg=make_list())
 
 The ``make_list`` task runs as a normal task and must return a list or dict (see `What data types can be expanded?`_), and then the ``consumer`` task will be called four times, once with each value in the return of ``make_list``.
+
+.. warning:: Task-generated mapping cannot be utilized with ``TriggerRule.ALWAYS``
+
+    Assigning ``trigger_rule=TriggerRule.ALWAYS`` in task-generated mapping is not allowed, as expanded parameters are undefined with the task's immediate execution.
+    This is enforced at the time of the DAG parsing, for both tasks and mapped tasks groups, and will raise an error if you try to use it.
+    In the recent example, setting ``trigger_rule=TriggerRule.ALWAYS`` in the ``consumer`` task will raise an error since ``make_list`` is a task-generated mapping.
 
 Repeated mapping
 ----------------

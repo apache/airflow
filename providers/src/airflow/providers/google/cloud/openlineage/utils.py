@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import os
+import pathlib
 from typing import TYPE_CHECKING, Any
 
 from attr import define, field
@@ -31,15 +33,72 @@ from airflow.providers.common.compat.openlineage.facet import (
     ColumnLineageDatasetFacet,
     DocumentationDatasetFacet,
     Fields,
+    Identifier,
     InputField,
     RunFacet,
     SchemaDatasetFacet,
     SchemaDatasetFacetFields,
+    SymlinksDatasetFacet,
 )
 from airflow.providers.google import __version__ as provider_version
+from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
 
 BIGQUERY_NAMESPACE = "bigquery"
 BIGQUERY_URI = "bigquery"
+WILDCARD = "*"
+
+
+def extract_ds_name_from_gcs_path(path: str) -> str:
+    """
+    Extract and process the dataset name from a given path.
+
+    Args:
+        path: The path to process e.g. of a gcs file.
+
+    Returns:
+        The processed dataset name.
+
+    Examples:
+        >>> extract_ds_name_from_gcs_path("/dir/file.*")
+        'dir'
+        >>> extract_ds_name_from_gcs_path("/dir/pre_")
+        'dir'
+        >>> extract_ds_name_from_gcs_path("/dir/file.txt")
+        'dir/file.txt'
+        >>> extract_ds_name_from_gcs_path("/dir/file.")
+        'dir'
+        >>> extract_ds_name_from_gcs_path("/dir/")
+        'dir'
+        >>> extract_ds_name_from_gcs_path("")
+        '/'
+        >>> extract_ds_name_from_gcs_path("/")
+        '/'
+        >>> extract_ds_name_from_gcs_path(".")
+        '/'
+    """
+    if WILDCARD in path:
+        path = path.split(WILDCARD, maxsplit=1)[0]
+
+    # We want to end up with parent directory if the path:
+    # - does not refer to a file (no dot in the last segment)
+    #     and does not explicitly end with a slash, it is treated as a prefix and removed.
+    #     Example: "/dir/pre_" -> "/dir/"
+    # - contains a dot at the end, then it is treated as a prefix (created after removing the wildcard).
+    #     Example: "/dir/file." (was "/dir/file.*" with wildcard) -> "/dir/"
+    last_path_segment = os.path.basename(path).rstrip(".")
+    if "." not in last_path_segment and not path.endswith("/"):
+        path = pathlib.Path(path).parent.as_posix()
+
+    # Normalize the path:
+    # - Remove trailing slashes.
+    # - Remove leading slashes.
+    # - Handle edge cases for empty paths or single-dot paths.
+    path = path.rstrip("/")
+    path = path.lstrip("/")
+    if path in ("", "."):
+        path = "/"
+
+    return path
 
 
 def get_facets_from_bq_table(table: Table) -> dict[str, BaseFacet]:
@@ -57,6 +116,20 @@ def get_facets_from_bq_table(table: Table) -> dict[str, BaseFacet]:
     if table.description:
         facets["documentation"] = DocumentationDatasetFacet(description=table.description)
 
+    if table.external_data_configuration:
+        symlinks = set()
+        for uri in table.external_data_configuration.source_uris:
+            if uri.startswith("gs://"):
+                bucket, blob = _parse_gcs_url(uri)
+                blob = extract_ds_name_from_gcs_path(blob)
+                symlinks.add((f"gs://{bucket}", blob))
+
+        facets["symlink"] = SymlinksDatasetFacet(
+            identifiers=[
+                Identifier(namespace=namespace, name=name, type="file")
+                for namespace, name in sorted(symlinks)
+            ]
+        )
     return facets
 
 
@@ -142,28 +215,6 @@ class BigQueryJobRunFacet(RunFacet):
             "https://raw.githubusercontent.com/apache/airflow/"
             f"providers-google/{provider_version}/airflow/providers/google/"
             "openlineage/BigQueryJobRunFacet.json"
-        )
-
-
-# TODO: remove BigQueryErrorRunFacet in next release
-@define
-class BigQueryErrorRunFacet(RunFacet):
-    """
-    Represents errors that can happen during execution of BigqueryExtractor.
-
-    :param clientError: represents errors originating in bigquery client
-    :param parserError: represents errors that happened during parsing SQL provided to bigquery
-    """
-
-    clientError: str | None = field(default=None)
-    parserError: str | None = field(default=None)
-
-    @staticmethod
-    def _get_schema() -> str:
-        return (
-            "https://raw.githubusercontent.com/apache/airflow/"
-            f"providers-google/{provider_version}/airflow/providers/google/"
-            "openlineage/BigQueryErrorRunFacet.json"
         )
 
 

@@ -86,7 +86,7 @@ hooks:
       - airflow.providers.elasticsearch.hooks.elasticsearch
 
 connection-types:
-  - hook-class-name: airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook
+  - hook-class-name: airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchSQLHook
     connection-type: elasticsearch
 
 logging:

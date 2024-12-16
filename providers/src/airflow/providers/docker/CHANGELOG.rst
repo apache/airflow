@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+main
+....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the Kubernetes provider package.
+  The following breaking changes were introduced:
+
+  * Decorators
+     * Deprecated parameter ``use_dill`` was removed. Please use ``serializer='dill'`` instead.
+  * Operators
+     * Deprecated parameter ``use_dill`` was removed. Please use ``serializer='dill'`` instead.
+     * Deprecated parameter ``skip_exit_code`` was removed. Please use ``skip_on_exit_code`` instead.
+     * Deprecated method ``get_hook()`` was removed. Please use ``hook`` property instead.
+
 3.14.1
 ......
 

@@ -132,7 +132,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.strings import to_boolean
-from airflow.utils.task_group import TaskGroup, task_group_to_dict
+from airflow.utils.task_group import TaskGroup, task_group_to_dict_legacy
 from airflow.utils.timezone import td_format, utcnow
 from airflow.utils.types import NOTSET, DagRunTriggeredByType
 from airflow.version import version
@@ -3228,6 +3228,7 @@ class Airflow(AirflowBaseView):
         else:
             return {"url": None, "error": f"No URL found for {link_name}"}, 404
 
+    @mark_fastapi_migration_done
     @expose("/object/graph_data")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
     @gzipped
@@ -3243,7 +3244,7 @@ class Airflow(AirflowBaseView):
                 task_ids_or_regex=root, include_upstream=filter_upstream, include_downstream=filter_downstream
             )
 
-        nodes = task_group_to_dict(dag.task_group)
+        nodes = task_group_to_dict_legacy(dag.task_group)
         edges = dag_edges(dag)
 
         data = {
@@ -4219,6 +4220,8 @@ class ConnectionModelView(AirflowModelView):
                     # value isn't an empty string.
                     if value != "":
                         extra[field_name] = value
+                    elif field_name in extra:
+                        del extra[field_name]
         if extra.keys():
             sensitive_unchanged_keys = set()
             for key, value in extra.items():
@@ -4294,7 +4297,7 @@ class PluginView(AirflowBaseView):
         """List loaded plugins."""
         plugins_manager.ensure_plugins_loaded()
         plugins_manager.initialize_extra_operators_links_plugins()
-        plugins_manager.initialize_web_ui_plugins()
+        plugins_manager.initialize_flask_plugins()
         plugins_manager.initialize_fastapi_plugins()
 
         plugins = []

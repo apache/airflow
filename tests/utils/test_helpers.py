@@ -44,8 +44,6 @@ from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 if TYPE_CHECKING:
     from airflow.jobs.job import Job
 
-pytestmark = pytest.mark.skip_if_database_isolation_mode
-
 
 @pytest.fixture
 def clear_db():

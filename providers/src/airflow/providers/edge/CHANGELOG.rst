@@ -27,6 +27,102 @@
 Changelog
 ---------
 
+0.9.5pre0
+.........
+
+Misc
+~~~~
+
+* ``Revert removal of Pydantic model support from PR 44552 to restore compatibility with Airflow 2.10.``
+
+0.9.4pre0
+.........
+
+Misc
+~~~~
+
+* ``Fix to keep edge executor and edge job table in sync. Important in multi scheduler deployments.``
+
+0.9.3pre0
+.........
+
+Misc
+~~~~
+
+* ``Handle purging of restarting edge jobs.``
+
+0.9.2pre0
+.........
+
+Misc
+~~~~
+
+* ``Fix check edge worker api call authentication with different base url. Authentication failed when Airflow is not installed in webserver root.``
+
+0.9.1pre0
+.........
+
+Misc
+~~~~
+
+* ``Make edge executor DB access is multi instance save.``
+
+0.9.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Remove dependency to Internal API after migration to FastAPI.``
+
+0.8.2pre0
+.........
+
+Misc
+~~~~
+
+* ``Migrate worker job calls to FastAPI.``
+
+0.8.1pre0
+.........
+
+Misc
+~~~~
+
+* ``Migrate worker log calls to FastAPI.``
+
+0.8.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Migrate worker registration and heartbeat to FastAPI.``
+
+0.7.1pre0
+.........
+
+Misc
+~~~~
+
+* ``Edge worker state is sent as 0 to DB if offline or unknown.``
+
+0.7.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Edge worker supports concurrency slots feature so that jobs which need more concurrency blocking other jobs beeing executed on the same worker in parallel.``
+
+0.6.2pre0
+.........
+
+Misc
+~~~~
+
+* ``Fix race that reporting status fails if the task has been cleaned in parallel.``
+
 0.6.1pre0
 .........
 

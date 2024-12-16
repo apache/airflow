@@ -76,7 +76,6 @@ operators:
   - integration-name: Apache Druid
     python-modules:
       - airflow.providers.apache.druid.operators.druid
-      - airflow.providers.apache.druid.operators.druid_check
 
 hooks:
   - integration-name: Apache Druid

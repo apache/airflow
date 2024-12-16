@@ -17,13 +17,10 @@
 
 from __future__ import annotations
 
-from typing import Annotated
-
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import HTTPException, Request, status
 from sqlalchemy import and_, func, select
-from sqlalchemy.orm import Session
 
-from airflow.api_fastapi.common.db.common import get_session
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.models import DagModel
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel, DagScheduleAssetReference
@@ -31,11 +28,11 @@ from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel, DagSc
 assets_router = AirflowRouter(tags=["Asset"])
 
 
-@assets_router.get("/next_run_assets/{dag_id}", include_in_schema=False)
+@assets_router.get("/next_run_assets/{dag_id}")
 def next_run_assets(
     dag_id: str,
     request: Request,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> dict:
     dag = request.app.state.dag_bag.get_dag(dag_id)
 

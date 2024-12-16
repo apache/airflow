@@ -41,33 +41,34 @@ def get_success_comment(branch: str, pr_url: str, pr_number: str):
 
 def get_failure_comment(branch: str, commit_sha_url: str, commit_sha: str):
     commit_shield_url = f"https://img.shields.io/badge/Commit-{commit_sha[:7]}-red"
-    comment = f"""### Backport failed to create: {branch}. View the failure log <a href='https://github.com/{os.getenv("REPOSITORY")}/actions/runs/{os.getenv("RUN_ID")}'> Run details </a>\n\n<table>
-            <tr>
-                <th>Status</th>
-                <th>Branch</th>
-                <th>Result</th>
-            </tr>
-            <tr>
-                <td>❌</td>
-                <td>{branch}</td>
-                <td><a href="{commit_sha_url}"><img src='{commit_shield_url}' alt='Commit Link'></a></td>
-            </tr>
-        </table>
+    comment = f"""### Backport failed to create: {branch}. View the failure log <a href='https://github.com/{os.getenv("REPOSITORY")}/actions/runs/{os.getenv("RUN_ID")}'> Run details </a>\n
+<table>
+    <tr>
+        <th>Status</th>
+        <th>Branch</th>
+        <th>Result</th>
+    </tr>
+    <tr>
+        <td>❌</td>
+        <td>{branch}</td>
+        <td><a href="{commit_sha_url}"><img src='{commit_shield_url}' alt='Commit Link'></a></td>
+    </tr>
+</table>
 
-        You can attempt to backport this manually by running:
+You can attempt to backport this manually by running:
 
-        ```bash
-        cherry_picker {commit_sha[:7]} {branch}
-        ```
+```bash
+cherry_picker {commit_sha[:7]} {branch}
+```
 
-        This should apply the commit to the {branch} branch and leave the commit in conflict state marking
-        the files that need manual conflict resolution.
+This should apply the commit to the {branch} branch and leave the commit in conflict state marking
+the files that need manual conflict resolution.
 
-        After you have resolved the conflicts, you can continue the backport process by running:
+After you have resolved the conflicts, you can continue the backport process by running:
 
-        ```bash
-        cherry_picker --continue
-        ```
+```bash
+cherry_picker --continue
+```
 """
     return comment
 

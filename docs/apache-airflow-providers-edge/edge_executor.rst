@@ -100,6 +100,7 @@ is included in the provider package and install it on the webserver and use the
 Some caveats:
 
 - Tasks can consume resources. Make sure your worker has enough resources to run ``worker_concurrency`` tasks
+- Make sure that the ``pool_slots`` of a Tasks matches with the ``worker_concurrency`` of the worker
 - Queue names are limited to 256 characters
 
 See :doc:`apache-airflow:administration-and-deployment/modules_management` for details on how Python and Airflow manage modules.
@@ -210,6 +211,51 @@ could take thousands of tasks without a problem), or from an environment
 perspective (you want a worker running from a specific location where required
 infrastructure is available).
 
+Concurrency slot handling
+-------------------------
+
+Some tasks may need more resources than other tasks, to handle these use case the Edge worker supports
+concurrency slot handling. The logic behind this is the same as the pool slot feature
+see :doc:`apache-airflow:administration-and-deployment/pools`.
+Edge worker reuses ``pool_slots`` of task_instance to keep number if task instance parameter as low as possible.
+The ``pool_slots`` value works together with the ``worker_concurrency`` value which is defined during start of worker.
+If a task needs more resources, the ``pool_slots`` value can be increased to reduce number of tasks running in parallel.
+The value can be used to block other tasks from being executed in parallel on the same worker.
+A ``pool_slots`` of 2 and a ``worker_concurrency`` of 3 means
+that a worker which executes this task can only execute a job with a ``pool_slots`` of 1 in parallel.
+If no ``pool_slots`` is defined for a task the default value is 1. The ``pool_slots`` value only supports
+integer values.
+
+Here is an example setting pool_slots for a task:
+
+.. code-block:: python
+
+    import os
+
+    import pendulum
+
+    from airflow import DAG
+    from airflow.decorators import task
+    from airflow.example_dags.libs.helper import print_stuff
+    from airflow.settings import AIRFLOW_HOME
+
+    with DAG(
+        dag_id="example_edge_pool_slots",
+        schedule=None,
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        catchup=False,
+        tags=["example"],
+    ) as dag:
+
+        @task(executor="EdgeExecutor", pool_slots=2)
+        def task_with_template():
+            print_stuff()
+
+        task_with_template()
+
+
+
+
 Feature Backlog of MVP to Release Readiness
 -------------------------------------------
 
@@ -259,6 +305,3 @@ The following features are known missing and will be implemented in increments:
   - Describe more details on deployment options and tuning
   - Provide scripts and guides to install edge components as service (systemd)
   - Extend Helm-Chart for needed support
-    While it is in not-ready state, a wheel release package must be manually built from source tree
-    via ``breeze release-management prepare-provider-packages --include-not-ready-providers edge``
-    and then installed via pip from the generated wheel file.

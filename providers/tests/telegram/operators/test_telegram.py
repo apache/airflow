@@ -76,7 +76,7 @@ class TestTelegramOperator:
         with pytest.raises(airflow.exceptions.AirflowException) as ctx:
             TelegramOperator(task_id="telegram", telegram_conn_id=None)
 
-        assert "No valid Telegram connection id supplied." == str(ctx.value)
+        assert str(ctx.value) == "No valid Telegram connection id supplied."
 
     @mock.patch("airflow.providers.telegram.operators.telegram.TelegramHook")
     def test_should_throw_exception_if_telegram_hook_throws_any_exception(self, mock_telegram_hook):
@@ -148,7 +148,7 @@ class TestTelegramOperator:
             text="some non empty text - higher precedence",
             telegram_kwargs={"custom_arg": "value", "text": "some text, that will be ignored"},
         )
-        assert ("text", "chat_id") == hook.template_fields
+        assert hook.template_fields == ("text", "chat_id")
 
     @mock.patch("airflow.providers.telegram.operators.telegram.TelegramHook")
     def test_should_return_templatized_text_field(self, mock_hook):

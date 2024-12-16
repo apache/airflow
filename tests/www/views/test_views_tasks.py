@@ -49,9 +49,10 @@ from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
     delete_roles,
     delete_user,
 )
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, BashOperator
+from tests_common.test_utils.compat import BashOperator
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.www import (
     check_content_in_response,
     check_content_not_in_response,
@@ -392,7 +393,7 @@ def test_rendered_k8s(admin_client):
 def test_rendered_k8s_without_k8s(admin_client):
     url = f"rendered-k8s?task_id=runme_0&dag_id=example_bash_operator&logical_date={DEFAULT_VAL}"
     resp = admin_client.get(url, follow_redirects=True)
-    assert 404 == resp.status_code
+    assert resp.status_code == 404
 
 
 def test_tree_trigger_origin_tree_view(app, admin_client):

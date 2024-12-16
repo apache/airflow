@@ -431,8 +431,8 @@ def test_has_outlet_asset_flag(admin_client, dag_maker, session, app, monkeypatc
             lineagefile = File("/tmp/does_not_exist")
             EmptyOperator(task_id="task1")
             EmptyOperator(task_id="task2", outlets=[lineagefile])
-            EmptyOperator(task_id="task3", outlets=[Asset("foo"), lineagefile])
-            EmptyOperator(task_id="task4", outlets=[Asset("foo")])
+            EmptyOperator(task_id="task3", outlets=[Asset(name="foo", uri="s3://bucket/key"), lineagefile])
+            EmptyOperator(task_id="task4", outlets=[Asset(name="foo", uri="s3://bucket/key")])
 
         m.setattr(app, "dag_bag", dag_maker.dagbag)
         resp = admin_client.get(f"/object/grid_data?dag_id={DAG_ID}", follow_redirects=True)
@@ -471,7 +471,7 @@ def test_has_outlet_asset_flag(admin_client, dag_maker, session, app, monkeypatc
 @pytest.mark.need_serialized_dag
 def test_next_run_assets(admin_client, dag_maker, session, app, monkeypatch):
     with monkeypatch.context() as m:
-        assets = [Asset(uri=f"s3://bucket/key/{i}") for i in [1, 2]]
+        assets = [Asset(uri=f"s3://bucket/key/{i}", name=f"name_{i}", group="test-group") for i in [1, 2]]
 
         with dag_maker(dag_id=DAG_ID, schedule=assets, serialized=True, session=session):
             EmptyOperator(task_id="task1")
@@ -508,7 +508,12 @@ def test_next_run_assets(admin_client, dag_maker, session, app, monkeypatch):
 
     assert resp.status_code == 200, resp.json
     assert resp.json == {
-        "asset_expression": {"all": ["s3://bucket/key/1", "s3://bucket/key/2"]},
+        "asset_expression": {
+            "all": [
+                {"asset": {"uri": "s3://bucket/key/1", "name": "name_1", "group": "test-group"}},
+                {"asset": {"uri": "s3://bucket/key/2", "name": "name_2", "group": "test-group"}},
+            ]
+        },
         "events": [
             {"id": asset1_id, "uri": "s3://bucket/key/1", "lastUpdate": "2022-08-02T02:00:00+00:00"},
             {"id": asset2_id, "uri": "s3://bucket/key/2", "lastUpdate": None},

@@ -49,6 +49,7 @@ if TYPE_CHECKING:
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.cli.cli_config import GroupCommand
+    from airflow.executors import workloads
     from airflow.executors.executor_utils import ExecutorName
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -118,7 +119,6 @@ class BaseExecutor(LoggingMixin):
     supports_sentry: bool = False
 
     is_local: bool = False
-    is_single_threaded: bool = False
     is_production: bool = True
 
     change_sensor_mode_to_reschedule: bool = False
@@ -128,9 +128,10 @@ class BaseExecutor(LoggingMixin):
     name: None | ExecutorName = None
     callback_sink: BaseCallbackSink | None = None
 
-    def __init__(self, parallelism: int = PARALLELISM):
+    def __init__(self, parallelism: int = PARALLELISM, team_id: str | None = None):
         super().__init__()
         self.parallelism: int = parallelism
+        self.team_id: str | None = team_id
         self.queued_tasks: dict[TaskInstanceKey, QueuedTaskInstanceType] = {}
         self.running: set[TaskInstanceKey] = set()
         self.event_buffer: dict[TaskInstanceKey, EventBufferValueType] = {}
@@ -169,6 +170,9 @@ class BaseExecutor(LoggingMixin):
             self.queued_tasks[task_instance.key] = (command, priority, queue, task_instance)
         else:
             self.log.error("could not queue task %s", task_instance.key)
+
+    def queue_workload(self, workload: workloads.All) -> None:
+        raise ValueError(f"Un-handled workload kind {type(workload).__name__!r} in {type(self).__name__}")
 
     def queue_task_instance(
         self,
@@ -409,6 +413,9 @@ class BaseExecutor(LoggingMixin):
                 self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
                 self.running.add(key)
 
+    # TODO: This should not be using `TaskInstanceState` here, this is just "did the process complete, or did
+    # it die". It is possible for the task itself to finish with success, but the state of the task to be set
+    # to FAILED. By using TaskInstanceState enum here it confuses matters!
     def change_state(
         self, key: TaskInstanceKey, state: TaskInstanceState, info=None, remove_running=True
     ) -> None:

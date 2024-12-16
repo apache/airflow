@@ -19,11 +19,12 @@ from __future__ import annotations
 from collections.abc import Iterator, Sequence
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from airflow.sdk.definitions.asset import BaseAsset
+from airflow.sdk.definitions.asset import AssetUniqueKey, BaseAsset
 from airflow.typing_compat import Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from pendulum import DateTime
+    from sqlalchemy.orm import Session
 
     from airflow.sdk.definitions.asset import Asset, AssetAlias
     from airflow.serialization.dag_dependency import DagDependency
@@ -52,10 +53,10 @@ class _NullAsset(BaseAsset):
     def as_expression(self) -> Any:
         return None
 
-    def evaluate(self, statuses: dict[str, bool]) -> bool:
+    def evaluate(self, statuses: dict[str, bool], *, session: Session | None = None) -> bool:
         return False
 
-    def iter_assets(self) -> Iterator[tuple[str, Asset]]:
+    def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
         return iter(())
 
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:

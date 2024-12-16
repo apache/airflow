@@ -19,6 +19,8 @@
 name: "CodeQL"
 
 on:  # yamllint disable-line rule:truthy
+  pull_request:
+    branches: ['main', 'v[0-9]+-[0-9]+-test', 'v[0-9]+-[0-9]+-stable']
   push:
     branches: [main]
   schedule:
@@ -34,6 +36,8 @@ jobs:
   selective-checks:
     name: Selective checks
     runs-on: ["ubuntu-22.04"]
+    env:
+      GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
       needs-python-scans: ${{ steps.selective-checks.outputs.needs-python-scans }}
       needs-javascript-scans: ${{ steps.selective-checks.outputs.needs-javascript-scans }}
@@ -45,9 +49,13 @@ jobs:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+      - name: "Get information about the Workflow"
+        id: source-run-info
+        run: breeze ci get-workflow-info 2>> ${GITHUB_OUTPUT}
       - name: Selective checks
         id: selective-checks
         env:
+          PR_LABELS: "${{ steps.source-run-info.outputs.pr-labels }}"
           COMMIT_REF: "${{ github.sha }}"
           VERBOSE: "false"
         run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
@@ -78,7 +86,7 @@ jobs:
 
       # Initializes the CodeQL tools for scanning.
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v2
+        uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
           # If you wish to specify custom queries, you can do so here or in a config file.
@@ -92,13 +100,13 @@ jobs:
       # Autobuild attempts to build any compiled languages  (C/C++, C#, or Java).
       # If this step fails, then you should remove it and run the build manually (see below)
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v2
+        uses: github/codeql-action/autobuild@v3
         if: |
           matrix.language == 'python' && needs.selective-checks.outputs.needs-python-scans == 'true' ||
           matrix.language == 'javascript' && needs.selective-checks.outputs.needs-javascript-scans == 'true'
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v2
+        uses: github/codeql-action/analyze@v3
         if: |
           matrix.language == 'python' && needs.selective-checks.outputs.needs-python-scans == 'true' ||
           matrix.language == 'javascript' && needs.selective-checks.outputs.needs-javascript-scans == 'true'
