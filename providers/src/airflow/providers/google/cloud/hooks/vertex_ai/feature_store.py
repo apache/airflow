@@ -107,7 +107,7 @@ class FeatureStoreHook(GoogleBaseHook):
 
         except Exception as e:
             self.log.error("Failed to get feature view sync: %s", str(e))
-            raise AirflowException
+            raise AirflowException(str(e))
 
     @GoogleBaseHook.fallback_to_default_project_id
     def sync_feature_view(
@@ -144,4 +144,4 @@ class FeatureStoreHook(GoogleBaseHook):
 
         except Exception as e:
             self.log.error("Failed to sync feature view: %s", str(e))
-            raise AirflowException
+            raise AirflowException(str(e))
