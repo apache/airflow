@@ -28,6 +28,8 @@ from airflow.sdk.definitions.asset import Asset, AssetRef, BaseAsset
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterator, Mapping
 
+    from sqlalchemy.orm import Session
+
     from airflow.io.path import ObjectStoragePath
     from airflow.models.param import ParamsDict
     from airflow.sdk.definitions.asset import AssetAlias, AssetUniqueKey
@@ -120,8 +122,8 @@ class MultiAssetDefinition(BaseAsset):
         with self._source.create_dag(dag_id=self._function.__name__):
             _AssetMainOperator.from_definition(self)
 
-    def evaluate(self, statuses: dict[str, bool]) -> bool:
-        return all(o.evaluate(statuses=statuses) for o in self._source.outlets)
+    def evaluate(self, statuses: dict[str, bool], *, session: Session | None = None) -> bool:
+        return all(o.evaluate(statuses=statuses, session=session) for o in self._source.outlets)
 
     def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
         for o in self._source.outlets:

@@ -335,8 +335,8 @@ export class AssetService {
         source_task_id: data.sourceTaskId,
         source_run_id: data.sourceRunId,
         source_map_index: data.sourceMapIndex,
-        timestampGte: data.timestampGte,
-        timestampLte: data.timestampLte,
+        timestamp_gte: data.timestampGte,
+        timestamp_lte: data.timestampLte,
       },
       errors: {
         401: "Unauthorized",
