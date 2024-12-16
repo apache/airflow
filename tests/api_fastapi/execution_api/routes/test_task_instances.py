@@ -438,7 +438,7 @@ class TestTIHealthEndpoint:
         assert ti.state == State.FAILED
         assert ti.next_method is None
         assert ti.next_kwargs is None
-        assert ti.duration == 3599.999986588955
+        assert ti.duration == 3600.00
 
 
 class TestTIPutRTIF:
