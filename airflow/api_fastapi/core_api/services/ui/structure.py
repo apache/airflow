@@ -15,6 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""
+Private service for dag structure.
+
+:meta private:
+"""
+
 from __future__ import annotations
 
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny, BaseAsset
