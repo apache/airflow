@@ -24,4 +24,4 @@ updates:
       - "/task_sdk"
       - "/"
     schedule:
-      interval: "daily"
+      interval: daily
