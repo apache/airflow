@@ -23,11 +23,6 @@ from typing import TYPE_CHECKING, Any
 
 from attr import define, field
 
-if TYPE_CHECKING:
-    from google.cloud.bigquery.table import Table
-
-    from airflow.providers.common.compat.openlineage.facet import Dataset
-
 from airflow.providers.common.compat.openlineage.facet import (
     BaseFacet,
     ColumnLineageDatasetFacet,
@@ -42,6 +37,12 @@ from airflow.providers.common.compat.openlineage.facet import (
 )
 from airflow.providers.google import __version__ as provider_version
 from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
+
+if TYPE_CHECKING:
+    from google.cloud.bigquery.table import Table
+
+    from airflow.providers.common.compat.openlineage.facet import Dataset
+
 
 BIGQUERY_NAMESPACE = "bigquery"
 BIGQUERY_URI = "bigquery"
