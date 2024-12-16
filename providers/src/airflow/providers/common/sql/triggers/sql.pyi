@@ -28,24 +28,20 @@
 # You can read more in the README_API.md file
 #
 """
-Definition of the public interface for airflow.providers.common.sql.sensors.sql
+Definition of the public interface for airflow.providers.common.sql.triggers.sql
 isort:skip_file
 """
+from airflow.triggers.base import BaseTrigger, TriggerEvent
+
 from collections.abc import AsyncIterator
 from typing import Any
-
-from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
 class SQLExecuteQueryTrigger(BaseTrigger):
     def __init__(
-            self,
-            sql: str | list[str],
-            conn_id: str,
-            hook_params: dict | None = None,
-            **kwargs,
+        self, sql: str | list[str], conn_id: str, hook_params: dict | None = None, **kwargs,
     ) -> None: ...
 
     def serialize(self) -> tuple[str, dict[str, Any]]: ...
 
-    async def run(self) -> AsyncIterator[TriggerEvent]:...
+    async def run(self) -> AsyncIterator[TriggerEvent]: ...
