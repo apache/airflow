@@ -359,6 +359,7 @@ class Context(MutableMapping[str, Any]):
         "tomorrow_ds_nodash": [],
         "yesterday_ds": [],
         "yesterday_ds_nodash": [],
+        "conf": [],
     }
 
     def __init__(self, context: MutableMapping[str, Any] | None = None, **kwargs: Any) -> None:
