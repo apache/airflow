@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import contextlib
+import re
 from io import StringIO
 from unittest import mock
 
@@ -237,22 +238,18 @@ class TestCliConfigGetValue:
 
 
 class TestConfigLint:
-    from airflow.cli.commands.remote_commands.config_command import CONFIGS_CHANGES
-
-    @pytest.mark.parametrize("removed_config", CONFIGS_CHANGES)
+    @pytest.mark.parametrize("removed_config", config_command.CONFIGS_CHANGES)
     def test_lint_detects_removed_configs(self, removed_config):
         with mock.patch("airflow.configuration.conf.has_option", return_value=True):
             with contextlib.redirect_stdout(StringIO()) as temp_stdout:
                 config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
 
             output = temp_stdout.getvalue()
-            assert (
-                f"Removed deprecated `{removed_config.option}` configuration parameter from `{removed_config.section}` section."
-                in output
-            )
 
-            if removed_config.suggestion:
-                assert removed_config.suggestion in output
+        normalized_output = re.sub(r"\s+", " ", output.strip())
+        normalized_message = re.sub(r"\s+", " ", removed_config.message.strip())
+
+        assert normalized_message in normalized_output
 
     @pytest.mark.parametrize(
         "section, option, suggestion",
@@ -260,7 +257,7 @@ class TestConfigLint:
             (
                 "core",
                 "check_slas",
-                "The SLA feature is removed in Airflow 3.0, to be replaced with Airflow Alerts in Airflow 3.1",
+                "The SLA feature is removed in Airflow 3.0, to be replaced with Airflow Alerts in future",
             ),
             (
                 "core",
@@ -280,12 +277,14 @@ class TestConfigLint:
                 config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
 
             output = temp_stdout.getvalue()
-            assert (
-                f"Removed deprecated `{option}` configuration parameter from `{section}` section." in output
-            )
 
-            if suggestion:
-                assert suggestion in output
+        normalized_output = re.sub(r"\s+", " ", output.strip())
+
+        expected_message = f"Removed deprecated `{option}` configuration parameter from `{section}` section."
+        assert expected_message in normalized_output
+
+        if suggestion:
+            assert suggestion in normalized_output
 
     def test_lint_specific_section_option(self):
         with mock.patch("airflow.configuration.conf.has_option", return_value=True):
@@ -297,7 +296,13 @@ class TestConfigLint:
                 )
 
             output = temp_stdout.getvalue()
-            assert "Removed deprecated `check_slas` configuration parameter from `core` section." in output
+
+        normalized_output = re.sub(r"\s+", " ", output.strip())
+
+        assert (
+            "Removed deprecated `check_slas` configuration parameter from `core` section."
+            in normalized_output
+        )
 
     def test_lint_with_invalid_section_option(self):
         with mock.patch("airflow.configuration.conf.has_option", return_value=False):
@@ -309,7 +314,10 @@ class TestConfigLint:
                 )
 
             output = temp_stdout.getvalue()
-            assert "No issues found in your airflow.cfg." in output
+
+        normalized_output = re.sub(r"\s+", " ", output.strip())
+
+        assert "No issues found in your airflow.cfg." in normalized_output
 
     def test_lint_detects_multiple_issues(self):
         with mock.patch(
@@ -320,23 +328,89 @@ class TestConfigLint:
                 config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
 
             output = temp_stdout.getvalue()
-            assert "Removed deprecated `check_slas` configuration parameter from `core` section." in output
-            assert (
-                "Removed deprecated `strict_asset_uri_validation` configuration parameter from `core` section."
-                in output
-            )
 
-    def test_lint_detects_renamed_configs(self):
-        renamed_config = config_command.CONFIGS_CHANGES[0]
+        normalized_output = re.sub(r"\s+", " ", output.strip())
+
+        assert (
+            "Removed deprecated `check_slas` configuration parameter from `core` section."
+            in normalized_output
+        )
+        assert (
+            "Removed deprecated `strict_asset_uri_validation` configuration parameter from `core` section."
+            in normalized_output
+        )
+
+    @pytest.mark.parametrize(
+        "removed_configs",
+        [
+            [
+                (
+                    "core",
+                    "check_slas",
+                    "The SLA feature is removed in Airflow 3.0, to be replaced with Airflow Alerts in future",
+                ),
+                (
+                    "core",
+                    "strict_asset_uri_validation",
+                    "Asset URI with a defined scheme will now always be validated strictly, raising a hard error on validation failure.",
+                ),
+                (
+                    "logging",
+                    "enable_task_context_logger",
+                    "Remove TaskContextLogger: Replaced by the Log table for better handling of task log messages outside the execution context.",
+                ),
+            ],
+            [
+                ("webserver", "allow_raw_html_descriptions", ""),
+                ("webserver", "session_lifetime_days", "Please use `session_lifetime_minutes`."),
+            ],
+        ],
+    )
+    def test_lint_detects_multiple_removed_configs(self, removed_configs):
         with mock.patch("airflow.configuration.conf.has_option", return_value=True):
             with contextlib.redirect_stdout(StringIO()) as temp_stdout:
                 config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
 
             output = temp_stdout.getvalue()
-            if renamed_config.renamed_to:
-                new_section, new_option = renamed_config.renamed_to
-                assert (
-                    f"Removed deprecated `{renamed_config.option}` configuration parameter from `{renamed_config.section}` section."
-                    in output
-                )
-                assert f"Please use `{new_option}` from section `{new_section}` instead." in output
+
+        normalized_output = re.sub(r"\s+", " ", output.strip())
+
+        for section, option, suggestion in removed_configs:
+            expected_message = (
+                f"Removed deprecated `{option}` configuration parameter from `{section}` section."
+            )
+            assert expected_message in normalized_output
+
+            if suggestion:
+                assert suggestion in normalized_output
+
+    @pytest.mark.parametrize(
+        "renamed_configs",
+        [
+            # Case 1: Renamed configurations within the same section
+            [
+                ("core", "non_pooled_task_slot_count", "core", "default_pool_task_slot_count"),
+                ("scheduler", "processor_poll_interval", "scheduler", "scheduler_idle_sleep_time"),
+            ],
+            # Case 2: Renamed configurations across sections
+            [
+                ("admin", "hide_sensitive_variable_fields", "core", "hide_sensitive_var_conn_fields"),
+                ("core", "worker_precheck", "celery", "worker_precheck"),
+            ],
+        ],
+    )
+    def test_lint_detects_renamed_configs(self, renamed_configs):
+        with mock.patch("airflow.configuration.conf.has_option", return_value=True):
+            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+                config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
+
+            output = temp_stdout.getvalue()
+
+        normalized_output = re.sub(r"\s+", " ", output.strip())
+
+        for old_section, old_option, new_section, new_option in renamed_configs:
+            if old_section == new_section:
+                expected_message = f"`{old_option}` configuration parameter renamed to `{new_option}` in the `{old_section}` section."
+            else:
+                expected_message = f"`{old_option}` configuration parameter moved from `{old_section}` section to `{new_section}` section as `{new_option}`."
+            assert expected_message in normalized_output

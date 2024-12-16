@@ -1,0 +1,15 @@
+Airflow CLI command ``airflow config lint`` added
+
+The ``airflow config lint`` command has been introduced to help users migrate from Airflow 2.x to 3.0 by identifying removed or renamed configuration parameters in airflow.cfg.
+
+This command provides actionable feedback and highlights renamed parameters with guidance for transitioning to their new names or sections.
+
+* Types of change
+
+  * [ ] DAG changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [x] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency change

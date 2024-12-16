@@ -860,23 +860,28 @@ ARG_OPTION = Arg(
 
 ARG_LINT_CONFIG_SECTION = Arg(
     ("--section",),
-    help="The section name to lint in the airflow config.",
+    help="The section name(s) to lint in the airflow config.",
+    type=string_list_type,
 )
 ARG_LINT_CONFIG_OPTION = Arg(
     ("--option",),
-    help="The option name to lint in the airflow config.",
+    help="The option name(s) to lint in the airflow config.",
+    type=string_list_type,
 )
 ARG_LINT_CONFIG_IGNORE_SECTION = Arg(
     ("--ignore-section",),
-    help="The section name to ignore to lint in the airflow config.",
+    help="The section name(s) to ignore to lint in the airflow config.",
+    type=string_list_type,
 )
 ARG_LINT_CONFIG_IGNORE_OPTION = Arg(
     ("--ignore-option",),
-    help="The option name to ignore to lint in the airflow config.",
+    help="The option name(s) to ignore to lint in the airflow config.",
+    type=string_list_type,
 )
 ARG_OPTIONAL_SECTION = Arg(
     ("--section",),
-    help="The section name",
+    help="The section name(s).",
+    type=string_list_type,
 )
 
 # jobs check
@@ -1752,7 +1757,7 @@ CONFIG_COMMANDS = (
     ),
     ActionCommand(
         name="lint",
-        help="lint options for the configuration changes while migrating from airflow 2.x to airflow 3.0",
+        help="lint options for the configuration changes while migrating from Airflow 2.x to Airflow 3.0",
         func=lazy_load_command("airflow.cli.commands.remote_commands.config_command.lint_config"),
         args=(
             ARG_LINT_CONFIG_SECTION,
