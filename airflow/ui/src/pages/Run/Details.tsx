@@ -16,19 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading } from "@chakra-ui/react";
+import { Box, Flex, Heading } from "@chakra-ui/react";
 import dayjs from "dayjs";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import {
   useTaskInstanceServiceGetTaskInstance,
-  useTaskInstanceServiceGetTaskInstanceTryDetails,
+  useTaskInstanceServiceGetTaskInstanceTries,
 } from "openapi/queries";
-import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 import { Button, Status } from "src/components/ui";
 
+// import TrySelector from "src/components/TrySelector";
 
 export const Details = () => {
   const { dagId = "", runId = "", taskId = "" } = useParams();
@@ -40,20 +41,50 @@ export const Details = () => {
   });
 
   const finalTryNumber = taskInstance?.try_number ?? 1;
-  const tries = Array(finalTryNumber)
-    .fill(undefined)
-    .map((_, count) => count + 1);
+
+  const { data: taskInstanceTries } =
+    useTaskInstanceServiceGetTaskInstanceTries({
+      dagId,
+      dagRunId: runId,
+      mapIndex: taskInstance?.map_index ?? -1,
+      taskId,
+    });
+
+  const [selectedTryNumber, setSelectedTryNumber] = useState(
+    finalTryNumber || 1,
+  );
+
+  // update state if the final try number changes
+  useEffect(() => {
+    if (finalTryNumber) {
+      setSelectedTryNumber(finalTryNumber);
+    }
+  }, [finalTryNumber]);
+
+  const tryInstance = taskInstanceTries?.task_instances.find(
+    (ti) => ti.try_number === selectedTryNumber,
+  );
+
+  const instance =
+    selectedTryNumber !== finalTryNumber && finalTryNumber && finalTryNumber > 1
+      ? tryInstance
+      : taskInstance;
 
   return (
-    <>
+    <Box flexGrow={1} mt={3}>
       <Heading size="lg">Task Tries</Heading>
-      {tries.map((key) => (
-        <Button key={key} variant="ghost">
-          <Status key={key} state={taskInstance?.state}>
-            {key}
-          </Status>
-        </Button>
-      ))}
-    </>
+      <Flex flexWrap="wrap" my={1}>
+        {taskInstanceTries?.task_instances.map((ti) => (
+          <Button
+            colorPalette="blue"
+            key={ti.try_number}
+            variant={selectedTryNumber === ti.try_number ? "solid" : "ghost"}
+          >
+            {ti.try_number}
+            <Status ml={2} state={ti.state} />
+          </Button>
+        ))}
+      </Flex>
+    </Box>
   );
 };
