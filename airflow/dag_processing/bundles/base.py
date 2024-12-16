@@ -40,6 +40,7 @@ class BaseDagBundle(ABC):
     multiple versions of the same bundle in use at the same time. The DAG processor will always use the latest version.
 
     :param name: String identifier for the DAG bundle
+    :param refresh_interval: How often the bundle should be refreshed from the source (in seconds)
     :param version: Version of the DAG bundle (Optional)
     """
 
