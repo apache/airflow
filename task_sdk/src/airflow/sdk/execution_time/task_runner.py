@@ -268,6 +268,8 @@ def run(ti: RuntimeTaskInstance, log: Logger):
             state=TerminalTIState.FAILED,
             end_date=datetime.now(tz=timezone.utc),
         )
+
+        # TODO: Run task failure callbacks here
     except (AirflowTaskTimeout, AirflowException, AirflowTaskTerminated):
         ...
     except SystemExit:
