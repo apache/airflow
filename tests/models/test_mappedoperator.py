@@ -37,7 +37,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.python import PythonOperator
-from airflow.utils.state import TaskInstanceState
+from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.trigger_rule import TriggerRule
@@ -1784,3 +1784,87 @@ class TestMappedSetupTeardown:
             "group.last": {0: "success", 1: "skipped", 2: "success"},
         }
         assert states == expected
+
+
+def test_mapped_tasks_in_mapped_task_group_waits_for_upstreams_to_complete(dag_maker, session):
+    """Test that one failed trigger rule works well in mapped task group"""
+    with dag_maker() as dag:
+
+        @dag.task
+        def t1():
+            return [1, 2, 3]
+
+        @task_group("tg1")
+        def tg1(a):
+            @dag.task()
+            def t2(a):
+                return a
+
+            @dag.task(trigger_rule=TriggerRule.ONE_FAILED)
+            def t3(a):
+                return a
+
+            t2(a) >> t3(a)
+
+        t = t1()
+        tg1.expand(a=t)
+
+    dr = dag_maker.create_dagrun()
+    ti = dr.get_task_instance(task_id="t1")
+    ti.run()
+    dr.task_instance_scheduling_decisions()
+    ti3 = dr.get_task_instance(task_id="tg1.t3")
+    assert not ti3.state
+
+
+def test_mapped_tasks_in_mapped_task_group_waits_for_upstreams_to_complete__mapped_skip_with_all_success(
+    dag_maker, session
+):
+    with dag_maker():
+
+        @task
+        def make_list():
+            return [4, 42, 2]
+
+        @task
+        def double(n):
+            if n == 42:
+                raise AirflowSkipException("42")
+            return n * 2
+
+        @task
+        def last(n):
+            print(n)
+
+        @task_group
+        def group(n: int) -> None:
+            last(double(n))
+
+        list = make_list()
+        group.expand(n=list)
+
+    dr = dag_maker.create_dagrun()
+
+    def _one_scheduling_decision_iteration() -> dict[tuple[str, int], TaskInstance]:
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        return {(ti.task_id, ti.map_index): ti for ti in decision.schedulable_tis}
+
+    tis = _one_scheduling_decision_iteration()
+    tis["make_list", -1].run()
+    assert tis["make_list", -1].state == State.SUCCESS
+
+    tis = _one_scheduling_decision_iteration()
+    tis["group.double", 0].run()
+    tis["group.double", 1].run()
+    tis["group.double", 2].run()
+
+    assert tis["group.double", 0].state == State.SUCCESS
+    assert tis["group.double", 1].state == State.SKIPPED
+    assert tis["group.double", 2].state == State.SUCCESS
+
+    tis = _one_scheduling_decision_iteration()
+    tis["group.last", 0].run()
+    tis["group.last", 2].run()
+    assert tis["group.last", 0].state == State.SUCCESS
+    assert dr.get_task_instance("group.last", map_index=1, session=session).state == State.SKIPPED
+    assert tis["group.last", 2].state == State.SUCCESS
