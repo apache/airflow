@@ -48,18 +48,6 @@ class TestDeadline:
     @staticmethod
     def _clean_db():
         db.clear_db_deadline()
-        db.clear_db_dags()
-        db.clear_db_runs()
-
-    @pytest.fixture
-    def deadline_orm(self):
-        return Deadline(
-            deadline=datetime(2024, 12, 4, 16, 00, 0),
-            callback=my_callback.__module__,
-            callback_kwargs={"to": "the_boss@work.com"},
-            dag_id=DAG_ID,
-            run_id=RUN_ID,
-        )
 
     @pytest.fixture
     def create_dagrun(self, dag_maker, session):
@@ -69,10 +57,17 @@ class TestDeadline:
 
         session.commit()
         assert session.query(DagRun).count() == 1
+        return session.query(DagRun).one().id
 
-    def test_add_deadline(self, create_dagrun, deadline_orm, session):
+    def test_add_deadline(self, create_dagrun, session):
         assert session.query(Deadline).count() == 0
-        assert session.query(DagRun).first().id == RUN_ID
+        deadline_orm = Deadline(
+            deadline=datetime(2024, 12, 4, 16, 00, 0),
+            callback=my_callback.__module__,
+            callback_kwargs={"to": "the_boss@work.com"},
+            dag_id=DAG_ID,
+            run_id=create_dagrun,
+        )
 
         Deadline.add_deadline(deadline_orm)
 
