@@ -33,6 +33,7 @@ from botocore.exceptions import ClientError
 from inflection import camelize
 from semver import VersionInfo
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models import TaskInstance
@@ -1250,6 +1251,54 @@ class TestEcsExecutorConfig:
             with pytest.raises(ValueError) as raised:
                 ecs_executor_config.build_task_kwargs()
         assert raised.match("At least one subnet is required to run a task.")
+
+    def test_team_config(self):
+        # Team name to be used throughout
+        team_name = "team_a"
+        # Setup configuration. Including executor config that should not be used and a
+        # multi_team_configurations setting that will enable the team config below
+        conf_overrides = {
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.REGION_NAME): "us-west-1",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.CLUSTER): "some-cluster",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.CONTAINER_NAME): "container-name",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.TASK_DEFINITION): "some-task-def",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.LAUNCH_TYPE): "FARGATE",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.PLATFORM_VERSION): "LATEST",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.ASSIGN_PUBLIC_IP): "False",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.SECURITY_GROUPS): "sg1,sg2",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.SUBNETS): "sub1,sub2",
+            # The path isn't important here because we won't load the config from a file. Instead we will
+            # load from the below dictionary. Here we are just setting the team name.
+            ("core", "multi_team_configurations"): f"path_wont_be_used:{team_name}",
+        }
+        with conf_vars(conf_overrides):
+            # Create executor configuration for the team.
+            from_dict = {
+                CONFIG_GROUP_NAME: {
+                    AllEcsConfigKeys.CLUSTER: "team_a_cluster",
+                    AllEcsConfigKeys.CONTAINER_NAME: "team_a_container",
+                    AllEcsConfigKeys.LAUNCH_TYPE: "FARGATE",
+                    AllEcsConfigKeys.SUBNETS: "team_a_sub1,team_a_sub2",
+                    AllEcsConfigKeys.REGION_NAME: "us-west-2",
+                    AllEcsConfigKeys.TASK_DEFINITION: "team_a_task_def",
+                    AllEcsConfigKeys.PLATFORM_VERSION: "LATEST",
+                    AllEcsConfigKeys.ASSIGN_PUBLIC_IP: "False",
+                    AllEcsConfigKeys.SECURITY_GROUPS: "sg1,sg2",
+                },
+            }
+            try:
+                conf.setup_team_configs(from_dict=from_dict)
+                executor = AwsEcsExecutor(team_id=team_name)
+                task_kwargs = ecs_executor_config.build_task_kwargs(executor.conf)
+
+                assert task_kwargs["cluster"] == "team_a_cluster"
+                assert task_kwargs["overrides"]["containerOverrides"][0]["name"] == "team_a_container"
+                assert task_kwargs["networkConfiguration"]["awsvpcConfiguration"]["subnets"] == [
+                    "team_a_sub1",
+                    "team_a_sub2",
+                ]
+            finally:
+                conf._team_configs.pop(team_name, None)
 
     @conf_vars({(CONFIG_GROUP_NAME, AllEcsConfigKeys.CONTAINER_NAME): "container-name"})
     def test_config_defaults_are_applied(self, assign_subnets):
