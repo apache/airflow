@@ -76,12 +76,12 @@ class AwsAuthManager(BaseAuthManager):
 
     Leverages AWS services such as Amazon Identity Center and Amazon Verified Permissions to perform
     authentication and authorization in Airflow.
-
-    :param appbuilder: the flask app builder
     """
 
-    def __init__(self, appbuilder: AirflowAppBuilder) -> None:
-        super().__init__(appbuilder)
+    appbuilder: AirflowAppBuilder | None = None
+
+    def __init__(self) -> None:
+        super().__init__()
         self._check_avp_schema_version()
 
     @cached_property
