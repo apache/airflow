@@ -54,17 +54,17 @@ def upgrade():
         # Update the dag_run.conf column value to NULL
         print(
             dedent("""
-             ------------
-             --  WARNING: Unable to migrate data of conf column in offline mode!
-             --  Column conf will be set to NULL in offline mode!.
-             --  DO not use Offline mode if data if you want to keep conf values.
-             ------------
-             """)
+            ------------
+            --  WARNING: Unable to migrate the data in the 'conf' column while in offline mode!
+            --  The 'conf' column will be set to NULL in offline mode.
+            --  Avoid using offline mode if you need to retain 'conf' values.
+            ------------
+            """)
         )
+
         conn.execute(text("UPDATE dag_run set conf=null WHERE conf IS NOT NULL"))
     else:
         BATCH_SIZE = 2
-        total_processed = 0
         offset = 0
         while True:
             rows = conn.execute(
@@ -86,9 +86,6 @@ def upgrade():
                     continue
             offset += BATCH_SIZE
 
-            # Update total processed count
-            total_processed += len(rows)
-
     op.drop_column("dag_run", "conf")
 
     op.alter_column("dag_run", "conf_json", existing_type=conf_type, new_column_name="conf")
@@ -104,17 +101,17 @@ def downgrade():
         # Update the dag_run.conf column value to NULL
         print(
             dedent("""
-             ------------
-             --  WARNING: Unable to migrate data of conf column in offline mode!
-             --  Column conf will be set to NULL in offline mode!.
-             --  DO not use Offline mode if data if you want to keep conf values.
-             ------------
-             """)
+            ------------
+            --  WARNING: Unable to migrate the data in the 'conf' column while in offline mode!
+            --  The 'conf' column will be set to NULL in offline mode.
+            --  Avoid using offline mode if you need to retain 'conf' values.
+            ------------
+            """)
         )
+
         conn.execute(text("UPDATE dag_run set conf=null WHERE conf IS NOT NULL"))
     else:
         BATCH_SIZE = 2
-        total_processed = 0
         offset = 0
         while True:
             rows = conn.execute(
@@ -123,7 +120,7 @@ def downgrade():
                 )
             ).fetchall()
             if not rows:
-                break  #
+                break
             for row in rows:
                 row_id, json_data = row
 
@@ -141,9 +138,6 @@ def downgrade():
                     print(f"Error processing row ID {row_id}: {e}")
                     continue
             offset += BATCH_SIZE
-
-            # Update total processed count
-            total_processed += len(rows)
 
     op.drop_column("dag_run", "conf")
 
