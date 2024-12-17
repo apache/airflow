@@ -27,9 +27,8 @@ import {
 } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
+import { TrySelector } from "src/components/TrySelector";
 import { Button, Status } from "src/components/ui";
-
-// import TrySelector from "src/components/TrySelector";
 
 export const Details = () => {
   const { dagId = "", runId = "", taskId = "" } = useParams();
@@ -70,21 +69,17 @@ export const Details = () => {
       ? tryInstance
       : taskInstance;
 
+  console.log(instance);
+
   return (
     <Box flexGrow={1} mt={3}>
-      <Heading size="lg">Task Tries</Heading>
-      <Flex flexWrap="wrap" my={1}>
-        {taskInstanceTries?.task_instances.map((ti) => (
-          <Button
-            colorPalette="blue"
-            key={ti.try_number}
-            variant={selectedTryNumber === ti.try_number ? "solid" : "ghost"}
-          >
-            {ti.try_number}
-            <Status ml={2} state={ti.state} />
-          </Button>
-        ))}
-      </Flex>
+      {Boolean(taskInstance) && (
+        <TrySelector
+          onSelectTryNumber={setSelectedTryNumber}
+          selectedTryNumber={selectedTryNumber || finalTryNumber}
+          taskInstance={taskInstance}
+        />
+      )}
     </Box>
   );
 };
