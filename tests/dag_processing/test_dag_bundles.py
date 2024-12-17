@@ -274,6 +274,25 @@ class TestGitDagBundle:
         assert str(bundle.path).endswith(subdir)
         assert {"some_new_file.py"} == files_in_repo
 
+    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHHook")
+    @mock.patch("airflow.dag_processing.bundles.git.Repo")
+    def test_with_ssh_conn_id(self, mock_gitRepo, mock_hook):
+        repo_url = "git@github.com:apache/airflow.git"
+        conn_id = "ssh_default"
+        key_filepath = "/path/to/keyfile"
+        mock_hook.return_value.key_file = key_filepath
+        mock_hook.return_value.remote_host = repo_url
+        bundle = GitDagBundle(name="test", ssh_conn_id="ssh_default", tracking_ref=GIT_DEFAULT_BRANCH)
+        assert bundle.env == {}
+        bundle.init_bundle()
+        mock_hook.assert_called_once_with(ssh_conn_id=conn_id)
+        assert bundle.env == {"GIT_SSH_COMMAND": f"ssh -i {key_filepath} -o IdentitiesOnly=yes"}
+
+    def test_no_key_file_and_no_private_key_raises_for_ssh_conn(self):
+        bundle = GitDagBundle(name="test", ssh_conn_id="ssh_default", tracking_ref=GIT_DEFAULT_BRANCH)
+        with pytest.raises(AirflowException, match="No private key present in connection"):
+            bundle.init_bundle()
+
     @pytest.mark.parametrize(
         "repo_url, expected_url",
         [
