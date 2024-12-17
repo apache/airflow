@@ -860,13 +860,19 @@ def _refresh_from_db(
     )
 
     if ti:
-        inspector = inspect(ti)
         # Check if the ti is detached or the dag_run relationship isn't loaded.
         # If the scheduler that started the dag_run has exited (gracefully or forcefully),
         # there will be changes to the dag_run span context_carrier.
         # It's best to include the dag_run whenever possible, so that the ti will contain the updates.
-        include_dag_run = not inspector.detached and "dag_run" not in inspector.unloaded
-        log.debug("Unloaded: %s", inspector.unloaded)
+        ti_inspector = inspect(ti)
+        dr_inspector = inspect(ti.dag_run)
+
+        is_ti_attached = not ti_inspector.detached
+        is_dr_attached = not dr_inspector.detached
+        is_dr_loaded = "dag_run" not in ti_inspector.unloaded
+
+        include_dag_run = is_ti_attached and is_dr_attached and is_dr_loaded
+
         _set_ti_attrs(task_instance, ti, include_dag_run=include_dag_run)
     else:
         task_instance.state = None
@@ -1003,11 +1009,7 @@ def _get_template_context(
         # Re-attach it if we get called.
         nonlocal dag_run
         if dag_run not in session:
-            # In case, refresh_from_db has also included the dag_run,
-            # the object will be considered dirty by the session.
-            # Trying to merge the dirty dag_run with load=False, will result to an SQLAlchemy error.
-            # Regular merge, with the default load value.
-            dag_run = session.merge(dag_run)
+            dag_run = session.merge(dag_run, load=False)
         asset_events = dag_run.consumed_asset_events
         triggering_events: dict[str, list[AssetEvent]] = defaultdict(list)
         for event in asset_events:
