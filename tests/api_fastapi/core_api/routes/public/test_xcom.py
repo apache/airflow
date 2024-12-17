@@ -118,6 +118,7 @@ class TestGetXComEntry(TestXComEndpoint):
         assert current_data == {
             "dag_id": TEST_DAG_ID,
             "logical_date": logical_date_parsed.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "run_id": run_id,
             "key": TEST_XCOM_KEY,
             "task_id": TEST_TASK_ID,
             "map_index": -1,
@@ -136,6 +137,7 @@ class TestGetXComEntry(TestXComEndpoint):
         assert current_data == {
             "dag_id": TEST_DAG_ID,
             "logical_date": logical_date_parsed.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "run_id": run_id,
             "key": TEST_XCOM_KEY,
             "task_id": TEST_TASK_ID,
             "map_index": -1,
@@ -230,6 +232,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 {
                     "dag_id": TEST_DAG_ID,
                     "logical_date": logical_date_formatted,
+                    "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-0",
                     "task_id": TEST_TASK_ID,
                     "timestamp": "TIMESTAMP",
@@ -238,6 +241,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 {
                     "dag_id": TEST_DAG_ID,
                     "logical_date": logical_date_formatted,
+                    "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-1",
                     "task_id": TEST_TASK_ID,
                     "timestamp": "TIMESTAMP",
@@ -263,6 +267,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 {
                     "dag_id": TEST_DAG_ID,
                     "logical_date": logical_date_formatted,
+                    "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-0",
                     "task_id": TEST_TASK_ID,
                     "timestamp": "TIMESTAMP",
@@ -271,6 +276,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 {
                     "dag_id": TEST_DAG_ID,
                     "logical_date": logical_date_formatted,
+                    "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-1",
                     "task_id": TEST_TASK_ID,
                     "timestamp": "TIMESTAMP",
@@ -279,6 +285,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 {
                     "dag_id": TEST_DAG_ID_2,
                     "logical_date": logical_date_formatted,
+                    "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-0",
                     "task_id": TEST_TASK_ID_2,
                     "timestamp": "TIMESTAMP",
@@ -287,6 +294,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 {
                     "dag_id": TEST_DAG_ID_2,
                     "logical_date": logical_date_formatted,
+                    "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-1",
                     "task_id": TEST_TASK_ID_2,
                     "timestamp": "TIMESTAMP",
@@ -313,6 +321,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 {
                     "dag_id": TEST_DAG_ID,
                     "logical_date": logical_date_formatted,
+                    "run_id": run_id,
                     "key": TEST_XCOM_KEY,
                     "task_id": TEST_TASK_ID,
                     "timestamp": "TIMESTAMP",
@@ -325,6 +334,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 {
                     "dag_id": TEST_DAG_ID,
                     "logical_date": logical_date_formatted,
+                    "run_id": run_id,
                     "key": TEST_XCOM_KEY,
                     "task_id": TEST_TASK_ID,
                     "timestamp": "TIMESTAMP",
@@ -347,6 +357,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     {
                         "dag_id": TEST_DAG_ID,
                         "logical_date": logical_date_formatted,
+                        "run_id": run_id,
                         "key": TEST_XCOM_KEY,
                         "task_id": TEST_TASK_ID,
                         "timestamp": "TIMESTAMP",
@@ -355,6 +366,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     {
                         "dag_id": TEST_DAG_ID,
                         "logical_date": logical_date_formatted,
+                        "run_id": run_id,
                         "key": TEST_XCOM_KEY,
                         "task_id": TEST_TASK_ID,
                         "timestamp": "TIMESTAMP",

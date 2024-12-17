@@ -90,12 +90,14 @@ class TestStructureDataEndpoint:
                     "edges": [
                         {
                             "is_setup_teardown": None,
+                            "is_source_asset": None,
                             "label": None,
                             "source_id": "external_task_sensor",
                             "target_id": "task_2",
                         },
                         {
                             "is_setup_teardown": None,
+                            "is_source_asset": None,
                             "label": None,
                             "source_id": "task_1",
                             "target_id": "external_task_sensor",
@@ -103,6 +105,7 @@ class TestStructureDataEndpoint:
                     ],
                     "nodes": [
                         {
+                            "asset_condition_type": None,
                             "children": None,
                             "id": "task_1",
                             "is_mapped": None,
@@ -113,6 +116,7 @@ class TestStructureDataEndpoint:
                             "operator": "EmptyOperator",
                         },
                         {
+                            "asset_condition_type": None,
                             "children": None,
                             "id": "external_task_sensor",
                             "is_mapped": None,
@@ -123,6 +127,7 @@ class TestStructureDataEndpoint:
                             "operator": "ExternalTaskSensor",
                         },
                         {
+                            "asset_condition_type": None,
                             "children": None,
                             "id": "task_2",
                             "is_mapped": None,
@@ -155,6 +160,7 @@ class TestStructureDataEndpoint:
                     "edges": [],
                     "nodes": [
                         {
+                            "asset_condition_type": None,
                             "children": None,
                             "id": "task_1",
                             "is_mapped": None,
@@ -177,50 +183,65 @@ class TestStructureDataEndpoint:
                         {
                             "is_setup_teardown": None,
                             "label": None,
+                            "source_id": "and-gate-0",
+                            "target_id": "task_1",
+                            "is_source_asset": True,
+                        },
+                        {
+                            "is_setup_teardown": None,
+                            "label": None,
+                            "source_id": "asset1",
+                            "target_id": "and-gate-0",
+                            "is_source_asset": None,
+                        },
+                        {
+                            "is_setup_teardown": None,
+                            "label": None,
+                            "source_id": "asset2",
+                            "target_id": "and-gate-0",
+                            "is_source_asset": None,
+                        },
+                        {
+                            "is_setup_teardown": None,
+                            "label": None,
+                            "source_id": "example-alias",
+                            "target_id": "and-gate-0",
+                            "is_source_asset": None,
+                        },
+                        {
+                            "is_setup_teardown": None,
+                            "label": None,
                             "source_id": "trigger:external_trigger:test_dag_id:trigger_dag_run_operator",
                             "target_id": "task_1",
-                        },
-                        {
-                            "is_setup_teardown": None,
-                            "label": None,
-                            "source_id": "asset:asset1",
-                            "target_id": "task_1",
-                        },
-                        {
-                            "is_setup_teardown": None,
-                            "label": None,
-                            "source_id": "asset:asset2",
-                            "target_id": "task_1",
-                        },
-                        {
-                            "is_setup_teardown": None,
-                            "label": None,
-                            "source_id": "asset-alias:example-alias",
-                            "target_id": "task_1",
+                            "is_source_asset": None,
                         },
                         {
                             "is_setup_teardown": None,
                             "label": None,
                             "source_id": "sensor:test_dag_id:test_dag_id:external_task_sensor",
                             "target_id": "task_1",
+                            "is_source_asset": None,
                         },
                         {
                             "is_setup_teardown": None,
                             "label": None,
                             "source_id": "external_task_sensor",
                             "target_id": "task_2",
+                            "is_source_asset": None,
                         },
                         {
                             "is_setup_teardown": None,
                             "label": None,
                             "source_id": "task_1",
                             "target_id": "external_task_sensor",
+                            "is_source_asset": None,
                         },
                         {
                             "is_setup_teardown": None,
                             "label": None,
                             "source_id": "task_2",
                             "target_id": "asset:s3://dataset-bucket/example.csv",
+                            "is_source_asset": None,
                         },
                     ],
                     "nodes": [
@@ -233,6 +254,7 @@ class TestStructureDataEndpoint:
                             "setup_teardown_type": None,
                             "type": "task",
                             "operator": "EmptyOperator",
+                            "asset_condition_type": None,
                         },
                         {
                             "children": None,
@@ -243,6 +265,7 @@ class TestStructureDataEndpoint:
                             "setup_teardown_type": None,
                             "type": "task",
                             "operator": "ExternalTaskSensor",
+                            "asset_condition_type": None,
                         },
                         {
                             "children": None,
@@ -253,6 +276,7 @@ class TestStructureDataEndpoint:
                             "setup_teardown_type": None,
                             "type": "task",
                             "operator": "EmptyOperator",
+                            "asset_condition_type": None,
                         },
                         {
                             "children": None,
@@ -263,36 +287,7 @@ class TestStructureDataEndpoint:
                             "setup_teardown_type": None,
                             "type": "trigger",
                             "operator": None,
-                        },
-                        {
-                            "children": None,
-                            "id": "asset:asset1",
-                            "is_mapped": None,
-                            "label": "asset1",
-                            "tooltip": None,
-                            "setup_teardown_type": None,
-                            "type": "asset",
-                            "operator": None,
-                        },
-                        {
-                            "children": None,
-                            "id": "asset:asset2",
-                            "is_mapped": None,
-                            "label": "asset2",
-                            "tooltip": None,
-                            "setup_teardown_type": None,
-                            "type": "asset",
-                            "operator": None,
-                        },
-                        {
-                            "children": None,
-                            "id": "asset-alias:example-alias",
-                            "is_mapped": None,
-                            "label": "example-alias",
-                            "tooltip": None,
-                            "setup_teardown_type": None,
-                            "type": "asset-alias",
-                            "operator": None,
+                            "asset_condition_type": None,
                         },
                         {
                             "children": None,
@@ -303,6 +298,7 @@ class TestStructureDataEndpoint:
                             "setup_teardown_type": None,
                             "type": "asset",
                             "operator": None,
+                            "asset_condition_type": None,
                         },
                         {
                             "children": None,
@@ -313,6 +309,51 @@ class TestStructureDataEndpoint:
                             "setup_teardown_type": None,
                             "type": "sensor",
                             "operator": None,
+                            "asset_condition_type": None,
+                        },
+                        {
+                            "children": None,
+                            "id": "and-gate-0",
+                            "is_mapped": None,
+                            "label": "and-gate-0",
+                            "tooltip": None,
+                            "setup_teardown_type": None,
+                            "type": "asset-condition",
+                            "operator": None,
+                            "asset_condition_type": "and-gate",
+                        },
+                        {
+                            "children": None,
+                            "id": "asset1",
+                            "is_mapped": None,
+                            "label": "asset1",
+                            "tooltip": None,
+                            "setup_teardown_type": None,
+                            "type": "asset",
+                            "operator": None,
+                            "asset_condition_type": None,
+                        },
+                        {
+                            "children": None,
+                            "id": "asset2",
+                            "is_mapped": None,
+                            "label": "asset2",
+                            "tooltip": None,
+                            "setup_teardown_type": None,
+                            "type": "asset",
+                            "operator": None,
+                            "asset_condition_type": None,
+                        },
+                        {
+                            "children": None,
+                            "id": "example-alias",
+                            "is_mapped": None,
+                            "label": "example-alias",
+                            "tooltip": None,
+                            "setup_teardown_type": None,
+                            "type": "asset-alias",
+                            "operator": None,
+                            "asset_condition_type": None,
                         },
                     ],
                     "arrange": "LR",
@@ -323,6 +364,7 @@ class TestStructureDataEndpoint:
                 {
                     "edges": [
                         {
+                            "is_source_asset": None,
                             "is_setup_teardown": None,
                             "label": None,
                             "source_id": "trigger_dag_run_operator",
@@ -331,6 +373,7 @@ class TestStructureDataEndpoint:
                     ],
                     "nodes": [
                         {
+                            "asset_condition_type": None,
                             "children": None,
                             "id": "trigger_dag_run_operator",
                             "is_mapped": None,
@@ -341,6 +384,7 @@ class TestStructureDataEndpoint:
                             "operator": "TriggerDagRunOperator",
                         },
                         {
+                            "asset_condition_type": None,
                             "children": None,
                             "id": "trigger:external_trigger:test_dag_id:trigger_dag_run_operator",
                             "is_mapped": None,
