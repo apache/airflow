@@ -19,16 +19,12 @@ from __future__ import annotations
 import importlib
 
 import pytest
-from packaging.version import Version
 
-from airflow import __version__ as airflow_version
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.edge.plugins import edge_executor_plugin
 
 from tests_common.test_utils.config import conf_vars
-
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
 def test_plugin_inactive():

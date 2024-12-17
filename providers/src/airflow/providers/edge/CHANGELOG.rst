@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.10.0pre0
+.........
+
+Feature
+~~~~~~~
+
+* ``Support Task execution interface (AIP-72) in Airflow 3. Experimental with ongoing development as AIP-72 is also under development.``
+
 0.9.6pre0
 .........
 
