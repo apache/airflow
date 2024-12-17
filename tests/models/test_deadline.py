@@ -23,11 +23,12 @@ import pytest
 from sqlalchemy import select
 
 from airflow.models.deadline import Deadline
+from airflow.operators.empty import EmptyOperator
 
 from tests_common.test_utils import db
 
 DAG_ID = "dag_id_1"
-RUN_ID = "run_id_1"
+RUN_ID = 1
 
 
 def my_callback():
@@ -46,6 +47,8 @@ class TestDeadline:
     @staticmethod
     def _clean_db():
         db.clear_db_deadline()
+        db.clear_db_dags()
+        db.clear_db_runs()
 
     @pytest.fixture
     def deadline_orm(self):
@@ -57,7 +60,15 @@ class TestDeadline:
             run_id=RUN_ID,
         )
 
-    def test_add_deadline(self, deadline_orm, session):
+    @pytest.fixture
+    def create_dagrun(self, dag_maker, session):
+        with dag_maker(DAG_ID):
+            EmptyOperator(task_id='TASK_ID')
+        dag_maker.create_dagrun()
+
+        session.commit()
+
+    def test_add_deadline(self, create_dagrun, deadline_orm, session):
         assert session.query(Deadline).count() == 0
 
         Deadline.add_deadline(deadline_orm)

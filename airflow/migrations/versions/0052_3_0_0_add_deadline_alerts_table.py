@@ -20,7 +20,7 @@
 Add deadline alerts table.
 
 Revision ID: 237cef8dfea1
-Revises: e229247a6cb1
+Revises: 038dc8bc6284
 Create Date: 2024-12-05 22:08:38.997054
 
 """
@@ -31,6 +31,7 @@ import sqlalchemy as sa
 import sqlalchemy_jsonfield
 from alembic import op
 from sqlalchemy_utils import UUIDType
+
 from airflow.migrations.db_types import StringID
 from airflow.models import ID_LEN
 
