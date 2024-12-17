@@ -1723,7 +1723,7 @@
 <polygon fill="none" stroke="black" points="1347,-3450 1347,-3475 1630,-3475 1630,-3450 1347,-3450"/>
 <text text-anchor="start" x="1352" y="-3459.8" font-family="Helvetica,sans-Serif" font-size="14.00">conf</text>
 <text text-anchor="start" x="1383" y="-3459.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1388" y="-3459.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [BYTEA]</text>
+<text text-anchor="start" x="1388" y="-3459.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSONB]</text>
 <polygon fill="none" stroke="black" points="1347,-3425 1347,-3450 1630,-3450 1630,-3425 1347,-3425"/>
 <text text-anchor="start" x="1352" y="-3434.8" font-family="Helvetica,sans-Serif" font-size="14.00">creating_job_id</text>
 <text text-anchor="start" x="1456" y="-3434.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
