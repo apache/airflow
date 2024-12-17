@@ -19,11 +19,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.base import BaseModel, ConfigDict
 
 
 class XComResponse(BaseModel):
     """XCom schema for responses with fields that are needed for Runtime."""
+
+    model_config = ConfigDict(extra="forbid")
 
     key: str
     value: Any
