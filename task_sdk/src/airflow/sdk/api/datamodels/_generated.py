@@ -63,7 +63,6 @@ class IntermediateTIState(str, Enum):
     SCHEDULED = "scheduled"
     QUEUED = "queued"
     RESTARTING = "restarting"
-    UP_FOR_RETRY = "up_for_retry"
     UP_FOR_RESCHEDULE = "up_for_reschedule"
     UPSTREAM_FAILED = "upstream_failed"
     DEFERRED = "deferred"
@@ -119,6 +118,7 @@ class TerminalTIState(str, Enum):
     FAILED = "failed"
     SKIPPED = "skipped"
     REMOVED = "removed"
+    UP_FOR_RETRY = "up_for_retry"
 
 
 class ValidationError(BaseModel):

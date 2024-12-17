@@ -39,6 +39,7 @@ class TerminalTIState(str, Enum):
     FAILED = "failed"
     SKIPPED = "skipped"  # A user can raise a AirflowSkipException from a task & it will be marked as skipped
     REMOVED = "removed"
+    UP_FOR_RETRY = "up_for_retry"  # We do not need to do anything actionable for this state, hence it is a terminal state.
 
     def __str__(self) -> str:
         return self.value
@@ -50,7 +51,6 @@ class IntermediateTIState(str, Enum):
     SCHEDULED = "scheduled"
     QUEUED = "queued"
     RESTARTING = "restarting"
-    UP_FOR_RETRY = "up_for_retry"
     UP_FOR_RESCHEDULE = "up_for_reschedule"
     UPSTREAM_FAILED = "upstream_failed"
     DEFERRED = "deferred"
@@ -80,7 +80,7 @@ class TaskInstanceState(str, Enum):
     SUCCESS = TerminalTIState.SUCCESS  # Task completed
     RESTARTING = IntermediateTIState.RESTARTING  # External request to restart (e.g. cleared when running)
     FAILED = TerminalTIState.FAILED  # Task errored out
-    UP_FOR_RETRY = IntermediateTIState.UP_FOR_RETRY  # Task failed but has retries left
+    UP_FOR_RETRY = TerminalTIState.UP_FOR_RETRY  # Task failed but has retries left
     UP_FOR_RESCHEDULE = IntermediateTIState.UP_FOR_RESCHEDULE  # A waiting `reschedule` sensor
     UPSTREAM_FAILED = IntermediateTIState.UPSTREAM_FAILED  # One or more upstream deps failed
     SKIPPED = TerminalTIState.SKIPPED  # Skipped by branching or some other mechanism

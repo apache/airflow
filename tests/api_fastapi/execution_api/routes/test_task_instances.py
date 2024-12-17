@@ -150,6 +150,7 @@ class TestTIUpdateState:
             (State.SUCCESS, DEFAULT_END_DATE, State.SUCCESS),
             (State.FAILED, DEFAULT_END_DATE, State.FAILED),
             (State.SKIPPED, DEFAULT_END_DATE, State.SKIPPED),
+            (State.UP_FOR_RETRY, DEFAULT_END_DATE, State.UP_FOR_RETRY),
         ],
     )
     def test_ti_update_state_to_terminal(
