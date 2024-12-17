@@ -99,6 +99,7 @@ class TIRescheduleStatePayload(BaseModel):
         ),
     ]
     reschedule_date: UtcDateTime
+    end_date: UtcDateTime
 
 
 def ti_state_discriminator(v: dict[str, str] | BaseModel) -> str:

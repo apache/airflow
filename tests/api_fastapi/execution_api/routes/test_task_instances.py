@@ -291,6 +291,8 @@ class TestTIUpdateState:
         Test that tests if the transition to reschedule state is handled correctly.
         """
 
+        from math import ceil
+
         ti = create_task_instance(
             task_id="test_ti_update_state_to_reschedule",
             state=State.RUNNING,
@@ -299,12 +301,13 @@ class TestTIUpdateState:
         ti.end_date = DEFAULT_END_DATE
         session.commit()
 
-        instant = timezone.datetime(2024, 11, 22)
+        instant = timezone.datetime(2024, 10, 30)
         time_machine.move_to(instant, tick=False)
 
         payload = {
             "state": "up_for_reschedule",
             "reschedule_date": timezone.parse("2025-1-1T12:00:00Z").isoformat(),
+            "end_date": DEFAULT_END_DATE.isoformat(),
         }
 
         response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
@@ -330,6 +333,7 @@ class TestTIUpdateState:
         assert trs[0].end_date == DEFAULT_END_DATE
         assert trs[0].reschedule_date == timezone.parse("2025-1-1T12:00:00Z")
         assert trs[0].map_index == -1
+        assert ceil(trs[0].duration) == 129600
 
 
 class TestTIHealthEndpoint:

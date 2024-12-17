@@ -237,7 +237,7 @@ def ti_update_state(
                 task_instance.run_id,
                 task_instance.try_number,
                 actual_start_date,
-                task_instance.end_date,
+                ti_patch_payload.end_date,
                 ti_patch_payload.reschedule_date,
                 task_instance.map_index,
             )

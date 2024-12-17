@@ -282,7 +282,7 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         )
     except AirflowRescheduleException as reschedule:
         msg = RescheduleTask(
-            reschedule_date=reschedule.reschedule_date,
+            reschedule_date=reschedule.reschedule_date, end_date=datetime.now(tz=timezone.utc)
         )
     except (AirflowFailException, AirflowSensorTimeout):
         # If AirflowFailException is raised, task should not retry.

@@ -108,6 +108,7 @@ class TIRescheduleStatePayload(BaseModel):
     """
 
     state: Annotated[Literal["up_for_reschedule"] | None, Field(title="State")] = "up_for_reschedule"
+    end_date: Annotated[datetime, Field(title="End Date")]
     reschedule_date: Annotated[datetime, Field(title="Reschedule Date")]
 
 
