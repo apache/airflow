@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import contextlib
+import os
 import re
 from io import StringIO
 from unittest import mock
@@ -25,6 +26,7 @@ import pytest
 
 from airflow.cli import cli_parser
 from airflow.cli.commands.remote_commands import config_command
+from airflow.cli.commands.remote_commands.config_command import ConfigChange, ConfigParameter
 
 from tests_common.test_utils.config import conf_vars
 
@@ -283,8 +285,7 @@ class TestConfigLint:
         expected_message = f"Removed deprecated `{option}` configuration parameter from `{section}` section."
         assert expected_message in normalized_output
 
-        if suggestion:
-            assert suggestion in normalized_output
+        assert suggestion in normalized_output
 
     def test_lint_specific_section_option(self):
         with mock.patch("airflow.configuration.conf.has_option", return_value=True):
@@ -414,3 +415,37 @@ class TestConfigLint:
             else:
                 expected_message = f"`{old_option}` configuration parameter moved from `{old_section}` section to `{new_section}` section as `{new_option}`."
             assert expected_message in normalized_output
+
+    @pytest.mark.parametrize(
+        "env_var, config_change, expected_message",
+        [
+            (
+                "AIRFLOW__CORE__CHECK_SLAS",
+                ConfigChange(
+                    config=ConfigParameter("core", "check_slas"),
+                    suggestion="The SLA feature is removed in Airflow 3.0, to be replaced with Airflow Alerts in future",
+                ),
+                "Removed deprecated `check_slas` configuration parameter from `core` section.",
+            ),
+            (
+                "AIRFLOW__CORE__STRICT_ASSET_URI_VALIDATION",
+                ConfigChange(
+                    config=ConfigParameter("core", "strict_asset_uri_validation"),
+                    suggestion="Asset URI with a defined scheme will now always be validated strictly, raising a hard error on validation failure.",
+                ),
+                "Removed deprecated `strict_asset_uri_validation` configuration parameter from `core` section.",
+            ),
+        ],
+    )
+    def test_lint_detects_configs_with_env_vars(self, env_var, config_change, expected_message):
+        with mock.patch.dict(os.environ, {env_var: "some_value"}):
+            with mock.patch("airflow.configuration.conf.has_option", return_value=True):
+                with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+                    config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
+
+                output = temp_stdout.getvalue()
+
+        normalized_output = re.sub(r"\s+", " ", output.strip())
+
+        assert expected_message in normalized_output
+        assert config_change.suggestion in normalized_output
