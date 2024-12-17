@@ -38,6 +38,7 @@ from airflow.traces import NO_TRACE_ID
 from airflow.traces.tracer import Trace, add_span, gen_context
 from airflow.traces.utils import gen_span_id_from_ti_key, gen_trace_id
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
@@ -45,6 +46,8 @@ PARALLELISM: int = conf.getint("core", "PARALLELISM")
 if TYPE_CHECKING:
     import argparse
     from datetime import datetime
+
+    from sqlalchemy.orm import Session
 
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
@@ -171,7 +174,8 @@ class BaseExecutor(LoggingMixin):
         else:
             self.log.error("could not queue task %s", task_instance.key)
 
-    def queue_workload(self, workload: workloads.All) -> None:
+    @provide_session
+    def queue_workload(self, workload: workloads.All, session: Session = NEW_SESSION) -> None:
         raise ValueError(f"Un-handled workload kind {type(workload).__name__!r} in {type(self).__name__}")
 
     def queue_task_instance(
