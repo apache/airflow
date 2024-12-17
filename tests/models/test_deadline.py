@@ -22,6 +22,7 @@ from datetime import datetime
 import pytest
 from sqlalchemy import select
 
+from airflow.models import DagRun
 from airflow.models.deadline import Deadline
 from airflow.operators.empty import EmptyOperator
 
@@ -67,9 +68,11 @@ class TestDeadline:
         dag_maker.create_dagrun()
 
         session.commit()
+        assert session.query(DagRun).count() == 1
 
     def test_add_deadline(self, create_dagrun, deadline_orm, session):
         assert session.query(Deadline).count() == 0
+        assert session.query(DagRun).first().id == RUN_ID
 
         Deadline.add_deadline(deadline_orm)
 
