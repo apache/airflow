@@ -26,6 +26,20 @@
 Changelog
 ---------
 
+
+
+.. warning::
+   All deprecated classes, parameters and features have been removed from the alibaba provider package.
+   The following breaking changes were introduced:
+
+   * Operators
+      * Remove ``get_hook`` method from  ``AnalyticDBSparkBaseOperator``. Use ``self.hook`` instead.
+
+   * sensors
+      * Remove ``get_hook`` method from ``AnalyticDBSparkSensor``. Use ``self.hook`` instead.
+
+
+
 2.9.1
 .....
 
