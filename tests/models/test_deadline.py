@@ -47,6 +47,8 @@ class TestDeadline:
 
     @staticmethod
     def _clean_db():
+        db.clear_db_dags()
+        db.clear_db_runs()
         db.clear_db_deadline()
 
     @pytest.fixture
