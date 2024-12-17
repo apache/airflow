@@ -32,6 +32,7 @@ import { Run } from "src/pages/Run";
 import { TaskInstances } from "src/pages/Run/TaskInstances";
 import { Task, Instances } from "src/pages/Task";
 import { TaskInstance } from "src/pages/TaskInstance";
+import { XCom } from "src/pages/XCom";
 
 import { Variables } from "./pages/Variables";
 
@@ -50,6 +51,10 @@ export const router = createBrowserRouter(
         {
           element: <Events />,
           path: "events",
+        },
+        {
+          element: <XCom />,
+          path: "xcoms",
         },
         {
           element: <Variables />,
@@ -79,7 +84,7 @@ export const router = createBrowserRouter(
           children: [
             { element: <div>Logs</div>, index: true },
             { element: <Events />, path: "events" },
-            { element: <div>Xcom</div>, path: "xcom" },
+            { element: <XCom />, path: "xcom" },
             { element: <Code />, path: "code" },
             { element: <div>Details</div>, path: "details" },
           ],

@@ -174,11 +174,6 @@ class AssetManager(LoggingMixin):
                     if alias_ref.dag.is_active and not alias_ref.dag.is_paused
                 }
 
-        dags_to_reparse = dags_to_queue_from_asset_alias - dags_to_queue_from_asset
-        if dags_to_reparse:
-            file_locs = {dag.fileloc for dag in dags_to_reparse}
-            cls._send_dag_priority_parsing_request(file_locs, session)
-
         cls.notify_asset_changed(asset=asset)
 
         Stats.incr("asset.updates")

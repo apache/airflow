@@ -246,9 +246,9 @@ class TestPostConnection(TestConnectionEndpoint):
         # Another request
         response = test_client.post("/public/connections", json=body)
         assert response.status_code == 409
-        assert response.json() == {
-            "detail": "Unique constraint violation",
-        }
+        response_json = response.json()
+        assert "detail" in response_json
+        assert list(response_json["detail"].keys()) == ["reason", "statement", "orig_error"]
 
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
@@ -396,9 +396,9 @@ class TestPostConnections(TestConnectionEndpoint):
         # Another request
         response = test_client.post("/public/connections/bulk", json=body)
         assert response.status_code == 409
-        assert response.json() == {
-            "detail": "Unique constraint violation",
-        }
+        response_json = response.json()
+        assert "detail" in response_json
+        assert list(response_json["detail"].keys()) == ["reason", "statement", "orig_error"]
 
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
@@ -649,7 +649,6 @@ class TestPatchConnection(TestConnectionEndpoint):
         self.create_connection()
         response = test_client.patch(f"/public/connections/{TEST_CONN_ID}", json=body)
         assert response.status_code == 400
-        print(response.json())
         assert response.json() == {
             "detail": "The connection_id in the request body does not match the URL parameter",
         }
