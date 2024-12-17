@@ -892,6 +892,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             "ti",
             "var",  # Accessor for Variable; var->json and var->value.
             "conn",  # Accessor for Connection.
+            "map_index_template",
         }
         if AIRFLOW_V_2_10_PLUS:
             intentionally_excluded_context_keys |= {
