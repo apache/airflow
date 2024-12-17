@@ -121,7 +121,7 @@ class TestEdgeWorkerCli:
                     map_index=-1,
                     try_number=1,
                     concurrency_slots=1,
-                    command=MOCK_COMMAND,
+                    command=MOCK_COMMAND,  # type: ignore[arg-type]
                 ),
                 process=_MockPopen(),
                 logfile=logfile,
@@ -144,7 +144,8 @@ class TestEdgeWorkerCli:
         mock_process.side_effect = [mock_process_instance]
 
         edge_job = worker_with_job.jobs.pop().edge_job
-        worker_with_job._launch_job(edge_job)
+        with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
+            worker_with_job._launch_job(edge_job)
 
         if AIRFLOW_V_3_0_PLUS:
             assert mock_process.call_count == 1
@@ -168,7 +169,7 @@ class TestEdgeWorkerCli:
                     map_index=-1,
                     try_number=1,
                     concurrency_slots=1,
-                    command=MOCK_COMMAND,
+                    command=MOCK_COMMAND,  # type: ignore[arg-type]
                 ),
                 True,
                 (1, 1),
@@ -218,7 +219,7 @@ class TestEdgeWorkerCli:
     @patch("airflow.providers.edge.cli.edge_command.jobs_set_state")
     def test_check_running_jobs_success(self, mock_set_state, worker_with_job: _EdgeWorkerCli):
         job = worker_with_job.jobs[0]
-        job.process.generated_returncode = 0  # type: ignore[attr-defined]
+        job.process.generated_returncode = 0  # type: ignore[union-attr]
         with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
             worker_with_job.check_running_jobs()
         assert len(worker_with_job.jobs) == 0
@@ -228,7 +229,7 @@ class TestEdgeWorkerCli:
     @patch("airflow.providers.edge.cli.edge_command.jobs_set_state")
     def test_check_running_jobs_failed(self, mock_set_state, worker_with_job: _EdgeWorkerCli):
         job = worker_with_job.jobs[0]
-        job.process.generated_returncode = 42  # type: ignore[attr-defined]
+        job.process.generated_returncode = 42  # type: ignore[union-attr]
         with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
             worker_with_job.check_running_jobs()
         assert len(worker_with_job.jobs) == 0
