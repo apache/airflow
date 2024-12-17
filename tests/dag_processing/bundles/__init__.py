@@ -14,23 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-from airflow import settings
-from airflow.configuration import conf
-from airflow.dag_processing.bundles.local import LocalDagBundle
-
-
-class DagsFolderDagBundle(LocalDagBundle):
-    """A bundle for the DAGs folder."""
-
-    def __init__(self, refresh_interval: int | None = None, **kwargs):
-        if refresh_interval is None:
-            refresh_interval = conf.getint("scheduler", "dag_dir_list_interval")
-
-        super().__init__(
-            local_folder=settings.DAGS_FOLDER,
-            refresh_interval=refresh_interval,
-            **kwargs,
-        )
