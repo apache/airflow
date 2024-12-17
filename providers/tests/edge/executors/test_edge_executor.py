@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -31,6 +32,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -264,3 +266,43 @@ class TestEdgeExecutor:
                     assert worker.state == EdgeWorkerState.UNKNOWN
                 else:
                     assert worker.state == EdgeWorkerState.IDLE
+
+    def test_execute_async(self):
+        executor, key = self.get_test_executor()
+
+        # Need to apply "trick" which is used to pass pool_slots
+        executor.edge_queued_tasks = deepcopy(executor.queued_tasks)
+
+        executor.execute_async(key=key, command=["airflow", "tasks", "run", "hello", "world"])
+
+        with create_session() as session:
+            jobs = session.query(EdgeJobModel).all()
+            assert len(jobs) == 1
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="API only available in Airflow 3.0+")
+    def test_queue_workload(self):
+        from airflow.executors.workloads import ExecuteTask, TaskInstance
+
+        executor = self.get_test_executor()[0]
+
+        with pytest.raises(TypeError):
+            # Does not like the Airflow 2.10 type of workload
+            executor.queue_workload(command=["airflow", "tasks", "run", "hello", "world"])
+
+        workload = ExecuteTask(
+            token="dummy",
+            ti=TaskInstance(
+                id="4d828a62-a417-4936-a7a6-2b3fabacecab",
+                task_id="dummy",
+                dag_id="dummy",
+                run_id="dummy",
+                try_number=1,
+            ),
+            dag_path="dummy.py",
+            log_path="dummy.log",
+        )
+        executor.queue_workload(workload=workload)
+
+        with create_session() as session:
+            jobs = session.query(EdgeJobModel).all()
+            assert len(jobs) == 1
