@@ -29,14 +29,14 @@ class TestSageMakerNotebookOperator(TestCase):
         operator = SageMakerNotebookOperator(
             task_id="test_id",
             input_config={
-                "notebook_path": "test-data/notebook/test_notebook.ipynb",
+                "notebook_path": "tests/amazon/aws/operators/test_notebook.ipynb",
             },
             output_config={"output_format": "ipynb"},
         )
 
         assert operator.task_id == "test_id"
         assert operator.input_config == {
-            "notebook_path": "test-data/notebook/test_notebook.ipynb",
+            "notebook_path": "tests/amazon/aws/operators/test_notebook.ipynb",
         }
         assert operator.output_config == {"output_format": "ipynb"}
 
@@ -44,7 +44,7 @@ class TestSageMakerNotebookOperator(TestCase):
         operator = SageMakerNotebookOperator(
             task_id="test_id",
             input_config={
-                "notebook_path": "test-data/notebook/test_notebook.ipynb",
+                "notebook_path": "tests/amazon/aws/operators/test_notebook.ipynb",
             },
         )
         assert isinstance(operator, SageMakerNotebookOperator)

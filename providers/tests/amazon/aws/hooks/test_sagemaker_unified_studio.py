@@ -28,7 +28,7 @@ from airflow.providers.amazon.aws.hooks.sagemaker_unified_studio import SageMake
 
 class TestSageMakerNotebookHook(TestCase):
     @patch(
-        "workflows.airflow.providers.amazon.aws.hooks.sagemaker_workflows.SageMakerUIHelperAPI",
+        "airflow.providers.amazon.aws.hooks.sagemaker_unified_studio.SageMakerUIHelperAPI",
         autospec=True,
     )
     def setUp(self, mock_sdk):
@@ -83,7 +83,7 @@ class TestSageMakerNotebookHook(TestCase):
         self.assertEqual(config, expected_config)
 
     @patch(
-        "workflows.airflow.providers.amazon.aws.hooks.sagemaker_workflows.SageMakerUIHelperAPI",
+        "airflow.providers.amazon.aws.hooks.sagemaker_unified_studio.SageMakerUIHelperAPI",
         autospec=True,
     )
     def test_format_output_config_default(self, mock_sdk):
@@ -179,7 +179,7 @@ class TestSageMakerNotebookHook(TestCase):
         self.assertEqual(str(cm.exception), error_message)
 
     @patch(
-        "workflows.airflow.providers.amazon.aws.hooks.sagemaker_workflows.SageMakerNotebookHook._set_xcom_files"
+        "airflow.providers.amazon.aws.hooks.sagemaker_unified_studio.SageMakerNotebookHook._set_xcom_files"
     )
     def test_set_xcom_files(self, mock_set_xcom_files):
         with create_session():
@@ -193,7 +193,7 @@ class TestSageMakerNotebookHook(TestCase):
         self.assertEqual(str(cm.exception), "context is required")
 
     @patch(
-        "workflows.airflow.providers.amazon.aws.hooks.sagemaker_workflows.SageMakerNotebookHook._set_xcom_s3_path"
+        "airflow.providers.amazon.aws.hooks.sagemaker_unified_studio.SageMakerNotebookHook._set_xcom_s3_path"
     )
     def test_set_xcom_s3_path(self, mock_set_xcom_s3_path):
         with create_session():
