@@ -1956,6 +1956,13 @@ flower:
     failureThreshold: 10
     periodSeconds: 5
 
+  # Wait for at most 1 minute (6*10s) for the flower container to startup.
+  # livenessProbe kicks in after the first successful startupProbe
+  startupProbe:
+    timeoutSeconds: 20
+    failureThreshold: 6
+    periodSeconds: 10
+
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
 
