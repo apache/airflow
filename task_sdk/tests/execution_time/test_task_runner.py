@@ -26,7 +26,13 @@ from unittest import mock
 import pytest
 from uuid6 import uuid7
 
-from airflow.exceptions import AirflowFailException, AirflowSensorTimeout, AirflowSkipException
+from airflow.exceptions import (
+    AirflowException,
+    AirflowFailException,
+    AirflowSensorTimeout,
+    AirflowSkipException,
+    AirflowTaskTerminated,
+)
 from airflow.sdk import DAG, BaseOperator
 from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
 from airflow.sdk.execution_time.comms import DeferTask, SetRenderedFields, StartupDetails, TaskState
@@ -343,6 +349,16 @@ def test_startup_dag_with_templated_fields(
             "basic_failed2",
             "sensor-timeout-exception",
             AirflowSensorTimeout("Oops. Failing by AirflowSensorTimeout!"),
+        ),
+        pytest.param(
+            "basic_failed3",
+            "airflow-exception",
+            AirflowException("Oops. Failing by AirflowException!"),
+        ),
+        pytest.param(
+            "basic_failed4",
+            "task-terminated-exception",
+            AirflowTaskTerminated("Oops. Failing by AirflowTaskTerminated!"),
         ),
     ],
 )
