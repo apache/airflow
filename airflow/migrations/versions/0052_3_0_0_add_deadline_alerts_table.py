@@ -31,6 +31,8 @@ import sqlalchemy as sa
 import sqlalchemy_jsonfield
 from alembic import op
 from sqlalchemy_utils import UUIDType
+from airflow.migrations.db_types import StringID
+from airflow.models import ID_LEN
 
 # revision identifiers, used by Alembic.
 revision = "237cef8dfea1"
@@ -44,7 +46,7 @@ def upgrade():
     op.create_table(
         "deadline",
         sa.Column("id", UUIDType(binary=False), nullable=False),
-        sa.Column("dag_id", sa.String(length=250), nullable=True),
+        sa.Column("dag_id", StringID(length=ID_LEN), nullable=True),
         sa.Column("run_id", sa.Integer(), nullable=True),
         sa.Column("deadline", sa.DateTime(), nullable=False),
         sa.Column("callback", sa.String(length=500), nullable=False),
