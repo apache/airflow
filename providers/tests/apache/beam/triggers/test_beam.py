@@ -61,6 +61,8 @@ def python_trigger():
         py_interpreter=TEST_PY_INTERPRETER,
         py_requirements=TEST_PY_REQUIREMENTS,
         py_system_site_packages=TEST_PY_PACKAGES,
+        project_id=PROJECT_ID,
+        location=LOCATION,
         runner=TEST_RUNNER,
         gcp_conn_id=TEST_GCP_CONN_ID,
     )
@@ -99,6 +101,8 @@ class TestBeamPythonPipelineTrigger:
             "py_interpreter": TEST_PY_INTERPRETER,
             "py_requirements": TEST_PY_REQUIREMENTS,
             "py_system_site_packages": TEST_PY_PACKAGES,
+            "project_id": PROJECT_ID,
+            "location": LOCATION,
             "runner": TEST_RUNNER,
             "gcp_conn_id": TEST_GCP_CONN_ID,
         }
@@ -114,7 +118,18 @@ class TestBeamPythonPipelineTrigger:
         mock_pipeline_status.return_value = 0
         generator = python_trigger.run()
         actual = await generator.asend(None)
-        assert TriggerEvent({"status": "success", "message": "Pipeline has finished SUCCESSFULLY"}) == actual
+        assert (
+            TriggerEvent(
+                {
+                    "status": "success",
+                    "message": "Pipeline has finished SUCCESSFULLY",
+                    "dataflow_job_id": None,
+                    "project_id": PROJECT_ID,
+                    "location": LOCATION,
+                }
+            )
+            == actual
+        )
 
     @pytest.mark.asyncio
     @mock.patch(HOOK_STATUS_STR_PYTHON)
@@ -189,7 +204,18 @@ class TestBeamJavaPipelineTrigger:
         mock_pipeline_status.return_value = 0
         generator = java_trigger.run()
         actual = await generator.asend(None)
-        assert TriggerEvent({"status": "success", "message": "Pipeline has finished SUCCESSFULLY"}) == actual
+        assert (
+            TriggerEvent(
+                {
+                    "status": "success",
+                    "message": "Pipeline has finished SUCCESSFULLY",
+                    "dataflow_job_id": None,
+                    "project_id": PROJECT_ID,
+                    "location": LOCATION,
+                }
+            )
+            == actual
+        )
 
     @pytest.mark.asyncio
     @mock.patch(HOOK_STATUS_STR_JAVA)
