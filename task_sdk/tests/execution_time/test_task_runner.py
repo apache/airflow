@@ -27,10 +27,12 @@ import pytest
 from uuid6 import uuid7
 
 from airflow.exceptions import (
+    AirflowException,
     AirflowFailException,
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTerminated,
+    AirflowTaskTimeout,
 )
 from airflow.sdk import DAG, BaseOperator
 from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
@@ -386,6 +388,52 @@ def test_run_basic_failed(time_machine, mocked_parse, dag_id, task_id, fail_with
 
         mock_supervisor_comms.send_request.assert_called_once_with(
             msg=TaskState(state=TerminalTIState.FAILED, end_date=instant), log=mock.ANY
+        )
+
+
+@pytest.mark.parametrize(
+    ["dag_id", "task_id", "retry_with_exception"],
+    [
+        pytest.param(
+            "basic_retry",
+            "task-timeout-exception",
+            AirflowTaskTimeout("Oops. Failing by AirflowTaskTimeout!"),
+        ),
+        pytest.param(
+            "basic_retry2", "airflow-exception", AirflowException("Oops. Failing by AirflowException!")
+        ),
+    ],
+)
+def test_run_basic_retry(time_machine, mocked_parse, dag_id, task_id, retry_with_exception, make_ti_context):
+    """Test running a basic task that sets itself for up_for_retry with various exceptions."""
+    from airflow.providers.standard.operators.python import PythonOperator
+
+    task = PythonOperator(
+        task_id=task_id,
+        python_callable=lambda: (_ for _ in ()).throw(
+            retry_with_exception,
+        ),
+    )
+
+    what = StartupDetails(
+        ti=TaskInstance(id=uuid7(), task_id=task_id, dag_id=dag_id, run_id="c", try_number=1),
+        file="",
+        requests_fd=0,
+        ti_context=make_ti_context(),
+    )
+
+    ti = mocked_parse(what, dag_id, task)
+
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
+
+    with mock.patch(
+        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
+    ) as mock_supervisor_comms:
+        run(ti, log=mock.MagicMock())
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            msg=TaskState(state=TerminalTIState.UP_FOR_RETRY, end_date=instant), log=mock.ANY
         )
 
 

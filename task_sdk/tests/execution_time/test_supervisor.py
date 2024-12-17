@@ -870,6 +870,16 @@ class TestHandleRequest:
                 "",
                 id="patch_task_instance_to_failed",
             ),
+            pytest.param(
+                TaskState(
+                    state=TerminalTIState.UP_FOR_RETRY, end_date=timezone.parse("2024-10-31T12:00:00Z")
+                ),
+                b"",
+                "",
+                (),
+                "",
+                id="patch_task_instance_to_retry",
+            ),
         ],
     )
     def test_handle_requests(
