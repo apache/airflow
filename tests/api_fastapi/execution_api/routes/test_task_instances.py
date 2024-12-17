@@ -460,7 +460,6 @@ class TestTIHealthEndpoint:
 
         ti = create_task_instance(
             task_id="test_ti_update_state_to_failed_table_check",
-            start_date=DEFAULT_START_DATE,
             state=State.RUNNING,
         )
         ti.start_date = DEFAULT_START_DATE
