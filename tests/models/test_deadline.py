@@ -63,7 +63,7 @@ class TestDeadline:
     @pytest.fixture
     def create_dagrun(self, dag_maker, session):
         with dag_maker(DAG_ID):
-            EmptyOperator(task_id='TASK_ID')
+            EmptyOperator(task_id="TASK_ID")
         dag_maker.create_dagrun()
 
         session.commit()
