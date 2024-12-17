@@ -1623,7 +1623,6 @@ class SerializedDAG(DAG, BaseSerialization):
     def __get_constructor_defaults():
         param_to_attr = {
             "description": "_description",
-            "default_view": "_default_view",
         }
         return {
             param_to_attr.get(k, k): v.default

@@ -123,7 +123,6 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-DEFAULT_VIEW_PRESETS = ["grid", "graph", "duration", "gantt", "landing_times"]
 ORIENTATION_PRESETS = ["LR", "TB", "RL", "BT"]
 
 TAG_MAX_LEN = 100
@@ -376,8 +375,6 @@ class DAG(TaskSDKDag, LoggingMixin):
     :param dagrun_timeout: Specify the duration a DagRun should be allowed to run before it times out or
         fails. Task instances that are running when a DagRun is timed out will be marked as skipped.
     :param sla_miss_callback: DEPRECATED - The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in 3.1
-    :param default_view: Specify DAG default view (grid, graph, duration,
-                                                   gantt, landing_times), default grid
     :param orientation: Specify DAG orientation in graph view (LR, TB, RL, BT), default LR
     :param catchup: Perform scheduler catchup (or only run latest)? Defaults to True
     :param on_failure_callback: A function or list of functions to be called when a DagRun of this dag fails.
@@ -424,7 +421,6 @@ class DAG(TaskSDKDag, LoggingMixin):
     partial: bool = False
     last_loaded: datetime | None = attrs.field(factory=timezone.utcnow)
 
-    default_view: str = airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower()
     orientation: str = airflow_conf.get_mandatory_value("webserver", "dag_orientation")
 
     # this will only be set at serialization time
@@ -1874,10 +1870,7 @@ class DAG(TaskSDKDag, LoggingMixin):
 
     def get_default_view(self):
         """Allow backward compatible jinja2 templates."""
-        if self.default_view is None:
-            return airflow_conf.get("webserver", "dag_default_view").lower()
-        else:
-            return self.default_view
+        return airflow_conf.get("webserver", "dag_default_view").lower()
 
     @staticmethod
     @provide_session
@@ -2037,8 +2030,6 @@ class DagModel(Base):
     _dag_display_property_value = Column("dag_display_name", String(2000), nullable=True)
     # Description of the dag
     description = Column(Text)
-    # Default view of the DAG inside the webserver
-    default_view = Column(String(25))
     # Timetable summary
     timetable_summary = Column(Text, nullable=True)
     # Timetable description

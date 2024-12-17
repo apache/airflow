@@ -1098,17 +1098,6 @@ export const $DAGDetailsResponse = {
       ],
       title: "Last Expired",
     },
-    default_view: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Default View",
-    },
     fileloc: {
       type: "string",
       title: "Fileloc",
@@ -1381,7 +1370,6 @@ export const $DAGDetailsResponse = {
     "is_active",
     "last_parsed_time",
     "last_expired",
-    "default_view",
     "fileloc",
     "description",
     "timetable_summary",
@@ -1470,17 +1458,6 @@ export const $DAGResponse = {
         },
       ],
       title: "Last Expired",
-    },
-    default_view: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Default View",
     },
     fileloc: {
       type: "string",
@@ -1623,7 +1600,6 @@ export const $DAGResponse = {
     "is_active",
     "last_parsed_time",
     "last_expired",
-    "default_view",
     "fileloc",
     "description",
     "timetable_summary",
@@ -2217,17 +2193,6 @@ export const $DAGWithLatestDagRunsResponse = {
       ],
       title: "Last Expired",
     },
-    default_view: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Default View",
-    },
     fileloc: {
       type: "string",
       title: "Fileloc",
@@ -2376,7 +2341,6 @@ export const $DAGWithLatestDagRunsResponse = {
     "is_active",
     "last_parsed_time",
     "last_expired",
-    "default_view",
     "fileloc",
     "description",
     "timetable_summary",

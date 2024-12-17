@@ -226,7 +226,6 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "is_active": dag.get_is_active(),
         "last_parsed_time": None,
         "last_expired": None,
-        "default_view": dag.default_view,
         "fileloc": dag.fileloc,
         "file_token": None,
         "owners": dag.owner,

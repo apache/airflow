@@ -15,22 +15,36 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+"""
+Remove dag.default_view.
+
+Revision ID: c8a757d45cf3
+Revises: 038dc8bc6284
+Create Date: 2024-12-17 17:59:36.041711
+
+"""
+
 from __future__ import annotations
 
-import pendulum
+import sqlalchemy as sa
+from alembic import op
 
-from airflow.models.dag import DAG
+# revision identifiers, used by Alembic.
+revision = "c8a757d45cf3"
+down_revision = "038dc8bc6284"
+branch_labels = None
+depends_on = None
+airflow_version = "3.0.0"
 
-args = {"owner": "airflow", "retries": 3, "start_date": pendulum.datetime(2022, 1, 1)}
 
-tree_dag = DAG(
-    dag_id="test_tree_view",
-    default_args=args,
-    schedule="0 0 * * *",
-)
+def upgrade():
+    with op.batch_alter_table("dag", schema=None) as batch_op:
+        batch_op.drop_column("default_view")
 
-graph_dag = DAG(
-    dag_id="test_graph_view",
-    default_args=args,
-    schedule="0 0 * * *",
-)
+
+def downgrade():
+    with op.batch_alter_table("dag", schema=None) as batch_op:
+        batch_op.add_column(
+            sa.Column("default_view", sa.VARCHAR(length=25), autoincrement=False, nullable=True)
+        )

@@ -30,7 +30,7 @@ const dagDetailsApiUrl = getMetaValue("dag_details_api");
 const combineResults = (
   dagData: DAG,
   dagDetailsData: DAGDetail
-): Omit<DAGDetail, "defaultView"> => ({ ...dagData, ...dagDetailsData });
+): DAGDetail => ({ ...dagData, ...dagDetailsData });
 
 const useDagDetails = () => {
   const { data: dagData } = useDag();

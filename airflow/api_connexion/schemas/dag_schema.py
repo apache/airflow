@@ -55,7 +55,6 @@ class DAGSchema(SQLAlchemySchema):
     is_active = auto_field(dump_only=True)
     last_parsed_time = auto_field(dump_only=True)
     last_expired = auto_field(dump_only=True)
-    default_view = auto_field(dump_only=True)
     fileloc = auto_field(dump_only=True)
     file_token = fields.Method("get_token", dump_only=True)
     owners = fields.Method("get_owners", dump_only=True)
@@ -99,7 +98,6 @@ class DAGDetailSchema(DAGSchema):
     start_date = fields.DateTime(dump_only=True)
     dag_run_timeout = fields.Nested(TimeDeltaSchema, attribute="dagrun_timeout", dump_only=True)
     doc_md = fields.String(dump_only=True)
-    default_view = fields.String(dump_only=True)
     params = fields.Method("get_params", dump_only=True)
     tags = fields.Method("get_tags", dump_only=True)  # type: ignore
     is_paused = fields.Method("get_is_paused", dump_only=True)

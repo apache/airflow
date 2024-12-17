@@ -68,7 +68,6 @@ const Dag = () => {
 
   // fields to exclude from "dagDetailsData" since handled separately or not required
   const dagDataExcludeFields = [
-    "defaultView",
     "fileToken",
     "timetableSummary",
     "tags",

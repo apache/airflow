@@ -32,7 +32,6 @@ import { DagCard } from "./DagCard";
 const mockDag = {
   dag_display_name: "nested_groups",
   dag_id: "nested_groups",
-  default_view: "grid",
   description: null,
   file_token:
     "Ii9maWxlcy9kYWdzL25lc3RlZF90YXNrX2dyb3Vwcy5weSI.G3EkdxmDUDQsVb7AIZww1TSGlFE",
