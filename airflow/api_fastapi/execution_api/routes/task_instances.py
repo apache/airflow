@@ -39,9 +39,9 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TIStateUpdate,
     TITerminalStatePayload,
 )
-from airflow.models import TaskReschedule
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, _update_rtif
+from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -227,7 +227,7 @@ def ti_update_state(
             trigger_timeout=timeout,
         )
     elif isinstance(ti_patch_payload, TIRescheduleStatePayload):
-        task_instance = session.get(TI, (ti_id_str,))
+        task_instance = session.get(TI, ti_id_str)
         actual_start_date = timezone.utcnow()
         # add changes to TaskReschedule table to the session
         session.add(
