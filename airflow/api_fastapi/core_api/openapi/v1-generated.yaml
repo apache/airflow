@@ -7734,6 +7734,11 @@ components:
         target_id:
           type: string
           title: Target Id
+        is_source_asset:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Source Asset
       type: object
       required:
       - source_id
@@ -8079,6 +8084,14 @@ components:
           - type: string
           - type: 'null'
           title: Operator
+        asset_condition_type:
+          anyOf:
+          - type: string
+            enum:
+            - or-gate
+            - and-gate
+          - type: 'null'
+          title: Asset Condition Type
       type: object
       required:
       - id
@@ -9481,6 +9494,9 @@ components:
         dag_id:
           type: string
           title: Dag Id
+        run_id:
+          type: string
+          title: Run Id
       type: object
       required:
       - key
@@ -9489,6 +9505,7 @@ components:
       - map_index
       - task_id
       - dag_id
+      - run_id
       title: XComResponse
       description: Serializer for a xcom item.
     XComResponseNative:
@@ -9513,6 +9530,9 @@ components:
         dag_id:
           type: string
           title: Dag Id
+        run_id:
+          type: string
+          title: Run Id
         value:
           title: Value
       type: object
@@ -9523,6 +9543,7 @@ components:
       - map_index
       - task_id
       - dag_id
+      - run_id
       - value
       title: XComResponseNative
       description: XCom response serializer with native return type.
@@ -9548,6 +9569,9 @@ components:
         dag_id:
           type: string
           title: Dag Id
+        run_id:
+          type: string
+          title: Run Id
         value:
           anyOf:
           - type: string
@@ -9561,6 +9585,7 @@ components:
       - map_index
       - task_id
       - dag_id
+      - run_id
       - value
       title: XComResponseString
       description: XCom response serializer with string return type.

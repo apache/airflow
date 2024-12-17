@@ -925,6 +925,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
                 "next_execution_date",
                 "prev_execution_date",
                 "prev_execution_date_success",
+                "conf",
             }
         else:
             declared_keys.remove("triggering_asset_events")

@@ -44,6 +44,17 @@ class ConnectionResponse(BaseModel):
     extra: Annotated[str | None, Field(title="Extra")] = None
 
 
+class DagRunType(str, Enum):
+    """
+    Class with DagRun types.
+    """
+
+    BACKFILL = "backfill"
+    SCHEDULED = "scheduled"
+    MANUAL = "manual"
+    ASSET_TRIGGERED = "asset_triggered"
+
+
 class IntermediateTIState(str, Enum):
     """
     States that a Task Instance can be in that indicate it is not yet in a terminal or running state.
@@ -159,8 +170,34 @@ class TaskInstance(BaseModel):
     map_index: Annotated[int | None, Field(title="Map Index")] = None
 
 
+class DagRun(BaseModel):
+    """
+    Schema for DagRun model with minimal required fields needed for Runtime.
+    """
+
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    run_id: Annotated[str, Field(title="Run Id")]
+    logical_date: Annotated[datetime, Field(title="Logical Date")]
+    data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
+    data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
+    start_date: Annotated[datetime, Field(title="Start Date")]
+    end_date: Annotated[datetime | None, Field(title="End Date")] = None
+    run_type: DagRunType
+    conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
+
+
 class HTTPValidationError(BaseModel):
     detail: Annotated[list[ValidationError] | None, Field(title="Detail")] = None
+
+
+class TIRunContext(BaseModel):
+    """
+    Response schema for TaskInstance run context.
+    """
+
+    dag_run: DagRun
+    variables: Annotated[list[VariableResponse] | None, Field(title="Variables")] = None
+    connections: Annotated[list[ConnectionResponse] | None, Field(title="Connections")] = None
 
 
 class TITerminalStatePayload(BaseModel):

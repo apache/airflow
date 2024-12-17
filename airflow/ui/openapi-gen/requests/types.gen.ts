@@ -643,6 +643,7 @@ export type EdgeResponse = {
   label?: string | null;
   source_id: string;
   target_id: string;
+  is_source_asset?: boolean | null;
 };
 
 /**
@@ -783,6 +784,7 @@ export type NodeResponse = {
     | "sensor"
     | "trigger";
   operator?: string | null;
+  asset_condition_type?: "or-gate" | "and-gate" | null;
 };
 
 export type type =
@@ -1286,6 +1288,7 @@ export type XComResponse = {
   map_index: number;
   task_id: string;
   dag_id: string;
+  run_id: string;
 };
 
 /**
@@ -1298,6 +1301,7 @@ export type XComResponseNative = {
   map_index: number;
   task_id: string;
   dag_id: string;
+  run_id: string;
   value: unknown;
 };
 
@@ -1311,6 +1315,7 @@ export type XComResponseString = {
   map_index: number;
   task_id: string;
   dag_id: string;
+  run_id: string;
   value: string | null;
 };
 
