@@ -497,9 +497,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             self.handler.close()
             sys.stdout = sys.__stdout__
 
-        if self.write_to_es:
-            # self.emit(logging.makeLogRecord({"msg": self.end_of_log_mark}))
-            full_path = self.handler.baseFilename
+        if self.write_to_es and not self.write_stdout:
+            full_path = self.handler.baseFilename  # type: ignore[union-attr]
             log_relative_path = pathlib.Path(full_path).relative_to(self.local_base).as_posix()
             local_loc = os.path.join(self.local_base, log_relative_path)
             if os.path.exists(local_loc):
