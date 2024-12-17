@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-17T07:42:32.132512
+# This constraints file was automatically generated on 2024-12-17T13:47:28.947285
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -360,7 +360,7 @@ multidict==6.1.0
 mypy-boto3-appflow==1.35.39
 mypy-boto3-rds==1.35.82
 mypy-boto3-redshift-data==1.35.51
-mypy-boto3-s3==1.35.76.post1
+mypy-boto3-s3==1.35.81
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.1.0
@@ -370,7 +370,7 @@ nbformat==5.10.4
 neo4j==5.27.0
 nest-asyncio==1.6.0
 networkx==3.4.2
-nh3==0.2.19
+nh3==0.2.20
 numpy==1.26.4
 oauthlib==3.2.2
 openai==1.57.4
