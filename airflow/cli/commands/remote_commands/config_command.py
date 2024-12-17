@@ -228,10 +228,6 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("webserver", "allow_raw_html_descriptions"),
     ),
     ConfigChange(
-        config=ConfigParameter("webserver", "session_lifetime_days"),
-        suggestion="Please use `session_lifetime_minutes`.",
-    ),
-    ConfigChange(
         config=ConfigParameter("webserver", "update_fab_perms"),
         renamed_to=ConfigParameter("fab", "update_fab_perms"),
     ),

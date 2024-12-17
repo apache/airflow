@@ -361,10 +361,6 @@ class TestConfigLint:
                     "Remove TaskContextLogger: Replaced by the Log table for better handling of task log messages outside the execution context.",
                 ),
             ],
-            [
-                ("webserver", "allow_raw_html_descriptions", ""),
-                ("webserver", "session_lifetime_days", "Please use `session_lifetime_minutes`."),
-            ],
         ],
     )
     def test_lint_detects_multiple_removed_configs(self, removed_configs):
