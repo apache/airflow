@@ -193,13 +193,17 @@ class TestTaskInstanceOperations:
                 actual_body = json.loads(request.read())
                 assert actual_body["state"] == "up_for_reschedule"
                 assert actual_body["reschedule_date"] == "2024-10-31T12:00:00Z"
+                assert actual_body["end_date"] == "2024-10-31T12:00:00Z"
                 return httpx.Response(
                     status_code=204,
                 )
             return httpx.Response(status_code=400, json={"detail": "Bad Request"})
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        msg = RescheduleTask(reschedule_date=timezone.parse("2024-10-31T12:00:00Z"))
+        msg = RescheduleTask(
+            reschedule_date=timezone.parse("2024-10-31T12:00:00Z"),
+            end_date=timezone.parse("2024-10-31T12:00:00Z"),
+        )
         client.task_instances.reschedule(ti_id, msg)
 
     @pytest.mark.parametrize(

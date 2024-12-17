@@ -795,10 +795,19 @@ class TestHandleRequest:
                 id="patch_task_instance_to_deferred",
             ),
             pytest.param(
-                RescheduleTask(reschedule_date=timezone.parse("2024-10-31T12:00:00Z")),
+                RescheduleTask(
+                    reschedule_date=timezone.parse("2024-10-31T12:00:00Z"),
+                    end_date=timezone.parse("2024-10-31T12:00:00Z"),
+                ),
                 b"",
                 "task_instances.reschedule",
-                (TI_ID, RescheduleTask(reschedule_date=timezone.parse("2024-10-31T12:00:00Z"))),
+                (
+                    TI_ID,
+                    RescheduleTask(
+                        reschedule_date=timezone.parse("2024-10-31T12:00:00Z"),
+                        end_date=timezone.parse("2024-10-31T12:00:00Z"),
+                    ),
+                ),
                 "",
                 id="patch_task_instance_to_up_for_reschedule",
             ),
