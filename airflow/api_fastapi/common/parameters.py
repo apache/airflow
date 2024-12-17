@@ -536,16 +536,17 @@ QueryDagTagPatternSearch = Annotated[
 
 # TI
 def _transform_ti_states(states: list[str] | None) -> list[TaskInstanceState | None] | None:
+    """Transform a list of state strings into a list of TaskInstanceState enums handling special 'None' cases."""
+    if not states:
+        return None
+
     try:
-        if not states:
-            return None
         return [None if s in ("none", None) else TaskInstanceState(s) for s in states]
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Invalid value for state. Valid values are {', '.join(TaskInstanceState)}",
         )
-    return states
 
 
 QueryTIStateFilter = Annotated[

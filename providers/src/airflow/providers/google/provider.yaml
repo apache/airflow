@@ -100,7 +100,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.8.0
+  - apache-airflow>=2.9.0
   - apache-airflow-providers-common-compat>=1.2.1
   - apache-airflow-providers-common-sql>=1.20.0
   - asgiref>=3.5.2
@@ -118,7 +118,7 @@ dependencies:
   - google-api-python-client>=2.0.2
   - google-auth>=2.29.0
   - google-auth-httplib2>=0.0.1
-  - google-cloud-aiplatform>=1.70.0
+  - google-cloud-aiplatform>=1.73.0
   - google-cloud-automl>=2.12.0
   # Excluded versions contain bug https://github.com/apache/airflow/issues/39541 which is resolved in 3.24.0
   - google-cloud-bigquery>=3.4.0,!=3.21.*,!=3.22.0,!=3.23.*
@@ -693,6 +693,7 @@ operators:
       - airflow.providers.google.cloud.operators.vertex_ai.model_service
       - airflow.providers.google.cloud.operators.vertex_ai.pipeline_job
       - airflow.providers.google.cloud.operators.vertex_ai.generative_model
+      - airflow.providers.google.cloud.operators.vertex_ai.feature_store
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.operators.looker
@@ -743,6 +744,9 @@ sensors:
   - integration-name: Google Cloud Pub/Sub
     python-modules:
       - airflow.providers.google.cloud.sensors.pubsub
+  - integration-name: Google Vertex AI
+    python-modules:
+      - airflow.providers.google.cloud.sensors.vertex_ai.feature_store
   - integration-name: Google Cloud Workflows
     python-modules:
       - airflow.providers.google.cloud.sensors.workflows
@@ -963,6 +967,7 @@ hooks:
       - airflow.providers.google.cloud.hooks.vertex_ai.pipeline_job
       - airflow.providers.google.cloud.hooks.vertex_ai.generative_model
       - airflow.providers.google.cloud.hooks.vertex_ai.prediction_service
+      - airflow.providers.google.cloud.hooks.vertex_ai.feature_store
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.hooks.looker

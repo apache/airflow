@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.9.6pre0
+.........
+
+Misc
+~~~~
+
+* ``Replace null value in log file chunk with question mark to fix exception by pushing log into DB.``
+
 0.9.5pre0
 .........
 
