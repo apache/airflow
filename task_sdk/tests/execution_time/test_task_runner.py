@@ -27,7 +27,6 @@ import pytest
 from uuid6 import uuid7
 
 from airflow.exceptions import (
-    AirflowException,
     AirflowFailException,
     AirflowSensorTimeout,
     AirflowSkipException,
@@ -352,11 +351,6 @@ def test_startup_dag_with_templated_fields(
         ),
         pytest.param(
             "basic_failed3",
-            "airflow-exception",
-            AirflowException("Oops. Failing by AirflowException!"),
-        ),
-        pytest.param(
-            "basic_failed4",
             "task-terminated-exception",
             AirflowTaskTerminated("Oops. Failing by AirflowTaskTerminated!"),
         ),
