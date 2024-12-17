@@ -95,8 +95,8 @@ This will only update the min version in  the `__init__.py` files and package do
 
 4. Remove `AIRFLOW_V_2_X_PLUS` in all tests (review and update skipif and other conditional
    behaviour and test_compat.py, where X is the TARGET version we change to. For example
-   when we update min Airflow version to 2.9.0, we should remove all references to AIRFLOW_V_2_9_PLUS
-   simply because "everything" in our tests is already 2.9.0+ and there is no need to exclude or
+   when we update min Airflow version to 2.10.0, we should remove all references to AIRFLOW_V_2_10_PLUS
+   simply because "everything" in our tests is already 2.10.0+ and there is no need to exclude or
    modify tests for earlier versions of Airflow.
 
 Note: Sometimes we are releasing a subset of providers and would not want to add the

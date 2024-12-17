@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import logging
-from contextlib import nullcontext
 from unittest import mock
 from urllib.parse import parse_qs, urlsplit
 
@@ -32,7 +31,7 @@ from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
 def _create_list_log_entries_response_mock(messages, token):
@@ -88,7 +87,7 @@ def test_should_use_configured_log_name(mock_client, mock_get_creds_and_project_
         # this is needed for Airflow 2.8 and below where default settings are triggering warning on
         # extra "name" in the configuration of stackdriver handler. As of Airflow 2.9 this warning is not
         # emitted.
-        context_manager = nullcontext() if AIRFLOW_V_2_9_PLUS else pytest.warns(RemovedInAirflow3Warning)
+        context_manager = pytest.warns(RemovedInAirflow3Warning)
         with context_manager:
             with conf_vars(
                 {
