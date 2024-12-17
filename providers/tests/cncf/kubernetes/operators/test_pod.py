@@ -1556,8 +1556,8 @@ class TestKubernetesPodOperator:
             "context": context,
         }
 
-        mock_callbacks.on_pod_wrapup.assert_called_once()
-        assert mock_callbacks.on_pod_wrapup.call_args.kwargs == {
+        mock_callbacks.on_pod_teardown.assert_called_once()
+        assert mock_callbacks.on_pod_teardown.call_args.kwargs == {
             "client": k.client,
             "mode": ExecutionMode.SYNC,
             "pod": found_pods[2],
@@ -1643,8 +1643,8 @@ class TestKubernetesPodOperator:
             "context": context,
         }
 
-        assert mock_callbacks.on_pod_wrapup.call_count == 2
-        assert mock_callbacks.on_pod_wrapup.call_args.kwargs == {
+        assert mock_callbacks.on_pod_teardown.call_count == 2
+        assert mock_callbacks.on_pod_teardown.call_args.kwargs == {
             "client": k.client,
             "mode": ExecutionMode.SYNC,
             "pod": found_pods[2],

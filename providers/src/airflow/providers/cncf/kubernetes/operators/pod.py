@@ -635,7 +635,7 @@ class KubernetesPodOperator(BaseOperator):
                         operator=self,
                     )
                 for callback in self.callbacks:
-                    callback.on_pod_wrapup(
+                    callback.on_pod_teardown(
                         pod=pod,
                         client=self.client,
                         mode=ExecutionMode.SYNC,

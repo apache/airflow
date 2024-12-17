@@ -123,7 +123,7 @@ class KubernetesPodOperatorCallback:
         pass
 
     @staticmethod
-    def on_pod_wrapup(
+    def on_pod_teardown(
         *,
         pod: k8s.V1Pod,
         client: client_type,
