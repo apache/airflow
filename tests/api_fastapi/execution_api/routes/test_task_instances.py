@@ -459,7 +459,7 @@ class TestTIHealthEndpoint:
         from math import ceil
 
         ti = create_task_instance(
-            task_id="test_ti_update_state_to_terminal",
+            task_id="test_ti_update_state_to_failed_table_check",
             start_date=DEFAULT_START_DATE,
             state=State.RUNNING,
         )
