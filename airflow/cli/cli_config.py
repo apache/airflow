@@ -880,8 +880,7 @@ ARG_LINT_CONFIG_IGNORE_OPTION = Arg(
 )
 ARG_OPTIONAL_SECTION = Arg(
     ("--section",),
-    help="The section name(s).",
-    type=string_list_type,
+    help="The section name",
 )
 
 # jobs check

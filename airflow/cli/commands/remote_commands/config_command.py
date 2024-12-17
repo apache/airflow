@@ -69,8 +69,8 @@ def get_value(args):
         pass
 
 
-class RenamedTo(NamedTuple):
-    """Represents a configuration parameter that has been renamed."""
+class ConfigParameter(NamedTuple):
+    """Represents a configuration parameter."""
 
     section: str
     option: str
@@ -78,296 +78,264 @@ class RenamedTo(NamedTuple):
 
 @dataclass
 class ConfigChange:
-    """Class representing the configuration changes in Airflow 3.0."""
+    """
+    Class representing the configuration changes in Airflow 3.0.
 
-    def __init__(
-        self, section: str, option: str, suggestion: str = "", renamed_to: RenamedTo | None = None
-    ) -> None:
-        """
-        Initialize a ConfigChange instance.
+    :param config: The configuration parameter being changed.
+    :param suggestion: A suggestion for replacing or handling the removed configuration.
+    :param renamed_to: The new section and option if the configuration is renamed.
+    """
 
-        :param section: The section of the configuration.
-        :param option: The option within the section that is removed or deprecated.
-        :param suggestion: A suggestion for replacing or handling the removed configuration.
-        :param renamed_to: The new section and option if the configuration is renamed.
-        """
-        self.section = section
-        self.option = option
-        self.suggestion = suggestion
-        self.renamed_to = renamed_to
+    config: ConfigParameter
+    suggestion: str = ""
+    renamed_to: ConfigParameter | None = None
 
     @property
     def message(self) -> str:
         """Generate a message for this configuration change."""
         if self.renamed_to:
-            if self.section != self.renamed_to.section:
+            if self.config.section != self.renamed_to.section:
                 return (
-                    f"`{self.option}` configuration parameter moved from `{self.section}` section to `"
+                    f"`{self.config.option}` configuration parameter moved from `{self.config.section}` section to `"
                     f"{self.renamed_to.section}` section as `{self.renamed_to.option}`."
                 )
-            else:
-                return (
-                    f"`{self.option}` configuration parameter renamed to `{self.renamed_to.option}` "
-                    f"in the `{self.section}` section."
-                )
-        else:
             return (
-                f"Removed deprecated `{self.option}` configuration parameter from `{self.section}` section. "
-                f"{self.suggestion}"
+                f"`{self.config.option}` configuration parameter renamed to `{self.renamed_to.option}` "
+                f"in the `{self.config.section}` section."
             )
+        return (
+            f"Removed deprecated `{self.config.option}` configuration parameter from `{self.config.section}` section. "
+            f"{self.suggestion}"
+        )
 
 
 CONFIGS_CHANGES = [
     ConfigChange(
-        section="admin",
-        option="hide_sensitive_variable_fields",
-        renamed_to=RenamedTo("core", "hide_sensitive_var_conn_fields"),
+        config=ConfigParameter("admin", "hide_sensitive_variable_fields"),
+        renamed_to=ConfigParameter("core", "hide_sensitive_var_conn_fields"),
     ),
     ConfigChange(
-        section="admin",
-        option="sensitive_variable_fields",
-        renamed_to=RenamedTo("core", "sensitive_var_conn_names"),
+        config=ConfigParameter("admin", "sensitive_variable_fields"),
+        renamed_to=ConfigParameter("core", "sensitive_var_conn_names"),
     ),
     ConfigChange(
-        section="core",
-        option="check_slas",
+        config=ConfigParameter("core", "check_slas"),
         suggestion="The SLA feature is removed in Airflow 3.0, to be replaced with Airflow Alerts in "
         "future",
     ),
     ConfigChange(
-        section="core",
-        option="strict_asset_uri_validation",
+        config=ConfigParameter("core", "strict_asset_uri_validation"),
         suggestion="Asset URI with a defined scheme will now always be validated strictly, "
         "raising a hard error on validation failure.",
     ),
     ConfigChange(
-        section="core",
-        option="worker_precheck",
-        renamed_to=RenamedTo("celery", "worker_precheck"),
+        config=ConfigParameter("core", "worker_precheck"),
+        renamed_to=ConfigParameter("celery", "worker_precheck"),
     ),
     ConfigChange(
-        section="core",
-        option="non_pooled_task_slot_count",
-        renamed_to=RenamedTo("core", "default_pool_task_slot_count"),
+        config=ConfigParameter("core", "non_pooled_task_slot_count"),
+        renamed_to=ConfigParameter("core", "default_pool_task_slot_count"),
     ),
     ConfigChange(
-        section="core",
-        option="dag_concurrency",
-        renamed_to=RenamedTo("core", "max_active_tasks_per_dag"),
+        config=ConfigParameter("core", "dag_concurrency"),
+        renamed_to=ConfigParameter("core", "max_active_tasks_per_dag"),
     ),
     ConfigChange(
-        section="core",
-        option="sql_alchemy_conn",
-        renamed_to=RenamedTo("database", "sql_alchemy_conn"),
+        config=ConfigParameter("core", "sql_alchemy_conn"),
+        renamed_to=ConfigParameter("database", "sql_alchemy_conn"),
     ),
     ConfigChange(
-        section="core",
-        option="sql_engine_encoding",
-        renamed_to=RenamedTo("database", "sql_engine_encoding"),
+        config=ConfigParameter("core", "sql_engine_encoding"),
+        renamed_to=ConfigParameter("database", "sql_engine_encoding"),
     ),
     ConfigChange(
-        section="core",
-        option="sql_engine_collation_for_ids",
-        renamed_to=RenamedTo("database", "sql_engine_collation_for_ids"),
+        config=ConfigParameter("core", "sql_engine_collation_for_ids"),
+        renamed_to=ConfigParameter("database", "sql_engine_collation_for_ids"),
     ),
     ConfigChange(
-        section="core",
-        option="sql_alchemy_pool_enabled",
-        renamed_to=RenamedTo("database", "sql_alchemy_pool_enabled"),
+        config=ConfigParameter("core", "sql_alchemy_pool_enabled"),
+        renamed_to=ConfigParameter("database", "sql_alchemy_pool_enabled"),
     ),
     ConfigChange(
-        section="core",
-        option="sql_alchemy_pool_size",
-        renamed_to=RenamedTo("database", "sql_alchemy_pool_size"),
+        config=ConfigParameter("core", "sql_alchemy_pool_size"),
+        renamed_to=ConfigParameter("database", "sql_alchemy_pool_size"),
     ),
     ConfigChange(
-        section="core",
-        option="sql_alchemy_max_overflow",
-        renamed_to=RenamedTo("database", "sql_alchemy_max_overflow"),
+        config=ConfigParameter("core", "sql_alchemy_max_overflow"),
+        renamed_to=ConfigParameter("database", "sql_alchemy_max_overflow"),
     ),
     ConfigChange(
-        section="core",
-        option="sql_alchemy_pool_recycle",
-        renamed_to=RenamedTo("database", "sql_alchemy_pool_recycle"),
+        config=ConfigParameter("core", "sql_alchemy_pool_recycle"),
+        renamed_to=ConfigParameter("database", "sql_alchemy_pool_recycle"),
     ),
     ConfigChange(
-        section="core",
-        option="sql_alchemy_pool_pre_ping",
-        renamed_to=RenamedTo("database", "sql_alchemy_pool_pre_ping"),
+        config=ConfigParameter("core", "sql_alchemy_pool_pre_ping"),
+        renamed_to=ConfigParameter("database", "sql_alchemy_pool_pre_ping"),
     ),
     ConfigChange(
-        section="core",
-        option="sql_alchemy_schema",
-        renamed_to=RenamedTo("database", "sql_alchemy_schema"),
+        config=ConfigParameter("core", "sql_alchemy_schema"),
+        renamed_to=ConfigParameter("database", "sql_alchemy_schema"),
     ),
     ConfigChange(
-        section="core",
-        option="sql_alchemy_connect_args",
-        renamed_to=RenamedTo("database", "sql_alchemy_connect_args"),
+        config=ConfigParameter("core", "sql_alchemy_connect_args"),
+        renamed_to=ConfigParameter("database", "sql_alchemy_connect_args"),
     ),
     ConfigChange(
-        section="core",
-        option="load_default_connections",
-        renamed_to=RenamedTo("database", "load_default_connections"),
+        config=ConfigParameter("core", "load_default_connections"),
+        renamed_to=ConfigParameter("database", "load_default_connections"),
     ),
     ConfigChange(
-        section="core",
-        option="max_db_retries",
-        renamed_to=RenamedTo("database", "max_db_retries"),
+        config=ConfigParameter("core", "max_db_retries"),
+        renamed_to=ConfigParameter("database", "max_db_retries"),
     ),
     ConfigChange(
-        section="api",
-        option="access_control_allow_origin",
-        renamed_to=RenamedTo("api", "access_control_allow_origins"),
+        config=ConfigParameter("api", "access_control_allow_origin"),
+        renamed_to=ConfigParameter("api", "access_control_allow_origins"),
     ),
     ConfigChange(
-        section="api",
-        option="auth_backend",
-        renamed_to=RenamedTo("api", "auth_backends"),
+        config=ConfigParameter("api", "auth_backend"),
+        renamed_to=ConfigParameter("api", "auth_backends"),
     ),
     ConfigChange(
-        section="logging",
-        option="enable_task_context_logger",
+        config=ConfigParameter("logging", "enable_task_context_logger"),
         suggestion="Remove TaskContextLogger: Replaced by the Log table for better handling of task log "
         "messages outside the execution context.",
     ),
     ConfigChange(
-        section="metrics",
-        option="metrics_use_pattern_match",
+        config=ConfigParameter("metrics", "metrics_use_pattern_match"),
     ),
     ConfigChange(
-        section="metrics",
-        option="timer_unit_consistency",
+        config=ConfigParameter("metrics", "timer_unit_consistency"),
         suggestion="In Airflow 3.0, the `timer_unit_consistency` setting in the `metrics` section is "
         "removed as it is now the default behaviour. This is done to standardize all timer and "
         "timing metrics to milliseconds across all metric loggers",
     ),
     ConfigChange(
-        section="metrics",
-        option="statsd_allow_list",
-        renamed_to=RenamedTo("metrics", "metrics_allow_list"),
+        config=ConfigParameter("metrics", "statsd_allow_list"),
+        renamed_to=ConfigParameter("metrics", "metrics_allow_list"),
     ),
     ConfigChange(
-        section="metrics",
-        option="statsd_block_list",
-        renamed_to=RenamedTo("metrics", "metrics_block_list"),
+        config=ConfigParameter("metrics", "statsd_block_list"),
+        renamed_to=ConfigParameter("metrics", "metrics_block_list"),
     ),
     ConfigChange(
-        section="traces",
-        option="otel_task_log_event",
+        config=ConfigParameter("traces", "otel_task_log_event"),
     ),
     ConfigChange(
-        section="operators",
-        option="allow_illegal_arguments",
+        config=ConfigParameter("operators", "allow_illegal_arguments"),
     ),
     ConfigChange(
-        section="webserver",
-        option="allow_raw_html_descriptions",
+        config=ConfigParameter("webserver", "allow_raw_html_descriptions"),
     ),
     ConfigChange(
-        section="webserver",
-        option="session_lifetime_days",
+        config=ConfigParameter("webserver", "session_lifetime_days"),
         suggestion="Please use `session_lifetime_minutes`.",
     ),
     ConfigChange(
-        section="webserver", option="update_fab_perms", renamed_to=RenamedTo("fab", "update_fab_perms")
+        config=ConfigParameter("webserver", "update_fab_perms"),
+        renamed_to=ConfigParameter("fab", "update_fab_perms"),
     ),
     ConfigChange(
-        section="webserver", option="auth_rate_limited", renamed_to=RenamedTo("fab", "auth_rate_limited")
+        config=ConfigParameter("webserver", "auth_rate_limited"),
+        renamed_to=ConfigParameter("fab", "auth_rate_limited"),
     ),
     ConfigChange(
-        section="webserver", option="auth_rate_limit", renamed_to=RenamedTo("fab", "auth_rate_limit")
+        config=ConfigParameter("webserver", option="auth_rate_limit"),
+        renamed_to=ConfigParameter("fab", "auth_rate_limit"),
     ),
     ConfigChange(
-        section="webserver",
-        option="session_lifetime_days",
-        renamed_to=RenamedTo("webserver", "session_lifetime_minutes"),
+        config=ConfigParameter("webserver", "session_lifetime_days"),
+        renamed_to=ConfigParameter("webserver", "session_lifetime_minutes"),
     ),
     ConfigChange(
-        section="webserver",
-        option="force_log_out_after",
-        renamed_to=RenamedTo("webserver", "session_lifetime_minutes"),
+        config=ConfigParameter("webserver", "force_log_out_after"),
+        renamed_to=ConfigParameter("webserver", "session_lifetime_minutes"),
     ),
     ConfigChange(
-        section="policy", option="airflow_local_settings", renamed_to=RenamedTo("policy", "task_policy")
+        config=ConfigParameter("policy", "airflow_local_settings"),
+        renamed_to=ConfigParameter("policy", "task_policy"),
     ),
     ConfigChange(
-        section="scheduler",
-        option="dependency_detector",
+        config=ConfigParameter("scheduler", "dependency_detector"),
     ),
     ConfigChange(
-        section="scheduler",
-        option="processor_poll_interval",
-        renamed_to=RenamedTo("scheduler", "scheduler_idle_sleep_time"),
+        config=ConfigParameter("scheduler", "processor_poll_interval"),
+        renamed_to=ConfigParameter("scheduler", "scheduler_idle_sleep_time"),
     ),
     ConfigChange(
-        section="scheduler",
-        option="deactivate_stale_dags_interval",
-        renamed_to=RenamedTo("scheduler", "parsing_cleanup_interval"),
-    ),
-    ConfigChange(section="scheduler", option="statsd_on", renamed_to=RenamedTo("metrics", "statsd_on")),
-    ConfigChange(
-        section="scheduler", option="max_threads", renamed_to=RenamedTo("scheduler", "parsing_processes")
-    ),
-    ConfigChange(section="scheduler", option="statsd_host", renamed_to=RenamedTo("metrics", "statsd_host")),
-    ConfigChange(section="scheduler", option="statsd_port", renamed_to=RenamedTo("metrics", "statsd_port")),
-    ConfigChange(
-        section="scheduler", option="statsd_prefix", renamed_to=RenamedTo("metrics", "statsd_prefix")
+        config=ConfigParameter("scheduler", "deactivate_stale_dags_interval"),
+        renamed_to=ConfigParameter("scheduler", "parsing_cleanup_interval"),
     ),
     ConfigChange(
-        section="scheduler", option="statsd_allow_list", renamed_to=RenamedTo("metrics", "statsd_allow_list")
+        config=ConfigParameter("scheduler", "statsd_on"), renamed_to=ConfigParameter("metrics", "statsd_on")
     ),
     ConfigChange(
-        section="scheduler", option="stat_name_handler", renamed_to=RenamedTo("metrics", "stat_name_handler")
+        config=ConfigParameter("scheduler", "max_threads"),
+        renamed_to=ConfigParameter("scheduler", "parsing_processes"),
     ),
     ConfigChange(
-        section="scheduler",
-        option="statsd_datadog_enabled",
-        renamed_to=RenamedTo("metrics", "statsd_datadog_enabled"),
+        config=ConfigParameter("scheduler", "statsd_host"),
+        renamed_to=ConfigParameter("metrics", "statsd_host"),
     ),
     ConfigChange(
-        section="scheduler",
-        option="statsd_datadog_tags",
-        renamed_to=RenamedTo("metrics", "statsd_datadog_tags"),
+        config=ConfigParameter("scheduler", "statsd_port"),
+        renamed_to=ConfigParameter("metrics", "statsd_port"),
     ),
     ConfigChange(
-        section="scheduler",
-        option="statsd_datadog_metrics_tags",
-        renamed_to=RenamedTo("metrics", "statsd_datadog_metrics_tags"),
+        config=ConfigParameter("scheduler", "statsd_prefix"),
+        renamed_to=ConfigParameter("metrics", "statsd_prefix"),
     ),
     ConfigChange(
-        section="scheduler",
-        option="statsd_custom_client_path",
-        renamed_to=RenamedTo("metrics", "statsd_custom_client_path"),
+        config=ConfigParameter("scheduler", "statsd_allow_list"),
+        renamed_to=ConfigParameter("metrics", "statsd_allow_list"),
     ),
     ConfigChange(
-        section="celery",
-        option="stalled_task_timeout",
-        renamed_to=RenamedTo("scheduler", "task_queued_timeout"),
+        config=ConfigParameter("scheduler", "stat_name_handler"),
+        renamed_to=ConfigParameter("metrics", "stat_name_handler"),
     ),
     ConfigChange(
-        section="celery", option="default_queue", renamed_to=RenamedTo("operators", "default_queue")
+        config=ConfigParameter("scheduler", "statsd_datadog_enabled"),
+        renamed_to=ConfigParameter("metrics", "statsd_datadog_enabled"),
     ),
     ConfigChange(
-        section="celery",
-        option="task_adoption_timeout",
-        renamed_to=RenamedTo("scheduler", "task_queued_timeout"),
+        config=ConfigParameter("scheduler", "statsd_datadog_tags"),
+        renamed_to=ConfigParameter("metrics", "statsd_datadog_tags"),
     ),
     ConfigChange(
-        section="kubernetes_executor",
-        option="worker_pods_pending_timeout",
-        renamed_to=RenamedTo("scheduler", "task_queued_timeout"),
+        config=ConfigParameter("scheduler", "statsd_datadog_metrics_tags"),
+        renamed_to=ConfigParameter("metrics", "statsd_datadog_metrics_tags"),
     ),
     ConfigChange(
-        section="kubernetes_executor",
-        option="worker_pods_pending_timeout_check_interval",
-        renamed_to=RenamedTo("scheduler", "task_queued_timeout_check_interval"),
+        config=ConfigParameter("scheduler", "statsd_custom_client_path"),
+        renamed_to=ConfigParameter("metrics", "statsd_custom_client_path"),
     ),
     ConfigChange(
-        section="smtp", option="smtp_user", suggestion="Please use the SMTP connection (`smtp_default`)."
+        config=ConfigParameter("celery", "stalled_task_timeout"),
+        renamed_to=ConfigParameter("scheduler", "task_queued_timeout"),
     ),
     ConfigChange(
-        section="smtp", option="smtp_password", suggestion="Please use the SMTP connection (`smtp_default`)."
+        config=ConfigParameter("celery", "default_queue"),
+        renamed_to=ConfigParameter("operators", "default_queue"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("celery", "task_adoption_timeout"),
+        renamed_to=ConfigParameter("scheduler", "task_queued_timeout"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("kubernetes_executor", "worker_pods_pending_timeout"),
+        renamed_to=ConfigParameter("scheduler", "task_queued_timeout"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("kubernetes_executor", "worker_pods_pending_timeout_check_interval"),
+        renamed_to=ConfigParameter("scheduler", "task_queued_timeout_check_interval"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("smtp", "smtp_user"),
+        suggestion="Please use the SMTP connection (`smtp_default`).",
+    ),
+    ConfigChange(
+        config=ConfigParameter("smtp", "smtp_password"),
+        suggestion="Please use the SMTP connection (`smtp_default`).",
     ),
 ]
 
@@ -430,18 +398,18 @@ def lint_config(args) -> None:
     ignore_sections = args.ignore_section or []
     ignore_options = args.ignore_option or []
 
-    for config in CONFIGS_CHANGES:
-        if section_to_check_if_provided and config.section not in section_to_check_if_provided:
+    for configuration in CONFIGS_CHANGES:
+        if section_to_check_if_provided and configuration.config.section not in section_to_check_if_provided:
             continue
 
-        if option_to_check_if_provided and config.option not in option_to_check_if_provided:
+        if option_to_check_if_provided and configuration.config.option not in option_to_check_if_provided:
             continue
 
-        if config.section in ignore_sections or config.option in ignore_options:
+        if configuration.config.section in ignore_sections or configuration.config.option in ignore_options:
             continue
 
-        if conf.has_option(config.section, config.option):
-            lint_issues.append(config.message)
+        if conf.has_option(configuration.config.section, configuration.config.option):
+            lint_issues.append(configuration.message)
 
     if lint_issues:
         console.print("[red]Found issues in your airflow.cfg:[/red]")
