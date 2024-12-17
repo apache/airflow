@@ -237,6 +237,7 @@ class AirflowConfigParser(ConfigParser):
         self.is_validated = False
         self._suppress_future_warnings = False
         self._providers_configuration_loaded = False
+        self._team_configs = {}  # type: ignore[var-annotated]
 
     def _update_logging_deprecated_template_to_one_from_defaults(self):
         default = self.get_default_value("logging", "log_filename_template")
@@ -873,12 +874,14 @@ class AirflowConfigParser(ConfigParser):
                 continue
             mask_secret(value)
 
-    def _env_var_name(self, section: str, key: str) -> str:
-        return f"{ENV_VAR_PREFIX}{section.replace('.', '_').upper()}__{key.upper()}"
+    def _env_var_name(self, section: str, key: str, team_id: str | None = None) -> str:
+        team_component = f"{team_id.upper()}__" if team_id else ""
+        return f"{ENV_VAR_PREFIX}{team_component}{section.replace('.', '_').upper()}__{key.upper()}"
 
-    def _get_env_var_option(self, section: str, key: str):
-        # must have format AIRFLOW__{SECTION}__{KEY} (note double underscore)
-        env_var = self._env_var_name(section, key)
+    def _get_env_var_option(self, section: str, key: str, team_id: str | None = None):
+        # must have format AIRFLOW__{SECTION}__{KEY} (note double underscore) OR for team based
+        # configuration must have the format AIRFLOW__{TEAM_ID}__{SECTION}__{KEY}
+        env_var = self._env_var_name(section, key, team_id=team_id)
         if env_var in os.environ:
             return expand_env_var(os.environ[env_var])
         # alternatively AIRFLOW__{SECTION}__{KEY}_CMD (for a command)
@@ -969,6 +972,7 @@ class AirflowConfigParser(ConfigParser):
         suppress_warnings: bool = False,
         lookup_from_deprecated: bool = True,
         _extra_stacklevel: int = 0,
+        team_id: str | None = None,
         **kwargs,
     ) -> str | None:
         section = section.lower()
@@ -1029,6 +1033,7 @@ class AirflowConfigParser(ConfigParser):
             deprecated_section,
             key,
             section,
+            team_id=team_id,
             issue_warning=not warning_emitted,
             extra_stacklevel=_extra_stacklevel,
         )
@@ -1042,6 +1047,7 @@ class AirflowConfigParser(ConfigParser):
             key,
             kwargs,
             section,
+            team_id=team_id,
             issue_warning=not warning_emitted,
             extra_stacklevel=_extra_stacklevel,
         )
@@ -1054,6 +1060,7 @@ class AirflowConfigParser(ConfigParser):
             deprecated_section,
             key,
             section,
+            team_id=team_id,
             issue_warning=not warning_emitted,
             extra_stacklevel=_extra_stacklevel,
         )
@@ -1066,6 +1073,7 @@ class AirflowConfigParser(ConfigParser):
             deprecated_section,
             key,
             section,
+            team_id=team_id,
             issue_warning=not warning_emitted,
             extra_stacklevel=_extra_stacklevel,
         )
@@ -1091,9 +1099,20 @@ class AirflowConfigParser(ConfigParser):
         deprecated_section: str | None,
         key: str,
         section: str,
+        team_id: str | None = None,
         issue_warning: bool = True,
         extra_stacklevel: int = 0,
     ) -> str | None:
+        if team_id:
+            # The number of team configs that are going to be needed will be small and so support for obscure
+            # ways to pass configuration just complicate things unnecessarily. This can always be added in
+            # the future if there is enough user demand.
+            log.debug(
+                "Secrets are not supported for team configs. "
+                "Please use environment variables or the team configuration file instead."
+            )
+            return None
+
         option = self._get_secret_option(section, key)
         if option:
             return option
@@ -1112,9 +1131,20 @@ class AirflowConfigParser(ConfigParser):
         deprecated_section: str | None,
         key: str,
         section: str,
+        team_id: str | None = None,
         issue_warning: bool = True,
         extra_stacklevel: int = 0,
     ) -> str | None:
+        if team_id:
+            # The number of team configs that are going to be needed will be small and so support for obscure
+            # ways to pass configuration just complicate things unnecessarily. This can always be added in
+            # the future if there is enough user demand.
+            log.debug(
+                "Commands are not supported for team configs. "
+                "Please use environment variables or the team configuration file instead."
+            )
+            return None
+
         option = self._get_cmd_option(section, key)
         if option:
             return option
@@ -1134,19 +1164,23 @@ class AirflowConfigParser(ConfigParser):
         key: str,
         kwargs: dict[str, Any],
         section: str,
+        team_id: str | None = None,
         issue_warning: bool = True,
         extra_stacklevel: int = 0,
     ) -> str | None:
-        if super().has_option(section, key):
+        # Get a specific team config if team_id is set otherwise use the standard conf parser
+        config_parser = self._team_configs.get(team_id, super())
+
+        if config_parser.has_option(section, key):
             # Use the parent's methods to get the actual config here to be able to
             # separate the config from default config.
-            return expand_env_var(super().get(section, key, **kwargs))
+            return expand_env_var(config_parser.get(section, key, **kwargs))
         if deprecated_section and deprecated_key:
-            if super().has_option(deprecated_section, deprecated_key):
+            if config_parser.has_option(deprecated_section, deprecated_key):
                 if issue_warning:
                     self._warn_deprecate(section, key, deprecated_section, deprecated_key, extra_stacklevel)
                 with self.suppress_future_warnings():
-                    return expand_env_var(super().get(deprecated_section, deprecated_key, **kwargs))
+                    return expand_env_var(config_parser.get(deprecated_section, deprecated_key, **kwargs))
         return None
 
     def _get_environment_variables(
@@ -1155,15 +1189,16 @@ class AirflowConfigParser(ConfigParser):
         deprecated_section: str | None,
         key: str,
         section: str,
+        team_id: str | None = None,
         issue_warning: bool = True,
         extra_stacklevel: int = 0,
     ) -> str | None:
-        option = self._get_env_var_option(section, key)
+        option = self._get_env_var_option(section, key, team_id=team_id)
         if option is not None:
             return option
         if deprecated_section and deprecated_key:
             with self.suppress_future_warnings():
-                option = self._get_env_var_option(deprecated_section, deprecated_key)
+                option = self._get_env_var_option(deprecated_section, deprecated_key, team_id=team_id)
             if option is not None:
                 if issue_warning:
                     self._warn_deprecate(section, key, deprecated_section, deprecated_key, extra_stacklevel)
@@ -1328,7 +1363,9 @@ class AirflowConfigParser(ConfigParser):
         """
         super().read_dict(dictionary=dictionary, source=source)
 
-    def has_option(self, section: str, option: str, lookup_from_deprecated: bool = True) -> bool:
+    def has_option(
+        self, section: str, option: str, team_id: str | None = None, lookup_from_deprecated: bool = True
+    ) -> bool:
         """
         Check if option is defined.
 
@@ -1337,6 +1374,7 @@ class AirflowConfigParser(ConfigParser):
 
         :param section: section to get option from
         :param option: option to get
+        :param team_id: team_id to get option from
         :param lookup_from_deprecated: If True, check if the option is defined in deprecated sections
         :return:
         """
@@ -1347,6 +1385,7 @@ class AirflowConfigParser(ConfigParser):
                 fallback=None,
                 _extra_stacklevel=1,
                 suppress_warnings=True,
+                team_id=team_id,
                 lookup_from_deprecated=lookup_from_deprecated,
             )
             if value is None:
@@ -1864,6 +1903,29 @@ class AirflowConfigParser(ConfigParser):
         """Checks if providers have been loaded."""
         return self._providers_configuration_loaded
 
+    def setup_team_configs(self, from_dict: dict | None = None):
+        """
+        Load the team configurations if any are specified.
+
+        They are a comma delimited list of items where each item is a path to a team configuration
+        file and a team id (separated by a colon).
+        """
+        team_configs = self.get("core", "multi_team_configurations")
+        if not team_configs:
+            return
+        for team_config in team_configs.split(","):
+            team_config_path, team_id = team_config.split(":")
+            # Create a parser for each team, teams will implement the same configurations so they get their
+            # own parsers such that they do not overwrite each other
+            team_parser = create_default_config_parser(self.configuration_description, multi_team=True)
+            if from_dict:
+                team_parser.read_dict(from_dict)
+            else:
+                # Load the config file into the team config parser
+                team_parser.read(team_config_path)
+
+            self._team_configs[team_id] = team_parser
+
     def load_providers_configuration(self):
         """
         Load configuration for providers.
@@ -1973,9 +2035,11 @@ def _generate_fernet_key() -> str:
     return Fernet.generate_key().decode()
 
 
-def create_default_config_parser(configuration_description: dict[str, dict[str, Any]]) -> ConfigParser:
+def create_default_config_parser(
+    configuration_description: dict[str, dict[str, Any]], multi_team: bool = False
+) -> ConfigParser:
     """
-    Create default config parser based on configuration description.
+    Create default Airflow or multi-team config parser based on configuration description.
 
     It creates ConfigParser with all default values retrieved from the configuration description and
     expands all the variables from the global and local variables defined in this module.
@@ -1990,6 +2054,9 @@ def create_default_config_parser(configuration_description: dict[str, dict[str, 
         parser.add_section(section)
         options = section_desc["options"]
         for key in options:
+            if multi_team and not options[key].get("multi_team", False):
+                # We are building a multi-team config and this option is not multi-team, skip it.
+                continue
             default_value = options[key]["default"]
             is_template = options[key].get("is_template", False)
             if default_value is not None:
@@ -2120,6 +2187,16 @@ def initialize_config() -> AirflowConfigParser:
         # file on top of it.
         if airflow_config_parser.getboolean("core", "unit_test_mode"):
             airflow_config_parser.load_test_config()
+    # Set up the configs for any teams
+    if airflow_config_parser.getboolean("core", "unit_test_mode"):
+        # Set the path to a test team config file
+        team_unit_test_config_file = (
+            pathlib.Path(__file__).parent / "config_templates" / "team_unit_tests.cfg"
+        )
+        multi_team_config = f"{team_unit_test_config_file}:unit_test_team"
+        airflow_config_parser.set("core", "multi_team_configurations", multi_team_config)
+    airflow_config_parser.setup_team_configs()
+
     return airflow_config_parser
 
 

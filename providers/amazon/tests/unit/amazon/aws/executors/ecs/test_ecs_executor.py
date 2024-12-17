@@ -33,6 +33,7 @@ from botocore.exceptions import ClientError
 from inflection import camelize
 from semver import VersionInfo
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models import TaskInstance
@@ -540,7 +541,7 @@ class TestAwsEcsExecutor:
         mock_executor.execute_async(mock_airflow_key, mock_cmd)
 
         # No matter what, don't schedule until run_task becomes successful.
-        for _ in range(int(mock_executor.MAX_RUN_TASK_ATTEMPTS) * 2):
+        for _ in range(int(mock_executor.max_run_task_attempts) * 2):
             mock_executor.attempt_task_runs()
             # Task is not stored in active workers.
             assert len(mock_executor.active_workers) == 0
@@ -557,7 +558,7 @@ class TestAwsEcsExecutor:
         mock_executor.execute_async(mock_airflow_key, mock_cmd)
 
         # No matter what, don't schedule until run_task becomes successful.
-        for _ in range(int(mock_executor.MAX_RUN_TASK_ATTEMPTS) * 2):
+        for _ in range(int(mock_executor.max_run_task_attempts) * 2):
             mock_executor.attempt_task_runs()
             # Task is not stored in active workers.
             assert len(mock_executor.active_workers) == 0
@@ -569,7 +570,7 @@ class TestAwsEcsExecutor:
 
         The executor should attempt each task exactly once per sync() iteration.
         It should preserve the order of tasks, and attempt each task up to
-        `MAX_RUN_TASK_ATTEMPTS` times before dropping the task.
+        `max_run_task_attempts` times before dropping the task.
         """
         airflow_keys = [
             TaskInstanceKey("a", "task_a", "c", 1, -1),
@@ -629,7 +630,7 @@ class TestAwsEcsExecutor:
 
         The executor should attempt each task exactly once per sync() iteration.
         It should preserve the order of tasks, and attempt each task up to
-        `MAX_RUN_TASK_ATTEMPTS` times before dropping the task. If a task succeeds, the task
+        `max_run_task_attempts` times before dropping the task. If a task succeeds, the task
         should be removed from pending_jobs and into active_workers.
         """
         airflow_keys = [
@@ -707,7 +708,7 @@ class TestAwsEcsExecutor:
         """
         Test API failure retries.
         """
-        AwsEcsExecutor.MAX_RUN_TASK_ATTEMPTS = "2"
+        mock_executor.max_run_task_attempts = "2"
         airflow_keys = ["TaskInstanceKey1", "TaskInstanceKey2"]
         airflow_commands = [_generate_mock_cmd(), _generate_mock_cmd()]
 
@@ -836,7 +837,7 @@ class TestAwsEcsExecutor:
     @mock.patch.object(BaseExecutor, "success")
     def test_failed_sync(self, success_mock, fail_mock, mock_executor):
         """Test success and failure states."""
-        AwsEcsExecutor.MAX_RUN_TASK_ATTEMPTS = "1"
+        mock_executor.max_run_task_attempts = "1"
         self._mock_sync(mock_executor, State.FAILED)
 
         mock_executor.sync()
@@ -852,7 +853,7 @@ class TestAwsEcsExecutor:
     @mock.patch.object(BaseExecutor, "fail")
     def test_removed_sync(self, fail_mock, success_mock, mock_executor):
         """A removed task will be treated as a failed task."""
-        AwsEcsExecutor.MAX_RUN_TASK_ATTEMPTS = "1"
+        mock_executor.max_run_task_attempts = "1"
         self._mock_sync(mock_executor, expected_state=State.REMOVED, set_task_state=State.REMOVED)
 
         mock_executor.sync_running_tasks()
@@ -870,7 +871,7 @@ class TestAwsEcsExecutor:
         self, _, success_mock, fail_mock, mock_airflow_key, mock_executor, mock_cmd
     ):
         """Test that failure_count/attempt_number is cumulative for pending tasks and active workers."""
-        AwsEcsExecutor.MAX_RUN_TASK_ATTEMPTS = "5"
+        mock_executor.max_run_task_attempts = "5"
         mock_executor.ecs.run_task.return_value = {
             "tasks": [],
             "failures": [
@@ -982,8 +983,8 @@ class TestAwsEcsExecutor:
         assert len(mock_executor.active_workers.get_all_arns()) == 1
         task_key = mock_executor.active_workers.arn_to_key[ARN1]
 
-        # Call Sync 2 times with failures. The task can only fail MAX_RUN_TASK_ATTEMPTS times.
-        for check_count in range(1, int(AwsEcsExecutor.MAX_RUN_TASK_ATTEMPTS)):
+        # Call Sync 2 times with failures. The task can only fail max_run_task_attempts times.
+        for check_count in range(1, int(mock_executor.max_run_task_attempts)):
             mock_executor.sync_running_tasks()
             assert mock_executor.ecs.describe_tasks.call_count == check_count
 
@@ -1217,7 +1218,7 @@ class TestAwsEcsExecutor:
         mock_success_function.assert_called_once()
 
     def test_update_running_tasks_failed(self, mock_executor, caplog):
-        AwsEcsExecutor.MAX_RUN_TASK_ATTEMPTS = "1"
+        mock_executor.max_run_task_attempts = "1"
         caplog.set_level(logging.WARNING)
         self._add_mock_task(mock_executor, ARN1)
         test_response_task_json = {
@@ -1345,14 +1346,64 @@ class TestEcsExecutorConfig:
         }
         with conf_vars(conf_overrides):
             with pytest.raises(ValueError) as raised:
-                ecs_executor_config.build_task_kwargs()
+                ecs_executor_config.build_task_kwargs(conf)
         assert raised.match("At least one subnet is required to run a task.")
+
+    # TODO: When merged this needs updating to the actually supported version
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3.0+")
+    def test_team_config(self):
+        # Team name to be used throughout
+        team_name = "team_a"
+        # Setup configuration. Including executor config that should not be used and a
+        # multi_team_configurations setting that will enable the team config below
+        conf_overrides = {
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.REGION_NAME): "us-west-1",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.CLUSTER): "some-cluster",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.CONTAINER_NAME): "container-name",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.TASK_DEFINITION): "some-task-def",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.LAUNCH_TYPE): "FARGATE",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.PLATFORM_VERSION): "LATEST",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.ASSIGN_PUBLIC_IP): "False",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.SECURITY_GROUPS): "sg1,sg2",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.SUBNETS): "sub1,sub2",
+            # The path isn't important here because we won't load the config from a file. Instead we will
+            # load from the below dictionary. Here we are just setting the team name.
+            ("core", "multi_team_configurations"): f"path_wont_be_used:{team_name}",
+        }
+        with conf_vars(conf_overrides):
+            # Create executor configuration for the team.
+            from_dict = {
+                CONFIG_GROUP_NAME: {
+                    AllEcsConfigKeys.CLUSTER: "team_a_cluster",
+                    AllEcsConfigKeys.CONTAINER_NAME: "team_a_container",
+                    AllEcsConfigKeys.LAUNCH_TYPE: "FARGATE",
+                    AllEcsConfigKeys.SUBNETS: "team_a_sub1,team_a_sub2",
+                    AllEcsConfigKeys.REGION_NAME: "us-west-2",
+                    AllEcsConfigKeys.TASK_DEFINITION: "team_a_task_def",
+                    AllEcsConfigKeys.PLATFORM_VERSION: "LATEST",
+                    AllEcsConfigKeys.ASSIGN_PUBLIC_IP: "False",
+                    AllEcsConfigKeys.SECURITY_GROUPS: "sg1,sg2",
+                },
+            }
+            try:
+                conf.setup_team_configs(from_dict=from_dict)
+                executor = AwsEcsExecutor(team_id=team_name)
+                task_kwargs = ecs_executor_config.build_task_kwargs(executor.conf)
+
+                assert task_kwargs["cluster"] == "team_a_cluster"
+                assert task_kwargs["overrides"]["containerOverrides"][0]["name"] == "team_a_container"
+                assert task_kwargs["networkConfiguration"]["awsvpcConfiguration"]["subnets"] == [
+                    "team_a_sub1",
+                    "team_a_sub2",
+                ]
+            finally:
+                conf._team_configs.pop(team_name, None)
 
     @conf_vars({(CONFIG_GROUP_NAME, AllEcsConfigKeys.CONTAINER_NAME): "container-name"})
     def test_config_defaults_are_applied(self, assign_subnets):
         from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
 
-        task_kwargs = _recursive_flatten_dict(ecs_executor_config.build_task_kwargs())
+        task_kwargs = _recursive_flatten_dict(ecs_executor_config.build_task_kwargs(conf))
         found_keys = {convert_camel_to_snake(key): key for key in task_kwargs.keys()}
 
         for expected_key, expected_value in CONFIG_DEFAULTS.items():
@@ -1390,12 +1441,12 @@ class TestEcsExecutorConfig:
         monkeypatch.delenv(run_task_kwargs_env_key, raising=False)
         from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
 
-        task_kwargs = ecs_executor_config.build_task_kwargs()
+        task_kwargs = ecs_executor_config.build_task_kwargs(conf)
         assert task_kwargs["platformVersion"] == default_version
 
         # Provide a new value explicitly and assert that it is applied over the default.
         monkeypatch.setenv(platform_version_env_key, first_explicit_version)
-        task_kwargs = ecs_executor_config.build_task_kwargs()
+        task_kwargs = ecs_executor_config.build_task_kwargs(conf)
         assert task_kwargs["platformVersion"] == first_explicit_version
 
         # Provide a value via template and assert that it is applied over the explicit value.
@@ -1403,12 +1454,12 @@ class TestEcsExecutorConfig:
             run_task_kwargs_env_key,
             json.dumps({AllEcsConfigKeys.PLATFORM_VERSION: templated_version}),
         )
-        task_kwargs = ecs_executor_config.build_task_kwargs()
+        task_kwargs = ecs_executor_config.build_task_kwargs(conf)
         assert task_kwargs["platformVersion"] == templated_version
 
         # Provide a new value explicitly and assert it is not applied over the templated values.
         monkeypatch.setenv(platform_version_env_key, second_explicit_version)
-        task_kwargs = ecs_executor_config.build_task_kwargs()
+        task_kwargs = ecs_executor_config.build_task_kwargs(conf)
         assert task_kwargs["platformVersion"] == templated_version
 
     @mock.patch.object(EcsHook, "conn")
@@ -1430,7 +1481,7 @@ class TestEcsExecutorConfig:
             f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.RUN_TASK_KWARGS}".upper(),
             json.dumps(provided_run_task_kwargs),
         )
-        task_kwargs = ecs_executor_config.build_task_kwargs()
+        task_kwargs = ecs_executor_config.build_task_kwargs(conf)
         assert task_kwargs["platformVersion"] == templated_version
         assert task_kwargs["cluster"] == templated_cluster
 
@@ -1447,7 +1498,7 @@ class TestEcsExecutorConfig:
 
         run_task_kwargs_env_key = f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.RUN_TASK_KWARGS}".upper()
         monkeypatch.setenv(run_task_kwargs_env_key, json.dumps(provided_run_task_kwargs))
-        task_kwargs = ecs_executor_config.build_task_kwargs()
+        task_kwargs = ecs_executor_config.build_task_kwargs(conf)
 
         # Verify that tag names are exempt from the camel-case conversion.
         assert task_kwargs["tags"] == templated_tags
@@ -1467,7 +1518,7 @@ class TestEcsExecutorConfig:
         for key, value in kwargs_to_test.items():
             monkeypatch.setenv(f"AIRFLOW__{CONFIG_GROUP_NAME}__{key}".upper(), value)
 
-        run_task_kwargs = ecs_executor_config.build_task_kwargs()
+        run_task_kwargs = ecs_executor_config.build_task_kwargs(conf)
         run_task_kwargs_network_config = run_task_kwargs["networkConfiguration"]["awsvpcConfiguration"]
         for key, value in kwargs_to_test.items():
             # Assert that the values are not at the root of the kwargs
@@ -1571,7 +1622,7 @@ class TestEcsExecutorConfig:
         with conf_vars(conf_overrides):
             from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
 
-            task_kwargs = ecs_executor_config.build_task_kwargs()
+            task_kwargs = ecs_executor_config.build_task_kwargs(conf)
             assert "launchType" not in task_kwargs
             assert task_kwargs["capacityProviderStrategy"] == valid_capacity_provider
 
@@ -1585,7 +1636,7 @@ class TestEcsExecutorConfig:
         with conf_vars({(CONFIG_GROUP_NAME, AllEcsConfigKeys.LAUNCH_TYPE): None}):
             from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
 
-            task_kwargs = ecs_executor_config.build_task_kwargs()
+            task_kwargs = ecs_executor_config.build_task_kwargs(conf)
             assert "launchType" not in task_kwargs
             assert "capacityProviderStrategy" not in task_kwargs
             mock_conn.describe_clusters.assert_called_once()
@@ -1598,7 +1649,7 @@ class TestEcsExecutorConfig:
         with conf_vars({(CONFIG_GROUP_NAME, AllEcsConfigKeys.LAUNCH_TYPE): None}):
             from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
 
-            task_kwargs = ecs_executor_config.build_task_kwargs()
+            task_kwargs = ecs_executor_config.build_task_kwargs(conf)
             assert task_kwargs["launchType"] == "FARGATE"
 
     @pytest.mark.parametrize(
