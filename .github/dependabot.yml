@@ -20,6 +20,7 @@ updates:
   - package-ecosystem: pip
     directories:
       - /clients/python
+      - /dev/breeze
       - /docker_tests
       - /task_sdk
       - /
