@@ -42,7 +42,7 @@ def upgrade():
     op.create_table(
         "dag_bundle",
         sa.Column("name", sa.String(length=250), nullable=False),
-        sa.Column("enabled", sa.Boolean(), nullable=True),
+        sa.Column("active", sa.Boolean(), nullable=True),
         sa.Column("latest_version", sa.String(length=200), nullable=True),
         sa.Column("last_refreshed", UtcDateTime(timezone=True), nullable=True),
         sa.PrimaryKeyConstraint("name", name=op.f("dag_bundle_pkey")),

@@ -1406,9 +1406,9 @@
 <text text-anchor="start" x="80.5" y="-1947.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
 <text text-anchor="start" x="201.5" y="-1947.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 <polygon fill="none" stroke="black" points="30.5,-1913 30.5,-1938 282.5,-1938 282.5,-1913 30.5,-1913"/>
-<text text-anchor="start" x="35.5" y="-1922.8" font-family="Helvetica,sans-Serif" font-size="14.00">enabled</text>
-<text text-anchor="start" x="91.5" y="-1922.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="96.5" y="-1922.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [BOOLEAN]</text>
+<text text-anchor="start" x="35.5" y="-1922.8" font-family="Helvetica,sans-Serif" font-size="14.00">active</text>
+<text text-anchor="start" x="77.5" y="-1922.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="82.5" y="-1922.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [BOOLEAN]</text>
 <polygon fill="none" stroke="black" points="30.5,-1888 30.5,-1913 282.5,-1913 282.5,-1888 30.5,-1888"/>
 <text text-anchor="start" x="35.5" y="-1897.8" font-family="Helvetica,sans-Serif" font-size="14.00">last_refreshed</text>
 <text text-anchor="start" x="133.5" y="-1897.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>

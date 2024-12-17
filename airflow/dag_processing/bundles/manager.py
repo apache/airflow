@@ -61,14 +61,14 @@ class DagBundlesManager(LoggingMixin):
 
         for name in self.bundle_configs.keys():
             if bundle := known_bundles.get(name):
-                bundle.enabled = True
+                bundle.active = True
             else:
                 session.add(DagBundleModel(name=name))
                 self.log.info("Added new DAG bundle %s to the database", name)
 
         for name, bundle in known_bundles.items():
             if name not in self.bundle_configs:
-                bundle.enabled = False
+                bundle.active = False
                 self.log.warning("DAG bundle %s is no longer found in config and has been disabled", name)
 
     def get_all_dag_bundles(self) -> list[BaseDagBundle]:

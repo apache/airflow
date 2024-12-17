@@ -132,22 +132,22 @@ def clear_db():
 def test_sync_bundles_to_db(clear_db):
     bundle_manager = DagBundlesManager()
 
-    def _get_bundle_names_and_enabled():
+    def _get_bundle_names_and_active():
         with create_session() as session:
             return (
-                session.query(DagBundleModel.name, DagBundleModel.enabled).order_by(DagBundleModel.name).all()
+                session.query(DagBundleModel.name, DagBundleModel.active).order_by(DagBundleModel.name).all()
             )
 
     # Initial add
     with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__TESTBUNDLE": json.dumps(BASIC_BUNDLE_CONFIG)}):
         bundle_manager.sync_bundles_to_db()
-    assert _get_bundle_names_and_enabled() == [("dags_folder", True), ("testbundle", True)]
+    assert _get_bundle_names_and_active() == [("dags_folder", True), ("testbundle", True)]
 
     # Disable ones that disappear from config
     bundle_manager.sync_bundles_to_db()
-    assert _get_bundle_names_and_enabled() == [("dags_folder", True), ("testbundle", False)]
+    assert _get_bundle_names_and_active() == [("dags_folder", True), ("testbundle", False)]
 
     # Re-enable one that reappears in config
     with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__TESTBUNDLE": json.dumps(BASIC_BUNDLE_CONFIG)}):
         bundle_manager.sync_bundles_to_db()
-    assert _get_bundle_names_and_enabled() == [("dags_folder", True), ("testbundle", True)]
+    assert _get_bundle_names_and_active() == [("dags_folder", True), ("testbundle", True)]
