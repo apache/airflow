@@ -36,17 +36,16 @@ else:
     else:
         # dataset is renamed to asset since Airflow 3.0
         from airflow.auth.managers.models.resource_details import DatasetDetails as AssetDetails
-        from airflow.datasets import Dataset as Asset
+        from airflow.datasets import (
+            Dataset as Asset,
+            DatasetAll as AssetAll,
+            DatasetAny as AssetAny,
+        )
 
         if AIRFLOW_V_2_10_PLUS:
             from airflow.datasets import (
                 DatasetAlias as AssetAlias,
                 expand_alias_to_datasets as expand_alias_to_assets,
-            )
-        else:
-            from airflow.datasets import (
-                DatasetAll as AssetAll,
-                DatasetAny as AssetAny,
             )
 
 
