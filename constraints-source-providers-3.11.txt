@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-17T14:42:17.579603
+# This constraints file was automatically generated on 2024-12-17T19:43:42.252828
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -154,7 +154,7 @@ connexion==2.14.2
 coverage==7.6.9
 crcmod==1.7
 cron-descriptor==1.4.5
-croniter==5.0.1
+croniter==6.0.0
 cryptography==42.0.8
 curlify==2.2.1
 databricks-sql-connector==2.9.6
@@ -369,7 +369,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.57.4
+openai==1.58.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.25.0
