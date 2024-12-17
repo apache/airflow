@@ -39,6 +39,13 @@ class BaseActivity(BaseModel):
     """The identity token for this workload"""
 
 
+class DagBundle(BaseModel):
+    name: str
+    classpath: str
+    kwargs: dict
+    version: str
+
+
 class TaskInstance(BaseModel):
     """Schema for TaskInstance with minimal required fields needed for Executors and Task SDK."""
 
@@ -49,6 +56,7 @@ class TaskInstance(BaseModel):
     run_id: str
     try_number: int
     map_index: int | None = None
+    bundle: DagBundle | None = None
 
     # TODO: Task-SDK: Can we replace TastInstanceKey with just the uuid across the codebase?
     @property
@@ -84,7 +92,13 @@ class ExecuteTask(BaseActivity):
         from airflow.utils.helpers import log_filename_template_renderer
 
         ser_ti = TaskInstance.model_validate(ti, from_attributes=True)
-
+        bundle = ti.dag_model.dag_bundle
+        ser_ti.bundle = DagBundle.model_construct(
+            name=bundle.name,
+            classpath=bundle.classpath,
+            kwargs=bundle.kwargs,
+            version=ti.dag_run.bundle_version,
+        )
         dag_path = dag_path or Path(ti.dag_run.dag_model.relative_fileloc)
 
         if dag_path and not dag_path.is_absolute():

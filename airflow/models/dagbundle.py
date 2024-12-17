@@ -45,11 +45,12 @@ class DagBundleModel(Base):
     latest_version = Column(String(200), nullable=True)
     last_refreshed = Column(UtcDateTime, nullable=True)
 
-    def __init__(self, *, name, classpath, kwargs, refresh_interval):
+    def __init__(self, *, name, classpath, kwargs, refresh_interval, latest_version):
         self.name = name
         self.classpath = classpath
         self.kwargs = kwargs
         self.refresh_interval = refresh_interval
+        self.latest_version = latest_version
 
     @classmethod
     @provide_session
