@@ -674,17 +674,20 @@ class DataprocMetastoreHook(GoogleBaseHook):
         # because dictionaries are ordered since Python 3.7+
         _partitions = list(dict.fromkeys(partition_names)) if partition_names else []
 
-        query = f"""
-            SELECT PARTITIONS.*, TBLS.TBL_TYPE, TBLS.TBL_NAME
-            FROM PARTITIONS
-            INNER JOIN TBLS ON PARTITIONS.TBL_ID = TBLS.TBL_ID
-            WHERE TBLS.TBL_NAME = '{table}'"""
-
         if _partitions:
             partition_list = ", ".join(f"'{p}'" for p in _partitions)
-            query += f"""
-                AND PARTITIONS.PART_NAME IN ({partition_list})"""
-        query += ";"
+            query = f"""
+    SELECT PARTITIONS.*, TBLS.TBL_TYPE, TBLS.TBL_NAME
+    FROM PARTITIONS
+    INNER JOIN TBLS ON PARTITIONS.TBL_ID = TBLS.TBL_ID
+    WHERE TBLS.TBL_NAME = '{table}'
+        AND PARTITIONS.PART_NAME IN ({partition_list});"""
+        else:
+            query = f"""
+    SELECT PARTITIONS.*, TBLS.TBL_TYPE, TBLS.TBL_NAME
+    FROM PARTITIONS
+    INNER JOIN TBLS ON PARTITIONS.TBL_ID = TBLS.TBL_ID
+    WHERE TBLS.TBL_NAME = '{table}';"""
 
         request = {
             "service": f"projects/{project_id}/locations/{region}/services/{service_id}",
