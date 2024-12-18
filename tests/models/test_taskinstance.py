@@ -3768,6 +3768,7 @@ class TestTaskInstance:
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode, fails in context serialization
     @pytest.mark.parametrize(
         "code, expected_state",
         [

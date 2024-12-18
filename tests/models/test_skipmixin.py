@@ -116,6 +116,7 @@ class TestSkipMixin:
         assert not session.query.called
         assert not session.commit.called
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_skip_mapped_task(self, mock_session):
         SkipMixin()._skip(
             dag_run=MagicMock(spec=DagRun),
@@ -128,6 +129,7 @@ class TestSkipMixin:
         mock_session.execute.assert_not_called()
         mock_session.commit.assert_not_called()
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @patch("airflow.models.skipmixin.update")
     def test_skip_none_mapped_task(self, mock_update, mock_session):
         SkipMixin()._skip(
