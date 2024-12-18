@@ -21,7 +21,7 @@ import uuid
 from datetime import timedelta
 from typing import Annotated, Any, Literal, Union
 
-from pydantic import Discriminator, Field, Tag, WithJsonSchema, field_validator
+from pydantic import AwareDatetime, Discriminator, Field, Tag, TypeAdapter, WithJsonSchema, field_validator
 
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel
@@ -85,11 +85,12 @@ class TIDeferredStatePayload(BaseModel):
 
     @field_validator("trigger_kwargs")
     def validate_moment(cls, v):
-        from datetime import datetime
-
         if "moment" in v and isinstance(v["moment"], str):
-            moment = datetime.fromisoformat(v["moment"].replace("Z", "+00:00"))
-            v["moment"] = moment
+            moment_adapter = TypeAdapter(AwareDatetime)
+            try:
+                v["moment"] = moment_adapter.validate_strings(v["moment"].replace("Z", "+00:00"))
+            except ValueError:
+                raise ValueError("Invalid datetime format for 'moment'. Missing timezone information")
         return v
 
 
