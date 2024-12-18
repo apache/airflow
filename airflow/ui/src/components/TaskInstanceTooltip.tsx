@@ -18,12 +18,15 @@
  */
 import { Box, Text } from "@chakra-ui/react";
 
-import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import type {
+  TaskInstanceHistoryResponse,
+  TaskInstanceResponse,
+} from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip, type TooltipProps } from "src/components/ui";
 
 type Props = {
-  readonly taskInstance: TaskInstanceResponse;
+  readonly taskInstance: TaskInstanceHistoryResponse | TaskInstanceResponse;
 } & Omit<TooltipProps, "content">;
 
 const TaskInstanceTooltip = ({ children, taskInstance }: Props) => (
@@ -31,7 +34,6 @@ const TaskInstanceTooltip = ({ children, taskInstance }: Props) => (
     content={
       <Box>
         <Text>Run ID: {taskInstance.dag_run_id}</Text>
-        <Text>Logical Date: {taskInstance.logical_date}</Text>
         <Text>
           Start Date: <Time datetime={taskInstance.start_date} />
         </Text>
