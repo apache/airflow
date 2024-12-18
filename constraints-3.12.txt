@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-17T19:49:40.532638
+# This constraints file was automatically generated on 2024-12-18T02:20:06.747646
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -68,7 +68,7 @@ WTForms==3.2.1
 Werkzeug==2.2.3
 adal==1.2.7
 adlfs==2024.12.0
-aiobotocore==2.15.2
+aiobotocore==2.16.0
 aiofiles==23.2.1
 aiohappyeyeballs==2.4.4
 aiohttp==3.10.11
@@ -187,7 +187,7 @@ apache-airflow-providers-yandex==3.12.0
 apache-airflow-providers-ydb==2.0.0
 apache-airflow-providers-zendesk==4.8.0
 apispec==6.8.0
-apprise==1.9.0
+apprise==1.9.1
 argcomplete==3.5.2
 asana==3.2.3
 asgiref==3.8.1
@@ -234,8 +234,8 @@ billiard==4.2.1
 bitarray==3.0.0
 black==24.10.0
 blinker==1.9.0
-boto3==1.35.36
-botocore==1.35.36
+boto3==1.35.81
+botocore==1.35.81
 cachelib==0.9.0
 cachetools==5.5.0
 cassandra-driver==3.29.2
@@ -259,7 +259,7 @@ cohere==4.57
 colorama==0.4.6
 colorlog==6.9.0
 comm==0.2.2
-confluent-kafka==2.6.1
+confluent-kafka==2.6.2
 connexion==2.14.2
 coverage==7.6.9
 crcmod==1.7
@@ -318,7 +318,7 @@ google-api-python-client==2.155.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.37.0
-google-cloud-aiplatform==1.74.0
+google-cloud-aiplatform==1.75.0
 google-cloud-appengine-logging==1.5.0
 google-cloud-audit-log==0.3.0
 google-cloud-automl==2.15.0
@@ -483,7 +483,7 @@ networkx==3.4.2
 nh3==0.2.20
 numpy==1.26.4
 oauthlib==3.2.2
-openai==1.58.0
+openai==1.58.1
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.25.0
@@ -633,13 +633,13 @@ shapely==2.0.6
 shellingham==1.5.4
 simple-salesforce==1.12.6
 six==1.17.0
-slack_sdk==3.33.5
+slack_sdk==3.34.0
 smbprotocol==1.15.0
 smmap==5.0.1
 sniffio==1.3.1
 snowballstemmer==2.2.0
 snowflake-connector-python==3.12.4
-snowflake-sqlalchemy==1.7.1
+snowflake-sqlalchemy==1.7.2
 sortedcontainers==2.4.0
 soupsieve==2.6
 sphinx-airflow-theme==0.0.12
