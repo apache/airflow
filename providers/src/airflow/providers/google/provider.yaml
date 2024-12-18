@@ -1303,6 +1303,7 @@ extra-links:
   - airflow.providers.google.cloud.links.translate.TranslationDatasetsListLink
   - airflow.providers.google.cloud.links.translate.TranslationModelLink
   - airflow.providers.google.cloud.links.translate.TranslationModelsListLink
+  - airflow.providers.google.cloud.links.translate.TranslateResultByOutputConfigLink
 
 
 secrets-backends:

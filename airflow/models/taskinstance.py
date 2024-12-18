@@ -3615,7 +3615,10 @@ class TaskInstance(Base, LoggingMixin):
             return query.values(
                 {
                     "end_date": end_date,
-                    "duration": (func.julianday(end_date) - func.julianday(cls.start_date)) * 86400,
+                    "duration": (
+                        (func.strftime("%s", end_date) - func.strftime("%s", cls.start_date))
+                        + func.round((func.strftime("%f", end_date) - func.strftime("%f", cls.start_date)), 3)
+                    ),
                 }
             )
         elif bind.dialect.name == "postgresql":
