@@ -20,6 +20,8 @@ from typing import TYPE_CHECKING, Any
 
 import structlog
 
+from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+
 if TYPE_CHECKING:
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.execution_time.comms import ConnectionResult
@@ -38,12 +40,15 @@ def _get_connection(conn_id: str) -> Connection:
     #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
     #   will make that module depend on Task SDK, which is not ideal because we intend to
     #   keep Task SDK as a separate package than execution time mods.
-    from airflow.sdk.execution_time.comms import GetConnection
+    from airflow.sdk.execution_time.comms import ErrorResponse, GetConnection
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
     log = structlog.get_logger(logger_name="task")
     SUPERVISOR_COMMS.send_request(log=log, msg=GetConnection(conn_id=conn_id))
     msg = SUPERVISOR_COMMS.get_message()
+    if isinstance(msg, ErrorResponse):
+        msg.raise_as_exception()
+
     if TYPE_CHECKING:
         assert isinstance(msg, ConnectionResult)
     return _convert_connection_result_conn(msg)
@@ -68,7 +73,7 @@ class ConnectionAccessor:
     def get(self, conn_id: str, default_conn: Any = None) -> Any:
         try:
             return _get_connection(conn_id)
-        except Exception:
-            # TODO: change this to a more specific exception
-            #  It could be a 404 error from the server (`ServerResponseError`)
-            return default_conn
+        except AirflowRuntimeError as e:
+            if e.error.error == ErrorType.CONNECTION_NOT_FOUND:
+                return default_conn
+            raise

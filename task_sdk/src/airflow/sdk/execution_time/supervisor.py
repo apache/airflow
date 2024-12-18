@@ -44,6 +44,7 @@ from pydantic import TypeAdapter
 
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
+    ConnectionResponse,
     IntermediateTIState,
     TaskInstance,
     TerminalTIState,
@@ -51,6 +52,7 @@ from airflow.sdk.api.datamodels._generated import (
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeferTask,
+    ErrorResponse,
     GetConnection,
     GetVariable,
     GetXCom,
@@ -690,8 +692,11 @@ class WatchedSubprocess:
             self._task_end_time_monotonic = time.monotonic()
         elif isinstance(msg, GetConnection):
             conn = self.client.connections.get(msg.conn_id)
-            conn_result = ConnectionResult.from_conn_response(conn)
-            resp = conn_result.model_dump_json(exclude_unset=True).encode()
+            if isinstance(conn, ConnectionResponse):
+                conn_result = ConnectionResult.from_conn_response(conn)
+                resp = conn_result.model_dump_json(exclude_unset=True).encode()
+            elif isinstance(conn, ErrorResponse):
+                resp = conn.model_dump_json().encode()
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             resp = var.model_dump_json(exclude_unset=True).encode()
