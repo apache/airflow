@@ -374,6 +374,7 @@ export type DAGResponse = {
  */
 export type DAGRunClearBody = {
   dry_run?: boolean;
+  only_failed?: boolean;
 };
 
 /**
