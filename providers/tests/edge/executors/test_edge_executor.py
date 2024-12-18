@@ -298,7 +298,7 @@ class TestEdgeExecutor:
                 run_id="dummy",
                 try_number=1,
                 pool_slots=1,
-                quque="default",
+                queue="default",
                 priority_weight=1,
             ),
             dag_path="dummy.py",
