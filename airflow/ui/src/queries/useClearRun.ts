@@ -21,6 +21,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   useDagRunServiceClearDagRun,
   UseDagRunServiceGetDagRunKeyFn,
+  useDagRunServiceGetDagRunsKey,
   UseDagServiceGetDagDetailsKeyFn,
   useTaskInstanceServiceGetTaskInstancesKey,
 } from "openapi/queries";
@@ -66,6 +67,7 @@ export const useClearDagRun = ({
         [useTaskInstanceServiceGetTaskInstancesKey],
         UseDagServiceGetDagDetailsKeyFn({ dagId }),
         UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
+        [useDagRunServiceGetDagRunsKey],
       ];
 
       await Promise.all(

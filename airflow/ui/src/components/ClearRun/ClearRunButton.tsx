@@ -16,8 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, useDisclosure } from "@chakra-ui/react";
-import { useState } from "react";
+import {
+  Box,
+  type ButtonProps,
+  IconButton,
+  useDisclosure,
+} from "@chakra-ui/react";
+import { type FC, useState } from "react";
 import { FiRefreshCw } from "react-icons/fi";
 
 import type { TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
@@ -29,15 +34,18 @@ import ClearRunDialog from "./ClearRunDialog";
 type Props = {
   readonly dagId: string;
   readonly dagRunId: string;
+  readonly withText?: boolean;
 };
 
-const ClearRunButton = ({ dagId, dagRunId }: Props) => {
+const ClearRunButton = ({ dagId, dagRunId, withText = true }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
 
   const [onlyFailed, setOnlyFailed] = useState(false);
 
   const [affectedTasks, setAffectedTasks] =
     useState<TaskInstanceCollectionResponse | null>();
+
+  const ButtonComponent: FC<ButtonProps> = withText ? Button : IconButton;
 
   const { isPending, mutate } = useClearDagRun({
     dagId,
@@ -48,7 +56,8 @@ const ClearRunButton = ({ dagId, dagRunId }: Props) => {
 
   return (
     <Box>
-      <Button
+      <ButtonComponent
+        colorPalette={withText ? undefined : "blue"}
         onClick={() => {
           onOpen();
           mutate({
@@ -57,11 +66,12 @@ const ClearRunButton = ({ dagId, dagRunId }: Props) => {
             requestBody: { dry_run: true, only_failed: onlyFailed },
           });
         }}
-        variant="outline"
+        size={withText ? "md" : "sm"}
+        variant={withText ? "outline" : "ghost"}
       >
-        <FiRefreshCw height={5} width={5} />
-        Clear Run
-      </Button>
+        <FiRefreshCw />
+        {withText ? "Clear Run" : ""}
+      </ButtonComponent>
 
       <ClearRunDialog
         affectedTasks={affectedTasks as TaskInstanceCollectionResponse}
