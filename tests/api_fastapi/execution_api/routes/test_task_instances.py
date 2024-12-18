@@ -456,8 +456,6 @@ class TestTIHealthEndpoint:
         assert ti.last_heartbeat_at == time_now.add(minutes=10)
 
     def test_ti_update_state_to_failed_table_check(self, client, session, create_task_instance):
-        from math import ceil
-
         ti = create_task_instance(
             task_id="test_ti_update_state_to_failed_table_check",
             state=State.RUNNING,
@@ -482,8 +480,7 @@ class TestTIHealthEndpoint:
         assert ti.state == State.FAILED
         assert ti.next_method is None
         assert ti.next_kwargs is None
-        # TODO: remove/amend this once https://github.com/apache/airflow/pull/45002 is merged
-        assert ceil(ti.duration) == 3600.00
+        assert ti.duration == 3600.00
 
 
 class TestTIPutRTIF:
