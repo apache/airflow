@@ -219,6 +219,23 @@ class TestJdbcHook:
 
         assert str(hook.sqlalchemy_url) == "mssql://login:password@host:1234/schema"
 
+    def test_sqlalchemy_url_with_sqlalchemy_scheme_and_query(self):
+        conn_params = dict(
+            extra=json.dumps(dict(sqlalchemy_scheme="mssql", sqlalchemy_query={"servicename": "test"}))
+        )
+        hook_params = {"driver_path": "ParamDriverPath", "driver_class": "ParamDriverClass"}
+        hook = get_hook(conn_params=conn_params, hook_params=hook_params)
+
+        assert str(hook.sqlalchemy_url) == "mssql://login:password@host:1234/schema?servicename=test"
+
+    def test_sqlalchemy_url_with_sqlalchemy_scheme_and_wrong_query_value(self):
+        conn_params = dict(extra=json.dumps(dict(sqlalchemy_scheme="mssql", sqlalchemy_query="wrong type")))
+        hook_params = {"driver_path": "ParamDriverPath", "driver_class": "ParamDriverClass"}
+        hook = get_hook(conn_params=conn_params, hook_params=hook_params)
+
+        with pytest.raises(AirflowException):
+            hook.sqlalchemy_url
+
     def test_get_sqlalchemy_engine_verify_creator_is_being_used(self):
         jdbc_hook = get_hook(
             conn_params=dict(extra={"sqlalchemy_scheme": "sqlite"}),
