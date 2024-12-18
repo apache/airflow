@@ -1786,6 +1786,7 @@ class TestMappedSetupTeardown:
         assert states == expected
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_mapped_tasks_in_mapped_task_group_waits_for_upstreams_to_complete(dag_maker, session):
     """Test that one failed trigger rule works well in mapped task group"""
     with dag_maker() as dag:
@@ -1817,6 +1818,7 @@ def test_mapped_tasks_in_mapped_task_group_waits_for_upstreams_to_complete(dag_m
     assert not ti3.state
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_mapped_tasks_in_mapped_task_group_waits_for_upstreams_to_complete__mapped_skip_with_all_success(
     dag_maker, session
 ):
