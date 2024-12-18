@@ -612,7 +612,7 @@ workers:
   serviceAccount:
     # default value is true
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
-    automountServiceAccountToken: true
+    automountServiceAccountToken: false
     # Specifies whether a ServiceAccount should be created
     create: true
     # The name of the ServiceAccount to use.
@@ -1416,7 +1416,7 @@ webserver:
   serviceAccount:
     # default value is true
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
-    automountServiceAccountToken: true
+    automountServiceAccountToken: false
     # Specifies whether a ServiceAccount should be created
     create: true
     # The name of the ServiceAccount to use.
@@ -2096,7 +2096,7 @@ statsd:
   serviceAccount:
     # default value is true
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
-    automountServiceAccountToken: true
+    automountServiceAccountToken: false
     # Specifies whether a ServiceAccount should be created
     create: true
     # The name of the ServiceAccount to use.
@@ -2181,7 +2181,7 @@ pgbouncer:
   serviceAccount:
     # default value is true
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
-    automountServiceAccountToken: true
+    automountServiceAccountToken: false
     # Specifies whether a ServiceAccount should be created
     create: true
     # The name of the ServiceAccount to use.
