@@ -36,6 +36,8 @@ AwareDatetimeAdapter = TypeAdapter(AwareDatetime)
 class TIEnterRunningPayload(BaseModel):
     """Schema for updating TaskInstance to 'RUNNING' state with minimal required fields."""
 
+    model_config = ConfigDict(extra="forbid")
+
     state: Annotated[
         Literal[TIState.RUNNING],
         # Specify a default in the schema, but not in code.
@@ -54,6 +56,8 @@ class TIEnterRunningPayload(BaseModel):
 class TITerminalStatePayload(BaseModel):
     """Schema for updating TaskInstance to a terminal state (e.g., SUCCESS or FAILED)."""
 
+    model_config = ConfigDict(extra="forbid")
+
     state: TerminalTIState
 
     end_date: UtcDateTime
@@ -63,11 +67,15 @@ class TITerminalStatePayload(BaseModel):
 class TITargetStatePayload(BaseModel):
     """Schema for updating TaskInstance to a target state, excluding terminal and running states."""
 
+    model_config = ConfigDict(extra="forbid")
+
     state: IntermediateTIState
 
 
 class TIDeferredStatePayload(BaseModel):
     """Schema for updating TaskInstance to a deferred state."""
+
+    model_config = ConfigDict(extra="forbid")
 
     state: Annotated[
         Literal[IntermediateTIState.DEFERRED],
@@ -148,6 +156,8 @@ TIStateUpdate = Annotated[
 class TIHeartbeatInfo(BaseModel):
     """Schema for TaskInstance heartbeat endpoint."""
 
+    model_config = ConfigDict(extra="forbid")
+
     hostname: str
     pid: int
 
@@ -186,8 +196,6 @@ class DagRun(BaseModel):
 
 class TIRunContext(BaseModel):
     """Response schema for TaskInstance run context."""
-
-    model_config = ConfigDict(extra="forbid")
 
     dag_run: DagRun
     """DAG run information for the task instance."""
