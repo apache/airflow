@@ -65,6 +65,8 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
             self._dag_bundle_root_storage_path / "git" / (self.name + f"+{self.version or self.tracking_ref}")
         )
         self.env: dict[str, str] = {}
+        self.pkey: str | None = None
+        self.key_file: str | None = None
 
     def _clone_from(self, to_path: Path, bare: bool = False) -> Repo:
         return Repo.clone_from(self.repo_url, to_path, bare=bare, env=self.env)
@@ -93,22 +95,25 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
             ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id)
             ssh_hook.get_conn()
             temp_key_file_path = None
+            self.key_file = ssh_hook.key_file
             try:
-                if not ssh_hook.key_file:
+                if not self.key_file:
                     conn = ssh_hook.get_connection(self.ssh_conn_id)
-                    private_key = conn.extra_dejson.get("private_key")
+                    private_key: str | None = conn.extra_dejson.get("private_key")
                     if not private_key:
                         raise AirflowException("No private key present in connection")
+                    self.pkey = private_key
                     with tempfile.NamedTemporaryFile(delete=False) as key_file:
                         temp_key_file_path = key_file.name
-                        key_file.write(private_key.encode("utf-8"))
+                        key_file.write(self.pkey.encode("utf-8"))
                     self.env["GIT_SSH_COMMAND"] = f"ssh -i {temp_key_file_path} -o IdentitiesOnly=yes"
                 else:
-                    self.env["GIT_SSH_COMMAND"] = f"ssh -i {ssh_hook.key_file} -o IdentitiesOnly=yes"
+                    self.env["GIT_SSH_COMMAND"] = f"ssh -i {self.key_file} -o IdentitiesOnly=yes"
                 if ssh_hook.remote_host:
                     self.log.info("Using repo URL defined in the SSH connection")
                     self.repo_url = ssh_hook.remote_host
                 self._init_bundle()
+                self.env = {}
             finally:
                 if temp_key_file_path:
                     os.remove(temp_key_file_path)
@@ -169,5 +174,28 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         if self.version:
             raise AirflowException("Refreshing a specific version is not supported")
 
-        self.bare_repo.remotes.origin.fetch("+refs/heads/*:refs/heads/*")
-        self.repo.remotes.origin.pull()
+        def _refresh():
+            self.bare_repo.remotes.origin.fetch("+refs/heads/*:refs/heads/*")
+            self.repo.remotes.origin.pull()
+
+        if self.env:
+            _refresh()
+        elif self.ssh_conn_id:
+            temp_key_file_path = None
+            try:
+                if not self.key_file:
+                    if not self.pkey:
+                        raise AirflowException("Missing private key, please initialize the bundle first")
+                    with tempfile.NamedTemporaryFile(delete=False) as key_file:
+                        temp_key_file_path = key_file.name
+                        key_file.write(self.pkey.encode("utf-8"))
+                    GIT_SSH_COMMAND = f"ssh -i {temp_key_file_path} -o IdentitiesOnly=yes"
+                else:
+                    GIT_SSH_COMMAND = f"ssh -i {self.key_file} -o IdentitiesOnly=yes"
+                with self.repo.git.custom_environment(GIT_SSH_COMMAND=GIT_SSH_COMMAND):
+                    _refresh()
+            finally:
+                if temp_key_file_path:
+                    os.remove(temp_key_file_path)
+        else:
+            _refresh()
