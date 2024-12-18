@@ -201,6 +201,10 @@ def ti_update_state(
 
     if isinstance(ti_patch_payload, TITerminalStatePayload):
         query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
+        query = query.values(state=ti_patch_payload.state)
+        if ti_patch_payload.state == State.FAILED:
+            # clear the next_method and next_kwargs
+            query = query.values(next_method=None, next_kwargs=None)
     elif isinstance(ti_patch_payload, TIDeferredStatePayload):
         # Calculate timeout if it was passed
         timeout = None
