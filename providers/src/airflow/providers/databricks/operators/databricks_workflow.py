@@ -93,7 +93,7 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
     """
 
     operator_extra_links = (WorkflowJobRunLink(), WorkflowJobRepairAllFailedLink())
-    template_fields = ("notebook_params", "job_clusters")
+    template_fields = ("notebook_params",)
     caller = "_CreateDatabricksWorkflowOperator"
 
     def __init__(
