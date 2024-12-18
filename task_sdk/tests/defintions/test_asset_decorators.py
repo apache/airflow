@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 
 from airflow.models.asset import AssetModel
-from airflow.sdk.definitions.asset import Asset, AssetRef
+from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.asset.decorators import _AssetMainOperator, asset
 
 
@@ -171,7 +171,7 @@ class Test_AssetMainOperator:
         )
         op = _AssetMainOperator.from_definition(definition)
         assert op.task_id == "__main__"
-        assert op.inlets == [AssetRef(name="inlet_asset_1"), AssetRef(name="inlet_asset_2")]
+        assert op.inlets == [Asset.ref(name="inlet_asset_1"), Asset.ref(name="inlet_asset_2")]
         assert op.outlets == [definition]
         assert op.python_callable == example_asset_func_with_valid_arg_as_inlet_asset
         assert op._definition_name == "example_asset_func"
@@ -183,7 +183,7 @@ class Test_AssetMainOperator:
         )(example_asset_func_with_valid_arg_as_inlet_asset)
         op = _AssetMainOperator.from_definition(definition)
         assert op.task_id == "__main__"
-        assert op.inlets == [AssetRef(name="inlet_asset_1"), AssetRef(name="inlet_asset_2")]
+        assert op.inlets == [Asset.ref(name="inlet_asset_1"), Asset.ref(name="inlet_asset_2")]
         assert op.outlets == [Asset(name="a"), Asset(name="b")]
         assert op.python_callable == example_asset_func_with_valid_arg_as_inlet_asset
         assert op._definition_name == "example_asset_func"
@@ -215,7 +215,7 @@ class Test_AssetMainOperator:
 
         op = _AssetMainOperator(
             task_id="__main__",
-            inlets=[AssetRef(name="inlet_asset_1"), AssetRef(name="inlet_asset_2")],
+            inlets=[Asset.ref(name="inlet_asset_1"), Asset.ref(name="inlet_asset_2")],
             outlets=[asset_definition],
             python_callable=example_asset_func_with_valid_arg_as_inlet_asset,
             definition_name="example_asset_func",
