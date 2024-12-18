@@ -425,10 +425,7 @@ def test_serialize_timetable_2_10():
     }
 
 
-@pytest.mark.skipif(
-    not AIRFLOW_V_2_10_PLUS,
-    reason="This test checks serialization only in 2.9 conditions",
-)
+@pytest.mark.skipif(AIRFLOW_V_2_10_PLUS, reason="This test checks serialization only in 2.9 conditions")
 def test_serialize_timetable_2_9():
     dag = MagicMock()
     dag.timetable.serialize.return_value = {}
