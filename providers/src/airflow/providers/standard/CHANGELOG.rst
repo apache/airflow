@@ -35,17 +35,60 @@
 Changelog
 ---------
 
-main
-....
+0.0.3
+.....
+
+.. note::
+  Provider is still WIP. It can be used with production but we may introduce breaking changes without following semver until version 1.0.0
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* ``The deprecated parameter use_dill was removed in PythonOperator and all virtualenv and branching derivates. Please use serializer='dill' instead.``
-* ``The deprecated parameter use_dill was removed in all Python task decorators and virtualenv and branching derivates. Please use serializer='dill' instead.``
+.. warning::
+  All deprecated classes, parameters and features have been removed from the SSH provider package.
+  The following breaking changes were introduced:
+
+  * operators
+     * ``The deprecated parameter use_dill was removed in PythonOperator and all virtualenv and branching derivates. Please use serializer='dill' instead.``
+     * ``The deprecated parameter use_dill was removed in all Python task decorators and virtualenv and branching derivates. Please use serializer='dill' instead.``
+
+* ``Remove Provider Deprecations in Standard (#44541)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add backward compatibility check for StartTriggerArgs import in filesystem sensor (#44458)``
+
+Misc
+~~~~
+
+* ``Remove references to AIRFLOW_V_2_9_PLUS (#44987)``
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+* ``Remove Pydanitc models introduced for AIP-44 (#44552)``
+* ``Consistent way of checking Airflow version in providers (#44686)``
+* ``Deferrable sensors can implement sensor timeout (#33718)``
+* ``Remove AIP-44 code from renderedtifields.py (#44546)``
+* ``Remove AIP-44 from taskinstance (#44540)``
+* ``Move 'LatestOnlyOperator' operator to standard provider. (#44309)``
+* ``Remove AIP-44 configuration from the code (#44454)``
+* ``Move external task sensor to standard provider (#44288)``
+* ``Move triggers to standard provider (#43608)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Correct new changelog breaking changes header (#44659)``
+   * ``Add missing changelog to breaking change for Standard provider breaking changes (#44581)``
 
 0.0.2
 .....
+
+.. note::
+  Provider is still WIP. It can be used with production but we may introduce breaking changes without following semver until version 1.0.0
 
 Bug Fixes
 ~~~~~~~~~
@@ -67,6 +110,9 @@ Misc
 
 0.0.1
 .....
+
+.. note::
+  Provider is still WIP. It can be used with production but we may introduce breaking changes without following semver until version 1.0.0
 
 .. note::
    This provider created by migrating operators/sensors/hooks from Airflow 2 core.
