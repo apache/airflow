@@ -1,0 +1,18 @@
+Remove deprecated ``DEFAULT_CELERY_CONFIG`` from config templates
+
+``DEFAULT_CELERY_CONFIG`` has been moved into the celery provider and
+should be imported from ``airflow.providers.celery.executors.default_celery.DEFAULT_CELERY_CONFIG``.
+
+* Types of change
+
+  * [ ] DAG changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency change
+
+* Migration rules needed
+
+    * AIR303 rewrite ``airflow.config_templates.default_celery.DEFAULT_CELERY_CONFIG`` to ``airflow.providers.celery.executors.default_celery.DEFAULT_CELERY_CONFIG``
