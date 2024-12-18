@@ -35,14 +35,30 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.0.0
+.....
+
+Latest change: 2024-12-16
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`929e6296ea <https://github.com/apache/airflow/commit/929e6296eaf037afb8c4930f0a96acd14aa5c2ee>`_  2024-12-07   ``Remove deprecations from Weaviate Provider (#44745)``
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  ========================================================================================
+
 2.1.0
 .....
 
-Latest change: 2024-08-12
+Latest change: 2024-08-19
 
 =================================================================================================  ===========  =======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================
+`75fb7acbac <https://github.com/apache/airflow/commit/75fb7acbaca09a040067f0a5a37637ff44eb9e14>`_  2024-08-19   ``Prepare docs for Aug 2nd wave of providers (#41559)``
 `fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
 =================================================================================================  ===========  =======================================================================
 
@@ -129,6 +145,7 @@ Latest change: 2024-02-12
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
 `bfb054e9e8 <https://github.com/apache/airflow/commit/bfb054e9e867b8b9a6a449e43bfba97f645e025e>`_  2024-02-12   ``Prepare docs 1st wave of Providers February 2024 (#37326)``
+`f61ffe58d3 <https://github.com/apache/airflow/commit/f61ffe58d3cd0bcb51f6f9036a3acbfa4443d977>`_  2024-02-11   ``Remove extra package headers in provider indexes (#37324)``
 `dec2662190 <https://github.com/apache/airflow/commit/dec2662190dd4480d0c631da733e19d2ec9a479d>`_  2024-01-30   ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
 =================================================================================================  ===========  ==================================================================================
 
@@ -196,6 +213,7 @@ Commit                                                                          
 `8be03c9937 <https://github.com/apache/airflow/commit/8be03c99372cfaf7a86f31464959338f6f9b900f>`_  2023-12-01   ``Add a cache for weaviate client (#35983)``
 `2919abe5b3 <https://github.com/apache/airflow/commit/2919abe5b3f2d186c896aebbc51acf98d554ef33>`_  2023-11-28   ``Add more ways to connect to weaviate (#35864)``
 `0b23d5601c <https://github.com/apache/airflow/commit/0b23d5601c6f833392b0ea816e651dcb13a14685>`_  2023-11-24   ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
+`b75dc62620 <https://github.com/apache/airflow/commit/b75dc6262050d5cd2a827b7740f13bd9b173612c>`_  2023-11-21   ``Fix broken link to Weaviate docs (#35776)``
 `99534e47f3 <https://github.com/apache/airflow/commit/99534e47f330ce0efb96402629dda5b2a4f16e8f>`_  2023-11-19   ``Use reproducible builds for provider packages (#35693)``
 `99df205f42 <https://github.com/apache/airflow/commit/99df205f42a754aa67f80b5983e1d228ff23267f>`_  2023-11-16   ``Fix and reapply templates for provider documentation (#35686)``
 =================================================================================================  ===========  =======================================================================

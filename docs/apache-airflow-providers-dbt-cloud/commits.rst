@@ -35,14 +35,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.0.0
+.....
+
+Latest change: 2024-12-16
+
+=================================================================================================  ===========  ======================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================================
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`666d80bfc3 <https://github.com/apache/airflow/commit/666d80bfc38e3a7d564c99c8b07f93c6459c42a3>`_  2024-12-06   ``Remove Provider Deprecations in DBT (#44638)``
+`0334901451 <https://github.com/apache/airflow/commit/03349014513114f1eaa413a9831b0027e4fbfa67>`_  2024-11-29   ``Fix yoda-conditions (#44466)``
+`05f935d2a6 <https://github.com/apache/airflow/commit/05f935d2a6c6f4bcd34f0f3d0e7c7f715b55b250>`_  2024-11-25   ``utilize more information to deterministically generate OpenLineage run_id (#43936)``
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`b968307acf <https://github.com/apache/airflow/commit/b968307acf0b0f0fa148faefaf7e8c07550e4904>`_  2024-11-19   ``Remove commented breakpoint in dbt provider (#44163)``
+`123dadda0e <https://github.com/apache/airflow/commit/123dadda0e0648ef1412053d1743128333eecb63>`_  2024-11-15   ``Rename execution_date to logical_date across codebase (#43902)``
+=================================================================================================  ===========  ======================================================================================
+
 3.11.2
 ......
 
-Latest change: 2024-11-08
+Latest change: 2024-11-14
 
 =================================================================================================  ===========  ========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
 `340a70bfe7 <https://github.com/apache/airflow/commit/340a70bfe7289e01898ddd75f8edfaf7772e9d09>`_  2024-11-08   ``Added condition to check if it is a scheduled save or rerun (#43453)``
 =================================================================================================  ===========  ========================================================================
 

@@ -35,14 +35,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.0.0
+.....
+
+Latest change: 2024-12-16
+
+=================================================================================================  ===========  ====================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`e03265bb56 <https://github.com/apache/airflow/commit/e03265bb5613b8cfcaa2a42cf6369b1ba091ddf4>`_  2024-12-05   ``Correct new changelog breaking changes header (#44659)``
+`a3a596906c <https://github.com/apache/airflow/commit/a3a596906cb28fd7b303b15411801b733b9b49b4>`_  2024-12-03   ``Add host_proxy_cmd parameter to SSHHook and SFTPHook (#44565)``
+`9765a420af <https://github.com/apache/airflow/commit/9765a420aff17b8f52d8b402dfdcdaf8ebbbbffb>`_  2024-12-02   ``Remove Provider Deprecations in SSH (#44544)``
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`6faa720cd8 <https://github.com/apache/airflow/commit/6faa720cd8f206a5af718752d27c1dd5d38c96d1>`_  2024-11-18   ``Remove XCom pickling (#43905)``
+=================================================================================================  ===========  ====================================================================
+
 3.14.0
 ......
 
-Latest change: 2024-10-17
+Latest change: 2024-10-27
 
 =================================================================================================  ===========  ========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================
+`78ff0a9970 <https://github.com/apache/airflow/commit/78ff0a99700125121b7f0647023503750f14a11b>`_  2024-10-27   ``Prepare docs for Oct 2nd wave of providers (#43409)``
 `b3b48501c7 <https://github.com/apache/airflow/commit/b3b48501c790d0b10dadca08ce403a820eb16972>`_  2024-10-17   ``SSHHook expose auth_timeout parameter (#43048)``
 `857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
 =================================================================================================  ===========  ========================================================================================
@@ -176,6 +193,8 @@ Commit                                                                          
 `0b23d5601c <https://github.com/apache/airflow/commit/0b23d5601c6f833392b0ea816e651dcb13a14685>`_  2023-11-24   ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
 `99534e47f3 <https://github.com/apache/airflow/commit/99534e47f330ce0efb96402629dda5b2a4f16e8f>`_  2023-11-19   ``Use reproducible builds for provider packages (#35693)``
 `99df205f42 <https://github.com/apache/airflow/commit/99df205f42a754aa67f80b5983e1d228ff23267f>`_  2023-11-16   ``Fix and reapply templates for provider documentation (#35686)``
+`706878ec35 <https://github.com/apache/airflow/commit/706878ec354cf867440c367a95c85753c19e54de>`_  2023-11-04   ``Remove empty lines in generated changelog (#35436)``
+`052e26ad47 <https://github.com/apache/airflow/commit/052e26ad473a9d50f0b96456ed094f2087ee4434>`_  2023-11-04   ``Change security.rst to use includes in providers (#35435)``
 =================================================================================================  ===========  =======================================================================
 
 3.8.1
@@ -231,6 +250,7 @@ Commit                                                                          
 `bb2689ab45 <https://github.com/apache/airflow/commit/bb2689ab455ca5d82f4f9b8d4b73ec071849c439>`_  2023-08-21   ``Use str.splitlines() to split lines in providers (#33593)``
 `1cdd82391e <https://github.com/apache/airflow/commit/1cdd82391e0f7a24ab7f0badbe8f44a54f51d757>`_  2023-08-21   ``Simplify conditions on len() in other providers (#33569)``
 `b5a4d36383 <https://github.com/apache/airflow/commit/b5a4d36383c4143f46e168b8b7a4ba2dc7c54076>`_  2023-08-11   ``Prepare docs for Aug 2023 2nd wave of Providers (#33291)``
+`73b90c48b1 <https://github.com/apache/airflow/commit/73b90c48b1933b49086d34176527947bd727ec85>`_  2023-07-21   ``Allow configuration to be contributed by providers (#32604)``
 `225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
 `3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
 `cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
@@ -263,6 +283,7 @@ Commit                                                                          
 `45548b9451 <https://github.com/apache/airflow/commit/45548b9451fba4e48c6f0c0ba6050482c2ea2956>`_  2023-05-19   ``Prepare RC2 docs for May 2023 wave of Providers (#31416)``
 `abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
 `f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`7ebda3898d <https://github.com/apache/airflow/commit/7ebda3898db2eee72d043a9565a674dea72cd8fa>`_  2023-05-17   ``Fix missing line in index.rst for provider documentation (#31343)``
 `d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
 `0a30706aa7 <https://github.com/apache/airflow/commit/0a30706aa7c581905ca99a8b6e2f05960d480729>`_  2023-05-03   ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
 `eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
@@ -292,6 +313,7 @@ Commit                                                                          
 =================================================================================================  ===========  ==================================================================
 `fcd3c0149f <https://github.com/apache/airflow/commit/fcd3c0149f17b364dfb94c0523d23e3145976bbe>`_  2023-03-03   ``Prepare docs for 03/2023 wave of Providers (#29878)``
 `fd000684d0 <https://github.com/apache/airflow/commit/fd000684d05a993ade3fef38b683ef3cdfdfc2b6>`_  2023-02-19   ``SSH Provider: Add cmd_timeout to ssh connection extra (#29347)``
+`0d2555b318 <https://github.com/apache/airflow/commit/0d2555b318d0eb4ed5f2d410eccf20e26ad004ad>`_  2023-02-07   ``Explain SSH connection private key configuration (#29403)``
 =================================================================================================  ===========  ==================================================================
 
 3.4.0
@@ -441,6 +463,7 @@ Commit                                                                          
 `83f8e178ba <https://github.com/apache/airflow/commit/83f8e178ba7a3d4ca012c831a5bfc2cade9e812d>`_  2021-12-31   ``Even more typing in operators (template_fields/ext) (#20608)``
 `d56e7b56bb <https://github.com/apache/airflow/commit/d56e7b56bb9827daaf8890557147fd10bdf72a7e>`_  2021-12-30   ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
 `da783f88a1 <https://github.com/apache/airflow/commit/da783f88a16e20211d7087bd5c8802dc002c78a8>`_  2021-12-13   ``Fix MyPy Errors for SSH provider (#20241)``
+`9a469d813f <https://github.com/apache/airflow/commit/9a469d813fc083a7a5f402727e93df3e3f9c9118>`_  2021-11-30   ``Capitalize names in docs (#19893)``
 =================================================================================================  ===========  ==========================================================================
 
 2.3.0
@@ -467,7 +490,9 @@ Latest change: 2021-09-30
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================================================
 `840ea3efb9 <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
+`1cb456cba1 <https://github.com/apache/airflow/commit/1cb456cba1099198bbdba50c2d1ad79664be8ce6>`_  2021-09-12   ``Add official download page for providers (#18187)``
 `68d99bc558 <https://github.com/apache/airflow/commit/68d99bc5582b52106f876ccc22cc1e115a42b252>`_  2021-09-10   ``[Airflow 16364] Add conn_timeout and cmd_timeout params to SSHOperator; add conn_timeout param to SSHHook (#17236)``
+`046f02e5a7 <https://github.com/apache/airflow/commit/046f02e5a7097a6e6c928c28196b38b37e776916>`_  2021-09-09   ``fix misspelling (#18121)``
 =================================================================================================  ===========  ======================================================================================================================
 
 2.1.1
@@ -522,11 +547,12 @@ Commit                                                                          
 1.3.0
 .....
 
-Latest change: 2021-04-06
+Latest change: 2021-04-07
 
 =================================================================================================  ===========  =============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================
+`4e018a870c <https://github.com/apache/airflow/commit/4e018a870ccdece6b0985db0c8ae68d10ae1d055>`_  2021-04-07   ``Refreshed provider's upcoming release with k8s retries (#15239)``
 `042be2e4e0 <https://github.com/apache/airflow/commit/042be2e4e06b988f5ba2dc146f53774dabc8b76b>`_  2021-04-06   ``Updated documentation for provider packages before April release (#15236)``
 `9b76b94c94 <https://github.com/apache/airflow/commit/9b76b94c940d472290861930a1d5860b43b3b2b2>`_  2021-04-02   ``A bunch of template_fields_renderers additions (#15130)``
 `68e4c4dcb0 <https://github.com/apache/airflow/commit/68e4c4dcb0416eb51a7011a3bb040f1e23d7bba8>`_  2021-03-20   ``Remove Backport Providers (#14886)``
@@ -561,6 +587,7 @@ Commit                                                                          
 `52339a55c0 <https://github.com/apache/airflow/commit/52339a55c054bddd1d46253575274a3d5d141ebe>`_  2021-01-08   ``[AIRFLOW-7044] Host key can be specified via SSH connection extras. (#12944)``
 `295d66f914 <https://github.com/apache/airflow/commit/295d66f91446a69610576d040ba687b38f1c5d0a>`_  2020-12-30   ``Fix Grammar in PIP warning (#13380)``
 `6cf76d7ac0 <https://github.com/apache/airflow/commit/6cf76d7ac01270930de7f105fb26428763ee1d4e>`_  2020-12-18   ``Fix typo in pip upgrade command :( (#13148)``
+`f6448b4e48 <https://github.com/apache/airflow/commit/f6448b4e482fd96339ae65c26d08e6a2bdb51aaf>`_  2020-12-15   ``Add link to PyPI Repository to provider docs (#13064)``
 =================================================================================================  ===========  ================================================================================
 
 1.0.0
@@ -574,6 +601,7 @@ Commit                                                                          
 `32971a1a2d <https://github.com/apache/airflow/commit/32971a1a2de1db0b4f7442ed26facdf8d3b7a36f>`_  2020-12-09   ``Updates providers versions to 1.0.0 (#12955)``
 `b40dffa085 <https://github.com/apache/airflow/commit/b40dffa08547b610162f8cacfa75847f3c4ca364>`_  2020-12-08   ``Rename remaing modules to match AIP-21 (#12917)``
 `9b39f24780 <https://github.com/apache/airflow/commit/9b39f24780e85f859236672e9060b2fbeee81b36>`_  2020-12-08   ``Add support for dynamic connection form fields per provider (#12558)``
+`de3b1e687b <https://github.com/apache/airflow/commit/de3b1e687b26c524c6909b7b4dfbb60d25019751>`_  2020-11-28   ``Move connection guides to provider documentation packages (#12653)``
 `c34ef853c8 <https://github.com/apache/airflow/commit/c34ef853c890e08f5468183c03dc8f3f3ce84af2>`_  2020-11-20   ``Separate out documentation building per provider  (#12444)``
 `0080354502 <https://github.com/apache/airflow/commit/00803545023b096b8db4fbd6eb473843096d7ce4>`_  2020-11-18   ``Update provider READMEs for 1.0.0b2 batch release (#12449)``
 `ae7cb4a1e2 <https://github.com/apache/airflow/commit/ae7cb4a1e2a96351f1976cf5832615e24863e05d>`_  2020-11-17   ``Update wrong commit hash in backport provider changes (#12390)``
