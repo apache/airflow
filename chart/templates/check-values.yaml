@@ -72,3 +72,14 @@ The sole purpose of this yaml file is it to check the values file is consistent 
     {{- end }}
 
   {{- end }}
+
+  {{- if .Values.opensearch.enabled  }}
+    {{- if and .Values.opensearch.secretName .Values.opensearch.connection }}
+      {{ required "You must not set both values opensearch.secretName and opensearch.connection" nil }}
+    {{- end }}
+
+    {{- if not (or .Values.opensearch.secretName .Values.opensearch.connection) }}
+      {{ required "You must set one of the values opensearch.secretName or opensearch.connection when using OpenSearch" nil }}
+    {{- end }}
+
+  {{- end }}
