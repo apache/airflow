@@ -45,6 +45,7 @@ from airflow.sdk.execution_time.comms import (
     GetVariable,
     GetXCom,
     PutVariable,
+    RescheduleTask,
     SetXCom,
     TaskState,
     VariableResult,
@@ -792,6 +793,23 @@ class TestHandleRequest:
                 (TI_ID, DeferTask(next_method="execute_callback", classpath="my-classpath")),
                 "",
                 id="patch_task_instance_to_deferred",
+            ),
+            pytest.param(
+                RescheduleTask(
+                    reschedule_date=timezone.parse("2024-10-31T12:00:00Z"),
+                    end_date=timezone.parse("2024-10-31T12:00:00Z"),
+                ),
+                b"",
+                "task_instances.reschedule",
+                (
+                    TI_ID,
+                    RescheduleTask(
+                        reschedule_date=timezone.parse("2024-10-31T12:00:00Z"),
+                        end_date=timezone.parse("2024-10-31T12:00:00Z"),
+                    ),
+                ),
+                "",
+                id="patch_task_instance_to_up_for_reschedule",
             ),
             pytest.param(
                 GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
