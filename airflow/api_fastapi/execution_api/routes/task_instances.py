@@ -233,7 +233,6 @@ def ti_update_state(
     elif isinstance(ti_patch_payload, TIRescheduleStatePayload):
         task_instance = session.get(TI, ti_id_str)
         actual_start_date = timezone.utcnow()
-        # add changes to TaskReschedule table to the session
         session.add(
             TaskReschedule(
                 task_instance.task_id,
