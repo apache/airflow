@@ -30,7 +30,7 @@ from airflow.traces import otel_tracer
 from airflow.traces.tracer import Trace
 from airflow.utils.session import create_session
 
-logger = logging.getLogger("airflow.otel_test_dag_with_pause")
+logger = logging.getLogger("airflow.otel_test_dag_with_pause_in_task")
 
 args = {
     "owner": "airflow",
@@ -40,7 +40,7 @@ args = {
 
 # DAG definition.
 with DAG(
-    "otel_test_dag_with_pause",
+    "otel_test_dag_with_pause_in_task",
     default_args=args,
     schedule=None,
     catchup=False,
@@ -51,6 +51,28 @@ with DAG(
 
         ti = dag_context["ti"]
         context_carrier = ti.context_carrier
+
+        dag_folder = os.path.dirname(os.path.abspath(__file__))
+        control_file = os.path.join(dag_folder, "dag_control.txt")
+
+        # Create the file and write 'pause' to it.
+        with open(control_file, "w") as file:
+            file.write("pause")
+
+        # Pause execution until the word 'pause' is replaced on the file.
+        while True:
+            # If there is an exception, then writing to the file failed. Let it exit.
+            file_contents = None
+            with open(control_file) as file:
+                file_contents = file.read()
+
+            if "pause" in file_contents:
+                logger.info("Task has been paused.")
+                continue
+            else:
+                logger.info("Resuming task execution.")
+                # Break the loop and finish with the task execution.
+                break
 
         otel_task_tracer = otel_tracer.get_otel_tracer_for_task(Trace)
         tracer_provider = otel_task_tracer.get_otel_tracer_provider()
@@ -106,39 +128,12 @@ with DAG(
                 s4.set_attribute("attr4", "val4")
                 logger.info("From task sub_span4.")
 
-        logger.info("Task_1 finished.")
-
-    def paused_task_func():
-        logger.info("Starting Paused_task.")
-
-        dag_folder = os.path.dirname(os.path.abspath(__file__))
-        control_file = os.path.join(dag_folder, "dag_control.txt")
-
-        # Create the file and write 'pause' to it.
-        with open(control_file, "w") as file:
-            file.write("pause")
-
-        # Pause execution until the word 'pause' is replaced on the file.
-        while True:
-            # If there is an exception, then writing to the file failed. Let it exit.
-            file_contents = None
-            with open(control_file) as file:
-                file_contents = file.read()
-
-            if "pause" in file_contents:
-                logger.info("Task has been paused.")
-                continue
-            else:
-                logger.info("Resuming task execution.")
-                # Break the loop and finish with the task execution.
-                break
-
         # Cleanup the control file.
         if os.path.exists(control_file):
             os.remove(control_file)
             print("Control file has been cleaned up.")
 
-        logger.info("Paused_task finished.")
+        logger.info("Task_1 finished.")
 
     def task2_func():
         logger.info("Starting Task_2.")
@@ -152,15 +147,10 @@ with DAG(
         python_callable=task1_func,
     )
 
-    pause = PythonOperator(
-        task_id="paused_task",
-        python_callable=paused_task_func,
-    )
-
     t2 = PythonOperator(
         task_id="task_2",
         python_callable=task2_func,
     )
 
     # Dependencies.
-    t1 >> pause >> t2
+    t1 >> t2

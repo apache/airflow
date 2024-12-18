@@ -2465,6 +2465,7 @@ class TestSchedulerJob:
 
         ti = dr.get_task_instances(session=session)[0]
         ti.state = ti_state
+        ti.start_date = timezone.utcnow()
         ti.span_status = SpanStatus.ACTIVE
         ti.queued_by_job_id = old_job.id
         session.merge(ti)
@@ -2491,8 +2492,10 @@ class TestSchedulerJob:
 
         if final_ti_span_status == SpanStatus.ACTIVE:
             assert self.job_runner.active_spans.get(ti.key) is not None
+            assert len(self.job_runner.active_spans.get_all()) == 2
         else:
             assert self.job_runner.active_spans.get(ti.key) is None
+            assert len(self.job_runner.active_spans.get_all()) == 1
 
         assert dr.span_status == SpanStatus.ACTIVE
         assert ti.span_status == final_ti_span_status

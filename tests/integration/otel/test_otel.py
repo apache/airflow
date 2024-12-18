@@ -156,7 +156,7 @@ def check_spans_with_continuance(output: str, dag: DAG, continuance_for_t1: bool
     # This is done by comparing the span_id of each root span with the parent_id of each non-root span.
     parent_child_dict = get_parent_child_dict(root_span_dict, span_dict)
 
-    # The span hierarchy for dag 'otel_test_dag_with_pause' is
+    # The span hierarchy for dag 'otel_test_dag_with_pause_in_task' is
     # dag span
     #   |_ task_1 span
     #   |_ scheduler_exited span
@@ -395,6 +395,121 @@ def check_spans_without_continuance(
         )
 
 
+def check_spans_for_paused_dag(
+    output: str, dag: DAG, is_recreated: bool = False, check_t1_sub_spans: bool = True
+):
+    recreated_suffix = "_recreated" if is_recreated else ""
+
+    # Get a list of lines from the captured output.
+    output_lines = output.splitlines()
+
+    # Filter the output, create a json obj for each span and then store them into dictionaries.
+    # One dictionary with only the root spans, and one with all the captured spans (root and otherwise).
+    root_span_dict, span_dict = extract_spans_from_output(output_lines)
+    # Generate a dictionary with parent child relationships.
+    # This is done by comparing the span_id of each root span with the parent_id of each non-root span.
+    parent_child_dict = get_parent_child_dict(root_span_dict, span_dict)
+
+    # Any spans generated under a task, are children of the task span.
+    # The span hierarchy for dag 'otel_test_dag_with_pause' is
+    # dag span
+    #   |_ task_1 span
+    #       |_ sub_span_1
+    #           |_ sub_span_2
+    #               |_ sub_span_3
+    #       |_ sub_span_4
+    #   |_ paused_task span
+    #   |_ task_2 span
+    #
+    # In case task_1 has finished running and the span is recreated,
+    # the sub spans are lost and can't be recreated. The span hierarchy will be
+    # dag span
+    #   |_ task_1 span
+    #   |_ paused_task span
+    #   |_ task_2 span
+
+    dag_id = dag.dag_id
+
+    task_instance_ids = dag.task_ids
+    task1_id = task_instance_ids[0]
+    paused_task_id = task_instance_ids[1]
+    task2_id = task_instance_ids[2]
+
+    # Based on the current tests, only the root span and the task1 span will be recreated.
+    # TODO: Adjust accordingly, if there are more tests in the future
+    #  that require other spans to be recreated as well.
+    dag_root_span_name = f"{dag_id}{recreated_suffix}"
+
+    dag_root_span_children_names = [
+        f"{task1_id}{recreated_suffix}",
+        f"{paused_task_id}{recreated_suffix}",
+        f"{task2_id}",
+    ]
+
+    task1_span_children_names = [
+        f"{task1_id}_sub_span1",
+        f"{task1_id}_sub_span4",
+    ]
+
+    # Single element lists.
+    task1_sub_span1_children_span_names = [f"{task1_id}_sub_span2"]
+    task1_sub_span2_children_span_names = [f"{task1_id}_sub_span3"]
+
+    assert_span_name_belongs_to_root_span(
+        root_span_dict=root_span_dict, span_name=dag_root_span_name, should_succeed=True
+    )
+
+    # Check direct children of the root span.
+    assert_parent_children_spans(
+        parent_child_dict=parent_child_dict,
+        root_span_dict=root_span_dict,
+        parent_name=dag_root_span_name,
+        children_names=dag_root_span_children_names,
+    )
+
+    # Use a span name that exists, but it's not a direct child.
+    assert_span_not_in_children_spans(
+        parent_child_dict=parent_child_dict,
+        root_span_dict=root_span_dict,
+        span_dict=span_dict,
+        parent_name=dag_root_span_name,
+        child_name=f"{task1_id}_sub_span1",
+        span_exists=True,
+    )
+
+    # Use a span name that doesn't exist at all.
+    assert_span_not_in_children_spans(
+        parent_child_dict=parent_child_dict,
+        root_span_dict=root_span_dict,
+        span_dict=span_dict,
+        parent_name=dag_root_span_name,
+        child_name=f"{task1_id}_non_existent",
+        span_exists=False,
+    )
+
+    if check_t1_sub_spans:
+        # Check children of the task1 span.
+        assert_parent_children_spans_for_non_root(
+            span_dict=span_dict,
+            parent_name=f"{task1_id}{recreated_suffix}",
+            children_names=task1_span_children_names,
+        )
+
+        # Check children of task1 sub span1.
+        assert_parent_children_spans_for_non_root(
+            span_dict=span_dict,
+            parent_name=f"{task1_id}_sub_span1",
+            children_names=task1_sub_span1_children_span_names,
+        )
+
+        # Check children of task1 sub span2.
+        assert_parent_children_spans_for_non_root(
+            span_dict=span_dict,
+            parent_name=f"{task1_id}_sub_span2",
+            children_names=task1_sub_span2_children_span_names,
+        )
+
+
 def print_output_for_dag_tis(dag: DAG):
     with create_session() as session:
         tis: list[TaskInstance] = dag.get_task_instances(session=session)
@@ -493,9 +608,6 @@ class TestOtelIntegration:
         if cls.log_level == "debug":
             log.setLevel(logging.DEBUG)
 
-        db_init_command = ["airflow", "db", "init"]
-        subprocess.run(db_init_command, check=True, env=os.environ.copy())
-
     @classmethod
     def serialize_and_get_dags(cls) -> dict[str, DAG]:
         log.info("Serializing Dags from directory %s", cls.dag_folder)
@@ -503,7 +615,7 @@ class TestOtelIntegration:
         dag_bag = DagBag(dag_folder=cls.dag_folder, include_examples=False)
 
         dag_ids = dag_bag.dag_ids
-        assert len(dag_ids) == 2
+        assert len(dag_ids) == 3
 
         dag_dict: dict[str, DAG] = {}
         with create_session() as session:
@@ -736,7 +848,7 @@ class TestOtelIntegration:
             # so that the test can capture their output.
             celery_worker_process, scheduler_process_1 = self.start_worker_and_scheduler1()
 
-            dag_id = "otel_test_dag_with_pause"
+            dag_id = "otel_test_dag_with_pause_in_task"
             dag = self.dags[dag_id]
 
             run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id)
@@ -747,8 +859,13 @@ class TestOtelIntegration:
             while True:
                 try:
                     with open(control_file) as file:
-                        # If it reaches inside the block, then the file exists and the test can read it.
-                        break
+                        file_contents = file.read()
+
+                        if "pause" in file_contents:
+                            log.info("Control file exists and the task has been paused.")
+                            break
+                        else:
+                            continue
                 except FileNotFoundError:
                     print("Control file not found. Waiting...")
                     time.sleep(1)
@@ -835,7 +952,7 @@ class TestOtelIntegration:
             # so that the test can capture their output.
             celery_worker_process, scheduler_process_1 = self.start_worker_and_scheduler1()
 
-            dag_id = "otel_test_dag_with_pause"
+            dag_id = "otel_test_dag_with_pause_in_task"
             dag = self.dags[dag_id]
 
             run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id)
@@ -846,8 +963,13 @@ class TestOtelIntegration:
             while True:
                 try:
                     with open(control_file) as file:
-                        # If it reaches inside the block, then the file exists and the test can read it.
-                        break
+                        file_contents = file.read()
+
+                        if "pause" in file_contents:
+                            log.info("Control file exists and the task has been paused.")
+                            break
+                        else:
+                            continue
                 except FileNotFoundError:
                     print("Control file not found. Waiting...")
                     time.sleep(1)
@@ -917,7 +1039,7 @@ class TestOtelIntegration:
             # so that the test can capture their output.
             celery_worker_process, scheduler_process_1 = self.start_worker_and_scheduler1()
 
-            dag_id = "otel_test_dag_with_pause"
+            dag_id = "otel_test_dag_with_pause_in_task"
             dag = self.dags[dag_id]
 
             run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id)
@@ -928,8 +1050,13 @@ class TestOtelIntegration:
             while True:
                 try:
                     with open(control_file) as file:
-                        # If it reaches inside the block, then the file exists and the test can read it.
-                        break
+                        file_contents = file.read()
+
+                        if "pause" in file_contents:
+                            log.info("Control file exists and the task has been paused.")
+                            break
+                        else:
+                            continue
                 except FileNotFoundError:
                     print("Control file not found. Waiting...")
                     time.sleep(1)
@@ -991,7 +1118,7 @@ class TestOtelIntegration:
     ):
         """
         The first scheduler will exit forcefully after the first task finishes,
-        so that it won't have time end any active spans.
+        so that it won't have time to end any active spans.
         In this scenario, the sub-spans for the first task will be lost.
         The only way to retrieve them, would be to re-run the task.
         """
@@ -1003,33 +1130,28 @@ class TestOtelIntegration:
             # so that the test can capture their output.
             celery_worker_process, scheduler_process_1 = self.start_worker_and_scheduler1()
 
-            dag_id = "otel_test_dag"
+            dag_id = "otel_test_dag_with_pause"
             dag = self.dags[dag_id]
 
             run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id)
 
-            with create_session() as session:
-                tis: list[TaskInstance] = dag.get_task_instances(session=session)
-
-            task_1 = tis[0]
+            # Control file path.
+            control_file = os.path.join(self.dag_folder, "dag_control.txt")
 
             while True:
-                with create_session() as session:
-                    ti = (
-                        session.query(TaskInstance)
-                        .filter(
-                            TaskInstance.task_id == task_1.task_id,
-                            TaskInstance.run_id == task_1.run_id,
-                        )
-                        .first()
-                    )
+                try:
+                    with open(control_file) as file:
+                        file_contents = file.read()
 
-                    if ti is None:
-                        continue
-
-                    # Wait until the task has been finished.
-                    if ti.state in State.finished:
-                        break
+                        if "pause" in file_contents:
+                            log.info("Control file exists and the task has been paused.")
+                            break
+                        else:
+                            continue
+                except FileNotFoundError:
+                    print("Control file not found. Waiting...")
+                    time.sleep(1)
+                    continue
 
             # Since, we are past the loop, then the file exists and the dag has been paused.
             # Kill scheduler1 and start scheduler2.
@@ -1039,6 +1161,10 @@ class TestOtelIntegration:
             check_dag_run_state_and_span_status(
                 dag_id=dag_id, run_id=run_id, state=State.RUNNING, span_status=SpanStatus.ACTIVE
             )
+
+            # Rewrite the file to unpause the dag.
+            with open(control_file, "w") as file:
+                file.write("continue")
 
             time.sleep(15)
             # The task should be adopted.
@@ -1076,7 +1202,7 @@ class TestOtelIntegration:
 
         if self.use_otel != "true":
             # Dag run should have succeeded. Test the spans in the output.
-            check_spans_without_continuance(output=out, dag=dag, is_recreated=True, check_t1_sub_spans=False)
+            check_spans_for_paused_dag(output=out, dag=dag, is_recreated=True, check_t1_sub_spans=False)
 
     def start_worker_and_scheduler1(self):
         celery_worker_process = subprocess.Popen(

@@ -1145,9 +1145,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             and dag_run.state in State.unfinished_dr_states
             and dag_run.span_status == SpanStatus.ACTIVE
         ):
+            initial_scheduler_id = dag_run.scheduled_by_job_id
             job: Job = session.scalars(
                 select(Job).where(
-                    Job.id == dag_run.scheduled_by_job_id,
+                    Job.id == initial_scheduler_id,
                     Job.job_type == "SchedulerJob",
                 )
             ).one()
@@ -1167,13 +1168,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 tis = dag_run.get_task_instances(session=session)
 
-                # At this point, any tis will have been adopted by the current scheduler.
-                # If the span_status is ACTIVE but there isn't an entry on the active spans,
-                # then it was started by the unhealthy scheduler.
+                # At this point, any tis will have been adopted by the current scheduler,
+                # and ti.queued_by_job_id will point to the current id.
+                # Any tis that have been executed by the unhealthy scheduler, will need a new span
+                # so that it can be associated with the new dag_run span.
                 tis_needing_spans = [
                     ti
                     for ti in tis
-                    if ti.span_status == SpanStatus.ACTIVE and self.active_spans.get(ti.key) is None
+                    # If it has started and there is a reference on the active_spans dict,
+                    # then it was started by the current scheduler.
+                    if ti.start_date is not None and self.active_spans.get(ti.key) is None
                 ]
 
                 dr_context = Trace.extract(dag_run.context_carrier)
