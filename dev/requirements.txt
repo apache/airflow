@@ -11,3 +11,4 @@ rich
 rich_click
 semver
 tabulate
+cryptography>43.0.1
