@@ -24,14 +24,18 @@ import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
+SCHEDULER_DEPLOYMENT_TEMPLATE = "templates/scheduler/scheduler-deployment.yaml"
+
+ES_SECRET_TEMPLATE = "templates/secrets/elasticsearch-secret.yaml"
+
 
 class TestElasticsearchConfig:
     """Tests elasticsearch configuration behaviors."""
 
-    def test_should_not_generate_a_secret_document_if_elasticsearch_disabled(self):
+    def test_should_not_generate_secret_document_if_elasticsearch_disabled(self):
         docs = render_chart(
             values={"elasticsearch": {"enabled": False}},
-            show_only=["templates/secrets/elasticsearch-secret.yaml"],
+            show_only=[ES_SECRET_TEMPLATE],
         )
 
         assert len(docs) == 0
@@ -44,7 +48,7 @@ class TestElasticsearchConfig:
                         "enabled": True,
                     }
                 },
-                show_only=["templates/secrets/elasticsearch-secret.yaml"],
+                show_only=[ES_SECRET_TEMPLATE],
             )
         assert (
             "You must set one of the values elasticsearch.secretName or elasticsearch.connection "
@@ -65,7 +69,7 @@ class TestElasticsearchConfig:
                         },
                     },
                 },
-                show_only=["templates/secrets/elasticsearch-secret.yaml"],
+                show_only=[ES_SECRET_TEMPLATE],
             )
         assert (
             "You must not set both values elasticsearch.secretName and elasticsearch.connection"
@@ -77,7 +81,7 @@ class TestElasticsearchConfig:
             values={
                 "executor": "LocalExecutor",
                 "elasticsearch": {"enabled": False}},
-            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+            show_only=[SCHEDULER_DEPLOYMENT_TEMPLATE],
         )
 
         assert jmespath.search("spec.template.spec.containers[0].ports", docs[0]) == [{
@@ -93,7 +97,7 @@ class TestElasticsearchConfig:
                     "secretName": "test-elastic-secret",
                 },
             },
-            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+            show_only=[SCHEDULER_DEPLOYMENT_TEMPLATE],
         )
 
         assert "ports" not in jmespath.search("spec.template.spec.containers[0]", docs[0])
@@ -101,7 +105,7 @@ class TestElasticsearchConfig:
     def test_env_should_omit_elasticsearch_host_vars_if_es_disabled(self):
         docs = render_chart(
             values={},
-            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+            show_only=[SCHEDULER_DEPLOYMENT_TEMPLATE],
         )
 
         container_env = jmespath.search("spec.template.spec.containers[0].env", docs[0])
@@ -118,7 +122,7 @@ class TestElasticsearchConfig:
                     "secretName": "test-elastic-secret",
                 },
             },
-            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+            show_only=[SCHEDULER_DEPLOYMENT_TEMPLATE],
         )
 
         expected_value_from = {
