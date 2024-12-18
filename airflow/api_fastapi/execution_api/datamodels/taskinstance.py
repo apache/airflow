@@ -30,6 +30,8 @@ from airflow.api_fastapi.execution_api.datamodels.variable import VariableRespon
 from airflow.utils.state import IntermediateTIState, TaskInstanceState as TIState, TerminalTIState
 from airflow.utils.types import DagRunType
 
+AwareDatetimeAdapter = TypeAdapter(AwareDatetime)
+
 
 class TIEnterRunningPayload(BaseModel):
     """Schema for updating TaskInstance to 'RUNNING' state with minimal required fields."""
@@ -85,12 +87,8 @@ class TIDeferredStatePayload(BaseModel):
 
     @field_validator("trigger_kwargs")
     def validate_moment(cls, v):
-        if "moment" in v and isinstance(v["moment"], str):
-            moment_adapter = TypeAdapter(AwareDatetime)
-            try:
-                v["moment"] = moment_adapter.validate_strings(v["moment"].replace("Z", "+00:00"))
-            except ValueError:
-                raise ValueError("Invalid datetime format for 'moment'. Missing timezone information")
+        if "moment" in v:
+            v["moment"] = AwareDatetimeAdapter.validate_strings(v["moment"])
         return v
 
 
