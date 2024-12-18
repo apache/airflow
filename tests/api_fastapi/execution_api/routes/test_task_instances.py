@@ -25,7 +25,7 @@ import uuid6
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
-from airflow.models import RenderedTaskInstanceFields, Trigger
+from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
@@ -285,6 +285,54 @@ class TestTIUpdateState:
         assert t[0].created_date == instant
         assert t[0].classpath == "my-classpath"
         assert t[0].kwargs == {"key": "value"}
+
+    def test_ti_update_state_to_reschedule(self, client, session, create_task_instance, time_machine):
+        """
+        Test that tests if the transition to reschedule state is handled correctly.
+        """
+
+        instant = timezone.datetime(2024, 10, 30)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_reschedule",
+            state=State.RUNNING,
+            session=session,
+        )
+        ti.start_date = instant
+        session.commit()
+
+        payload = {
+            "state": "up_for_reschedule",
+            "reschedule_date": "2024-10-31T11:03:00+00:00",
+            "end_date": DEFAULT_END_DATE.isoformat(),
+        }
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        tis = session.query(TaskInstance).all()
+        assert len(tis) == 1
+        assert tis[0].state == TaskInstanceState.UP_FOR_RESCHEDULE
+        assert tis[0].next_method is None
+        assert tis[0].next_kwargs is None
+        assert tis[0].duration == 129600
+
+        trs = session.query(TaskReschedule).all()
+        assert len(trs) == 1
+        assert trs[0].dag_id == "dag"
+        assert trs[0].task_id == "test_ti_update_state_to_reschedule"
+        assert trs[0].run_id == "test"
+        assert trs[0].try_number == 0
+        assert trs[0].start_date == instant
+        assert trs[0].end_date == DEFAULT_END_DATE
+        assert trs[0].reschedule_date == timezone.parse("2024-10-31T11:03:00+00:00")
+        assert trs[0].map_index == -1
+        assert trs[0].duration == 129600
 
 
 class TestTIHealthEndpoint:

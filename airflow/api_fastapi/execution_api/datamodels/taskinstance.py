@@ -84,6 +84,24 @@ class TIDeferredStatePayload(BaseModel):
     trigger_timeout: timedelta | None = None
 
 
+class TIRescheduleStatePayload(BaseModel):
+    """Schema for updating TaskInstance to a up_for_reschedule state."""
+
+    state: Annotated[
+        Literal[IntermediateTIState.UP_FOR_RESCHEDULE],
+        # Specify a default in the schema, but not in code, so Pydantic marks it as required.
+        WithJsonSchema(
+            {
+                "type": "string",
+                "enum": [IntermediateTIState.UP_FOR_RESCHEDULE],
+                "default": IntermediateTIState.UP_FOR_RESCHEDULE,
+            }
+        ),
+    ]
+    reschedule_date: UtcDateTime
+    end_date: UtcDateTime
+
+
 def ti_state_discriminator(v: dict[str, str] | BaseModel) -> str:
     """
     Determine the discriminator key for TaskInstance state transitions.
@@ -101,6 +119,8 @@ def ti_state_discriminator(v: dict[str, str] | BaseModel) -> str:
         return "_terminal_"
     elif state == TIState.DEFERRED:
         return "deferred"
+    elif state == TIState.UP_FOR_RESCHEDULE:
+        return "up_for_reschedule"
     return "_other_"
 
 
@@ -111,6 +131,7 @@ TIStateUpdate = Annotated[
         Annotated[TITerminalStatePayload, Tag("_terminal_")],
         Annotated[TITargetStatePayload, Tag("_other_")],
         Annotated[TIDeferredStatePayload, Tag("deferred")],
+        Annotated[TIRescheduleStatePayload, Tag("up_for_reschedule")],
     ],
     Discriminator(ti_state_discriminator),
 ]
