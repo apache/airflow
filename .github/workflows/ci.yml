@@ -160,12 +160,15 @@ jobs:
       - name: "Get information about the Workflow"
         id: source-run-info
         run: breeze ci get-workflow-info 2>> ${GITHUB_OUTPUT}
+        env:
+          SKIP_BREEZE_SELF_UPGRADE_CHECK: "true"
       - name: Selective checks
         id: selective-checks
         env:
           PR_LABELS: "${{ steps.source-run-info.outputs.pr-labels }}"
           COMMIT_REF: "${{ github.sha }}"
           VERBOSE: "false"
+
         run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
       - name: env
         run: printenv
