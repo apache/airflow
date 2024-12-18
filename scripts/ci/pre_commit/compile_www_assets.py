@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import hashlib
-import importlib.util
 import os
 import re
 import shutil
@@ -75,17 +74,13 @@ def compile_assets(www_directory: Path, www_hash_file_name: str):
     www_hash_file.write_text(new_hash)
 
 
-def is_fab_provider_installed() -> bool:
-    return importlib.util.find_spec("airflow.providers.fab") is not None
-
-
 if __name__ == "__main__":
     # Compile assets for main
     main_www_directory = AIRFLOW_SOURCES_PATH / "airflow" / "www"
     compile_assets(main_www_directory, "hash.txt")
-    if is_fab_provider_installed():
-        # Compile assets for fab provider
-        fab_provider_www_directory = (
-            AIRFLOW_SOURCES_PATH / "providers" / "src" / "airflow" / "providers" / "fab" / "www"
-        )
+    # Compile assets for fab provider
+    fab_provider_www_directory = (
+        AIRFLOW_SOURCES_PATH / "providers" / "src" / "airflow" / "providers" / "fab" / "www"
+    )
+    if fab_provider_www_directory.exists():
         compile_assets(fab_provider_www_directory, "hash_fab.txt")
