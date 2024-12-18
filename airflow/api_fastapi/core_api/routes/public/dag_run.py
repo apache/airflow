@@ -245,8 +245,8 @@ def clear_dag_run(
         )
     else:
         dag.clear(
-            start_date=dag_run.start_date,
-            end_date=dag_run.end_date,
+            start_date=start_date,
+            end_date=end_date,
             task_ids=None,
             only_failed=False,
             session=session,
