@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-import base64
+import re
 from subprocess import CalledProcessError
 
 import jmespath
@@ -27,6 +27,9 @@ from tests.charts.helm_template_generator import render_chart
 SCHEDULER_DEPLOYMENT_TEMPLATE = "templates/scheduler/scheduler-deployment.yaml"
 
 ES_SECRET_TEMPLATE = "templates/secrets/elasticsearch-secret.yaml"
+
+CORE_CFG_REGEX = re.compile(r"\[core]\n.*?\n\n", flags=re.RegexFlag.DOTALL)
+LOGGING_CFG_REGEX = re.compile(r"\[logging]\n.*?\n\n", flags=re.RegexFlag.DOTALL)
 
 
 class TestElasticsearchConfig:
@@ -78,9 +81,7 @@ class TestElasticsearchConfig:
 
     def test_scheduler_should_add_log_port_when_local_executor_and_elasticsearch_disabled(self):
         docs = render_chart(
-            values={
-                "executor": "LocalExecutor",
-                "elasticsearch": {"enabled": False}},
+            values={"executor": "LocalExecutor"},
             show_only=[SCHEDULER_DEPLOYMENT_TEMPLATE],
         )
 
@@ -137,3 +138,36 @@ class TestElasticsearchConfig:
         assert {"name": "AIRFLOW__ELASTICSEARCH__HOST", "valueFrom": expected_value_from} in container_env
         assert {"name": "AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST",
                 "valueFrom": expected_value_from} in container_env
+
+    def test_config_should_set_remote_logging_false_if_es_disabled(self):
+        docs = render_chart(
+            values={},
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+
+        airflow_cfg_text = jmespath.search('data."airflow.cfg"', docs[0])
+
+        core_lines = CORE_CFG_REGEX.findall(airflow_cfg_text)[0].strip().splitlines()
+        assert "remote_logging = False" in core_lines
+
+        logging_lines = LOGGING_CFG_REGEX.findall(airflow_cfg_text)[0].strip().splitlines()
+        assert "remote_logging = False" in logging_lines
+
+    def test_config_should_set_remote_logging_true_if_es_enabled(self):
+        docs = render_chart(
+            values={
+                "elasticsearch": {
+                    "enabled": True,
+                    "secretName": "test-elastic-secret",
+                },
+            },
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+
+        airflow_cfg_text = jmespath.search('data."airflow.cfg"', docs[0])
+
+        core_lines = CORE_CFG_REGEX.findall(airflow_cfg_text)[0].strip().splitlines()
+        assert "remote_logging = True" in core_lines
+
+        logging_lines = LOGGING_CFG_REGEX.findall(airflow_cfg_text)[0].strip().splitlines()
+        assert "remote_logging = True" in logging_lines
