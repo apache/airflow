@@ -21,7 +21,7 @@ import uuid
 from datetime import timedelta
 from typing import Annotated, Any, Literal, Union
 
-from pydantic import Discriminator, Field, Tag, WithJsonSchema
+from pydantic import Discriminator, Field, Tag, WithJsonSchema, field_validator
 
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel
@@ -82,6 +82,15 @@ class TIDeferredStatePayload(BaseModel):
     trigger_kwargs: Annotated[dict[str, Any], Field(default_factory=dict)]
     next_method: str
     trigger_timeout: timedelta | None = None
+
+    @field_validator("trigger_kwargs", mode="before")
+    def validate_moment(cls, v):
+        from datetime import datetime
+
+        if "moment" in v and isinstance(v["moment"], str):
+            moment = datetime.fromisoformat(v["moment"].replace("Z", "+00:00"))
+            v["moment"] = moment
+        return v
 
 
 def ti_state_discriminator(v: dict[str, str] | BaseModel) -> str:
