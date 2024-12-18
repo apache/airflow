@@ -1044,7 +1044,7 @@ class TestClearDagRun:
         [
             [{"dry_run": True}, DAG1_RUN1_ID, ["success", "success"]],
             [{}, DAG1_RUN1_ID, ["success", "success"]],
-            [{}, DAG1_RUN2_ID, ["failed", "success"]],
+            [{}, DAG1_RUN2_ID, ["success", "failed"]],
             [{"only_failed": True}, DAG1_RUN2_ID, ["failed"]],
         ],
     )
@@ -1053,7 +1053,7 @@ class TestClearDagRun:
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == len(expected_state)
-        for index, each in enumerate(body["task_instances"]):
+        for index, each in enumerate(sorted(body["task_instances"], key=lambda x: x["task_id"])):
             assert each["state"] == expected_state[index]
         dag_run = session.scalar(select(DagRun).filter_by(dag_id=DAG1_ID, run_id=DAG1_RUN1_ID))
         assert dag_run.state == DAG1_RUN1_STATE
