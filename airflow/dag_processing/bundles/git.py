@@ -43,6 +43,7 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
     :param repo_url: URL of the git repository
     :param tracking_ref: Branch or tag for this DAG bundle
     :param subdir: Subdirectory within the repository where the DAGs are stored (Optional)
+    :param ssh_conn_id: Connection ID for SSH connection to the repository (Optional)
     """
 
     supports_versioning = True
@@ -50,10 +51,10 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
     def __init__(
         self,
         *,
+        repo_url: str | os.PathLike = "",
         tracking_ref: str,
         subdir: str | None = None,
         ssh_conn_id: str | None = None,
-        repo_url: str | os.PathLike = "",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -179,9 +180,11 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
             self.bare_repo.remotes.origin.fetch("+refs/heads/*:refs/heads/*")
             self.repo.remotes.origin.pull()
 
-        if self.env:
-            _refresh()
-        elif self.ssh_conn_id:
+        if self.ssh_conn_id:
+            if self.env:
+                with self.repo.git.custom_environment(**self.env):
+                    _refresh()
+                    return
             temp_key_file_path = None
             try:
                 if not self.key_file:
