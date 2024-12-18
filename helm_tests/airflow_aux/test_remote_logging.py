@@ -24,9 +24,9 @@ import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
-SCHEDULER_DEPLOYMENT_TEMPLATE = "templates/scheduler/scheduler-deployment.yaml"
-
 ES_SECRET_TEMPLATE = "templates/secrets/elasticsearch-secret.yaml"
+SCHEDULER_DEPLOYMENT_TEMPLATE = "templates/scheduler/scheduler-deployment.yaml"
+CONFIGMAP_TEMPLATE = "templates/configmaps/configmap.yaml"
 
 CORE_CFG_REGEX = re.compile(r"\[core]\n.*?\n\n", flags=re.RegexFlag.DOTALL)
 LOGGING_CFG_REGEX = re.compile(r"\[logging]\n.*?\n\n", flags=re.RegexFlag.DOTALL)
@@ -135,10 +135,10 @@ class TestElasticsearchConfig:
             "valueFrom": expected_value_from,
         } in container_env
 
-    def test_config_should_set_remote_logging_false_if_es_disabled(self):
+    def test_airflow_cfg_should_set_remote_logging_false_if_es_disabled(self):
         docs = render_chart(
             values={},
-            show_only=["templates/configmaps/configmap.yaml"],
+            show_only=[CONFIGMAP_TEMPLATE],
         )
 
         airflow_cfg_text = jmespath.search('data."airflow.cfg"', docs[0])
@@ -149,7 +149,7 @@ class TestElasticsearchConfig:
         logging_lines = LOGGING_CFG_REGEX.findall(airflow_cfg_text)[0].strip().splitlines()
         assert "remote_logging = False" in logging_lines
 
-    def test_config_should_set_remote_logging_true_if_es_enabled(self):
+    def test_airflow_cfg_should_set_remote_logging_true_if_es_enabled(self):
         docs = render_chart(
             values={
                 "elasticsearch": {
@@ -157,7 +157,7 @@ class TestElasticsearchConfig:
                     "secretName": "test-elastic-secret",
                 },
             },
-            show_only=["templates/configmaps/configmap.yaml"],
+            show_only=[CONFIGMAP_TEMPLATE],
         )
 
         airflow_cfg_text = jmespath.search('data."airflow.cfg"', docs[0])
