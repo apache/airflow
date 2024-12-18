@@ -399,6 +399,10 @@ class DagFileProcessorManager(LoggingMixin):
             "Checking for new files in %s every %s seconds", self._dag_directory, self.dag_dir_list_interval
         )
 
+        from airflow.dag_processing.bundles.manager import DagBundlesManager
+
+        DagBundlesManager().sync_bundles_to_db()
+
         return self._run_parsing_loop()
 
     def _scan_stale_dags(self):
