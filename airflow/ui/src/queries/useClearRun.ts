@@ -28,14 +28,25 @@ import type {
   DAGRunClearBody,
   TaskInstanceCollectionResponse,
 } from "openapi/requests/types.gen";
+import { toaster } from "src/components/ui";
+
+const onError = () => {
+  toaster.create({
+    description: "Clear Dag Run request failed.",
+    title: "Failed to clear the Dag Run",
+    type: "error",
+  });
+};
 
 export const useClearDagRun = ({
   dagId,
   dagRunId,
+  onSuccessConfirm,
   onSuccessDryRun,
 }: {
   dagId: string;
   dagRunId: string;
+  onSuccessConfirm: () => void;
   onSuccessDryRun: (date: TaskInstanceCollectionResponse) => void;
 }) => {
   const queryClient = useQueryClient();
@@ -62,10 +73,13 @@ export const useClearDagRun = ({
           queryClient.invalidateQueries({ queryKey: key }),
         ),
       );
+
+      onSuccessConfirm();
     }
   };
 
   return useDagRunServiceClearDagRun({
+    onError,
     onSuccess,
   });
 };

@@ -42,6 +42,7 @@ const ClearRunButton = ({ dagId, dagRunId }: Props) => {
   const { isPending, mutate } = useClearDagRun({
     dagId,
     dagRunId,
+    onSuccessConfirm: onClose,
     onSuccessDryRun: setAffectedTasks,
   });
 

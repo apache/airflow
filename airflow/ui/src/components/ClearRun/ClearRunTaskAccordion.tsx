@@ -75,7 +75,7 @@ type Props = {
 // Table is in memory, pagination and sorting are disabled.
 // TODO: Make a front-end only unconnected table component with client side ordering and pagination
 const ClearRunTasksAccordion = ({ affectedTasks }: Props) => (
-  <Accordion.Root collapsible mb={3}>
+  <Accordion.Root collapsible>
     <Accordion.Item key="tasks" value="tasks">
       <Accordion.ItemTrigger>
         <Text fontWeight="bold">

@@ -112,7 +112,7 @@ const ClearRunDialog = ({
             />
           </Flex>
           <ClearRunTasksAccordion affectedTasks={affectedTasks} />
-          <HStack w="full">
+          <HStack mt={3} w="full">
             <Button colorPalette="gray" onClick={onClose}>
               <FiXSquare /> Cancel
             </Button>
@@ -126,7 +126,6 @@ const ClearRunDialog = ({
                   dagRunId,
                   requestBody: { dry_run: false, only_failed: onlyFailed },
                 });
-                onClose();
               }}
             >
               <FiPlay /> Confirm
