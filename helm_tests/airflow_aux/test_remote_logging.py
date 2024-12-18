@@ -25,6 +25,7 @@ import pytest
 from tests.charts.helm_template_generator import render_chart
 
 ES_SECRET_TEMPLATE = "templates/secrets/elasticsearch-secret.yaml"
+OS_SECRET_TEMPLATE = "templates/secrets/opensearch-secret.yaml"
 SCHEDULER_DEPLOYMENT_TEMPLATE = "templates/scheduler/scheduler-deployment.yaml"
 CONFIGMAP_TEMPLATE = "templates/configmaps/configmap.yaml"
 
@@ -191,3 +192,51 @@ class TestElasticsearchConfig:
 
         core_lines = CORE_CFG_REGEX.findall(airflow_cfg_text)[0].strip().splitlines()
         assert "remote_logging = True" in core_lines
+
+
+class TestOpenSearchConfig:
+    """Tests opensearch configuration behaviors."""
+
+    def test_should_not_generate_a_document_if_opensearch_disabled(self):
+        docs = render_chart(
+            values={"opensearch": {"enabled": False}},
+            show_only=[OS_SECRET_TEMPLATE],
+        )
+
+        assert len(docs) == 0
+
+    def test_should_raise_error_when_connection_not_provided(self):
+        with pytest.raises(CalledProcessError) as ex_ctx:
+            render_chart(
+                values={
+                    "opensearch": {
+                        "enabled": True,
+                    }
+                },
+                show_only=[OS_SECRET_TEMPLATE],
+            )
+        assert (
+            "You must set one of the values opensearch.secretName or opensearch.connection "
+            "when using OpenSearch" in ex_ctx.value.stderr.decode()
+        )
+
+    def test_should_raise_error_when_conflicting_options(self):
+        with pytest.raises(CalledProcessError) as ex_ctx:
+            render_chart(
+                values={
+                    "opensearch": {
+                        "enabled": True,
+                        "secretName": "my-test",
+                        "connection": {
+                            "user": "username!@#$%%^&*()",
+                            "pass": "password!@#$%%^&*()",
+                            "host": "opensearchhostname",
+                        },
+                    },
+                },
+                show_only=[OS_SECRET_TEMPLATE],
+            )
+        assert (
+            "You must not set both values opensearch.secretName and opensearch.connection"
+            in ex_ctx.value.stderr.decode()
+        )
