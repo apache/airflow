@@ -864,14 +864,25 @@ def _refresh_from_db(
         # If the scheduler that started the dag_run has exited (gracefully or forcefully),
         # there will be changes to the dag_run span context_carrier.
         # It's best to include the dag_run whenever possible, so that the ti will contain the updates.
-        ti_inspector = inspect(ti)
-        dr_inspector = inspect(ti.dag_run)
+        task_instance_inspector = inspect(task_instance)
+        is_task_instance_bound_to_session = task_instance_inspector.session is not None
 
-        is_ti_attached = not ti_inspector.detached
-        is_dr_attached = not dr_inspector.detached
-        is_dr_loaded = "dag_run" not in ti_inspector.unloaded
+        # If the check is false, then it will try load the dag_run relationship from the task_instance
+        # and it will fail with this error:
+        #
+        # sqlalchemy.orm.exc.DetachedInstanceError: Parent instance <TaskInstance at 0xffff86f245c0>
+        # is not bound to a Session; lazy load operation of attribute 'dag_run' cannot proceed
+        if is_task_instance_bound_to_session:
+            ti_inspector = inspect(ti)
+            dr_inspector = inspect(ti.dag_run)
 
-        include_dag_run = is_ti_attached and is_dr_attached and is_dr_loaded
+            is_ti_attached = not ti_inspector.detached
+            is_dr_attached = not dr_inspector.detached
+            is_dr_loaded = "dag_run" not in ti_inspector.unloaded
+
+            include_dag_run = is_ti_attached and is_dr_attached and is_dr_loaded
+        else:
+            include_dag_run = False
 
         _set_ti_attrs(task_instance, ti, include_dag_run=include_dag_run)
     else:
