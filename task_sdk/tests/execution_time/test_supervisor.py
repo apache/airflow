@@ -854,6 +854,8 @@ class TestHandleRequest:
                 {"ok": True},
                 id="set_xcom_with_map_index",
             ),
+            # we aren't adding all states under TerminalTIState here, because this test's scope is only to check
+            # if it can handle TaskState message
             pytest.param(
                 TaskState(state=TerminalTIState.SKIPPED, end_date=timezone.parse("2024-10-31T12:00:00Z")),
                 b"",

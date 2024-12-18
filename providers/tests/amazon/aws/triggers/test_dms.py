@@ -35,6 +35,8 @@ from providers.tests.amazon.aws.utils.test_waiter import assert_expected_waiter_
 
 BASE_TRIGGER_CLASSPATH = "airflow.providers.amazon.aws.triggers.dms."
 
+pytest.importorskip("aiobotocore")
+
 
 class TestBaseDmsTrigger:
     EXPECTED_WAITER_NAME: str | None = None
