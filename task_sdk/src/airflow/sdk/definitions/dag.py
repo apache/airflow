@@ -53,7 +53,7 @@ from airflow.exceptions import (
 )
 from airflow.models.param import DagParam, ParamsDict
 from airflow.sdk.definitions.abstractoperator import AbstractOperator
-from airflow.sdk.definitions.asset import Asset, AssetAlias, BaseAsset
+from airflow.sdk.definitions.asset import AssetAll, BaseAsset
 from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.types import NOTSET
 from airflow.timetables.base import Timetable
@@ -92,12 +92,7 @@ __all__ = [
 DagStateChangeCallback = Callable[[Context], None]
 ScheduleInterval = Union[None, str, timedelta, relativedelta]
 
-ScheduleArg = Union[
-    ScheduleInterval,
-    Timetable,
-    BaseAsset,
-    Collection[Union["Asset", "AssetAlias"]],
-]
+ScheduleArg = Union[ScheduleInterval, Timetable, BaseAsset, Collection[BaseAsset]]
 
 
 _DAG_HASH_ATTRS = frozenset(
@@ -492,8 +487,6 @@ class DAG:
 
     @timetable.default
     def _default_timetable(instance: DAG):
-        from airflow.sdk.definitions.asset import AssetAll
-
         schedule = instance.schedule
         # TODO: Once
         # delattr(self, "schedule")
@@ -502,8 +495,11 @@ class DAG:
         elif isinstance(schedule, BaseAsset):
             return AssetTriggeredTimetable(schedule)
         elif isinstance(schedule, Collection) and not isinstance(schedule, str):
-            if not all(isinstance(x, (Asset, AssetAlias)) for x in schedule):
-                raise ValueError("All elements in 'schedule' should be assets or asset aliases")
+            if not all(isinstance(x, BaseAsset) for x in schedule):
+                raise ValueError(
+                    "All elements in 'schedule' should be either assets, "
+                    "asset references, or asset aliases"
+                )
             return AssetTriggeredTimetable(AssetAll(*schedule))
         else:
             return _create_timetable(schedule, instance.timezone)

@@ -32,7 +32,7 @@ import logging
 import traceback
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from sqlalchemy import and_, delete, exists, func, select, tuple_
+from sqlalchemy import and_, delete, exists, func, insert, select, tuple_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, load_only
 
@@ -42,7 +42,9 @@ from airflow.models.asset import (
     AssetAliasModel,
     AssetModel,
     DagScheduleAssetAliasReference,
+    DagScheduleAssetNameReference,
     DagScheduleAssetReference,
+    DagScheduleAssetUriReference,
     TaskOutletAssetReference,
 )
 from airflow.models.dag import DAG, DagModel, DagOwnerAttributes, DagTag
@@ -50,7 +52,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.trigger import Trigger
-from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUriRef
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.triggers.base import BaseTrigger
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
@@ -509,6 +511,8 @@ class AssetModelOperation(NamedTuple):
 
     schedule_asset_references: dict[str, list[Asset]]
     schedule_asset_alias_references: dict[str, list[AssetAlias]]
+    schedule_asset_name_references: set[tuple[str, str]]  # dag_id, ref_name.
+    schedule_asset_uri_references: set[tuple[str, str]]  # dag_id, ref_uri.
     outlet_references: dict[str, list[tuple[str, Asset]]]
     assets: dict[tuple[str, str], Asset]
     asset_aliases: dict[str, AssetAlias]
@@ -523,6 +527,18 @@ class AssetModelOperation(NamedTuple):
             schedule_asset_alias_references={
                 dag_id: [alias for _, alias in dag.timetable.asset_condition.iter_asset_aliases()]
                 for dag_id, dag in dags.items()
+            },
+            schedule_asset_name_references={
+                (dag_id, ref.name)
+                for dag_id, dag in dags.items()
+                for ref in dag.timetable.asset_condition.iter_asset_refs()
+                if isinstance(ref, AssetNameRef)
+            },
+            schedule_asset_uri_references={
+                (dag_id, ref.uri)
+                for dag_id, dag in dags.items()
+                for ref in dag.timetable.asset_condition.iter_asset_refs()
+                if isinstance(ref, AssetUriRef)
             },
             outlet_references={
                 dag_id: list(dag.get_task_assets(inlets=False, outlets=True)) for dag_id, dag in dags.items()
@@ -620,6 +636,57 @@ class AssetModelOperation(NamedTuple):
                 DagScheduleAssetAliasReference(alias_id=alias_id, dag_id=dag_id)
                 for alias_id in referenced_alias_ids
                 if alias_id not in orm_refs
+            )
+
+    def add_dag_asset_name_uri_references(self, *, session: Session) -> None:
+        orm_name_refs = set(
+            session.scalars(
+                select(DagScheduleAssetNameReference.dag_id, DagScheduleAssetNameReference.name).where(
+                    DagScheduleAssetNameReference.dag_id.in_(
+                        dag_id for dag_id, _ in self.schedule_asset_name_references
+                    )
+                )
+            )
+        )
+        new_name_refs = self.schedule_asset_name_references - orm_name_refs
+        old_name_refs = orm_name_refs - self.schedule_asset_name_references
+        if old_name_refs:
+            session.execute(
+                delete(DagScheduleAssetNameReference).where(
+                    tuple_(DagScheduleAssetNameReference.dag_id, DagScheduleAssetNameReference.name).in_(
+                        old_name_refs
+                    )
+                )
+            )
+        if new_name_refs:
+            session.execute(
+                insert(DagScheduleAssetNameReference),
+                [{"dag_id": d, "name": n} for d, n in new_name_refs],
+            )
+
+        orm_uri_refs = set(
+            session.scalars(
+                select(DagScheduleAssetUriReference.dag_id, DagScheduleAssetUriReference.uri).where(
+                    DagScheduleAssetUriReference.dag_id.in_(
+                        dag_id for dag_id, _ in self.schedule_asset_uri_references
+                    )
+                )
+            )
+        )
+        new_uri_refs = self.schedule_asset_uri_references - orm_uri_refs
+        old_uri_refs = orm_uri_refs - self.schedule_asset_uri_references
+        if old_uri_refs:
+            session.execute(
+                delete(DagScheduleAssetUriReference).where(
+                    tuple_(DagScheduleAssetUriReference.dag_id, DagScheduleAssetUriReference.uri).in_(
+                        old_uri_refs
+                    )
+                )
+            )
+        if new_uri_refs:
+            session.execute(
+                insert(DagScheduleAssetUriReference),
+                [{"dag_id": d, "uri": u} for d, u in new_uri_refs],
             )
 
     def add_task_asset_references(
