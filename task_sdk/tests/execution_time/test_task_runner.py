@@ -358,14 +358,17 @@ def test_startup_dag_with_templated_fields(
 )
 def test_run_basic_failed(time_machine, mocked_parse, dag_id, task_id, fail_with_exception, make_ti_context):
     """Test running a basic task that marks itself as failed by raising exception."""
-    from airflow.providers.standard.operators.python import PythonOperator
 
-    task = PythonOperator(
-        task_id=task_id,
-        python_callable=lambda: (_ for _ in ()).throw(
-            fail_with_exception,
-        ),
-    )
+    class CustomOperator(BaseOperator):
+        def __init__(self, e, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.e = e
+
+        def execute(self, context):
+            print(f"raising exception {self.e}")
+            raise self.e
+
+    task = CustomOperator(task_id=task_id, e=fail_with_exception)
 
     what = StartupDetails(
         ti=TaskInstance(id=uuid7(), task_id=task_id, dag_id=dag_id, run_id="c", try_number=1),
