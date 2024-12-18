@@ -139,7 +139,7 @@ class TestEdgeWorkerCli:
     @patch("airflow.providers.edge.cli.edge_command.logs_logfile_path")
     @patch("airflow.providers.edge.cli.edge_command.Popen")
     def test_launch_job(self, mock_popen, mock_logfile_path, mock_process, worker_with_job: _EdgeWorkerCli):
-        mock_popen.side_effect = ["dummy"]
+        mock_popen.side_effect = [MagicMock()]
         mock_process_instance = MagicMock()
         mock_process.side_effect = [mock_process_instance]
 
