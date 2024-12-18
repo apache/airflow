@@ -452,9 +452,11 @@ class TestFlowerDeployment:
             show_only=["templates/flower/flower-deployment.yaml"],
         )
 
-        assert 222 == jmespath.search(f"spec.template.spec.containers[0].startupProbe.timeoutSeconds", docs[0])
-        assert 333 == jmespath.search(f"spec.template.spec.containers[0].startupProbe.failureThreshold", docs[0])
-        assert 444 == jmespath.search(f"spec.template.spec.containers[0].startupProbe.periodSeconds", docs[0])
+        assert jmespath.search("spec.template.spec.containers[0].startupProbe.timeoutSeconds", docs[0]) == 222
+        assert (
+            jmespath.search("spec.template.spec.containers[0].startupProbe.failureThreshold", docs[0]) == 333
+        )
+        assert jmespath.search("spec.template.spec.containers[0].startupProbe.periodSeconds", docs[0]) == 444
 
 
 class TestFlowerService:
