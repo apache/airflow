@@ -40,14 +40,16 @@ class BaseDagBundle(ABC):
     multiple versions of the same bundle in use at the same time. The DAG processor will always use the latest version.
 
     :param name: String identifier for the DAG bundle
+    :param refresh_interval: How often the bundle should be refreshed from the source (in seconds)
     :param version: Version of the DAG bundle (Optional)
     """
 
     supports_versioning: bool = False
 
-    def __init__(self, *, name: str, version: str | None = None) -> None:
+    def __init__(self, *, name: str, refresh_interval: int, version: str | None = None) -> None:
         self.name = name
         self.version = version
+        self.refresh_interval = refresh_interval
 
     @property
     def _dag_bundle_root_storage_path(self) -> Path:

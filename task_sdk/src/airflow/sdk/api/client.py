@@ -30,10 +30,12 @@ from uuid6 import uuid7
 from airflow.sdk import __version__
 from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
+    DagRunType,
     TerminalTIState,
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
+    TIRunContext,
     TITerminalStatePayload,
     ValidationError as RemoteValidationError,
     VariablePostBody,
@@ -110,11 +112,12 @@ class TaskInstanceOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def start(self, id: uuid.UUID, pid: int, when: datetime):
+    def start(self, id: uuid.UUID, pid: int, when: datetime) -> TIRunContext:
         """Tell the API server that this TI has started running."""
         body = TIEnterRunningPayload(pid=pid, hostname=get_hostname(), unixname=getuser(), start_date=when)
 
-        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
+        resp = self.client.patch(f"task-instances/{id}/run", content=body.model_dump_json())
+        return TIRunContext.model_validate_json(resp.read())
 
     def finish(self, id: uuid.UUID, state: TerminalTIState, when: datetime):
         """Tell the API server that this TI has reached a terminal state."""
@@ -218,7 +221,23 @@ class BearerAuth(httpx.Auth):
 # This exists as a aid for debugging or local running via the `dry_run` argument to Client. It doesn't make
 # sense for returning connections etc.
 def noop_handler(request: httpx.Request) -> httpx.Response:
-    log.debug("Dry-run request", method=request.method, path=request.url.path)
+    path = request.url.path
+    log.debug("Dry-run request", method=request.method, path=path)
+
+    if path.startswith("/task-instances/") and path.endswith("/run"):
+        # Return a fake context
+        return httpx.Response(
+            200,
+            json={
+                "dag_run": {
+                    "dag_id": "test_dag",
+                    "run_id": "test_run",
+                    "logical_date": "2021-01-01T00:00:00Z",
+                    "start_date": "2021-01-01T00:00:00Z",
+                    "run_type": DagRunType.MANUAL,
+                },
+            },
+        )
     return httpx.Response(200, json={"text": "Hello, world!"})
 
 

@@ -2654,3 +2654,34 @@ usage_data_collection:
       example: ~
       default: "True"
       see_also: ":ref:`Usage data collection FAQ <usage-data-collection>`"
+dag_bundles:
+  description: |
+    Configuration for the DAG bundles. This allows Airflow to load DAGs from different sources.
+
+    Airflow will consume all options added to this section. Below you will see only the default,
+    ``dags_folder``. The option name is the bundle name and the value is a json object with the following
+    keys:
+
+    * classpath: The classpath of the bundle class
+    * kwargs: The keyword arguments to pass to the bundle class
+    * refresh_interval: The interval in seconds to refresh the bundle from its source.
+
+    For example, to add a new bundle named ``hello`` to my Airflow instance, add the following to your
+    airflow.cfg (this is just an example, the classpath and kwargs are not real):
+
+    .. code-block:: ini
+
+        [dag_bundles]
+        hello: {classpath: "airflow.some.classpath", kwargs: {"hello": "world"}, refresh_interval: 60}
+  options:
+    dags_folder:
+      description: |
+        This is the default DAG bundle that loads DAGs from the traditional ``[core] dags_folder``.
+        By default, ``refresh_interval`` is set to ``[scheduler] dag_dir_list_interval``, but that can be
+        overridden here if desired.
+        Parsing DAGs from the DAG folder can be disabled by setting this option to an empty string.
+      version_added: ~
+      type: string
+      example: ~
+      default: '{{"classpath": "airflow.dag_processing.bundles.dagfolder.DagsFolderDagBundle",
+               "kwargs": {{}}}}'
