@@ -25,10 +25,9 @@ import {
   useTaskInstanceServiceGetTaskInstance,
   useTaskInstanceServiceGetTaskInstanceTries,
 } from "openapi/queries";
-import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 import { TrySelector } from "src/components/TrySelector";
-import { Button, Status } from "src/components/ui";
+import { Status } from "src/components/ui";
 
 export const Details = () => {
   const { dagId = "", runId = "", taskId = "" } = useParams();
@@ -68,8 +67,6 @@ export const Details = () => {
     selectedTryNumber !== finalTryNumber && finalTryNumber && finalTryNumber > 1
       ? tryInstance
       : taskInstance;
-
-  console.log(instance);
 
   return (
     <Box flexGrow={1} mt={3}>

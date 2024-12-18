@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Heading } from "@chakra-ui/react";
+import { Box, Flex, Heading, Text } from "@chakra-ui/react";
+import dayjs from "dayjs";
 
 import { useTaskInstanceServiceGetTaskInstanceTries } from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
-import { Button, Status } from "src/components/ui";
+import { Button, Status, Tooltip } from "src/components/ui";
 
 type Props = {
   readonly onSelectTryNumber?: (tryNumber: number) => void;
@@ -38,7 +39,6 @@ export const TrySelector = ({
     dag_run_id: dagRunId,
     map_index: mapIndex,
     task_id: taskId,
-    try_number: finalTryNumber,
   } = taskInstance;
 
   const { data: taskInstanceTries } =
@@ -56,14 +56,31 @@ export const TrySelector = ({
       </Heading>
       <Flex flexWrap="wrap" my={1}>
         {taskInstanceTries?.task_instances.map((ti) => (
-          <Button
-            colorPalette="blue"
+          <Tooltip
+            content={
+              <Box>
+                <Text>Status: {ti.state}</Text>
+                <Text>
+                  Duration:{" "}
+                  {`${dayjs.duration(dayjs(ti.end_date).diff(ti.start_date)).asSeconds().toFixed(2)}s`}
+                </Text>
+              </Box>
+            }
             key={ti.try_number}
-            variant={selectedTryNumber === ti.try_number ? "solid" : "ghost"}
           >
-            {ti.try_number}
-            <Status ml={2} state={ti.state} />
-          </Button>
+            <Button
+              colorPalette="blue"
+              key={ti.try_number}
+              onClick={() => {
+                if (onSelectTryNumber && ti.try_number)
+                  {onSelectTryNumber(ti.try_number)};
+              }}
+              variant={selectedTryNumber === ti.try_number ? "solid" : "ghost"}
+            >
+              {ti.try_number}
+              <Status ml={2} state={ti.state} />
+            </Button>
+          </Tooltip>
         ))}
       </Flex>
     </Box>
