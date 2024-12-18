@@ -1238,6 +1238,7 @@ done
 
 # Delete the old `pypi-rc` providers
 svn rm ${SOURCE_DIR}/pypi-rc/*
+svn commit -m "Promote RC artifacts for Airflow Providers to released $(date "+%Y-%m-%d%n")"
 ```
 
 > [!NOTE]
