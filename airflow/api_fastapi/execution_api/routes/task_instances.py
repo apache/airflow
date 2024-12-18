@@ -244,6 +244,8 @@ def ti_update_state(
         )
 
         query = update(TI).where(TI.id == ti_id_str)
+        # calculate the duration for TI table too
+        query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
         # clear the next_method and next_kwargs so that none of the retries pick them up
         query = query.values(state=State.UP_FOR_RESCHEDULE, next_method=None, next_kwargs=None)
     # TODO: Replace this with FastAPI's Custom Exception handling:

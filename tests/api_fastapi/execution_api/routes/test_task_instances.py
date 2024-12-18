@@ -293,16 +293,17 @@ class TestTIUpdateState:
 
         from math import ceil
 
+        instant = timezone.datetime(2024, 10, 30)
+        time_machine.move_to(instant, tick=False)
+
         ti = create_task_instance(
             task_id="test_ti_update_state_to_reschedule",
             state=State.RUNNING,
             session=session,
         )
+        ti.start_date = instant
         ti.end_date = DEFAULT_END_DATE
         session.commit()
-
-        instant = timezone.datetime(2024, 10, 30)
-        time_machine.move_to(instant, tick=False)
 
         payload = {
             "state": "up_for_reschedule",
@@ -322,6 +323,7 @@ class TestTIUpdateState:
         assert tis[0].state == TaskInstanceState.UP_FOR_RESCHEDULE
         assert tis[0].next_method is None
         assert tis[0].next_kwargs is None
+        assert ceil(tis[0].duration) == 129600
 
         trs = session.query(TaskReschedule).all()
         assert len(trs) == 1
