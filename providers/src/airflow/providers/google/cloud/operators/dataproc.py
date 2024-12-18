@@ -54,6 +54,10 @@ from airflow.providers.google.cloud.links.dataproc import (
     DataprocWorkflowLink,
     DataprocWorkflowTemplateLink,
 )
+from airflow.providers.google.cloud.openlineage.utils import (
+    inject_openlineage_properties_into_dataproc_job,
+    inject_openlineage_properties_into_dataproc_workflow_template,
+)
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.dataproc import (
     DataprocBatchTrigger,
@@ -1821,6 +1825,9 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         polling_interval_seconds: int = 10,
         cancel_on_kill: bool = True,
+        openlineage_inject_parent_job_info: bool = conf.getboolean(
+            "openlineage", "spark_inject_parent_job_info", fallback=False
+        ),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1840,11 +1847,20 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
         self.polling_interval_seconds = polling_interval_seconds
         self.cancel_on_kill = cancel_on_kill
         self.operation_name: str | None = None
+        self.openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
 
     def execute(self, context: Context):
         self.log.info("Instantiating Inline Template")
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         project_id = self.project_id or hook.project_id
+        if self.openlineage_inject_parent_job_info:
+            self.log.info("Automatic injection of OpenLineage information into Spark properties is enabled.")
+            self.template = inject_openlineage_properties_into_dataproc_workflow_template(
+                template=self.template,
+                context=context,
+                inject_parent_job_info=self.openlineage_inject_parent_job_info,
+            )
+
         operation = hook.instantiate_inline_workflow_template(
             template=self.template,
             project_id=project_id,
@@ -1962,6 +1978,9 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         polling_interval_seconds: int = 10,
         cancel_on_kill: bool = True,
         wait_timeout: int | None = None,
+        openlineage_inject_parent_job_info: bool = conf.getboolean(
+            "openlineage", "spark_inject_parent_job_info", fallback=False
+        ),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1983,10 +2002,18 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         self.hook: DataprocHook | None = None
         self.job_id: str | None = None
         self.wait_timeout = wait_timeout
+        self.openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
 
     def execute(self, context: Context):
         self.log.info("Submitting job")
         self.hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        if self.openlineage_inject_parent_job_info:
+            self.log.info(
+                "Automatic injection of OpenLineage properties into the Spark job definition is enabled."
+            )
+            self.job = inject_openlineage_properties_into_dataproc_job(
+                job=self.job, context=context, inject_parent_job_info=self.openlineage_inject_parent_job_info
+            )
         job_object = self.hook.submit_job(
             project_id=self.project_id,
             region=self.region,

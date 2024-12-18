@@ -184,3 +184,11 @@ config:
         example: ~
         type: boolean
         version_added: 1.11.0
+      spark_inject_parent_job_info:
+        description: |
+          Automatically inject OpenLineage's parent job (namespace, job name, run id) information into Spark
+          application properties for supported Operators.
+        type: boolean
+        default: "False"
+        example: ~
+        version_added: 1.15.0
