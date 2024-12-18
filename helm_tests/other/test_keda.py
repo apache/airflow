@@ -69,7 +69,7 @@ class TestKeda:
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
-        assert jmespath.search("spec.scaleTargetRef.envSourceContainerName", docs[0]) == "release-name-worker"
+        assert jmespath.search("spec.scaleTargetRef.envSourceContainerName", docs[0]) == "worker"
 
     @pytest.mark.parametrize("executor", ["CeleryExecutor", "CeleryKubernetesExecutor"])
     def test_keda_advanced(self, executor):
