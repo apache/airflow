@@ -25,10 +25,6 @@ from airflow.exceptions import AirflowException
 from airflow.www import app as application
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS
-
-pytestmark = pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Test requires Airflow 2.9+")
-
 
 SAML_METADATA_URL = "/saml/metadata"
 SAML_METADATA_PARSED = {

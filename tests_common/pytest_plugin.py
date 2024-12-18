@@ -1108,10 +1108,7 @@ def create_dummy_dag(dag_maker: DagMaker) -> CreateDummyDAG:
         **kwargs,
     ):
         op_kwargs = {}
-        from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS
-
-        if AIRFLOW_V_2_9_PLUS:
-            op_kwargs["task_display_name"] = task_display_name
+        op_kwargs["task_display_name"] = task_display_name
         with dag_maker(dag_id, **kwargs) as dag:
             op = EmptyOperator(
                 task_id=task_id,
@@ -1174,8 +1171,6 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
     """
     from airflow.operators.empty import EmptyOperator
 
-    from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS
-
     def maker(
         logical_date=None,
         dagrun_state=None,
@@ -1209,8 +1204,7 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
             logical_date = timezone.utcnow()
         with dag_maker(dag_id, **kwargs):
             op_kwargs = {}
-            if AIRFLOW_V_2_9_PLUS:
-                op_kwargs["task_display_name"] = task_display_name
+            op_kwargs["task_display_name"] = task_display_name
             task = EmptyOperator(
                 task_id=task_id,
                 max_active_tis_per_dag=max_active_tis_per_dag,
@@ -1390,17 +1384,11 @@ def reset_logging_config():
 def suppress_info_logs_for_dag_and_fab():
     import logging
 
-    from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS
-
     dag_logger = logging.getLogger("airflow.models.dag")
     dag_logger.setLevel(logging.WARNING)
 
-    if AIRFLOW_V_2_9_PLUS:
-        fab_logger = logging.getLogger("airflow.providers.fab.auth_manager.security_manager.override")
-        fab_logger.setLevel(logging.WARNING)
-    else:
-        fab_logger = logging.getLogger("airflow.www.fab_security")
-        fab_logger.setLevel(logging.WARNING)
+    fab_logger = logging.getLogger("airflow.providers.fab.auth_manager.security_manager.override")
+    fab_logger.setLevel(logging.WARNING)
 
 
 @pytest.fixture(scope="module", autouse=True)

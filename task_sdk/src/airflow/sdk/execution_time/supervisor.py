@@ -698,13 +698,10 @@ class WatchedSubprocess:
         elif isinstance(msg, DeferTask):
             self._terminal_state = IntermediateTIState.DEFERRED
             self.client.task_instances.defer(self.id, msg)
-            resp = None
         elif isinstance(msg, SetXCom):
             self.client.xcoms.set(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.value, msg.map_index)
-            resp = None
         elif isinstance(msg, PutVariable):
             self.client.variables.set(msg.key, msg.value, msg.description)
-            resp = None
         else:
             log.error("Unhandled request", msg=msg)
             return

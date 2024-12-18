@@ -283,7 +283,16 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         ...
     except (AirflowFailException, AirflowSensorTimeout):
         # If AirflowFailException is raised, task should not retry.
-        ...
+        # If a sensor in reschedule mode reaches timeout, task should not retry.
+
+        # TODO: Handle fail_stop here: https://github.com/apache/airflow/issues/44951
+        # TODO: Handle addition to Log table: https://github.com/apache/airflow/issues/44952
+        msg = TaskState(
+            state=TerminalTIState.FAILED,
+            end_date=datetime.now(tz=timezone.utc),
+        )
+
+        # TODO: Run task failure callbacks here
     except (AirflowTaskTimeout, AirflowException, AirflowTaskTerminated):
         ...
     except SystemExit:

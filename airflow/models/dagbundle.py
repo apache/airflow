@@ -16,58 +16,28 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-import uuid6
-from sqlalchemy import Column, Integer, String
-from sqlalchemy_utils import UUIDType
+from sqlalchemy import Boolean, Column, String
 
 from airflow.models.base import Base, StringID
-from airflow.utils.module_loading import import_string
-from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
-    from airflow.dag_processing.bundles.base import BaseDagBundle
+from airflow.utils.sqlalchemy import UtcDateTime
 
 
 class DagBundleModel(Base):
-    """A table for DAG Bundle config."""
+    """
+    A table for storing DAG bundle metadata.
+
+    We track the following information about each bundle, as it can be useful for
+    informational purposes and for debugging:
+     - active: Is the bundle currently found in configuration?
+     - latest_version: The latest version Airflow has seen for the bundle.
+     - last_refreshed: When the bundle was last refreshed.
+    """
 
     __tablename__ = "dag_bundle"
-    id = Column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
-    name = Column(StringID(), nullable=False, unique=True)
-    classpath = Column(String(1000), nullable=False)
-    kwargs = Column(ExtendedJSON, nullable=True)
-    refresh_interval = Column(Integer, nullable=True)
+    name = Column(StringID(), primary_key=True)
+    active = Column(Boolean, default=True)
     latest_version = Column(String(200), nullable=True)
     last_refreshed = Column(UtcDateTime, nullable=True)
 
-    def __init__(self, *, name, classpath, kwargs, refresh_interval):
+    def __init__(self, *, name: str):
         self.name = name
-        self.classpath = classpath
-        self.kwargs = kwargs
-        self.refresh_interval = refresh_interval
-
-    @classmethod
-    @provide_session
-    def get_all_dag_bundles(
-        cls, *, session: Session = NEW_SESSION
-    ) -> list[tuple[DagBundleModel, BaseDagBundle]]:
-        """
-        Get all DAG bundles.
-
-        :param session: A database session.
-        :return: list of DAG bundles.
-        """
-        bundle_configs = session.query(cls).all()
-
-        bundles = []
-        for bundle_config in bundle_configs:
-            bundle_class = import_string(bundle_config.classpath)
-            bundle = bundle_class(name=bundle_config.name, **bundle_config.kwargs)
-            bundles.append((bundle_config, bundle))
-
-        return bundles

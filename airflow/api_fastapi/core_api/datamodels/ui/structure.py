@@ -28,6 +28,7 @@ class EdgeResponse(BaseModel):
     label: str | None = None
     source_id: str
     target_id: str
+    is_source_asset: bool | None = None
 
 
 class NodeResponse(BaseModel):
@@ -41,6 +42,7 @@ class NodeResponse(BaseModel):
     setup_teardown_type: Literal["setup", "teardown"] | None = None
     type: Literal["join", "task", "asset-condition", "asset", "asset-alias", "dag", "sensor", "trigger"]
     operator: str | None = None
+    asset_condition_type: Literal["or-gate", "and-gate"] | None = None
 
 
 class StructureDataResponse(BaseModel):

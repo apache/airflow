@@ -22,6 +22,7 @@ from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.structure import StructureDataResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.services.ui.structure import get_upstream_assets
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.task_group import task_group_to_dict
@@ -71,17 +72,16 @@ def structure_data(
 
         for dependency_dag_id, dependencies in SerializedDagModel.get_dag_dependencies().items():
             for dependency in dependencies:
+                # Dependencies not related to `dag_id` are ignored
                 if dependency_dag_id != dag_id and dependency.target != dag_id:
                     continue
 
-                # Add nodes
-                nodes.append(
-                    {
-                        "id": dependency.node_id,
-                        "label": dependency.dependency_id,
-                        "type": dependency.dependency_type,
-                    }
-                )
+                # upstream assets are handled by the `get_upstream_assets` function.
+                if dependency.target != dependency.dependency_type and dependency.dependency_type in [
+                    "asset-alias",
+                    "asset",
+                ]:
+                    continue
 
                 # Add edges
                 # start dependency
@@ -96,6 +96,20 @@ def structure_data(
                 ) and exit_node_ref:
                     end_edges.append({"source_id": exit_node_ref["id"], "target_id": dependency.node_id})
 
-        data["edges"] = start_edges + edges + end_edges
+                # Add nodes
+                nodes.append(
+                    {
+                        "id": dependency.node_id,
+                        "label": dependency.dependency_id,
+                        "type": dependency.dependency_type,
+                    }
+                )
+
+        upstream_asset_nodes, upstream_asset_edges = get_upstream_assets(
+            dag.timetable.asset_condition, entry_node_ref["id"]
+        )
+
+        data["nodes"] += upstream_asset_nodes
+        data["edges"] = upstream_asset_edges + start_edges + edges + end_edges
 
     return StructureDataResponse(**data)

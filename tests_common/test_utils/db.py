@@ -232,6 +232,13 @@ def clear_db_dag_parsing_requests():
         session.query(DagPriorityParsingRequest).delete()
 
 
+def clear_db_dag_bundles():
+    with create_session() as session:
+        from airflow.models.dagbundle import DagBundleModel
+
+        session.query(DagBundleModel).delete()
+
+
 def clear_dag_specific_permissions():
     try:
         from airflow.providers.fab.auth_manager.models import Permission, Resource, assoc_permission_role
@@ -286,3 +293,5 @@ def clear_all():
     clear_db_pools()
     clear_db_connections(add_default_connections_back=True)
     clear_dag_specific_permissions()
+    if AIRFLOW_V_3_0_PLUS:
+        clear_db_dag_bundles()

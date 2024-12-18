@@ -33,6 +33,7 @@ class XComResponse(BaseModel):
     map_index: int
     task_id: str
     dag_id: str
+    run_id: str
 
 
 class XComResponseNative(XComResponse):

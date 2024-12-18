@@ -26,7 +26,7 @@ from unittest import mock
 import pytest
 from uuid6 import uuid7
 
-from airflow.exceptions import AirflowSkipException
+from airflow.exceptions import AirflowFailException, AirflowSensorTimeout, AirflowSkipException
 from airflow.sdk import DAG, BaseOperator
 from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
 from airflow.sdk.execution_time.comms import DeferTask, SetRenderedFields, StartupDetails, TaskState
@@ -330,6 +330,55 @@ def test_startup_dag_with_templated_fields(
         mock_supervisor_comms.send_request.assert_called_once_with(
             msg=SetRenderedFields(rendered_fields=expected_rendered_fields),
             log=mock.ANY,
+        )
+
+
+@pytest.mark.parametrize(
+    ["dag_id", "task_id", "fail_with_exception"],
+    [
+        pytest.param(
+            "basic_failed", "fail-exception", AirflowFailException("Oops. Failing by AirflowFailException!")
+        ),
+        pytest.param(
+            "basic_failed2",
+            "sensor-timeout-exception",
+            AirflowSensorTimeout("Oops. Failing by AirflowSensorTimeout!"),
+        ),
+    ],
+)
+def test_run_basic_failed(time_machine, mocked_parse, dag_id, task_id, fail_with_exception, make_ti_context):
+    """Test running a basic task that marks itself as failed by raising exception."""
+
+    class CustomOperator(BaseOperator):
+        def __init__(self, e, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.e = e
+
+        def execute(self, context):
+            print(f"raising exception {self.e}")
+            raise self.e
+
+    task = CustomOperator(task_id=task_id, e=fail_with_exception)
+
+    what = StartupDetails(
+        ti=TaskInstance(id=uuid7(), task_id=task_id, dag_id=dag_id, run_id="c", try_number=1),
+        file="",
+        requests_fd=0,
+        ti_context=make_ti_context(),
+    )
+
+    ti = mocked_parse(what, dag_id, task)
+
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
+
+    with mock.patch(
+        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
+    ) as mock_supervisor_comms:
+        run(ti, log=mock.MagicMock())
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            msg=TaskState(state=TerminalTIState.FAILED, end_date=instant), log=mock.ANY
         )
 
 

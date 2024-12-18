@@ -17,14 +17,12 @@
  * under the License.
  */
 import { Heading, VStack } from "@chakra-ui/react";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React from "react";
 
 import { Alert, Dialog } from "src/components/ui";
 
 import { TogglePause } from "../TogglePause";
 import TriggerDAGForm from "./TriggerDAGForm";
-import type { DagParams } from "./TriggerDag";
-import { TriggerDag as triggerDag } from "./TriggerDag";
 
 type TriggerDAGModalProps = {
   dagDisplayName: string;
@@ -40,70 +38,37 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   isPaused,
   onClose,
   open,
-}) => {
-  const initialDagParams = useMemo(
-    () => ({
-      configJson: "{}",
-      dagId,
-      dataIntervalEnd: "",
-      dataIntervalStart: "",
-      notes: "",
-      runId: "",
-    }),
-    [dagId],
-  );
+}) => (
+  <Dialog.Root
+    lazyMount
+    onOpenChange={onClose}
+    open={open}
+    size="xl"
+    unmountOnExit
+  >
+    <Dialog.Content backdrop>
+      <Dialog.Header>
+        <VStack align="start" gap={4}>
+          <Heading size="xl">
+            Trigger DAG - {dagDisplayName}{" "}
+            <TogglePause dagId={dagId} isPaused={isPaused} skipConfirm />
+          </Heading>
+          {isPaused ? (
+            <Alert status="warning" title="Paused DAG">
+              Triggering will create a DAG run, but it will not start until the
+              DAG is unpaused.
+            </Alert>
+          ) : undefined}
+        </VStack>
+      </Dialog.Header>
 
-  const [dagParams, setDagParams] = useState<DagParams>(initialDagParams);
+      <Dialog.CloseTrigger />
 
-  const handleTrigger = useCallback(
-    (updatedDagParams: DagParams) => {
-      triggerDag(updatedDagParams);
-      onClose();
-    },
-    [onClose],
-  );
-
-  useEffect(() => {
-    if (!open) {
-      setDagParams(initialDagParams);
-    }
-  }, [open, initialDagParams]);
-
-  return (
-    <Dialog.Root onOpenChange={onClose} open={open} size="xl">
-      <Dialog.Content backdrop>
-        <Dialog.Header>
-          <VStack align="start" gap={4}>
-            <Heading size="xl">
-              Trigger DAG - {dagDisplayName}{" "}
-              <TogglePause
-                dagId={dagParams.dagId}
-                isPaused={isPaused}
-                skipConfirm
-              />
-            </Heading>
-            {isPaused ? (
-              <Alert status="warning" title="Paused DAG">
-                Triggering will create a DAG run, but it will not start until
-                the DAG is unpaused.
-              </Alert>
-            ) : undefined}
-          </VStack>
-        </Dialog.Header>
-
-        <Dialog.CloseTrigger />
-
-        <Dialog.Body>
-          <TriggerDAGForm
-            dagParams={dagParams}
-            onClose={onClose}
-            onTrigger={handleTrigger}
-            setDagParams={setDagParams}
-          />
-        </Dialog.Body>
-      </Dialog.Content>
-    </Dialog.Root>
-  );
-};
+      <Dialog.Body>
+        <TriggerDAGForm dagId={dagId} onClose={onClose} open={open} />
+      </Dialog.Body>
+    </Dialog.Content>
+  </Dialog.Root>
+);
 
 export default TriggerDAGModal;
