@@ -259,7 +259,7 @@ class TestTIUpdateState:
 
         payload = {
             "state": "deferred",
-            "trigger_kwargs": {"key": "value"},
+            "trigger_kwargs": {"key": "value", "moment": "2024-12-18T00:00:00Z"},
             "classpath": "my-classpath",
             "next_method": "execute_callback",
             "trigger_timeout": "P1D",  # 1 day
@@ -277,14 +277,20 @@ class TestTIUpdateState:
 
         assert tis[0].state == TaskInstanceState.DEFERRED
         assert tis[0].next_method == "execute_callback"
-        assert tis[0].next_kwargs == {"key": "value"}
+        assert tis[0].next_kwargs == {
+            "key": "value",
+            "moment": datetime(2024, 12, 18, 00, 00, 00, tzinfo=timezone.utc),
+        }
         assert tis[0].trigger_timeout == timezone.make_aware(datetime(2024, 11, 23), timezone=timezone.utc)
 
         t = session.query(Trigger).all()
         assert len(t) == 1
         assert t[0].created_date == instant
         assert t[0].classpath == "my-classpath"
-        assert t[0].kwargs == {"key": "value"}
+        assert t[0].kwargs == {
+            "key": "value",
+            "moment": datetime(2024, 12, 18, 00, 00, 00, tzinfo=timezone.utc),
+        }
 
     def test_ti_update_state_to_reschedule(self, client, session, create_task_instance, time_machine):
         """
