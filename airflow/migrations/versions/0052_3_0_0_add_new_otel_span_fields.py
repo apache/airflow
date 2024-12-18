@@ -29,8 +29,7 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
-
-from airflow.utils.sqlalchemy import ExtendedJSON
+from sqlalchemy import JSON
 
 # revision identifiers, used by Alembic.
 revision = "0eb040b3eb12"
@@ -43,10 +42,10 @@ airflow_version = "3.0.0"
 def upgrade():
     """Apply add new otel span fields."""
     op.add_column("dag_run", sa.Column("scheduled_by_job_id", sa.Integer, nullable=True))
-    op.add_column("dag_run", sa.Column("context_carrier", ExtendedJSON, nullable=True))
+    op.add_column("dag_run", sa.Column("context_carrier", JSON, nullable=True))
     op.add_column("dag_run", sa.Column("span_status", sa.String(250), nullable=False))
 
-    op.add_column("task_instance", sa.Column("context_carrier", ExtendedJSON, nullable=True))
+    op.add_column("task_instance", sa.Column("context_carrier", JSON, nullable=True))
     op.add_column("task_instance", sa.Column("span_status", sa.String(250), nullable=False))
 
 
