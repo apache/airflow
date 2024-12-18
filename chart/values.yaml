@@ -2473,6 +2473,22 @@ elasticsearch:
   #   port: ~
   connection: {}
 
+# OpenSearch logging configuration
+opensearch:
+  # Enable opensearch task logging
+  enabled: false
+  # A secret containing the connection
+  secretName: ~
+  # Or an object representing the connection
+  # Example:
+  # connection:
+  #   scheme: ~
+  #   user: ~
+  #   pass: ~
+  #   host: ~
+  #   port: ~
+  connection: {}
+
 # All ports used by chart
 ports:
   flowerUI: 5555
