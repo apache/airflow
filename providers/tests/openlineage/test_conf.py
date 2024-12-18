@@ -36,6 +36,7 @@ from airflow.providers.openlineage.conf import (
     is_source_enabled,
     namespace,
     selective_enable,
+    spark_inject_parent_job_info,
     transport,
 )
 
@@ -61,6 +62,7 @@ _CONFIG_OPTION_SELECTIVE_ENABLE = "selective_enable"
 _CONFIG_OPTION_DAG_STATE_CHANGE_PROCESS_POOL_SIZE = "dag_state_change_process_pool_size"
 _CONFIG_OPTION_INCLUDE_FULL_TASK_INFO = "include_full_task_info"
 _CONFIG_OPTION_DEBUG_MODE = "debug_mode"
+_CONFIG_OPTION_SPARK_INJECT_PARENT_JOB_INFO = "spark_inject_parent_job_info"
 
 _BOOL_PARAMS = (
     ("1", True),
@@ -612,3 +614,30 @@ def test_debug_mode_invalid_value_raise_error(var_string):
 @conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_DEBUG_MODE): None})
 def test_debug_mode_do_not_fail_if_conf_option_missing():
     assert debug_mode() is False
+
+
+@pytest.mark.parametrize(
+    ("var_string", "expected"),
+    _BOOL_PARAMS,
+)
+def test_spark_inject_parent_job_info(var_string, expected):
+    with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_SPARK_INJECT_PARENT_JOB_INFO): var_string}):
+        result = spark_inject_parent_job_info()
+        assert result is expected
+
+
+@conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_SPARK_INJECT_PARENT_JOB_INFO): "asdadawlaksnd"})
+def test_spark_inject_parent_job_info_not_working_for_random_string():
+    with pytest.raises(AirflowConfigException):
+        spark_inject_parent_job_info()
+
+
+@conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_SPARK_INJECT_PARENT_JOB_INFO): ""})
+def test_spark_inject_parent_job_info_empty_conf_option():
+    with pytest.raises(AirflowConfigException):
+        spark_inject_parent_job_info()
+
+
+@conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_SPARK_INJECT_PARENT_JOB_INFO): None})
+def test_spark_inject_parent_job_info_do_not_fail_if_conf_option_missing():
+    assert spark_inject_parent_job_info() is False
