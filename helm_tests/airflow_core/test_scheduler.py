@@ -900,6 +900,32 @@ class TestScheduler:
         )
         assert expected == jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0])
 
+    def test_should_add_log_port_when_local_executor_and_elasticsearch_disabled(self):
+        docs = render_chart(
+            values={
+                "executor": "LocalExecutor",
+                "elasticsearch": {"enabled": False}},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.containers[0].ports", docs[0]) == [{
+            "name": "worker-logs",
+            "containerPort": 8793
+        }]
+
+    def test_should_omit_log_port_when_elasticsearch_enabled(self):
+        docs = render_chart(
+            values={
+                "elasticsearch": {
+                    "enabled": True,
+                    "secretName": "test-elastic-secret",
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert "ports" not in jmespath.search("spec.template.spec.containers[0]", docs[0])
+
 
 class TestSchedulerNetworkPolicy:
     """Tests scheduler network policy."""
