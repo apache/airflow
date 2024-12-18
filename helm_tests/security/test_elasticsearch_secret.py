@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import base64
-from subprocess import CalledProcessError
 
 import jmespath
 import pytest
