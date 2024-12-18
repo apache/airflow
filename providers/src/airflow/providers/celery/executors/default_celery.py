@@ -69,7 +69,7 @@ else:
     log.debug("Value for celery result_backend not found. Using sql_alchemy_conn with db+ prefix.")
     result_backend = f'db+{conf.get("database", "SQL_ALCHEMY_CONN")}'
 
-extra_celery_config: dict = conf.getjson("celery", "extra_celery_config", fallback={}) if conf.has_option("celery", "extra_celery_config") else {}
+extra_celery_config: dict = conf.getjson("celery", "extra_celery_config", fallback={})
 
 DEFAULT_CELERY_CONFIG = {
     "accept_content": ["json"],
