@@ -1143,7 +1143,10 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BackfillResponse'
+                anyOf:
+                - $ref: '#/components/schemas/BackfillResponse'
+                - $ref: '#/components/schemas/BackfillDryRunResponse'
+                title: Response Create Backfill
         '401':
           content:
             application/json:
@@ -6210,6 +6213,18 @@ components:
       - total_entries
       title: BackfillCollectionResponse
       description: Backfill Collection serializer for responses.
+    BackfillDryRunResponse:
+      properties:
+        run_info_list:
+          items:
+            $ref: '#/components/schemas/BackfillRunInfo'
+          type: array
+          title: Run Info List
+      type: object
+      required:
+      - run_info_list
+      title: BackfillDryRunResponse
+      description: Serializer for responses in dry-run mode for backfill operations.
     BackfillPostBody:
       properties:
         dag_id:
@@ -6238,6 +6253,10 @@ components:
           type: integer
           title: Max Active Runs
           default: 10
+        dry_run:
+          type: boolean
+          title: Dry Run
+          default: false
       type: object
       required:
       - dag_id
@@ -6301,6 +6320,17 @@ components:
       - updated_at
       title: BackfillResponse
       description: Base serializer for Backfill.
+    BackfillRunInfo:
+      properties:
+        logical_date:
+          type: string
+          format: date-time
+          title: Logical Date
+      type: object
+      required:
+      - logical_date
+      title: BackfillRunInfo
+      description: Data model for run information during a backfill operation.
     BaseInfoResponse:
       properties:
         status:

@@ -33,6 +33,7 @@ class BackfillPostBody(BaseModel):
     dag_run_conf: dict = {}
     reprocess_behavior: ReprocessBehavior = ReprocessBehavior.NONE
     max_active_runs: int = 10
+    dry_run: bool = False
 
 
 class BackfillResponse(BaseModel):
@@ -56,3 +57,15 @@ class BackfillCollectionResponse(BaseModel):
 
     backfills: list[BackfillResponse]
     total_entries: int
+
+
+class BackfillRunInfo(BaseModel):
+    """Data model for run information during a backfill operation."""
+
+    logical_date: datetime
+
+
+class BackfillDryRunResponse(BaseModel):
+    """Serializer for responses in dry-run mode for backfill operations."""
+
+    run_info_list: list[BackfillRunInfo]

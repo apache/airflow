@@ -98,6 +98,13 @@ export type BackfillCollectionResponse = {
 };
 
 /**
+ * Serializer for responses in dry-run mode for backfill operations.
+ */
+export type BackfillDryRunResponse = {
+  run_info_list: Array<BackfillRunInfo>;
+};
+
+/**
  * Object used for create backfill request.
  */
 export type BackfillPostBody = {
@@ -110,6 +117,7 @@ export type BackfillPostBody = {
   };
   reprocess_behavior?: ReprocessBehavior;
   max_active_runs?: number;
+  dry_run?: boolean;
 };
 
 /**
@@ -129,6 +137,13 @@ export type BackfillResponse = {
   created_at: string;
   completed_at: string | null;
   updated_at: string;
+};
+
+/**
+ * Data model for run information during a backfill operation.
+ */
+export type BackfillRunInfo = {
+  logical_date: string;
 };
 
 /**
@@ -1498,7 +1513,7 @@ export type CreateBackfillData = {
   requestBody: BackfillPostBody;
 };
 
-export type CreateBackfillResponse = BackfillResponse;
+export type CreateBackfillResponse = BackfillResponse | BackfillDryRunResponse;
 
 export type GetBackfillData = {
   backfillId: string;
@@ -2630,7 +2645,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: BackfillResponse;
+        200: BackfillResponse | BackfillDryRunResponse;
         /**
          * Unauthorized
          */

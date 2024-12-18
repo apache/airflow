@@ -192,6 +192,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
             "max_active_runs": max_active_runs,
             "run_backwards": False,
             "dag_run_conf": {"param1": "val1", "param2": True},
+            "dry_run": False,
         }
         if repro_act is not None:
             data["reprocess_behavior"] = repro_act
