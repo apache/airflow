@@ -482,6 +482,7 @@ class TestTIHealthEndpoint:
         assert ti.state == State.FAILED
         assert ti.next_method is None
         assert ti.next_kwargs is None
+        # TODO: remove/amend this once https://github.com/apache/airflow/pull/45002 is merged
         assert ceil(ti.duration) == 3600.00
 
 
