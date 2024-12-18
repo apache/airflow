@@ -34,10 +34,10 @@ Changelog
 
 .. warning::
   All deprecated classes, parameters and features have been removed from the Common SQL provider package.
-  Note: It could be that very old providers versions were depended on private functions of common.sql and as a result
-        users may have created custom code around them without realizing using private functions. This has long been fixed
-        and might affect users of very old provider versions. We are not considering this a breaking change yet we are listing
-        the changes explicitly for visibility.
+  It could be that very old providers versions were depended on private functions of common.sql and as a result
+  users may have created custom code around them without realizing using private functions. This has long been fixed
+  and might affect users of very old provider versions. We are not considering this a breaking change yet we are listing
+  the changes explicitly for visibility.
   The following breaking changes were introduced:
 
   * Hooks
