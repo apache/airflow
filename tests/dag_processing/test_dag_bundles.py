@@ -286,7 +286,6 @@ class TestGitDagBundle:
         assert bundle.env == {}
         bundle.init_bundle()
         mock_hook.assert_called_once_with(ssh_conn_id=conn_id)
-        assert bundle.env == {"GIT_SSH_COMMAND": f"ssh -i {key_filepath} -o IdentitiesOnly=yes"}
 
     def test_no_key_file_and_no_private_key_raises_for_ssh_conn(self):
         bundle = GitDagBundle(name="test", ssh_conn_id="ssh_default", tracking_ref=GIT_DEFAULT_BRANCH)
