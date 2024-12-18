@@ -85,10 +85,9 @@ class TestElasticsearchConfig:
             show_only=[SCHEDULER_DEPLOYMENT_TEMPLATE],
         )
 
-        assert jmespath.search("spec.template.spec.containers[0].ports", docs[0]) == [{
-            "name": "worker-logs",
-            "containerPort": 8793
-        }]
+        assert jmespath.search("spec.template.spec.containers[0].ports", docs[0]) == [
+            {"name": "worker-logs", "containerPort": 8793}
+        ]
 
     def test_scheduler_should_omit_log_port_when_elasticsearch_enabled(self):
         docs = render_chart(
@@ -126,18 +125,15 @@ class TestElasticsearchConfig:
             show_only=[SCHEDULER_DEPLOYMENT_TEMPLATE],
         )
 
-        expected_value_from = {
-            "secretKeyRef": {
-                "name": "test-elastic-secret",
-                "key": "connection"
-            }
-        }
+        expected_value_from = {"secretKeyRef": {"name": "test-elastic-secret", "key": "connection"}}
 
         container_env = jmespath.search("spec.template.spec.containers[0].env", docs[0])
 
         assert {"name": "AIRFLOW__ELASTICSEARCH__HOST", "valueFrom": expected_value_from} in container_env
-        assert {"name": "AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST",
-                "valueFrom": expected_value_from} in container_env
+        assert {
+            "name": "AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST",
+            "valueFrom": expected_value_from,
+        } in container_env
 
     def test_config_should_set_remote_logging_false_if_es_disabled(self):
         docs = render_chart(
