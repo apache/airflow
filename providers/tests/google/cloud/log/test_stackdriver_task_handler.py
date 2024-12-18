@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+from contextlib import nullcontext
 from unittest import mock
 from urllib.parse import parse_qs, urlsplit
 
@@ -24,7 +25,6 @@ import pytest
 from google.cloud.logging import Resource
 from google.cloud.logging_v2.types import ListLogEntriesRequest, ListLogEntriesResponse, LogEntry
 
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.google.cloud.log.stackdriver_task_handler import StackdriverTaskHandler
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
@@ -87,7 +87,7 @@ def test_should_use_configured_log_name(mock_client, mock_get_creds_and_project_
         # this is needed for Airflow 2.8 and below where default settings are triggering warning on
         # extra "name" in the configuration of stackdriver handler. As of Airflow 2.9 this warning is not
         # emitted.
-        context_manager = pytest.warns(RemovedInAirflow3Warning)
+        context_manager = nullcontext()
         with context_manager:
             with conf_vars(
                 {
