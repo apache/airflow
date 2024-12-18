@@ -72,7 +72,7 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
     def _clone_from(self, to_path: Path, bare: bool = False) -> Repo:
         return Repo.clone_from(self.repo_url, to_path, bare=bare, env=self.env)
 
-    def _init_bundle(self):
+    def _initialize(self):
         self._clone_bare_repo_if_required()
         self._ensure_version_in_bare_repo()
         self._clone_repo_if_required()
@@ -87,7 +87,7 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         else:
             self.refresh()
 
-    def init_bundle(self) -> None:
+    def initialize(self) -> None:
         if self.ssh_conn_id:
             try:
                 from airflow.providers.ssh.hooks.ssh import SSHHook
@@ -113,13 +113,13 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
                 if ssh_hook.remote_host:
                     self.log.info("Using repo URL defined in the SSH connection")
                     self.repo_url = ssh_hook.remote_host
-                self._init_bundle()
+                self._initialize()
                 self.env = {}
             finally:
                 if temp_key_file_path:
                     os.remove(temp_key_file_path)
         else:
-            self._init_bundle()
+            self._initialize()
 
     def _clone_repo_if_required(self) -> None:
         if not os.path.exists(self.repo_path):
