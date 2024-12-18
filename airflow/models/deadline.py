@@ -41,8 +41,8 @@ class Deadline(Base, LoggingMixin):
     id = Column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
 
     # If the Deadline Alert is for a DAG, store the DAG ID and Run ID from the dag_run.
-    dag_id = Column(StringID(), ForeignKey("dag.dag_id"))
-    run_id = Column(Integer, ForeignKey("dag_run.id"))
+    dag_id = Column(StringID(), ForeignKey("dag.dag_id", ondelete="CASCADE"))
+    run_id = Column(Integer, ForeignKey("dag_run.id", ondelete="CASCADE"))
 
     # The time after which the Deadline has passed and the callback should be triggered.
     deadline = Column(DateTime, nullable=False)

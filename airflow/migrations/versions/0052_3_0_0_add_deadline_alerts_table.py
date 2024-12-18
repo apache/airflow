@@ -53,8 +53,8 @@ def upgrade():
         sa.Column("callback", sa.String(length=500), nullable=False),
         sa.Column("callback_kwargs", sqlalchemy_jsonfield.jsonfield.JSONField(), nullable=True),
         sa.PrimaryKeyConstraint("id", name=op.f("deadline_pkey")),
-        sa.ForeignKeyConstraint(columns=("run_id",), refcolumns=["dag_run.id"]),
-        sa.ForeignKeyConstraint(columns=("dag_id",), refcolumns=["dag.dag_id"]),
+        sa.ForeignKeyConstraint(columns=("run_id",), refcolumns=["dag_run.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(columns=("dag_id",), refcolumns=["dag.dag_id"], ondelete="CASCADE"),
         sa.Index("deadline_idx", "deadline", unique=False),
     )
 
