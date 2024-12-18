@@ -28,7 +28,7 @@ from tests.charts.helm_template_generator import render_chart
 class TestElasticsearchConfig:
     """Tests elasticsearch configuration behaviors."""
 
-    def test_should_not_generate_a_document_if_elasticsearch_disabled(self):
+    def test_should_not_generate_a_secret_document_if_elasticsearch_disabled(self):
         docs = render_chart(
             values={"elasticsearch": {"enabled": False}},
             show_only=["templates/secrets/elasticsearch-secret.yaml"],
@@ -72,3 +72,64 @@ class TestElasticsearchConfig:
             in ex_ctx.value.stderr.decode()
         )
 
+    def test_scheduler_should_add_log_port_when_local_executor_and_elasticsearch_disabled(self):
+        docs = render_chart(
+            values={
+                "executor": "LocalExecutor",
+                "elasticsearch": {"enabled": False}},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.containers[0].ports", docs[0]) == [{
+            "name": "worker-logs",
+            "containerPort": 8793
+        }]
+
+    def test_scheduler_should_omit_log_port_when_elasticsearch_enabled(self):
+        docs = render_chart(
+            values={
+                "elasticsearch": {
+                    "enabled": True,
+                    "secretName": "test-elastic-secret",
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert "ports" not in jmespath.search("spec.template.spec.containers[0]", docs[0])
+
+    def test_env_should_omit_elasticsearch_host_vars_if_es_disabled(self):
+        docs = render_chart(
+            values={},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        container_env = jmespath.search("spec.template.spec.containers[0].env", docs[0])
+        container_env_keys = [entry["name"] for entry in container_env]
+
+        assert "AIRFLOW__ELASTICSEARCH__HOST" not in container_env_keys
+        assert "AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST" not in container_env_keys
+
+    def test_env_should_add_elasticsearch_host_vars_if_es_enabled(self):
+        docs = render_chart(
+            values={
+                "elasticsearch": {
+                    "enabled": True,
+                    "secretName": "test-elastic-secret",
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        expected_value_from = {
+            "secretKeyRef": {
+                "name": "test-elastic-secret",
+                "key": "connection"
+            }
+        }
+
+        container_env = jmespath.search("spec.template.spec.containers[0].env", docs[0])
+
+        assert {"name": "AIRFLOW__ELASTICSEARCH__HOST", "valueFrom": expected_value_from} in container_env
+        assert {"name": "AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST",
+                "valueFrom": expected_value_from} in container_env
