@@ -26,16 +26,10 @@ from unittest import mock
 import pytest
 from uuid6 import uuid7
 
-from airflow.exceptions import AirflowRescheduleException, AirflowSkipException
+from airflow.exceptions import AirflowSkipException
 from airflow.sdk import DAG, BaseOperator
-from airflow.sdk.api.datamodels._generated import IntermediateTIState, TaskInstance, TerminalTIState
-from airflow.sdk.execution_time.comms import (
-    DeferTask,
-    RescheduleTask,
-    SetRenderedFields,
-    StartupDetails,
-    TaskState,
-)
+from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
+from airflow.sdk.execution_time.comms import DeferTask, SetRenderedFields, StartupDetails, TaskState
 from airflow.sdk.execution_time.task_runner import CommsDecoder, RuntimeTaskInstance, parse, run, startup
 from airflow.utils import timezone
 
@@ -335,46 +329,6 @@ def test_startup_dag_with_templated_fields(
         startup()
         mock_supervisor_comms.send_request.assert_called_once_with(
             msg=SetRenderedFields(rendered_fields=expected_rendered_fields),
-            log=mock.ANY,
-        )
-
-
-def test_run_basic_up_for_reschedule(time_machine, mocked_parse, make_ti_context):
-    """Test running a basic task that raised reschedule exception."""
-    from airflow.providers.standard.operators.python import PythonOperator
-
-    task = PythonOperator(
-        task_id="reschedule",
-        python_callable=lambda: (_ for _ in ()).throw(
-            AirflowRescheduleException(reschedule_date=timezone.datetime(2025, 1, 1)),
-        ),
-    )
-
-    what = StartupDetails(
-        ti=TaskInstance(
-            id=uuid7(), task_id="reschedule", dag_id="basic_reschedule", run_id="c", try_number=1
-        ),
-        file="",
-        requests_fd=0,
-        ti_context=make_ti_context(),
-    )
-
-    ti = mocked_parse(what, "basic_reschedule", task)
-
-    instant = timezone.datetime(2024, 12, 3, 10, 0)
-    time_machine.move_to(instant, tick=False)
-
-    with mock.patch(
-        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
-    ) as mock_supervisor_comms:
-        run(ti, log=mock.MagicMock())
-
-        mock_supervisor_comms.send_request.assert_called_once_with(
-            msg=RescheduleTask(
-                state=IntermediateTIState.UP_FOR_RESCHEDULE,
-                end_date=instant,
-                reschedule_date=timezone.datetime(2025, 1, 1),
-            ),
             log=mock.ANY,
         )
 
