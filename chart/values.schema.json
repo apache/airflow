@@ -8044,6 +8044,69 @@
                 }
             }
         },
+        "opensearch": {
+            "description": "OpenSearch logging configuration.",
+            "type": "object",
+            "x-docsSection": "Airflow",
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {
+                    "description": "Enable OpenSearch task logging.",
+                    "type": "boolean",
+                    "default": false
+                },
+                "secretName": {
+                    "description": "A secret containing the connection string.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
+                "connection": {
+                    "description": "OpenSearch connection configuration.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": false,
+                    "properties": {
+                        "scheme": {
+                            "description": "Scheme",
+                            "type": "string",
+                            "default": "http"
+                        },
+                        "user": {
+                            "description": "Username",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "pass": {
+                            "description": "Password",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "host": {
+                            "description": "Host",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "port": {
+                            "description": "Port",
+                            "type": "number",
+                            "default": 80
+                        }
+                    },
+                    "examples": [
+                        {
+                            "scheme": "https",
+                            "user": "...",
+                            "pass": "...",
+                            "host": "...",
+                            "port": "..."
+                        }
+                    ]
+                }
+            }
+        },
         "ports": {
             "description": "All ports used by chart.",
             "type": "object",
