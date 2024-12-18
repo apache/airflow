@@ -83,7 +83,7 @@ class TIDeferredStatePayload(BaseModel):
     next_method: str
     trigger_timeout: timedelta | None = None
 
-    @field_validator("trigger_kwargs", mode="before")
+    @field_validator("trigger_kwargs")
     def validate_moment(cls, v):
         from datetime import datetime
 
