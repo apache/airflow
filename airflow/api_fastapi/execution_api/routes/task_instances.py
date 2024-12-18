@@ -218,6 +218,7 @@ def ti_update_state(
             kwargs=ti_patch_payload.trigger_kwargs,
         )
         session.add(trigger_row)
+        session.flush()
 
         # TODO: HANDLE execution timeout later as it requires a call to the DB
         # either get it from the serialised DAG or get it from the API

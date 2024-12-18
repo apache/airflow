@@ -21,7 +21,7 @@ import uuid
 from datetime import timedelta
 from typing import Annotated, Any, Literal, Union
 
-from pydantic import Discriminator, Field, Tag, WithJsonSchema
+from pydantic import AwareDatetime, Discriminator, Field, Tag, TypeAdapter, WithJsonSchema, field_validator
 
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel
@@ -29,6 +29,8 @@ from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionRe
 from airflow.api_fastapi.execution_api.datamodels.variable import VariableResponse
 from airflow.utils.state import IntermediateTIState, TaskInstanceState as TIState, TerminalTIState
 from airflow.utils.types import DagRunType
+
+AwareDatetimeAdapter = TypeAdapter(AwareDatetime)
 
 
 class TIEnterRunningPayload(BaseModel):
@@ -82,6 +84,12 @@ class TIDeferredStatePayload(BaseModel):
     trigger_kwargs: Annotated[dict[str, Any], Field(default_factory=dict)]
     next_method: str
     trigger_timeout: timedelta | None = None
+
+    @field_validator("trigger_kwargs")
+    def validate_moment(cls, v):
+        if "moment" in v:
+            v["moment"] = AwareDatetimeAdapter.validate_strings(v["moment"])
+        return v
 
 
 class TIRescheduleStatePayload(BaseModel):
