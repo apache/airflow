@@ -49,6 +49,7 @@ from airflow.sdk.api.datamodels._generated import (
     TerminalTIState,
 )
 from airflow.sdk.execution_time.comms import (
+    ConnectionResult,
     DeferTask,
     GetConnection,
     GetVariable,
@@ -689,7 +690,8 @@ class WatchedSubprocess:
             self._task_end_time_monotonic = time.monotonic()
         elif isinstance(msg, GetConnection):
             conn = self.client.connections.get(msg.conn_id)
-            resp = conn.model_dump_json(exclude_unset=True).encode()
+            conn_result = ConnectionResult.from_conn_response(conn)
+            resp = conn_result.model_dump_json(exclude_unset=True).encode()
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             resp = var.model_dump_json(exclude_unset=True).encode()
