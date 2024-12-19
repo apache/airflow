@@ -56,7 +56,7 @@ class TestGoogleAdsToGcsOperator:
             api_version=api_version,
         )
         mock_ads_hook.return_value.search.assert_called_once_with(
-            client_ids=CLIENT_IDS, query=QUERY, page_size=10000
+            client_ids=CLIENT_IDS, query=QUERY
         )
         mock_gcs_hook.assert_called_once_with(
             gcp_conn_id=gcp_conn_id,
