@@ -55,6 +55,7 @@ from airflow.sdk.api.datamodels._generated import (
     TerminalTIState,
     TIDeferredStatePayload,
     TIRescheduleStatePayload,
+    TIRetryStatePayload,
     TIRunContext,
     VariableResponse,
     XComResponse,
@@ -136,6 +137,12 @@ class RescheduleTask(TIRescheduleStatePayload):
     type: Literal["RescheduleTask"] = "RescheduleTask"
 
 
+class RetryTask(TIRetryStatePayload):
+    """Update a task instance state to up_for_retry."""
+
+    type: Literal["RetryTask"] = "RetryTask"
+
+
 class GetXCom(BaseModel):
     key: str
     dag_id: str
@@ -214,6 +221,7 @@ ToSupervisor = Annotated[
         SetXCom,
         SetRenderedFields,
         RescheduleTask,
+        RetryTask,
     ],
     Field(discriminator="type"),
 ]

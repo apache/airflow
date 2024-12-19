@@ -340,6 +340,43 @@ class TestTIUpdateState:
         assert trs[0].map_index == -1
         assert trs[0].duration == 129600
 
+    def test_ti_update_state_to_retry(self, client, session, create_task_instance, time_machine):
+        """
+        Test that tests if the transition to retry state is handled correctly.
+        """
+
+        instant = timezone.datetime(2024, 10, 30)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_retry",
+            state=State.RUNNING,
+            session=session,
+        )
+        ti.start_date = instant
+        session.commit()
+
+        payload = {
+            "state": "up_for_retry",
+            "end_date": DEFAULT_END_DATE.isoformat(),
+            # a running task moving to up_for_retry
+            "task_retries": 1,
+        }
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        tis = session.query(TaskInstance).all()
+        assert len(tis) == 1
+        assert tis[0].state == TaskInstanceState.UP_FOR_RETRY
+        assert tis[0].next_method is None
+        assert tis[0].next_kwargs is None
+        assert tis[0].duration == 129600
+
 
 class TestTIHealthEndpoint:
     def setup_method(self):

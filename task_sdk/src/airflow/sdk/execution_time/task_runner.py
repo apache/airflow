@@ -34,6 +34,7 @@ from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.execution_time.comms import (
     DeferTask,
     RescheduleTask,
+    RetryTask,
     SetRenderedFields,
     StartupDetails,
     TaskState,
@@ -305,8 +306,22 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         )
 
         # TODO: Run task failure callbacks here
-    except (AirflowTaskTimeout, AirflowException, AirflowTaskTerminated):
+    except AirflowTaskTerminated:
         ...
+    except (AirflowTaskTimeout, AirflowException):
+        # Couldn't load the task, don't know number of retries, guess
+        if not getattr(ti, "task", None):
+            # Let us set the task_retries to default = 0
+            msg = RetryTask(
+                end_date=datetime.now(tz=timezone.utc),
+                task_retries=0,
+            )
+        else:
+            msg = RetryTask(
+                end_date=datetime.now(tz=timezone.utc),
+                # is `or 0` needed?
+                task_retries=ti.task.retries or 0,
+            )
     except SystemExit:
         ...
     except BaseException:
