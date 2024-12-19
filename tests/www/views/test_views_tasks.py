@@ -1124,6 +1124,8 @@ def test_task_instances(admin_client):
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
             "dag_version_id": None,
+            "context_carrier": None,
+            "span_status": "not_started",
         },
         "run_after_loop": {
             "custom_operator_name": None,
@@ -1161,6 +1163,8 @@ def test_task_instances(admin_client):
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
             "dag_version_id": None,
+            "context_carrier": None,
+            "span_status": "not_started",
         },
         "run_this_last": {
             "custom_operator_name": None,
@@ -1198,6 +1202,8 @@ def test_task_instances(admin_client):
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
             "dag_version_id": None,
+            "context_carrier": None,
+            "span_status": "not_started",
         },
         "runme_0": {
             "custom_operator_name": None,
@@ -1235,6 +1241,8 @@ def test_task_instances(admin_client):
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
             "dag_version_id": None,
+            "context_carrier": None,
+            "span_status": "not_started",
         },
         "runme_1": {
             "custom_operator_name": None,
@@ -1272,6 +1280,8 @@ def test_task_instances(admin_client):
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
             "dag_version_id": None,
+            "context_carrier": None,
+            "span_status": "not_started",
         },
         "runme_2": {
             "custom_operator_name": None,
@@ -1309,6 +1319,8 @@ def test_task_instances(admin_client):
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
             "dag_version_id": None,
+            "context_carrier": None,
+            "span_status": "not_started",
         },
         "this_will_skip": {
             "custom_operator_name": None,
@@ -1346,5 +1358,7 @@ def test_task_instances(admin_client):
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
             "dag_version_id": None,
+            "context_carrier": None,
+            "span_status": "not_started",
         },
     }
