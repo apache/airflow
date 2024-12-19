@@ -44,16 +44,25 @@ import lazy_object_proxy
 from sqlalchemy import and_, select
 
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel, fetch_active_assets_by_name
+from airflow.models.asset import (
+    AssetAliasModel,
+    AssetEvent,
+    AssetModel,
+    fetch_active_assets_by_name,
+    fetch_active_assets_by_uri,
+)
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
     AssetAliasUniqueKey,
+    AssetNameRef,
     AssetRef,
     AssetUniqueKey,
+    AssetUriRef,
     BaseAssetUniqueKey,
 )
 from airflow.utils.db import LazySelectSequence
+from airflow.utils.session import create_session
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
@@ -200,6 +209,8 @@ class OutletEventAccessors(Mapping[Union[Asset, AssetAlias], OutletEventAccessor
     :meta private:
     """
 
+    _asset_ref_cache: dict[AssetRef, AssetUniqueKey] = {}
+
     def __init__(self) -> None:
         self._dict: dict[BaseAssetUniqueKey, OutletEventAccessor] = {}
 
@@ -220,12 +231,36 @@ class OutletEventAccessors(Mapping[Union[Asset, AssetAlias], OutletEventAccessor
             hashable_key = AssetUniqueKey.from_asset(key)
         elif isinstance(key, AssetAlias):
             hashable_key = AssetAliasUniqueKey.from_asset_alias(key)
+        elif isinstance(key, AssetRef):
+            hashable_key = self._resolve_asset_ref(key)
         else:
             raise TypeError(f"Key should be either an asset or an asset alias, not {type(key)}")
 
         if hashable_key not in self._dict:
             self._dict[hashable_key] = OutletEventAccessor(extra={}, key=hashable_key)
         return self._dict[hashable_key]
+
+    def _resolve_asset_ref(self, ref: AssetRef) -> AssetUniqueKey:
+        with contextlib.suppress(KeyError):
+            return self._asset_ref_cache[ref]
+
+        refs_to_cache: list[AssetRef]
+        with create_session() as session:
+            if isinstance(ref, AssetNameRef):
+                asset = session.scalar(
+                    select(AssetModel).where(AssetModel.name == ref.name, AssetModel.active.has())
+                )
+                refs_to_cache = [ref, AssetUriRef(asset.uri)]
+            elif isinstance(ref, AssetUriRef):
+                asset = session.scalar(
+                    select(AssetModel).where(AssetModel.uri == ref.uri, AssetModel.active.has())
+                )
+                refs_to_cache = [ref, AssetNameRef(asset.name)]
+            else:
+                raise TypeError(f"Unimplemented asset ref: {type(ref)}")
+            for ref in refs_to_cache:
+                self._asset_ref_cache[ref] = unique_key = AssetUniqueKey.from_asset(asset)
+        return unique_key
 
 
 class LazyAssetEventSelectSequence(LazySelectSequence[AssetEvent]):
@@ -264,16 +299,22 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Lazy
         self._asset_aliases = {}
 
         _asset_ref_names: list[str] = []
+        _asset_ref_uris: list[str] = []
         for inlet in inlets:
             if isinstance(inlet, Asset):
                 self._assets[AssetUniqueKey.from_asset(inlet)] = inlet
             elif isinstance(inlet, AssetAlias):
                 self._asset_aliases[AssetAliasUniqueKey.from_asset_alias(inlet)] = inlet
-            elif isinstance(inlet, AssetRef):
+            elif isinstance(inlet, AssetNameRef):
                 _asset_ref_names.append(inlet.name)
+            elif isinstance(inlet, AssetUriRef):
+                _asset_ref_uris.append(inlet.uri)
 
         if _asset_ref_names:
             for _, asset in fetch_active_assets_by_name(_asset_ref_names, self._session).items():
+                self._assets[AssetUniqueKey.from_asset(asset)] = asset
+        if _asset_ref_uris:
+            for _, asset in fetch_active_assets_by_uri(_asset_ref_uris, self._session).items():
                 self._assets[AssetUniqueKey.from_asset(asset)] = asset
 
     def __iter__(self) -> Iterator[Asset | AssetAlias]:
@@ -298,11 +339,20 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Lazy
             asset_alias = self._asset_aliases[AssetAliasUniqueKey.from_asset_alias(obj)]
             join_clause = AssetEvent.source_aliases
             where_clause = AssetAliasModel.name == asset_alias.name
-        elif isinstance(obj, AssetRef):
-            # TODO: handle the case that Asset uri is different from name
-            asset = self._assets[AssetUniqueKey.from_asset(Asset(name=obj.name))]
+        elif isinstance(obj, AssetNameRef):
+            try:
+                asset = next(a for k, a in self._assets.items() if k.name == obj.name)
+            except StopIteration:
+                raise KeyError(obj) from None
             join_clause = AssetEvent.asset
-            where_clause = and_(AssetModel.name == asset.name, AssetModel.uri == asset.uri)
+            where_clause = and_(AssetModel.name == asset.name, AssetModel.active.has())
+        elif isinstance(obj, AssetUriRef):
+            try:
+                asset = next(a for k, a in self._assets.items() if k.uri == obj.uri)
+            except StopIteration:
+                raise KeyError(obj) from None
+            join_clause = AssetEvent.asset
+            where_clause = and_(AssetModel.uri == asset.uri, AssetModel.active.has())
         else:
             raise ValueError(key)
 
