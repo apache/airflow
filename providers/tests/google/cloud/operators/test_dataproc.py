@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import datetime as dt
 import inspect
 from unittest import mock
 from unittest.mock import MagicMock, Mock, call
@@ -1508,6 +1509,188 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
 
         op.execute(context=self.mock_context)
         assert not mock_defer.called
+
+    @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_openlineage_parent_job_info_injection(self, mock_hook, mock_ol_accessible):
+        job_config = {
+            "placement": {"cluster_name": CLUSTER_NAME},
+            "pyspark_job": {
+                "main_python_file_uri": "gs://example/wordcount.py",
+                "properties": {
+                    "spark.sql.shuffle.partitions": "1",
+                    "spark.openlineage.transport.type": "console",
+                },
+            },
+        }
+        expected_config = {
+            "placement": {"cluster_name": CLUSTER_NAME},
+            "pyspark_job": {
+                "main_python_file_uri": "gs://example/wordcount.py",
+                "properties": {
+                    "spark.sql.shuffle.partitions": "1",
+                    "spark.openlineage.transport.type": "console",
+                    "spark.openlineage.parentJobName": "dag_id.task_id",
+                    "spark.openlineage.parentJobNamespace": "default",
+                    "spark.openlineage.parentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+                },
+            },
+        }
+        context = {
+            "ti": MagicMock(
+                dag_id="dag_id",
+                task_id="task_id",
+                try_number=1,
+                map_index=1,
+                logical_date=dt.datetime(2024, 11, 11),
+            )
+        }
+
+        mock_ol_accessible.return_value = True
+
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            job=job_config,
+            openlineage_inject_parent_job_info=True,
+        )
+        op.execute(context=context)
+
+        mock_hook.return_value.submit_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_REGION,
+            job=expected_config,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_openlineage_parent_job_info_injection_skipped_when_already_present(
+        self, mock_hook, mock_ol_accessible
+    ):
+        job_config = {
+            "placement": {"cluster_name": CLUSTER_NAME},
+            "pyspark_job": {
+                "main_python_file_uri": "gs://example/wordcount.py",
+                "properties": {
+                    "spark.sql.shuffle.partitions": "1",
+                    "spark.openlineage.parentJobNamespace": "default",
+                },
+            },
+        }
+
+        mock_ol_accessible.return_value = True
+
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            job=job_config,
+            openlineage_inject_parent_job_info=True,
+        )
+        op.execute(context=self.mock_context)
+
+        mock_hook.return_value.submit_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_REGION,
+            job=job_config,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_openlineage_parent_job_info_injection_skipped_by_default_unless_enabled(
+        self, mock_hook, mock_ol_accessible
+    ):
+        job_config = {
+            "placement": {"cluster_name": CLUSTER_NAME},
+            "pyspark_job": {
+                "main_python_file_uri": "gs://example/wordcount.py",
+                "properties": {
+                    "spark.sql.shuffle.partitions": "1",
+                },
+            },
+        }
+
+        mock_ol_accessible.return_value = True
+
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            job=job_config,
+            # not passing openlineage_inject_parent_job_info, should be False by default
+        )
+        op.execute(context=self.mock_context)
+
+        mock_hook.return_value.submit_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_REGION,
+            job=job_config,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_openlineage_parent_job_info_injection_skipped_when_ol_not_accessible(
+        self, mock_hook, mock_ol_accessible
+    ):
+        job_config = {
+            "placement": {"cluster_name": CLUSTER_NAME},
+            "pyspark_job": {
+                "main_python_file_uri": "gs://example/wordcount.py",
+                "properties": {
+                    "spark.sql.shuffle.partitions": "1",
+                },
+            },
+        }
+
+        mock_ol_accessible.return_value = False
+
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            job=job_config,
+            openlineage_inject_parent_job_info=True,
+        )
+        op.execute(context=self.mock_context)
+
+        mock_hook.return_value.submit_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_REGION,
+            job=job_config,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_on_kill(self, mock_hook):

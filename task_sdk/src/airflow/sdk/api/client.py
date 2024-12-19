@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import sys
 import uuid
+from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import httpx
@@ -43,6 +44,8 @@ from airflow.sdk.api.datamodels._generated import (
     VariableResponse,
     XComResponse,
 )
+from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time.comms import ErrorResponse
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 
@@ -161,9 +164,19 @@ class ConnectionOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def get(self, conn_id: str) -> ConnectionResponse:
+    def get(self, conn_id: str) -> ConnectionResponse | ErrorResponse:
         """Get a connection from the API server."""
-        resp = self.client.get(f"connections/{conn_id}")
+        try:
+            resp = self.client.get(f"connections/{conn_id}")
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.error(
+                    "Connection not found",
+                    conn_id=conn_id,
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                return ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND, detail={"conn_id": conn_id})
         return ConnectionResponse.model_validate_json(resp.read())
 
 
