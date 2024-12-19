@@ -36,14 +36,30 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.7.0
+.....
+
+Latest change: 2024-12-16
+
+=================================================================================================  ===========  ====================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`5b898ad63c <https://github.com/apache/airflow/commit/5b898ad63cb0e59308082bcc998b2947ac2422b6>`_  2024-12-03   ``Add mTLS support to WebHDFSHook (#44561)``
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
+`28d0a7e90a <https://github.com/apache/airflow/commit/28d0a7e90a5a56bc20ba582a0af355f53504aa28>`_  2024-11-12   ``Fix CI ruff format static checks (#43908)``
+=================================================================================================  ===========  ====================================================================
+
 4.6.0
 .....
 
-Latest change: 2024-10-17
+Latest change: 2024-10-27
 
 =================================================================================================  ===========  ========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================
+`78ff0a9970 <https://github.com/apache/airflow/commit/78ff0a99700125121b7f0647023503750f14a11b>`_  2024-10-27   ``Prepare docs for Oct 2nd wave of providers (#43409)``
 `571cf09e24 <https://github.com/apache/airflow/commit/571cf09e242a388a2cd222d21498c5695ca2d24c>`_  2024-10-17   ``Fixed failing static checks & provider tests (#43122)``
 `3b9e1569d3 <https://github.com/apache/airflow/commit/3b9e1569d3a724aafea2918100383afa8a2662e0>`_  2024-10-17   ``added MultipleFilesWebHdfsSensor (#43045)``
 `857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
@@ -179,6 +195,8 @@ Commit                                                                          
 `99df205f42 <https://github.com/apache/airflow/commit/99df205f42a754aa67f80b5983e1d228ff23267f>`_  2023-11-16   ``Fix and reapply templates for provider documentation (#35686)``
 `1b059c57d6 <https://github.com/apache/airflow/commit/1b059c57d6d57d198463e5388138bee8a08591b1>`_  2023-11-08   ``Prepare docs 1st wave of Providers November 2023 (#35537)``
 `3b8db612ff <https://github.com/apache/airflow/commit/3b8db612ff39abbf9e965081c859e9e439ed832d>`_  2023-11-07   ``Add information about Qubole removal and make it possible to release it (#35492)``
+`706878ec35 <https://github.com/apache/airflow/commit/706878ec354cf867440c367a95c85753c19e54de>`_  2023-11-04   ``Remove empty lines in generated changelog (#35436)``
+`052e26ad47 <https://github.com/apache/airflow/commit/052e26ad473a9d50f0b96456ed094f2087ee4434>`_  2023-11-04   ``Change security.rst to use includes in providers (#35435)``
 `d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
 `3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
 `dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
@@ -212,6 +230,7 @@ Commit                                                                          
 `a54c2424df <https://github.com/apache/airflow/commit/a54c2424df51bf1acec420f4792a237dabcfa12b>`_  2023-08-23   ``Fix typos (double words and it's/its) (#33623)``
 `c645d8e40c <https://github.com/apache/airflow/commit/c645d8e40c167ea1f6c332cdc3ea0ca5a9363205>`_  2023-08-12   ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
 `b5a4d36383 <https://github.com/apache/airflow/commit/b5a4d36383c4143f46e168b8b7a4ba2dc7c54076>`_  2023-08-11   ``Prepare docs for Aug 2023 2nd wave of Providers (#33291)``
+`73b90c48b1 <https://github.com/apache/airflow/commit/73b90c48b1933b49086d34176527947bd727ec85>`_  2023-07-21   ``Allow configuration to be contributed by providers (#32604)``
 `225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
 `3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
 `cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
@@ -245,6 +264,7 @@ Commit                                                                          
 `45548b9451 <https://github.com/apache/airflow/commit/45548b9451fba4e48c6f0c0ba6050482c2ea2956>`_  2023-05-19   ``Prepare RC2 docs for May 2023 wave of Providers (#31416)``
 `abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
 `f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`7ebda3898d <https://github.com/apache/airflow/commit/7ebda3898db2eee72d043a9565a674dea72cd8fa>`_  2023-05-17   ``Fix missing line in index.rst for provider documentation (#31343)``
 `d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
 `9a8c2044bd <https://github.com/apache/airflow/commit/9a8c2044bd0dab209c1e4cbf11d59297664dab08>`_  2023-05-15   ``Remove snakebite-py3 based HDFS hooks and sensors (#31262)``
 `eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
@@ -257,12 +277,14 @@ Commit                                                                          
 
 Latest change: 2023-04-02
 
-=================================================================================================  ===========  ==========================================================
+=================================================================================================  ===========  ===============================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ==========================================================
+=================================================================================================  ===========  ===============================================================================
 `55dbf1ff1f <https://github.com/apache/airflow/commit/55dbf1ff1fb0b22714f695a66f6108b3249d1199>`_  2023-04-02   ``Prepare docs for April 2023 wave of Providers (#30378)``
 `e141699c8a <https://github.com/apache/airflow/commit/e141699c8a2cf36c583da48a3f026a6f1dbd765a>`_  2023-03-27   ``Fix HDFSHook HAClient is invalid (#30164)``
-=================================================================================================  ===========  ==========================================================
+`0a4184e34c <https://github.com/apache/airflow/commit/0a4184e34c1d83ad25c61adc23b838e994fc43f1>`_  2023-02-19   ``Add note about workaround to potential error with argparse to hdfs (#29614)``
+`2b92c3c74d <https://github.com/apache/airflow/commit/2b92c3c74d3259ebac714f157c525836f0af50f0>`_  2023-01-05   ``Fix providers documentation formatting (#28754)``
+=================================================================================================  ===========  ===============================================================================
 
 3.2.0
 .....
@@ -301,6 +323,7 @@ Latest change: 2022-07-13
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================
 `d2459a241b <https://github.com/apache/airflow/commit/d2459a241b54d596ebdb9d81637400279fff4f2d>`_  2022-07-13   ``Add documentation for July 2022 Provider's release (#25030)``
+`6476afda20 <https://github.com/apache/airflow/commit/6476afda208eb6aabd58cc00db8328451c684200>`_  2022-07-06   ``Fix docs build errors for Sphinx 5 (#24870)``
 `0de31bd73a <https://github.com/apache/airflow/commit/0de31bd73a8f41dded2907f0dee59dfa6c1ed7a1>`_  2022-06-29   ``Move provider dependencies to inside provider folders (#24672)``
 `510a6bab45 <https://github.com/apache/airflow/commit/510a6bab4595cce8bd5b1447db957309d70f35d9>`_  2022-06-28   ``Remove 'hook-class-names' from provider.yaml (#24702)``
 `d8ec1ec8ec <https://github.com/apache/airflow/commit/d8ec1ec8ecae64dbe8591496e8bec71d5e3ca25a>`_  2022-06-28   ``'WebHDFSHook' Bugfix/optional port (#24550)``
@@ -359,6 +382,7 @@ Commit                                                                          
 `97496ba2b4 <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
 `d56e7b56bb <https://github.com/apache/airflow/commit/d56e7b56bb9827daaf8890557147fd10bdf72a7e>`_  2021-12-30   ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
 `485ff6cc64 <https://github.com/apache/airflow/commit/485ff6cc64d8f6a15d8d6a0be50661fe6d04b2d9>`_  2021-12-29   ``Fix MyPy errors in Apache Providers (#20422)``
+`43de625d42 <https://github.com/apache/airflow/commit/43de625d4246af7014f64941f8effb09997731cb>`_  2021-12-01   ``Correctly capitalize names and abbreviations in docs (#19908)``
 =================================================================================================  ===========  =========================================================================
 
 2.2.0
@@ -371,6 +395,9 @@ Commit                                                                          
 =================================================================================================  ===========  ======================================================================
 `853576d901 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
 `1b97d654ae <https://github.com/apache/airflow/commit/1b97d654aee5577e41e8e7a4112daafbc55493b8>`_  2021-11-24   ``hdfs provider: restore HA support for webhdfs (#19711)``
+`04458b6089 <https://github.com/apache/airflow/commit/04458b608902346b74637386744b7aad2729f2f0>`_  2021-10-29   ``Updating Apache HDFS title in index doc (#19169)``
+`d5a029e119 <https://github.com/apache/airflow/commit/d5a029e119eb50e78b5144e5405f2b249d5e4435>`_  2021-10-19   ``Document 'hdfs_namenode_principal' for HDFS connections (#18987)``
+`af4a5e006e <https://github.com/apache/airflow/commit/af4a5e006e4f5c9f203afeac039b22c6adee317f>`_  2021-10-01   ``Remove cargo-culted local in-page ToCs (#18668)``
 =================================================================================================  ===========  ======================================================================
 
 2.1.1
@@ -383,6 +410,9 @@ Commit                                                                          
 =================================================================================================  ===========  ====================================================================
 `840ea3efb9 <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
 `2b62a75a34 <https://github.com/apache/airflow/commit/2b62a75a34d44ac7d9ed83c02421ff4867875577>`_  2021-09-18   ``fix get_connections deprecation warning in webhdfs hook (#18331)``
+`1cb456cba1 <https://github.com/apache/airflow/commit/1cb456cba1099198bbdba50c2d1ad79664be8ce6>`_  2021-09-12   ``Add official download page for providers (#18187)``
+`046f02e5a7 <https://github.com/apache/airflow/commit/046f02e5a7097a6e6c928c28196b38b37e776916>`_  2021-09-09   ``fix misspelling (#18121)``
+`eda8a51f9c <https://github.com/apache/airflow/commit/eda8a51f9c14cc537378dbc7e493e3d00cac694f>`_  2021-08-31   ``Fix docs about login for hdfs connections (#17936)``
 =================================================================================================  ===========  ====================================================================
 
 2.1.0
@@ -428,16 +458,17 @@ Commit                                                                          
 
 Latest change: 2021-02-04
 
-=================================================================================================  ===========  ========================================================
+=================================================================================================  ===========  =========================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ========================================================
+=================================================================================================  ===========  =========================================================
 `88bdcfa0df <https://github.com/apache/airflow/commit/88bdcfa0df5bcb4c489486e05826544b428c8f43>`_  2021-02-04   ``Prepare to release a new wave of providers. (#14013)``
 `ac2f72c98d <https://github.com/apache/airflow/commit/ac2f72c98dc0821b33721054588adbf2bb53bb0b>`_  2021-02-01   ``Implement provider versioning tools (#13767)``
 `a9ac2b040b <https://github.com/apache/airflow/commit/a9ac2b040b64de1aa5d9c2b9def33334e36a8d22>`_  2021-01-23   ``Switch to f-strings using flynt. (#13732)``
 `295d66f914 <https://github.com/apache/airflow/commit/295d66f91446a69610576d040ba687b38f1c5d0a>`_  2020-12-30   ``Fix Grammar in PIP warning (#13380)``
 `6cf76d7ac0 <https://github.com/apache/airflow/commit/6cf76d7ac01270930de7f105fb26428763ee1d4e>`_  2020-12-18   ``Fix typo in pip upgrade command :( (#13148)``
+`f6448b4e48 <https://github.com/apache/airflow/commit/f6448b4e482fd96339ae65c26d08e6a2bdb51aaf>`_  2020-12-15   ``Add link to PyPI Repository to provider docs (#13064)``
 `5090fb0c89 <https://github.com/apache/airflow/commit/5090fb0c8967d2d8719c6f4a468f2151395b5444>`_  2020-12-15   ``Add script to generate integrations.json (#13073)``
-=================================================================================================  ===========  ========================================================
+=================================================================================================  ===========  =========================================================
 
 1.0.0
 .....

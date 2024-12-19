@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+1.6.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+
+* ``Remove references to AIRFLOW_V_2_9_PLUS (#44987)``
+* ``Consistent way of checking Airflow version in providers (#44686)``
+* ``Rename execution_date to logical_date across codebase (#43902)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+   * ``Prepare docs for Nov 1st wave of providers (#44011)``
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+
 1.5.0
 .....
 

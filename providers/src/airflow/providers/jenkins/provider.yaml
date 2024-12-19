@@ -22,9 +22,10 @@ description: |
     `Jenkins <https://jenkins.io/>`__
 
 state: ready
-source-date-epoch: 1730012916
+source-date-epoch: 1734535153
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.0.0
   - 3.7.2
   - 3.7.1
   - 3.7.0

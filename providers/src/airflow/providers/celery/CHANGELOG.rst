@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+3.9.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+* ``AIP-81 Move CLI Commands to directories according to Hybrid, Local and Remote (#44538)``
+* ``Remove AIP-44 configuration from the code (#44454)``
+
 3.8.5
 .....
 

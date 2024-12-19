@@ -27,6 +27,46 @@
 Changelog
 ---------
 
+11.1.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Add Google Vertex AI Feature Store - Feature View Sync Operators, Sensor (#44891)``
+* ``Introduce gcp translation(V3), translate document providers (#44971)``
+* ``Introduce the translation API v3 (advanced) models operators. (#44627)``
+* ``Support multiple SQL queries in Dataproc SQL job (#44890)``
+* ``feat: add OpenLineage support for BigQuery Create Table operators (#44783)``
+* ``feat: add OpenLineage support for S3ToGCSOperator (#44426)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix MetastoreHivePartitionSensor failing due to duplicate aliases (#45001)``
+* ``Fix failing OpenLineage emition for InsertBigQueryOperator  (#44650)``
+* ``BigQueryInsertJobOperator: log transient error and check job state before marking task as success (#44279)``
+* ``Make 'CloudBatchSubmitJobOperator' fail when job fails (#44425)``
+
+Misc
+~~~~
+
+* ``Remove references to AIRFLOW_V_2_9_PLUS (#44987)``
+* ``Consistent way of checking Airflow version in providers (#44686)``
+* ``Fix yoda-conditions (#44466)``
+* ``feat: add OpenLineage support for transfer operators between gcs and local (#44417)``
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+* ``chore: remove deprecated bigquery facets from OpenLineage utils (#44838)``
+* ``Implement KubernetesInstallKueueOperator (#44568)``
+* ``Fix docs for dataform operators (#44729)``
+* ``Deprecate VertexAI PaLM text generative model (#44719)``
+* ``Show prominent warning for deprecations in docs (#44479)``
+* ``chore: unify handling of gcs paths (#44410)``
+
 11.0.0
 ......
 
@@ -745,7 +785,6 @@ Misc
 Features
 ~~~~~~~~
 
-* ``Add templated fields to 'BigQueryToSqlBaseOperator' from 'BigQueryToPostgresOperator' (#36663)``
 * ``Added Check for Cancel Workflow Invocation and added new Query Workflow Invocation operator (#36351)``
 * ``Implement Google Analytics Admin (GA4) operators (#36276)``
 * ``Add operator to diagnose cluster (#36899)``
