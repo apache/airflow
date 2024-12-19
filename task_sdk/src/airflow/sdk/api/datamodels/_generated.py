@@ -112,6 +112,16 @@ class TIRescheduleStatePayload(BaseModel):
     reschedule_date: Annotated[datetime, Field(title="Reschedule Date")]
 
 
+class TIRetryStatePayload(BaseModel):
+    """
+    Schema for updating TaskInstance to a up_for_retry state.
+    """
+
+    state: Annotated[Literal["up_for_retry"] | None, Field(title="State")] = "up_for_retry"
+    end_date: Annotated[datetime, Field(title="End Date")]
+    task_retries: Annotated[int, Field(title="Task Retries")]
+
+
 class TITargetStatePayload(BaseModel):
     """
     Schema for updating TaskInstance to a target state, excluding terminal and running states.

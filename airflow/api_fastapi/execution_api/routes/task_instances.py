@@ -384,9 +384,4 @@ def _is_eligible_to_retry(task_instance, task_retries: int):
         # If a task is RESTARTING state it is always eligible for retry
         return True
 
-    # handle in task runner
-    # if not getattr(task_instance, "task", None):
-    #     # Couldn't load the task, don't know number of retries, guess:
-    #     return task_instance.try_number <= task_instance.max_tries
-
     return task_retries and task_instance.try_number <= task_instance.max_tries

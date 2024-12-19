@@ -34,7 +34,7 @@ from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.execution_time.comms import (
     DeferTask,
     RescheduleTask,
-    SetRenderedFields,
+    RetryTask,
     StartupDetails,
     TaskState,
     ToSupervisor,
@@ -226,8 +226,8 @@ def startup() -> tuple[RuntimeTaskInstance, Logger]:
     # 2. Once rendered, we call the `set_rtif` API to store the rtif in the metadata DB
 
     # so that we do not call the API unnecessarily
-    if rendered_fields := _get_rendered_fields(ti.task):
-        SUPERVISOR_COMMS.send_request(log=log, msg=SetRenderedFields(rendered_fields=rendered_fields))
+    # if rendered_fields := _get_rendered_fields(ti.task):
+    #     SUPERVISOR_COMMS.send_request(log=log, msg=SetRenderedFields(rendered_fields=rendered_fields))
     return ti, log
 
 
@@ -296,8 +296,22 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         )
 
         # TODO: Run task failure callbacks here
-    except (AirflowTaskTimeout, AirflowException, AirflowTaskTerminated):
+    except AirflowTaskTerminated:
         ...
+    except (AirflowTaskTimeout, AirflowException):
+        # Couldn't load the task, don't know number of retries, guess
+        if not getattr(ti, "task", None):
+            # Let us set the task_retries to default = 0
+            msg = RetryTask(
+                end_date=datetime.now(tz=timezone.utc),
+                task_retries=0,
+            )
+        else:
+            msg = RetryTask(
+                end_date=datetime.now(tz=timezone.utc),
+                # is `or 0` needed?
+                task_retries=ti.task.retries or 0,
+            )
     except SystemExit:
         ...
     except BaseException:

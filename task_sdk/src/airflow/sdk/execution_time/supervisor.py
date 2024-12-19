@@ -55,6 +55,7 @@ from airflow.sdk.execution_time.comms import (
     GetXCom,
     PutVariable,
     RescheduleTask,
+    RetryTask,
     SetXCom,
     StartupDetails,
     TaskState,
@@ -702,6 +703,9 @@ class WatchedSubprocess:
         elif isinstance(msg, RescheduleTask):
             self._terminal_state = IntermediateTIState.UP_FOR_RESCHEDULE
             self.client.task_instances.reschedule(self.id, msg)
+        elif isinstance(msg, RetryTask):
+            self._terminal_state = IntermediateTIState.UP_FOR_RETRY
+            self.client.task_instances.retry(self.id, msg)
         elif isinstance(msg, SetXCom):
             self.client.xcoms.set(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.value, msg.map_index)
         elif isinstance(msg, PutVariable):

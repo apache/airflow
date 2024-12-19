@@ -36,6 +36,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIEnterRunningPayload,
     TIHeartbeatInfo,
     TIRescheduleStatePayload,
+    TIRetryStatePayload,
     TIRunContext,
     TITerminalStatePayload,
     ValidationError as RemoteValidationError,
@@ -49,7 +50,7 @@ from airflow.utils.platform import getuser
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from airflow.sdk.execution_time.comms import RescheduleTask
+    from airflow.sdk.execution_time.comms import RescheduleTask, RetryTask
     from airflow.typing_compat import ParamSpec
 
     P = ParamSpec("P")
@@ -144,6 +145,13 @@ class TaskInstanceOperations:
         body = TIRescheduleStatePayload(**msg.model_dump(exclude_unset=True))
 
         # Create a reschedule state payload from msg
+        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
+
+    def retry(self, id: uuid.UUID, msg: RetryTask):
+        """Tell the API server that this TI wants to retry."""
+        body = TIRetryStatePayload(**msg.model_dump(exclude_unset=True))
+
+        # Create a retry state payload from msg
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
     def set_rtif(self, id: uuid.UUID, body: dict[str, str]) -> dict[str, bool]:
