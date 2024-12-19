@@ -68,7 +68,7 @@ class TestDeadline:
             callback=my_callback.__module__,
             callback_kwargs={"to": "the_boss@work.com"},
             dag_id=DAG_ID,
-            run_id=create_dagrun,
+            dagrun_id=create_dagrun,
         )
 
         Deadline.add_deadline(deadline_orm)
@@ -77,7 +77,7 @@ class TestDeadline:
 
         result = session.scalars(select(Deadline)).first()
         assert result.dag_id == deadline_orm.dag_id
-        assert result.run_id == deadline_orm.run_id
+        assert result.dagrun_id == deadline_orm.dagrun_id
         assert result.deadline == deadline_orm.deadline
         assert result.callback == deadline_orm.callback
         assert result.callback_kwargs == deadline_orm.callback_kwargs
@@ -88,14 +88,14 @@ class TestDeadline:
             callback=my_callback.__module__,
             callback_kwargs={"to": "the_boss@work.com"},
             dag_id=DAG_ID,
-            run_id=RUN_ID,
+            dagrun_id=RUN_ID,
         )
 
         assert deadline_orm.deadline == datetime(2024, 12, 4, 16, 00, 0)
         assert deadline_orm.callback == my_callback.__module__
         assert deadline_orm.callback_kwargs == {"to": "the_boss@work.com"}
         assert deadline_orm.dag_id == DAG_ID
-        assert deadline_orm.run_id == RUN_ID
+        assert deadline_orm.dagrun_id == RUN_ID
 
     def test_repr_with_callback_kwargs(self):
         deadline_orm = Deadline(
@@ -103,12 +103,12 @@ class TestDeadline:
             callback=my_callback.__module__,
             callback_kwargs={"to": "the_boss@work.com"},
             dag_id=DAG_ID,
-            run_id=RUN_ID,
+            dagrun_id=RUN_ID,
         )
 
         assert (
             repr(deadline_orm)
-            == f"[DagRun Deadline] Dag: {deadline_orm.dag_id} Run: {deadline_orm.run_id} needed by "
+            == f"[DagRun Deadline] Dag: {deadline_orm.dag_id} Run: {deadline_orm.dagrun_id} needed by "
             f"{deadline_orm.deadline} or run: {my_callback.__module__}({json.dumps(deadline_orm.callback_kwargs)})"
         )
 
@@ -117,12 +117,12 @@ class TestDeadline:
             deadline=datetime(2024, 12, 4, 16, 00, 0),
             callback=my_callback.__module__,
             dag_id=DAG_ID,
-            run_id=RUN_ID,
+            dagrun_id=RUN_ID,
         )
 
         assert deadline_orm.callback_kwargs is None
         assert (
             repr(deadline_orm)
-            == f"[DagRun Deadline] Dag: {deadline_orm.dag_id} Run: {deadline_orm.run_id} needed by "
+            == f"[DagRun Deadline] Dag: {deadline_orm.dag_id} Run: {deadline_orm.dagrun_id} needed by "
             f"{deadline_orm.deadline} or run: {my_callback.__module__}()"
         )

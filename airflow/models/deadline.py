@@ -42,7 +42,7 @@ class Deadline(Base, LoggingMixin):
 
     # If the Deadline Alert is for a DAG, store the DAG ID and Run ID from the dag_run.
     dag_id = Column(StringID(), ForeignKey("dag.dag_id", ondelete="CASCADE"))
-    run_id = Column(Integer, ForeignKey("dag_run.id", ondelete="CASCADE"))
+    dagrun_id = Column(Integer, ForeignKey("dag_run.id", ondelete="CASCADE"))
 
     # The time after which the Deadline has passed and the callback should be triggered.
     deadline = Column(DateTime, nullable=False)
@@ -59,21 +59,21 @@ class Deadline(Base, LoggingMixin):
         callback: str,
         callback_kwargs: dict | None = None,
         dag_id: str | None = None,
-        run_id: int | None = None,
+        dagrun_id: int | None = None,
     ):
         super().__init__()
         self.deadline = deadline
         self.callback = callback
         self.callback_kwargs = callback_kwargs
         self.dag_id = dag_id
-        self.run_id = run_id
+        self.dagrun_id = dagrun_id
 
     def __repr__(self):
         def _determine_resource() -> tuple[str, str]:
             """Determine the type of resource based on which values are present."""
-            if self.dag_id and self.run_id:
+            if self.dag_id and self.dagrun_id:
                 # The deadline is for a dagrun:
-                return "DagRun", f"Dag: {self.dag_id} Run: {self.run_id}"
+                return "DagRun", f"Dag: {self.dag_id} Run: {self.dagrun_id}"
 
             return "Unknown", ""
 

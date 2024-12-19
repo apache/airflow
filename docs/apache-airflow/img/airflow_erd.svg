@@ -1704,14 +1704,14 @@
 <text text-anchor="start" x="1813" y="-1559.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
 <text text-anchor="start" x="1818" y="-1559.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
 <polygon fill="none" stroke="black" points="1762,-1525 1762,-1550 2031,-1550 2031,-1525 1762,-1525"/>
-<text text-anchor="start" x="1767" y="-1534.8" font-family="Helvetica,sans-Serif" font-size="14.00">deadline</text>
-<text text-anchor="start" x="1827" y="-1534.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1832" y="-1534.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
-<text text-anchor="start" x="1928" y="-1534.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<text text-anchor="start" x="1767" y="-1534.8" font-family="Helvetica,sans-Serif" font-size="14.00">dagrun_id</text>
+<text text-anchor="start" x="1837" y="-1534.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1842" y="-1534.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
 <polygon fill="none" stroke="black" points="1762,-1500 1762,-1525 2031,-1525 2031,-1500 1762,-1500"/>
-<text text-anchor="start" x="1767" y="-1509.8" font-family="Helvetica,sans-Serif" font-size="14.00">run_id</text>
-<text text-anchor="start" x="1811" y="-1509.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1816" y="-1509.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
+<text text-anchor="start" x="1767" y="-1509.8" font-family="Helvetica,sans-Serif" font-size="14.00">deadline</text>
+<text text-anchor="start" x="1827" y="-1509.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1832" y="-1509.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
+<text text-anchor="start" x="1928" y="-1509.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 </g>
 <!-- dag&#45;&#45;deadline -->
 <g id="edge24" class="edge">
