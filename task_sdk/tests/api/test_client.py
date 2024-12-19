@@ -25,7 +25,8 @@ import uuid6
 
 from airflow.sdk.api.client import Client, RemoteValidationError, ServerResponseError
 from airflow.sdk.api.datamodels._generated import VariableResponse, XComResponse
-from airflow.sdk.execution_time.comms import DeferTask
+from airflow.sdk.execution_time.comms import DeferTask, RescheduleTask
+from airflow.utils import timezone
 from airflow.utils.state import TerminalTIState
 
 
@@ -94,23 +95,31 @@ class TestTaskInstanceOperations:
     response parsing.
     """
 
-    def test_task_instance_start(self):
+    def test_task_instance_start(self, make_ti_context):
         # Simulate a successful response from the server that starts a task
         ti_id = uuid6.uuid7()
+        start_date = "2024-10-31T12:00:00Z"
+        ti_context = make_ti_context(
+            start_date=start_date,
+            logical_date="2024-10-31T12:00:00Z",
+            run_type="manual",
+        )
 
         def handle_request(request: httpx.Request) -> httpx.Response:
-            if request.url.path == f"/task-instances/{ti_id}/state":
+            if request.url.path == f"/task-instances/{ti_id}/run":
                 actual_body = json.loads(request.read())
                 assert actual_body["pid"] == 100
-                assert actual_body["start_date"] == "2024-10-31T12:00:00Z"
+                assert actual_body["start_date"] == start_date
                 assert actual_body["state"] == "running"
                 return httpx.Response(
-                    status_code=204,
+                    status_code=200,
+                    json=ti_context.model_dump(mode="json"),
                 )
             return httpx.Response(status_code=400, json={"detail": "Bad Request"})
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        client.task_instances.start(ti_id, 100, "2024-10-31T12:00:00Z")
+        resp = client.task_instances.start(ti_id, 100, start_date)
+        assert resp == ti_context
 
     @pytest.mark.parametrize("state", [state for state in TerminalTIState])
     def test_task_instance_finish(self, state):
@@ -174,6 +183,28 @@ class TestTaskInstanceOperations:
             next_method="execute_complete",
         )
         client.task_instances.defer(ti_id, msg)
+
+    def test_task_instance_reschedule(self):
+        # Simulate a successful response from the server that reschedules a task
+        ti_id = uuid6.uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti_id}/state":
+                actual_body = json.loads(request.read())
+                assert actual_body["state"] == "up_for_reschedule"
+                assert actual_body["reschedule_date"] == "2024-10-31T12:00:00Z"
+                assert actual_body["end_date"] == "2024-10-31T12:00:00Z"
+                return httpx.Response(
+                    status_code=204,
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        msg = RescheduleTask(
+            reschedule_date=timezone.parse("2024-10-31T12:00:00Z"),
+            end_date=timezone.parse("2024-10-31T12:00:00Z"),
+        )
+        client.task_instances.reschedule(ti_id, msg)
 
     @pytest.mark.parametrize(
         "rendered_fields",

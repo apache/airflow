@@ -20,7 +20,11 @@ from __future__ import annotations
 from unittest import mock
 
 from google.api_core.gapic_v1.method import DEFAULT
-from google.cloud.translate_v3.types import automl_translation
+from google.cloud.translate_v3.types import (
+    BatchTranslateDocumentResponse,
+    TranslateDocumentResponse,
+    automl_translation,
+)
 
 from airflow.providers.google.cloud.hooks.translate import TranslateHook
 from airflow.providers.google.cloud.operators.translate import (
@@ -30,13 +34,13 @@ from airflow.providers.google.cloud.operators.translate import (
     TranslateDatasetsListOperator,
     TranslateDeleteDatasetOperator,
     TranslateDeleteModelOperator,
+    TranslateDocumentBatchOperator,
+    TranslateDocumentOperator,
     TranslateImportDataOperator,
     TranslateModelsListOperator,
     TranslateTextBatchOperator,
     TranslateTextOperator,
 )
-
-from providers.tests.system.google.cloud.tasks.example_tasks import LOCATION
 
 GCP_CONN_ID = "google_cloud_default"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
@@ -44,6 +48,7 @@ PROJECT_ID = "test-project-id"
 DATASET_ID = "sample_ds_id"
 MODEL_ID = "sample_model_id"
 TIMEOUT_VALUE = 30
+LOCATION = "location_id"
 
 
 class TestCloudTranslate:
@@ -542,3 +547,164 @@ class TestTranslateDeleteModel:
             metadata=(),
         )
         wait_for_done.assert_called_once_with(operation=m_delete_method_result, timeout=TIMEOUT_VALUE)
+
+
+class TestTranslateDocumentBatchOperator:
+    @mock.patch("airflow.providers.google.cloud.links.translate.TranslateResultByOutputConfigLink.persist")
+    @mock.patch("airflow.providers.google.cloud.operators.translate.TranslateHook")
+    def test_minimal_green_path(self, mock_hook, mock_link_persist):
+        input_config_item_1 = {
+            "gcs_source": {"input_uri": "gs://source_bucket_uri/sample_data_src_lang_1.txt"},
+        }
+        input_config_item_2 = {
+            "gcs_source": {"input_uri": "gs://source_bucket_uri/sample_data_src_lang_2.txt"},
+        }
+        SRC_LANG_CODE = "src_lang_code"
+        TARGET_LANG_CODES = ["target_lang_code1", "target_lang_code2"]
+        TIMEOUT = 30
+        INPUT_CONFIGS = [input_config_item_1, input_config_item_2]
+        OUTPUT_CONFIG = {"gcs_destination": {"output_uri_prefix": "gs://source_bucket_uri/output/"}}
+        BATCH_DOC_TRANSLATION_RESULT = {
+            "submit_time": "2024-12-01T00:01:16Z",
+            "end_time": "2024-12-01T00:10:01Z",
+            "failed_characters": "0",
+            "failed_pages": "0",
+            "total_billable_characters": "0",
+            "total_billable_pages": "6",
+            "total_characters": "4240",
+            "total_pages": "6",
+            "translated_characters": "4240",
+            "translated_pages": "6",
+        }
+        sample_operation = mock.MagicMock()
+        sample_operation.result.return_value = BatchTranslateDocumentResponse(BATCH_DOC_TRANSLATION_RESULT)
+
+        mock_hook.return_value.batch_translate_document.return_value = sample_operation
+        mock_hook.return_value.wait_for_operation_result.side_effect = lambda operation: operation.result()
+
+        op = TranslateDocumentBatchOperator(
+            task_id="task_id_test",
+            project_id=PROJECT_ID,
+            source_language_code=SRC_LANG_CODE,
+            target_language_codes=TARGET_LANG_CODES,
+            location=LOCATION,
+            models=None,
+            glossaries=None,
+            input_configs=INPUT_CONFIGS,
+            output_config=OUTPUT_CONFIG,
+            customized_attribution=None,
+            format_conversions=None,
+            enable_shadow_removal_native_pdf=False,
+            enable_rotation_correction=False,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            metadata=(),
+            timeout=TIMEOUT,
+            retry=None,
+        )
+        context = {"ti": mock.MagicMock()}
+        result = op.execute(context=context)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.batch_translate_document.assert_called_once_with(
+            project_id=PROJECT_ID,
+            source_language_code=SRC_LANG_CODE,
+            target_language_codes=TARGET_LANG_CODES,
+            location=LOCATION,
+            input_configs=INPUT_CONFIGS,
+            output_config=OUTPUT_CONFIG,
+            customized_attribution=None,
+            format_conversions=None,
+            enable_shadow_removal_native_pdf=False,
+            enable_rotation_correction=False,
+            timeout=TIMEOUT,
+            models=None,
+            glossaries=None,
+            retry=None,
+            metadata=(),
+        )
+
+        assert result == BATCH_DOC_TRANSLATION_RESULT
+        mock_link_persist.assert_called_once_with(
+            context=context,
+            task_instance=op,
+            project_id=PROJECT_ID,
+            output_config=OUTPUT_CONFIG,
+        )
+
+
+class TestTranslateDocumentOperator:
+    @mock.patch("airflow.providers.google.cloud.links.translate.TranslateResultByOutputConfigLink.persist")
+    @mock.patch("airflow.providers.google.cloud.operators.translate.TranslateHook")
+    def test_minimal_green_path(self, mock_hook, mock_link_persist):
+        SRC_LANG_CODE = "src_lang_code"
+        TARGET_LANG_CODE = "target_lang_code1"
+        TIMEOUT = 30
+        INPUT_CONFIG = {"gcs_source": {"input_uri": "gs://source_bucket_uri/sample_data_src_lang_1.txt"}}
+        OUTPUT_CONFIG = {"gcs_destination": {"output_uri_prefix": "gs://source_bucket_uri/output/"}}
+        DOC_TRANSLATION_RESULT = {
+            "document_translation": {
+                "byte_stream_outputs": ["c29tZV9kYXRh"],
+                "detected_language_code": "",
+                "mime_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            },
+            "model": f"projects/{PROJECT_ID}/locations/us-central1/models/general/nmt",
+        }
+
+        mock_hook.return_value.translate_document.return_value = TranslateDocumentResponse(
+            DOC_TRANSLATION_RESULT
+        )
+
+        op = TranslateDocumentOperator(
+            task_id="task_id_test",
+            project_id=PROJECT_ID,
+            source_language_code=SRC_LANG_CODE,
+            target_language_code=TARGET_LANG_CODE,
+            location=LOCATION,
+            model=None,
+            glossary_config=None,
+            labels=None,
+            document_input_config=INPUT_CONFIG,
+            document_output_config=OUTPUT_CONFIG,
+            customized_attribution=None,
+            is_translate_native_pdf_only=False,
+            enable_shadow_removal_native_pdf=False,
+            enable_rotation_correction=False,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            timeout=TIMEOUT,
+            retry=None,
+        )
+        context = {"ti": mock.MagicMock()}
+        result = op.execute(context=context)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.translate_document.assert_called_once_with(
+            source_language_code=SRC_LANG_CODE,
+            target_language_code=TARGET_LANG_CODE,
+            location=LOCATION,
+            model=None,
+            glossary_config=None,
+            labels=None,
+            document_input_config=INPUT_CONFIG,
+            document_output_config=OUTPUT_CONFIG,
+            customized_attribution=None,
+            is_translate_native_pdf_only=False,
+            enable_shadow_removal_native_pdf=False,
+            enable_rotation_correction=False,
+            timeout=TIMEOUT,
+            retry=None,
+            metadata=(),
+        )
+
+        assert result == DOC_TRANSLATION_RESULT
+        mock_link_persist.assert_called_once_with(
+            context=context,
+            task_instance=op,
+            project_id=PROJECT_ID,
+            output_config=OUTPUT_CONFIG,
+        )

@@ -333,3 +333,38 @@ class TranslationModelsListLink(BaseGoogleLink):
                 "project_id": project_id,
             },
         )
+
+
+class TranslateResultByOutputConfigLink(BaseGoogleLink):
+    """
+    Helper class for constructing Translation results Link.
+
+    Provides link to gcs destination output translation results, by provided output_config
+    with gcs destination specified.
+    """
+
+    name = "Translate Results By Output Config"
+    key = "translate_results_by_output_config"
+    format_str = TRANSLATION_TRANSLATE_TEXT_BATCH
+
+    @staticmethod
+    def extract_output_uri_prefix(output_config):
+        return output_config["gcs_destination"]["output_uri_prefix"].rpartition("gs://")[-1]
+
+    @staticmethod
+    def persist(
+        context: Context,
+        task_instance,
+        project_id: str,
+        output_config: dict,
+    ):
+        task_instance.xcom_push(
+            context,
+            key=TranslateResultByOutputConfigLink.key,
+            value={
+                "project_id": project_id,
+                "output_uri_prefix": TranslateResultByOutputConfigLink.extract_output_uri_prefix(
+                    output_config
+                ),
+            },
+        )
