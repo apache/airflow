@@ -3749,13 +3749,10 @@ class TaskInstanceNote(TaskInstanceDependencies):
         String(36, **COLLATION_ARGS).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
         ForeignKey("task_instance.id", name="task_instance_note_ti_fkey", ondelete="CASCADE"),
         nullable=False,
+        primary_key=True,
     )
-    # TODO: Add primary key constraint to ti_id
+
     user_id = Column(String(128), nullable=True)
-    task_id = Column(StringID(), primary_key=True, nullable=False)
-    dag_id = Column(StringID(), primary_key=True, nullable=False)
-    run_id = Column(StringID(), primary_key=True, nullable=False)
-    map_index = Column(Integer, primary_key=True, nullable=False)
     content = Column(String(1000).with_variant(Text(1000), "mysql"))
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
@@ -3763,7 +3760,7 @@ class TaskInstanceNote(TaskInstanceDependencies):
     task_instance = relationship("TaskInstance", back_populates="task_instance_note")
 
     __table_args__ = (
-        PrimaryKeyConstraint("task_id", "dag_id", "run_id", "map_index", name="task_instance_note_pkey"),
+        # define additional table-level arguments or constraints
     )
 
     def __init__(self, content, user_id=None):

@@ -31,7 +31,6 @@ from sqlalchemy import (
     asc,
     desc,
     select,
-    text,
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -53,6 +52,7 @@ class TaskReschedule(TaskInstanceDependencies):
 
     __tablename__ = "task_reschedule"
 
+    # TODO: Remove dag_id and run_id. Remove dr_fkey constraint.
     id = Column(Integer, primary_key=True)
     ti_id = Column(
         String(36, **COLLATION_ARGS).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
@@ -63,10 +63,8 @@ class TaskReschedule(TaskInstanceDependencies):
         ),
         nullable=False,
     )
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     run_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    map_index = Column(Integer, nullable=False, server_default=text("-1"))
     try_number = Column(Integer, nullable=False)
     start_date = Column(UtcDateTime, nullable=False)
     end_date = Column(UtcDateTime, nullable=False)
@@ -74,7 +72,7 @@ class TaskReschedule(TaskInstanceDependencies):
     reschedule_date = Column(UtcDateTime, nullable=False)
 
     __table_args__ = (
-        Index("idx_task_reschedule_dag_task_run", dag_id, task_id, run_id, map_index, unique=False),
+        Index("idx_task_reschedule_ti", ti_id, unique=False),
         Index("idx_task_reschedule_dag_run", dag_id, run_id),
         ForeignKeyConstraint(
             [dag_id, run_id],
