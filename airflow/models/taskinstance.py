@@ -26,6 +26,7 @@ import math
 import operator
 import os
 import signal
+import traceback
 import warnings
 from collections import defaultdict
 from contextlib import nullcontext
@@ -3091,6 +3092,7 @@ class TaskInstance(Base, LoggingMixin):
                 os._exit(1)
                 return
             self.log.error("Received SIGTERM. Terminating subprocesses.")
+            self.log.error("Stacktrace: \n%s", "".join(traceback.format_stack()))
             self.task.on_kill()
             raise AirflowTaskTerminated("Task received SIGTERM signal")
 
