@@ -119,6 +119,7 @@ dependencies:
   - google-auth>=2.29.0
   - google-auth-httplib2>=0.0.1
   - google-cloud-aiplatform>=1.73.0
+  - google-cloud-alloydb
   - google-cloud-automl>=2.12.0
   # Excluded versions contain bug https://github.com/apache/airflow/issues/39541 which is resolved in 3.24.0
   - google-cloud-bigquery>=3.4.0,!=3.21.*,!=3.22.0,!=3.23.*
@@ -239,6 +240,11 @@ integrations:
       - /docs/apache-airflow-providers-google/operators/cloud/bigtable.rst
     external-doc-url: https://cloud.google.com/bigtable/
     logo: /integration-logos/gcp/Cloud-Bigtable.png
+    tags: [gcp]
+  - integration-name: Google Cloud AlloyDB
+    external-doc-url: https://cloud.google.com/alloydb
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/alloy_db.rst
     tags: [gcp]
   - integration-name: Google Cloud Build
     external-doc-url: https://cloud.google.com/build/
@@ -548,6 +554,9 @@ operators:
   - integration-name: Google Cloud Common
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_base
+  - integration-name: Google Cloud AlloyDB
+    python-modules:
+      - airflow.providers.google.cloud.operators.alloy_db
   - integration-name: Google AutoML
     python-modules:
       - airflow.providers.google.cloud.operators.automl
@@ -810,6 +819,9 @@ hooks:
   - integration-name: Google Bigtable
     python-modules:
       - airflow.providers.google.cloud.hooks.bigtable
+  - integration-name: Google Cloud AlloyDB
+    python-modules:
+      - airflow.providers.google.cloud.hooks.alloy_db
   - integration-name: Google Cloud Build
     python-modules:
       - airflow.providers.google.cloud.hooks.cloud_build
@@ -1185,6 +1197,7 @@ connection-types:
     connection-type: leveldb
 
 extra-links:
+  - airflow.providers.google.cloud.links.alloy_db.AlloyDBClusterLink
   - airflow.providers.google.cloud.links.dataform.DataformRepositoryLink
   - airflow.providers.google.cloud.links.dataform.DataformWorkspaceLink
   - airflow.providers.google.cloud.links.dataform.DataformWorkflowInvocationLink
