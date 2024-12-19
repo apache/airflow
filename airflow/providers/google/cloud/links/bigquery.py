@@ -35,7 +35,9 @@ BIGQUERY_TABLE_LINK = (
     BIGQUERY_BASE_LINK
     + "?referrer=search&project={project_id}&d={dataset_id}&p={project_id}&page=table&t={table_id}"
 )
-BIGQUERY_JOB_DETAIL_LINK = BIGQUERY_BASE_LINK + "?ws=!1m5!1m4!1m3!1s{project_id}!2s{job_id}!3s{location}"
+BIGQUERY_JOB_DETAIL_LINK = (
+    BIGQUERY_BASE_LINK + "?project={project_id}&ws=!1m5!1m4!1m3!1s{project_id}!2s{job_id}!3s{location}"
+)
 
 
 class BigQueryDatasetLink(BaseGoogleLink):
