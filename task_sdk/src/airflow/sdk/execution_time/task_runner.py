@@ -33,12 +33,15 @@ from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState,
 from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.execution_time.comms import (
     DeferTask,
+    GetXCom,
     RescheduleTask,
     SetRenderedFields,
+    SetXCom,
     StartupDetails,
     TaskState,
     ToSupervisor,
     ToTask,
+    XComResult,
 )
 from airflow.sdk.execution_time.context import ConnectionAccessor
 
@@ -54,6 +57,7 @@ class RuntimeTaskInstance(TaskInstance):
     """The Task Instance context from the API server, if any."""
 
     def get_template_context(self):
+        from airflow.utils.context import Context
         # TODO: Move this to `airflow.sdk.execution_time.context`
         #   once we port the entire context logic from airflow/utils/context.py ?
 
@@ -111,11 +115,53 @@ class RuntimeTaskInstance(TaskInstance):
                 "ts_nodash_with_tz": ts_nodash_with_tz,
             }
             context.update(context_from_server)
-        return context
 
-    def xcom_pull(self, *args, **kwargs): ...
+        # Mypy doesn't like turning existing dicts in to a TypeDict -- and we "lie" in the type stub to say it
+        # is one, but in practice it isn't. See https://github.com/python/mypy/issues/8890
+        return Context(context)  # type: ignore
 
-    def xcom_push(self, *args, **kwargs): ...
+    def xcom_pull(
+        self,
+        task_ids: str | None = None,  # TODO: Simplify to a single task_id (breaking change)
+        dag_id: str | None = None,
+        key: str = "return_value",
+        include_prior_dates: bool = False,
+        *,
+        map_index: int | None = None,
+        default: Any = None,
+        run_id: str | None = None,
+    ) -> Any:
+        """Pull XComs from the execution context."""
+        log = structlog.get_logger(logger_name="task")
+        SUPERVISOR_COMMS.send_request(
+            log=log,
+            msg=GetXCom(
+                key=key,
+                dag_id=dag_id or self.dag_id,
+                task_id=task_ids or self.task_id,
+                run_id=run_id or self.run_id,
+                map_index=map_index or self.map_index,
+            ),
+        )
+
+        msg = SUPERVISOR_COMMS.get_message()
+        if TYPE_CHECKING:
+            isinstance(msg, XComResult)
+        log.info("The value is ", xcom=msg.value)
+        return msg.value or default
+
+    def xcom_push(self, key: str, value: Any):
+        log = structlog.get_logger(logger_name="task")
+        SUPERVISOR_COMMS.send_request(
+            log=log,
+            msg=SetXCom(
+                key=key,
+                value=value,
+                dag_id=self.dag_id,
+                task_id=self.task_id,
+                run_id=self.run_id,
+            ),
+        )
 
 
 def parse(what: StartupDetails) -> RuntimeTaskInstance:

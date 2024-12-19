@@ -62,7 +62,6 @@ from airflow.sdk.api.datamodels._generated import (
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeferTask,
-    ErrorResponse,
     GetConnection,
     GetVariable,
     GetXCom,
@@ -719,7 +718,7 @@ class WatchedSubprocess:
             if isinstance(conn, ConnectionResponse):
                 conn_result = ConnectionResult.from_conn_response(conn)
                 resp = conn_result.model_dump_json(exclude_unset=True).encode()
-            elif isinstance(conn, ErrorResponse):
+            else:
                 resp = conn.model_dump_json().encode()
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
@@ -729,6 +728,7 @@ class WatchedSubprocess:
             xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
             xcom_result = XComResult.from_xcom_response(xcom)
             resp = xcom_result.model_dump_json().encode()
+            log.info("XCom value response", resp=resp, xcom=xcom)
         elif isinstance(msg, DeferTask):
             self._terminal_state = IntermediateTIState.DEFERRED
             self.client.task_instances.defer(self.id, msg)
