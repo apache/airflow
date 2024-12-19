@@ -18,8 +18,7 @@
 from __future__ import annotations
 
 import os
-import tempfile
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from git import Repo
 from git.exc import BadName
@@ -50,27 +49,26 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
     def __init__(
         self,
         *,
-        repo_url: str | os.PathLike = "",
+        repo_url: str,
         tracking_ref: str,
         subdir: str | None = None,
-        ssh_conn_id: str | None = None,
+        ssh_conn_kwargs: dict[str, str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.repo_url = repo_url
         self.tracking_ref = tracking_ref
         self.subdir = subdir
-        self.ssh_conn_id = ssh_conn_id
         self.bare_repo_path = self._dag_bundle_root_storage_path / "git" / self.name
         self.repo_path = (
             self._dag_bundle_root_storage_path / "git" / (self.name + f"+{self.version or self.tracking_ref}")
         )
-        self.env: dict[str, str] = {}
-        self.pkey: str | None = None
-        self.key_file: str | None = None
+        self.ssh_conn_kwargs = ssh_conn_kwargs
+        self.ssh_hook: Any | None = None
 
     def _clone_from(self, to_path: Path, bare: bool = False) -> Repo:
-        return Repo.clone_from(self.repo_url, to_path, bare=bare, env=self.env)
+        self.log.info("Cloning %s to %s", self.repo_url, to_path)
+        return Repo.clone_from(self.repo_url, to_path, bare=bare)
 
     def _initialize(self):
         self._clone_bare_repo_if_required()
@@ -85,39 +83,24 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
             self.repo.head.set_reference(self.repo.commit(self.version))
             self.repo.head.reset(index=True, working_tree=True)
         else:
-            self.refresh()
+            self._refresh()
+
+    def _ssh_hook(self):
+        try:
+            from airflow.providers.ssh.hooks.ssh import SSHHook
+        except ImportError as e:
+            raise AirflowOptionalProviderFeatureException(e)
+        return SSHHook(**self.ssh_conn_kwargs)
 
     def initialize(self) -> None:
-        if self.ssh_conn_id:
-            try:
-                from airflow.providers.ssh.hooks.ssh import SSHHook
-            except ImportError as e:
-                raise AirflowOptionalProviderFeatureException(e)
-            ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id)
-            ssh_hook.get_conn()
-            temp_key_file_path = None
-            self.key_file = ssh_hook.key_file
-            try:
-                if not self.key_file:
-                    conn = ssh_hook.get_connection(self.ssh_conn_id)
-                    private_key: str | None = conn.extra_dejson.get("private_key")
-                    if not private_key:
-                        raise AirflowException("No private key present in connection")
-                    self.pkey = private_key
-                    with tempfile.NamedTemporaryFile(delete=False) as key_file:
-                        temp_key_file_path = key_file.name
-                        key_file.write(self.pkey.encode("utf-8"))
-                    self.env["GIT_SSH_COMMAND"] = f"ssh -i {temp_key_file_path} -o IdentitiesOnly=yes"
-                else:
-                    self.env["GIT_SSH_COMMAND"] = f"ssh -i {self.key_file} -o IdentitiesOnly=yes"
-                if ssh_hook.remote_host:
-                    self.log.info("Using repo URL defined in the SSH connection")
-                    self.repo_url = ssh_hook.remote_host
+        if self.ssh_conn_kwargs:
+            if not self.repo_url.startswith("git@") and not self.repo_url.endswith(".git"):
+                raise AirflowException(
+                    f"Invalid git URL: {self.repo_url}. URL must start with git@ and end with .git"
+                )
+            self.ssh_hook = self._ssh_hook()
+            with self.ssh_hook.get_conn():
                 self._initialize()
-                self.env = {}
-            finally:
-                if temp_key_file_path:
-                    os.remove(temp_key_file_path)
         else:
             self._initialize()
 
@@ -171,34 +154,16 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         except BadName:
             return False
 
+    def _refresh(self):
+        self.bare_repo.remotes.origin.fetch("+refs/heads/*:refs/heads/*")
+        self.repo.remotes.origin.pull()
+
     def refresh(self) -> None:
         if self.version:
             raise AirflowException("Refreshing a specific version is not supported")
 
-        def _refresh():
-            self.bare_repo.remotes.origin.fetch("+refs/heads/*:refs/heads/*")
-            self.repo.remotes.origin.pull()
-
-        if self.ssh_conn_id:
-            if self.env:
-                with self.repo.git.custom_environment(**self.env):
-                    _refresh()
-                    return
-            temp_key_file_path = None
-            try:
-                if not self.key_file:
-                    if not self.pkey:
-                        raise AirflowException("Missing private key, please initialize the bundle first")
-                    with tempfile.NamedTemporaryFile(delete=False) as key_file:
-                        temp_key_file_path = key_file.name
-                        key_file.write(self.pkey.encode("utf-8"))
-                    GIT_SSH_COMMAND = f"ssh -i {temp_key_file_path} -o IdentitiesOnly=yes"
-                else:
-                    GIT_SSH_COMMAND = f"ssh -i {self.key_file} -o IdentitiesOnly=yes"
-                with self.repo.git.custom_environment(GIT_SSH_COMMAND=GIT_SSH_COMMAND):
-                    _refresh()
-            finally:
-                if temp_key_file_path:
-                    os.remove(temp_key_file_path)
+        if self.ssh_hook:
+            with self.ssh_hook.get_conn():
+                self._refresh()
         else:
-            _refresh()
+            self._refresh()
