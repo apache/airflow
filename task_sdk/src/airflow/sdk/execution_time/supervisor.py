@@ -44,16 +44,20 @@ from pydantic import TypeAdapter
 
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
+    ConnectionResponse,
     IntermediateTIState,
     TaskInstance,
     TerminalTIState,
 )
 from airflow.sdk.execution_time.comms import (
+    ConnectionResult,
     DeferTask,
+    ErrorResponse,
     GetConnection,
     GetVariable,
     GetXCom,
     PutVariable,
+    RescheduleTask,
     SetXCom,
     StartupDetails,
     TaskState,
@@ -688,7 +692,11 @@ class WatchedSubprocess:
             self._task_end_time_monotonic = time.monotonic()
         elif isinstance(msg, GetConnection):
             conn = self.client.connections.get(msg.conn_id)
-            resp = conn.model_dump_json(exclude_unset=True).encode()
+            if isinstance(conn, ConnectionResponse):
+                conn_result = ConnectionResult.from_conn_response(conn)
+                resp = conn_result.model_dump_json(exclude_unset=True).encode()
+            elif isinstance(conn, ErrorResponse):
+                resp = conn.model_dump_json().encode()
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             resp = var.model_dump_json(exclude_unset=True).encode()
@@ -698,6 +706,9 @@ class WatchedSubprocess:
         elif isinstance(msg, DeferTask):
             self._terminal_state = IntermediateTIState.DEFERRED
             self.client.task_instances.defer(self.id, msg)
+        elif isinstance(msg, RescheduleTask):
+            self._terminal_state = IntermediateTIState.UP_FOR_RESCHEDULE
+            self.client.task_instances.reschedule(self.id, msg)
         elif isinstance(msg, SetXCom):
             self.client.xcoms.set(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.value, msg.map_index)
         elif isinstance(msg, PutVariable):

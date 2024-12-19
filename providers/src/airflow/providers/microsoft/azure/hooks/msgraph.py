@@ -108,7 +108,10 @@ class KiotaRequestAdapterHook(BaseHook):
 
     DEFAULT_HEADERS = {"Accept": "application/json;q=1"}
     cached_request_adapters: dict[str, tuple[APIVersion, RequestAdapter]] = {}
+    conn_type: str = "msgraph"
+    conn_name_attr: str = "conn_id"
     default_conn_name: str = "msgraph_default"
+    hook_name: str = "Microsoft Graph API"
 
     def __init__(
         self,
@@ -126,6 +129,51 @@ class KiotaRequestAdapterHook(BaseHook):
         self.host = host
         self.scopes = scopes or ["https://graph.microsoft.com/.default"]
         self._api_version = self.resolve_api_version_from_value(api_version)
+
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to connection form."""
+        from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms.fields import BooleanField, StringField
+
+        return {
+            "tenant_id": StringField(lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()),
+            "api_version": StringField(
+                lazy_gettext("API Version"), widget=BS3TextFieldWidget(), default="v1.0"
+            ),
+            "authority": StringField(lazy_gettext("Authority"), widget=BS3TextFieldWidget()),
+            "scopes": StringField(
+                lazy_gettext("Scopes"),
+                widget=BS3TextFieldWidget(),
+                default="https://graph.microsoft.com/.default",
+            ),
+            "disable_instance_discovery": BooleanField(
+                lazy_gettext("Disable instance discovery"), default=False
+            ),
+            "allowed_hosts": StringField(lazy_gettext("Allowed"), widget=BS3TextFieldWidget()),
+            "proxies": StringField(lazy_gettext("Proxies"), widget=BS3TextAreaFieldWidget()),
+            "stream": BooleanField(lazy_gettext("Stream"), default=False),
+            "verify": BooleanField(lazy_gettext("Verify"), default=True),
+            "trust_env": BooleanField(lazy_gettext("Trust environment"), default=True),
+            "base_url": StringField(lazy_gettext("Base URL"), widget=BS3TextFieldWidget()),
+        }
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
+        return {
+            "hidden_fields": ["extra"],
+            "relabeling": {
+                "login": "Client ID",
+                "password": "Client Secret",
+            },
+            "default_values": {
+                "schema": "https",
+                "host": NationalClouds.Global.value,
+                "port": 443,
+            },
+        }
 
     @property
     def api_version(self) -> str | None:
