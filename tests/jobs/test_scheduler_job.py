@@ -419,7 +419,6 @@ class TestSchedulerJob:
         mock_task_callback.assert_called_once_with(
             full_filepath=dag.fileloc,
             ti=mock.ANY,
-            processor_subdir=None,
             msg=f"Executor {executor} reported that the task instance "
             "<TaskInstance: test_process_executor_events_with_callback.dummy_task test [queued]> "
             "finished with state failed, but the task instance's state attribute is queued. "
@@ -2434,7 +2433,6 @@ class TestSchedulerJob:
             dag_id="test_scheduler_verify_max_active_runs_and_dagrun_timeout",
             start_date=DEFAULT_DATE,
             max_active_runs=1,
-            processor_subdir=TEST_DAG_FOLDER,
             dagrun_timeout=datetime.timedelta(seconds=60),
         ) as dag:
             EmptyOperator(task_id="dummy")
@@ -2484,7 +2482,6 @@ class TestSchedulerJob:
             dag_id=dr.dag_id,
             is_failure_callback=True,
             run_id=dr.run_id,
-            processor_subdir=TEST_DAG_FOLDER,
             msg="timed_out",
         )
 
@@ -2502,7 +2499,6 @@ class TestSchedulerJob:
         with dag_maker(
             dag_id="test_scheduler_fail_dagrun_timeout",
             dagrun_timeout=datetime.timedelta(seconds=60),
-            processor_subdir=TEST_DAG_FOLDER,
             session=session,
         ):
             EmptyOperator(task_id="dummy")
@@ -2528,7 +2524,6 @@ class TestSchedulerJob:
             dag_id=dr.dag_id,
             is_failure_callback=True,
             run_id=dr.run_id,
-            processor_subdir=TEST_DAG_FOLDER,
             msg="timed_out",
         )
 
@@ -2584,7 +2579,6 @@ class TestSchedulerJob:
             dag_id="test_dagrun_callbacks_are_called",
             on_success_callback=lambda x: print("success"),
             on_failure_callback=lambda x: print("failed"),
-            processor_subdir=TEST_DAG_FOLDER,
         ) as dag:
             EmptyOperator(task_id="dummy")
 
@@ -2608,7 +2602,6 @@ class TestSchedulerJob:
             dag_id=dr.dag_id,
             is_failure_callback=bool(state == State.FAILED),
             run_id=dr.run_id,
-            processor_subdir=TEST_DAG_FOLDER,
             msg=expected_callback_msg,
         )
 
@@ -2628,7 +2621,6 @@ class TestSchedulerJob:
             dag_id="test_dagrun_callbacks_are_called",
             on_success_callback=lambda x: print("success"),
             on_failure_callback=lambda x: print("failed"),
-            processor_subdir=TEST_DAG_FOLDER,
         ):
             EmptyOperator(task_id="dummy")
 
@@ -2662,7 +2654,6 @@ class TestSchedulerJob:
             dag_id="test_dagrun_timeout_callbacks_are_stored_in_database",
             on_failure_callback=lambda x: print("failed"),
             dagrun_timeout=timedelta(hours=1),
-            processor_subdir=TEST_DAG_FOLDER,
         ) as dag:
             EmptyOperator(task_id="empty")
 
@@ -2690,7 +2681,6 @@ class TestSchedulerJob:
             dag_id=dr.dag_id,
             is_failure_callback=True,
             run_id=dr.run_id,
-            processor_subdir=TEST_DAG_FOLDER,
             msg="timed_out",
         )
 
@@ -2817,7 +2807,6 @@ class TestSchedulerJob:
             dag_id="test_dagrun_notify_called",
             on_success_callback=lambda x: print("success"),
             on_failure_callback=lambda x: print("failed"),
-            processor_subdir=TEST_DAG_FOLDER,
         ):
             EmptyOperator(task_id="dummy")
 
@@ -5795,7 +5784,7 @@ class TestSchedulerJob:
             )
             session.query(Job).delete()
             dag = dagbag.get_dag("test_example_bash_operator")
-            dag.sync_to_db(processor_subdir=TEST_DAG_FOLDER)
+            dag.sync_to_db()
             data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
             triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dag_run = dag.create_dagrun(
@@ -5829,7 +5818,6 @@ class TestSchedulerJob:
             TaskCallbackRequest(
                 full_filepath=dag.fileloc,
                 ti=ti,
-                processor_subdir=TEST_DAG_FOLDER,
                 msg=str(self.job_runner._generate_zombie_message_details(ti)),
             )
         ]

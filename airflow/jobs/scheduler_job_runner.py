@@ -878,7 +878,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         full_filepath=ti.dag_model.fileloc,
                         ti=ti,
                         msg=msg,
-                        processor_subdir=ti.dag_model.processor_subdir,
                     )
                     executor.send_callback(request)
                 else:
@@ -1707,7 +1706,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag_id=dag.dag_id,
                     run_id=dag_run.run_id,
                     is_failure_callback=True,
-                    processor_subdir=dag_model.processor_subdir,
                     msg="timed_out",
                 )
 
@@ -2066,11 +2064,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if zombies := self._find_zombies(session=session):
                 self._purge_zombies(zombies, session=session)
 
-    def _find_zombies(self, *, session: Session) -> list[tuple[TI, str, str]]:
+    def _find_zombies(self, *, session: Session) -> list[tuple[TI, str]]:
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
         limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
         zombies = session.execute(
-            select(TI, DM.fileloc, DM.processor_subdir)
+            select(TI, DM.fileloc)
             .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
             .join(DM, TI.dag_id == DM.dag_id)
             .where(
@@ -2083,12 +2081,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.warning("Failing %s TIs without heartbeat after %s", len(zombies), limit_dttm)
         return zombies
 
-    def _purge_zombies(self, zombies: list[tuple[TI, str, str]], *, session: Session) -> None:
-        for ti, file_loc, processor_subdir in zombies:
+    def _purge_zombies(self, zombies: list[tuple[TI, str]], *, session: Session) -> None:
+        for ti, file_loc in zombies:
             zombie_message_details = self._generate_zombie_message_details(ti)
             request = TaskCallbackRequest(
                 full_filepath=file_loc,
-                processor_subdir=processor_subdir,
                 ti=ti,
                 msg=str(zombie_message_details),
             )

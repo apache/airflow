@@ -169,7 +169,7 @@ def _update_dag_owner_links(dag_owner_links: dict[str, str], dm: DagModel, *, se
     )
 
 
-def _serialize_dag_capturing_errors(dag: MaybeSerializedDAG, session: Session, processor_subdir: str | None):
+def _serialize_dag_capturing_errors(dag: MaybeSerializedDAG, session: Session):
     """
     Try to serialize the dag to the DB, but make a note of any errors.
 
@@ -186,7 +186,6 @@ def _serialize_dag_capturing_errors(dag: MaybeSerializedDAG, session: Session, p
             dag,
             min_update_interval=settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
             session=session,
-            processor_subdir=processor_subdir,
         )
         if dag_was_updated:
             _sync_dag_perms(dag, session=session)
@@ -234,9 +233,7 @@ def _update_dag_warnings(
         session.merge(warning_to_add)
 
 
-def _update_import_errors(
-    files_parsed: set[str], import_errors: dict[str, str], processor_subdir: str | None, session: Session
-):
+def _update_import_errors(files_parsed: set[str], import_errors: dict[str, str], session: Session):
     from airflow.listeners.listener import get_listener_manager
 
     # We can remove anything from files parsed in this batch that doesn't have an error. We need to remove old
@@ -244,8 +241,7 @@ def _update_import_errors(
 
     session.execute(delete(ParseImportError).where(ParseImportError.filename.in_(list(files_parsed))))
 
-    query = select(ParseImportError.filename).where(ParseImportError.processor_subdir == processor_subdir)
-    existing_import_error_files = set(session.scalars(query))
+    existing_import_error_files = set(session.scalars(select(ParseImportError.filename)))
 
     # Add the errors of the processed files
     for filename, stacktrace in import_errors.items():
@@ -261,7 +257,6 @@ def _update_import_errors(
                     filename=filename,
                     timestamp=utcnow(),
                     stacktrace=stacktrace,
-                    processor_subdir=processor_subdir,
                 )
             )
             # sending notification when a new dag import error occurs
@@ -272,7 +267,6 @@ def _update_import_errors(
 def update_dag_parsing_results_in_db(
     dags: Collection[MaybeSerializedDAG],
     import_errors: dict[str, str],
-    processor_subdir: str | None,
     warnings: set[DagWarning],
     session: Session,
     *,
@@ -308,11 +302,11 @@ def update_dag_parsing_results_in_db(
             )
             log.debug("Calling the DAG.bulk_sync_to_db method")
             try:
-                DAG.bulk_write_to_db(dags, processor_subdir=processor_subdir, session=session)
+                DAG.bulk_write_to_db(dags, session=session)
                 # Write Serialized DAGs to DB, capturing errors
                 # Write Serialized DAGs to DB, capturing errors
                 for dag in dags:
-                    serialize_errors.extend(_serialize_dag_capturing_errors(dag, session, processor_subdir))
+                    serialize_errors.extend(_serialize_dag_capturing_errors(dag, session))
             except OperationalError:
                 session.rollback()
                 raise
@@ -329,7 +323,6 @@ def update_dag_parsing_results_in_db(
         _update_import_errors(
             files_parsed=good_dag_filelocs,
             import_errors=import_errors,
-            processor_subdir=processor_subdir,
             session=session,
         )
     except Exception:
@@ -377,7 +370,6 @@ class DagModelOperation(NamedTuple):
         self,
         orm_dags: dict[str, DagModel],
         *,
-        processor_subdir: str | None = None,
         session: Session,
     ) -> None:
         from airflow.configuration import conf
@@ -433,7 +425,6 @@ class DagModelOperation(NamedTuple):
             dm.timetable_summary = dag.timetable.summary
             dm.timetable_description = dag.timetable.description
             dm.asset_expression = dag.timetable.asset_condition.as_expression()
-            dm.processor_subdir = processor_subdir
 
             last_automated_run: DagRun | None = run_info.latest_runs.get(dag.dag_id)
             if last_automated_run is None:
