@@ -17,7 +17,6 @@
   },
   "dependencies": {
     "@chakra-ui/anatomy": "^2.2.2",
-    "@chakra-ui/cli": "^3.2.3",
     "@chakra-ui/react": "^3.1.1",
     "@codemirror/lang-json": "^6.0.1",
     "@emotion/react": "^11.13.3",
@@ -28,8 +27,6 @@
     "@visx/group": "^3.12.0",
     "@visx/shape": "^3.12.0",
     "@xyflow/react": "^12.3.5",
-    "accordion": "^3.0.2",
-    "add": "^2.0.6",
     "axios": "^1.7.7",
     "chakra-react-select": "6.0.0-next.2",
     "chart.js": "^4.4.6",
@@ -44,7 +41,6 @@
     "react-markdown": "^9.0.1",
     "react-router-dom": "^6.26.2",
     "react-syntax-highlighter": "^15.5.6",
-    "snippet": "^0.1.0",
     "use-debounce": "^10.0.3",
     "usehooks-ts": "^3.1.0"
   },

@@ -16,8 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Heading, HStack, Spacer, VStack } from "@chakra-ui/react";
-import { FiPlay, FiXSquare } from "react-icons/fi";
+import { Flex, Heading, VStack } from "@chakra-ui/react";
+import { FiRefreshCw } from "react-icons/fi";
 
 import type {
   DAGRunClearBody,
@@ -112,11 +112,7 @@ const ClearRunDialog = ({
             />
           </Flex>
           <ClearRunTasksAccordion affectedTasks={affectedTasks} />
-          <HStack mt={3} w="full">
-            <Button colorPalette="gray" onClick={onClose}>
-              <FiXSquare /> Cancel
-            </Button>
-            <Spacer />
+          <Flex justifyContent="end" mt={3}>
             <Button
               colorPalette="blue"
               loading={isPending}
@@ -128,9 +124,9 @@ const ClearRunDialog = ({
                 });
               }}
             >
-              <FiPlay /> Confirm
+              <FiRefreshCw /> Confirm
             </Button>
-          </HStack>
+          </Flex>
         </Dialog.Body>
       </Dialog.Content>
     </Dialog.Root>
