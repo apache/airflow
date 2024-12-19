@@ -481,7 +481,7 @@ class TestUpdateDagParsingResults:
         assert orm_dag.is_paused is False
 
         dag = DAG("dag_paused", schedule=None, is_paused_upon_creation=True)
-        update_dag_parsing_results_in_db([self.dag_to_lazy_serdag(dag)], {}, None, set(), session)
+        update_dag_parsing_results_in_db([self.dag_to_lazy_serdag(dag)], {}, set(), session)
         # Since the dag existed before, it should not follow the pause flag upon creation
         orm_dag = session.get(DagModel, ("dag_paused",))
         assert orm_dag.is_paused is False
