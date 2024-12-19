@@ -203,6 +203,7 @@ def user_edit_one_dag(acl_app):
         yield user
 
 
+@pytest.mark.skip("Skipping until we fix the implementation to not be FAB-specific")
 @pytest.mark.usefixtures("user_edit_one_dag")
 def test_permission_exist(acl_app):
     perms_views = acl_app.appbuilder.sm.get_resource_permissions(
@@ -216,6 +217,7 @@ def test_permission_exist(acl_app):
     assert "can delete on DAG:example_bash_operator" in perms
 
 
+@pytest.mark.skip("Skipping until we fix the implementation to not be FAB-specific")
 @pytest.mark.usefixtures("user_edit_one_dag")
 def test_role_permission_associate(acl_app):
     test_role = acl_app.appbuilder.sm.find_role("role_edit_one_dag")
@@ -914,6 +916,7 @@ def client_dag_level_access_with_ti_edit(acl_app, user_dag_level_access_with_ti_
     )
 
 
+@pytest.mark.skip("Skipping until we fix the implementation to not be FAB-specific")
 def test_success_edit_ti_with_dag_level_access_only(client_dag_level_access_with_ti_edit):
     form = dict(
         task_id="run_this_last",

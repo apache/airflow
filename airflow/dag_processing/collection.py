@@ -198,7 +198,6 @@ def _serialize_dag_capturing_errors(dag: MaybeSerializedDAG, session: Session, p
         if not dag_was_updated:
             DagCode.update_source_code(dag.dag_id, dag.fileloc)
 
-
         return []
     except OperationalError:
         raise
