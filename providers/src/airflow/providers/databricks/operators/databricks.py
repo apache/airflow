@@ -967,6 +967,8 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
 
     :param caller: The name of the caller operator to be used in the logs.
     :param databricks_conn_id: The name of the Airflow connection to use.
+    :param databricks_task_key: An optional task_key used to refer to the task by Databricks API. By
+        default this will be set to the hash of ``dag_id + task_id``.
     :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     :param databricks_retry_delay: Number of seconds to wait between retries.
     :param databricks_retry_limit: Amount of times to retry if the Databricks backend is unreachable.
