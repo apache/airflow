@@ -1125,7 +1125,8 @@ def _handle_failure(
         )
 
     if not test_mode:
-        TaskInstance.save_to_db(failure_context["ti"], session)
+        task_instance.dag_run.refresh_from_db()
+        TaskInstance.save_to_db(task_instance, session)
 
     with Trace.start_span_from_taskinstance(ti=task_instance) as span:
         span.set_attributes(
