@@ -1294,7 +1294,9 @@
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.sql"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
