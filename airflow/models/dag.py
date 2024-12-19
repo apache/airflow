@@ -1833,7 +1833,6 @@ class DAG(TaskSDKDag, LoggingMixin):
     def bulk_write_to_db(
         cls,
         dags: Collection[MaybeSerializedDAG],
-        processor_subdir: str | None = None,
         session: Session = NEW_SESSION,
     ):
         """
@@ -1851,7 +1850,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         dag_op = DagModelOperation({dag.dag_id: dag for dag in dags})  # type: ignore[misc]
 
         orm_dags = dag_op.add_dags(session=session)
-        dag_op.update_dags(orm_dags, processor_subdir=processor_subdir, session=session)
+        dag_op.update_dags(orm_dags, session=session)
 
         asset_op = AssetModelOperation.collect(dag_op.dags)
 
@@ -1867,13 +1866,13 @@ class DAG(TaskSDKDag, LoggingMixin):
         session.flush()
 
     @provide_session
-    def sync_to_db(self, processor_subdir: str | None = None, session=NEW_SESSION):
+    def sync_to_db(self, session=NEW_SESSION):
         """
         Save attributes about this DAG to the DB.
 
         :return: None
         """
-        self.bulk_write_to_db([self], processor_subdir=processor_subdir, session=session)
+        self.bulk_write_to_db([self], session=session)
 
     def get_default_view(self):
         """Allow backward compatible jinja2 templates."""
@@ -2048,8 +2047,6 @@ class DagModel(Base):
     # packaged DAG, it will point to the subpath of the DAG within the
     # associated zip.
     fileloc = Column(String(2000))
-    # The base directory used by Dag Processor that parsed this dag.
-    processor_subdir = Column(String(2000), nullable=True)
     bundle_name = Column(StringID(), ForeignKey("dag_bundle.name"), nullable=True)
     # The version of the bundle the last time the DAG was parsed
     latest_bundle_version = Column(String(200), nullable=True)
@@ -2262,24 +2259,18 @@ class DagModel(Base):
     def deactivate_deleted_dags(
         cls,
         alive_dag_filelocs: Container[str],
-        processor_subdir: str | None,
         session: Session = NEW_SESSION,
     ) -> None:
         """
         Set ``is_active=False`` on the DAGs for which the DAG files have been removed.
 
         :param alive_dag_filelocs: file paths of alive DAGs
-        :param processor_subdir: dag processor subdir
         :param session: ORM Session
         """
         log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ", cls.__tablename__)
         dag_models = session.scalars(
             select(cls).where(
                 cls.fileloc.is_not(None),
-                or_(
-                    cls.processor_subdir.is_(None),
-                    cls.processor_subdir == processor_subdir,
-                ),
             )
         )
 

@@ -48,7 +48,6 @@ class TestCallbackRequest:
                     full_filepath="filepath",
                     dag_id="fake_dag",
                     run_id="fake_run",
-                    processor_subdir="/test_dir",
                     is_failure_callback=False,
                 ),
                 DagCallbackRequest,
@@ -71,7 +70,6 @@ class TestCallbackRequest:
             input = TaskCallbackRequest(
                 full_filepath="filepath",
                 ti=ti,
-                processor_subdir="/test_dir",
             )
         json_str = input.to_json()
         result = request_class.from_json(json_str)
@@ -86,7 +84,6 @@ class TestCallbackRequest:
         input = TaskCallbackRequest(
             full_filepath="filepath",
             ti=ti,
-            processor_subdir="/test_dir",
         )
         json_str = input.to_json()
         result = TaskCallbackRequest.from_json(json_str)
