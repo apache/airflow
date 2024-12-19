@@ -27,7 +27,6 @@ This should generally only be called by internal methods such as
 
 from __future__ import annotations
 
-import itertools
 import logging
 import traceback
 from typing import TYPE_CHECKING, NamedTuple
@@ -64,12 +63,13 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
     from airflow.models.dagwarning import DagWarning
+    from airflow.serialization.serialized_objects import MaybeSerializedDAG
     from airflow.typing_compat import Self
 
 log = logging.getLogger(__name__)
 
 
-def _create_orm_dags(dags: Iterable[DAG], *, session: Session) -> Iterator[DagModel]:
+def _create_orm_dags(dags: Iterable[MaybeSerializedDAG], *, session: Session) -> Iterator[DagModel]:
     for dag in dags:
         orm_dag = DagModel(dag_id=dag.dag_id)
         if dag.is_paused_upon_creation is not None:
@@ -124,7 +124,7 @@ class _RunInfo(NamedTuple):
     num_active_runs: dict[str, int]
 
     @classmethod
-    def calculate(cls, dags: dict[str, DAG], *, session: Session) -> Self:
+    def calculate(cls, dags: dict[str, MaybeSerializedDAG], *, session: Session) -> Self:
         """
         Query the the run counts from the db.
 
@@ -169,7 +169,7 @@ def _update_dag_owner_links(dag_owner_links: dict[str, str], dm: DagModel, *, se
     )
 
 
-def _serialize_dag_capturing_errors(dag: DAG, session: Session, processor_subdir: str | None):
+def _serialize_dag_capturing_errors(dag: MaybeSerializedDAG, session: Session, processor_subdir: str | None):
     """
     Try to serialize the dag to the DB, but make a note of any errors.
 
@@ -192,7 +192,7 @@ def _serialize_dag_capturing_errors(dag: DAG, session: Session, processor_subdir
             _sync_dag_perms(dag, session=session)
         else:
             # Check and update DagCode
-            DagCode.update_source_code(dag)
+            DagCode.update_source_code(dag.dag_id, dag.fileloc)
         return []
     except OperationalError:
         raise
@@ -202,7 +202,7 @@ def _serialize_dag_capturing_errors(dag: DAG, session: Session, processor_subdir
         return [(dag.fileloc, traceback.format_exc(limit=-dagbag_import_error_traceback_depth))]
 
 
-def _sync_dag_perms(dag: DAG, session: Session):
+def _sync_dag_perms(dag: MaybeSerializedDAG, session: Session):
     """Sync DAG specific permissions."""
     dag_id = dag.dag_id
 
@@ -270,7 +270,7 @@ def _update_import_errors(
 
 
 def update_dag_parsing_results_in_db(
-    dags: Collection[DAG],
+    dags: Collection[MaybeSerializedDAG],
     import_errors: dict[str, str],
     processor_subdir: str | None,
     warnings: set[DagWarning],
@@ -347,7 +347,7 @@ def update_dag_parsing_results_in_db(
 class DagModelOperation(NamedTuple):
     """Collect DAG objects and perform database operations for them."""
 
-    dags: dict[str, DAG]
+    dags: dict[str, MaybeSerializedDAG]
 
     def find_orm_dags(self, *, session: Session) -> dict[str, DagModel]:
         """Find existing DagModel objects from DAG objects."""
@@ -380,6 +380,8 @@ class DagModelOperation(NamedTuple):
         processor_subdir: str | None = None,
         session: Session,
     ) -> None:
+        from airflow.configuration import conf
+
         # we exclude backfill from active run counts since their concurrency is separate
         run_info = _RunInfo.calculate(
             dags=self.dags,
@@ -393,19 +395,41 @@ class DagModelOperation(NamedTuple):
             dm.is_active = True
             dm.has_import_errors = False
             dm.last_parsed_time = utcnow()
-            dm.default_view = dag.default_view
+            dm.default_view = dag.default_view or conf.get("webserver", "dag_default_view").lower()
             if hasattr(dag, "_dag_display_property_value"):
                 dm._dag_display_property_value = dag._dag_display_property_value
             elif dag.dag_display_name != dag.dag_id:
                 dm._dag_display_property_value = dag.dag_display_name
             dm.description = dag.description
-            dm.max_active_tasks = dag.max_active_tasks
-            dm.max_active_runs = dag.max_active_runs
-            dm.max_consecutive_failed_dag_runs = dag.max_consecutive_failed_dag_runs
-            dm.has_task_concurrency_limits = any(
-                t.max_active_tis_per_dag is not None or t.max_active_tis_per_dagrun is not None
-                for t in dag.tasks
-            )
+
+            # These "is not None" checks are because with a LazySerializedDag object where the user hasn't
+            # specified an explicit value, we don't get the default values from the config in the lazy
+            # serialized ver
+            # we just
+            if dag.max_active_tasks is not None:
+                dm.max_active_tasks = dag.max_active_tasks
+            elif dag.max_active_tasks is None and dm.max_active_tasks is None:
+                dm.max_active_tasks = conf.getint("core", "max_active_tasks_per_dag")
+
+            if dag.max_active_runs is not None:
+                dm.max_active_runs = dag.max_active_runs
+            elif dag.max_active_runs is None and dm.max_active_runs is None:
+                dm.max_active_runs = conf.getint("core", "max_active_runs_per_dag")
+
+            if dag.max_consecutive_failed_dag_runs is not None:
+                dm.max_consecutive_failed_dag_runs = dag.max_consecutive_failed_dag_runs
+            elif dag.max_consecutive_failed_dag_runs is None and dm.max_consecutive_failed_dag_runs is None:
+                dm.max_consecutive_failed_dag_runs = conf.getint(
+                    "core", "max_consecutive_failed_dag_runs_per_dag"
+                )
+
+            if hasattr(dag, "has_task_concurrency_limits"):
+                dm.has_task_concurrency_limits = dag.has_task_concurrency_limits
+            else:
+                dm.has_task_concurrency_limits = any(
+                    t.max_active_tis_per_dag is not None or t.max_active_tis_per_dagrun is not None
+                    for t in dag.tasks
+                )
             dm.timetable_summary = dag.timetable.summary
             dm.timetable_description = dag.timetable.description
             dm.asset_expression = dag.timetable.asset_condition.as_expression()
@@ -419,7 +443,7 @@ class DagModelOperation(NamedTuple):
             if run_info.num_active_runs.get(dag.dag_id, 0) >= dm.max_active_runs:
                 dm.next_dagrun_create_after = None
             else:
-                dm.calculate_dagrun_date_fields(dag, last_automated_data_interval)
+                dm.calculate_dagrun_date_fields(dag, last_automated_data_interval)  # type: ignore[arg-type]
 
             if not dag.timetable.asset_condition:
                 dm.schedule_asset_references = []
@@ -436,24 +460,20 @@ class DagModelOperation(NamedTuple):
                 dm.dag_owner_links = []
 
 
-def _find_all_assets(dags: Iterable[DAG]) -> Iterator[Asset]:
+def _find_all_assets(dags: Iterable[MaybeSerializedDAG]) -> Iterator[Asset]:
     for dag in dags:
         for _, asset in dag.timetable.asset_condition.iter_assets():
             yield asset
-        for task in dag.task_dict.values():
-            for obj in itertools.chain(task.inlets, task.outlets):
-                if isinstance(obj, Asset):
-                    yield obj
+        for _, alias in dag.get_task_assets(of_type=Asset):
+            yield alias
 
 
-def _find_all_asset_aliases(dags: Iterable[DAG]) -> Iterator[AssetAlias]:
+def _find_all_asset_aliases(dags: Iterable[MaybeSerializedDAG]) -> Iterator[AssetAlias]:
     for dag in dags:
         for _, alias in dag.timetable.asset_condition.iter_asset_aliases():
             yield alias
-        for task in dag.task_dict.values():
-            for obj in itertools.chain(task.inlets, task.outlets):
-                if isinstance(obj, AssetAlias):
-                    yield obj
+        for _, alias in dag.get_task_assets(of_type=AssetAlias):
+            yield alias
 
 
 def _find_active_assets(name_uri_assets, session: Session):
@@ -500,7 +520,7 @@ class AssetModelOperation(NamedTuple):
     asset_aliases: dict[str, AssetAlias]
 
     @classmethod
-    def collect(cls, dags: dict[str, DAG]) -> Self:
+    def collect(cls, dags: dict[str, MaybeSerializedDAG]) -> Self:
         coll = cls(
             schedule_asset_references={
                 dag_id: [asset for _, asset in dag.timetable.asset_condition.iter_assets()]
@@ -511,13 +531,7 @@ class AssetModelOperation(NamedTuple):
                 for dag_id, dag in dags.items()
             },
             outlet_references={
-                dag_id: [
-                    (task_id, outlet)
-                    for task_id, task in dag.task_dict.items()
-                    for outlet in task.outlets
-                    if isinstance(outlet, Asset)
-                ]
-                for dag_id, dag in dags.items()
+                dag_id: list(dag.get_task_assets(inlets=False, outlets=True)) for dag_id, dag in dags.items()
             },
             assets={(asset.name, asset.uri): asset for asset in _find_all_assets(dags.values())},
             asset_aliases={alias.name: alias for alias in _find_all_asset_aliases(dags.values())},
