@@ -188,14 +188,10 @@ def _serialize_dag_capturing_errors(dag: MaybeSerializedDAG, session: Session, p
             session=session,
             processor_subdir=processor_subdir,
         )
-        # TODO: Currently _sync_dag_perms is FAB specific. We need to re-implement it using the auth manager
-        #  interface. In the short term, we are going to disable it but this should be fixed and re-enabled
-        #  before AF3 is released
-        # if dag_was_updated:
-        #     _sync_dag_perms(dag, session=session)
-        # else:
-        #     # Check and update DagCode
-        if not dag_was_updated:
+        if dag_was_updated:
+            _sync_dag_perms(dag, session=session)
+        else:
+            # Check and update DagCode
             DagCode.update_source_code(dag.dag_id, dag.fileloc)
 
         return []
