@@ -261,7 +261,7 @@ def ti_update_state(
     # https://fastapi.tiangolo.com/tutorial/handling-errors/#install-custom-exception-handlers
     try:
         result = session.execute(query)
-        log.info("TI %s state updated to %S: %s row(s) affected", ti_id_str, updated_state, result.rowcount)
+        log.info("TI %s state updated to %s: %s row(s) affected", ti_id_str, updated_state, result.rowcount)
     except SQLAlchemyError as e:
         log.error("Error updating Task Instance state: %s", e)
         raise HTTPException(
