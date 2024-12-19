@@ -50,7 +50,7 @@ NEW_REFRESH_REQUEST_ID = "5e2d9921-e91b-491f-b7e1-e7d8db49194c"
 
 SUCCESS_TRIGGER_EVENT = {
     "status": "success",
-    "dataset_refresh_status": "Completed",
+    "dataset_refresh_status": PowerBIDatasetRefreshStatus.COMPLETED,
     "message": "success",
     "dataset_refresh_id": NEW_REFRESH_REQUEST_ID,
 }
@@ -131,7 +131,7 @@ class TestPowerBIDatasetRefreshOperator(Base):
                 context=context,
                 event={
                     "status": "error",
-                    "dataset_refresh_status": "Failed",
+                    "dataset_refresh_status": PowerBIDatasetRefreshStatus.FAILED,
                     "message": "error message",
                     "dataset_refresh_id": "1234",
                 },

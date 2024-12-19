@@ -118,7 +118,7 @@ class TestPowerBITrigger:
         expected = TriggerEvent(
             {
                 "status": "error",
-                "dataset_refresh_status": "Failed",
+                "dataset_refresh_status": PowerBIDatasetRefreshStatus.FAILED,
                 "message": f"The dataset refresh {DATASET_REFRESH_ID} has "
                 f"{PowerBIDatasetRefreshStatus.FAILED}. Error: Test error",
                 "dataset_refresh_id": DATASET_REFRESH_ID,
@@ -144,7 +144,7 @@ class TestPowerBITrigger:
         expected = TriggerEvent(
             {
                 "status": "success",
-                "dataset_refresh_status": "Completed",
+                "dataset_refresh_status": PowerBIDatasetRefreshStatus.COMPLETED,
                 "message": f"The dataset refresh {DATASET_REFRESH_ID} has "
                 f"{PowerBIDatasetRefreshStatus.COMPLETED}.",
                 "dataset_refresh_id": DATASET_REFRESH_ID,

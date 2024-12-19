@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
-from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIDatasetRefreshStatus, PowerBIHook
+from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIHook
 from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
 
 if TYPE_CHECKING:
@@ -45,12 +45,6 @@ class PowerBILink(BaseOperatorLink):
         )
 
         return url
-
-
-class PowerBIDatasetRefreshRequestStatus(PowerBIDatasetRefreshStatus):
-    """Power BI refresh dataset request statuses: PowerBIDatasetRefreshStatus statuses and "error" status from Trigger."""
-
-    ERROR = "error"
 
 
 class PowerBIDatasetRefreshOperator(BaseOperator):
