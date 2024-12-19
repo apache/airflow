@@ -26,7 +26,7 @@ import { type FC, useState } from "react";
 import { FiRefreshCw } from "react-icons/fi";
 
 import type { TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
-import { Button } from "src/components/ui";
+import { Button, Tooltip } from "src/components/ui";
 import { useClearDagRun } from "src/queries/useClearRun";
 
 import ClearRunDialog from "./ClearRunDialog";
@@ -59,22 +59,24 @@ const ClearRunButton = ({ dagId, dagRunId, withText = true }: Props) => {
 
   return (
     <Box>
-      <ButtonComponent
-        colorPalette={withText ? undefined : "blue"}
-        onClick={() => {
-          onOpen();
-          mutate({
-            dagId,
-            dagRunId,
-            requestBody: { dry_run: true, only_failed: onlyFailed },
-          });
-        }}
-        size={withText ? "md" : "sm"}
-        variant={withText ? "outline" : "ghost"}
-      >
-        <FiRefreshCw />
-        {withText ? "Clear Run" : ""}
-      </ButtonComponent>
+      <Tooltip content="Clear Dag Run" disabled={Boolean(withText)}>
+        <ButtonComponent
+          colorPalette={withText ? undefined : "blue"}
+          onClick={() => {
+            onOpen();
+            mutate({
+              dagId,
+              dagRunId,
+              requestBody: { dry_run: true, only_failed: onlyFailed },
+            });
+          }}
+          size={withText ? "md" : "sm"}
+          variant={withText ? "outline" : "ghost"}
+        >
+          <FiRefreshCw />
+          {withText ? "Clear Run" : ""}
+        </ButtonComponent>
+      </Tooltip>
 
       <ClearRunDialog
         affectedTasks={affectedTasks}

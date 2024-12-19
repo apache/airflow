@@ -96,11 +96,13 @@ const columns: Array<ColumnDef<DAGRunResponse>> = [
   {
     accessorKey: "clear_dag_run",
     cell: ({ row }) => (
-      <ClearRunButton
-        dagId={row.original.dag_id}
-        dagRunId={row.original.dag_run_id}
-        withText={false}
-      />
+      <Flex justifyContent="end">
+        <ClearRunButton
+          dagId={row.original.dag_id}
+          dagRunId={row.original.dag_run_id}
+          withText={false}
+        />
+      </Flex>
     ),
     enableSorting: false,
     header: "",
