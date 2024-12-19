@@ -17,13 +17,13 @@
  * under the License.
  */
 import { Box, Flex, Heading, HStack, SimpleGrid, Text } from "@chakra-ui/react";
-import dayjs from "dayjs";
 import { MdOutlineModeComment, MdOutlineTask } from "react-icons/md";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { Stat } from "src/components/Stat";
 import Time from "src/components/Time";
 import { Status } from "src/components/ui";
+import { getDuration } from "src/utils";
 
 export const Header = ({
   taskInstance,
@@ -57,7 +57,9 @@ export const Header = ({
     <SimpleGrid columns={6} gap={4} my={2}>
       <Stat label="Operator">{taskInstance.operator}</Stat>
       {taskInstance.map_index > -1 ? (
-        <Stat label="Map Index">{taskInstance.map_index}</Stat>
+        <Stat label="Map Index">
+          {taskInstance.rendered_map_index ?? taskInstance.map_index}
+        </Stat>
       ) : undefined}
       {taskInstance.try_number > 1 ? (
         <Stat label="Try Number">{taskInstance.try_number}</Stat>
@@ -69,11 +71,7 @@ export const Header = ({
         <Time datetime={taskInstance.end_date} />
       </Stat>
       <Stat label="Duration">
-        {dayjs
-          .duration(dayjs(taskInstance.end_date).diff(taskInstance.start_date))
-          .asSeconds()
-          .toFixed(2)}
-        s
+        {getDuration(taskInstance.start_date, taskInstance.end_date)}s
       </Stat>
     </SimpleGrid>
   </Box>

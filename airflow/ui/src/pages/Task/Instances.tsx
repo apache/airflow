@@ -71,7 +71,8 @@ const columns = (
   ...(isMapped
     ? [
         {
-          accessorKey: "map_index",
+          accessorFn: (row: TaskInstanceResponse) =>
+            row.rendered_map_index ?? row.map_index,
           header: "Map Index",
         },
       ]

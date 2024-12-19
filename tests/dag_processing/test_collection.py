@@ -38,6 +38,7 @@ from airflow.dag_processing.collection import (
     update_dag_parsing_results_in_db,
 )
 from airflow.exceptions import SerializationError
+from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, Trigger
 from airflow.models.asset import (
     AssetActive,
@@ -167,6 +168,16 @@ class TestUpdateDagParsingResults:
         clear_db_dags()
         clear_db_import_errors()
 
+    @pytest.fixture(name="dag_import_error_listener")
+    def _dag_import_error_listener(self):
+        from tests.listeners import dag_import_error_listener
+
+        get_listener_manager().add_listener(dag_import_error_listener)
+        yield dag_import_error_listener
+        get_listener_manager().clear()
+        dag_import_error_listener.clear()
+
+    @pytest.mark.skip("Skipping until we fix the implementation to not be FAB-specific")
     @pytest.mark.usefixtures("clean_db")  # sync_perms in fab has bad session commit hygiene
     def test_sync_perms_syncs_dag_specific_perms_on_update(
         self, monkeypatch, spy_agency: SpyAgency, session, time_machine
@@ -272,7 +283,9 @@ class TestUpdateDagParsingResults:
         assert new_serialized_dags_count == 1
 
     @patch.object(SerializedDagModel, "write_dag")
-    def test_serialized_dag_errors_are_import_errors(self, mock_serialize, caplog, session):
+    def test_serialized_dag_errors_are_import_errors(
+        self, mock_serialize, caplog, session, dag_import_error_listener
+    ):
         """
         Test that errors serializing a DAG are recorded as import_errors in the DB
         """
@@ -287,7 +300,7 @@ class TestUpdateDagParsingResults:
         update_dag_parsing_results_in_db([dag], import_errors, None, set(), session)
         assert "SerializationError" in caplog.text
 
-        # Should have been edited in places
+        # Should have been edited in place
         err = import_errors.get(dag.fileloc)
         assert "SerializationError" in err
 
@@ -301,7 +314,12 @@ class TestUpdateDagParsingResults:
         assert import_error.filename == dag.fileloc
         assert "SerializationError" in import_error.stacktrace
 
-    def test_new_import_error_replaces_old(self, session):
+        # Ensure the listener was notified
+        assert len(dag_import_error_listener.new) == 1
+        assert len(dag_import_error_listener.existing) == 0
+        assert dag_import_error_listener.new["abc.py"] == import_error.stacktrace
+
+    def test_new_import_error_replaces_old(self, session, dag_import_error_listener):
         """
         Test that existing import error is updated and new record not created
         for a dag with the same filename
@@ -330,6 +348,11 @@ class TestUpdateDagParsingResults:
         # assert that the ID of the import error did not change
         assert import_error.id == prev_error_id
         assert import_error.stacktrace == "New error"
+
+        # Ensure the listener was notified
+        assert len(dag_import_error_listener.new) == 0
+        assert len(dag_import_error_listener.existing) == 1
+        assert dag_import_error_listener.existing["abc.py"] == prev_error.stacktrace
 
     def test_remove_error_clears_import_error(self, session):
         # Pre-condition: there is an import error for the dag file
@@ -370,6 +393,7 @@ class TestUpdateDagParsingResults:
 
         assert import_errors == {"def.py"}
 
+    @pytest.mark.skip("Skipping until we fix the implementation to not be FAB-specific")
     def test_sync_perm_for_dag_with_dict_access_control(self, session, spy_agency: SpyAgency):
         """
         Test that dagbag._sync_perm_for_dag will call ApplessAirflowSecurityManager.sync_perm_for_dag

@@ -18,11 +18,11 @@
 from __future__ import annotations
 
 import hashlib
-import importlib.util
 import os
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 # NOTE!. This script is executed from node environment created by pre-commit and this environment
@@ -52,18 +52,17 @@ if __name__ not in ("__main__", "__mp_main__"):
         f"To run this script, run the ./{__file__} command"
     )
 
-
-def compile_assets(www_directory: Path, www_hash_file_name: str):
+if __name__ == "__main__":
+    www_directory = AIRFLOW_SOURCES_PATH / "airflow" / "www"
     node_modules_directory = www_directory / "node_modules"
     dist_directory = www_directory / "static" / "dist"
-    www_hash_file = AIRFLOW_SOURCES_PATH / ".build" / "www" / www_hash_file_name
-    www_hash_file.parent.mkdir(exist_ok=True, parents=True)
+    WWW_HASH_FILE.parent.mkdir(exist_ok=True, parents=True)
     if node_modules_directory.exists() and dist_directory.exists():
-        old_hash = www_hash_file.read_text() if www_hash_file.exists() else ""
+        old_hash = WWW_HASH_FILE.read_text() if WWW_HASH_FILE.exists() else ""
         new_hash = get_directory_hash(www_directory, skip_path_regexp=r".*node_modules.*")
         if new_hash == old_hash:
             print("The WWW directory has not changed! Skip regeneration.")
-            return
+            sys.exit(0)
     else:
         shutil.rmtree(node_modules_directory, ignore_errors=True)
         shutil.rmtree(dist_directory, ignore_errors=True)
@@ -72,20 +71,4 @@ def compile_assets(www_directory: Path, www_hash_file_name: str):
     subprocess.check_call(["yarn", "install", "--frozen-lockfile"], cwd=os.fspath(www_directory))
     subprocess.check_call(["yarn", "run", "build"], cwd=os.fspath(www_directory), env=env)
     new_hash = get_directory_hash(www_directory, skip_path_regexp=r".*node_modules.*")
-    www_hash_file.write_text(new_hash)
-
-
-def is_fab_provider_installed() -> bool:
-    return importlib.util.find_spec("airflow.providers.fab") is not None
-
-
-if __name__ == "__main__":
-    # Compile assets for main
-    main_www_directory = AIRFLOW_SOURCES_PATH / "airflow" / "www"
-    compile_assets(main_www_directory, "hash.txt")
-    if is_fab_provider_installed():
-        # Compile assets for fab provider
-        fab_provider_www_directory = (
-            AIRFLOW_SOURCES_PATH / "providers" / "src" / "airflow" / "providers" / "fab" / "www"
-        )
-        compile_assets(fab_provider_www_directory, "hash_fab.txt")
+    WWW_HASH_FILE.write_text(new_hash)
