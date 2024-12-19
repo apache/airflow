@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,24 +15,38 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-import enum
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from airflow.sdk.execution_time.comms import ErrorResponse
+import attrs
 
 
-class AirflowRuntimeError(Exception):
-    def __init__(self, error: ErrorResponse):
-        self.error = error
-        super().__init__(f"{error.error.value}: {error.detail}")
+@attrs.define
+class Connection:
+    """
+    A connection to an external data source.
 
+    :param conn_id: The connection ID.
+    :param conn_type: The connection type.
+    :param description: The connection description.
+    :param host: The host.
+    :param login: The login.
+    :param password: The password.
+    :param schema: The schema.
+    :param port: The port number.
+    :param extra: Extra metadata. Non-standard data such as private/SSH keys can be saved here. JSON
+        encoded object.
+    """
 
-class ErrorType(enum.Enum):
-    CONNECTION_NOT_FOUND = "CONNECTION_NOT_FOUND"
-    VARIABLE_NOT_FOUND = "VARIABLE_NOT_FOUND"
-    XCOM_NOT_FOUND = "XCOM_NOT_FOUND"
-    GENERIC_ERROR = "GENERIC_ERROR"
+    conn_id: str
+    conn_type: str
+    description: str | None = None
+    host: str | None = None
+    schema: str | None = None
+    login: str | None = None
+    password: str | None = None
+    port: int | None = None
+    extra: str | None = None
+
+    def get_uri(self): ...
+
+    def get_hook(self): ...

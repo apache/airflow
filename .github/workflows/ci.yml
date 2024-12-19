@@ -496,6 +496,7 @@ jobs:
        needs.build-info.outputs.full-tests-needed == 'true')
     with:
       test-groups: ${{ needs.build-info.outputs.test-groups }}
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       core-test-types-list-as-string: ${{ needs.build-info.outputs.core-test-types-list-as-string }}
