@@ -39,7 +39,6 @@ from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_man
     AwsSecurityManagerOverride,
 )
 from airflow.providers.amazon.aws.auth_manager.views.auth import AwsAuthManagerAuthenticationViews
-from airflow.providers.amazon.version_compat import AIRFLOW_V_2_9_PLUS
 
 try:
     from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
@@ -82,11 +81,6 @@ class AwsAuthManager(BaseAuthManager):
     """
 
     def __init__(self, appbuilder: AirflowAppBuilder) -> None:
-        if not AIRFLOW_V_2_9_PLUS:
-            raise AirflowOptionalProviderFeatureException(
-                "``AwsAuthManager`` is compatible with Airflow versions >= 2.9."
-            )
-
         super().__init__(appbuilder)
         self._check_avp_schema_version()
 

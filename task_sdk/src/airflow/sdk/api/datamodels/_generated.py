@@ -102,6 +102,16 @@ class TIHeartbeatInfo(BaseModel):
     pid: Annotated[int, Field(title="Pid")]
 
 
+class TIRescheduleStatePayload(BaseModel):
+    """
+    Schema for updating TaskInstance to a up_for_reschedule state.
+    """
+
+    state: Annotated[Literal["up_for_reschedule"] | None, Field(title="State")] = "up_for_reschedule"
+    end_date: Annotated[datetime, Field(title="End Date")]
+    reschedule_date: Annotated[datetime, Field(title="Reschedule Date")]
+
+
 class TITargetStatePayload(BaseModel):
     """
     Schema for updating TaskInstance to a target state, excluding terminal and running states.
