@@ -197,7 +197,7 @@ class TestElasticsearchConfig:
 class TestOpenSearchConfig:
     """Tests opensearch configuration behaviors."""
 
-    def test_should_not_generate_a_document_if_opensearch_disabled(self):
+    def test_should_not_generate_secret_document_if_opensearch_disabled(self):
         docs = render_chart(
             values={"opensearch": {"enabled": False}},
             show_only=[OS_SECRET_TEMPLATE],
@@ -240,3 +240,107 @@ class TestOpenSearchConfig:
             "You must not set both values opensearch.secretName and opensearch.connection"
             in ex_ctx.value.stderr.decode()
         )
+
+    def test_scheduler_should_add_log_port_when_local_executor_and_opensearch_disabled(self):
+        docs = render_chart(
+            values={"executor": "LocalExecutor"},
+            show_only=[SCHEDULER_DEPLOYMENT_TEMPLATE],
+        )
+
+        assert jmespath.search("spec.template.spec.containers[0].ports", docs[0]) == [
+            {"name": "worker-logs", "containerPort": 8793}
+        ]
+
+    def test_scheduler_should_omit_log_port_when_opensearch_enabled(self):
+        docs = render_chart(
+            values={
+                "executor": "LocalExecutor",
+                "opensearch": {
+                    "enabled": True,
+                    "secretName": "test-elastic-secret",
+                },
+            },
+            show_only=[SCHEDULER_DEPLOYMENT_TEMPLATE],
+        )
+
+        assert "ports" not in jmespath.search("spec.template.spec.containers[0]", docs[0])
+
+    def test_env_should_omit_opensearch_host_var_if_os_disabled(self):
+        docs = render_chart(
+            values={},
+            show_only=[SCHEDULER_DEPLOYMENT_TEMPLATE],
+        )
+
+        scheduler_env_keys = jmespath.search("spec.template.spec.containers[0].env[*].name", docs[0])
+        assert "AIRFLOW__OPENSEARCH__HOST" not in scheduler_env_keys
+
+    def test_env_should_add_opensearch_host_var_if_os_enabled(self):
+        docs = render_chart(
+            values={
+                "opensearch": {
+                    "enabled": True,
+                    "secretName": "test-opensearch-secret",
+                },
+            },
+            show_only=[SCHEDULER_DEPLOYMENT_TEMPLATE],
+        )
+
+        scheduler_env = jmespath.search("spec.template.spec.containers[0].env", docs[0])
+        assert {
+            "name": "AIRFLOW__OPENSEARCH__HOST",
+            "valueFrom": {"secretKeyRef": {"name": "test-opensearch-secret", "key": "connection"}},
+        } in scheduler_env
+
+    def test_airflow_cfg_should_set_remote_logging_false_if_os_disabled(self):
+        docs = render_chart(
+            values={},
+            show_only=[CONFIGMAP_TEMPLATE],
+        )
+
+        airflow_cfg_text = jmespath.search('data."airflow.cfg"', docs[0])
+
+        core_lines = CORE_CFG_REGEX.findall(airflow_cfg_text)[0].strip().splitlines()
+        assert "remote_logging = False" in core_lines
+
+        logging_lines = LOGGING_CFG_REGEX.findall(airflow_cfg_text)[0].strip().splitlines()
+        assert "remote_logging = False" in logging_lines
+
+    def test_airflow_cfg_should_set_remote_logging_true_if_os_enabled(self):
+        docs = render_chart(
+            values={
+                "opensearch": {
+                    "enabled": True,
+                    "secretName": "test-elastic-secret",
+                },
+            },
+            show_only=[CONFIGMAP_TEMPLATE],
+        )
+
+        airflow_cfg_text = jmespath.search('data."airflow.cfg"', docs[0])
+
+        core_lines = CORE_CFG_REGEX.findall(airflow_cfg_text)[0].strip().splitlines()
+        assert "remote_logging = True" in core_lines
+
+        logging_lines = LOGGING_CFG_REGEX.findall(airflow_cfg_text)[0].strip().splitlines()
+        assert "remote_logging = True" in logging_lines
+
+
+def test_should_raise_error_when_both_elasticsearch_and_opensearch_enabled():
+    with pytest.raises(CalledProcessError) as ex_ctx:
+        render_chart(
+            values={
+                "elasticsearch": {
+                    "enabled": True,
+                    "secretName": "test-elastic-secret",
+                },
+                "opensearch": {
+                    "enabled": True,
+                    "secretName": "test-elastic-secret",
+                },
+            },
+            show_only=[SCHEDULER_DEPLOYMENT_TEMPLATE],
+        )
+    assert (
+        "You must not set both values elasticsearch.enabled and opensearch.enabled"
+        in ex_ctx.value.stderr.decode()
+    )
