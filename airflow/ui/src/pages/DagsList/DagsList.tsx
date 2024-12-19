@@ -42,7 +42,7 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import { TogglePause } from "src/components/TogglePause";
-import TriggerDAGIconButton from "src/components/TriggerDag/TriggerDAGIconButton";
+import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
 import {
   SearchParamsKeys,
   type SearchParamsKeysType,
@@ -128,7 +128,7 @@ const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
   },
   {
     accessorKey: "trigger",
-    cell: ({ row }) => <TriggerDAGIconButton dag={row.original} />,
+    cell: ({ row }) => <TriggerDAGButton dag={row.original} withText={false} />,
     enableSorting: false,
     header: "",
   },

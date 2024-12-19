@@ -16,19 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Box,
-  type ButtonProps,
-  IconButton,
-  useDisclosure,
-} from "@chakra-ui/react";
-import { type FC, useState } from "react";
+import { Box, useDisclosure } from "@chakra-ui/react";
+import { useState } from "react";
 import { FiRefreshCw } from "react-icons/fi";
 
 import type { TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
-import { Button, Tooltip } from "src/components/ui";
 import { useClearDagRun } from "src/queries/useClearRun";
 
+import ActionButton from "../ui/ActionButton";
 import ClearRunDialog from "./ClearRunDialog";
 
 type Props = {
@@ -48,8 +43,6 @@ const ClearRunButton = ({ dagId, dagRunId, withText = true }: Props) => {
       total_entries: 0,
     });
 
-  const ButtonComponent: FC<ButtonProps> = withText ? Button : IconButton;
-
   const { isPending, mutate } = useClearDagRun({
     dagId,
     dagRunId,
@@ -59,25 +52,20 @@ const ClearRunButton = ({ dagId, dagRunId, withText = true }: Props) => {
 
   return (
     <Box>
-      <Tooltip content="Clear Dag Run" disabled={Boolean(withText)}>
-        <ButtonComponent
-          aria-label="Clear Dag Run"
-          colorPalette={withText ? undefined : "blue"}
-          onClick={() => {
-            onOpen();
-            mutate({
-              dagId,
-              dagRunId,
-              requestBody: { dry_run: true, only_failed: onlyFailed },
-            });
-          }}
-          size={withText ? "md" : "sm"}
-          variant={withText ? "outline" : "ghost"}
-        >
-          <FiRefreshCw />
-          {withText ? "Clear Run" : ""}
-        </ButtonComponent>
-      </Tooltip>
+      <ActionButton
+        actionName="Clear Dag Run"
+        icon={<FiRefreshCw />}
+        onClick={() => {
+          onOpen();
+          mutate({
+            dagId,
+            dagRunId,
+            requestBody: { dry_run: true, only_failed: onlyFailed },
+          });
+        }}
+        text="Clear Run"
+        withText={withText}
+      />
 
       <ClearRunDialog
         affectedTasks={affectedTasks}
