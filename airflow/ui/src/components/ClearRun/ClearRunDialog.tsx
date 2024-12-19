@@ -104,7 +104,7 @@ const ClearRunDialog = ({
                 { label: "Clear only failed tasks", value: "only_failed" },
                 {
                   disabled: true,
-                  label: "Queued up new tasks",
+                  label: "Queue up new tasks",
                   value: "new_tasks",
                 },
               ]}

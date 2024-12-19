@@ -56,7 +56,8 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
     header: () => "State",
   },
   {
-    accessorKey: "map_index",
+    accessorFn: (row: TaskInstanceResponse) =>
+      row.rendered_map_index ?? row.map_index,
     enableSorting: false,
     header: "Map Index",
   },
