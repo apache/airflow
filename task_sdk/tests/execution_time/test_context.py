@@ -51,15 +51,13 @@ def test_convert_connection_result_conn():
 
 
 class TestConnectionAccessor:
-    def test_lazy_fetch_connection(self):
+    def test_getattr_connection(self):
         """
-        Test that the connection is lazily fetched when accessed and also using __getattr__.
+        Test that the connection is fetched when accessed via __getattr__.
 
         The __getattr__ method is used for template rendering. Example: ``{{ conn.mysql_conn.host }}``.
         """
         accessor = ConnectionAccessor()
-        # conn is not fetched yet
-        assert accessor.conn is None
 
         # Conn from the supervisor / API Server
         conn_result = ConnectionResult(conn_id="mysql_conn", conn_type="mysql", host="mysql", port=3306)
@@ -74,7 +72,6 @@ class TestConnectionAccessor:
 
             expected_conn = Connection(conn_id="mysql_conn", conn_type="mysql", host="mysql", port=3306)
             assert conn == expected_conn
-            assert accessor.conn == expected_conn
 
     def test_get_method_valid_connection(self):
         """Test that the get method returns the requested connection using `conn.get`."""

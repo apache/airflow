@@ -59,7 +59,7 @@ from airflow.sdk.api.datamodels._generated import (
     VariableResponse,
     XComResponse,
 )
-from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.exceptions import ErrorType
 
 
 class StartupDetails(BaseModel):
@@ -102,10 +102,6 @@ class ErrorResponse(BaseModel):
     error: ErrorType = ErrorType.GENERIC_ERROR
     detail: dict | None = None
     type: Literal["ErrorResponse"] = "ErrorResponse"
-
-    def raise_as_exception(self):
-        """Raise an exception based on this error."""
-        raise AirflowRuntimeError(self)
 
 
 ToTask = Annotated[

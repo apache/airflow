@@ -37,6 +37,7 @@ from airflow.sdk.execution_time.comms import (
     StartupDetails,
     TaskState,
 )
+from airflow.sdk.execution_time.context import ConnectionAccessor
 from airflow.sdk.execution_time.task_runner import CommsDecoder, RuntimeTaskInstance, parse, run, startup
 from airflow.utils import timezone
 
@@ -406,7 +407,7 @@ class TestRuntimeTaskInstance:
 
         # Verify the context keys and values
         assert context == {
-            "conn": None,
+            "conn": ConnectionAccessor(),
             "dag": runtime_ti.task.dag,
             "inlets": task.inlets,
             "map_index_template": task.map_index_template,
@@ -439,7 +440,7 @@ class TestRuntimeTaskInstance:
         context = runtime_ti.get_template_context()
 
         assert context == {
-            "conn": None,
+            "conn": ConnectionAccessor(),
             "dag": runtime_ti.task.dag,
             "inlets": task.inlets,
             "map_index_template": task.map_index_template,

@@ -47,7 +47,7 @@ def _get_connection(conn_id: str) -> Connection:
     SUPERVISOR_COMMS.send_request(log=log, msg=GetConnection(conn_id=conn_id))
     msg = SUPERVISOR_COMMS.get_message()
     if isinstance(msg, ErrorResponse):
-        msg.raise_as_exception()
+        raise AirflowRuntimeError(msg)
 
     if TYPE_CHECKING:
         assert isinstance(msg, ConnectionResult)
@@ -57,18 +57,17 @@ def _get_connection(conn_id: str) -> Connection:
 class ConnectionAccessor:
     """Wrapper to access Connection entries in template."""
 
-    def __init__(self) -> None:
-        self.conn: Any = None
-
-    def __getattr__(self, key: str) -> Any:
-        self.conn = _get_connection(key)
-        return self.conn
+    def __getattr__(self, conn_id: str) -> Any:
+        return _get_connection(conn_id)
 
     def __repr__(self) -> str:
-        return str(self.conn)
+        return "<ConnectionAccessor (dynamic access)>"
 
     def __eq__(self, other):
-        return self.conn == other
+        if not isinstance(other, ConnectionAccessor):
+            return False
+        # All instances of ConnectionAccessor are equal since it is a stateless dynamic accessor
+        return True
 
     def get(self, conn_id: str, default_conn: Any = None) -> Any:
         try:
