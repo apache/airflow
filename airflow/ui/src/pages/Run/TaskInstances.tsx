@@ -18,7 +18,6 @@
  */
 import { Box, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import dayjs from "dayjs";
 import { Link as RouterLink, useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
@@ -28,6 +27,7 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 import { Status } from "src/components/ui";
+import { getDuration } from "src/utils";
 
 const columns: Array<ColumnDef<TaskInstanceResponse>> = [
   {
@@ -82,7 +82,7 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
 
   {
     cell: ({ row: { original } }) =>
-      `${dayjs.duration(dayjs(original.end_date).diff(original.start_date)).asSeconds().toFixed(2)}s`,
+      `${getDuration(original.start_date, original.end_date)}s`,
     header: "Duration",
   },
 ];
@@ -95,13 +95,17 @@ export const TaskInstances = () => {
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-start_date";
 
   const { data, error, isFetching, isLoading } =
-    useTaskInstanceServiceGetTaskInstances({
-      dagId,
-      dagRunId: runId,
-      limit: pagination.pageSize,
-      offset: pagination.pageIndex * pagination.pageSize,
-      orderBy,
-    });
+    useTaskInstanceServiceGetTaskInstances(
+      {
+        dagId,
+        dagRunId: runId,
+        limit: pagination.pageSize,
+        offset: pagination.pageIndex * pagination.pageSize,
+        orderBy,
+      },
+      undefined,
+      { enabled: !isNaN(pagination.pageSize) },
+    );
 
   return (
     <Box>
