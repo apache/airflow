@@ -177,7 +177,7 @@ class TestUpdateDagParsingResults:
         get_listener_manager().clear()
         dag_import_error_listener.clear()
 
-    @pytest.mark.skip("Skipping until we fix the implementation to not be based on FAB")
+    @pytest.mark.skip("Skipping until we fix the implementation to not be FAB-specific")
     @pytest.mark.usefixtures("clean_db")  # sync_perms in fab has bad session commit hygiene
     def test_sync_perms_syncs_dag_specific_perms_on_update(
         self, monkeypatch, spy_agency: SpyAgency, session, time_machine
