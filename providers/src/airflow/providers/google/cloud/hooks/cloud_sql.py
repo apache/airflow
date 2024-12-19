@@ -504,6 +504,13 @@ class CloudSqlProxyRunner(LoggingMixin):
     :param sql_proxy_binary_path: If specified, then proxy will be
         used from the path specified rather than dynamically generated. This means
         that if the binary is not present in that path it will also be downloaded.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity.
     """
 
     def __init__(
@@ -514,6 +521,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         project_id: str = PROVIDE_PROJECT_ID,
         sql_proxy_version: str | None = None,
         sql_proxy_binary_path: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__()
         self.path_prefix = path_prefix
@@ -527,15 +535,31 @@ class CloudSqlProxyRunner(LoggingMixin):
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.command_line_parameters: list[str] = []
+        self.impersonation_chain = impersonation_chain
         self.cloud_sql_proxy_socket_directory = self.path_prefix
         self.sql_proxy_path = sql_proxy_binary_path or f"{self.path_prefix}_cloud_sql_proxy"
         self.credentials_path = self.path_prefix + "_credentials.json"
         self._build_command_line_parameters()
 
     def _build_command_line_parameters(self) -> None:
-        self.command_line_parameters.extend(["-dir", self.cloud_sql_proxy_socket_directory])
-        self.command_line_parameters.extend(["-instances", self.instance_specification])
+        """Build command line parameters with v2 support."""
+        self.command_line_parameters = []  # Initialize empty list
+        is_v2 = self._is_v2_proxy()
+        param_prefix = "--" if is_v2 else "-"
 
+        if is_v2:
+            # Use v2 specific parameters
+            self.command_line_parameters.extend([
+                f"{param_prefix}dir", self.cloud_sql_proxy_socket_directory,
+                f"{param_prefix}instance-connection-name", self.instance_specification,
+            ])
+        else:
+            # Backward compatibility parameters
+            self.command_line_parameters.extend([
+                f"{param_prefix}dir", self.cloud_sql_proxy_socket_directory,
+                f"{param_prefix}instances", self.instance_specification,
+            ])
+    
     @staticmethod
     def _is_os_64bit() -> bool:
         return platform.machine().endswith("64")
@@ -590,14 +614,26 @@ class CloudSqlProxyRunner(LoggingMixin):
         extras = GoogleBaseHook.get_connection(conn_id=self.gcp_conn_id).extra_dejson
         key_path = get_field(extras, "key_path")
         keyfile_dict = get_field(extras, "keyfile_dict")
-        if key_path:
-            credential_params = ["-credential_file", key_path]
+        credential_params = []
+        
+        if self.impersonation_chain:
+            target_principal = (
+                self.impersonation_chain[-1]
+                if isinstance(self.impersonation_chain, Sequence) and not isinstance(self.impersonation_chain, str)
+                else self.impersonation_chain
+            )
+            param_prefix = "--" if self._is_v2_proxy() else "-"
+            credential_params = [f"{param_prefix}impersonate-service-account", target_principal]
+        elif key_path:
+            param_prefix = "--" if self._is_v2_proxy() else "-"
+            credential_params = [f"{param_prefix}credential-file", key_path]
         elif keyfile_dict:
             keyfile_content = keyfile_dict if isinstance(keyfile_dict, dict) else json.loads(keyfile_dict)
             self.log.info("Saving credentials to %s", self.credentials_path)
             with open(self.credentials_path, "w") as file:
                 json.dump(keyfile_content, file)
-            credential_params = ["-credential_file", self.credentials_path]
+            param_prefix = "--" if self._is_v2_proxy() else "-"
+            credential_params = [f"{param_prefix}credential-file", self.credentials_path]
         else:
             self.log.info(
                 "The credentials are not supplied by neither key_path nor "
@@ -605,10 +641,9 @@ class CloudSqlProxyRunner(LoggingMixin):
                 "default activated account",
                 self.gcp_conn_id,
             )
-            credential_params = []
 
         if not self.instance_specification:
-            project_id = get_field(extras, "project")
+            project_id = get_field(extras, "project") or self.project_id
             if self.project_id:
                 project_id = self.project_id
             if not project_id:
@@ -618,8 +653,16 @@ class CloudSqlProxyRunner(LoggingMixin):
                     "by project_id extra in the Google Cloud connection or by "
                     "project_id provided in the operator."
                 )
-            credential_params.extend(["-projects", project_id])
+            param_prefix = "--" if self._is_v2_proxy() else "-"
+            credential_params.extend([f"{param_prefix}projects", project_id])
         return credential_params
+    
+    def _is_v2_proxy(self) -> bool:
+        """Check if using cloud-sql-proxy v2."""
+        if not self.sql_proxy_version or not str(self.sql_proxy_version).strip():
+            return False
+        version_match = re.match(r"v?(\d+)\.", self.sql_proxy_version)
+        return version_match and int(version_match.group(1)) >= 2
 
     def start_proxy(self) -> None:
         """
@@ -1144,6 +1187,7 @@ class CloudSQLDatabaseHook(BaseHook):
             sql_proxy_version=self.sql_proxy_version,
             sql_proxy_binary_path=self.sql_proxy_binary_path,
             gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
 
     def get_database_hook(self, connection: Connection) -> BaseHook:
