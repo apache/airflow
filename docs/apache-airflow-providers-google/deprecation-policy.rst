@@ -43,12 +43,13 @@ The entire procedure of deprecating (either method, parameter or operator) consi
       from airflow.providers.google.common.deprecated import deprecated
       from airflow.exceptions import AirflowProviderDeprecationWarning
 
+
       @deprecated(
           planned_removal_date="September 30, 2025",
-          use_instead="airflow.providers.google.cloud.hooks.vertex_ai.auto_ml.AutoMLHook, "
+          use_instead="airflow.providers.google.cloud.hooks.vertex_ai.auto_ml.AutoMLHook",
           category=AirflowProviderDeprecationWarning,
       )
-
+      def example() -> None: ...
 
   - Once the date of the deprecated method/parameter/operator is passed, it can be removed together with bumping major version of the package.
 
