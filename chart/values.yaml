@@ -2607,9 +2607,9 @@ config:
     executor: '{{ .Values.executor }}'
     # For Airflow 1.10, backward compatibility; moved to [logging] in 2.0
     colored_console_log: 'False'
-    remote_logging: '{{- ternary "True" "False" .Values.elasticsearch.enabled }}'
+    remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
   logging:
-    remote_logging: '{{- ternary "True" "False" .Values.elasticsearch.enabled }}'
+    remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
     colored_console_log: 'False'
   metrics:
     statsd_on: '{{ ternary "True" "False" .Values.statsd.enabled }}'
