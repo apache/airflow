@@ -35,14 +35,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.0.0
+.....
+
+Latest change: 2024-12-16
+
+=================================================================================================  ===========  ============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`8cd2f8249d <https://github.com/apache/airflow/commit/8cd2f8249dbd9f4d30f3ad73bb8eed785043ed7b>`_  2024-12-07   ``Remove deprecated code from Pagerduty provider  (#44653)``
+=================================================================================================  ===========  ============================================================
+
 3.8.1
 .....
 
-Latest change: 2024-10-09
+Latest change: 2024-11-14
 
 =================================================================================================  ===========  ========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
 `857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
 `a5ffbbda17 <https://github.com/apache/airflow/commit/a5ffbbda17450a5c99037b292844087119b5676a>`_  2024-10-09   ``Standard provider bash operator (#42252)``
 `55fe75d083 <https://github.com/apache/airflow/commit/55fe75d083499c6fbaaca35d6dbad4487f4a9ad0>`_  2024-09-25   ``Purge existing SLA implementation (#42285)``
