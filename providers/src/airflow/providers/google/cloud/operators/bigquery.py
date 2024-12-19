@@ -44,7 +44,7 @@ from airflow.providers.common.sql.operators.sql import (  # type: ignore[attr-de
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.providers.google.cloud.links.bigquery import BigQueryDatasetLink, BigQueryTableLink
-from airflow.providers.google.cloud.openlineage.mixins import _BigQueryOpenLineageMixin
+from airflow.providers.google.cloud.openlineage.mixins import _BigQueryInsertJobOperatorOpenLineageMixin
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryCheckTrigger,
@@ -2487,7 +2487,7 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
         return table
 
 
-class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMixin):
+class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOperatorOpenLineageMixin):
     """
     Execute a BigQuery job.
 
