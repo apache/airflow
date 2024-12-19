@@ -1930,6 +1930,12 @@ class LazyDeserializedDAG(pydantic.BaseModel):
     def has_task_concurrency_limits(self) -> bool:
         return any(task.get("max_active_tis_per_dag") is not None for task in self.data["dag"]["tasks"])
 
+    @property
+    def owner(self) -> str:
+        return ", ".join(
+            set(filter(None, (task[Encoding.VAR].get("owner") for task in self.data["dag"]["tasks"])))
+        )
+
     def get_task_assets(
         self,
         inlets: bool = True,

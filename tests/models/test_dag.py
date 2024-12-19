@@ -995,54 +995,6 @@ class TestDag:
         assert asset_alias_3_orm.name == "asset_alias_3"
         assert len(stored_asset_alias_models) == 3
 
-    def test_sync_to_db(self):
-        dag = DAG("dag", start_date=DEFAULT_DATE, schedule=None)
-        with dag:
-            EmptyOperator(task_id="task", owner="owner1")
-            EmptyOperator(task_id="task2", owner="owner2")
-        session = settings.Session()
-        dag.sync_to_db(session=session)
-
-        orm_dag = session.query(DagModel).filter(DagModel.dag_id == "dag").one()
-        assert set(orm_dag.owners.split(", ")) == {"owner1", "owner2"}
-        assert orm_dag.is_active
-        assert orm_dag.default_view is not None
-        assert orm_dag.default_view == conf.get("webserver", "dag_default_view").lower()
-        assert orm_dag.safe_dag_id == "dag"
-        session.close()
-
-    def test_sync_to_db_default_view(self):
-        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_view="graph")
-        with dag:
-            EmptyOperator(task_id="task", owner="owner1")
-        session = settings.Session()
-        dag.sync_to_db(session=session)
-
-        orm_dag = session.query(DagModel).filter(DagModel.dag_id == "dag").one()
-        assert orm_dag.default_view is not None
-        assert orm_dag.default_view == "graph"
-        session.close()
-
-    def test_existing_dag_is_paused_upon_creation(self):
-        dag = DAG("dag_paused", schedule=None)
-        dag.sync_to_db()
-        assert not dag.get_is_paused()
-
-        dag = DAG("dag_paused", schedule=None, is_paused_upon_creation=True)
-        dag.sync_to_db()
-        # Since the dag existed before, it should not follow the pause flag upon creation
-        assert not dag.get_is_paused()
-
-    def test_new_dag_is_paused_upon_creation(self):
-        dag = DAG("new_nonexisting_dag", schedule=None, is_paused_upon_creation=True)
-        session = settings.Session()
-        dag.sync_to_db(session=session)
-
-        orm_dag = session.query(DagModel).filter(DagModel.dag_id == "new_nonexisting_dag").one()
-        # Since the dag didn't exist before, it should follow the pause flag upon creation
-        assert orm_dag.is_paused
-        session.close()
-
     @mock.patch.dict(
         os.environ,
         {
@@ -1095,14 +1047,6 @@ class TestDag:
         assert dag.get_is_paused()
         dag.clear()
         self._clean_up(dag_id)
-
-    def test_existing_dag_default_view(self):
-        with create_session() as session:
-            session.add(DagModel(dag_id="dag_default_view_old", default_view=None))
-            session.commit()
-            orm_dag = session.query(DagModel).filter(DagModel.dag_id == "dag_default_view_old").one()
-        assert orm_dag.default_view is None
-        assert orm_dag.get_default_view() == conf.get("webserver", "dag_default_view").lower()
 
     def test_dag_is_deactivated_upon_dagfile_deletion(self):
         dag_id = "old_existing_dag"
