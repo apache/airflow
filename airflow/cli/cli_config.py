@@ -551,6 +551,11 @@ ARG_FORCE = Arg(
     action="store_true",
 )
 ARG_RAW = Arg(("-r", "--raw"), argparse.SUPPRESS, "store_true")
+ARG_CARRIER = Arg(
+    ("-c", "--carrier"),
+    help="Context Carrier, containing the injected context for the Otel task span",
+    type=str,
+)
 ARG_IGNORE_ALL_DEPENDENCIES = Arg(
     ("-A", "--ignore-all-dependencies"),
     help="Ignores all non-critical dependencies, including ignore_ti_state and ignore_task_deps",
@@ -1316,6 +1321,7 @@ TASKS_COMMANDS = (
             ARG_CFG_PATH,
             ARG_LOCAL,
             ARG_RAW,
+            ARG_CARRIER,
             ARG_IGNORE_ALL_DEPENDENCIES,
             ARG_IGNORE_DEPENDENCIES,
             ARG_DEPENDS_ON_PAST,
