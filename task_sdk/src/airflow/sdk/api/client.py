@@ -35,6 +35,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
+    TIRescheduleStatePayload,
     TIRunContext,
     TITerminalStatePayload,
     ValidationError as RemoteValidationError,
@@ -48,6 +49,7 @@ from airflow.utils.platform import getuser
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from airflow.sdk.execution_time.comms import RescheduleTask
     from airflow.typing_compat import ParamSpec
 
     P = ParamSpec("P")
@@ -135,6 +137,13 @@ class TaskInstanceOperations:
         body = TIDeferredStatePayload(**msg.model_dump(exclude_unset=True))
 
         # Create a deferred state payload from msg
+        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
+
+    def reschedule(self, id: uuid.UUID, msg: RescheduleTask):
+        """Tell the API server that this TI has been reschduled."""
+        body = TIRescheduleStatePayload(**msg.model_dump(exclude_unset=True))
+
+        # Create a reschedule state payload from msg
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
     def set_rtif(self, id: uuid.UUID, body: dict[str, str]) -> dict[str, bool]:

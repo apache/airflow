@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 from collections.abc import MutableMapping, MutableSequence, Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from google.api_core.exceptions import GoogleAPICallError
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -28,6 +28,7 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.translate import CloudTranslateHook, TranslateHook
 from airflow.providers.google.cloud.links.translate import (
+    TranslateResultByOutputConfigLink,
     TranslateTextBatchLink,
     TranslationDatasetsListLink,
     TranslationModelLink,
@@ -40,7 +41,11 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from google.cloud.translate_v3.types import (
+        BatchDocumentInputConfig,
+        BatchDocumentOutputConfig,
         DatasetInputConfig,
+        DocumentInputConfig,
+        DocumentOutputConfig,
         InputConfig,
         OutputConfig,
         TranslateTextGlossaryConfig,
@@ -978,3 +983,328 @@ class TranslateDeleteModelOperator(GoogleCloudBaseOperator):
         )
         hook.wait_for_operation_done(operation=operation, timeout=self.timeout)
         self.log.info("Model deletion complete!")
+
+
+class TranslateDocumentOperator(GoogleCloudBaseOperator):
+    """
+    Translate document provided.
+
+    Wraps the Google cloud Translate Text (Advanced) functionality.
+    Supports wide range of input/output file types, please visit the
+    https://cloud.google.com/translate/docs/advanced/translate-documents for more details.
+
+    For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:TranslateDocumentOperator`.
+
+    :param project_id: Optional. The ID of the Google Cloud project that the
+        service belongs to. If not specified the hook project_id will be used.
+    :param source_language_code: Optional. The ISO-639 language code of the
+        input document text if known. If the source language isn't specified,
+        the API attempts to identify the source language automatically and returns
+        the source language within the response.
+    :param target_language_code: Required. The ISO-639 language code to use
+        for translation of the input document text.
+    :param location: Optional. Project or location to make a call. Must refer to a caller's project.
+        If not specified, 'global' is used.
+        Non-global location is required for requests using AutoML models or custom glossaries.
+        Models and glossaries must be within the same region (have the same location-id).
+    :param document_input_config: A document translation request input config.
+    :param document_output_config: Optional. A document translation request output config.
+        If not provided the translated file will only be returned through a byte-stream
+        and its output mime type will be the same as the input file's mime type.
+    :param customized_attribution: Optional. This flag is to support user customized
+        attribution. If not provided, the default is ``Machine Translated by Google``.
+        Customized attribution should follow rules in
+        https://cloud.google.com/translate/attribution#attribution_and_logos
+    :param is_translate_native_pdf_only: Optional. Param for external customers.
+        If true, the page limit of online native PDF translation is 300 and only native PDF pages
+        will be translated.
+    :param enable_shadow_removal_native_pdf: Optional. If true, use the text removal server to remove the
+        shadow text on background image for native PDF translation.
+        Shadow removal feature can only be enabled when both ``is_translate_native_pdf_only``,
+        ``pdf_native_only`` are False.
+    :param enable_rotation_correction: Optional. If true, enable auto rotation
+        correction in DVS.
+    :param model: Optional. The ``model`` type requested for this translation.
+        If not provided, the default Google model (NMT) will be used.
+        The format depends on model type:
+
+        -  AutoML Translation models:
+           ``projects/{project-number-or-id}/locations/{location-id}/models/{model-id}``
+        -  General (built-in) models:
+           ``projects/{project-number-or-id}/locations/{location-id}/models/general/nmt``
+
+        If not provided, the default Google model (NMT) will be used
+        for translation.
+    :param glossary_config: Optional. Glossary to be applied.
+    :param transliteration_config: Optional. Transliteration to be applied.
+    :param retry: Designation of what errors, if any, should be retried.
+    :param timeout: The timeout for this request.
+    :param metadata:  Strings which should be sent along with the request as metadata.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    operator_extra_links = (TranslateResultByOutputConfigLink(),)
+
+    template_fields: Sequence[str] = (
+        "source_language_code",
+        "target_language_code",
+        "document_input_config",
+        "document_output_config",
+        "model",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+
+    def __init__(
+        self,
+        *,
+        location: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+        source_language_code: str | None = None,
+        target_language_code: str,
+        document_input_config: DocumentInputConfig | dict,
+        document_output_config: DocumentOutputConfig | dict | None,
+        customized_attribution: str | None = None,
+        is_translate_native_pdf_only: bool = False,
+        enable_shadow_removal_native_pdf: bool = False,
+        enable_rotation_correction: bool = False,
+        model: str | None = None,
+        glossary_config: TranslateTextGlossaryConfig | None = None,
+        labels: str | None = None,
+        timeout: float | _MethodDefault = DEFAULT,
+        retry: Retry | _MethodDefault | None = DEFAULT,
+        metadata: Sequence[tuple[str, str]] = (),
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.source_language_code = source_language_code
+        self.target_language_code = target_language_code
+        self.document_input_config = document_input_config
+        self.document_output_config = document_output_config
+        self.customized_attribution = customized_attribution
+        self.is_translate_native_pdf_only = is_translate_native_pdf_only
+        self.enable_shadow_removal_native_pdf = enable_shadow_removal_native_pdf
+        self.enable_rotation_correction = enable_rotation_correction
+        self.location = location
+        self.labels = labels
+        self.model = model
+        self.glossary_config = glossary_config
+        self.metadate = metadata
+        self.timeout = timeout
+        self.retry = retry
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context) -> dict:
+        hook = TranslateHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        try:
+            self.log.info("Starting the document translation")
+            doc_translation_result = hook.translate_document(
+                source_language_code=self.source_language_code,
+                target_language_code=self.target_language_code,
+                document_input_config=self.document_input_config,
+                document_output_config=self.document_output_config,
+                customized_attribution=self.customized_attribution,
+                is_translate_native_pdf_only=self.is_translate_native_pdf_only,
+                enable_shadow_removal_native_pdf=self.enable_shadow_removal_native_pdf,
+                enable_rotation_correction=self.enable_rotation_correction,
+                location=self.location,
+                labels=self.labels,
+                model=self.model,
+                glossary_config=self.glossary_config,
+                timeout=self.timeout,
+                retry=self.retry,
+                metadata=self.metadate,
+            )
+            self.log.info("Document translation completed")
+        except GoogleAPICallError as e:
+            self.log.error("An error occurred executing translate_document method: \n%s", e)
+            raise AirflowException(e)
+        if self.document_output_config:
+            TranslateResultByOutputConfigLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=self.project_id or hook.project_id,
+                output_config=self.document_output_config,
+            )
+        return cast(dict, type(doc_translation_result).to_dict(doc_translation_result))
+
+
+class TranslateDocumentBatchOperator(GoogleCloudBaseOperator):
+    """
+    Translate documents provided via input and output configurations.
+
+    Up to 10 target languages per operation supported.
+    Wraps the Google cloud Translate Text (Advanced) functionality.
+    See https://cloud.google.com/translate/docs/advanced/batch-translation.
+
+    For more information on how to use this operator, take a look at the guide:
+    :ref:`howto/operator:TranslateDocumentBatchOperator`.
+
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :param source_language_code: Optional. The ISO-639 language code of the
+        input text if known. If the source language isn't specified, the API attempts to identify
+        the source language automatically and returns the source language within the response.
+    :param target_language_codes: Required. The ISO-639 language code to use
+        for translation of the input document. Specify up to 10 language codes here.
+    :param location: Optional. Project or location to make a call. Must refer to
+        a caller's project. If not specified, 'global' is used.
+        Non-global location is required for requests using AutoML models or custom glossaries.
+        Models and glossaries must be within the same region (have the same location-id).
+    :param input_configs: Input configurations. The total number of files matched should be <=
+        100. The total content size to translate should be <= 100M Unicode codepoints.
+        The files must use UTF-8 encoding.
+    :param output_config: Output configuration. If 2 input configs match to the same file (that
+        is, same input path), no output for duplicate inputs will be generated.
+    :param format_conversions: Optional. The file format conversion map that is applied to
+        all input files. The map key is the original mime_type.
+        The map value is the target mime_type of translated documents.
+        Supported file format conversion includes:
+
+        -  ``application/pdf`` to
+           ``application/vnd.openxmlformats-officedocument.wordprocessingml.document``
+
+        If nothing specified, output files will be in the same format as the original file.
+    :param customized_attribution: Optional. This flag is to support user customized
+        attribution. If not provided, the default is ``Machine Translated by Google``.
+        Customized attribution should follow rules in
+        https://cloud.google.com/translate/attribution#attribution_and_logos
+    :param enable_shadow_removal_native_pdf: Optional. If true, use the text removal server to remove the
+        shadow text on background image for native PDF translation.
+        Shadow removal feature can only be enabled when both ``is_translate_native_pdf_only``,
+        ``pdf_native_only`` are False.
+    :param enable_rotation_correction: Optional. If true, enable auto rotation
+        correction in DVS.
+    :param models: Optional. The models to use for translation. Map's key is
+        target language code. Map's value is the model name. Value
+        can be a built-in general model, or an AutoML Translation model.
+        The value format depends on model type:
+
+        -  AutoML Translation models:
+           ``projects/{project-number-or-id}/locations/{location-id}/models/{model-id}``
+
+        -  General (built-in) models:
+           ``projects/{project-number-or-id}/locations/{location-id}/models/general/nmt``,
+
+        If the map is empty or a specific model is not requested for
+        a language pair, then default google model (NMT) is used.
+    :param glossaries: Glossaries to be applied. It's keyed by target language code.
+    :param retry: Designation of what errors, if any, should be retried.
+    :param timeout: The timeout for this request.
+    :param metadata:  Strings which should be sent along with the request as metadata.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    operator_extra_links = (TranslateResultByOutputConfigLink(),)
+
+    template_fields: Sequence[str] = (
+        "input_configs",
+        "output_config",
+        "target_language_codes",
+        "source_language_code",
+        "models",
+        "glossaries",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+
+    def __init__(
+        self,
+        *,
+        project_id: str = PROVIDE_PROJECT_ID,
+        source_language_code: str,
+        target_language_codes: MutableSequence[str] | None = None,
+        location: str | None = None,
+        input_configs: MutableSequence[BatchDocumentInputConfig | dict],
+        output_config: BatchDocumentOutputConfig | dict,
+        customized_attribution: str | None = None,
+        format_conversions: MutableMapping[str, str] | None = None,
+        enable_shadow_removal_native_pdf: bool = False,
+        enable_rotation_correction: bool = False,
+        models: MutableMapping[str, str] | None = None,
+        glossaries: MutableMapping[str, TranslateTextGlossaryConfig] | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        timeout: float | _MethodDefault = DEFAULT,
+        retry: Retry | _MethodDefault | None = DEFAULT,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.target_language_codes = target_language_codes
+        self.source_language_code = source_language_code
+        self.input_configs = input_configs
+        self.output_config = output_config
+        self.customized_attribution = customized_attribution
+        self.format_conversions = format_conversions
+        self.enable_shadow_removal_native_pdf = enable_shadow_removal_native_pdf
+        self.enable_rotation_correction = enable_rotation_correction
+        self.models = models
+        self.glossaries = glossaries
+        self.metadata = metadata
+        self.timeout = timeout
+        self.retry = retry
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context) -> dict:
+        hook = TranslateHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        try:
+            batch_document_translate_operation = hook.batch_translate_document(
+                project_id=self.project_id,
+                location=self.location,
+                target_language_codes=self.target_language_codes,
+                source_language_code=self.source_language_code,
+                input_configs=self.input_configs,
+                output_config=self.output_config,
+                customized_attribution=self.customized_attribution,
+                format_conversions=self.format_conversions,
+                enable_shadow_removal_native_pdf=self.enable_shadow_removal_native_pdf,
+                enable_rotation_correction=self.enable_rotation_correction,
+                models=self.models,
+                glossaries=self.glossaries,
+                metadata=self.metadata,
+                timeout=self.timeout,
+                retry=self.retry,
+            )
+        except GoogleAPICallError as e:
+            self.log.error("An error occurred executing batch_translate_document method: \n%s", e)
+            raise AirflowException(e)
+        self.log.info("Batch document translation job started.")
+        TranslateResultByOutputConfigLink.persist(
+            context=context,
+            task_instance=self,
+            project_id=self.project_id or hook.project_id,
+            output_config=self.output_config,
+        )
+        result = hook.wait_for_operation_result(batch_document_translate_operation)
+        self.log.info("Batch document translation job finished")
+        return cast(dict, type(result).to_dict(result))
