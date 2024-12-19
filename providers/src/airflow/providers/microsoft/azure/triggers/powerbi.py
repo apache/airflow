@@ -121,16 +121,18 @@ class PowerBITrigger(BaseTrigger):
                 if dataset_refresh_status == PowerBIDatasetRefreshStatus.COMPLETED:
                     yield TriggerEvent(
                         {
-                            "status": dataset_refresh_status,
+                            "status": "success",
+                            "dataset_refresh_status": dataset_refresh_status,
                             "message": f"The dataset refresh {self.dataset_refresh_id} has {dataset_refresh_status}.",
                             "dataset_refresh_id": self.dataset_refresh_id,
                         }
                     )
                     return
-                elif dataset_refresh_status == PowerBIDatasetRefreshStatus.FAILED:
+                elif dataset_refresh_status in PowerBIDatasetRefreshStatus.FAILURE_STATUSES:
                     yield TriggerEvent(
                         {
-                            "status": dataset_refresh_status,
+                            "status": "error",
+                            "dataset_refresh_status": dataset_refresh_status,
                             "message": f"The dataset refresh {self.dataset_refresh_id} has {dataset_refresh_status}. Error: {dataset_refresh_error}",
                             "dataset_refresh_id": self.dataset_refresh_id,
                         }
@@ -147,6 +149,7 @@ class PowerBITrigger(BaseTrigger):
             yield TriggerEvent(
                 {
                     "status": "error",
+                    "dataset_refresh_status": dataset_refresh_status,
                     "message": f"Timeout occurred while waiting for dataset refresh to complete: The dataset refresh {self.dataset_refresh_id} has status {dataset_refresh_status}.",
                     "dataset_refresh_id": self.dataset_refresh_id,
                 }
@@ -169,6 +172,7 @@ class PowerBITrigger(BaseTrigger):
                     yield TriggerEvent(
                         {
                             "status": "error",
+                            "dataset_refresh_status": None,
                             "message": f"An error occurred while canceling dataset: {e}",
                             "dataset_refresh_id": self.dataset_refresh_id,
                         }
@@ -177,6 +181,7 @@ class PowerBITrigger(BaseTrigger):
             yield TriggerEvent(
                 {
                     "status": "error",
+                    "dataset_refresh_status": None,
                     "message": f"An error occurred: {error}",
                     "dataset_refresh_id": self.dataset_refresh_id,
                 }

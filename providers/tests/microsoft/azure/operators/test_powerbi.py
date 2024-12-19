@@ -50,6 +50,7 @@ NEW_REFRESH_REQUEST_ID = "5e2d9921-e91b-491f-b7e1-e7d8db49194c"
 
 SUCCESS_TRIGGER_EVENT = {
     "status": "success",
+    "dataset_refresh_status": "Completed",
     "message": "success",
     "dataset_refresh_id": NEW_REFRESH_REQUEST_ID,
 }
@@ -109,7 +110,12 @@ class TestPowerBIDatasetRefreshOperator(Base):
         with pytest.raises(AirflowException) as exc:
             operator.execute_complete(
                 context=context,
-                event={"status": "error", "message": "error", "dataset_refresh_id": "1234"},
+                event={
+                    "status": "error",
+                    "dataset_refresh_status": None,
+                    "message": "error",
+                    "dataset_refresh_id": "1234",
+                },
             )
         assert context["ti"].xcom_push.call_count == 0
         assert str(exc.value) == "error"
@@ -123,7 +129,12 @@ class TestPowerBIDatasetRefreshOperator(Base):
         with pytest.raises(AirflowException) as exc:
             operator.execute_complete(
                 context=context,
-                event={"status": "Failed", "message": "error message", "dataset_refresh_id": "1234"},
+                event={
+                    "status": "error",
+                    "dataset_refresh_status": "Failed",
+                    "message": "error message",
+                    "dataset_refresh_id": "1234",
+                },
             )
         assert context["ti"].xcom_push.call_count == 0
         assert str(exc.value) == "error message"
