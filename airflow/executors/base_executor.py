@@ -38,7 +38,6 @@ from airflow.traces import NO_TRACE_ID
 from airflow.traces.tracer import Trace, add_span, gen_context
 from airflow.traces.utils import gen_span_id_from_ti_key, gen_trace_id
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
@@ -174,8 +173,7 @@ class BaseExecutor(LoggingMixin):
         else:
             self.log.error("could not queue task %s", task_instance.key)
 
-    @provide_session
-    def queue_workload(self, workload: workloads.All, session: Session = NEW_SESSION) -> None:
+    def queue_workload(self, workload: workloads.All, session: Session) -> None:
         raise ValueError(f"Un-handled workload kind {type(workload).__name__!r} in {type(self).__name__}")
 
     def queue_task_instance(
