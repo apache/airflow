@@ -22,6 +22,7 @@ import logging
 import warnings
 from collections.abc import Generator
 from datetime import timedelta
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import patch
 
@@ -29,9 +30,11 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.exc import OperationalError, SAWarning
 
+import airflow.dag_processing.collection
 from airflow.dag_processing.collection import (
     AssetModelOperation,
     _get_latest_runs_stmt,
+    _sync_dag_perms,
     update_dag_parsing_results_in_db,
 )
 from airflow.exceptions import SerializationError
@@ -57,6 +60,9 @@ from tests_common.test_utils.db import (
     clear_db_serialized_dags,
     clear_db_triggers,
 )
+
+if TYPE_CHECKING:
+    from kgb import SpyAgency
 
 
 def test_statement_latest_runs_one_dag():
@@ -171,48 +177,49 @@ class TestUpdateDagParsingResults:
         get_listener_manager().clear()
         dag_import_error_listener.clear()
 
-    # @pytest.mark.usefixtures("clean_db")  # sync_perms in fab has bad session commit hygiene
-    # def test_sync_perms_syncs_dag_specific_perms_on_update(
-    #     self, monkeypatch, spy_agency: SpyAgency, session, time_machine
-    # ):
-    #     """
-    #     Test that dagbag.sync_to_db will sync DAG specific permissions when a DAG is
-    #     new or updated
-    #     """
-    #     from airflow import settings
-    #
-    #     serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
-    #     assert serialized_dags_count == 0
-    #
-    #     monkeypatch.setattr(settings, "MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
-    #     time_machine.move_to(tz.datetime(2020, 1, 5, 0, 0, 0), tick=False)
-    #
-    #     dag = DAG(dag_id="test")
-    #
-    #     sync_perms_spy = spy_agency.spy_on(
-    #         airflow.dag_processing.collection._sync_dag_perms,
-    #         call_original=False,
-    #     )
-    #
-    #     def _sync_to_db():
-    #         sync_perms_spy.reset_calls()
-    #         time_machine.shift(20)
-    #
-    #         update_dag_parsing_results_in_db([dag], dict(), None, set(), session)
-    #
-    #     _sync_to_db()
-    #     spy_agency.assert_spy_called_with(sync_perms_spy, dag, session=session)
-    #
-    #     # DAG isn't updated
-    #     _sync_to_db()
-    #     spy_agency.assert_spy_not_called(sync_perms_spy)
-    #
-    #     # DAG is updated
-    #     dag.tags = {"new_tag"}
-    #     _sync_to_db()
-    #     spy_agency.assert_spy_called_with(sync_perms_spy, dag, session=session)
-    #
-    #     serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
+    @pytest.mark.skip("Skipping until we fix the implementation to not be based on FAB")
+    @pytest.mark.usefixtures("clean_db")  # sync_perms in fab has bad session commit hygiene
+    def test_sync_perms_syncs_dag_specific_perms_on_update(
+        self, monkeypatch, spy_agency: SpyAgency, session, time_machine
+    ):
+        """
+        Test that dagbag.sync_to_db will sync DAG specific permissions when a DAG is
+        new or updated
+        """
+        from airflow import settings
+
+        serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
+        assert serialized_dags_count == 0
+
+        monkeypatch.setattr(settings, "MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
+        time_machine.move_to(tz.datetime(2020, 1, 5, 0, 0, 0), tick=False)
+
+        dag = DAG(dag_id="test")
+
+        sync_perms_spy = spy_agency.spy_on(
+            airflow.dag_processing.collection._sync_dag_perms,
+            call_original=False,
+        )
+
+        def _sync_to_db():
+            sync_perms_spy.reset_calls()
+            time_machine.shift(20)
+
+            update_dag_parsing_results_in_db([dag], dict(), None, set(), session)
+
+        _sync_to_db()
+        spy_agency.assert_spy_called_with(sync_perms_spy, dag, session=session)
+
+        # DAG isn't updated
+        _sync_to_db()
+        spy_agency.assert_spy_not_called(sync_perms_spy)
+
+        # DAG is updated
+        dag.tags = {"new_tag"}
+        _sync_to_db()
+        spy_agency.assert_spy_called_with(sync_perms_spy, dag, session=session)
+
+        serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
 
     @patch.object(SerializedDagModel, "write_dag")
     @patch("airflow.models.dag.DAG.bulk_write_to_db")
@@ -386,33 +393,34 @@ class TestUpdateDagParsingResults:
 
         assert import_errors == {"def.py"}
 
-    # def test_sync_perm_for_dag_with_dict_access_control(self, session, spy_agency: SpyAgency):
-    #     """
-    #     Test that dagbag._sync_perm_for_dag will call ApplessAirflowSecurityManager.sync_perm_for_dag
-    #     """
-    #     from airflow.www.security_appless import ApplessAirflowSecurityManager
-    #
-    #     spy = spy_agency.spy_on(
-    #         ApplessAirflowSecurityManager.sync_perm_for_dag, owner=ApplessAirflowSecurityManager
-    #     )
-    #
-    #     dag = DAG(dag_id="test")
-    #
-    #     def _sync_perms():
-    #         spy.reset_calls()
-    #         _sync_dag_perms(dag, session=session)
-    #
-    #     # perms dont exist
-    #     _sync_perms()
-    #     spy_agency.assert_spy_called_with(spy, dag.dag_id, access_control=None)
-    #
-    #     # perms now exist
-    #     _sync_perms()
-    #     spy_agency.assert_spy_called_with(spy, dag.dag_id, access_control=None)
-    #
-    #     # Always sync if we have access_control
-    #     dag.access_control = {"Public": {"DAGs": {"can_read"}, "DAG Runs": {"can_create"}}}
-    #     _sync_perms()
-    #     spy_agency.assert_spy_called_with(
-    #         spy, dag.dag_id, access_control={"Public": {"DAGs": {"can_read"}, "DAG Runs": {"can_create"}}}
-    #     )
+    @pytest.mark.skip("Skipping until we fix the implementation to not be based on FAB")
+    def test_sync_perm_for_dag_with_dict_access_control(self, session, spy_agency: SpyAgency):
+        """
+        Test that dagbag._sync_perm_for_dag will call ApplessAirflowSecurityManager.sync_perm_for_dag
+        """
+        from airflow.www.security_appless import ApplessAirflowSecurityManager
+
+        spy = spy_agency.spy_on(
+            ApplessAirflowSecurityManager.sync_perm_for_dag, owner=ApplessAirflowSecurityManager
+        )
+
+        dag = DAG(dag_id="test")
+
+        def _sync_perms():
+            spy.reset_calls()
+            _sync_dag_perms(dag, session=session)
+
+        # perms dont exist
+        _sync_perms()
+        spy_agency.assert_spy_called_with(spy, dag.dag_id, access_control=None)
+
+        # perms now exist
+        _sync_perms()
+        spy_agency.assert_spy_called_with(spy, dag.dag_id, access_control=None)
+
+        # Always sync if we have access_control
+        dag.access_control = {"Public": {"DAGs": {"can_read"}, "DAG Runs": {"can_create"}}}
+        _sync_perms()
+        spy_agency.assert_spy_called_with(
+            spy, dag.dag_id, access_control={"Public": {"DAGs": {"can_read"}, "DAG Runs": {"can_create"}}}
+        )
