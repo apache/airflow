@@ -274,6 +274,17 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
             self.task_id,
             event["message"],
         )
+        self.dataflow_job_id = event["dataflow_job_id"]
+        self.project_id = event["project_id"]
+        self.location = event["location"]
+
+        DataflowJobLink.persist(
+            self,
+            context,
+            self.project_id,
+            self.location,
+            self.dataflow_job_id,
+        )
         return {"dataflow_job_id": self.dataflow_job_id}
 
 
@@ -425,13 +436,6 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
 
     def execute_async(self, context: Context):
         if self.is_dataflow and self.dataflow_hook:
-            DataflowJobLink.persist(
-                self,
-                context,
-                self.dataflow_config.project_id,
-                self.dataflow_config.location,
-                self.dataflow_job_id,
-            )
             with self.dataflow_hook.provide_authorized_gcloud():
                 self.defer(
                     trigger=BeamPythonPipelineTrigger(
@@ -443,6 +447,8 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
                         py_system_site_packages=self.py_system_site_packages,
                         runner=self.runner,
                         gcp_conn_id=self.gcp_conn_id,
+                        project_id=self.dataflow_config.project_id,
+                        location=self.dataflow_config.location,
                     ),
                     method_name="execute_complete",
                 )
@@ -613,13 +619,6 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
 
     def execute_async(self, context: Context):
         if self.is_dataflow and self.dataflow_hook:
-            DataflowJobLink.persist(
-                self,
-                context,
-                self.dataflow_config.project_id,
-                self.dataflow_config.location,
-                self.dataflow_job_id,
-            )
             with self.dataflow_hook.provide_authorized_gcloud():
                 self.pipeline_options["jobName"] = self.dataflow_job_name
                 self.defer(

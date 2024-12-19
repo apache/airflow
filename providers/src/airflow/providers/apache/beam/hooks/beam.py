@@ -451,6 +451,7 @@ class BeamAsyncHook(BeamHook):
         py_interpreter: str = "python3",
         py_requirements: list[str] | None = None,
         py_system_site_packages: bool = False,
+        process_line_callback: Callable[[str], None] | None = None,
     ):
         """
         Start Apache Beam python pipeline.
@@ -470,6 +471,8 @@ class BeamAsyncHook(BeamHook):
         :param py_system_site_packages: Whether to include system_site_packages in your virtualenv.
             See virtualenv documentation for more information.
             This option is only relevant if the ``py_requirements`` parameter is not None.
+        :param process_line_callback: Optional callback which can be used to process
+            stdout and stderr to detect job id
         """
         py_options = py_options or []
         if "labels" in variables:
@@ -518,16 +521,25 @@ class BeamAsyncHook(BeamHook):
             return_code = await self.start_pipeline_async(
                 variables=variables,
                 command_prefix=command_prefix,
+                process_line_callback=process_line_callback,
             )
             return return_code
 
-    async def start_java_pipeline_async(self, variables: dict, jar: str, job_class: str | None = None):
+    async def start_java_pipeline_async(
+        self,
+        variables: dict,
+        jar: str,
+        job_class: str | None = None,
+        process_line_callback: Callable[[str], None] | None = None,
+    ):
         """
         Start Apache Beam Java pipeline.
 
         :param variables: Variables passed to the job.
         :param jar: Name of the jar for the pipeline.
         :param job_class: Name of the java class for the pipeline.
+        :param process_line_callback: Optional callback which can be used to process
+            stdout and stderr to detect job id
         :return: Beam command execution return code.
         """
         if "labels" in variables:
@@ -537,6 +549,7 @@ class BeamAsyncHook(BeamHook):
         return_code = await self.start_pipeline_async(
             variables=variables,
             command_prefix=command_prefix,
+            process_line_callback=process_line_callback,
         )
         return return_code
 
@@ -545,6 +558,7 @@ class BeamAsyncHook(BeamHook):
         variables: dict,
         command_prefix: list[str],
         working_directory: str | None = None,
+        process_line_callback: Callable[[str], None] | None = None,
     ) -> int:
         cmd = [*command_prefix, f"--runner={self.runner}"]
         if variables:
@@ -553,6 +567,7 @@ class BeamAsyncHook(BeamHook):
             cmd=cmd,
             working_directory=working_directory,
             log=self.log,
+            process_line_callback=process_line_callback,
         )
 
     async def run_beam_command_async(
@@ -560,13 +575,16 @@ class BeamAsyncHook(BeamHook):
         cmd: list[str],
         log: logging.Logger,
         working_directory: str | None = None,
+        process_line_callback: Callable[[str], None] | None = None,
     ) -> int:
         """
         Run pipeline command in subprocess.
 
         :param cmd: Parts of the command to be run in subprocess
         :param working_directory: Working directory
-        :param log: logger.
+        :param log: logger
+        :param process_line_callback: Optional callback which can be used to process
+            stdout and stderr to detect job id
         """
         cmd_str_representation = " ".join(shlex.quote(c) for c in cmd)
         log.info("Running command: %s", cmd_str_representation)
@@ -584,8 +602,8 @@ class BeamAsyncHook(BeamHook):
         log.info("Start waiting for Apache Beam process to complete.")
 
         # Creating separate threads for stdout and stderr
-        stdout_task = asyncio.create_task(self.read_logs(process.stdout))
-        stderr_task = asyncio.create_task(self.read_logs(process.stderr))
+        stdout_task = asyncio.create_task(self.read_logs(process.stdout, process_line_callback))
+        stderr_task = asyncio.create_task(self.read_logs(process.stderr, process_line_callback))
 
         # Waiting for the both tasks to complete
         await asyncio.gather(stdout_task, stderr_task)
@@ -598,10 +616,16 @@ class BeamAsyncHook(BeamHook):
             raise AirflowException(f"Apache Beam process failed with return code {return_code}")
         return return_code
 
-    async def read_logs(self, stream_reader):
+    async def read_logs(
+        self,
+        stream_reader,
+        process_line_callback: Callable[[str], None] | None = None,
+    ):
         while True:
             line = await stream_reader.readline()
             if not line:
                 break
             decoded_line = line.decode().strip()
+            if process_line_callback:
+                process_line_callback(decoded_line)
             self.log.info(decoded_line)
