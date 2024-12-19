@@ -22,7 +22,10 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIDatasetRefreshStatus
+from airflow.providers.microsoft.azure.hooks.powerbi import (
+    PowerBIDatasetRefreshException,
+    PowerBIDatasetRefreshStatus,
+)
 from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
 from airflow.triggers.base import TriggerEvent
 
@@ -171,6 +174,35 @@ class TestPowerBITrigger:
         assert len(task) == 1
         assert response in task
         mock_cancel_dataset_refresh.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.cancel_dataset_refresh")
+    @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
+    @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.trigger_dataset_refresh")
+    async def test_powerbi_trigger_run_PowerBIDatasetRefreshException_during_refresh_check_loop(
+        self,
+        mock_trigger_dataset_refresh,
+        mock_get_refresh_details_by_refresh_id,
+        mock_cancel_dataset_refresh,
+        powerbi_trigger,
+    ):
+        """Assert that run catch PowerBIDatasetRefreshException and triggers retry mechanism"""
+        mock_get_refresh_details_by_refresh_id.side_effect = PowerBIDatasetRefreshException("Test exception")
+        mock_trigger_dataset_refresh.return_value = DATASET_REFRESH_ID
+
+        with mock.patch("tenacity.wait.wait_exponential.__call__") as mock_retry:
+            task = [i async for i in powerbi_trigger.run()]
+            response = TriggerEvent(
+                {
+                    "status": "error",
+                    "message": "An error occurred: Test exception",
+                    "dataset_refresh_id": DATASET_REFRESH_ID,
+                }
+            )
+            assert len(task) == 1
+            assert response in task
+            assert mock_cancel_dataset_refresh.call_count == 1
+            assert mock_retry.call_count == 3
 
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.cancel_dataset_refresh")

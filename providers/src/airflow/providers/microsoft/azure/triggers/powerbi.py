@@ -22,7 +22,10 @@ import time
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
 
+import tenacity
+
 from airflow.providers.microsoft.azure.hooks.powerbi import (
+    PowerBIDatasetRefreshException,
     PowerBIDatasetRefreshStatus,
     PowerBIHook,
 )
@@ -106,6 +109,12 @@ class PowerBITrigger(BaseTrigger):
             group_id=self.group_id,
         )
 
+        @tenacity.retry(
+            stop=tenacity.stop_after_attempt(3),
+            wait=tenacity.wait_exponential(multiplier=1, min=3, max=60),
+            reraise=True,
+            retry=tenacity.retry_if_exception_type(PowerBIDatasetRefreshException),
+        )
         async def fetch_refresh_status() -> str:
             """Fetch the current status of the dataset refresh."""
             refresh_details = await self.hook.get_refresh_details_by_refresh_id(
