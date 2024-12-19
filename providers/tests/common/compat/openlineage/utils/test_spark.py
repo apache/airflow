@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,24 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.listeners import hookimpl
 
-new = {}
-existing = {}
+def test_import():
+    from airflow.providers.common.compat.openlineage.utils.spark import (
+        inject_parent_job_information_into_spark_properties,
+    )
 
-
-@hookimpl
-def on_new_dag_import_error(filename, stacktrace):
-    """Execute when new dag import error appears"""
-    new[filename] = stacktrace
-
-
-@hookimpl
-def on_existing_dag_import_error(filename, stacktrace):
-    """Execute when existing dag import error appears"""
-    existing[filename] = stacktrace
-
-
-def clear():
-    global new, existing
-    new, existing = {}, {}
+    assert inject_parent_job_information_into_spark_properties is not None

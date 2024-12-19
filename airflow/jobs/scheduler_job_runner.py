@@ -64,7 +64,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
+from airflow.models.taskinstance import TaskInstance
 from airflow.models.trigger import TRIGGER_FAIL_REPR, TriggerFailureReason
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
@@ -876,7 +876,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if task.on_retry_callback or task.on_failure_callback:
                     request = TaskCallbackRequest(
                         full_filepath=ti.dag_model.fileloc,
-                        simple_task_instance=SimpleTaskInstance.from_ti(ti),
+                        ti=ti,
                         msg=msg,
                         processor_subdir=ti.dag_model.processor_subdir,
                     )
@@ -2089,7 +2089,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             request = TaskCallbackRequest(
                 full_filepath=file_loc,
                 processor_subdir=processor_subdir,
-                simple_task_instance=SimpleTaskInstance.from_ti(ti),
+                ti=ti,
                 msg=str(zombie_message_details),
             )
             session.add(
