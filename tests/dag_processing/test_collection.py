@@ -462,7 +462,7 @@ class TestUpdateDagParsingResults:
         if tasks:
             dag.add_tasks(tasks)
 
-        update_dag_parsing_results_in_db([self.dag_to_lazy_serdag(dag)], {}, None, set(), session)
+        update_dag_parsing_results_in_db([self.dag_to_lazy_serdag(dag)], {}, set(), session)
 
         orm_dag = session.get(DagModel, ("dag",))
 
