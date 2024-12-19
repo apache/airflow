@@ -53,7 +53,7 @@ class TestGlueCatalogPartitionSensor:
 
         assert op.hook.region_name is None
         assert op.hook.aws_conn_id == "aws_default"
-        mock_check_for_partition.assert_called_once_with("default", table_name, "ds='{{ ds }}'")
+        mock_check_for_partition.assert_called_once_with("default", table_name, "ds='{{ ds }}'", catalog_id=None)
 
     @mock_aws
     @mock.patch.object(GlueCatalogHook, "check_for_partition")
@@ -84,7 +84,7 @@ class TestGlueCatalogPartitionSensor:
         assert op.hook.aws_conn_id == aws_conn_id
         assert op.poke_interval == poke_interval
         assert op.timeout == timeout
-        mock_check_for_partition.assert_called_once_with(database_name, table_name, expression)
+        mock_check_for_partition.assert_called_once_with(database_name, table_name, expression, catalog_id=None)
 
     @mock_aws
     @mock.patch.object(GlueCatalogHook, "check_for_partition")
@@ -93,7 +93,30 @@ class TestGlueCatalogPartitionSensor:
         op = GlueCatalogPartitionSensor(task_id=self.task_id, table_name=db_table)
         op.poke({})
 
-        mock_check_for_partition.assert_called_once_with("my_db", "my_tbl", "ds='{{ ds }}'")
+        mock_check_for_partition.assert_called_once_with("my_db", "my_tbl", "ds='{{ ds }}'", catalog_id=None)
+
+    @mock_aws
+    @mock.patch.object(GlueCatalogHook, "check_for_partition")
+    def test_poke_with_catalog_id(self, mock_check_for_partition):
+        table_name = "my_table"
+        expression = "col=val"
+        aws_conn_id = "my_aws_conn_id"
+        region_name = "us-west-2"
+        database_name = "my_db"
+        catalog_id = "123456789012"
+        op = GlueCatalogPartitionSensor(
+            task_id=self.task_id,
+            table_name=table_name,
+            expression=expression,
+            aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            database_name=database_name,
+            catalog_id=catalog_id,
+        )
+        op.poke({})
+        mock_check_for_partition.assert_called_once_with(
+            database_name, table_name, expression, catalog_id=catalog_id
+        )
 
     def test_deferrable_mode_raises_task_deferred(self):
         op = GlueCatalogPartitionSensor(task_id=self.task_id, table_name="tbl", deferrable=True)
