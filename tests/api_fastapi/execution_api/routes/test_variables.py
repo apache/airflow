@@ -54,7 +54,7 @@ class TestGetVariable:
         {"AIRFLOW_VAR_KEY1": "VALUE"},
     )
     def test_variable_get_from_env_var(self, client, session):
-        response = client.get("/execution/variables/key1", params={"foo": "bar"})
+        response = client.get("/execution/variables/key1")
 
         assert response.status_code == 200
         assert response.json() == {"key": "key1", "value": "VALUE"}
