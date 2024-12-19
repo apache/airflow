@@ -35,6 +35,7 @@ from airflow.sdk.execution_time.comms import (
     DeferTask,
     RescheduleTask,
     RetryTask,
+    SetRenderedFields,
     StartupDetails,
     TaskState,
     ToSupervisor,
@@ -226,8 +227,8 @@ def startup() -> tuple[RuntimeTaskInstance, Logger]:
     # 2. Once rendered, we call the `set_rtif` API to store the rtif in the metadata DB
 
     # so that we do not call the API unnecessarily
-    # if rendered_fields := _get_rendered_fields(ti.task):
-    #     SUPERVISOR_COMMS.send_request(log=log, msg=SetRenderedFields(rendered_fields=rendered_fields))
+    if rendered_fields := _get_rendered_fields(ti.task):
+        SUPERVISOR_COMMS.send_request(log=log, msg=SetRenderedFields(rendered_fields=rendered_fields))
     return ti, log
 
 
