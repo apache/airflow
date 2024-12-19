@@ -20,7 +20,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.links.base import BASE_LINK, BaseGoogleLink
+from airflow.providers.google.common.deprecated import deprecated
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -57,6 +59,11 @@ TRANSLATION_NATIVE_MODEL_LINK = (
 TRANSLATION_MODELS_LIST_LINK = TRANSLATION_BASE_LINK + "/models/list?project={project_id}"
 
 
+@deprecated(
+    planned_removal_date="September 30, 2025",
+    category=AirflowProviderDeprecationWarning,
+    use_instead="airflow.providers.google.cloud.links.TranslationNativeDatasetLink",
+)
 class TranslationLegacyDatasetLink(BaseGoogleLink):
     """
     Helper class for constructing Legacy Translation Dataset link.
@@ -82,6 +89,11 @@ class TranslationLegacyDatasetLink(BaseGoogleLink):
         )
 
 
+@deprecated(
+    planned_removal_date="September 30, 2025",
+    category=AirflowProviderDeprecationWarning,
+    use_instead="airflow.providers.google.cloud.links.TranslationDatasetsListLink",
+)
 class TranslationDatasetListLink(BaseGoogleLink):
     """Helper class for constructing Translation Dataset List link."""
 
@@ -104,6 +116,11 @@ class TranslationDatasetListLink(BaseGoogleLink):
         )
 
 
+@deprecated(
+    planned_removal_date="September 30, 2025",
+    category=AirflowProviderDeprecationWarning,
+    use_instead="airflow.providers.google.cloud.links.TranslationModelLink",
+)
 class TranslationLegacyModelLink(BaseGoogleLink):
     """
     Helper class for constructing Translation Legacy Model link.
@@ -135,6 +152,10 @@ class TranslationLegacyModelLink(BaseGoogleLink):
         )
 
 
+@deprecated(
+    planned_removal_date="September 30, 2025",
+    category=AirflowProviderDeprecationWarning,
+)
 class TranslationLegacyModelTrainLink(BaseGoogleLink):
     """
     Helper class for constructing Translation Legacy Model Train link.
@@ -163,6 +184,10 @@ class TranslationLegacyModelTrainLink(BaseGoogleLink):
         )
 
 
+@deprecated(
+    planned_removal_date="September 30, 2025",
+    category=AirflowProviderDeprecationWarning,
+)
 class TranslationLegacyModelPredictLink(BaseGoogleLink):
     """
     Helper class for constructing Translation Legacy Model Predict link.
