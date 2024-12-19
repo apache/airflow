@@ -180,6 +180,17 @@ export const $AssetEventResponse = {
       type: "integer",
       title: "Asset Id",
     },
+    uri: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Uri",
+    },
     extra: {
       anyOf: [
         {
