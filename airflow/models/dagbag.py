@@ -631,7 +631,7 @@ class DagBag(LoggingMixin):
         from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 
         update_dag_parsing_results_in_db(
-            self.dags.values(),
+            self.dags.values(),  # type: ignore[arg-type]  # We should create a proto for DAG|LazySerializedDAG
             self.import_errors,
             processor_subdir,
             self.dag_warnings,

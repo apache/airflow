@@ -26,7 +26,6 @@ import {
   Text,
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import dayjs from "dayjs";
 import { useCallback } from "react";
 import {
   useParams,
@@ -36,13 +35,14 @@ import {
 
 import { useDagRunServiceGetDagRuns } from "openapi/queries";
 import type { DAGRunResponse, DagRunState } from "openapi/requests/types.gen";
+import ClearRunButton from "src/components/ClearRun/ClearRunButton";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import Time from "src/components/Time";
 import { Select, Status } from "src/components/ui";
-import { capitalize } from "src/utils";
+import { capitalize, getDuration } from "src/utils";
 
 const columns: Array<ColumnDef<DAGRunResponse>> = [
   {
@@ -89,8 +89,22 @@ const columns: Array<ColumnDef<DAGRunResponse>> = [
   },
   {
     cell: ({ row: { original } }) =>
-      `${dayjs.duration(dayjs(original.end_date).diff(original.start_date)).asSeconds().toFixed(2)}s`,
+      getDuration(original.start_date, original.end_date),
     header: "Duration",
+  },
+  {
+    accessorKey: "clear_dag_run",
+    cell: ({ row }) => (
+      <Flex justifyContent="end">
+        <ClearRunButton
+          dagId={row.original.dag_id}
+          dagRunId={row.original.dag_run_id}
+          withText={false}
+        />
+      </Flex>
+    ),
+    enableSorting: false,
+    header: "",
   },
 ];
 
@@ -118,13 +132,17 @@ export const Runs = () => {
 
   const filteredState = searchParams.get(STATE_PARAM);
 
-  const { data, error, isFetching, isLoading } = useDagRunServiceGetDagRuns({
-    dagId: dagId ?? "~",
-    limit: pagination.pageSize,
-    offset: pagination.pageIndex * pagination.pageSize,
-    orderBy,
-    state: filteredState === null ? undefined : [filteredState],
-  });
+  const { data, error, isFetching, isLoading } = useDagRunServiceGetDagRuns(
+    {
+      dagId: dagId ?? "~",
+      limit: pagination.pageSize,
+      offset: pagination.pageIndex * pagination.pageSize,
+      orderBy,
+      state: filteredState === null ? undefined : [filteredState],
+    },
+    undefined,
+    { enabled: !isNaN(pagination.pageSize) },
+  );
 
   const handleStateChange = useCallback(
     ({ value }: SelectValueChangeDetails<string>) => {

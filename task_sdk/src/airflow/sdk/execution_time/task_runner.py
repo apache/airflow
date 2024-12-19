@@ -40,6 +40,7 @@ from airflow.sdk.execution_time.comms import (
     ToSupervisor,
     ToTask,
 )
+from airflow.sdk.execution_time.context import ConnectionAccessor
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
@@ -53,6 +54,9 @@ class RuntimeTaskInstance(TaskInstance):
     """The Task Instance context from the API server, if any."""
 
     def get_template_context(self):
+        # TODO: Move this to `airflow.sdk.execution_time.context`
+        #   once we port the entire context logic from airflow/utils/context.py ?
+
         # TODO: Assess if we need to it through airflow.utils.timezone.coerce_datetime()
         context: dict[str, Any] = {
             # From the Task Execution interface
@@ -63,6 +67,8 @@ class RuntimeTaskInstance(TaskInstance):
             "run_id": self.run_id,
             "task": self.task,
             "task_instance": self,
+            # TODO: Ensure that ti.log_url and such are available to use in context
+            #   especially after removal of `conf` from Context.
             "ti": self,
             # "outlet_events": OutletEventAccessors(),
             # "expanded_ti_count": expanded_ti_count,
@@ -73,14 +79,13 @@ class RuntimeTaskInstance(TaskInstance):
             # "prev_data_interval_end_success": get_prev_data_interval_end_success(),
             # "prev_start_date_success": get_prev_start_date_success(),
             # "prev_end_date_success": get_prev_end_date_success(),
-            # "task_instance_key_str": f"{task.dag_id}__{task.task_id}__{ds_nodash}",
             # "test_mode": task_instance.test_mode,
             # "triggering_asset_events": lazy_object_proxy.Proxy(get_triggering_events),
             # "var": {
             #     "json": VariableAccessor(deserialize_json=True),
             #     "value": VariableAccessor(deserialize_json=False),
             # },
-            # "conn": ConnectionAccessor(),
+            "conn": ConnectionAccessor(),
         }
         if self._ti_context_from_server:
             dag_run = self._ti_context_from_server.dag_run
@@ -107,6 +112,10 @@ class RuntimeTaskInstance(TaskInstance):
             }
             context.update(context_from_server)
         return context
+
+    def xcom_pull(self, *args, **kwargs): ...
+
+    def xcom_push(self, *args, **kwargs): ...
 
 
 def parse(what: StartupDetails) -> RuntimeTaskInstance:
@@ -296,8 +305,18 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         )
 
         # TODO: Run task failure callbacks here
-    except (AirflowTaskTimeout, AirflowException, AirflowTaskTerminated):
+    except (AirflowTaskTimeout, AirflowException):
+        # TODO: handle the case of up_for_retry here
         ...
+    except AirflowTaskTerminated:
+        # External state updates are already handled with `ti_heartbeat` and will be
+        # updated already be another UI API. So, these exceptions should ideally never be thrown.
+        # If these are thrown, we should mark the TI state as failed.
+        msg = TaskState(
+            state=TerminalTIState.FAILED,
+            end_date=datetime.now(tz=timezone.utc),
+        )
+        # TODO: Run task failure callbacks here
     except SystemExit:
         ...
     except BaseException:
@@ -315,7 +334,7 @@ def main():
     # TODO: add an exception here, it causes an oof of a stack trace!
 
     global SUPERVISOR_COMMS
-    SUPERVISOR_COMMS = CommsDecoder(input=sys.stdin)
+    SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](input=sys.stdin)
     try:
         ti, log = startup()
         run(ti, log)
