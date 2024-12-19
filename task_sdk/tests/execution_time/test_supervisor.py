@@ -813,7 +813,7 @@ class TestHandleRequest:
             ),
             pytest.param(
                 GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
-                b'{"key":"test_key","value":"test_value"}\n',
+                b'{"key":"test_key","value":"test_value","type":"XComResult"}\n',
                 "xcoms.get",
                 ("test_dag", "test_run", "test_task", "test_key", -1),
                 XComResult(key="test_key", value="test_value"),
@@ -823,7 +823,7 @@ class TestHandleRequest:
                 GetXCom(
                     dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key", map_index=2
                 ),
-                b'{"key":"test_key","value":"test_value"}\n',
+                b'{"key":"test_key","value":"test_value","type":"XComResult"}\n',
                 "xcoms.get",
                 ("test_dag", "test_run", "test_task", "test_key", 2),
                 XComResult(key="test_key", value="test_value"),

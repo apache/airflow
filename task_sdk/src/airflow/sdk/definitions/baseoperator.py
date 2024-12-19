@@ -657,7 +657,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             # an operator, example:
             #   op = BashOperator()
             #   op.bash_command = "sleep 1"
-            self._set_xcomargs_dependency(key, value)
+            # self._set_xcomargs_dependency(key, value)
+            # TODO: The above line raises recursion error, so we need to find a way to resolve this.
+            ...
 
     def __init__(
         self,
