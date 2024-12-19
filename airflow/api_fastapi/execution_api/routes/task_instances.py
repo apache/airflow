@@ -35,6 +35,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TIEnterRunningPayload,
     TIHeartbeatInfo,
     TIRescheduleStatePayload,
+    TIRetryStatePayload,
     TIRunContext,
     TIStateUpdate,
     TITerminalStatePayload,
@@ -167,6 +168,7 @@ def ti_run(
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
         status.HTTP_409_CONFLICT: {"description": "The TI is already in the requested state"},
         status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid payload for the state transition"},
+        status.HTTP_400_BAD_REQUEST: {"description": "Not a valid state transition"},
     },
 )
 def ti_update_state(
@@ -252,6 +254,20 @@ def ti_update_state(
         query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
         # clear the next_method and next_kwargs so that none of the retries pick them up
         query = query.values(state=State.UP_FOR_RESCHEDULE, next_method=None, next_kwargs=None)
+    elif isinstance(ti_patch_payload, TIRetryStatePayload):
+        task_instance = session.get(TI, ti_id_str)
+        if not _is_eligible_to_retry(task_instance, ti_patch_payload.task_retries):
+            log.error("Task Instance %s cannot be retried", ti_id_str)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "reason": "bad_request",
+                    "message": "Task Instance is not eligible to retry",
+                },
+            )
+        query = update(TI).where(TI.id == ti_id_str)
+        query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
+        query = query.values(state=State.UP_FOR_RETRY, next_method=None, next_kwargs=None)
     # TODO: Replace this with FastAPI's Custom Exception handling:
     # https://fastapi.tiangolo.com/tutorial/handling-errors/#install-custom-exception-handlers
     try:
@@ -354,3 +370,23 @@ def ti_put_rtif(
     _update_rtif(task_instance, put_rtif_payload, session)
 
     return {"message": "Rendered task instance fields successfully set"}
+
+
+def _is_eligible_to_retry(task_instance, task_retries: int):
+    """
+    Is task instance is eligible for retry.
+
+    :param task_instance: the task instance
+
+    :meta private:
+    """
+    if task_instance.state == State.RESTARTING:
+        # If a task is RESTARTING state it is always eligible for retry
+        return True
+
+    # handle in task runner
+    # if not getattr(task_instance, "task", None):
+    #     # Couldn't load the task, don't know number of retries, guess:
+    #     return task_instance.try_number <= task_instance.max_tries
+
+    return task_retries and task_instance.try_number <= task_instance.max_tries
