@@ -16,13 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Code, HStack, Skeleton, VStack } from "@chakra-ui/react";
+import {
+  Box,
+  Code,
+  HStack,
+  Skeleton,
+  VStack,
+  Heading,
+  IconButton,
+} from "@chakra-ui/react";
 import { useState } from "react";
+import { MdOutlineOpenInFull } from "react-icons/md";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
+import { Dialog } from "src/components/ui";
 import { Button, ProgressBar } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig";
 import { useLogs } from "src/queries/useLogs";
@@ -60,8 +70,14 @@ export const Logs = () => {
   const defaultWrap = Boolean(useConfig("default_wrap"));
 
   const [wrap, setWrap] = useState(defaultWrap);
+  const [fullscreen, setFullscreen] = useState(false);
 
   const toggleWrap = () => setWrap(!wrap);
+  const toggleFullscreeen = () => setFullscreen(!fullscreen);
+
+  const onOpenChange = () => {
+    setFullscreen(false);
+  };
 
   const {
     data,
@@ -90,6 +106,14 @@ export const Logs = () => {
         <Button aria-label={wrap ? "Unwrap" : "Wrap"} bg="bg.panel" onClick={toggleWrap} variant="outline">
           {wrap ? "Unwrap" : "Wrap"}
         </Button>
+        <IconButton
+          aria-label="Full screen"
+          bg="bg.panel"
+          onClick={toggleFullscreeen}
+          variant="outline"
+        >
+          <MdOutlineOpenInFull />
+        </IconButton>
       </HStack>
       <ErrorAlert error={error ?? logError} />
       <Skeleton />
@@ -97,6 +121,26 @@ export const Logs = () => {
       <Code overflow="auto" py={3} textWrap={wrap ? "pre" : "nowrap"}>
         <VStack alignItems="flex-start">{data.parsedLogs}</VStack>
       </Code>
+      <Dialog.Root
+        onOpenChange={onOpenChange}
+        open={fullscreen}
+        scrollBehavior="inside"
+        size="full"
+      >
+        <Dialog.Content backdrop>
+          <Dialog.Header>
+            <Heading size="xl">Log</Heading>
+          </Dialog.Header>
+
+          <Dialog.CloseTrigger />
+
+          <Dialog.Body>
+            <Code overflow="auto" py={3} textWrap={wrap ? "pre" : "nowrap"}>
+              <VStack alignItems="flex-start">{data.parsedLogs}</VStack>
+            </Code>
+          </Dialog.Body>
+        </Dialog.Content>
+      </Dialog.Root>
     </Box>
   );
 };
