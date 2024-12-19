@@ -75,11 +75,11 @@ def create_app():
     return flask_app
 
 
-def cached_app(config=None, testing=False):
+def cached_app():
     """Return cached instance of Airflow WWW app."""
     global app
     if not app:
-        app = create_app(config=config, testing=testing)
+        app = create_app()
     return app
 
 
