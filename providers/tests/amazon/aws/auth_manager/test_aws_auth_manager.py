@@ -23,6 +23,13 @@ import pytest
 from flask import Flask, session
 from flask_appbuilder.menu import MenuItem
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+try:
+    from airflow.providers.amazon.aws.auth_manager.aws_auth_manager import AwsAuthManager
+except AirflowOptionalProviderFeatureException:
+    pytest.mark.skipif("AWS auth manager is only compatible with Airflow >= 3.0.0")
+
 from airflow.auth.managers.models.resource_details import (
     AccessView,
     ConfigurationDetails,
@@ -34,7 +41,6 @@ from airflow.auth.managers.models.resource_details import (
 )
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
 from airflow.providers.amazon.aws.auth_manager.avp.facade import AwsAuthManagerAmazonVerifiedPermissionsFacade
-from airflow.providers.amazon.aws.auth_manager.aws_auth_manager import AwsAuthManager
 from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
     AwsSecurityManagerOverride,
 )
