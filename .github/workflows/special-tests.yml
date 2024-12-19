@@ -24,6 +24,10 @@ on:  # yamllint disable-line rule:truthy
         description: "The array of labels (in json form) determining default runner used for the build."
         required: true
         type: string
+      default-branch:
+        description: "The default branch for the repository"
+        required: true
+        type: string
       image-tag:
         description: "Tag to set for the image"
         required: true
@@ -257,6 +261,7 @@ jobs:
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
+    if: ${{ inputs.default-branch == 'main' }}
 
   tests-system:
     name: "System test"
