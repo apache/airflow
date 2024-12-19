@@ -23,6 +23,7 @@ from fastapi import FastAPI
 from starlette.routing import Mount
 
 from airflow.api_fastapi.core_api.app import (
+    init_auth_manager_endpoints,
     init_config,
     init_dag_bag,
     init_error_handlers,
@@ -71,6 +72,7 @@ def create_app(apps: str = "all") -> FastAPI:
         init_flask_plugins(app)
         init_error_handlers(app)
         init_auth_manager()
+        init_auth_manager_endpoints(app, get_auth_manager())
 
     if "execution" in apps_list or "all" in apps_list:
         task_exec_api_app = create_task_execution_api_app(app)
