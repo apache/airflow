@@ -393,7 +393,7 @@ class TestUpdateDagParsingResults:
 
         assert import_errors == {"def.py"}
 
-    @pytest.mark.skip("Skipping until we fix the implementation to not be based on FAB")
+    @pytest.mark.skip("Skipping until we fix the implementation to not be FAB-specific")
     def test_sync_perm_for_dag_with_dict_access_control(self, session, spy_agency: SpyAgency):
         """
         Test that dagbag._sync_perm_for_dag will call ApplessAirflowSecurityManager.sync_perm_for_dag
