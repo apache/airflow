@@ -216,6 +216,93 @@ class TestCreateBackfill(TestBackfillEndpoint):
         }
 
 
+class TestCreateBackfillDryRun(TestBackfillEndpoint):
+    @pytest.mark.parametrize(
+        "reprocess_behavior, expected_dates",
+        [
+            (
+                "none",
+                [
+                    {"logical_date": "2024-01-01T00:00:00Z"},
+                    {"logical_date": "2024-01-04T00:00:00Z"},
+                    {"logical_date": "2024-01-05T00:00:00Z"},
+                ],
+            ),
+            (
+                "failed",
+                [
+                    {"logical_date": "2024-01-01T00:00:00Z"},
+                    {"logical_date": "2024-01-03T00:00:00Z"},  # Reprocess failed
+                    {"logical_date": "2024-01-04T00:00:00Z"},
+                    {"logical_date": "2024-01-05T00:00:00Z"},
+                ],
+            ),
+            (
+                "completed",
+                [
+                    {"logical_date": "2024-01-01T00:00:00Z"},
+                    {"logical_date": "2024-01-02T00:00:00Z"},  # Reprocess completed
+                    {"logical_date": "2024-01-04T00:00:00Z"},
+                    {"logical_date": "2024-01-05T00:00:00Z"},
+                ],
+            ),
+        ],
+    )
+    def test_create_backfill_dry_run(
+        self, session, dag_maker, test_client, reprocess_behavior, expected_dates
+    ):
+        with dag_maker(
+            session=session,
+            dag_id="TEST_DAG_2",
+            schedule="0 0 * * *",
+            start_date=pendulum.parse("2024-01-01"),
+        ) as dag:
+            EmptyOperator(task_id="mytask")
+
+        session.commit()
+
+        existing_dagruns = [
+            {"logical_date": pendulum.parse("2024-01-02"), "state": DagRunState.SUCCESS},  # Completed dag run
+            {"logical_date": pendulum.parse("2024-01-03"), "state": DagRunState.FAILED},  # Failed dag run
+        ]
+        for dagrun in existing_dagruns:
+            session.add(
+                DagRun(
+                    dag_id=dag.dag_id,
+                    run_id=f"manual__{dagrun['logical_date'].isoformat()}",
+                    logical_date=dagrun["logical_date"],
+                    state=dagrun["state"],
+                    run_type="scheduled",
+                )
+            )
+        session.commit()
+
+        from_date = pendulum.parse("2024-01-01")
+        from_date_iso = to_iso(from_date)
+        to_date = pendulum.parse("2024-01-05")
+        to_date_iso = to_iso(to_date)
+
+        data = {
+            "dag_id": dag.dag_id,
+            "from_date": from_date_iso,
+            "to_date": to_date_iso,
+            "max_active_runs": 5,
+            "run_backwards": False,
+            "dag_run_conf": {"param1": "val1", "param2": True},
+            "dry_run": True,
+            "reprocess_behavior": reprocess_behavior,
+        }
+
+        response = test_client.post(
+            url="/public/backfills",
+            json=data,
+        )
+
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json["run_info_list"] == expected_dates
+
+
 class TestCancelBackfill(TestBackfillEndpoint):
     def test_cancel_backfill(self, session, test_client):
         (dag,) = self._create_dag_models()
