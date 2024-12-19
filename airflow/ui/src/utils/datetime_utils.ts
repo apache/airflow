@@ -16,7 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import dayjs from "dayjs";
 
-export { capitalize } from "./capitalize";
-export { pluralize } from "./pluralize";
-export { getDuration } from "./datetime_utils";
+export const getDuration = (startDate: string | null, endDate: string | null) =>
+  dayjs
+    .duration(dayjs(endDate ?? undefined).diff(startDate ?? undefined))
+    .asSeconds()
+    .toFixed(2);
