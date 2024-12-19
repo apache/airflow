@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-19T09:01:42.949784
+# This constraints file was automatically generated on 2024-12-19T15:23:31.223781
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -480,7 +480,7 @@ mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.1.0
 mysqlclient==2.2.6
-nbclient==0.10.1
+nbclient==0.10.2
 nbformat==5.10.4
 neo4j==5.27.0
 nest-asyncio==1.6.0
@@ -747,7 +747,7 @@ yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.18.3
-ydb-dbapi==0.1.5
+ydb-dbapi==0.1.6
 ydb==3.18.11
 zeep==4.3.1
 zenpy==2.0.56
