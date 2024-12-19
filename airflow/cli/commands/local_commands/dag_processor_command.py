@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
 from typing import Any
 
 from airflow.cli.commands.local_commands.daemon_utils import run_command_with_daemon_option
@@ -36,11 +35,10 @@ log = logging.getLogger(__name__)
 def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
     """Create DagFileProcessorProcess instance."""
     processor_timeout_seconds: int = conf.getint("core", "dag_file_processor_timeout")
-    processor_timeout = timedelta(seconds=processor_timeout_seconds)
     return DagProcessorJobRunner(
         job=Job(),
         processor=DagFileProcessorManager(
-            processor_timeout=processor_timeout,
+            processor_timeout=processor_timeout_seconds,
             dag_directory=args.subdir,
             max_runs=args.num_runs,
         ),
@@ -53,10 +51,6 @@ def dag_processor(args):
     """Start Airflow Dag Processor Job."""
     if not conf.getboolean("scheduler", "standalone_dag_processor"):
         raise SystemExit("The option [scheduler/standalone_dag_processor] must be True.")
-
-    sql_conn: str = conf.get("database", "sql_alchemy_conn").lower()
-    if sql_conn.startswith("sqlite"):
-        raise SystemExit("Standalone DagProcessor is not supported when using sqlite.")
 
     job_runner = _create_dag_processor_job_runner(args)
 

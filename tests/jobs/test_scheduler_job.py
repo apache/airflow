@@ -62,7 +62,7 @@ from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.log import Log
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sdk.definitions.asset import Asset
@@ -418,7 +418,7 @@ class TestSchedulerJob:
         assert ti1.state == State.QUEUED
         mock_task_callback.assert_called_once_with(
             full_filepath=dag.fileloc,
-            simple_task_instance=mock.ANY,
+            ti=mock.ANY,
             processor_subdir=None,
             msg=f"Executor {executor} reported that the task instance "
             "<TaskInstance: test_process_executor_events_with_callback.dummy_task test [queued]> "
@@ -5712,14 +5712,13 @@ class TestSchedulerJob:
         callback_requests = executor.callback_sink.send.call_args.args
         assert len(callback_requests) == 1
         callback_request = callback_requests[0]
-        assert isinstance(callback_request.simple_task_instance, SimpleTaskInstance)
         assert callback_request.full_filepath == dag.fileloc
         assert callback_request.msg == str(self.job_runner._generate_zombie_message_details(ti))
         assert callback_request.is_failure_callback is True
-        assert callback_request.simple_task_instance.dag_id == ti.dag_id
-        assert callback_request.simple_task_instance.task_id == ti.task_id
-        assert callback_request.simple_task_instance.run_id == ti.run_id
-        assert callback_request.simple_task_instance.map_index == ti.map_index
+        assert callback_request.ti.dag_id == ti.dag_id
+        assert callback_request.ti.task_id == ti.task_id
+        assert callback_request.ti.run_id == ti.run_id
+        assert callback_request.ti.map_index == ti.map_index
 
     def test_zombie_message(self, load_examples):
         """
@@ -5829,18 +5828,18 @@ class TestSchedulerJob:
         expected_failure_callback_requests = [
             TaskCallbackRequest(
                 full_filepath=dag.fileloc,
-                simple_task_instance=SimpleTaskInstance.from_ti(ti),
+                ti=ti,
                 processor_subdir=TEST_DAG_FOLDER,
                 msg=str(self.job_runner._generate_zombie_message_details(ti)),
             )
         ]
         callback_requests = scheduler_job.executor.callback_sink.send.call_args.args
         assert len(callback_requests) == 1
-        assert {zombie.simple_task_instance.key for zombie in expected_failure_callback_requests} == {
-            result.simple_task_instance.key for result in callback_requests
+        assert {zombie.ti.id for zombie in expected_failure_callback_requests} == {
+            result.ti.id for result in callback_requests
         }
-        expected_failure_callback_requests[0].simple_task_instance = None
-        callback_requests[0].simple_task_instance = None
+        expected_failure_callback_requests[0].ti = None
+        callback_requests[0].ti = None
         assert expected_failure_callback_requests[0] == callback_requests[0]
 
     def test_cleanup_stale_dags(self):

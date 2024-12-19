@@ -24,14 +24,15 @@ import enum
 import itertools
 import logging
 import weakref
-from collections.abc import Collection, Iterable, Mapping
-from functools import cache
+from collections.abc import Collection, Generator, Iterable, Mapping
+from functools import cache, cached_property
 from inspect import signature
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, NamedTuple, Union, cast
+from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeVar, Union, cast
 
 import attrs
 import lazy_object_proxy
+import pydantic
 from dateutil import relativedelta
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
@@ -100,7 +101,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.node import DAGNode
     from airflow.serialization.json_schema import Validator
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-    from airflow.timetables.base import Timetable
+    from airflow.timetables.base import DagRunInfo, Timetable
 
     HAS_KUBERNETES: bool
     try:
@@ -1870,3 +1871,86 @@ def _has_kubernetes() -> bool:
     except ImportError:
         HAS_KUBERNETES = False
     return HAS_KUBERNETES
+
+
+AssetT = TypeVar("AssetT", bound=BaseAsset)
+MaybeSerializedDAG = Union[DAG, "LazyDeserializedDAG"]
+
+
+class LazyDeserializedDAG(pydantic.BaseModel):
+    """
+    Lazily build information from the serialized DAG structure.
+
+    An object that will present "enough" of the DAG like interface to update DAG db models etc, without having
+    to deserialize the full DAG and Task hierarchy.
+    """
+
+    data: dict
+
+    NULLABLE_PROPERTIES: ClassVar[set[str]] = {
+        "is_paused_upon_creation",
+        "owner",
+        "dag_display_name",
+        "description",
+        "max_active_tasks",
+        "max_active_runs",
+        "max_consecutive_failed_dag_runs",
+        "owner_links",
+        "access_control",
+        "default_view",
+    }
+
+    @property
+    def hash(self) -> str:
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        return SerializedDagModel.hash(self.data)
+
+    def next_dagrun_info(self, *args, **kwargs) -> DagRunInfo | None:
+        # This function is complex to implement, for now we delegate deserialize the dag and delegate to that.
+        return self._real_dag.next_dagrun_info(*args, **kwargs)
+
+    @cached_property
+    def _real_dag(self):
+        return SerializedDAG.from_dict(self.data)
+
+    def __getattr__(self, name: str, /) -> Any:
+        if name in self.NULLABLE_PROPERTIES:
+            return self.data["dag"].get(name)
+        try:
+            return self.data["dag"][name]
+        except KeyError:
+            raise AttributeError(f"{type(self).__name__!r} object has no attribute {name!r}") from None
+
+    @property
+    def timetable(self) -> Timetable:
+        return decode_timetable(self.data["dag"]["timetable"])
+
+    @property
+    def has_task_concurrency_limits(self) -> bool:
+        return any(task.get("max_active_tis_per_dag") is not None for task in self.data["dag"]["tasks"])
+
+    def get_task_assets(
+        self,
+        inlets: bool = True,
+        outlets: bool = True,
+        of_type: type[AssetT] = Asset,  # type: ignore[assignment]
+    ) -> Generator[tuple[str, AssetT], None, None]:
+        for task in self.data["dag"]["tasks"]:
+            task = task[Encoding.VAR]
+            directions = ("inlets",) if inlets else ()
+            if outlets:
+                directions += ("outlets",)
+            for direction in directions:
+                if not (ports := task.get(direction)):
+                    continue
+
+                for port in ports:
+                    obj = BaseSerialization.deserialize(port)
+                    if isinstance(obj, of_type):
+                        yield task["task_id"], obj
+
+    if TYPE_CHECKING:
+        access_control: Mapping[str, Mapping[str, Collection[str]] | Collection[str]] | None = pydantic.Field(
+            init=False, default=None
+        )

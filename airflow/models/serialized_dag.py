@@ -52,6 +52,7 @@ if TYPE_CHECKING:
 
     from airflow.models import Operator
     from airflow.models.dag import DAG
+    from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
 log = logging.getLogger(__name__)
 
@@ -107,11 +108,17 @@ class SerializedDagModel(Base):
 
     load_op_links = True
 
-    def __init__(self, dag: DAG, processor_subdir: str | None = None) -> None:
+    def __init__(self, dag: DAG | LazyDeserializedDAG, processor_subdir: str | None = None) -> None:
+        from airflow.models.dag import DAG
+
         self.dag_id = dag.dag_id
         self.processor_subdir = processor_subdir
+        dag_data = {}
+        if isinstance(dag, DAG):
+            dag_data = SerializedDAG.to_dict(dag)
+        else:
+            dag_data = dag.data
 
-        dag_data = SerializedDAG.to_dict(dag)
         self.dag_hash = SerializedDagModel.hash(dag_data)
 
         # partially ordered json data
@@ -159,7 +166,7 @@ class SerializedDagModel(Base):
     @provide_session
     def write_dag(
         cls,
-        dag: DAG,
+        dag: DAG | LazyDeserializedDAG,
         min_update_interval: int | None = None,
         processor_subdir: str | None = None,
         session: Session = NEW_SESSION,
@@ -342,7 +349,7 @@ class SerializedDagModel(Base):
     @staticmethod
     @provide_session
     def bulk_sync_to_db(
-        dags: list[DAG],
+        dags: list[DAG] | list[LazyDeserializedDAG],
         processor_subdir: str | None = None,
         session: Session = NEW_SESSION,
     ) -> None:

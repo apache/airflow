@@ -25,7 +25,7 @@ import pathlib
 import sys
 import time
 from collections import defaultdict
-from collections.abc import Collection, Container, Iterable, Sequence
+from collections.abc import Collection, Container, Generator, Iterable, Sequence
 from contextlib import ExitStack
 from datetime import datetime, timedelta
 from functools import cache
@@ -34,6 +34,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    TypeVar,
     Union,
     cast,
     overload,
@@ -118,12 +119,15 @@ if TYPE_CHECKING:
     from airflow.models.abstractoperator import TaskStateChangeCallback
     from airflow.models.dagbag import DagBag
     from airflow.models.operator import Operator
+    from airflow.serialization.serialized_objects import MaybeSerializedDAG
     from airflow.typing_compat import Literal
 
 log = logging.getLogger(__name__)
 
 DEFAULT_VIEW_PRESETS = ["grid", "graph", "duration", "gantt", "landing_times"]
 ORIENTATION_PRESETS = ["LR", "TB", "RL", "BT"]
+
+AssetT = TypeVar("AssetT", bound=BaseAsset)
 
 TAG_MAX_LEN = 100
 
@@ -1828,7 +1832,7 @@ class DAG(TaskSDKDag, LoggingMixin):
     @provide_session
     def bulk_write_to_db(
         cls,
-        dags: Collection[DAG],
+        dags: Collection[MaybeSerializedDAG],
         processor_subdir: str | None = None,
         session: Session = NEW_SESSION,
     ):
@@ -1844,7 +1848,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         from airflow.dag_processing.collection import AssetModelOperation, DagModelOperation
 
         log.info("Sync %s DAGs", len(dags))
-        dag_op = DagModelOperation({dag.dag_id: dag for dag in dags})
+        dag_op = DagModelOperation({dag.dag_id: dag for dag in dags})  # type: ignore[misc]
 
         orm_dags = dag_op.add_dags(session=session)
         dag_op.update_dags(orm_dags, processor_subdir=processor_subdir, session=session)
@@ -1954,6 +1958,25 @@ class DAG(TaskSDKDag, LoggingMixin):
             else:
                 qry = qry.where(TaskInstance.state.in_(states))
         return session.scalar(qry)
+
+    # "default has type "type[Asset]", argument has type "type[AssetT]")  [assignment]" :shrug:
+    def get_task_assets(
+        self,
+        inlets: bool = True,
+        outlets: bool = True,
+        of_type: type[AssetT] = Asset,  # type: ignore[assignment]
+    ) -> Generator[tuple[str, AssetT], None, None]:
+        for task in self.task_dict.values():
+            directions = ("inlets",) if inlets else ()
+            if outlets:
+                directions += ("outlets",)
+            for direction in directions:
+                if not (ports := getattr(task, direction, None)):
+                    continue
+
+                for port in ports:
+                    if isinstance(port, of_type):
+                        yield task.task_id, port
 
 
 class DagTag(Base):
@@ -2239,7 +2262,7 @@ class DagModel(Base):
     def deactivate_deleted_dags(
         cls,
         alive_dag_filelocs: Container[str],
-        processor_subdir: str,
+        processor_subdir: str | None,
         session: Session = NEW_SESSION,
     ) -> None:
         """

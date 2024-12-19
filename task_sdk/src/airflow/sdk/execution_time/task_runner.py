@@ -324,7 +324,7 @@ def main():
     # TODO: add an exception here, it causes an oof of a stack trace!
 
     global SUPERVISOR_COMMS
-    SUPERVISOR_COMMS = CommsDecoder(input=sys.stdin)
+    SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](input=sys.stdin)
     try:
         ti, log = startup()
         run(ti, log)

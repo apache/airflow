@@ -192,6 +192,6 @@ class TestDagCode:
         session.commit()
         dagcode2 = DagCode.get_latest_dagcode(dag.dag_id)
         assert dagcode2.source_code_hash == 2
-        DagCode.update_source_code(dag)
+        DagCode.update_source_code(dag.dag_id, dag.fileloc)
         dag_code3 = DagCode.get_latest_dagcode(dag.dag_id)
         assert dag_code3.source_code_hash != 2
