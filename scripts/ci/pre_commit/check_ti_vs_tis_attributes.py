@@ -49,6 +49,7 @@ def compare_attributes(path1, path2):
         "dag_run",
         "trigger",
         "execution_date",
+        "logical_date",
         "triggerer_job",
         "note",
         "rendered_task_instance_fields",
