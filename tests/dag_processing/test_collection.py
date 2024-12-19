@@ -476,7 +476,7 @@ class TestUpdateDagParsingResults:
 
     def test_existing_dag_is_paused_upon_creation(self, session):
         dag = DAG("dag_paused", schedule=None)
-        update_dag_parsing_results_in_db([self.dag_to_lazy_serdag(dag)], {}, None, set(), session)
+        update_dag_parsing_results_in_db([self.dag_to_lazy_serdag(dag)], {}, set(), session)
         orm_dag = session.get(DagModel, ("dag_paused",))
         assert orm_dag.is_paused is False
 
