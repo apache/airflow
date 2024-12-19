@@ -1093,6 +1093,11 @@
                     "description": "Enable ``AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST`` variable to be read from the Elasticsearch Host Secret - Airflow <1.10.4 variant",
                     "type": "boolean",
                     "default": true
+                },
+                "AIRFLOW__OPENSEARCH__HOST": {
+                    "description": "Enable ``AIRFLOW__OPENSEARCH__HOST`` variable to be read from the OpenSearch Host Secret",
+                    "type": "boolean",
+                    "default": true
                 }
             }
         },
