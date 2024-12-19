@@ -8,7 +8,7 @@
     "datasetId": "usa_names",
     "tableId": "usa_1910_2013"
   },
-  "description": "The table contains the number of applicants for a Social Security card by year of birth and sex. The number of such applicants is restricted to U.S. births where the year of birth, sex, State of birth (50 States and District of Columbia) are known, and where the given name is at least 2 characters long.\n\nsource: http://www.ssa.gov/OACT/babynames/limits.html",
+  "description": "The table contains the number of applicants for a Social Security card by year of birth and sex.",
   "schema": {
     "fields": [
       {

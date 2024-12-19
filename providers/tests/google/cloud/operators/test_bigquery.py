@@ -1603,7 +1603,7 @@ class TestBigQueryInsertJobOperator:
 
         assert result == real_job_id
 
-        with open(os.path.dirname(__file__) + "/../utils/job_details.json") as f:
+        with open(os.path.dirname(__file__) + "/../utils/query_job_details.json") as f:
             job_details = json.loads(f.read())
         mock_hook.return_value.get_client.return_value.get_job.return_value._properties = job_details
         mock_hook.return_value.get_client.return_value.get_table.side_effect = Exception()
