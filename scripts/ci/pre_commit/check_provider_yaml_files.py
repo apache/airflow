@@ -38,5 +38,5 @@ if cmd_result.returncode != 0 and os.environ.get("CI") != "true":
         "\n[yellow]If you see strange stacktraces above, especially about missing imports "
         "run this command:[/]\n"
     )
-    console.print("[magenta]breeze ci-image build --python 3.8 --upgrade-to-newer-dependencies[/]\n")
+    console.print("[magenta]breeze ci-image build --python 3.9 --upgrade-to-newer-dependencies[/]\n")
 sys.exit(cmd_result.returncode)

@@ -28,13 +28,14 @@ import tempfile
 import textwrap
 import time
 from collections import defaultdict
+from collections.abc import Generator, Iterable
 from copy import deepcopy
 from datetime import date, datetime
 from functools import partial
 from multiprocessing import Pool
 from pathlib import Path
 from subprocess import DEVNULL
-from typing import IO, TYPE_CHECKING, Any, Generator, Iterable, Literal, NamedTuple, Union
+from typing import IO, TYPE_CHECKING, Any, Literal, NamedTuple, Union
 
 import click
 from rich.progress import Progress
