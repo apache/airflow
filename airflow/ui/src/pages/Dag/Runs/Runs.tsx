@@ -36,6 +36,7 @@ import {
 
 import { useDagRunServiceGetDagRuns } from "openapi/queries";
 import type { DAGRunResponse, DagRunState } from "openapi/requests/types.gen";
+import ClearRunButton from "src/components/ClearRun/ClearRunButton";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -91,6 +92,20 @@ const columns: Array<ColumnDef<DAGRunResponse>> = [
     cell: ({ row: { original } }) =>
       `${dayjs.duration(dayjs(original.end_date).diff(original.start_date)).asSeconds().toFixed(2)}s`,
     header: "Duration",
+  },
+  {
+    accessorKey: "clear_dag_run",
+    cell: ({ row }) => (
+      <Flex justifyContent="end">
+        <ClearRunButton
+          dagId={row.original.dag_id}
+          dagRunId={row.original.dag_run_id}
+          withText={false}
+        />
+      </Flex>
+    ),
+    enableSorting: false,
+    header: "",
   },
 ];
 

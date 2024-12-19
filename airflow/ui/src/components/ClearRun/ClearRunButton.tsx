@@ -16,12 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, useDisclosure } from "@chakra-ui/react";
-import { useState } from "react";
+import {
+  Box,
+  type ButtonProps,
+  IconButton,
+  useDisclosure,
+} from "@chakra-ui/react";
+import { type FC, useState } from "react";
 import { FiRefreshCw } from "react-icons/fi";
 
 import type { TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
-import { Button } from "src/components/ui";
+import { Button, Tooltip } from "src/components/ui";
 import { useClearDagRun } from "src/queries/useClearRun";
 
 import ClearRunDialog from "./ClearRunDialog";
@@ -29,9 +34,10 @@ import ClearRunDialog from "./ClearRunDialog";
 type Props = {
   readonly dagId: string;
   readonly dagRunId: string;
+  readonly withText?: boolean;
 };
 
-const ClearRunButton = ({ dagId, dagRunId }: Props) => {
+const ClearRunButton = ({ dagId, dagRunId, withText = true }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
 
   const [onlyFailed, setOnlyFailed] = useState(false);
@@ -42,6 +48,8 @@ const ClearRunButton = ({ dagId, dagRunId }: Props) => {
       total_entries: 0,
     });
 
+  const ButtonComponent: FC<ButtonProps> = withText ? Button : IconButton;
+
   const { isPending, mutate } = useClearDagRun({
     dagId,
     dagRunId,
@@ -51,20 +59,25 @@ const ClearRunButton = ({ dagId, dagRunId }: Props) => {
 
   return (
     <Box>
-      <Button
-        onClick={() => {
-          onOpen();
-          mutate({
-            dagId,
-            dagRunId,
-            requestBody: { dry_run: true, only_failed: onlyFailed },
-          });
-        }}
-        variant="outline"
-      >
-        <FiRefreshCw height={5} width={5} />
-        Clear Run
-      </Button>
+      <Tooltip content="Clear Dag Run" disabled={Boolean(withText)}>
+        <ButtonComponent
+          aria-label="Clear Dag Run"
+          colorPalette={withText ? undefined : "blue"}
+          onClick={() => {
+            onOpen();
+            mutate({
+              dagId,
+              dagRunId,
+              requestBody: { dry_run: true, only_failed: onlyFailed },
+            });
+          }}
+          size={withText ? "md" : "sm"}
+          variant={withText ? "outline" : "ghost"}
+        >
+          <FiRefreshCw />
+          {withText ? "Clear Run" : ""}
+        </ButtonComponent>
+      </Tooltip>
 
       <ClearRunDialog
         affectedTasks={affectedTasks}
