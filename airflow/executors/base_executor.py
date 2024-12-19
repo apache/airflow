@@ -46,6 +46,8 @@ if TYPE_CHECKING:
     import argparse
     from datetime import datetime
 
+    from sqlalchemy.orm import Session
+
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.cli.cli_config import GroupCommand
@@ -171,7 +173,7 @@ class BaseExecutor(LoggingMixin):
         else:
             self.log.error("could not queue task %s", task_instance.key)
 
-    def queue_workload(self, workload: workloads.All) -> None:
+    def queue_workload(self, workload: workloads.All, session: Session) -> None:
         raise ValueError(f"Un-handled workload kind {type(workload).__name__!r} in {type(self).__name__}")
 
     def queue_task_instance(
