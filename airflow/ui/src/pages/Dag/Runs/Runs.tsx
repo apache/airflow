@@ -26,7 +26,6 @@ import {
   Text,
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import dayjs from "dayjs";
 import { useCallback } from "react";
 import {
   useParams,
@@ -43,7 +42,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import Time from "src/components/Time";
 import { Select, Status } from "src/components/ui";
-import { capitalize } from "src/utils";
+import { capitalize, getDuration } from "src/utils";
 
 const columns: Array<ColumnDef<DAGRunResponse>> = [
   {
@@ -90,10 +89,7 @@ const columns: Array<ColumnDef<DAGRunResponse>> = [
   },
   {
     cell: ({ row: { original } }) =>
-      `${dayjs
-        .duration(dayjs(original.end_date ?? dayjs()).diff(original.start_date))
-        .asSeconds()
-        .toFixed(2)}s`,
+      getDuration(original.start_date, original.end_date),
     header: "Duration",
   },
   {
