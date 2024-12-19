@@ -61,6 +61,7 @@ const ClearRunButton = ({ dagId, dagRunId, withText = true }: Props) => {
     <Box>
       <Tooltip content="Clear Dag Run" disabled={Boolean(withText)}>
         <ButtonComponent
+          aria-label="Clear Dag Run"
           colorPalette={withText ? undefined : "blue"}
           onClick={() => {
             onOpen();
