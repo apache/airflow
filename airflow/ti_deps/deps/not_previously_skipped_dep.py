@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from airflow.models.taskinstance import PAST_DEPENDS_MET
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+from airflow.utils.db import LazySelectSequence
 
 
 class NotPreviouslySkippedDep(BaseTIDep):
@@ -38,7 +39,6 @@ class NotPreviouslySkippedDep(BaseTIDep):
             XCOM_SKIPMIXIN_FOLLOWED,
             XCOM_SKIPMIXIN_KEY,
             XCOM_SKIPMIXIN_SKIPPED,
-            SkipMixin,
         )
         from airflow.utils.state import TaskInstanceState
 
@@ -49,46 +49,47 @@ class NotPreviouslySkippedDep(BaseTIDep):
         finished_task_ids = {t.task_id for t in finished_tis}
 
         for parent in upstream:
-            if isinstance(parent, SkipMixin):
-                if parent.task_id not in finished_task_ids:
-                    # This can happen if the parent task has not yet run.
-                    continue
+            if parent.task_id not in finished_task_ids:
+                # This can happen if the parent task has not yet run.
+                continue
 
-                prev_result = ti.xcom_pull(task_ids=parent.task_id, key=XCOM_SKIPMIXIN_KEY, session=session)
+            prev_result = ti.xcom_pull(
+                task_ids=parent.task_id, key=XCOM_SKIPMIXIN_KEY, session=session, map_indexes=ti.map_index
+            )
 
-                if prev_result is None:
-                    # This can happen if the parent task has not yet run.
-                    continue
+            if isinstance(prev_result, LazySelectSequence):
+                prev_result = next(iter(prev_result))
 
-                should_skip = False
-                if (
-                    XCOM_SKIPMIXIN_FOLLOWED in prev_result
-                    and ti.task_id not in prev_result[XCOM_SKIPMIXIN_FOLLOWED]
-                ):
-                    # Skip any tasks that are not in "followed"
-                    should_skip = True
-                elif (
-                    XCOM_SKIPMIXIN_SKIPPED in prev_result
-                    and ti.task_id in prev_result[XCOM_SKIPMIXIN_SKIPPED]
-                ):
-                    # Skip any tasks that are in "skipped"
-                    should_skip = True
+            if prev_result is None:
+                # This can happen if the parent task has not yet run.
+                continue
 
-                if should_skip:
-                    # If the parent SkipMixin has run, and the XCom result stored indicates this
-                    # ti should be skipped, set ti.state to SKIPPED and fail the rule so that the
-                    # ti does not execute.
-                    if dep_context.wait_for_past_depends_before_skipping:
-                        past_depends_met = ti.xcom_pull(
-                            task_ids=ti.task_id, key=PAST_DEPENDS_MET, session=session, default=False
-                        )
-                        if not past_depends_met:
-                            yield self._failing_status(
-                                reason=("Task should be skipped but the past depends are not met")
-                            )
-                            return
-                    ti.set_state(TaskInstanceState.SKIPPED, session)
-                    yield self._failing_status(
-                        reason=f"Skipping because of previous XCom result from parent task {parent.task_id}"
+            should_skip = False
+            if (
+                XCOM_SKIPMIXIN_FOLLOWED in prev_result
+                and ti.task_id not in prev_result[XCOM_SKIPMIXIN_FOLLOWED]
+            ):
+                # Skip any tasks that are not in "followed"
+                should_skip = True
+            elif XCOM_SKIPMIXIN_SKIPPED in prev_result and ti.task_id in prev_result[XCOM_SKIPMIXIN_SKIPPED]:
+                # Skip any tasks that are in "skipped"
+                should_skip = True
+
+            if should_skip:
+                # If the parent SkipMixin has run, and the XCom result stored indicates this
+                # ti should be skipped, set ti.state to SKIPPED and fail the rule so that the
+                # ti does not execute.
+                if dep_context.wait_for_past_depends_before_skipping:
+                    past_depends_met = ti.xcom_pull(
+                        task_ids=ti.task_id, key=PAST_DEPENDS_MET, session=session, default=False
                     )
-                    return
+                    if not past_depends_met:
+                        yield self._failing_status(
+                            reason="Task should be skipped but the past depends are not met"
+                        )
+                        return
+                ti.set_state(TaskInstanceState.SKIPPED, session)
+                yield self._failing_status(
+                    reason=f"Skipping because of previous XCom result from parent task {parent.task_id}"
+                )
+                return
