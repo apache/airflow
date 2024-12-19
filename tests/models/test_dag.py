@@ -1110,17 +1110,14 @@ class TestDag:
         dag = DAG(dag_id, schedule=None, is_paused_upon_creation=True)
         dag.fileloc = dag_fileloc
         session = settings.Session()
-        dag.sync_to_db(session=session, processor_subdir="/usr/local/airflow/dags/")
+        dag.sync_to_db(session=session)
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
 
         assert orm_dag.is_active
         assert orm_dag.fileloc == dag_fileloc
 
-        DagModel.deactivate_deleted_dags(
-            list_py_file_paths(settings.DAGS_FOLDER),
-            processor_subdir="/usr/local/airflow/dags/",
-        )
+        DagModel.deactivate_deleted_dags(list_py_file_paths(settings.DAGS_FOLDER))
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
         assert not orm_dag.is_active

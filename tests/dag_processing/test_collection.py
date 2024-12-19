@@ -204,7 +204,7 @@ class TestUpdateDagParsingResults:
             sync_perms_spy.reset_calls()
             time_machine.shift(20)
 
-            update_dag_parsing_results_in_db([dag], dict(), None, set(), session)
+            update_dag_parsing_results_in_db([dag], dict(), set(), session)
 
         _sync_to_db()
         spy_agency.assert_spy_called_with(sync_perms_spy, dag, session=session)
@@ -238,16 +238,14 @@ class TestUpdateDagParsingResults:
         mock_bulk_write_to_db.side_effect = side_effect
 
         mock_session = mock.MagicMock()
-        update_dag_parsing_results_in_db(
-            dags=dags, import_errors={}, processor_subdir=None, warnings=set(), session=mock_session
-        )
+        update_dag_parsing_results_in_db(dags=dags, import_errors={}, warnings=set(), session=mock_session)
 
         # Test that 3 attempts were made to run 'DAG.bulk_write_to_db' successfully
         mock_bulk_write_to_db.assert_has_calls(
             [
-                mock.call(mock.ANY, processor_subdir=None, session=mock.ANY),
-                mock.call(mock.ANY, processor_subdir=None, session=mock.ANY),
-                mock.call(mock.ANY, processor_subdir=None, session=mock.ANY),
+                mock.call(mock.ANY, session=mock.ANY),
+                mock.call(mock.ANY, session=mock.ANY),
+                mock.call(mock.ANY, session=mock.ANY),
             ]
         )
         # Assert that rollback is called twice (i.e. whenever OperationalError occurs)
@@ -257,9 +255,7 @@ class TestUpdateDagParsingResults:
         # and the session was roll-backed before even reaching 'SerializedDagModel.write_dag'
         mock_s10n_write_dag.assert_has_calls(
             [
-                mock.call(
-                    mock_dag, min_update_interval=mock.ANY, processor_subdir=None, session=mock_session
-                ),
+                mock.call(mock_dag, min_update_interval=mock.ANY, session=mock_session),
             ]
         )
 
@@ -276,7 +272,7 @@ class TestUpdateDagParsingResults:
 
         dag = DAG(dag_id="test")
 
-        update_dag_parsing_results_in_db([dag], dict(), None, set(), session)
+        update_dag_parsing_results_in_db([dag], dict(), set(), session)
 
         new_serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
         assert new_serialized_dags_count == 1
@@ -296,7 +292,7 @@ class TestUpdateDagParsingResults:
         dag.fileloc = "abc.py"
 
         import_errors = {}
-        update_dag_parsing_results_in_db([dag], import_errors, None, set(), session)
+        update_dag_parsing_results_in_db([dag], import_errors, set(), session)
         assert "SerializationError" in caplog.text
 
         # Should have been edited in place
@@ -328,7 +324,6 @@ class TestUpdateDagParsingResults:
             filename=filename,
             timestamp=tz.utcnow(),
             stacktrace="Some error",
-            processor_subdir=None,
         )
         session.add(prev_error)
         session.flush()
@@ -337,7 +332,6 @@ class TestUpdateDagParsingResults:
         update_dag_parsing_results_in_db(
             dags=[],
             import_errors={"abc.py": "New error"},
-            processor_subdir=None,
             warnings=set(),
             session=session,
         )
@@ -360,7 +354,6 @@ class TestUpdateDagParsingResults:
             filename=filename,
             timestamp=tz.utcnow(),
             stacktrace="Some error",
-            processor_subdir=None,
         )
         session.add(prev_error)
 
@@ -370,7 +363,6 @@ class TestUpdateDagParsingResults:
                 filename="def.py",
                 timestamp=tz.utcnow(),
                 stacktrace="Some error",
-                processor_subdir=None,
             )
         )
         session.flush()
@@ -383,7 +375,7 @@ class TestUpdateDagParsingResults:
         dag.fileloc = filename
 
         import_errors = {}
-        update_dag_parsing_results_in_db([dag], import_errors, None, set(), session)
+        update_dag_parsing_results_in_db([dag], import_errors, set(), session)
 
         dag_model: DagModel = session.get(DagModel, (dag.dag_id,))
         assert dag_model.has_import_errors is False

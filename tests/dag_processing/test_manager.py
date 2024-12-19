@@ -501,56 +501,6 @@ class TestDagFileProcessorManager:
             # SerializedDagModel gives history about Dags
             assert serialized_dag_count == 1
 
-    @conf_vars(
-        {
-            ("core", "load_examples"): "False",
-            ("scheduler", "standalone_dag_processor"): "True",
-            ("scheduler", "stale_dag_threshold"): "50",
-        }
-    )
-    def test_scan_stale_dags_standalone_mode(self):
-        """
-        Ensure only dags from current dag_directory are updated
-        """
-        dag_directory = "directory"
-        manager = DagFileProcessorManager(dag_directory=dag_directory, max_runs=1)
-
-        test_dag_path = str(TEST_DAG_FOLDER / "test_example_bash_operator.py")
-        dagbag = DagBag(test_dag_path, read_dags_from_db=False)
-        other_test_dag_path = str(TEST_DAG_FOLDER / "test_scheduler_dags.py")
-        other_dagbag = DagBag(other_test_dag_path, read_dags_from_db=False)
-
-        with create_session() as session:
-            # Add stale DAG to the DB
-            dag = dagbag.get_dag("test_example_bash_operator")
-            dag.last_parsed_time = timezone.utcnow()
-            dag.sync_to_db(processor_subdir=dag_directory)
-
-            # Add stale DAG to the DB
-            other_dag = other_dagbag.get_dag("test_start_date_scheduling")
-            other_dag.last_parsed_time = timezone.utcnow()
-            other_dag.sync_to_db(processor_subdir="other")
-
-            # Add DAG to the file_parsing_stats
-            stat = DagFileStat(
-                num_dags=1,
-                import_errors=0,
-                last_finish_time=timezone.utcnow() + timedelta(hours=1),
-                last_duration=1,
-                run_count=1,
-                last_num_of_db_queries=1,
-            )
-            manager._file_paths = [test_dag_path]
-            manager._file_stats[test_dag_path] = stat
-
-            active_dag_count = session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
-            assert active_dag_count == 2
-
-            manager._scan_stale_dags()
-
-            active_dag_count = session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
-            assert active_dag_count == 1
-
     def test_kill_timed_out_processors_kill(self):
         manager = DagFileProcessorManager(dag_directory="directory", max_runs=1, processor_timeout=5)
 
@@ -599,42 +549,6 @@ class TestDagFileProcessorManager:
 
         with create_session() as session:
             assert session.get(DagModel, dag_id) is not None
-
-    @conf_vars({("core", "load_examples"): "False"})
-    def test_import_error_with_dag_directory(self, tmp_path):
-        TEMP_DAG_FILENAME = "temp_dag.py"
-
-        processor_dir_1 = tmp_path / "processor_1"
-        processor_dir_1.mkdir()
-        filename_1 = os.path.join(processor_dir_1, TEMP_DAG_FILENAME)
-        with open(filename_1, "w") as f:
-            f.write("an invalid airflow DAG")
-
-        processor_dir_2 = tmp_path / "processor_2"
-        processor_dir_2.mkdir()
-        filename_1 = os.path.join(processor_dir_2, TEMP_DAG_FILENAME)
-        with open(filename_1, "w") as f:
-            f.write("an invalid airflow DAG")
-
-        with create_session() as session:
-            manager = DagFileProcessorManager(dag_directory=processor_dir_1, max_runs=1)
-
-            self.run_processor_manager_one_loop(manager)
-
-            import_errors = session.query(ParseImportError).order_by("id").all()
-            assert len(import_errors) == 1
-            assert import_errors[0].processor_subdir == str(processor_dir_1)
-
-            manager = DagFileProcessorManager(dag_directory=processor_dir_2, max_runs=1)
-
-            self.run_processor_manager_one_loop(manager)
-
-            import_errors = session.query(ParseImportError).order_by("id").all()
-            assert len(import_errors) == 2
-            assert import_errors[0].processor_subdir == str(processor_dir_1)
-            assert import_errors[1].processor_subdir == str(processor_dir_2)
-
-            session.rollback()
 
     @conf_vars({("core", "load_examples"): "False"})
     @pytest.mark.execution_timeout(30)
@@ -769,29 +683,6 @@ class TestDagFileProcessorManager:
         # assert dag deactivated
         assert not dag.get_is_active()
 
-    def test_refresh_dags_dir_does_not_interfer_with_dags_outside_its_subdir(self, tmp_path):
-        """Test DagFileProcessorManager._refresh_dag_dir should not update dags outside its processor_subdir"""
-
-        dagbag = DagBag(dag_folder=tmp_path, include_examples=False)
-        dag_path = os.path.join(TEST_DAGS_FOLDER, "test_miscellaneous.py")
-        dagbag.process_file(dag_path)
-        dag = dagbag.get_dag("miscellaneous_test_dag")
-        dag.sync_to_db(processor_subdir=str(TEST_DAG_FOLDER))
-        SerializedDagModel.write_dag(dag, processor_subdir=str(TEST_DAG_FOLDER))
-
-        assert SerializedDagModel.has_dag("miscellaneous_test_dag")
-        assert dag.get_is_active()
-        assert DagCode.has_dag(dag.dag_id)
-
-        manager = DagFileProcessorManager(dag_directory=TEST_DAG_FOLDER / "subdir2" / "subdir3", max_runs=1)
-        manager.last_dag_dir_refresh_time = time.monotonic() - 10 * 60
-
-        manager._refresh_dag_dir()
-
-        assert SerializedDagModel.has_dag("miscellaneous_test_dag")
-        assert dag.get_is_active()
-        assert DagCode.has_dag(dag.dag_id)
-
     @conf_vars(
         {
             ("core", "load_examples"): "False",
@@ -805,14 +696,12 @@ class TestDagFileProcessorManager:
             dag_id="test_start_date_scheduling",
             full_filepath=str(dag_filepath),
             is_failure_callback=True,
-            processor_subdir=os.fspath(tmp_path),
             run_id="123",
         )
         callback2 = DagCallbackRequest(
             dag_id="test_start_date_scheduling",
             full_filepath=str(dag_filepath),
             is_failure_callback=True,
-            processor_subdir=os.fspath(tmp_path),
             run_id="456",
         )
 
@@ -827,41 +716,6 @@ class TestDagFileProcessorManager:
         with create_session() as session:
             self.run_processor_manager_one_loop(manager)
             assert session.query(DbCallbackRequest).count() == 0
-
-    @conf_vars(
-        {
-            ("core", "load_examples"): "False",
-            ("scheduler", "standalone_dag_processor"): "True",
-        }
-    )
-    def test_fetch_callbacks_for_current_dag_directory_only(self, tmp_path):
-        """Test DagFileProcessorManager._fetch_callbacks method"""
-        dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
-
-        callback1 = DagCallbackRequest(
-            dag_id="test_start_date_scheduling",
-            full_filepath=str(dag_filepath),
-            is_failure_callback=True,
-            processor_subdir=os.fspath(tmp_path),
-            run_id="123",
-        )
-        callback2 = DagCallbackRequest(
-            dag_id="test_start_date_scheduling",
-            full_filepath=str(dag_filepath),
-            is_failure_callback=True,
-            processor_subdir="/some/other/dir/",
-            run_id="456",
-        )
-
-        with create_session() as session:
-            session.add(DbCallbackRequest(callback=callback1, priority_weight=11))
-            session.add(DbCallbackRequest(callback=callback2, priority_weight=10))
-
-        manager = DagFileProcessorManager(dag_directory=tmp_path, max_runs=1)
-
-        with create_session() as session:
-            self.run_processor_manager_one_loop(manager)
-            assert session.query(DbCallbackRequest).count() == 1
 
     @conf_vars(
         {
@@ -881,7 +735,6 @@ class TestDagFileProcessorManager:
                     full_filepath=str(dag_filepath),
                     is_failure_callback=True,
                     run_id=str(i),
-                    processor_subdir=os.fspath(tmp_path),
                 )
                 session.add(DbCallbackRequest(callback=callback, priority_weight=i))
 
@@ -909,7 +762,6 @@ class TestDagFileProcessorManager:
                 dag_id="test_start_date_scheduling",
                 full_filepath=str(dag_filepath),
                 is_failure_callback=True,
-                processor_subdir=str(tmp_path),
                 run_id="123",
             )
             session.add(DbCallbackRequest(callback=callback, priority_weight=10))
@@ -935,7 +787,6 @@ class TestDagFileProcessorManager:
             dag_id="dag1",
             run_id="run1",
             is_failure_callback=False,
-            processor_subdir=tmp_path.as_posix(),
             msg=None,
         )
         dag1_req2 = DagCallbackRequest(
@@ -943,7 +794,6 @@ class TestDagFileProcessorManager:
             dag_id="dag1",
             run_id="run1",
             is_failure_callback=False,
-            processor_subdir=tmp_path.as_posix(),
             msg=None,
         )
 
@@ -952,7 +802,6 @@ class TestDagFileProcessorManager:
             dag_id="dag2",
             run_id="run1",
             is_failure_callback=False,
-            processor_subdir=tmp_path.as_posix(),
             msg=None,
         )
 
