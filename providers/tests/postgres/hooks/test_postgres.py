@@ -24,11 +24,15 @@ from unittest import mock
 
 import psycopg2.extras
 import pytest
+import sqlalchemy
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.postgres.dialects.postgres import PostgresDialect
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.types import NOTSET
+
+INSERT_SQL_STATEMENT = "INSERT INTO connection (id, conn_id, conn_type, description, host, {}, login, password, port, is_encrypted, is_extra_encrypted, extra) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
 
 
 class TestPostgresHookConn:
@@ -645,3 +649,81 @@ class TestPostgresHook:
                 assert "NOTICE:  Message from db: 42" in caplog.text
             finally:
                 hook.run(sql=f"DROP PROCEDURE {proc_name} (s text)")
+
+    def test_dialect_name(self):
+        assert self.db_hook.dialect_name == "postgresql"
+
+    def test_dialect(self):
+        assert isinstance(self.db_hook.dialect, PostgresDialect)
+
+    def test_reserved_words(self):
+        hook = PostgresHook()
+        assert hook.reserved_words == sqlalchemy.dialects.postgresql.base.RESERVED_WORDS
+
+    def test_generate_insert_sql_without_already_escaped_column_name(self):
+        values = [
+            "1",
+            "mssql_conn",
+            "mssql",
+            "MSSQL connection",
+            "localhost",
+            "airflow",
+            "admin",
+            "admin",
+            1433,
+            False,
+            False,
+            {},
+        ]
+        target_fields = [
+            "id",
+            "conn_id",
+            "conn_type",
+            "description",
+            "host",
+            "schema",
+            "login",
+            "password",
+            "port",
+            "is_encrypted",
+            "is_extra_encrypted",
+            "extra",
+        ]
+        hook = PostgresHook()
+        assert hook._generate_insert_sql(
+            table="connection", values=values, target_fields=target_fields
+        ) == INSERT_SQL_STATEMENT.format("schema")
+
+    def test_generate_insert_sql_with_already_escaped_column_name(self):
+        values = [
+            "1",
+            "mssql_conn",
+            "mssql",
+            "MSSQL connection",
+            "localhost",
+            "airflow",
+            "admin",
+            "admin",
+            1433,
+            False,
+            False,
+            {},
+        ]
+        target_fields = [
+            "id",
+            "conn_id",
+            "conn_type",
+            "description",
+            "host",
+            '"schema"',
+            "login",
+            "password",
+            "port",
+            "is_encrypted",
+            "is_extra_encrypted",
+            "extra",
+        ]
+        hook = PostgresHook()
+        assert hook._generate_insert_sql(
+            table="connection", values=values, target_fields=target_fields
+        ) == INSERT_SQL_STATEMENT.format('"schema"')
