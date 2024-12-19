@@ -67,7 +67,7 @@ class TestConnectionAccessor:
         ) as mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = conn_result
 
-            # Fetch the connection; Triggers __getattr__
+            # Fetch the connection; triggers __getattr__
             conn = accessor.mysql_conn
 
             expected_conn = Connection(conn_id="mysql_conn", conn_type="mysql", host="mysql", port=3306)
