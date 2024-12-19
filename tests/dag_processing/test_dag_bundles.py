@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+from unittest import mock
 
 import pytest
 from git import Repo
@@ -122,6 +123,7 @@ class TestGitDagBundle:
         bundle = GitDagBundle(
             name="test", refresh_interval=300, repo_url=repo_path, tracking_ref=GIT_DEFAULT_BRANCH
         )
+        bundle.initialize()
 
         assert bundle.get_current_version() == repo.head.commit.hexsha
 
@@ -143,6 +145,7 @@ class TestGitDagBundle:
             repo_url=repo_path,
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
+        bundle.initialize()
 
         assert bundle.get_current_version() == starting_commit.hexsha
 
@@ -171,7 +174,7 @@ class TestGitDagBundle:
             repo_url=repo_path,
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
-
+        bundle.initialize()
         assert bundle.get_current_version() == starting_commit.hexsha
 
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
@@ -190,6 +193,7 @@ class TestGitDagBundle:
         bundle = GitDagBundle(
             name="test", refresh_interval=300, repo_url=repo_path, tracking_ref=GIT_DEFAULT_BRANCH
         )
+        bundle.initialize()
 
         assert bundle.get_current_version() != starting_commit.hexsha
 
@@ -203,6 +207,7 @@ class TestGitDagBundle:
         bundle = GitDagBundle(
             name="test", refresh_interval=300, repo_url=repo_path, tracking_ref=GIT_DEFAULT_BRANCH
         )
+        bundle.initialize()
 
         assert bundle.get_current_version() == starting_commit.hexsha
 
@@ -227,19 +232,21 @@ class TestGitDagBundle:
 
         repo.create_head("test")
         bundle = GitDagBundle(name="test", refresh_interval=300, repo_url=repo_path, tracking_ref="test")
+        bundle.initialize()
         assert bundle.repo.head.ref.name == "test"
 
     def test_version_not_found(self, git_repo):
         repo_path, repo = git_repo
+        bundle = GitDagBundle(
+            name="test",
+            refresh_interval=300,
+            version="not_found",
+            repo_url=repo_path,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+        )
 
         with pytest.raises(AirflowException, match="Version not_found not found in the repository"):
-            GitDagBundle(
-                name="test",
-                refresh_interval=300,
-                version="not_found",
-                repo_url=repo_path,
-                tracking_ref=GIT_DEFAULT_BRANCH,
-            )
+            bundle.initialize()
 
     def test_subdir(self, git_repo):
         repo_path, repo = git_repo
@@ -261,7 +268,53 @@ class TestGitDagBundle:
             tracking_ref=GIT_DEFAULT_BRANCH,
             subdir=subdir,
         )
+        bundle.initialize()
 
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert str(bundle.path).endswith(subdir)
         assert {"some_new_file.py"} == files_in_repo
+
+    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHHook")
+    @mock.patch("airflow.dag_processing.bundles.git.Repo")
+    def test_with_ssh_conn_id(self, mock_gitRepo, mock_hook):
+        repo_url = "git@github.com:apache/airflow.git"
+        conn_id = "ssh_default"
+        bundle = GitDagBundle(
+            repo_url=repo_url,
+            name="test",
+            refresh_interval=300,
+            ssh_conn_kwargs={"ssh_conn_id": "ssh_default"},
+            tracking_ref=GIT_DEFAULT_BRANCH,
+        )
+        bundle.initialize()
+        mock_hook.assert_called_once_with(ssh_conn_id=conn_id)
+
+    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHHook")
+    @mock.patch("airflow.dag_processing.bundles.git.Repo")
+    def test_refresh_with_ssh_connection(self, mock_gitRepo, mock_hook):
+        repo_url = "git@github.com:apache/airflow.git"
+        bundle = GitDagBundle(
+            repo_url=repo_url,
+            name="test",
+            refresh_interval=300,
+            ssh_conn_kwargs={"ssh_conn_id": "ssh_default"},
+            tracking_ref=GIT_DEFAULT_BRANCH,
+        )
+        bundle.initialize()
+        bundle.refresh()
+        # check remotes called twice. one at initialize and one at refresh above
+        assert mock_gitRepo.return_value.remotes.origin.fetch.call_count == 2
+
+    def test_repo_url_starts_with_git_when_using_ssh_conn_id(self):
+        repo_url = "https://github.com/apache/airflow"
+        bundle = GitDagBundle(
+            repo_url=repo_url,
+            name="test",
+            refresh_interval=300,
+            ssh_conn_kwargs={"ssh_conn_id": "ssh_default"},
+            tracking_ref=GIT_DEFAULT_BRANCH,
+        )
+        with pytest.raises(
+            AirflowException, match=f"Invalid git URL: {repo_url}. URL must start with git@ and end with .git"
+        ):
+            bundle.initialize()
