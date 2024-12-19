@@ -22,6 +22,7 @@ import { FiBarChart } from "react-icons/fi";
 import { MdOutlineModeComment } from "react-icons/md";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
+import ClearRunButton from "src/components/ClearRun";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { Stat } from "src/components/Stat";
 import Time from "src/components/Time";
@@ -40,6 +41,9 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => (
         <Flex>
           <div />
         </Flex>
+      </HStack>
+      <HStack>
+        <ClearRunButton dagId={dagRun.dag_id} dagRunId={dagRun.dag_run_id} />
       </HStack>
     </Flex>
     {dagRun.note === null || dagRun.note.length === 0 ? undefined : (
