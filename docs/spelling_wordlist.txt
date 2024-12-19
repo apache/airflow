@@ -753,6 +753,7 @@ hiveserver
 hmsclient
 Hoc
 hoc
+Hohpe
 homebrew
 honoured
 hookable
