@@ -27,6 +27,7 @@ import type {
 } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { Status } from "src/components/ui";
+import { getTaskInstanceLink } from "src/utils/links";
 
 import { Accordion } from "../ui";
 
@@ -35,9 +36,7 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
     accessorKey: "task_display_name",
     cell: ({ row: { original } }) => (
       <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink
-          to={`/dags/${original.dag_id}/runs/${original.dag_run_id}/tasks/${original.task_id}${original.map_index > -1 ? `?map_index=${original.map_index}` : ""}`}
-        >
+        <RouterLink to={getTaskInstanceLink(original)}>
           {original.task_display_name}
         </RouterLink>
       </Link>

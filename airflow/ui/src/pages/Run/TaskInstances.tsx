@@ -28,15 +28,14 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 import { Status } from "src/components/ui";
 import { getDuration } from "src/utils";
+import { getTaskInstanceLink } from "src/utils/links";
 
 const columns: Array<ColumnDef<TaskInstanceResponse>> = [
   {
     accessorKey: "task_display_name",
     cell: ({ row: { original } }) => (
       <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink
-          to={`/dags/${original.dag_id}/runs/${original.dag_run_id}/tasks/${original.task_id}${original.map_index > -1 ? `?map_index=${original.map_index}` : ""}`}
-        >
+        <RouterLink to={getTaskInstanceLink(original)}>
           {original.task_display_name}
         </RouterLink>
       </Link>
