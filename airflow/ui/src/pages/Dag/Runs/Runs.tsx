@@ -26,7 +26,6 @@ import {
   Text,
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import dayjs from "dayjs";
 import { useCallback } from "react";
 import {
   useParams,
@@ -43,7 +42,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import Time from "src/components/Time";
 import { Select, Status } from "src/components/ui";
-import { capitalize } from "src/utils";
+import { capitalize, getDuration } from "src/utils";
 
 const columns: Array<ColumnDef<DAGRunResponse>> = [
   {
@@ -90,7 +89,7 @@ const columns: Array<ColumnDef<DAGRunResponse>> = [
   },
   {
     cell: ({ row: { original } }) =>
-      `${dayjs.duration(dayjs(original.end_date).diff(original.start_date)).asSeconds().toFixed(2)}s`,
+      getDuration(original.start_date, original.end_date),
     header: "Duration",
   },
   {
@@ -133,13 +132,17 @@ export const Runs = () => {
 
   const filteredState = searchParams.get(STATE_PARAM);
 
-  const { data, error, isFetching, isLoading } = useDagRunServiceGetDagRuns({
-    dagId: dagId ?? "~",
-    limit: pagination.pageSize,
-    offset: pagination.pageIndex * pagination.pageSize,
-    orderBy,
-    state: filteredState === null ? undefined : [filteredState],
-  });
+  const { data, error, isFetching, isLoading } = useDagRunServiceGetDagRuns(
+    {
+      dagId: dagId ?? "~",
+      limit: pagination.pageSize,
+      offset: pagination.pageIndex * pagination.pageSize,
+      orderBy,
+      state: filteredState === null ? undefined : [filteredState],
+    },
+    undefined,
+    { enabled: !isNaN(pagination.pageSize) },
+  );
 
   const handleStateChange = useCallback(
     ({ value }: SelectValueChangeDetails<string>) => {
