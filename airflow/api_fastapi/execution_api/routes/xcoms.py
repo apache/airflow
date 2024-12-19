@@ -22,7 +22,6 @@ import logging
 from typing import Annotated
 
 from fastapi import Body, HTTPException, Query, status
-from pydantic import Json
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -92,7 +91,7 @@ def get_xcom(
         )
 
     try:
-        xcom_value = BaseXCom.deserialize_value(result)
+        xcom_value = BaseXCom.orm_deserialize_value(result)
     except json.JSONDecodeError:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -118,7 +117,7 @@ def set_xcom(
     task_id: str,
     key: str,
     value: Annotated[
-        Json,
+        str,
         Body(
             description="A JSON-formatted string representing the value to set for the XCom.",
             openapi_examples={
@@ -142,6 +141,17 @@ def set_xcom(
     map_index: Annotated[int, Query()] = -1,
 ):
     """Set an Airflow XCom."""
+    try:
+        json.loads(value)
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "reason": "invalid_format",
+                "message": "XCom value is not a valid JSON-formatted string",
+            },
+        )
+
     if not has_xcom_access(key, token):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
