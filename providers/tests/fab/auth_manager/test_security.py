@@ -44,11 +44,11 @@ with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.models import assoc_permission_role
     from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.security import permissions
 from airflow.security.permissions import ACTION_CAN_READ
 from airflow.www import app as application
 from airflow.www.auth import get_access_denied_message
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.utils import CustomSQLAInterface
 
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (

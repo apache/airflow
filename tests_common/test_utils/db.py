@@ -68,10 +68,10 @@ def _bootstrap_dagbag():
 def initial_db_init():
     from flask import Flask
 
+    from airflow.api_fastapi.app import get_auth_manager
     from airflow.configuration import conf
     from airflow.utils import db
     from airflow.www.extensions.init_appbuilder import init_appbuilder
-    from airflow.www.extensions.init_auth_manager import get_auth_manager
 
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
