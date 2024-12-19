@@ -42,7 +42,9 @@ export const TaskRecentRuns = ({
     ...taskInstance,
     duration:
       dayjs
-        .duration(dayjs(taskInstance.end_date).diff(taskInstance.start_date))
+        .duration(
+          dayjs(taskInstance.end_date ?? dayjs()).diff(taskInstance.start_date),
+        )
         .asSeconds() || 0,
   }));
 

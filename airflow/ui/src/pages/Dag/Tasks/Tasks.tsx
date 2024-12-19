@@ -89,6 +89,7 @@ export const Tasks = () => {
         dagId,
         dagRunId: "~",
         logicalDateGte: runs.at(-1)?.logical_date ?? "",
+        orderBy: "-start_date",
       },
       undefined,
       { enabled: Boolean(runs[0]?.dag_run_id) },
@@ -101,10 +102,7 @@ export const Tasks = () => {
         {pluralize("Task", data ? data.total_entries : 0)}
       </Heading>
       <DataTable
-        cardDef={cardDef(
-          dagId,
-          taskInstancesResponse?.task_instances.reverse(),
-        )}
+        cardDef={cardDef(dagId, taskInstancesResponse?.task_instances)}
         columns={[]}
         data={data ? data.tasks : []}
         displayMode="card"

@@ -50,10 +50,12 @@ export const useDags = (
     tags?: Array<string>;
   } = {},
 ) => {
+  const offsetDefined =
+    searchParams.offset === undefined ? false : !isNaN(searchParams.offset);
   const { data, error, isFetching, isLoading } = useDagServiceGetDags(
     searchParams,
     undefined,
-    queryOptions,
+    { ...queryOptions, enabled: offsetDefined },
   );
 
   const { orderBy, ...runsParams } = searchParams;
@@ -68,7 +70,7 @@ export const useDags = (
       dagRunsLimit: 14,
     },
     undefined,
-    queryOptions,
+    { ...queryOptions, enabled: offsetDefined },
   );
 
   const dags = (data?.dags ?? []).map((dag) => {
