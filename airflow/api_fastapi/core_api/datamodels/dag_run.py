@@ -48,6 +48,7 @@ class DAGRunClearBody(BaseModel):
     """DAG Run serializer for clear endpoint body."""
 
     dry_run: bool = True
+    only_failed: bool = False
 
 
 class DAGRunResponse(BaseModel):
