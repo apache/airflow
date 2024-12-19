@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.models.asset import AssetAliasModel, AssetModel
+from airflow.models.asset import AssetActive, AssetAliasModel, AssetModel
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasUniqueKey, AssetUniqueKey
 from airflow.utils.context import AssetAliasEvent, OutletEventAccessor, OutletEventAccessors
 
@@ -42,9 +42,14 @@ class TestOutletEventAccessor:
             ),
         ),
     )
-    def test_add(self, key, asset_alias_events):
+    @pytest.mark.db_test
+    def test_add(self, key, asset_alias_events, session):
+        asset = Asset("test_uri")
+        session.add_all([AssetModel.from_public(asset), AssetActive.for_asset(asset)])
+        session.flush()
+
         outlet_event_accessor = OutletEventAccessor(key=key, extra={})
-        outlet_event_accessor.add(Asset("test_uri"))
+        outlet_event_accessor.add(asset)
         assert outlet_event_accessor.asset_alias_events == asset_alias_events
 
     @pytest.mark.db_test
@@ -65,11 +70,11 @@ class TestOutletEventAccessor:
         ),
     )
     def test_add_with_db(self, key, asset_alias_events, session):
-        asm = AssetModel(uri="test://asset-uri", name="test-asset", group="asset")
-        aam = AssetAliasModel(name="test_alias")
-        session.add_all([asm, aam])
-        session.flush()
         asset = Asset(uri="test://asset-uri", name="test-asset")
+        asm = AssetModel.from_public(asset)
+        aam = AssetAliasModel(name="test_alias")
+        session.add_all([asm, aam, AssetActive.for_asset(asset)])
+        session.flush()
 
         outlet_event_accessor = OutletEventAccessor(key=key, extra={"not": ""})
         outlet_event_accessor.add(asset, extra={})
