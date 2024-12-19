@@ -243,9 +243,6 @@ def create_backfill(
                     non_create_reason = BackfillDagRunExceptionReason.IN_FLIGHT
                 elif backfill_request.reprocess_behavior is ReprocessBehavior.NONE:
                     non_create_reason = BackfillDagRunExceptionReason.ALREADY_EXISTS
-                elif backfill_request.reprocess_behavior is ReprocessBehavior.COMPLETED:
-                    if dr.state == DagRunState.FAILED:
-                        non_create_reason = BackfillDagRunExceptionReason.UNKNOWN
                 elif backfill_request.reprocess_behavior is ReprocessBehavior.FAILED:
                     if dr.state != DagRunState.FAILED:
                         non_create_reason = BackfillDagRunExceptionReason.ALREADY_EXISTS
