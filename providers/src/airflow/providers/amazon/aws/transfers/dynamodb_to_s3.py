@@ -101,6 +101,7 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
     :param check_interval: The amount of time in seconds to wait between attempts. Only if ``export_time`` is
         provided.
     :param max_attempts: The maximum number of attempts to be made. Only if ``export_time`` is provided.
+    "returns export_arn: Export ARN value in case of 'point in time export' or None for 'scan'
     """
 
     template_fields: Sequence[str] = (
