@@ -172,7 +172,7 @@ def post_variable(
     if existing_variable:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"The Variable with key: '{post_body.key}' already exists.",
+            detail=f"The Variable with key: '{post_body.key}' already exists",
         )
 
     Variable.set(**post_body.model_dump(), session=session)
