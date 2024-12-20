@@ -22,6 +22,7 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Collection
 from datetime import timedelta
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -32,6 +33,7 @@ if TYPE_CHECKING:
     from collections.abc import Sized
 
     from airflow.models import DagRun
+    from airflow.sdk.definitions.asset import AssetUniqueKey
 
 
 class AirflowException(Exception):
@@ -109,6 +111,35 @@ class AirflowSkipException(AirflowException):
 
 class AirflowFailException(AirflowException):
     """Raise when the task should be failed without retrying."""
+
+
+class AirflowExecuteWithInactiveAssetExecption(AirflowFailException):
+    """Raise when the task is executed with inactive assets."""
+
+    def __init__(self, inactive_asset_unikeys: Collection[AssetUniqueKey]) -> None:
+        self.inactive_asset_unique_keys = inactive_asset_unikeys
+
+    @property
+    def inactive_assets_error_msg(self):
+        return ", ".join(
+            f'Asset(name="{key.name}", uri="{key.uri}")' for key in self.inactive_asset_unique_keys
+        )
+
+
+class AirflowInactiveAssetInInletOrOutletException(AirflowExecuteWithInactiveAssetExecption):
+    """Raise when the task is executed with inactive assets in its inlet or outlet."""
+
+    def __str__(self) -> str:
+        return f"Task has the following inactive assets in its inlets or outlets: {self.inactive_assets_error_msg}"
+
+
+class AirflowInactiveAssetAddedToAssetAliasException(AirflowExecuteWithInactiveAssetExecption):
+    """Raise when inactive assets are added to an asset alias."""
+
+    def __str__(self) -> str:
+        return (
+            f"The following assets accessed by an AssetAlias are inactive: {self.inactive_assets_error_msg}"
+        )
 
 
 class AirflowOptionalProviderFeatureException(AirflowException):
