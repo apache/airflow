@@ -211,18 +211,12 @@ class TestBaseOperator:
             assert warning.filename == __file__
 
     def test_setattr_performs_no_custom_action_at_execute_time(self, spy_agency):
-        from airflow.models.xcom_arg import XComArg
-
         op = MockOperator(task_id="test_task")
 
-        op._lock_for_execution = True
-        # TODO: Task-SDK
-        # op_copy = op.prepare_for_execution()
-        op_copy = op
-
-        spy_agency.spy_on(XComArg.apply_upstream_relationship, call_original=False)
+        op_copy = op.prepare_for_execution()
+        spy_agency.spy_on(op._set_xcomargs_dependency, call_original=False)
         op_copy.arg1 = "b"
-        assert XComArg.apply_upstream_relationship.called is False
+        assert op._set_xcomargs_dependency.called is False
 
     def test_upstream_is_set_when_template_field_is_xcomarg(self):
         with DAG("xcomargs_test", schedule=None):

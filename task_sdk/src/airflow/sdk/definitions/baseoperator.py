@@ -974,7 +974,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def __getstate__(self):
         state = dict(self.__dict__)
-        if self._log:
+        if "_log" in state:
             del state["_log"]
 
         return state
@@ -1218,6 +1218,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             DagContext.pop()
 
         return cls.__serialized_fields
+
+    def prepare_for_execution(self) -> BaseOperator:
+        """Lock task for execution to disable custom action in ``__setattr__`` and return a copy."""
+        other = copy.copy(self)
+        other._lock_for_execution = True
+        return other
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
         """Serialize; required by DAGNode."""
