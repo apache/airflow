@@ -36,7 +36,7 @@ def simple_app():
                 "core",
                 "auth_manager",
             ): "airflow.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
-            ("core", "simple_auth_manager_users"): "test,admin",
+            ("core", "simple_auth_manager_users"): "test:admin",
         }
     ):
         with open(SimpleAuthManager.get_generated_password_file(), "w") as file:

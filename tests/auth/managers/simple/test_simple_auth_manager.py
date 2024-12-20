@@ -53,11 +53,11 @@ class TestSimpleAuthManager:
     def test_get_users(self, auth_manager):
         with conf_vars(
             {
-                ("core", "simple_auth_manager_users"): "test1,viewer test2,viewer",
+                ("core", "simple_auth_manager_users"): "test1:viewer,test2:viewer",
             }
         ):
             users = auth_manager.get_users()
-            assert users == [["test1", "viewer"], ["test2", "viewer"]]
+            assert users == [{"role": "viewer", "username": "test1"}, {"role": "viewer", "username": "test2"}]
 
     @pytest.mark.db_test
     def test_init_with_default_user(self, auth_manager):
@@ -72,7 +72,7 @@ class TestSimpleAuthManager:
     def test_init_with_users(self, auth_manager):
         with conf_vars(
             {
-                ("core", "simple_auth_manager_users"): "test1,viewer test2,viewer",
+                ("core", "simple_auth_manager_users"): "test1:viewer,test2:viewer",
             }
         ):
             auth_manager.init()

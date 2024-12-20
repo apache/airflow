@@ -75,7 +75,9 @@ class SimpleAuthManagerAuthenticationViews(AirflowBaseView):
         next_url = request.args.get("next")
 
         found_users = [
-            user for user in self.users if user[0] == username and self.passwords[user[0]] == password
+            user
+            for user in self.users
+            if user["username"] == username and self.passwords[user["username"]] == password
         ]
 
         if not username or not password or len(found_users) == 0:
@@ -83,7 +85,7 @@ class SimpleAuthManagerAuthenticationViews(AirflowBaseView):
 
         user = SimpleAuthManagerUser(
             username=username,
-            role=found_users[0][1],
+            role=found_users[0]["role"],
         )
         # Will be removed once Airflow uses the new UI
         session["user"] = user

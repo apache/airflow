@@ -86,10 +86,9 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         )
 
     @staticmethod
-    def get_users() -> list[list[str]]:
-        users = conf.getlist("core", "simple_auth_manager_users", " ")
-        users = [user.split(",") for user in users]
-        return users
+    def get_users() -> list[dict[str, str]]:
+        users = [u.split(":") for u in conf.getlist("core", "simple_auth_manager_users")]
+        return [{"username": username, "role": role} for username, role in users]
 
     def init(self) -> None:
         user_passwords_from_file = {}
@@ -101,18 +100,18 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
                 user_passwords_from_file = json.loads(passwords_str)
 
         users = self.get_users()
-        usernames = {user[0] for user in users}
+        usernames = {user["username"] for user in users}
         self.passwords = {
             username: password
             for username, password in user_passwords_from_file.items()
             if username in usernames
         }
         for user in users:
-            if user[0] not in self.passwords:
+            if user["username"] not in self.passwords:
                 # User dot not exist in the file, adding it
-                self.passwords[user[0]] = self._generate_password()
+                self.passwords[user["username"]] = self._generate_password()
 
-            self._print_output(f"Password for user '{user[0]}': {self.passwords[user[0]]}")
+            self._print_output(f"Password for user '{user['username']}': {self.passwords[user['username']]}")
 
         with open(self.get_generated_password_file(), "w") as file:
             file.write(json.dumps(self.passwords))

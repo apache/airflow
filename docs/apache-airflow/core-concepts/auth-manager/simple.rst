@@ -36,15 +36,9 @@ Users are managed through the Airflow configuration. Example:
 .. code-block:: ini
 
   [core]
-  simple_auth_manager_users = "bob,admin peter,viewer"
+  simple_auth_manager_users = "bob:admin,peter:viewer"
 
-or
-
-.. code-block:: bash
-
-  export AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS='bob,admin peter,viewer'
-
-The list of users are separated with a space and each user is a couple username/role separated by a comma.
+The list of users are separated with a comma and each user is a couple username/role separated by a colon.
 Each user needs two pieces of information:
 
 * **username**. The user's username
@@ -88,9 +82,3 @@ you can enable this feature through the config. Example:
 
   [core]
   simple_auth_manager_all_admins = "True"
-
-or
-
-.. code-block:: bash
-
-  export AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS='True'
