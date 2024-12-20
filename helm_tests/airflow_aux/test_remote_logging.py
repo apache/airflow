@@ -104,7 +104,7 @@ class TestElasticsearchConfig:
 
         assert "ports" not in jmespath.search("spec.template.spec.containers[0]", docs[0])
 
-    def test_env_should_omit_elasticsearch_host_vars_if_es_disabled(self):
+    def test_env_should_omit_elasticsearch_host_var_if_es_disabled(self):
         docs = render_chart(
             values={},
             show_only=[SCHEDULER_DEPLOYMENT_TEMPLATE],
@@ -112,9 +112,8 @@ class TestElasticsearchConfig:
 
         scheduler_env_keys = jmespath.search("spec.template.spec.containers[0].env[*].name", docs[0])
         assert "AIRFLOW__ELASTICSEARCH__HOST" not in scheduler_env_keys
-        assert "AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST" not in scheduler_env_keys
 
-    def test_env_should_add_elasticsearch_host_vars_if_es_enabled(self):
+    def test_env_should_add_elasticsearch_host_var_if_es_enabled(self):
         docs = render_chart(
             values={
                 "elasticsearch": {
@@ -125,15 +124,44 @@ class TestElasticsearchConfig:
             show_only=[SCHEDULER_DEPLOYMENT_TEMPLATE],
         )
 
-        expected_value_from = {"secretKeyRef": {"name": "test-elastic-secret", "key": "connection"}}
+        scheduler_env = jmespath.search("spec.template.spec.containers[0].env", docs[0])
 
-        container_env = jmespath.search("spec.template.spec.containers[0].env", docs[0])
+        assert {
+            "name": "AIRFLOW__ELASTICSEARCH__HOST",
+            "valueFrom": {"secretKeyRef": {"name": "test-elastic-secret", "key": "connection"}},
+        } in scheduler_env
 
-        assert {"name": "AIRFLOW__ELASTICSEARCH__HOST", "valueFrom": expected_value_from} in container_env
+    def test_env_should_omit_elasticsearch_host_var_if_es_disabled_legacy(self):
+        """AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST was the environment key prior to Airflow 1.10.4
+        (see https://github.com/apache/airflow/pull/5048), this test can be removed when the Helm chart
+        no longer supports Airflow 1.10.3"""
+        docs = render_chart(
+            values={},
+            show_only=[SCHEDULER_DEPLOYMENT_TEMPLATE],
+        )
+
+        scheduler_env_keys = jmespath.search("spec.template.spec.containers[0].env[*].name", docs[0])
+        assert "AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST" not in scheduler_env_keys
+
+    def test_env_should_add_elasticsearch_host_var_if_es_enabled_legacy(self):
+        """AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST was the environment key prior to Airflow 1.10.4
+        (see https://github.com/apache/airflow/pull/5048), this test can be removed when the Helm chart
+        no longer supports Airflow 1.10.3"""
+        docs = render_chart(
+            values={
+                "elasticsearch": {
+                    "enabled": True,
+                    "secretName": "test-elastic-secret",
+                },
+            },
+            show_only=[SCHEDULER_DEPLOYMENT_TEMPLATE],
+        )
+
+        scheduler_env = jmespath.search("spec.template.spec.containers[0].env", docs[0])
         assert {
             "name": "AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST",
-            "valueFrom": expected_value_from,
-        } in container_env
+            "valueFrom": {"secretKeyRef": {"name": "test-elastic-secret", "key": "connection"}},
+        } in scheduler_env
 
     def test_airflow_cfg_should_set_remote_logging_false_if_es_disabled(self):
         docs = render_chart(
