@@ -116,11 +116,14 @@ export const TaskTrySelect = ({
             </Select.ValueText>
           </Select.Trigger>
           <Select.Content>
-            {tryOptions.items.map((option) => (
+            {tryOptions.items.reverse().map((option) => (
               <Select.Item item={option} key={option.value}>
-                <Status state={option.task_instance.state}>
-                  {option.value}
-                </Status>
+                <span>
+                  {option.value}:
+                  <Status ml={2} state={option.task_instance.state}>
+                    {option.task_instance.state}
+                  </Status>
+                </span>
               </Select.Item>
             ))}
           </Select.Content>
