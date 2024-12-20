@@ -28,6 +28,8 @@ from sqlalchemy import (
     Column,
     ForeignKey,
     Index,
+    Integer,
+    PrimaryKeyConstraint,
     String,
     delete,
     select,
@@ -68,6 +70,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
 
     __tablename__ = "xcom"
 
+    dag_run_id = Column(Integer(), nullable=False, primary_key=True)
     ti_id = Column(
         String(36, **COLLATION_ARGS).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
         ForeignKey(
@@ -89,6 +92,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         # separately, and enforce uniqueness with DagRun.id instead.
         Index("idx_xcom_key", key),
         Index("idx_xcom_task_instance", ti_id),
+        PrimaryKeyConstraint("dag_run_id", "key", ti_id, name="xcom_pkey"),
     )
 
     dag_run = relationship(
@@ -112,8 +116,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
 
     def __repr__(self):
         if self.map_index < 0:
-            return f'<XCom "{self.key}" ({self.task_id} @ {self.run_id})>'
-        return f'<XCom "{self.key}" ({self.task_id}[{self.map_index}] @ {self.run_id})>'
+            return f'<XCom "{self.key}" ({self.ti_id})>'
 
     @classmethod
     @provide_session
@@ -123,10 +126,6 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         value: Any,
         *,
         ti_id: str,
-        dag_id: str,
-        task_id: str,
-        run_id: str,
-        map_index: int = -1,
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -134,16 +133,15 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
 
         :param key: Key to store the XCom.
         :param value: XCom value to store.
-        :param dag_id: DAG ID.
-        :param task_id: Task ID.
-        :param run_id: DAG run ID for the task.
-        :param map_index: Optional map index to assign XCom for a mapped task.
-            The default is ``-1`` (set for a non-mapped task).
+        :param ti_id: TaskInstance ID.
         :param session: Database session. If not given, a new session will be
             created for this function.
         """
         from airflow.models.dagrun import DagRun
+        from airflow.models.taskinstance import TaskInstance
 
+        dag_id = session.query(TaskInstance.dag_id).filter_by(id=ti_id).scalar()
+        run_id = session.query(TaskInstance.run_id).filter_by(id=ti_id).scalar()
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
 
@@ -157,7 +155,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         # implications, and this avoids leaking the implementation detail.
         if isinstance(value, LazySelectSequence):
             warning_message = (
-                "Coercing mapped lazy proxy %s from task %s (DAG %s, run %s) "
+                "Coercing mapped lazy proxy %s from task instance %s "
                 "to list, which may degrade performance. Review resource "
                 "requirements for this operation, and call list() to suppress "
                 "this message. See Dynamic Task Mapping documentation for "
@@ -166,40 +164,25 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
             log.warning(
                 warning_message,
                 "return value" if key == XCOM_RETURN_KEY else f"value {key}",
-                task_id,
-                dag_id,
-                run_id,
+                ti_id,
             )
             value = list(value)
 
-        value = cls.serialize_value(
-            value=value,
-            key=key,
-            task_id=task_id,
-            dag_id=dag_id,
-            run_id=run_id,
-            map_index=map_index,
-        )
+        value = cls.serialize_value(value=value)
 
         # Remove duplicate XComs and insert a new one.
         session.execute(
             delete(cls).where(
                 cls.key == key,
-                cls.run_id == run_id,
-                cls.task_id == task_id,
-                cls.dag_id == dag_id,
-                cls.map_index == map_index,
+                cls.ti_id == ti_id,
+                cls.dag_run_id == dag_run_id,
             )
         )
         new = cast(Any, cls)(  # Work around Mypy complaining model not defining '__init__'.
             ti_id=ti_id,
-            dag_run_id=dag_run_id,
             key=key,
             value=value,
-            run_id=run_id,
-            task_id=task_id,
-            dag_id=dag_id,
-            map_index=map_index,
+            dag_run_id=dag_run_id,
         )
         session.add(new)
         session.flush()
@@ -432,15 +415,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         session.commit()
 
     @staticmethod
-    def serialize_value(
-        value: Any,
-        *,
-        key: str | None = None,
-        task_id: str | None = None,
-        dag_id: str | None = None,
-        run_id: str | None = None,
-        map_index: int | None = None,
-    ) -> str:
+    def serialize_value(value: Any) -> str:
         """Serialize XCom value to JSON str."""
         try:
             return json.dumps(value, cls=XComEncoder)

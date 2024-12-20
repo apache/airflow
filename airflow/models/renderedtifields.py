@@ -26,6 +26,7 @@ import sqlalchemy_jsonfield
 from sqlalchemy import (
     Column,
     ForeignKey,
+    PrimaryKeyConstraint,
     String,
     delete,
     exists,
@@ -75,15 +76,19 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
         primary_key=True,
     )
 
-    # TODO: Add primary key constraint to ti_id
-    # dag_id = Column(StringID(), primary_key=True)
-    # task_id = Column(StringID(), primary_key=True)
-    # run_id = Column(StringID(), primary_key=True)
-    # map_index = Column(Integer, primary_key=True, server_default=text("-1"))
+    dag_id = Column(String, primary_key=True)
+    run_id = Column(String, primary_key=True)
     rendered_fields = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
     k8s_pod_yaml = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
 
-    __table_args__ = ()
+    __table_args__ = (
+        PrimaryKeyConstraint(
+            "dag_id",
+            "run_id",
+            "ti_id",
+            name="rendered_task_instance_fields_pkey",
+        ),
+    )
 
     task_instance = relationship(
         "TaskInstance",
@@ -106,9 +111,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
     def __init__(self, ti: TaskInstance, render_templates=True, rendered_fields=None):
         self.dag_id = ti.dag_id
-        self.task_id = ti.task_id
         self.run_id = ti.run_id
-        self.map_index = ti.map_index
         self.ti = ti
         self.ti_id = ti.id
         if render_templates:
@@ -129,9 +132,9 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
         self._redact()
 
     def __repr__(self):
-        prefix = f"<{self.__class__.__name__}: {self.dag_id}.{self.task_id} {self.run_id}"
-        if self.map_index != -1:
-            prefix += f" map_index={self.map_index}"
+        prefix = f"<{self.__class__.__name__}: {self.dag_id}.{self.ti.task_id} {self.ti.run_id}"
+        if self.ti.map_index != -1:
+            prefix += f" map_index={self.ti.map_index}"
         return prefix + ">"
 
     def _redact(self):
