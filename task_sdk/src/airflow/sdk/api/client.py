@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 import uuid
 from http import HTTPStatus
@@ -26,6 +27,8 @@ import httpx
 import msgspec
 import structlog
 from pydantic import BaseModel
+from retryhttp import retry, wait_retry_after
+from tenacity import wait_random_exponential
 from uuid6 import uuid7
 
 from airflow.sdk import __version__
@@ -268,6 +271,14 @@ def noop_handler(request: httpx.Request) -> httpx.Response:
     return httpx.Response(200, json={"text": "Hello, world!"})
 
 
+# Config options for SDK how retries on HTTP requests should be handled
+# Note: Given defaults make attempts after 1, 3, 7, 15, 31seconds, 1:03, 2:07, 3:37 and fails after 5:07min
+# As long as there is no other config facility in SDK we use ENV for the moment
+API_RETRIES = int(os.getenv("AIRFLOW__WORKERS__API_RETRIES", 10))
+API_RETRY_WAIT_MIN = int(os.getenv("AIRFLOW__WORKERS__API_RETRY_WAIT_MIN", 1))
+API_RETRY_WAIT_MAX = int(os.getenv("AIRFLOW__WORKERS__API_RETRY_WAIT_MAX", 90))
+
+
 class Client(httpx.Client):
     def __init__(self, *, base_url: str | None, dry_run: bool = False, token: str, **kwargs: Any):
         if (not base_url) ^ dry_run:
@@ -288,6 +299,20 @@ class Client(httpx.Client):
             event_hooks={"response": [raise_on_4xx_5xx], "request": [add_correlation_id]},
             **kwargs,
         )
+
+    _default_wait = wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX)
+
+    @retry(
+        reraise=True,
+        max_attempt_number=API_RETRIES,
+        wait_server_errors=_default_wait,
+        wait_network_errors=_default_wait,
+        wait_timeouts=_default_wait,
+        wait_rate_limited=wait_retry_after(fallback=_default_wait),  # No infinite timeout on HTTP 429
+    )
+    def request(self, *args, **kwargs):
+        """Implement a convenience for httpx.Client.request with a retry layer."""
+        return super().request(*args, **kwargs)
 
     # We "group" or "namespace" operations by what they operate on, rather than a flat namespace with all
     # methods on one object prefixed with the object type (`.task_instances.update` rather than
