@@ -141,18 +141,24 @@ class RayCustomObjectLauncher(LoggingMixin):
             body.spec["volumes"] = k8s_spec.volumes
             if k8s_spec.image_pull_secrets:
                 body.spec["imagePullSecrets"] = k8s_spec.image_pull_secrets
-            for item in ["driver", "executor"]:
+            for item in ["submitterPodTemplate.spec", "rayClusterSpec.headGroupSpec.template.spec", "rayClusterSpec.workerGroupSpecs.template.spec"]:
+                payload = body.spec
+                for key in item.split("."):
+                    if payload is not None:
+                        payload = payload.get(key)
+                if payload is None:
+                    continue
                 # Env List
-                body.spec[item]["env"] = k8s_spec.env_vars
-                body.spec[item]["envFrom"] = k8s_spec.env_from
+                payload["env"] = k8s_spec.env_vars
+                payload["envFrom"] = k8s_spec.env_from
                 # Volumes
-                body.spec[item]["volumeMounts"] = k8s_spec.volume_mounts
+                payload["volumeMounts"] = k8s_spec.volume_mounts
                 # Add affinity
-                body.spec[item]["affinity"] = k8s_spec.affinity
-                body.spec[item]["tolerations"] = k8s_spec.tolerations
-                body.spec[item]["nodeSelector"] = k8s_spec.node_selector
+                payload["affinity"] = k8s_spec.affinity
+                payload["tolerations"] = k8s_spec.tolerations
+                payload["nodeSelector"] = k8s_spec.node_selector
                 # Labels
-                body.spec[item]["labels"] = body.spec["labels"]
+                payload["labels"] = body.spec["labels"]
 
         return body.__dict__
 
@@ -228,8 +234,8 @@ class RayCustomObjectLauncher(LoggingMixin):
                 plural=self.plural,
             ),
         )
-        head_state = ray_job_info.get("status", {}).get("jobStatus", "PENDING")
-        if head_state == CustomObjectStatus.FAILED:
+        job_state = ray_job_info.get("status", {}).get("jobStatus", "PENDING")
+        if job_state == CustomObjectStatus.FAILED:
             err = (
                 ray_job_info.get("status", {})
                 .get("applicationState", {})
@@ -243,7 +249,7 @@ class RayCustomObjectLauncher(LoggingMixin):
             except Exception:
                 pass
             raise AirflowException(f"Ray Job Failed. Error stack: {err}")
-        return head_state == CustomObjectStatus.PENDING
+        return job_state == CustomObjectStatus.PENDING
 
     def check_pod_start_failure(self):
         try:
@@ -299,6 +305,8 @@ class RayKubernetesOperator(KubernetesPodOperator):
     template_fields_renderers = {"template_spec": "py"}
     template_ext = ("yaml", "yml", "json")
     ui_color = "#f4a460"
+
+    BASE_CONTAINER_NAME = "base"
 
     def __init__(
         self,
