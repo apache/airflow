@@ -82,6 +82,13 @@ class XComResult(XComResponse):
 
     type: Literal["XComResult"] = "XComResult"
 
+    @classmethod
+    def from_xcom_response(cls, xcom_response: XComResponse) -> XComResult:
+        # Exclude defaults to avoid sending unnecessary data
+        # Pass the type as ConnectionResult explicitly so we can then call model_dump_json with exclude_unset=True
+        # to avoid sending unset fields (which are defaults in our case).
+        return cls(**xcom_response.model_dump())
+
 
 class ConnectionResult(ConnectionResponse):
     type: Literal["ConnectionResult"] = "ConnectionResult"
@@ -141,7 +148,7 @@ class GetXCom(BaseModel):
     dag_id: str
     run_id: str
     task_id: str
-    map_index: int = -1
+    map_index: int | None = -1
     type: Literal["GetXCom"] = "GetXCom"
 
 
