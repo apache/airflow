@@ -745,9 +745,9 @@ export class StructureService {
    * Get Structure Data.
    * @param data The data for the request.
    * @param data.dagId
-   * @param data.root
    * @param data.includeUpstream
    * @param data.includeDownstream
+   * @param data.root
    * @param data.externalDependencies
    * @returns StructureDataResponse Successful Response
    * @throws ApiError
@@ -760,9 +760,9 @@ export class StructureService {
       url: "/ui/structure/structure_data",
       query: {
         dag_id: data.dagId,
-        root: data.root,
         include_upstream: data.includeUpstream,
         include_downstream: data.includeDownstream,
+        root: data.root,
         external_dependencies: data.externalDependencies,
       },
       errors: {

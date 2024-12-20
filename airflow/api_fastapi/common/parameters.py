@@ -164,6 +164,19 @@ class SortParam(BaseParam[str]):
         self.model = model
         self.to_replace = to_replace
 
+    def __or__(self, other):
+        """
+        Return the other if self.value is primary key.
+
+        SortParam value cannot be None due to dynamic_depends() method.
+        Because of this we are returning other if self.value is primary key
+
+        :param other: SortParam
+
+        :return: SortParam
+        """
+        return other if self.value == self.get_primary_key_string() else self
+
     def to_orm(self, select: Select) -> Select:
         if self.skip_none is False:
             raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
@@ -637,3 +650,19 @@ def _optional_boolean(value: bool | None) -> bool | None:
 
 QueryIncludeUpstream = Annotated[Union[bool, None], AfterValidator(_optional_boolean)]
 QueryIncludeDownstream = Annotated[Union[bool, None], AfterValidator(_optional_boolean)]
+
+state_priority: list[None | TaskInstanceState] = [
+    TaskInstanceState.FAILED,
+    TaskInstanceState.UPSTREAM_FAILED,
+    TaskInstanceState.UP_FOR_RETRY,
+    TaskInstanceState.UP_FOR_RESCHEDULE,
+    TaskInstanceState.QUEUED,
+    TaskInstanceState.SCHEDULED,
+    TaskInstanceState.DEFERRED,
+    TaskInstanceState.RUNNING,
+    TaskInstanceState.RESTARTING,
+    None,
+    TaskInstanceState.SUCCESS,
+    TaskInstanceState.SKIPPED,
+    TaskInstanceState.REMOVED,
+]
