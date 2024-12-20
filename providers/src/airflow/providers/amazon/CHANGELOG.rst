@@ -26,6 +26,44 @@
 Changelog
 ---------
 
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+9.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add DMS Serverless Operators (#43988)``
+* ``Add fail_on_file_not_exist option to SFTPToS3Operator (#44320)``
+* ``Add 'wait_policy' option to 'EmrCreateJobFlowOperator' (#44055)``
+* ``Add meta_data_directive to 'S3CopyObjectOperator' (#44160)``
+
+Misc
+~~~~
+
+* ``Remove references to AIRFLOW_V_2_9_PLUS (#44987)``
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+* ``Consistent way of checking Airflow version in providers (#44686)``
+* ``Remove unnecessary compatibility code in S3 asset import (#44714)``
+* ``Remove AIP-44 from taskinstance (#44540)``
+* ``Add do_xcom_push documentation in EcsRunTaskOperator (#44440)``
+* ``Move Asset user facing components to task_sdk (#43773)``
+* ``Set up JWT token authentication in Fast APIs (#42634)``
+* ``Bump to mypy-boto3-appflow and pass without '# type: ignore[arg-type]' (#44115)``
+* ``Update DAG example links in multiple providers documents (#44034)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix deferrable RedshiftClusterSensor (#45098)``
+   * ``Update path of example dags in docs (#45069)``
+
 9.1.0
 .....
 
