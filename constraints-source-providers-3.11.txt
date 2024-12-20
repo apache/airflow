@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-20T02:08:17.476508
+# This constraints file was automatically generated on 2024-12-20T19:39:48.241920
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -190,7 +190,7 @@ executing==2.1.0
 facebook_business==21.0.5
 fastapi-cli==0.0.7
 fastapi==0.115.6
-fastavro==1.9.7
+fastavro==1.10.0
 fasteners==0.19
 fastjsonschema==2.21.1
 filelock==3.16.1
@@ -297,7 +297,7 @@ influxdb-client==1.48.0
 iniconfig==2.0.0
 ipdb==0.13.13
 ipykernel==6.29.5
-ipython==8.30.0
+ipython==8.31.0
 isodate==0.7.2
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
@@ -383,9 +383,9 @@ objsize==0.7.0
 openai==1.58.1
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
-openlineage-integration-common==1.25.0
-openlineage-python==1.25.0
-openlineage_sql==1.25.0
+openlineage-integration-common==1.26.0
+openlineage-python==1.26.0
+openlineage_sql==1.26.0
 openpyxl==3.1.5
 opensearch-py==2.8.0
 opentelemetry-api==1.27.0
@@ -467,7 +467,7 @@ pymssql==2.3.2
 pyodbc==5.2.0
 pyparsing==3.2.0
 pypsrp==0.8.1
-pyspark==3.5.3
+pyspark==3.5.4
 pyspnego==0.11.2
 pytest-asyncio==0.25.0
 pytest-cov==6.0.0
@@ -621,7 +621,7 @@ universal_pathlib==0.2.6
 uritemplate==4.1.1
 urllib3==2.2.3
 uuid6==2024.7.10
-uv==0.5.10
+uv==0.5.11
 uvicorn==0.34.0
 uvloop==0.21.0
 validators==0.34.0
