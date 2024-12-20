@@ -50,6 +50,7 @@ class GlueCatalogHook(AwsBaseHook):
         client: Any,
         database_name: str,
         table_name: str,
+        catalog_id: str | None = None,
         expression: str = "",
         page_size: int | None = None,
         max_items: int | None = 1,
@@ -59,6 +60,7 @@ class GlueCatalogHook(AwsBaseHook):
 
         :param database_name: The name of the catalog database where the partitions reside.
         :param table_name: The name of the partitions' table.
+        :param catalog_id: The ID of the Data Catalog where the partitions reside.
         :param expression: An expression filtering the partitions to be returned.
             Please see official AWS documentation for further information.
             https://docs.aws.amazon.com/glue/latest/dg/aws-glue-api-catalog-partitions.html#aws-glue-api-catalog-partitions-GetPartitions
@@ -76,9 +78,16 @@ class GlueCatalogHook(AwsBaseHook):
         paginator = client.get_paginator("get_partitions")
         partitions = set()
 
-        async for page in paginator.paginate(
-            DatabaseName=database_name, TableName=table_name, Expression=expression, PaginationConfig=config
-        ):
+        kwargs = {
+            "DatabaseName": database_name,
+            "TableName": table_name,
+            "Expression": expression,
+            "PaginationConfig": config,
+        }
+        if catalog_id:
+            kwargs["CatalogId"] = catalog_id
+
+        async for page in paginator.paginate(**kwargs):
             for partition in page["Partitions"]:
                 partitions.add(tuple(partition["Values"]))
 
@@ -88,6 +97,7 @@ class GlueCatalogHook(AwsBaseHook):
         self,
         database_name: str,
         table_name: str,
+        catalog_id: str | None = None,
         expression: str = "",
         page_size: int | None = None,
         max_items: int | None = None,
@@ -100,6 +110,7 @@ class GlueCatalogHook(AwsBaseHook):
 
         :param database_name: The name of the catalog database where the partitions reside.
         :param table_name: The name of the partitions' table.
+        :param catalog_id: The ID of the Data Catalog where the partitions reside.
         :param expression: An expression filtering the partitions to be returned.
             Please see official AWS documentation for further information.
             https://docs.aws.amazon.com/glue/latest/dg/aws-glue-api-catalog-partitions.html#aws-glue-api-catalog-partitions-GetPartitions
@@ -115,9 +126,16 @@ class GlueCatalogHook(AwsBaseHook):
         }
 
         paginator = self.get_conn().get_paginator("get_partitions")
-        response = paginator.paginate(
-            DatabaseName=database_name, TableName=table_name, Expression=expression, PaginationConfig=config
-        )
+        kwargs = {
+            "DatabaseName": database_name,
+            "TableName": table_name,
+            "Expression": expression,
+            "PaginationConfig": config,
+        }
+        if catalog_id:
+            kwargs["CatalogId"] = catalog_id
+
+        response = paginator.paginate(**kwargs)
 
         partitions = set()
         for page in response:
@@ -144,7 +162,7 @@ class GlueCatalogHook(AwsBaseHook):
 
         return bool(partitions)
 
-    def get_table(self, database_name: str, table_name: str) -> dict:
+    def get_table(self, database_name: str, table_name: str, catalog_id: str | None = None) -> dict:
         """
         Get the information of the table.
 
@@ -159,8 +177,12 @@ class GlueCatalogHook(AwsBaseHook):
 
         :param database_name: Name of hive database (schema) @table belongs to
         :param table_name: Name of hive table
+        :param catalog_id: The ID of the Data Catalog where the table resides.
         """
-        result = self.get_conn().get_table(DatabaseName=database_name, Name=table_name)
+        kwargs = {"DatabaseName": database_name, "Name": table_name}
+        if catalog_id:
+            kwargs["CatalogId"] = catalog_id
+        result = self.get_conn().get_table(**kwargs)
 
         return result["Table"]
 
@@ -178,7 +200,13 @@ class GlueCatalogHook(AwsBaseHook):
 
         return table["StorageDescriptor"]["Location"]
 
-    def get_partition(self, database_name: str, table_name: str, partition_values: list[str]) -> dict:
+    def get_partition(
+        self,
+        database_name: str,
+        table_name: str,
+        partition_values: list[str],
+        catalog_id: str | None = None,
+    ) -> dict:
         """
         Get a Partition.
 
@@ -194,20 +222,30 @@ class GlueCatalogHook(AwsBaseHook):
         :param database_name: Database name
         :param table_name: Database's Table name
         :param partition_values: List of utf-8 strings that define the partition
-            Please see official AWS documentation for further information.
-            https://docs.aws.amazon.com/glue/latest/dg/aws-glue-api-catalog-partitions.html#aws-glue-api-catalog-partitions-GetPartition
+        :param catalog_id: The ID of the Data Catalog where the partition resides.
         :raises: AirflowException
         """
         try:
-            response = self.get_conn().get_partition(
-                DatabaseName=database_name, TableName=table_name, PartitionValues=partition_values
-            )
+            kwargs = {
+                "DatabaseName": database_name,
+                "TableName": table_name,
+                "PartitionValues": partition_values,
+            }
+            if catalog_id:
+                kwargs["CatalogId"] = catalog_id
+            response = self.get_conn().get_partition(**kwargs)
             return response["Partition"]
         except ClientError as e:
             self.log.error("Client error: %s", e)
             raise AirflowException("AWS request failed, check logs for more info")
 
-    def create_partition(self, database_name: str, table_name: str, partition_input: dict) -> dict:
+    def create_partition(
+        self,
+        database_name: str,
+        table_name: str,
+        partition_input: dict,
+        catalog_id: str | None = None,
+    ) -> dict:
         """
         Create a new Partition.
 
@@ -223,14 +261,18 @@ class GlueCatalogHook(AwsBaseHook):
         :param database_name: Database name
         :param table_name: Database's Table name
         :param partition_input: Definition of how the partition is created
-            Please see official AWS documentation for further information.
-            https://docs.aws.amazon.com/glue/latest/dg/aws-glue-api-catalog-partitions.html#aws-glue-api-catalog-partitions-CreatePartition
+        :param catalog_id: The ID of the Data Catalog where the partition should be created.
         :raises: AirflowException
         """
         try:
-            return self.get_conn().create_partition(
-                DatabaseName=database_name, TableName=table_name, PartitionInput=partition_input
-            )
+            kwargs = {
+                "DatabaseName": database_name,
+                "TableName": table_name,
+                "PartitionInput": partition_input,
+            }
+            if catalog_id:
+                kwargs["CatalogId"] = catalog_id
+            return self.get_conn().create_partition(**kwargs)
         except ClientError as e:
             self.log.error("Client error: %s", e)
             raise AirflowException("AWS request failed, check logs for more info")

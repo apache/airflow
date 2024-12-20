@@ -88,6 +88,7 @@ class GlueCatalogPartitionTrigger(BaseTrigger):
         AND type='value'`` and comparison operators as in ``"ds>=2015-01-01"``.
         See https://docs.aws.amazon.com/glue/latest/dg/aws-glue-api-catalog-partitions.html
         #aws-glue-api-catalog-partitions-GetPartitions
+    :param catalog_id: The ID of the Data Catalog to retrieve partitions from. If None, uses the default catalog.
     :param aws_conn_id: ID of the Airflow connection where
         credentials and extra configuration are stored
     :param region_name: Optional aws region name (example: us-east-1). Uses region from connection
@@ -100,6 +101,7 @@ class GlueCatalogPartitionTrigger(BaseTrigger):
         database_name: str,
         table_name: str,
         expression: str = "",
+        catalog_id: str | None = None,
         waiter_delay: int = 60,
         aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
@@ -109,6 +111,7 @@ class GlueCatalogPartitionTrigger(BaseTrigger):
         self.database_name = database_name
         self.table_name = table_name
         self.expression = expression
+        self.catalog_id = catalog_id
         self.waiter_delay = waiter_delay
 
         self.aws_conn_id = aws_conn_id
@@ -124,6 +127,7 @@ class GlueCatalogPartitionTrigger(BaseTrigger):
                 "database_name": self.database_name,
                 "table_name": self.table_name,
                 "expression": self.expression,
+                "catalog_id": self.catalog_id,
                 "aws_conn_id": self.aws_conn_id,
                 "region_name": self.region_name,
                 "waiter_delay": self.waiter_delay,
@@ -151,6 +155,7 @@ class GlueCatalogPartitionTrigger(BaseTrigger):
             client=client,
             database_name=self.database_name,
             table_name=self.table_name,
+            catalog_id=self.catalog_id,
             expression=self.expression,
         )
 
