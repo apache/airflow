@@ -28,7 +28,7 @@ pytest.importorskip("google.cloud.aiplatform_v1")
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.automl_v1beta1 import BatchPredictResult, Dataset, Model, PredictResponse
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.hooks.vertex_ai.prediction_service import PredictionServiceHook
 from airflow.providers.google.cloud.operators.automl import (
@@ -85,12 +85,14 @@ class TestAutoMLTrainModelOperator:
         mock_hook.return_value.create_model.return_value.result.return_value = Model(name=MODEL_PATH)
         mock_hook.return_value.extract_object_id = extract_object_id
         mock_hook.return_value.wait_for_operation.return_value = Model()
-        op = AutoMLTrainModelOperator(
-            model=MODEL,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            task_id=TASK_ID,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = AutoMLTrainModelOperator(
+                model=MODEL,
+                location=GCP_LOCATION,
+                project_id=GCP_PROJECT_ID,
+                task_id=TASK_ID,
+            )
+
         op.execute(context=mock.MagicMock())
         mock_hook.return_value.create_model.assert_called_once_with(
             model=MODEL,
@@ -101,34 +103,19 @@ class TestAutoMLTrainModelOperator:
             metadata=(),
         )
 
-    @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
-    def test_execute_deprecated(self, mock_hook):
-        op = AutoMLTrainModelOperator(
-            model=MODEL_DEPRECATED,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            task_id=TASK_ID,
-        )
-        expected_exception_str = (
-            "AutoMLTrainModelOperator for text, image, and video prediction has been "
-            "deprecated and no longer available"
-        )
-        with pytest.raises(AirflowException, match=expected_exception_str):
-            op.execute(context=mock.MagicMock())
-        mock_hook.assert_not_called()
-
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator, session):
-        ti = create_task_instance_of_operator(
-            AutoMLTrainModelOperator,
-            # Templated fields
-            model="{{ 'model' }}",
-            location="{{ 'location' }}",
-            impersonation_chain="{{ 'impersonation_chain' }}",
-            # Other parameters
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            ti = create_task_instance_of_operator(
+                AutoMLTrainModelOperator,
+                # Templated fields
+                model="{{ 'model' }}",
+                location="{{ 'location' }}",
+                impersonation_chain="{{ 'impersonation_chain' }}",
+                # Other parameters
+                dag_id="test_template_body_templating_dag",
+                task_id="test_template_body_templating_task",
+            )
         session.add(ti)
         session.commit()
         ti.render_templates()
@@ -177,38 +164,6 @@ class TestAutoMLBatchPredictOperator:
             dataset_id=DATASET_ID,
         )
 
-    @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
-    def test_execute_deprecated(self, mock_hook):
-        returned_model = mock.MagicMock()
-        del returned_model.translation_model_metadata
-        mock_hook.return_value.get_model.return_value = returned_model
-        mock_hook.return_value.extract_object_id = extract_object_id
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            op = AutoMLBatchPredictOperator(
-                model_id=MODEL_ID,
-                location=GCP_LOCATION,
-                project_id=GCP_PROJECT_ID,
-                input_config=INPUT_CONFIG,
-                output_config=OUTPUT_CONFIG,
-                task_id=TASK_ID,
-                prediction_params={},
-            )
-        expected_exception_str = (
-            "AutoMLBatchPredictOperator for text, image, and video prediction has been "
-            "deprecated and no longer available"
-        )
-        with pytest.raises(AirflowException, match=expected_exception_str):
-            op.execute(context=mock.MagicMock())
-        mock_hook.return_value.get_model.assert_called_once_with(
-            location=GCP_LOCATION,
-            model_id=MODEL_ID,
-            project_id=GCP_PROJECT_ID,
-            retry=DEFAULT,
-            timeout=None,
-            metadata=(),
-        )
-        mock_hook.return_value.batch_predict.assert_not_called()
-
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator, session):
         with pytest.warns(AirflowProviderDeprecationWarning):
@@ -244,14 +199,15 @@ class TestAutoMLPredictOperator:
         mock_hook.return_value.predict.return_value = PredictResponse()
         mock_hook.return_value.get_model.return_value = mock.MagicMock(**MODEL)
         mock_context = {"ti": mock.MagicMock()}
-        op = AutoMLPredictOperator(
-            model_id=MODEL_ID,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            payload=PAYLOAD,
-            task_id=TASK_ID,
-            operation_params={"TEST_KEY": "TEST_VALUE"},
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = AutoMLPredictOperator(
+                model_id=MODEL_ID,
+                location=GCP_LOCATION,
+                project_id=GCP_PROJECT_ID,
+                payload=PAYLOAD,
+                task_id=TASK_ID,
+                operation_params={"TEST_KEY": "TEST_VALUE"},
+            )
         op.execute(context=mock_context)
         mock_hook.return_value.predict.assert_called_once_with(
             location=GCP_LOCATION,
@@ -273,18 +229,19 @@ class TestAutoMLPredictOperator:
 
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator, session):
-        ti = create_task_instance_of_operator(
-            AutoMLPredictOperator,
-            # Templated fields
-            model_id="{{ 'model-id' }}",
-            location="{{ 'location' }}",
-            project_id="{{ 'project-id' }}",
-            impersonation_chain="{{ 'impersonation-chain' }}",
-            # Other parameters
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-            payload={},
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            ti = create_task_instance_of_operator(
+                AutoMLPredictOperator,
+                # Templated fields
+                model_id="{{ 'model-id' }}",
+                location="{{ 'location' }}",
+                project_id="{{ 'project-id' }}",
+                impersonation_chain="{{ 'impersonation-chain' }}",
+                # Other parameters
+                dag_id="test_template_body_templating_dag",
+                task_id="test_template_body_templating_task",
+                payload={},
+            )
         session.add(ti)
         session.commit()
         ti.render_templates()
@@ -294,51 +251,27 @@ class TestAutoMLPredictOperator:
         assert task.location == "location"
         assert task.impersonation_chain == "impersonation-chain"
 
-    @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
-    def test_execute_deprecation(self, mock_hook):
-        returned_model = mock.MagicMock(**MODEL_DEPRECATED)
-        del returned_model.translation_model_metadata
-        mock_hook.return_value.get_model.return_value = returned_model
-
-        mock_hook.return_value.predict.return_value = PredictResponse()
-
-        op = AutoMLPredictOperator(
-            model_id=MODEL_ID,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            payload=PAYLOAD,
-            task_id=TASK_ID,
-            operation_params={"TEST_KEY": "TEST_VALUE"},
-        )
-        expected_exception_str = (
-            "AutoMLPredictOperator for text, image, and video prediction has been "
-            "deprecated. Please use endpoint_id param instead of model_id param."
-        )
-        with pytest.raises(AirflowException, match=expected_exception_str):
-            op.execute(context=mock.MagicMock())
-        mock_hook.return_value.predict.assert_not_called()
-
     @pytest.mark.db_test
     def test_hook_type(self):
-        op = AutoMLPredictOperator(
-            model_id=MODEL_ID,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            payload=PAYLOAD,
-            task_id=TASK_ID,
-            operation_params={"TEST_KEY": "TEST_VALUE"},
-        )
-        assert isinstance(op.hook, CloudAutoMLHook)
-
-        op = AutoMLPredictOperator(
-            endpoint_id="endpoint_id",
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            payload=PAYLOAD,
-            task_id=TASK_ID,
-            operation_params={"TEST_KEY": "TEST_VALUE"},
-        )
-        assert isinstance(op.hook, PredictionServiceHook)
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = AutoMLPredictOperator(
+                model_id=MODEL_ID,
+                location=GCP_LOCATION,
+                project_id=GCP_PROJECT_ID,
+                payload=PAYLOAD,
+                task_id=TASK_ID,
+                operation_params={"TEST_KEY": "TEST_VALUE"},
+            )
+            assert isinstance(op.hook, CloudAutoMLHook)
+            op = AutoMLPredictOperator(
+                endpoint_id="endpoint_id",
+                location=GCP_LOCATION,
+                project_id=GCP_PROJECT_ID,
+                payload=PAYLOAD,
+                task_id=TASK_ID,
+                operation_params={"TEST_KEY": "TEST_VALUE"},
+            )
+            assert isinstance(op.hook, PredictionServiceHook)
 
 
 class TestAutoMLCreateImportOperator:
@@ -346,13 +279,13 @@ class TestAutoMLCreateImportOperator:
     def test_execute(self, mock_hook):
         mock_hook.return_value.create_dataset.return_value = Dataset(name=DATASET_PATH)
         mock_hook.return_value.extract_object_id = extract_object_id
-
-        op = AutoMLCreateDatasetOperator(
-            dataset=DATASET,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            task_id=TASK_ID,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = AutoMLCreateDatasetOperator(
+                dataset=DATASET,
+                location=GCP_LOCATION,
+                project_id=GCP_PROJECT_ID,
+                task_id=TASK_ID,
+            )
         op.execute(context=mock.MagicMock())
         mock_hook.return_value.create_dataset.assert_called_once_with(
             dataset=DATASET,
@@ -363,35 +296,20 @@ class TestAutoMLCreateImportOperator:
             timeout=None,
         )
 
-    @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
-    def test_execute_deprecated(self, mock_hook):
-        op = AutoMLCreateDatasetOperator(
-            dataset=DATASET_DEPRECATED,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            task_id=TASK_ID,
-        )
-        expected_exception_str = (
-            "AutoMLCreateDatasetOperator for text, image, and video prediction has been "
-            "deprecated and no longer available"
-        )
-        with pytest.raises(AirflowException, match=expected_exception_str):
-            op.execute(context=mock.MagicMock())
-        mock_hook.return_value.create_dataset.assert_not_called()
-
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator, session):
-        ti = create_task_instance_of_operator(
-            AutoMLCreateDatasetOperator,
-            # Templated fields
-            dataset="{{ 'dataset' }}",
-            location="{{ 'location' }}",
-            project_id="{{ 'project-id' }}",
-            impersonation_chain="{{ 'impersonation-chain' }}",
-            # Other parameters
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            ti = create_task_instance_of_operator(
+                AutoMLCreateDatasetOperator,
+                # Templated fields
+                dataset="{{ 'dataset' }}",
+                location="{{ 'location' }}",
+                project_id="{{ 'project-id' }}",
+                impersonation_chain="{{ 'impersonation-chain' }}",
+                # Other parameters
+                dag_id="test_template_body_templating_dag",
+                task_id="test_template_body_templating_task",
+            )
         session.add(ti)
         session.commit()
         ti.render_templates()
@@ -403,20 +321,14 @@ class TestAutoMLCreateImportOperator:
 
 
 class TestAutoMLTablesListColumnsSpecsOperator:
-    expected_exception_string = (
-        "Operator AutoMLTablesListColumnSpecsOperator has been deprecated due to shutdown of "
-        "a legacy version of AutoML Tables on March 31, 2024. "
-        "For additional information see: https://cloud.google.com/automl-tables/docs/deprecations."
-    )
-
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
     def test_execute(self, mock_hook):
         table_spec = "table_spec_id"
         filter_ = "filter"
         page_size = 42
 
-        with pytest.raises(AirflowException, match=self.expected_exception_string):
-            _ = AutoMLTablesListColumnSpecsOperator(
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            AutoMLTablesListColumnSpecsOperator(
                 dataset_id=DATASET_ID,
                 table_spec_id=table_spec,
                 location=GCP_LOCATION,
@@ -430,8 +342,8 @@ class TestAutoMLTablesListColumnsSpecsOperator:
 
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator):
-        with pytest.raises(AirflowException, match=self.expected_exception_string):
-            _ = create_task_instance_of_operator(
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            create_task_instance_of_operator(
                 AutoMLTablesListColumnSpecsOperator,
                 # Templated fields
                 dataset_id="{{ 'dataset-id' }}",
@@ -448,21 +360,13 @@ class TestAutoMLTablesListColumnsSpecsOperator:
 
 
 class TestAutoMLTablesUpdateDatasetOperator:
-    expected_exception_string = (
-        "Operator AutoMLTablesUpdateDatasetOperator has been deprecated due to shutdown of "
-        "a legacy version of AutoML Tables on March 31, 2024. "
-        "For additional information see: https://cloud.google.com/automl-tables/docs/deprecations. "
-        "Please use UpdateDatasetOperator from Vertex AI instead."
-    )
-
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
     def test_execute(self, mock_hook):
         mock_hook.return_value.update_dataset.return_value = Dataset(name=DATASET_PATH)
-
         dataset = copy.deepcopy(DATASET)
         dataset["name"] = DATASET_ID
 
-        with pytest.raises(AirflowException, match=self.expected_exception_string):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             AutoMLTablesUpdateDatasetOperator(
                 dataset=dataset,
                 update_mask=MASK,
@@ -473,7 +377,7 @@ class TestAutoMLTablesUpdateDatasetOperator:
 
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator):
-        with pytest.raises(AirflowException, match=self.expected_exception_string):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             create_task_instance_of_operator(
                 AutoMLTablesUpdateDatasetOperator,
                 # Templated fields
@@ -492,41 +396,14 @@ class TestAutoMLGetModelOperator:
     def test_execute(self, mock_hook):
         mock_hook.return_value.get_model.return_value = Model(name=MODEL_PATH)
         mock_hook.return_value.extract_object_id = extract_object_id
-
-        op = AutoMLGetModelOperator(
-            model_id=MODEL_ID,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            task_id=TASK_ID,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = AutoMLGetModelOperator(
+                model_id=MODEL_ID,
+                location=GCP_LOCATION,
+                project_id=GCP_PROJECT_ID,
+                task_id=TASK_ID,
+            )
         op.execute(context=mock.MagicMock())
-        mock_hook.return_value.get_model.assert_called_once_with(
-            location=GCP_LOCATION,
-            metadata=(),
-            model_id=MODEL_ID,
-            project_id=GCP_PROJECT_ID,
-            retry=DEFAULT,
-            timeout=None,
-        )
-
-    @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
-    def test_execute_deprecated(self, mock_hook):
-        returned_model = mock.MagicMock(**MODEL_DEPRECATED)
-        del returned_model.translation_model_metadata
-        mock_hook.return_value.get_model.return_value = returned_model
-
-        op = AutoMLGetModelOperator(
-            model_id=MODEL_ID,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            task_id=TASK_ID,
-        )
-        expected_exception_str = (
-            "AutoMLGetModelOperator for text, image, and video prediction has been "
-            "deprecated and no longer available"
-        )
-        with pytest.raises(AirflowException, match=expected_exception_str):
-            op.execute(context=mock.MagicMock())
         mock_hook.return_value.get_model.assert_called_once_with(
             location=GCP_LOCATION,
             metadata=(),
@@ -538,17 +415,18 @@ class TestAutoMLGetModelOperator:
 
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator, session):
-        ti = create_task_instance_of_operator(
-            AutoMLGetModelOperator,
-            # Templated fields
-            model_id="{{ 'model-id' }}",
-            location="{{ 'location' }}",
-            project_id="{{ 'project-id' }}",
-            impersonation_chain="{{ 'impersonation-chain' }}",
-            # Other parameters
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            ti = create_task_instance_of_operator(
+                AutoMLGetModelOperator,
+                # Templated fields
+                model_id="{{ 'model-id' }}",
+                location="{{ 'location' }}",
+                project_id="{{ 'project-id' }}",
+                impersonation_chain="{{ 'impersonation-chain' }}",
+                # Other parameters
+                dag_id="test_template_body_templating_dag",
+                task_id="test_template_body_templating_task",
+            )
         session.add(ti)
         session.commit()
         ti.render_templates()
@@ -562,12 +440,13 @@ class TestAutoMLGetModelOperator:
 class TestAutoMLDeleteModelOperator:
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
     def test_execute(self, mock_hook):
-        op = AutoMLDeleteModelOperator(
-            model_id=MODEL_ID,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            task_id=TASK_ID,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = AutoMLDeleteModelOperator(
+                model_id=MODEL_ID,
+                location=GCP_LOCATION,
+                project_id=GCP_PROJECT_ID,
+                task_id=TASK_ID,
+            )
         op.execute(context=None)
         mock_hook.return_value.delete_model.assert_called_once_with(
             location=GCP_LOCATION,
@@ -578,47 +457,20 @@ class TestAutoMLDeleteModelOperator:
             timeout=None,
         )
 
-    @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
-    def test_execute_deprecated(self, mock_hook):
-        returned_model = mock.MagicMock(**MODEL_DEPRECATED)
-        del returned_model.translation_model_metadata
-        mock_hook.return_value.get_model.return_value = returned_model
-
-        op = AutoMLDeleteModelOperator(
-            model_id=MODEL_ID,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            task_id=TASK_ID,
-        )
-        expected_exception_str = (
-            "AutoMLDeleteModelOperator for text, image, and video prediction has been "
-            "deprecated and no longer available"
-        )
-        with pytest.raises(AirflowException, match=expected_exception_str):
-            op.execute(context=mock.MagicMock())
-        mock_hook.return_value.get_model.assert_called_once_with(
-            location=GCP_LOCATION,
-            metadata=(),
-            model_id=MODEL_ID,
-            project_id=GCP_PROJECT_ID,
-            retry=DEFAULT,
-            timeout=None,
-        )
-        mock_hook.return_value.delete_model.assert_not_called()
-
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator, session):
-        ti = create_task_instance_of_operator(
-            AutoMLDeleteModelOperator,
-            # Templated fields
-            model_id="{{ 'model-id' }}",
-            location="{{ 'location' }}",
-            project_id="{{ 'project-id' }}",
-            impersonation_chain="{{ 'impersonation-chain' }}",
-            # Other parameters
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            ti = create_task_instance_of_operator(
+                AutoMLDeleteModelOperator,
+                # Templated fields
+                model_id="{{ 'model-id' }}",
+                location="{{ 'location' }}",
+                project_id="{{ 'project-id' }}",
+                impersonation_chain="{{ 'impersonation-chain' }}",
+                # Other parameters
+                dag_id="test_template_body_templating_dag",
+                task_id="test_template_body_templating_task",
+            )
         session.add(ti)
         session.commit()
         ti.render_templates()
@@ -630,19 +482,11 @@ class TestAutoMLDeleteModelOperator:
 
 
 class TestAutoMLDeployModelOperator:
-    expected_exception_string = (
-        "Operator AutoMLDeployModelOperator has been deprecated due to shutdown of "
-        "a legacy version of AutoML AutoML Natural Language, Vision, Video Intelligence "
-        "on March 31, 2024. "
-        "For additional information see: https://cloud.google.com/vision/automl/docs/deprecations. "
-        "Please use DeployModelOperator from Vertex AI instead."
-    )
-
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
     def test_execute(self, mock_hook):
         image_detection_metadata = {}
 
-        with pytest.raises(AirflowException, match=self.expected_exception_string):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             AutoMLDeployModelOperator(
                 model_id=MODEL_ID,
                 image_detection_metadata=image_detection_metadata,
@@ -655,7 +499,7 @@ class TestAutoMLDeployModelOperator:
 
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator):
-        with pytest.raises(AirflowException, match=self.expected_exception_string):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             create_task_instance_of_operator(
                 AutoMLDeployModelOperator,
                 # Templated fields
@@ -672,13 +516,14 @@ class TestAutoMLDeployModelOperator:
 class TestAutoMLDatasetImportOperator:
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
     def test_execute(self, mock_hook):
-        op = AutoMLImportDataOperator(
-            dataset_id=DATASET_ID,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            input_config=INPUT_CONFIG,
-            task_id=TASK_ID,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = AutoMLImportDataOperator(
+                dataset_id=DATASET_ID,
+                location=GCP_LOCATION,
+                project_id=GCP_PROJECT_ID,
+                input_config=INPUT_CONFIG,
+                task_id=TASK_ID,
+            )
         op.execute(context=mock.MagicMock())
         mock_hook.return_value.import_data.assert_called_once_with(
             input_config=INPUT_CONFIG,
@@ -690,49 +535,21 @@ class TestAutoMLDatasetImportOperator:
             timeout=None,
         )
 
-    @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
-    def test_execute_deprecated(self, mock_hook):
-        returned_dataset = mock.MagicMock()
-        del returned_dataset.translation_dataset_metadata
-        mock_hook.return_value.get_dataset.return_value = returned_dataset
-
-        op = AutoMLImportDataOperator(
-            dataset_id=DATASET_ID,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            input_config=INPUT_CONFIG,
-            task_id=TASK_ID,
-        )
-        expected_exception_str = (
-            "AutoMLImportDataOperator for text, image, and video prediction has been "
-            "deprecated and no longer available"
-        )
-        with pytest.raises(AirflowException, match=expected_exception_str):
-            op.execute(context=mock.MagicMock())
-        mock_hook.return_value.get_dataset.assert_called_once_with(
-            dataset_id=DATASET_ID,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            metadata=(),
-            retry=DEFAULT,
-            timeout=None,
-        )
-        mock_hook.return_value.import_data.assert_not_called()
-
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator, session):
-        ti = create_task_instance_of_operator(
-            AutoMLImportDataOperator,
-            # Templated fields
-            dataset_id="{{ 'dataset-id' }}",
-            input_config="{{ 'input-config' }}",
-            location="{{ 'location' }}",
-            project_id="{{ 'project-id' }}",
-            impersonation_chain="{{ 'impersonation-chain' }}",
-            # Other parameters
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            ti = create_task_instance_of_operator(
+                AutoMLImportDataOperator,
+                # Templated fields
+                dataset_id="{{ 'dataset-id' }}",
+                input_config="{{ 'input-config' }}",
+                location="{{ 'location' }}",
+                project_id="{{ 'project-id' }}",
+                impersonation_chain="{{ 'impersonation-chain' }}",
+                # Other parameters
+                dag_id="test_template_body_templating_dag",
+                task_id="test_template_body_templating_task",
+            )
         session.add(ti)
         session.commit()
         ti.render_templates()
@@ -745,19 +562,13 @@ class TestAutoMLDatasetImportOperator:
 
 
 class TestAutoMLTablesListTableSpecsOperator:
-    expected_exception_string = (
-        "Operator AutoMLTablesListTableSpecsOperator has been deprecated due to shutdown of "
-        "a legacy version of AutoML Tables on March 31, 2024. "
-        "For additional information see: https://cloud.google.com/automl-tables/docs/deprecations. "
-    )
-
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
     def test_execute(self, mock_hook):
         filter_ = "filter"
         page_size = 42
 
-        with pytest.raises(AirflowException, match=self.expected_exception_string):
-            _ = AutoMLTablesListTableSpecsOperator(
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            AutoMLTablesListTableSpecsOperator(
                 dataset_id=DATASET_ID,
                 location=GCP_LOCATION,
                 project_id=GCP_PROJECT_ID,
@@ -769,8 +580,8 @@ class TestAutoMLTablesListTableSpecsOperator:
 
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator):
-        with pytest.raises(AirflowException, match=self.expected_exception_string):
-            _ = create_task_instance_of_operator(
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            create_task_instance_of_operator(
                 AutoMLTablesListTableSpecsOperator,
                 # Templated fields
                 dataset_id="{{ 'dataset-id' }}",
@@ -787,29 +598,9 @@ class TestAutoMLTablesListTableSpecsOperator:
 class TestAutoMLDatasetListOperator:
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
     def test_execute(self, mock_hook):
-        op = AutoMLListDatasetOperator(location=GCP_LOCATION, project_id=GCP_PROJECT_ID, task_id=TASK_ID)
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = AutoMLListDatasetOperator(location=GCP_LOCATION, project_id=GCP_PROJECT_ID, task_id=TASK_ID)
         op.execute(context=mock.MagicMock())
-        mock_hook.return_value.list_datasets.assert_called_once_with(
-            location=GCP_LOCATION,
-            metadata=(),
-            project_id=GCP_PROJECT_ID,
-            retry=DEFAULT,
-            timeout=None,
-        )
-
-    @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
-    def test_execute_deprecated(self, mock_hook):
-        not_valid_dataset = mock.MagicMock()
-        del not_valid_dataset.translation_dataset_metadata
-        mock_hook.return_value.list_datasets.return_value = [DATASET, not_valid_dataset]
-        op = AutoMLListDatasetOperator(location=GCP_LOCATION, project_id=GCP_PROJECT_ID, task_id=TASK_ID)
-        expected_warning_str = (
-            "Class `AutoMLListDatasetOperator` has been deprecated and no longer available. "
-            "Please use `ListDatasetsOperator` instead"
-        )
-        with pytest.warns(UserWarning, match=expected_warning_str):
-            op.execute(context=mock.MagicMock())
-
         mock_hook.return_value.list_datasets.assert_called_once_with(
             location=GCP_LOCATION,
             metadata=(),
@@ -820,16 +611,17 @@ class TestAutoMLDatasetListOperator:
 
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator, session):
-        ti = create_task_instance_of_operator(
-            AutoMLListDatasetOperator,
-            # Templated fields
-            location="{{ 'location' }}",
-            project_id="{{ 'project-id' }}",
-            impersonation_chain="{{ 'impersonation-chain' }}",
-            # Other parameters
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            ti = create_task_instance_of_operator(
+                AutoMLListDatasetOperator,
+                # Templated fields
+                location="{{ 'location' }}",
+                project_id="{{ 'project-id' }}",
+                impersonation_chain="{{ 'impersonation-chain' }}",
+                # Other parameters
+                dag_id="test_template_body_templating_dag",
+                task_id="test_template_body_templating_task",
+            )
         session.add(ti)
         session.commit()
         ti.render_templates()
@@ -842,12 +634,13 @@ class TestAutoMLDatasetListOperator:
 class TestAutoMLDatasetDeleteOperator:
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
     def test_execute(self, mock_hook):
-        op = AutoMLDeleteDatasetOperator(
-            dataset_id=DATASET_ID,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            task_id=TASK_ID,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = AutoMLDeleteDatasetOperator(
+                dataset_id=DATASET_ID,
+                location=GCP_LOCATION,
+                project_id=GCP_PROJECT_ID,
+                task_id=TASK_ID,
+            )
         op.execute(context=None)
         mock_hook.return_value.delete_dataset.assert_called_once_with(
             location=GCP_LOCATION,
@@ -858,47 +651,20 @@ class TestAutoMLDatasetDeleteOperator:
             timeout=None,
         )
 
-    @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
-    def test_execute_deprecated(self, mock_hook):
-        returned_dataset = mock.MagicMock()
-        del returned_dataset.translation_dataset_metadata
-        mock_hook.return_value.get_dataset.return_value = returned_dataset
-
-        op = AutoMLDeleteDatasetOperator(
-            dataset_id=DATASET_ID,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            task_id=TASK_ID,
-        )
-        expected_exception_str = (
-            "AutoMLDeleteDatasetOperator for text, image, and video prediction has been "
-            "deprecated and no longer available"
-        )
-        with pytest.raises(AirflowException, match=expected_exception_str):
-            op.execute(context=mock.MagicMock())
-        mock_hook.return_value.get_dataset.assert_called_once_with(
-            dataset_id=DATASET_ID,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            metadata=(),
-            retry=DEFAULT,
-            timeout=None,
-        )
-        mock_hook.return_value.delete_dataset.assert_not_called()
-
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator, session):
-        ti = create_task_instance_of_operator(
-            AutoMLDeleteDatasetOperator,
-            # Templated fields
-            dataset_id="{{ 'dataset-id' }}",
-            location="{{ 'location' }}",
-            project_id="{{ 'project-id' }}",
-            impersonation_chain="{{ 'impersonation-chain' }}",
-            # Other parameters
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            ti = create_task_instance_of_operator(
+                AutoMLDeleteDatasetOperator,
+                # Templated fields
+                dataset_id="{{ 'dataset-id' }}",
+                location="{{ 'location' }}",
+                project_id="{{ 'project-id' }}",
+                impersonation_chain="{{ 'impersonation-chain' }}",
+                # Other parameters
+                dag_id="test_template_body_templating_dag",
+                task_id="test_template_body_templating_task",
+            )
         session.add(ti)
         session.commit()
         ti.render_templates()
