@@ -37,6 +37,7 @@ from airflow.api_fastapi.core_api.datamodels.variables import (
     VariableResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.models.base import ID_LEN
 from airflow.models.variable import Variable
 
 variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
@@ -166,6 +167,21 @@ def post_variable(
     session: SessionDep,
 ) -> VariableResponse:
     """Create a variable."""
+    # Check for key length limit
+    if len(post_body.key) > ID_LEN:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Variable key exceeds maximum length of {ID_LEN} characters.",
+        )
+
+    # Check if the key already exists
+    existing_variable = session.scalar(select(Variable).where(Variable.key == post_body.key).limit(1))
+    if existing_variable:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Variable with key '{post_body.key}' already exists.",
+        )
+
     Variable.set(**post_body.model_dump(), session=session)
 
     variable = session.scalar(select(Variable).where(Variable.key == post_body.key).limit(1))
