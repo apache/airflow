@@ -52,7 +52,7 @@ TEST_GCP_CONN_ID = "test_gcp_conn_id"
 TEST_DATA_PIPELINE_NAME = "test_data_pipeline_name"
 
 
-class TestCreateDataPipelineOperator:
+class TestDataflowCreatePipelineOperator:
     @pytest.fixture
     def create_operator(self):
         """
@@ -85,7 +85,7 @@ class TestCreateDataPipelineOperator:
 
 
 @pytest.mark.db_test
-class TestRunDataPipelineOperator:
+class TestDataflowRunPipelineOperator:
     @pytest.fixture
     def run_operator(self):
         """

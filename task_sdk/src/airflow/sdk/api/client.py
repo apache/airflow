@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import sys
 import uuid
+from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import httpx
@@ -30,22 +31,28 @@ from uuid6 import uuid7
 from airflow.sdk import __version__
 from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
+    DagRunType,
     TerminalTIState,
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
+    TIRescheduleStatePayload,
+    TIRunContext,
     TITerminalStatePayload,
     ValidationError as RemoteValidationError,
     VariablePostBody,
     VariableResponse,
     XComResponse,
 )
+from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time.comms import ErrorResponse
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from airflow.sdk.execution_time.comms import RescheduleTask
     from airflow.typing_compat import ParamSpec
 
     P = ParamSpec("P")
@@ -110,11 +117,12 @@ class TaskInstanceOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def start(self, id: uuid.UUID, pid: int, when: datetime):
+    def start(self, id: uuid.UUID, pid: int, when: datetime) -> TIRunContext:
         """Tell the API server that this TI has started running."""
         body = TIEnterRunningPayload(pid=pid, hostname=get_hostname(), unixname=getuser(), start_date=when)
 
-        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
+        resp = self.client.patch(f"task-instances/{id}/run", content=body.model_dump_json())
+        return TIRunContext.model_validate_json(resp.read())
 
     def finish(self, id: uuid.UUID, state: TerminalTIState, when: datetime):
         """Tell the API server that this TI has reached a terminal state."""
@@ -134,6 +142,13 @@ class TaskInstanceOperations:
         # Create a deferred state payload from msg
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
+    def reschedule(self, id: uuid.UUID, msg: RescheduleTask):
+        """Tell the API server that this TI has been reschduled."""
+        body = TIRescheduleStatePayload(**msg.model_dump(exclude_unset=True))
+
+        # Create a reschedule state payload from msg
+        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
+
     def set_rtif(self, id: uuid.UUID, body: dict[str, str]) -> dict[str, bool]:
         """Set Rendered Task Instance Fields via the API server."""
         self.client.put(f"task-instances/{id}/rtif", json=body)
@@ -149,9 +164,19 @@ class ConnectionOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def get(self, conn_id: str) -> ConnectionResponse:
+    def get(self, conn_id: str) -> ConnectionResponse | ErrorResponse:
         """Get a connection from the API server."""
-        resp = self.client.get(f"connections/{conn_id}")
+        try:
+            resp = self.client.get(f"connections/{conn_id}")
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.error(
+                    "Connection not found",
+                    conn_id=conn_id,
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                return ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND, detail={"conn_id": conn_id})
         return ConnectionResponse.model_validate_json(resp.read())
 
 
@@ -218,7 +243,23 @@ class BearerAuth(httpx.Auth):
 # This exists as a aid for debugging or local running via the `dry_run` argument to Client. It doesn't make
 # sense for returning connections etc.
 def noop_handler(request: httpx.Request) -> httpx.Response:
-    log.debug("Dry-run request", method=request.method, path=request.url.path)
+    path = request.url.path
+    log.debug("Dry-run request", method=request.method, path=path)
+
+    if path.startswith("/task-instances/") and path.endswith("/run"):
+        # Return a fake context
+        return httpx.Response(
+            200,
+            json={
+                "dag_run": {
+                    "dag_id": "test_dag",
+                    "run_id": "test_run",
+                    "logical_date": "2021-01-01T00:00:00Z",
+                    "start_date": "2021-01-01T00:00:00Z",
+                    "run_type": DagRunType.MANUAL,
+                },
+            },
+        )
     return httpx.Response(200, json={"text": "Hello, world!"})
 
 

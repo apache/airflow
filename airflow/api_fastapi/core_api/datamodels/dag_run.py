@@ -48,12 +48,13 @@ class DAGRunClearBody(BaseModel):
     """DAG Run serializer for clear endpoint body."""
 
     dry_run: bool = True
+    only_failed: bool = False
 
 
 class DAGRunResponse(BaseModel):
     """DAG Run serializer for responses."""
 
-    dag_run_id: str | None = Field(validation_alias="run_id")
+    dag_run_id: str = Field(validation_alias="run_id")
     dag_id: str
     logical_date: datetime | None
     queued_at: datetime | None

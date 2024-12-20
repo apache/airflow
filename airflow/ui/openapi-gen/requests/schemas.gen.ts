@@ -1652,6 +1652,11 @@ export const $DAGRunClearBody = {
       title: "Dry Run",
       default: true,
     },
+    only_failed: {
+      type: "boolean",
+      title: "Only Failed",
+      default: false,
+    },
   },
   type: "object",
   title: "DAGRunClearBody",
@@ -1718,14 +1723,7 @@ export const $DAGRunPatchStates = {
 export const $DAGRunResponse = {
   properties: {
     dag_run_id: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "string",
       title: "Dag Run Id",
     },
     dag_id: {
@@ -2664,6 +2662,17 @@ export const $EdgeResponse = {
       type: "string",
       title: "Target Id",
     },
+    is_source_asset: {
+      anyOf: [
+        {
+          type: "boolean",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Is Source Asset",
+    },
   },
   type: "object",
   required: ["source_id", "target_id"],
@@ -3207,6 +3216,18 @@ export const $NodeResponse = {
         },
       ],
       title: "Operator",
+    },
+    asset_condition_type: {
+      anyOf: [
+        {
+          type: "string",
+          enum: ["or-gate", "and-gate"],
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Asset Condition Type",
     },
   },
   type: "object",
@@ -5380,6 +5401,10 @@ export const $XComResponse = {
       type: "string",
       title: "Dag Id",
     },
+    run_id: {
+      type: "string",
+      title: "Run Id",
+    },
   },
   type: "object",
   required: [
@@ -5389,6 +5414,7 @@ export const $XComResponse = {
     "map_index",
     "task_id",
     "dag_id",
+    "run_id",
   ],
   title: "XComResponse",
   description: "Serializer for a xcom item.",
@@ -5422,6 +5448,10 @@ export const $XComResponseNative = {
       type: "string",
       title: "Dag Id",
     },
+    run_id: {
+      type: "string",
+      title: "Run Id",
+    },
     value: {
       title: "Value",
     },
@@ -5434,6 +5464,7 @@ export const $XComResponseNative = {
     "map_index",
     "task_id",
     "dag_id",
+    "run_id",
     "value",
   ],
   title: "XComResponseNative",
@@ -5468,6 +5499,10 @@ export const $XComResponseString = {
       type: "string",
       title: "Dag Id",
     },
+    run_id: {
+      type: "string",
+      title: "Run Id",
+    },
     value: {
       anyOf: [
         {
@@ -5488,6 +5523,7 @@ export const $XComResponseString = {
     "map_index",
     "task_id",
     "dag_id",
+    "run_id",
     "value",
   ],
   title: "XComResponseString",
