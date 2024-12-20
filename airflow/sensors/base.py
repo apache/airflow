@@ -51,6 +51,7 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
+    from airflow.typing_compat import Self
     from airflow.utils.context import Context
 
 # As documented in https://dev.mysql.com/doc/refman/5.7/en/datetime.html.
@@ -408,7 +409,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self.log.info("new %s interval is %s", self.mode, new_interval)
         return new_interval
 
-    def prepare_for_execution(self) -> BaseOperator:
+    def prepare_for_execution(self) -> Self:
         task = super().prepare_for_execution()
 
         # Sensors in `poke` mode can block execution of DAGs when running

@@ -5214,6 +5214,7 @@ class TaskInstanceModelView(AirflowModelView):
         "task_id",
         "run_id",
         "map_index",
+        "rendered_map_index",
         "logical_date",
         "operator",
         "start_date",

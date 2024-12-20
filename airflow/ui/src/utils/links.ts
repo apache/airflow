@@ -16,37 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button } from "@chakra-ui/react";
-import { useDisclosure } from "@chakra-ui/react";
-import { FiPlay } from "react-icons/fi";
+import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
-import type { DAGResponse } from "openapi/requests/types.gen";
-
-import TriggerDAGModal from "./TriggerDAGModal";
-
-type Props = {
-  readonly dag: DAGResponse;
-};
-
-const TriggerDAGIconButton: React.FC<Props> = ({ dag }) => {
-  const { onClose, onOpen, open } = useDisclosure();
-
-  return (
-    <Box>
-      <Button colorPalette="blue" onClick={onOpen}>
-        <FiPlay />
-        Trigger
-      </Button>
-
-      <TriggerDAGModal
-        dagDisplayName={dag.dag_display_name}
-        dagId={dag.dag_id}
-        isPaused={dag.is_paused}
-        onClose={onClose}
-        open={open}
-      />
-    </Box>
-  );
-};
-
-export default TriggerDAGIconButton;
+export const getTaskInstanceLink = (ti: TaskInstanceResponse) =>
+  `/dags/${ti.dag_id}/runs/${ti.dag_run_id}/tasks/${ti.task_id}${ti.map_index >= 0 ? `?map_index=${ti.map_index}` : ""}`;

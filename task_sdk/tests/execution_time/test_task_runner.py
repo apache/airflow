@@ -147,7 +147,7 @@ def test_parse(test_dags_dir: Path, make_ti_context):
     assert isinstance(ti.task.dag, DAG)
 
 
-def test_run_basic(time_machine, mocked_parse, make_ti_context):
+def test_run_basic(time_machine, mocked_parse, make_ti_context, spy_agency):
     """Test running a basic task."""
     what = StartupDetails(
         ti=TaskInstance(id=uuid7(), task_id="hello", dag_id="super_basic_run", run_id="c", try_number=1),
@@ -163,7 +163,15 @@ def test_run_basic(time_machine, mocked_parse, make_ti_context):
         "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
     ) as mock_supervisor_comms:
         ti = mocked_parse(what, "super_basic_run", CustomOperator(task_id="hello"))
+
+        # Ensure that task is locked for execution
+        spy_agency.spy_on(ti.task.prepare_for_execution)
+        assert not ti.task._lock_for_execution
+
         run(ti, log=mock.MagicMock())
+
+        spy_agency.assert_spy_called(ti.task.prepare_for_execution)
+        assert ti.task._lock_for_execution
 
         mock_supervisor_comms.send_request.assert_called_once_with(
             msg=TaskState(state=TerminalTIState.SUCCESS, end_date=instant), log=mock.ANY
@@ -248,43 +256,6 @@ def test_run_basic_skipped(time_machine, mocked_parse, make_ti_context):
         )
 
 
-def test_startup_basic_templated_dag(mocked_parse, make_ti_context):
-    """Test running a DAG with templated task."""
-    from airflow.providers.standard.operators.bash import BashOperator
-
-    task = BashOperator(
-        task_id="templated_task",
-        bash_command="echo 'Logical date is {{ logical_date }}'",
-    )
-
-    what = StartupDetails(
-        ti=TaskInstance(
-            id=uuid7(), task_id="templated_task", dag_id="basic_templated_dag", run_id="c", try_number=1
-        ),
-        file="",
-        requests_fd=0,
-        ti_context=make_ti_context(),
-    )
-    mocked_parse(what, "basic_templated_dag", task)
-
-    with mock.patch(
-        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
-    ) as mock_supervisor_comms:
-        mock_supervisor_comms.get_message.return_value = what
-        startup()
-
-        mock_supervisor_comms.send_request.assert_called_once_with(
-            msg=SetRenderedFields(
-                rendered_fields={
-                    "bash_command": "echo 'Logical date is {{ logical_date }}'",
-                    "cwd": None,
-                    "env": None,
-                }
-            ),
-            log=mock.ANY,
-        )
-
-
 @pytest.mark.parametrize(
     ["task_params", "expected_rendered_fields"],
     [
@@ -311,8 +282,8 @@ def test_startup_basic_templated_dag(mocked_parse, make_ti_context):
         ),
     ],
 )
-def test_startup_dag_with_templated_fields(
-    mocked_parse, task_params, expected_rendered_fields, make_ti_context
+def test_startup_and_run_dag_with_templated_fields(
+    mocked_parse, task_params, expected_rendered_fields, make_ti_context, time_machine
 ):
     """Test startup of a DAG with various templated fields."""
 
@@ -324,6 +295,10 @@ def test_startup_dag_with_templated_fields(
             for key, value in task_params.items():
                 setattr(self, key, value)
 
+        def execute(self, context):
+            for key in self.template_fields:
+                print(key, getattr(self, key))
+
     task = CustomOperator(task_id="templated_task")
 
     what = StartupDetails(
@@ -332,18 +307,28 @@ def test_startup_dag_with_templated_fields(
         requests_fd=0,
         ti_context=make_ti_context(),
     )
-    mocked_parse(what, "basic_dag", task)
+    ti = mocked_parse(what, "basic_dag", task)
 
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
     with mock.patch(
         "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
     ) as mock_supervisor_comms:
         mock_supervisor_comms.get_message.return_value = what
 
         startup()
-        mock_supervisor_comms.send_request.assert_called_once_with(
-            msg=SetRenderedFields(rendered_fields=expected_rendered_fields),
-            log=mock.ANY,
-        )
+        run(ti, log=mock.MagicMock())
+        expected_calls = [
+            mock.call.send_request(
+                msg=SetRenderedFields(rendered_fields=expected_rendered_fields),
+                log=mock.ANY,
+            ),
+            mock.call.send_request(
+                msg=TaskState(end_date=instant, state=TerminalTIState.SUCCESS),
+                log=mock.ANY,
+            ),
+        ]
+        mock_supervisor_comms.assert_has_calls(expected_calls)
 
 
 @pytest.mark.parametrize(

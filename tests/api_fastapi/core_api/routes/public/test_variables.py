@@ -344,3 +344,39 @@ class TestPostVariable(TestVariableEndpoint):
         response = test_client.post("/public/variables", json=body)
         assert response.status_code == 201
         assert response.json() == expected_response
+
+    def test_post_should_respond_409_when_key_exists(self, test_client, session):
+        self.create_variables()
+        # Attempting to post a variable with an existing key
+        response = test_client.post(
+            "/public/variables",
+            json={
+                "key": TEST_VARIABLE_KEY,
+                "value": "duplicate value",
+                "description": "duplicate description",
+            },
+        )
+        assert response.status_code == 409
+        body = response.json()
+        assert body["detail"] == f"The Variable with key: `{TEST_VARIABLE_KEY}` already exists"
+
+    def test_post_should_respond_422_when_key_too_large(self, test_client):
+        large_key = "a" * 251  # Exceeds the maximum length of 250
+        body = {
+            "key": large_key,
+            "value": "some_value",
+            "description": "key too large",
+        }
+        response = test_client.post("/public/variables", json=body)
+        assert response.status_code == 422
+        assert response.json() == {
+            "detail": [
+                {
+                    "type": "string_too_long",
+                    "loc": ["body", "key"],
+                    "msg": "String should have at most 250 characters",
+                    "input": large_key,
+                    "ctx": {"max_length": 250},
+                }
+            ]
+        }

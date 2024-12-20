@@ -46,12 +46,14 @@ from airflow.sdk.execution_time.comms import (
     GetXCom,
     PutVariable,
     RescheduleTask,
+    SetRenderedFields,
     SetXCom,
     TaskState,
     VariableResult,
     XComResult,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, supervise
+from airflow.sdk.execution_time.task_runner import CommsDecoder
 from airflow.utils import timezone, timezone as tz
 
 from task_sdk.tests.api.test_client import make_client
@@ -772,7 +774,7 @@ class TestHandleRequest:
             ),
             pytest.param(
                 GetVariable(key="test_key"),
-                b'{"key":"test_key","value":"test_value"}\n',
+                b'{"key":"test_key","value":"test_value","type":"VariableResult"}\n',
                 "variables.get",
                 ("test_key",),
                 VariableResult(key="test_key", value="test_value"),
@@ -813,7 +815,7 @@ class TestHandleRequest:
             ),
             pytest.param(
                 GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
-                b'{"key":"test_key","value":"test_value"}\n',
+                b'{"key":"test_key","value":"test_value","type":"XComResult"}\n',
                 "xcoms.get",
                 ("test_dag", "test_run", "test_task", "test_key", -1),
                 XComResult(key="test_key", value="test_value"),
@@ -823,7 +825,7 @@ class TestHandleRequest:
                 GetXCom(
                     dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key", map_index=2
                 ),
-                b'{"key":"test_key","value":"test_value"}\n',
+                b'{"key":"test_key","value":"test_value","type":"XComResult"}\n',
                 "xcoms.get",
                 ("test_dag", "test_run", "test_task", "test_key", 2),
                 XComResult(key="test_key", value="test_value"),
@@ -882,6 +884,14 @@ class TestHandleRequest:
                 "",
                 id="patch_task_instance_to_skipped",
             ),
+            pytest.param(
+                SetRenderedFields(rendered_fields={"field1": "rendered_value1", "field2": "rendered_value2"}),
+                b"",
+                "task_instances.set_rtif",
+                (TI_ID, {"field1": "rendered_value1", "field2": "rendered_value2"}),
+                {"ok": True},
+                id="set_rtif",
+            ),
         ],
     )
     def test_handle_requests(
@@ -903,6 +913,7 @@ class TestHandleRequest:
             1. Sends the message to the subprocess.
             2. Verifies that the correct client method is called with the expected argument.
             3. Checks that the buffer is updated with the expected response.
+            4. Verifies that the response is correctly decoded.
         """
 
         # Mock the client method. E.g. `client.variables.get` or `client.connections.get`
@@ -921,4 +932,16 @@ class TestHandleRequest:
             mock_client_method.assert_called_once_with(*method_arg)
 
         # Verify the response was added to the buffer
-        assert watched_subprocess.stdin.getvalue() == expected_buffer
+        val = watched_subprocess.stdin.getvalue()
+        assert val == expected_buffer
+
+        # Verify the response is correctly decoded
+        # This is important because the subprocess/task runner will read the response
+        # and deserialize it to the correct message type
+
+        # Only decode the buffer if it contains data. An empty buffer implies no response was written.
+        if val:
+            # Using BytesIO to simulate a readable stream for CommsDecoder.
+            input_stream = BytesIO(val)
+            decoder = CommsDecoder(input=input_stream)
+            assert decoder.get_message() == mock_response

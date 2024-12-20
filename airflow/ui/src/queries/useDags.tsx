@@ -25,13 +25,6 @@ import type {
   DAGWithLatestDagRunsResponse,
 } from "openapi/requests/types.gen";
 
-const queryOptions = {
-  refetchOnMount: true,
-  refetchOnReconnect: false,
-  refetchOnWindowFocus: false,
-  staleTime: 5 * 60 * 1000,
-};
-
 export type DagWithLatest = {
   last_run_start_date: string;
 } & DAGWithLatestDagRunsResponse;
@@ -50,13 +43,8 @@ export const useDags = (
     tags?: Array<string>;
   } = {},
 ) => {
-  const offsetDefined =
-    searchParams.offset === undefined ? false : !isNaN(searchParams.offset);
-  const { data, error, isFetching, isLoading } = useDagServiceGetDags(
-    searchParams,
-    undefined,
-    { ...queryOptions, enabled: offsetDefined },
-  );
+  const { data, error, isFetching, isLoading } =
+    useDagServiceGetDags(searchParams);
 
   const { orderBy, ...runsParams } = searchParams;
   const {
@@ -64,14 +52,10 @@ export const useDags = (
     error: runsError,
     isFetching: isRunsFetching,
     isLoading: isRunsLoading,
-  } = useDagsServiceRecentDagRuns(
-    {
-      ...runsParams,
-      dagRunsLimit: 14,
-    },
-    undefined,
-    { ...queryOptions, enabled: offsetDefined },
-  );
+  } = useDagsServiceRecentDagRuns({
+    ...runsParams,
+    dagRunsLimit: 14,
+  });
 
   const dags = (data?.dags ?? []).map((dag) => {
     const dagWithRuns = runsData?.dags.find(
