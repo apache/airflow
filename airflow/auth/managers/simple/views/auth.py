@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from flask import redirect, request, session, url_for
@@ -29,8 +28,6 @@ from airflow.utils.state import State
 from airflow.www.app import csrf
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.views import AirflowBaseView
-
-logger = logging.getLogger(__name__)
 
 
 class SimpleAuthManagerAuthenticationViews(AirflowBaseView):
