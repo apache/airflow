@@ -24,22 +24,27 @@ from google.cloud.translate_v3.types import (
     BatchTranslateDocumentResponse,
     TranslateDocumentResponse,
     automl_translation,
+    translation_service,
 )
 
 from airflow.providers.google.cloud.hooks.translate import TranslateHook
 from airflow.providers.google.cloud.operators.translate import (
     CloudTranslateTextOperator,
     TranslateCreateDatasetOperator,
+    TranslateCreateGlossaryOperator,
     TranslateCreateModelOperator,
     TranslateDatasetsListOperator,
     TranslateDeleteDatasetOperator,
+    TranslateDeleteGlossaryOperator,
     TranslateDeleteModelOperator,
     TranslateDocumentBatchOperator,
     TranslateDocumentOperator,
     TranslateImportDataOperator,
+    TranslateListGlossariesOperator,
     TranslateModelsListOperator,
     TranslateTextBatchOperator,
     TranslateTextOperator,
+    TranslateUpdateGlossaryOperator,
 )
 
 GCP_CONN_ID = "google_cloud_default"
@@ -47,6 +52,7 @@ IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 PROJECT_ID = "test-project-id"
 DATASET_ID = "sample_ds_id"
 MODEL_ID = "sample_model_id"
+GLOSSARY_ID = "sample_glossary_id"
 TIMEOUT_VALUE = 30
 LOCATION = "location_id"
 
@@ -155,7 +161,6 @@ class TestTranslateTextBatchOperator:
         }
         SRC_LANG_CODE = "src_lang_code"
         TARGET_LANG_CODES = ["target_lang_code1", "target_lang_code2"]
-        LOCATION = "location-id"
         TIMEOUT = 30
         INPUT_CONFIGS = [input_config_item]
         OUTPUT_CONFIG = {"gcs_destination": {"output_uri_prefix": "gs://source_bucket_uri/output/"}}
@@ -708,3 +713,222 @@ class TestTranslateDocumentOperator:
             project_id=PROJECT_ID,
             output_config=OUTPUT_CONFIG,
         )
+
+
+class TestTranslateGlossaryCreate:
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.translate.TranslateCreateGlossaryOperator.xcom_push"
+    )
+    @mock.patch("airflow.providers.google.cloud.operators.translate.TranslateHook")
+    def test_minimal_green_path(self, mock_hook, mock_xcom_push):
+        GLOSSARY_CREATION_RESULT = {
+            "name": f"projects/{PROJECT_ID}/locations/{LOCATION}/glossaries/{GLOSSARY_ID}",
+            "display_name": f"{GLOSSARY_ID}",
+            "entry_count": 42,
+            "input_config": {"gcs_source": {"input_uri": "gs://input_bucket_path/glossary.csv"}},
+            "language_pair": {"source_language_code": "en", "target_language_code": "es"},
+            "submit_time": "2024-11-17T14:05:00Z",
+            "end_time": "2024-11-17T17:09:03Z",
+        }
+        sample_operation = mock.MagicMock()
+        sample_operation.result.return_value = translation_service.Glossary(GLOSSARY_CREATION_RESULT)
+
+        mock_hook.return_value.create_glossary.return_value = sample_operation
+        mock_hook.return_value.wait_for_operation_result.side_effect = lambda operation: operation.result()
+        mock_hook.return_value.extract_object_id = TranslateHook.extract_object_id
+
+        GLOSSARY_FILE_INPUT = {"gcs_source": {"input_uri": "gs://RESOURCE_BUCKET/glossary_sample.tsv"}}
+        op = TranslateCreateGlossaryOperator(
+            task_id="task_id",
+            glossary_id=f"{GLOSSARY_ID}",
+            input_config=GLOSSARY_FILE_INPUT,
+            language_pair={"source_language_code": "en", "target_language_code": "es"},
+            language_codes_set=None,
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            timeout=TIMEOUT_VALUE,
+            retry=None,
+        )
+        context = mock.MagicMock()
+        result = op.execute(context=context)
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.create_glossary.assert_called_once_with(
+            glossary_id=f"{GLOSSARY_ID}",
+            input_config=GLOSSARY_FILE_INPUT,
+            language_pair={"source_language_code": "en", "target_language_code": "es"},
+            language_codes_set=None,
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            timeout=TIMEOUT_VALUE,
+            retry=None,
+            metadata=(),
+        )
+        mock_xcom_push.assert_called_once_with(context, key="glossary_id", value=GLOSSARY_ID)
+        assert result == GLOSSARY_CREATION_RESULT
+
+
+class TestTranslateGlossaryUpdate:
+    @mock.patch("airflow.providers.google.cloud.operators.translate.TranslateHook")
+    def test_minimal_green_path(self, mock_hook):
+        UPDATE_GLOSSARY_RESULT = {
+            "name": f"projects/{PROJECT_ID}/locations/{LOCATION}/glossaries/{GLOSSARY_ID}",
+            "display_name": "new_glossary_display_name",
+            "entry_count": 42,
+            "input_config": {"gcs_source": {"input_uri": "gs://input_bucket_path/glossary_updated.csv"}},
+            "language_pair": {"source_language_code": "en", "target_language_code": "es"},
+            "submit_time": "2024-11-17T14:05:00Z",
+            "end_time": "2024-11-17T17:09:03Z",
+        }
+        get_glossary_mock = mock.MagicMock()
+        mock_hook.return_value.get_glossary.return_value = get_glossary_mock
+        sample_operation = mock.MagicMock()
+        sample_operation.result.return_value = translation_service.Glossary(UPDATE_GLOSSARY_RESULT)
+
+        mock_hook.return_value.update_glossary.return_value = sample_operation
+        mock_hook.return_value.wait_for_operation_result.side_effect = lambda operation: operation.result()
+
+        UPDATE_GLOSSARY_FILE_INPUT = {"gcs_source": {"input_uri": "gs://RESOURCE_BUCKET/glossary_sample.tsv"}}
+        op = TranslateUpdateGlossaryOperator(
+            task_id="task_id",
+            new_input_config=UPDATE_GLOSSARY_FILE_INPUT,
+            new_display_name="new_glossary_display_name",
+            glossary_id=GLOSSARY_ID,
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            timeout=TIMEOUT_VALUE,
+            retry=None,
+        )
+        context = mock.MagicMock()
+        result = op.execute(context=context)
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.update_glossary.assert_called_once_with(
+            glossary=get_glossary_mock,
+            new_input_config=UPDATE_GLOSSARY_FILE_INPUT,
+            new_display_name="new_glossary_display_name",
+            timeout=TIMEOUT_VALUE,
+            retry=None,
+            metadata=(),
+        )
+        assert result == UPDATE_GLOSSARY_RESULT
+
+
+class TestTranslateListGlossaries:
+    @mock.patch("airflow.providers.google.cloud.links.translate.TranslationGlossariesListLink.persist")
+    @mock.patch("airflow.providers.google.cloud.operators.translate.TranslateHook")
+    def test_minimal_green_path(self, mock_hook, mock_link_persist):
+        GLOSSARY_ID_1 = "sample_glossary_1"
+        GLOSSARY_ID_2 = "sample_glossary_2"
+        glossary_result_1 = translation_service.Glossary(
+            dict(
+                name=f"projects/{PROJECT_ID}/locations/{LOCATION}/glossaries/{GLOSSARY_ID_1}",
+                display_name=f"{GLOSSARY_ID_1}",
+                entry_count=100,
+                input_config={"gcs_source": {"input_uri": "gs://input1.csv"}},
+                language_pair={"source_language_code": "en", "target_language_code": "es"},
+                submit_time="2024-11-17T14:05:00Z",
+                end_time="2024-11-17T17:09:03Z",
+            )
+        )
+        glossary_result_2 = translation_service.Glossary(
+            dict(
+                name=f"projects/{PROJECT_ID}/locations/{LOCATION}/glossaries/{GLOSSARY_ID_2}",
+                display_name=f"{GLOSSARY_ID_2}",
+                entry_count=200,
+                input_config={"gcs_source": {"input_uri": "gs://input2.csv"}},
+                language_pair={"source_language_code": "es", "target_language_code": "en"},
+                submit_time="2024-11-17T14:05:00Z",
+                end_time="2024-11-17T17:09:03Z",
+            )
+        )
+        mock_hook.return_value.list_glossaries.return_value = [glossary_result_1, glossary_result_2]
+        mock_hook.return_value.extract_object_id = TranslateHook.extract_object_id
+
+        op = TranslateListGlossariesOperator(
+            task_id="task_id",
+            project_id=PROJECT_ID,
+            page_size=100,
+            location=LOCATION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            timeout=TIMEOUT_VALUE,
+            retry=DEFAULT,
+        )
+        context = mock.MagicMock()
+        result = op.execute(context=context)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.list_glossaries.assert_called_once_with(
+            project_id=PROJECT_ID,
+            page_size=100,
+            filter_str=None,
+            page_token=None,
+            location=LOCATION,
+            timeout=TIMEOUT_VALUE,
+            retry=DEFAULT,
+            metadata=(),
+        )
+        assert result == [GLOSSARY_ID_1, GLOSSARY_ID_2]
+        mock_link_persist.assert_called_once_with(
+            context=context,
+            task_instance=op,
+            project_id=PROJECT_ID,
+        )
+
+
+class TestTranslateDeleteGlossary:
+    @mock.patch("airflow.providers.google.cloud.operators.translate.TranslateHook")
+    def test_minimal_green_path(self, mock_hook):
+        DELETION_RESULT_SAMPLE = {
+            "submit_time": "2024-11-17T14:05:00Z",
+            "end_time": "2024-11-17T17:09:03Z",
+            "name": f"projects/{PROJECT_ID}/locations/{LOCATION}/glossaries/{GLOSSARY_ID}",
+        }
+        sample_operation = mock.MagicMock()
+        sample_operation.result.return_value = translation_service.DeleteGlossaryResponse(
+            DELETION_RESULT_SAMPLE
+        )
+        gl_delete_method = mock_hook.return_value.delete_glossary
+        gl_delete_method.return_value = sample_operation
+
+        mock_hook.return_value.wait_for_operation_result.side_effect = lambda operation: operation.result()
+
+        op = TranslateDeleteGlossaryOperator(
+            task_id="task_id",
+            glossary_id=GLOSSARY_ID,
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            timeout=TIMEOUT_VALUE,
+            retry=DEFAULT,
+        )
+        context = mock.MagicMock()
+        result = op.execute(context=context)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        gl_delete_method.assert_called_once_with(
+            glossary_id=GLOSSARY_ID,
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            timeout=TIMEOUT_VALUE,
+            retry=DEFAULT,
+            metadata=(),
+        )
+        assert result == DELETION_RESULT_SAMPLE
