@@ -126,3 +126,29 @@ class GitDagBundle(BaseDagBundle):
 
         self.bare_repo.remotes.origin.fetch("+refs/heads/*:refs/heads/*")
         self.repo.remotes.origin.pull()
+
+    def _convert_git_ssh_url_to_https(self) -> str:
+        if self.repo_url.startswith("git@"):
+            parts = self.repo_url.split(":")
+            domain = parts[0].replace("git@", "https://")
+            repo_path = parts[1].replace(".git", "")
+            return f"{domain}/{repo_path}"
+        raise ValueError(f"Invalid git SSH URL: {self.repo_url}")
+
+    def view_url(self, version: str | None = None) -> str:
+        if not version:
+            raise AirflowException("Version is required to view the repository")
+        if not self._has_version(self.repo, version):
+            raise AirflowException(f"Version {version} not found in the repository")
+        url = self.repo_url
+        if url.startswith("git@"):
+            url = self._convert_git_ssh_url_to_https()
+        if url.endswith(".git"):
+            url = url[:-4]
+        if "github" in url:
+            return f"{url}/tree/{version}"
+        if "gitlab" in url:
+            return f"{url}/-/tree/{version}"
+        if "bitbucket" in url:
+            return f"{url}/src/{version}"
+        return f"{url}/tree/{version}"
