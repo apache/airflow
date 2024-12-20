@@ -172,3 +172,6 @@ howto/define_extra_link.rst howto/define-extra-link.rst
 
 # Use test config (it's not a howto for users but a howto for developers so we redirect it back to index)
 howto/use-test-config.rst index.rst
+
+# Removing reference to undead tasks
+core-concepts/tasks.html#zombie-undead-tasks core-concepts/tasks.html#zombie-tasks
