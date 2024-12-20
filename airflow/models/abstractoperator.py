@@ -41,7 +41,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule, db_safe_priority
 
 if TYPE_CHECKING:
-    import jinja2  # Slow import.
+    import jinja2  # Slow imports.
     from sqlalchemy.orm import Session
 
     from airflow.models.baseoperatorlink import BaseOperatorLink

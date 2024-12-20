@@ -30,10 +30,11 @@ from airflow_breeze.utils.packages import (
     get_available_packages,
     get_cross_provider_dependent_packages,
     get_dist_package_name_prefix,
-    get_documentation_package_path,
     get_install_requirements,
     get_long_package_name,
     get_min_airflow_version,
+    get_old_documentation_package_path,
+    get_old_source_providers_package_path,
     get_package_extras,
     get_pip_package_name,
     get_provider_details,
@@ -42,7 +43,6 @@ from airflow_breeze.utils.packages import (
     get_provider_requirements,
     get_removed_provider_ids,
     get_short_package_name,
-    get_source_package_path,
     get_suspended_provider_folders,
     get_suspended_provider_ids,
     validate_provider_info_with_runtime_schema,
@@ -151,13 +151,16 @@ def test_find_matching_long_package_name_bad_filter():
 
 
 def test_get_source_package_path():
-    assert get_source_package_path("apache.hdfs") == AIRFLOW_SOURCES_ROOT.joinpath(
+    assert get_old_source_providers_package_path("apache.hdfs") == AIRFLOW_SOURCES_ROOT.joinpath(
         "providers", "src", "airflow", "providers", "apache", "hdfs"
     )
 
 
-def test_get_documentation_package_path():
-    assert get_documentation_package_path("apache.hdfs") == DOCS_ROOT / "apache-airflow-providers-apache-hdfs"
+def test_get_old_documentation_package_path():
+    assert (
+        get_old_documentation_package_path("apache.hdfs")
+        == DOCS_ROOT / "apache-airflow-providers-apache-hdfs"
+    )
 
 
 @pytest.mark.parametrize(
@@ -313,12 +316,20 @@ def test_get_package_extras(version_suffix: str, expected: dict[str, list[str]])
     assert actual == expected
 
 
-def test_get_provider_details():
+# TODO(potiuk) - remove this test when we remove the old providers structure
+def test_get_old_provider_details():
     provider_details = get_provider_details("asana")
     assert provider_details.provider_id == "asana"
     assert provider_details.full_package_name == "airflow.providers.asana"
     assert provider_details.pypi_package_name == "apache-airflow-providers-asana"
-    assert provider_details.source_provider_package_path == AIRFLOW_SOURCES_ROOT.joinpath(
+    assert provider_details.root_provider_path == AIRFLOW_SOURCES_ROOT.joinpath(
+        "providers",
+        "src",
+        "airflow",
+        "providers",
+        "asana",
+    )
+    assert provider_details.base_provider_package_path == AIRFLOW_SOURCES_ROOT.joinpath(
         "providers",
         "src",
         "airflow",
@@ -332,7 +343,35 @@ def test_get_provider_details():
     assert len(provider_details.versions) > 11
     assert provider_details.excluded_python_versions == []
     assert provider_details.plugins == []
-    assert provider_details.changelog_path == provider_details.source_provider_package_path / "CHANGELOG.rst"
+    assert provider_details.changelog_path == provider_details.base_provider_package_path / "CHANGELOG.rst"
+    assert not provider_details.removed
+
+
+def test_get_new_provider_details():
+    provider_details = get_provider_details("airbyte")
+    assert provider_details.provider_id == "airbyte"
+    assert provider_details.full_package_name == "airflow.providers.airbyte"
+    assert provider_details.pypi_package_name == "apache-airflow-providers-airbyte"
+    assert provider_details.root_provider_path == AIRFLOW_SOURCES_ROOT.joinpath(
+        "providers",
+        "airbyte",
+    )
+    assert provider_details.base_provider_package_path == AIRFLOW_SOURCES_ROOT.joinpath(
+        "providers",
+        "airbyte",
+        "src",
+        "airflow",
+        "providers",
+        "airbyte",
+    )
+    assert provider_details.documentation_provider_package_path == AIRFLOW_SOURCES_ROOT.joinpath(
+        "providers", "airbyte", "docs"
+    )
+    assert "Airbyte" in provider_details.provider_description
+    assert len(provider_details.versions) > 11
+    assert provider_details.excluded_python_versions == []
+    assert provider_details.plugins == []
+    assert provider_details.changelog_path == provider_details.root_provider_path / "docs" / "changelog.rst"
     assert not provider_details.removed
 
 
