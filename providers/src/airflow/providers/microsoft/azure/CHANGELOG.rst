@@ -59,6 +59,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``fix callable values in path and query parameters of MSGraphAsyncOperator (#43799)``
+* ``PowerBIDatasetRefreshOperator should fail when refresh fails (#44696)``
 
 Misc
 ~~~~
@@ -67,7 +68,9 @@ Misc
 * ``Move triggers to standard provider (#43608)``
 * ``Remove XCom pickling (#43905)``
 * ``Update DAG example links in multiple providers documents (#44034)``
-
+* ``Update path of example dags in docs (#45069)``
+* ``Avoid 1.1.8 version of msgraph-core (#45044)``
+* ``refactor: Added MS Graph connection type (#45006)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

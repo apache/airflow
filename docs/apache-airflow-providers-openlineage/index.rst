@@ -106,7 +106,7 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.9.0``
 ``apache-airflow-providers-common-sql``     ``>=1.20.0``
-``apache-airflow-providers-common-compat``  ``>=1.2.1``
+``apache-airflow-providers-common-compat``  ``>=1.3.0``
 ``attrs``                                   ``>=22.2``
 ``openlineage-integration-common``          ``>=1.24.2``
 ``openlineage-python``                      ``>=1.24.2``

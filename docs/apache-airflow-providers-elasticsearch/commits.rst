@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 6.0.0
 .....
 
-Latest change: 2024-12-18
+Latest change: 2024-12-19
 
 =================================================================================================  ===========  =====================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =====================================================================
+`35b927fe17 <https://github.com/apache/airflow/commit/35b927fe177065dad0e00c49d72b494e58b27ca8>`_  2024-12-19   ``Update path of example dags in docs (#45069)``
 `2a33da0246 <https://github.com/apache/airflow/commit/2a33da0246c811a98d5cdaf0af2bcca0dee8556a>`_  2024-12-18   ``Remove references to AIRFLOW_V_2_9_PLUS (#44987)``
 `4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
 `490b5e816b <https://github.com/apache/airflow/commit/490b5e816b804f338b0eb97f240ae874d4e15810>`_  2024-12-10   ``Consistent way of checking Airflow version in providers (#44686)``

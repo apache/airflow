@@ -42,14 +42,17 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-11.1.0
+12.0.0
 ......
 
-Latest change: 2024-12-18
+Latest change: 2024-12-19
 
 =================================================================================================  ===========  ==============================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================================================================
+`7fe46e12e2 <https://github.com/apache/airflow/commit/7fe46e12e2bccc1312fe5e4aadc2a3729d34b385>`_  2024-12-19   ``Google provider delete deprecated reaching removal date (December 2024) (#45084)``
+`04ccef9b3a <https://github.com/apache/airflow/commit/04ccef9b3a4073eaf313db3905803e7ef3f910fb>`_  2024-12-19   ``feat: automatically inject OL info into spark job in DataprocSubmitJobOperator (#44477)``
+`60b04ae724 <https://github.com/apache/airflow/commit/60b04ae724b4d23985105c25541d442c0c360de5>`_  2024-12-19   ``Implement AlloyDB operators: create/update/delete clusters (#45027)``
 `553ddf3b99 <https://github.com/apache/airflow/commit/553ddf3b992d4335aadbd6a8dd653f7575e61477>`_  2024-12-18   ``Fix MetastoreHivePartitionSensor failing due to duplicate aliases (#45001)``
 `2a33da0246 <https://github.com/apache/airflow/commit/2a33da0246c811a98d5cdaf0af2bcca0dee8556a>`_  2024-12-18   ``Remove references to AIRFLOW_V_2_9_PLUS (#44987)``
 `51584b8c37 <https://github.com/apache/airflow/commit/51584b8c371263bf34725afedd3c2f1b35468a8e>`_  2024-12-18   ``Introduce gcp translation(V3), translate document providers (#44971)``

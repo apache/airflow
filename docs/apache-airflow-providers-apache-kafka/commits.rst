@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 1.7.0
 .....
 
-Latest change: 2024-12-16
+Latest change: 2024-12-19
 
 =================================================================================================  ===========  ========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================
+`35b927fe17 <https://github.com/apache/airflow/commit/35b927fe177065dad0e00c49d72b494e58b27ca8>`_  2024-12-19   ``Update path of example dags in docs (#45069)``
 `4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
 `7d05a47def <https://github.com/apache/airflow/commit/7d05a47def9c8f84c7b558cead88da9fa90d9552>`_  2024-12-08   ``FIX add error_cb to 'confluent.Consumer' config in 'ConsumerFromTopic' (#44307)``
 `1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``

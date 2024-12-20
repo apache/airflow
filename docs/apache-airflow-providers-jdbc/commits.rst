@@ -38,11 +38,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 5.0.0
 .....
 
-Latest change: 2024-12-16
+Latest change: 2024-12-19
 
 =================================================================================================  ===========  ===============================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===============================================================================================================
+`35b927fe17 <https://github.com/apache/airflow/commit/35b927fe177065dad0e00c49d72b494e58b27ca8>`_  2024-12-19   ``Update path of example dags in docs (#45069)``
+`a10b3fccb0 <https://github.com/apache/airflow/commit/a10b3fccb09805397e607df4cd3ded6194d20170>`_  2024-12-18   ``Allow configuration of sqlalchemy query parameter for JdbcHook and PostgresHook through extras (#44910)``
 `4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
 `2c0145766a <https://github.com/apache/airflow/commit/2c0145766a12a55a6a5096a7f78a15654b0ea129>`_  2024-12-13   ``Made get_conn in JdbcHook threadsafe to avoid OSError: JVM is already started (#44718)``
 `8d1018e2b7 <https://github.com/apache/airflow/commit/8d1018e2b74bdbf6a46989cabf81c5ac9525e39d>`_  2024-12-05   ``Remove Provider Deprecations in JDBC (#44662)``

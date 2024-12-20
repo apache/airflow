@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.1.0
 .....
 
-Latest change: 2024-12-16
+Latest change: 2024-12-19
 
 =================================================================================================  ===========  =====================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =====================================================================
+`088242a911 <https://github.com/apache/airflow/commit/088242a911ba52f16a8c97df0d6dcb7e47ca1b73>`_  2024-12-19   ``Update Example URL in YDB docs (#45033)``
 `4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
 `1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
 `4dfae23532 <https://github.com/apache/airflow/commit/4dfae23532d26ed838069c49d48f28c185e954c6>`_  2024-11-15   ``Update DAG example links in multiple providers documents (#44034)``

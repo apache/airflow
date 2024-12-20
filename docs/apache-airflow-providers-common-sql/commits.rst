@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 1.21.0
 ......
 
-Latest change: 2024-12-16
+Latest change: 2024-12-19
 
 =================================================================================================  ===========  ================================================================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================================================================================================
+`35b927fe17 <https://github.com/apache/airflow/commit/35b927fe177065dad0e00c49d72b494e58b27ca8>`_  2024-12-19   ``Update path of example dags in docs (#45069)``
 `4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
 `ad3d02205f <https://github.com/apache/airflow/commit/ad3d02205f26d7e60f42fcf7bade2831b4697d43>`_  2024-12-14   ``Fix static checks in common SQL hooks (#44930)``
 `bb259eaa67 <https://github.com/apache/airflow/commit/bb259eaa670240ead9bb9964e9f0b0e19f0f5cde>`_  2024-12-09   ``Added output_processor parameter to SQLQueryOperator and fixed bug with return_single_query_results handler when None is passed as split_statements (#44781)``

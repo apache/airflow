@@ -38,11 +38,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 9.2.0
 .....
 
-Latest change: 2024-12-18
+Latest change: 2024-12-19
 
 =================================================================================================  ===========  ===================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================
+`b6e3d1c864 <https://github.com/apache/airflow/commit/b6e3d1c86478aca4df54f00e272e13dad2d96b34>`_  2024-12-19   ``Fix deferrable RedshiftClusterSensor (#45098)``
+`35b927fe17 <https://github.com/apache/airflow/commit/35b927fe177065dad0e00c49d72b494e58b27ca8>`_  2024-12-19   ``Update path of example dags in docs (#45069)``
 `2a33da0246 <https://github.com/apache/airflow/commit/2a33da0246c811a98d5cdaf0af2bcca0dee8556a>`_  2024-12-18   ``Remove references to AIRFLOW_V_2_9_PLUS (#44987)``
 `ce4236f365 <https://github.com/apache/airflow/commit/ce4236f365c3e8e45262b04ef0ce596907043702>`_  2024-12-17   ``Add DMS Serverless Operators (#43988)``
 `4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``

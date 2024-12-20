@@ -43,6 +43,7 @@ Latest change: 2024-12-18
 =================================================================================================  ===========  ======================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================
+`3c111680a8 <https://github.com/apache/airflow/commit/3c111680a837f22659555c9b6647df40d6ead5f0>`_  2024-12-18   ``fix: Get the pid of xcom command dynamically (#45053)``
 `2a33da0246 <https://github.com/apache/airflow/commit/2a33da0246c811a98d5cdaf0af2bcca0dee8556a>`_  2024-12-18   ``Remove references to AIRFLOW_V_2_9_PLUS (#44987)``
 `60eced9bca <https://github.com/apache/airflow/commit/60eced9bca4c744dfce5e1f723dc2e23940ab64b>`_  2024-12-17   ``Add logging support for init containers in KubernetesPodOperator (#42498) (#43853)``
 `89fdc0326a <https://github.com/apache/airflow/commit/89fdc0326a0cf71d8e95155047092102695d00b2>`_  2024-12-17   ``Compare k8s executor against alias, not full ExecutorName repr (#44967)``

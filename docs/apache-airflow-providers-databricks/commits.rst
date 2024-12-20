@@ -38,11 +38,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 7.0.0
 .....
 
-Latest change: 2024-12-18
+Latest change: 2024-12-19
 
 =================================================================================================  ===========  ============================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================================================
+`35b927fe17 <https://github.com/apache/airflow/commit/35b927fe177065dad0e00c49d72b494e58b27ca8>`_  2024-12-19   ``Update path of example dags in docs (#45069)``
+`09d8a803ca <https://github.com/apache/airflow/commit/09d8a803ca3f76d8598e7eeeb86397cf1cd4076d>`_  2024-12-18   ``Revert "Added job_clusters as a templated parameter to CreateDatabricksWorkfl…" (#45035)``
 `9c4d711e1d <https://github.com/apache/airflow/commit/9c4d711e1de68da9faa6ebbcded4eed08d7b9c61>`_  2024-12-18   ``Added job_clusters as a templated parameter to CreateDatabricksWorkflowOperator (#45022)``
 `4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
 `419d8c62b1 <https://github.com/apache/airflow/commit/419d8c62b1491a85a9c80c29e6d7173ffd3ca1ce>`_  2024-12-11   ``[FIX] Fixed databricks repair run deferrable (#44213)``

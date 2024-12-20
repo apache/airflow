@@ -60,6 +60,9 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
 
+.. Review and move the new changes to one of the sections above:
+   * ``fix: Get the pid of xcom command dynamically (#45053)``
+
 10.0.1
 ......
 

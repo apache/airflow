@@ -62,6 +62,10 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
 
+.. Review and move the new changes to one of the sections above:
+   * ``Update path of example dags in docs (#45069)``
+   * ``Allow configuration of sqlalchemy query parameter for JdbcHook and PostgresHook through extras (#44910)``
+
 4.5.3
 .....
 

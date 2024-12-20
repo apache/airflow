@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 6.0.0
 .....
 
-Latest change: 2024-12-16
+Latest change: 2024-12-19
 
 =================================================================================================  ===========  ==========================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================================================================
+`35b927fe17 <https://github.com/apache/airflow/commit/35b927fe177065dad0e00c49d72b494e58b27ca8>`_  2024-12-19   ``Update path of example dags in docs (#45069)``
 `4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
 `ee6167e150 <https://github.com/apache/airflow/commit/ee6167e1505d69f392fb20cce8c32ec3bd2a0f1a>`_  2024-12-07   ``remove deprecations (#44756)``
 `e1f0f1f2cc <https://github.com/apache/airflow/commit/e1f0f1f2cc5a14599180575656a4a2bcd11d1a5b>`_  2024-11-30   ``enable client_store_temporary_credential for snowflake provider (#44431)``

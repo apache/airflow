@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.0.0
 .....
 
-Latest change: 2024-12-18
+Latest change: 2024-12-19
 
-=================================================================================================  ===========  ======================================================================================
+=================================================================================================  ===========  ===========================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ======================================================================================
+=================================================================================================  ===========  ===========================================================================================
+`04ccef9b3a <https://github.com/apache/airflow/commit/04ccef9b3a4073eaf313db3905803e7ef3f910fb>`_  2024-12-19   ``feat: automatically inject OL info into spark job in DataprocSubmitJobOperator (#44477)``
 `2a33da0246 <https://github.com/apache/airflow/commit/2a33da0246c811a98d5cdaf0af2bcca0dee8556a>`_  2024-12-18   ``Remove references to AIRFLOW_V_2_9_PLUS (#44987)``
 `4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
 `490b5e816b <https://github.com/apache/airflow/commit/490b5e816b804f338b0eb97f240ae874d4e15810>`_  2024-12-10   ``Consistent way of checking Airflow version in providers (#44686)``
@@ -53,7 +54,7 @@ Commit                                                                          
 `1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
 `a0f3353c47 <https://github.com/apache/airflow/commit/a0f3353c471e4d9a2cd4b23f0c358d0ae908580a>`_  2024-11-20   ``Move Asset user facing components to task_sdk (#43773)``
 `123dadda0e <https://github.com/apache/airflow/commit/123dadda0e0648ef1412053d1743128333eecb63>`_  2024-11-15   ``Rename execution_date to logical_date across codebase (#43902)``
-=================================================================================================  ===========  ======================================================================================
+=================================================================================================  ===========  ===========================================================================================
 
 1.14.0
 ......

@@ -66,6 +66,10 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
 
+.. Review and move the new changes to one of the sections above:
+   * ``Update path of example dags in docs (#45069)``
+   * ``Revert "Added job_clusters as a templated parameter to CreateDatabricksWorkfl…" (#45035)``
+
 6.13.0
 ......
 

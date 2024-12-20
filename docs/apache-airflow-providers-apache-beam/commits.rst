@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 6.0.0
 .....
 
-Latest change: 2024-12-16
+Latest change: 2024-12-19
 
 =================================================================================================  ===========  =====================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =====================================================================
+`35b927fe17 <https://github.com/apache/airflow/commit/35b927fe177065dad0e00c49d72b494e58b27ca8>`_  2024-12-19   ``Update path of example dags in docs (#45069)``
 `4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
 `7fde48d098 <https://github.com/apache/airflow/commit/7fde48d0983bd442f1470c068a3bcc5defdb2a2f>`_  2024-12-06   ``Removed deprecated code (#44700)``
 `43adccf57b <https://github.com/apache/airflow/commit/43adccf57b2c41a5c1710ea80bd78eecce2d3e60>`_  2024-11-27   ``Fix deferrable mode of BeamRunPythonPipelineOperator (#44386)``

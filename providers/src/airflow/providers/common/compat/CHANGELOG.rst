@@ -55,6 +55,9 @@ Misc
    * ``Prevent __init__.py in providers from being modified (#44713)``
    * ``Fix accidental db tests in Task SDK (#44690)``
 
+.. Review and move the new changes to one of the sections above:
+   * ``feat: automatically inject OL info into spark job in DataprocSubmitJobOperator (#44477)``
+
 1.2.2
 .....
 

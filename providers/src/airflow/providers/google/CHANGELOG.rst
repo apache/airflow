@@ -53,6 +53,7 @@ Breaking changes
     * Removed ``DataPipelineHook``. Please use the ``DataflowHook`` instead
     * Removed ``DataPipelineHook``. Please use the DataflowHook instead
 
+* ``Google provider delete deprecated reaching removal date (December 2024) (#45084)``
 
 Features
 ~~~~~~~~
@@ -63,6 +64,8 @@ Features
 * ``Support multiple SQL queries in Dataproc SQL job (#44890)``
 * ``feat: add OpenLineage support for BigQuery Create Table operators (#44783)``
 * ``feat: add OpenLineage support for S3ToGCSOperator (#44426)``
+* ``feat: automatically inject OL info into spark job in DataprocSubmitJobOperator (#44477)``
+* ``Implement AlloyDB operators: create/update/delete clusters (#45027)``
 
 Bug Fixes
 ~~~~~~~~~

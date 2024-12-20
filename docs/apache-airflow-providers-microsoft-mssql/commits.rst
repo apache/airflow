@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 4.0.0
 .....
 
-Latest change: 2024-12-16
+Latest change: 2024-12-19
 
 =================================================================================================  ===========  =====================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =====================================================================
+`35b927fe17 <https://github.com/apache/airflow/commit/35b927fe177065dad0e00c49d72b494e58b27ca8>`_  2024-12-19   ``Update path of example dags in docs (#45069)``
 `4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
 `75b24e88b2 <https://github.com/apache/airflow/commit/75b24e88b25a762b503e783154361ff978024340>`_  2024-12-07   ``Remove Provider Deprecations in Microsoft-MSSQL (#44762)``
 `e46453966e <https://github.com/apache/airflow/commit/e46453966ef521cc8f6dc7019566ea2fdcc0063b>`_  2024-11-26   ``Support connection extra parameters in MsSqlHook (#44310)``

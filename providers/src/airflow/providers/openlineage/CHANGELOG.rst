@@ -51,6 +51,7 @@ Features
 
 * ``add clear_number to OpenLineage's dagrun-level event run id generation (#44617)``
 * ``utilize more information to deterministically generate OpenLineage run_id (#43936)``
+* ``feat: automatically inject OL info into spark job in DataprocSubmitJobOperator (#44477)``
 
 Misc
 ~~~~
