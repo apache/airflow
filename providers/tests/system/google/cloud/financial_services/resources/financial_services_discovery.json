@@ -1,0 +1,2746 @@
+{
+    "schemas": {
+      "ListOperationsResponse": {
+        "id": "ListOperationsResponse",
+        "description": "The response message for Operations.ListOperations.",
+        "type": "object",
+        "properties": {
+          "operations": {
+            "description": "A list of operations that matches the specified filter in the request.",
+            "type": "array",
+            "items": {
+              "$ref": "Operation"
+            }
+          },
+          "nextPageToken": {
+            "description": "The standard List next-page token.",
+            "type": "string"
+          }
+        }
+      },
+      "Operation": {
+        "id": "Operation",
+        "description": "This resource represents a long-running operation that is the result of a network API call.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "The server-assigned name, which is only unique within the same service that originally returns it. If you use the default HTTP mapping, the `name` should be a resource name ending with `operations/{unique_id}`.",
+            "type": "string"
+          },
+          "metadata": {
+            "description": "Service-specific metadata associated with the operation. It typically contains progress information and common metadata such as create time. Some services might not provide such metadata. Any method that returns a long-running operation should document the metadata type, if any.",
+            "type": "object",
+            "additionalProperties": {
+              "type": "any",
+              "description": "Properties of the object. Contains field @type with type URL."
+            }
+          },
+          "done": {
+            "description": "If the value is `false`, it means the operation is still in progress. If `true`, the operation is completed, and either `error` or `response` is available.",
+            "type": "boolean"
+          },
+          "error": {
+            "description": "The error result of the operation in case of failure or cancellation.",
+            "$ref": "Status"
+          },
+          "response": {
+            "description": "The normal, successful response of the operation. If the original method returns no data on success, such as `Delete`, the response is `google.protobuf.Empty`. If the original method is standard `Get`/`Create`/`Update`, the response should be the resource. For other methods, the response should have the type `XxxResponse`, where `Xxx` is the original method name. For example, if the original method name is `TakeSnapshot()`, the inferred response type is `TakeSnapshotResponse`.",
+            "type": "object",
+            "additionalProperties": {
+              "type": "any",
+              "description": "Properties of the object. Contains field @type with type URL."
+            }
+          }
+        }
+      },
+      "Status": {
+        "id": "Status",
+        "description": "The `Status` type defines a logical error model that is suitable for different programming environments, including REST APIs and RPC APIs. It is used by [gRPC](https://github.com/grpc). Each `Status` message contains three pieces of data: error code, error message, and error details. You can find out more about this error model and how to work with it in the [API Design Guide](https://cloud.google.com/apis/design/errors).",
+        "type": "object",
+        "properties": {
+          "code": {
+            "description": "The status code, which should be an enum value of google.rpc.Code.",
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "description": "A developer-facing error message, which should be in English. Any user-facing error message should be localized and sent in the google.rpc.Status.details field, or localized by the client.",
+            "type": "string"
+          },
+          "details": {
+            "description": "A list of messages that carry the error details. There is a common set of message types for APIs to use.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "any",
+                "description": "Properties of the object. Contains field @type with type URL."
+              }
+            }
+          }
+        }
+      },
+      "Empty": {
+        "id": "Empty",
+        "description": "A generic empty message that you can reuse to avoid defining duplicated empty messages in your APIs. A typical example is to use it as the request or the response type of an API method. For instance: service Foo { rpc Bar(google.protobuf.Empty) returns (google.protobuf.Empty); }",
+        "type": "object",
+        "properties": {}
+      },
+      "CancelOperationRequest": {
+        "id": "CancelOperationRequest",
+        "description": "The request message for Operations.CancelOperation.",
+        "type": "object",
+        "properties": {}
+      },
+      "GoogleCloudFinancialservicesV1ListInstancesResponse": {
+        "id": "GoogleCloudFinancialservicesV1ListInstancesResponse",
+        "description": "Response for retrieving a list of Instances",
+        "type": "object",
+        "properties": {
+          "instances": {
+            "description": "List of Instance resources",
+            "type": "array",
+            "items": {
+              "$ref": "GoogleCloudFinancialservicesV1Instance"
+            }
+          },
+          "nextPageToken": {
+            "description": "This token should be passed to the next ListInstancesRequest to retrieve the next page of Instances.",
+            "type": "string"
+          },
+          "unreachable": {
+            "description": "Locations that could not be reached.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1Instance": {
+        "id": "GoogleCloudFinancialservicesV1Instance",
+        "description": "Instance is a container for the rest of API resources. Only resources in the same instance can interact with each other. Child resources inherit the location (data residency) and encryption (CMEK). The location of the provided input and output in requests must match the location of the instance.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Output only. The full path to the Instance resource in this API. format: \"projects/{project}/locations/{location}/instances/{instance}\"",
+            "readOnly": true,
+            "type": "string"
+          },
+          "createTime": {
+            "description": "Output only. Timestamp when the Instance was created. Assigned by the server.",
+            "readOnly": true,
+            "type": "string",
+            "format": "google-datetime"
+          },
+          "updateTime": {
+            "description": "Output only. Timestamp when the Instance was last updated. Assigned by the server.",
+            "readOnly": true,
+            "type": "string",
+            "format": "google-datetime"
+          },
+          "state": {
+            "description": "Output only. State of the instance. Assigned by the server.",
+            "readOnly": true,
+            "type": "string",
+            "enumDescriptions": [
+              "State is unspecified, should not occur.",
+              "The resource has not finished being created.",
+              "The resource is active/ready to be used.",
+              "The resource is in the process of being updated.",
+              "The resource is in the process of being deleted."
+            ],
+            "enum": [
+              "STATE_UNSPECIFIED",
+              "CREATING",
+              "ACTIVE",
+              "UPDATING",
+              "DELETING"
+            ]
+          },
+          "labels": {
+            "description": "Labels",
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "kmsKey": {
+            "description": "Required. The KMS key name used for CMEK (encryption-at-rest). format: \"projects/{project}/locations/{location}/keyRings/{keyRing}/cryptoKeys/{cryptoKey}\" VPC-SC restrictions apply.",
+            "type": "string"
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1ImportRegisteredPartiesRequest": {
+        "id": "GoogleCloudFinancialservicesV1ImportRegisteredPartiesRequest",
+        "description": "Request for adding/removing registered parties from BigQuery tables specified by the customer.",
+        "type": "object",
+        "properties": {
+          "partyTables": {
+            "description": "Optional. List of BigQuery tables. Union of tables will be taken if there is more than one table. VPC-SC restrictions apply. format: \"bq://{project}.{bqDatasetID}.{bqTableID}\" Use of `datasets` is preferred over the latter due to its simplicity and the reduced risk of errors `party_tables` and `datasets` must not be provided at the same time",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mode": {
+            "description": "Required. Mode of the request.",
+            "type": "string",
+            "enumDescriptions": [
+              "Default mode.",
+              "Replace parties that are removable in Parties Table with new parties.",
+              "Add new parties to Parties Table."
+            ],
+            "enum": [
+              "UPDATE_MODE_UNSPECIFIED",
+              "REPLACE",
+              "APPEND"
+            ]
+          },
+          "validateOnly": {
+            "description": "Optional. Is the request will not register the parties, just determine what would happen.",
+            "type": "boolean"
+          },
+          "lineOfBusiness": {
+            "description": "Required. LineOfBusiness for the specified registered parties.",
+            "type": "string",
+            "enumDescriptions": [
+              "An unspecified LineOfBusiness. Do not use.",
+              "Commercial LineOfBusiness.",
+              "Retail LineOfBusiness."
+            ],
+            "enum": [
+              "LINE_OF_BUSINESS_UNSPECIFIED",
+              "COMMERCIAL",
+              "RETAIL"
+            ]
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1ExportRegisteredPartiesRequest": {
+        "id": "GoogleCloudFinancialservicesV1ExportRegisteredPartiesRequest",
+        "description": "Request to export a list of currently registered parties.",
+        "type": "object",
+        "properties": {
+          "dataset": {
+            "description": "Required. The location to output the RegisteredParties.",
+            "$ref": "GoogleCloudFinancialservicesV1BigQueryDestination"
+          },
+          "lineOfBusiness": {
+            "description": "Required. LineOfBusiness to get RegisteredParties from.",
+            "type": "string",
+            "enumDescriptions": [
+              "An unspecified LineOfBusiness. Do not use.",
+              "Commercial LineOfBusiness.",
+              "Retail LineOfBusiness."
+            ],
+            "enum": [
+              "LINE_OF_BUSINESS_UNSPECIFIED",
+              "COMMERCIAL",
+              "RETAIL"
+            ]
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1BigQueryDestination": {
+        "id": "GoogleCloudFinancialservicesV1BigQueryDestination",
+        "description": "BigQueryDestination is a wrapper for BigQuery output information.",
+        "type": "object",
+        "properties": {
+          "tableUri": {
+            "description": "Optional. BigQuery URI to a table, must be of the form bq://projectId.bqDatasetId.tableId. Note that the BigQuery dataset must already exist. VPC-SC restrictions apply.",
+            "type": "string"
+          },
+          "writeDisposition": {
+            "description": "Required. Whether to overwrite or not destination table. By default the table won't be overwritten and an error will be returned if the table exists and contains data.",
+            "type": "string",
+            "enumDescriptions": [
+              "Default behavior is the same as WRITE_EMPTY.",
+              "If the table already exists and contains data, an error is returned.",
+              "If the table already exists, the data will be overwritten."
+            ],
+            "enum": [
+              "WRITE_DISPOSITION_UNSPECIFIED",
+              "WRITE_EMPTY",
+              "WRITE_TRUNCATE"
+            ]
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1ListDatasetsResponse": {
+        "id": "GoogleCloudFinancialservicesV1ListDatasetsResponse",
+        "description": "Response for retrieving a list of Datasets",
+        "type": "object",
+        "properties": {
+          "datasets": {
+            "description": "List of Dataset resources",
+            "type": "array",
+            "items": {
+              "$ref": "GoogleCloudFinancialservicesV1Dataset"
+            }
+          },
+          "nextPageToken": {
+            "description": "This token should be passed to the next ListDatasetsRequest to retrieve the next page of Datasets (empty indicicates we aer done).",
+            "type": "string"
+          },
+          "unreachable": {
+            "description": "Locations that could not be reached.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1Dataset": {
+        "id": "GoogleCloudFinancialservicesV1Dataset",
+        "description": "The Dataset resource contains summary information about a dataset.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Output only. The resource name of the Dataset. format: \"/projects/{project_num}/locations/{location}/instances/{instance}/datasets/{dataset}\"",
+            "readOnly": true,
+            "type": "string"
+          },
+          "createTime": {
+            "description": "Output only. The timestamp of creation of this resource.",
+            "readOnly": true,
+            "type": "string",
+            "format": "google-datetime"
+          },
+          "updateTime": {
+            "description": "Output only. The timestamp of the most recent update of this resource.",
+            "readOnly": true,
+            "type": "string",
+            "format": "google-datetime"
+          },
+          "labels": {
+            "description": "Labels",
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "tableSpecs": {
+            "description": "Required. The set of BigQuery tables in the dataset. The key should be the table type and the value should be the BigQuery tables in the format `bq://{project}.{dataset}.{table}`. Current table types are: * `party` * `account_party_link` * `transaction` * `risk_case_event` * `party_supplementary_data`",
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "state": {
+            "description": "Output only. State of the dataset (creating, active, deleting, etc.)",
+            "readOnly": true,
+            "type": "string",
+            "enumDescriptions": [
+              "State is unspecified, should not occur.",
+              "The resource has not finished being created.",
+              "The resource is active/ready to be used.",
+              "The resource is in the process of being updated.",
+              "The resource is in the process of being deleted."
+            ],
+            "enum": [
+              "STATE_UNSPECIFIED",
+              "CREATING",
+              "ACTIVE",
+              "UPDATING",
+              "DELETING"
+            ]
+          },
+          "dateRange": {
+            "description": "Required. Core time window of the dataset. All tables should have complete data covering this period.",
+            "$ref": "Interval"
+          },
+          "timeZone": {
+            "description": "The timezone of the data, default will act as UTC.",
+            "$ref": "TimeZone"
+          }
+        }
+      },
+      "Interval": {
+        "id": "Interval",
+        "description": "Represents a time interval, encoded as a Timestamp start (inclusive) and a Timestamp end (exclusive). The start must be less than or equal to the end. When the start equals the end, the interval is empty (matches no time). When both start and end are unspecified, the interval matches any time.",
+        "type": "object",
+        "properties": {
+          "startTime": {
+            "description": "Optional. Inclusive start of the interval. If specified, a Timestamp matching this interval will have to be the same or after the start.",
+            "type": "string",
+            "format": "google-datetime"
+          },
+          "endTime": {
+            "description": "Optional. Exclusive end of the interval. If specified, a Timestamp matching this interval will have to be before the end.",
+            "type": "string",
+            "format": "google-datetime"
+          }
+        }
+      },
+      "TimeZone": {
+        "id": "TimeZone",
+        "description": "Represents a time zone from the [IANA Time Zone Database](https://www.iana.org/time-zones).",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "IANA Time Zone Database time zone, e.g. \"America/New_York\".",
+            "type": "string"
+          },
+          "version": {
+            "description": "Optional. IANA Time Zone Database version number, e.g. \"2019a\".",
+            "type": "string"
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1ListModelsResponse": {
+        "id": "GoogleCloudFinancialservicesV1ListModelsResponse",
+        "description": "Response for retrieving a list of Models",
+        "type": "object",
+        "properties": {
+          "models": {
+            "description": "List of Model resources",
+            "type": "array",
+            "items": {
+              "$ref": "GoogleCloudFinancialservicesV1Model"
+            }
+          },
+          "nextPageToken": {
+            "description": "This token should be passed to the next ListModelsRequest to retrieve the next page of Models (empty indicicates we are done).",
+            "type": "string"
+          },
+          "unreachable": {
+            "description": "Locations that could not be reached.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1Model": {
+        "id": "GoogleCloudFinancialservicesV1Model",
+        "description": "Model represents a trained model.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Output only. The resource name of the Model. format: \"/projects/{project_num}/locations/{location}/instances/{instance}/models/{model}\"",
+            "readOnly": true,
+            "type": "string"
+          },
+          "createTime": {
+            "description": "Output only. The timestamp of creation of this resource.",
+            "readOnly": true,
+            "type": "string",
+            "format": "google-datetime"
+          },
+          "updateTime": {
+            "description": "Output only. The timestamp of the most recent update of this resource.",
+            "readOnly": true,
+            "type": "string",
+            "format": "google-datetime"
+          },
+          "labels": {
+            "description": "Labels",
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "state": {
+            "description": "Output only. State of the model (creating, active, deleting, etc.)",
+            "readOnly": true,
+            "type": "string",
+            "enumDescriptions": [
+              "State is unspecified, should not occur.",
+              "The resource has not finished being created.",
+              "The resource is active/ready to be used.",
+              "The resource is in the process of being updated.",
+              "The resource is in the process of being deleted."
+            ],
+            "enum": [
+              "STATE_UNSPECIFIED",
+              "CREATING",
+              "ACTIVE",
+              "UPDATING",
+              "DELETING"
+            ]
+          },
+          "engineVersion": {
+            "description": "Output only. The EngineVersion used in training this model. This is output only, and is determined from the EngineConfig used.",
+            "readOnly": true,
+            "type": "string"
+          },
+          "engineConfig": {
+            "description": "Required. The resource name of the EngineConfig the model training will be based on. Format: \"/projects/{project_num}/locations/{location}/instances/{instance}/engineConfigs/{engineConfig}\"",
+            "type": "string"
+          },
+          "primaryDataset": {
+            "description": "Required. The resource name of the Primary Dataset used in this model training. For information about how primary and auxiliary datasets are used, refer to the engine version's documentation. Format: \"/projects/{project_num}/locations/{location}/instances/{instance}/datasets/{dataset}\"",
+            "type": "string"
+          },
+          "endTime": {
+            "description": "Required. End_time specifies the latest time from which labels are used and from which data is used to generate features for training. End_time should be no later than the end of the date_range of the dataset.",
+            "type": "string",
+            "format": "google-datetime"
+          },
+          "lineOfBusiness": {
+            "description": "Output only. The line of business (Retail/Commercial) this model is used for. Determined by EngineConfig, cannot be set by user.",
+            "readOnly": true,
+            "type": "string",
+            "enumDescriptions": [
+              "An unspecified LineOfBusiness. Do not use.",
+              "Commercial LineOfBusiness.",
+              "Retail LineOfBusiness."
+            ],
+            "enum": [
+              "LINE_OF_BUSINESS_UNSPECIFIED",
+              "COMMERCIAL",
+              "RETAIL"
+            ]
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1ExportModelMetadataRequest": {
+        "id": "GoogleCloudFinancialservicesV1ExportModelMetadataRequest",
+        "description": "Request for exporting Model metadata.",
+        "type": "object",
+        "properties": {
+          "structuredMetadataDestination": {
+            "description": "Required. BigQuery output where the metadata will be written.",
+            "$ref": "GoogleCloudFinancialservicesV1BigQueryDestination"
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1ListEngineConfigsResponse": {
+        "id": "GoogleCloudFinancialservicesV1ListEngineConfigsResponse",
+        "description": "Response for retrieving a list of EngineConfigs",
+        "type": "object",
+        "properties": {
+          "engineConfigs": {
+            "description": "List of EngineConfig resources",
+            "type": "array",
+            "items": {
+              "$ref": "GoogleCloudFinancialservicesV1EngineConfig"
+            }
+          },
+          "nextPageToken": {
+            "description": "This token should be passed to the next ListEngineConfigsRequest to retrieve the next page of EngineConfigs (empty indicicates we aer done).",
+            "type": "string"
+          },
+          "unreachable": {
+            "description": "Locations that could not be reached.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1EngineConfig": {
+        "id": "GoogleCloudFinancialservicesV1EngineConfig",
+        "description": "The EngineConfig resource creates the configuration for training a model.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Output only. The resource name of the EngineConfig. format: \"/projects/{project_num}/locations/{location}/instances/{instance}/engineConfigs/{engine_config}\"",
+            "readOnly": true,
+            "type": "string"
+          },
+          "createTime": {
+            "description": "Output only. The timestamp of creation of this resource.",
+            "readOnly": true,
+            "type": "string",
+            "format": "google-datetime"
+          },
+          "updateTime": {
+            "description": "Output only. The timestamp of the most recent update of this resource.",
+            "readOnly": true,
+            "type": "string",
+            "format": "google-datetime"
+          },
+          "labels": {
+            "description": "Labels",
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "state": {
+            "description": "Output only. State of the EngineConfig (creating, active, deleting, etc.)",
+            "readOnly": true,
+            "type": "string",
+            "enumDescriptions": [
+              "State is unspecified, should not occur.",
+              "The resource has not finished being created.",
+              "The resource is active/ready to be used.",
+              "The resource is in the process of being updated.",
+              "The resource is in the process of being deleted."
+            ],
+            "enum": [
+              "STATE_UNSPECIFIED",
+              "CREATING",
+              "ACTIVE",
+              "UPDATING",
+              "DELETING"
+            ]
+          },
+          "engineVersion": {
+            "description": "Required. The resource name of the EngineVersion used in this model tuning. format: \"/projects/{project_num}/locations/{location}/instances/{instance}/engineVersions/{engine_version}\"",
+            "type": "string"
+          },
+          "tuning": {
+            "description": "Optional. Configuration for tuning in creation of the EngineConfig. This field is required if `hyperparameter_source.type` is not `INHERITED`, and output-only otherwise.",
+            "$ref": "GoogleCloudFinancialservicesV1EngineConfigTuning"
+          },
+          "performanceTarget": {
+            "description": "Optional. PerformanceTarget gives information on how the tuning and training will be evaluated. This field is required if `hyperparameter_source.type` is not `INHERITED`, and output-only otherwise.",
+            "$ref": "GoogleCloudFinancialservicesV1EngineConfigPerformanceTarget"
+          },
+          "lineOfBusiness": {
+            "description": "Output only. The line of business (Retail/Commercial) this engine config is used for. Determined by EngineVersion, cannot be set by user.",
+            "readOnly": true,
+            "type": "string",
+            "enumDescriptions": [
+              "An unspecified LineOfBusiness. Do not use.",
+              "Commercial LineOfBusiness.",
+              "Retail LineOfBusiness."
+            ],
+            "enum": [
+              "LINE_OF_BUSINESS_UNSPECIFIED",
+              "COMMERCIAL",
+              "RETAIL"
+            ]
+          },
+          "hyperparameterSourceType": {
+            "description": "Optional. The origin of hyperparameters for the created EngineConfig. The default is `TUNING`. In this case, the hyperparameters are selected as a result of a tuning run.",
+            "type": "string",
+            "enumDescriptions": [
+              "Hyperparameter source type is unspecified, defaults to TUNING.",
+              "The EngineConfig creation starts a tuning job which selects the best hyperparameters.",
+              "The hyperparameters are inherited from another EngineConfig."
+            ],
+            "enum": [
+              "HYPERPARAMETER_SOURCE_TYPE_UNSPECIFIED",
+              "TUNING",
+              "INHERITED"
+            ]
+          },
+          "hyperparameterSource": {
+            "description": "Optional. Configuration of hyperparameters source EngineConfig.",
+            "$ref": "GoogleCloudFinancialservicesV1EngineConfigHyperparameterSource"
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1EngineConfigTuning": {
+        "id": "GoogleCloudFinancialservicesV1EngineConfigTuning",
+        "description": "The parameters needed for the tuning operation, these are used only in tuning and not passed on to training.",
+        "type": "object",
+        "properties": {
+          "primaryDataset": {
+            "description": "Required. The resource name of the Primary Dataset used in this model tuning. For information about how primary and auxiliary datasets are used, refer to the engine version's documentation. Format: \"/projects/{project_num}/locations/{location}/instances/{instance}/datasets/{dataset}\"",
+            "type": "string"
+          },
+          "endTime": {
+            "description": "Required. End_time specifies the latest time from which labels are used and from which data is used to generate features for tuning. End_time should be no later than the end of the date_range of the dataset.",
+            "type": "string",
+            "format": "google-datetime"
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1EngineConfigPerformanceTarget": {
+        "id": "GoogleCloudFinancialservicesV1EngineConfigPerformanceTarget",
+        "description": "PerformanceTarget gives hints on how to evaluate the performance of a model.",
+        "type": "object",
+        "properties": {
+          "partyInvestigationsPerPeriodHint": {
+            "description": "Required. A number that gives the tuner a hint on the number of parties from this data that will be investigated per period (monthly). This is used to control how the model is evaluated. For example, when trying AML AI for the first time, we recommend setting this to the number of parties investigated in an average month, based on alerts from your existing automated alerting system.",
+            "type": "string",
+            "format": "int64"
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1EngineConfigHyperparameterSource": {
+        "id": "GoogleCloudFinancialservicesV1EngineConfigHyperparameterSource",
+        "description": "Parameters for bootstrapping an Engine Config with the results of another one.",
+        "type": "object",
+        "properties": {
+          "sourceEngineConfig": {
+            "description": "Required. The resource name of the source EngineConfig whose outputs are used. Format: \"/projects/{project_num}/locations/{location}/instances/{instance}/engineConfigs/{engine_config}\"",
+            "type": "string"
+          },
+          "sourceEngineVersion": {
+            "description": "Output only. The resource name of the EngineVersion that was used in the tuning run. Format: \"/projects/{project_num}/locations/{location}/instances/{instance}/engineVersions/{engine_version}\"",
+            "readOnly": true,
+            "type": "string"
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1ExportEngineConfigMetadataRequest": {
+        "id": "GoogleCloudFinancialservicesV1ExportEngineConfigMetadataRequest",
+        "description": "Request for exporting EngineConfig metadata.",
+        "type": "object",
+        "properties": {
+          "structuredMetadataDestination": {
+            "description": "Required. BigQuery output where the metadata will be written.",
+            "$ref": "GoogleCloudFinancialservicesV1BigQueryDestination"
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1EngineVersion": {
+        "id": "GoogleCloudFinancialservicesV1EngineVersion",
+        "description": "EngineVersion controls which version of the engine is used to tune, train, and run the model.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Output only. Identifier. The resource name of the EngineVersion format: \"/projects/{project_num}/locations/{location}/instances/{instance}/engineVersions/{engine_version}\"",
+            "readOnly": true,
+            "type": "string"
+          },
+          "state": {
+            "description": "Output only. The state of the version.",
+            "readOnly": true,
+            "type": "string",
+            "enumDescriptions": [
+              "Default state, should never be used.",
+              "Version is available for training and inference.",
+              "Models using this version can still be run, but new ones cannot be trained.",
+              "Version is deprecated, listed for informational purposes only."
+            ],
+            "enum": [
+              "STATE_UNSPECIFIED",
+              "ACTIVE",
+              "LIMITED",
+              "DECOMMISSIONED"
+            ]
+          },
+          "expectedLimitationStartTime": {
+            "description": "Output only. Planned time to stop allowing training/tuning using this version. Existing trained models can still be used for prediction/backtest.",
+            "readOnly": true,
+            "type": "string",
+            "format": "google-datetime"
+          },
+          "expectedDecommissionTime": {
+            "description": "Output only. Planned time to stop supporting the version, in addition to no training or tuning, models trained on this version can no longer be used for prediction/backtest.",
+            "readOnly": true,
+            "type": "string",
+            "format": "google-datetime"
+          },
+          "lineOfBusiness": {
+            "description": "Output only. The line of business (Retail/Commercial) this engine version is used for.",
+            "readOnly": true,
+            "type": "string",
+            "enumDescriptions": [
+              "An unspecified LineOfBusiness. Do not use.",
+              "Commercial LineOfBusiness.",
+              "Retail LineOfBusiness."
+            ],
+            "enum": [
+              "LINE_OF_BUSINESS_UNSPECIFIED",
+              "COMMERCIAL",
+              "RETAIL"
+            ]
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1ListEngineVersionsResponse": {
+        "id": "GoogleCloudFinancialservicesV1ListEngineVersionsResponse",
+        "description": "The response to a list call containng the list of engine versions.",
+        "type": "object",
+        "properties": {
+          "engineVersions": {
+            "description": "List of EngineVersion resources",
+            "type": "array",
+            "items": {
+              "$ref": "GoogleCloudFinancialservicesV1EngineVersion"
+            }
+          },
+          "nextPageToken": {
+            "description": "This token should be passed to the next EngineVersionsRequest to retrieve the next page of EngineVersions (empty indicicates we aer done).",
+            "type": "string"
+          },
+          "unreachable": {
+            "description": "Locations that could not be reached.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1ListPredictionResultsResponse": {
+        "id": "GoogleCloudFinancialservicesV1ListPredictionResultsResponse",
+        "description": "Response for retrieving a list of PredictionResults",
+        "type": "object",
+        "properties": {
+          "predictionResults": {
+            "description": "List of PredictionResult resources",
+            "type": "array",
+            "items": {
+              "$ref": "GoogleCloudFinancialservicesV1PredictionResult"
+            }
+          },
+          "nextPageToken": {
+            "description": "This token should be passed to the next ListPredictionResultsRequest to retrieve the next page of PredictionResults (empty indicicates we are done).",
+            "type": "string"
+          },
+          "unreachable": {
+            "description": "Locations that could not be reached.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1PredictionResult": {
+        "id": "GoogleCloudFinancialservicesV1PredictionResult",
+        "description": "PredictionResult is the result of using a model to create predictions.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Output only. The resource name of the PredictionResult. format: \"/projects/{project_num}/locations/{location}/instances/{instance}/predictionResults/{prediction_result}\"",
+            "readOnly": true,
+            "type": "string"
+          },
+          "createTime": {
+            "description": "Output only. The timestamp of creation of this resource.",
+            "readOnly": true,
+            "type": "string",
+            "format": "google-datetime"
+          },
+          "updateTime": {
+            "description": "Output only. The timestamp of the most recent update of this resource.",
+            "readOnly": true,
+            "type": "string",
+            "format": "google-datetime"
+          },
+          "labels": {
+            "description": "Labels",
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "state": {
+            "description": "Output only. State of the PredictionResult (creating, active, deleting, etc.)",
+            "readOnly": true,
+            "type": "string",
+            "enumDescriptions": [
+              "State is unspecified, should not occur.",
+              "The resource has not finished being created.",
+              "The resource is active/ready to be used.",
+              "The resource is in the process of being updated.",
+              "The resource is in the process of being deleted."
+            ],
+            "enum": [
+              "STATE_UNSPECIFIED",
+              "CREATING",
+              "ACTIVE",
+              "UPDATING",
+              "DELETING"
+            ]
+          },
+          "dataset": {
+            "description": "Required. The resource name of the Dataset to do predictions on Format: \"/projects/{project_num}/locations/{location}/instances/{instance}/dataset/{dataset_id}\"",
+            "type": "string"
+          },
+          "model": {
+            "description": "Required. The resource name of the Model to use to use to make predictions Format: \"/projects/{project_num}/locations/{location}/instances/{instance}/models/{model}\"",
+            "type": "string"
+          },
+          "endTime": {
+            "description": "Required. Specifies the latest time from which data is used to generate features for predictions. This time should be no later than the end of the date_range of the dataset.",
+            "type": "string",
+            "format": "google-datetime"
+          },
+          "predictionPeriods": {
+            "description": "The number of consecutive months to produce predictions for, ending with the last full month prior to end_time according to the dataset's timezone.",
+            "type": "integer",
+            "format": "int32"
+          },
+          "outputs": {
+            "description": "Required. Where to write the output of the predictions.",
+            "$ref": "GoogleCloudFinancialservicesV1PredictionResultOutputs"
+          },
+          "lineOfBusiness": {
+            "description": "Output only. The line of business (Retail/Commercial) this prediction is for. Determined by Model, cannot be set by user.",
+            "readOnly": true,
+            "type": "string",
+            "enumDescriptions": [
+              "An unspecified LineOfBusiness. Do not use.",
+              "Commercial LineOfBusiness.",
+              "Retail LineOfBusiness."
+            ],
+            "enum": [
+              "LINE_OF_BUSINESS_UNSPECIFIED",
+              "COMMERCIAL",
+              "RETAIL"
+            ]
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1PredictionResultOutputs": {
+        "id": "GoogleCloudFinancialservicesV1PredictionResultOutputs",
+        "description": "Outputs is a list of places where the operation will write results.",
+        "type": "object",
+        "properties": {
+          "predictionDestination": {
+            "description": "Required. The location to output the predictions.",
+            "$ref": "GoogleCloudFinancialservicesV1BigQueryDestination"
+          },
+          "explainabilityDestination": {
+            "description": "The location to output explainability information. If not specified no explainability data will be output.",
+            "$ref": "GoogleCloudFinancialservicesV1BigQueryDestination"
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1ExportPredictionResultMetadataRequest": {
+        "id": "GoogleCloudFinancialservicesV1ExportPredictionResultMetadataRequest",
+        "description": "Request for exporting PredictionResult metadata.",
+        "type": "object",
+        "properties": {
+          "structuredMetadataDestination": {
+            "description": "Required. BigQuery output where the metadata will be written.",
+            "$ref": "GoogleCloudFinancialservicesV1BigQueryDestination"
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1ListBacktestResultsResponse": {
+        "id": "GoogleCloudFinancialservicesV1ListBacktestResultsResponse",
+        "description": "Response for retrieving a list of BacktestResults",
+        "type": "object",
+        "properties": {
+          "backtestResults": {
+            "description": "List of BacktestResult resources",
+            "type": "array",
+            "items": {
+              "$ref": "GoogleCloudFinancialservicesV1BacktestResult"
+            }
+          },
+          "nextPageToken": {
+            "description": "This token should be passed to the next ListBacktestResultsRequest to retrieve the next page of BacktestResults (empty indicicates we are done).",
+            "type": "string"
+          },
+          "unreachable": {
+            "description": "Locations that could not be reached.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1BacktestResult": {
+        "id": "GoogleCloudFinancialservicesV1BacktestResult",
+        "description": "BacktestResult is created to test the performance of a model on a dataset.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Output only. The resource name of the BacktestResult. format: \"/projects/{project_num}/locations/{location}/instances/{instance}/backtestResults/{backtest_result}\"",
+            "readOnly": true,
+            "type": "string"
+          },
+          "createTime": {
+            "description": "Output only. The timestamp of creation of this resource.",
+            "readOnly": true,
+            "type": "string",
+            "format": "google-datetime"
+          },
+          "updateTime": {
+            "description": "Output only. The timestamp of the most recent update of this resource.",
+            "readOnly": true,
+            "type": "string",
+            "format": "google-datetime"
+          },
+          "labels": {
+            "description": "Labels",
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "state": {
+            "description": "Output only. State of the BacktestResult (creating, active, deleting, etc.)",
+            "readOnly": true,
+            "type": "string",
+            "enumDescriptions": [
+              "State is unspecified, should not occur.",
+              "The resource has not finished being created.",
+              "The resource is active/ready to be used.",
+              "The resource is in the process of being updated.",
+              "The resource is in the process of being deleted."
+            ],
+            "enum": [
+              "STATE_UNSPECIFIED",
+              "CREATING",
+              "ACTIVE",
+              "UPDATING",
+              "DELETING"
+            ]
+          },
+          "dataset": {
+            "description": "Required. The resource name of the Dataset to backtest on Format: \"/projects/{project_num}/locations/{location}/instances/{instance}/datasets/{dataset}\"",
+            "type": "string"
+          },
+          "model": {
+            "description": "Required. The resource name of the Model to use to use to backtest. Format: \"/projects/{project_num}/locations/{location}/instances/{instance}/models/{model}\"",
+            "type": "string"
+          },
+          "endTime": {
+            "description": "Required. End_time specifies the latest time from which labels are used and from which data is used to generate features for backtesting. End_time should be no later than the end of the date_range of the primary dataset.",
+            "type": "string",
+            "format": "google-datetime"
+          },
+          "backtestPeriods": {
+            "description": "The number of consecutive months to conduct backtesting for, ending with the last full month prior to the end_time according to the dataset's timezone.",
+            "type": "integer",
+            "format": "int32"
+          },
+          "performanceTarget": {
+            "description": "Required. PerformanceTarget gives information on how the test will be evaluated.",
+            "$ref": "GoogleCloudFinancialservicesV1BacktestResultPerformanceTarget"
+          },
+          "lineOfBusiness": {
+            "description": "Output only. The line of business (Retail/Commercial) this backtest is for. Determined by Model, cannot be set by user.",
+            "readOnly": true,
+            "type": "string",
+            "enumDescriptions": [
+              "An unspecified LineOfBusiness. Do not use.",
+              "Commercial LineOfBusiness.",
+              "Retail LineOfBusiness."
+            ],
+            "enum": [
+              "LINE_OF_BUSINESS_UNSPECIFIED",
+              "COMMERCIAL",
+              "RETAIL"
+            ]
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1BacktestResultPerformanceTarget": {
+        "id": "GoogleCloudFinancialservicesV1BacktestResultPerformanceTarget",
+        "description": "PerformanceTarget gives hints on how to evaluate the performance of a model.",
+        "type": "object",
+        "properties": {
+          "partyInvestigationsPerPeriodHint": {
+            "description": "Required. A number that gives the tuner a hint on the number of parties from this data that will be investigated per period (monthly). This is used to control how the model is evaluated. For example, when trying AML AI for the first time, we recommend setting this to the number of parties investigated in an average month, based on alerts from your existing automated alerting system.",
+            "type": "string",
+            "format": "int64"
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1ExportBacktestResultMetadataRequest": {
+        "id": "GoogleCloudFinancialservicesV1ExportBacktestResultMetadataRequest",
+        "description": "Request for exporting BacktestResult metadata.",
+        "type": "object",
+        "properties": {
+          "structuredMetadataDestination": {
+            "description": "Required. BigQuery output where the metadata will be written.",
+            "$ref": "GoogleCloudFinancialservicesV1BigQueryDestination"
+          }
+        }
+      },
+      "ListLocationsResponse": {
+        "id": "ListLocationsResponse",
+        "description": "The response message for Locations.ListLocations.",
+        "type": "object",
+        "properties": {
+          "locations": {
+            "description": "A list of locations that matches the specified filter in the request.",
+            "type": "array",
+            "items": {
+              "$ref": "Location"
+            }
+          },
+          "nextPageToken": {
+            "description": "The standard List next-page token.",
+            "type": "string"
+          }
+        }
+      },
+      "Location": {
+        "id": "Location",
+        "description": "A resource that represents a Google Cloud location.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Resource name for the location, which may vary between implementations. For example: `\"projects/example-project/locations/us-east1\"`",
+            "type": "string"
+          },
+          "locationId": {
+            "description": "The canonical id for this location. For example: `\"us-east1\"`.",
+            "type": "string"
+          },
+          "displayName": {
+            "description": "The friendly name for this location, typically a nearby city name. For example, \"Tokyo\".",
+            "type": "string"
+          },
+          "labels": {
+            "description": "Cross-service attributes for the location. For example {\"cloud.googleapis.com/region\": \"us-east1\"}",
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "metadata": {
+            "description": "Service-specific metadata. For example the available capacity at the given location.",
+            "type": "object",
+            "additionalProperties": {
+              "type": "any",
+              "description": "Properties of the object. Contains field @type with type URL."
+            }
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1OperationMetadata": {
+        "id": "GoogleCloudFinancialservicesV1OperationMetadata",
+        "description": "Represents the metadata of the long-running operation.",
+        "type": "object",
+        "properties": {
+          "createTime": {
+            "description": "Output only. The time the operation was created.",
+            "readOnly": true,
+            "type": "string",
+            "format": "google-datetime"
+          },
+          "endTime": {
+            "description": "Output only. The time the operation finished running.",
+            "readOnly": true,
+            "type": "string",
+            "format": "google-datetime"
+          },
+          "target": {
+            "description": "Output only. Server-defined resource path for the target of the operation. format: \"/projects/{project}/...\" VPC-SC restrictions apply.",
+            "readOnly": true,
+            "type": "string"
+          },
+          "verb": {
+            "description": "Output only. Name of the verb executed by the operation.",
+            "readOnly": true,
+            "type": "string"
+          },
+          "statusMessage": {
+            "description": "Output only. Human-readable status of the operation, if any.",
+            "readOnly": true,
+            "type": "string"
+          },
+          "requestedCancellation": {
+            "description": "Output only. Identifies whether the user has requested cancellation of the operation. Successfully cancelled operations have a Operation.error value with a google.rpc.Status.code of 1, corresponding to `Code.CANCELLED`.",
+            "readOnly": true,
+            "type": "boolean"
+          },
+          "apiVersion": {
+            "description": "Output only. API version used to start the operation.",
+            "readOnly": true,
+            "type": "string"
+          }
+        }
+      },
+      "GoogleCloudFinancialservicesV1ImportRegisteredPartiesResponse": {
+        "id": "GoogleCloudFinancialservicesV1ImportRegisteredPartiesResponse",
+        "description": "Response for adding/removing registered parties from BigQuery tables.",
+        "type": "object",
+        "properties": {
+          "partiesAdded": {
+            "description": "LINT.IfChange Number of parties added by this operation.",
+            "type": "string",
+            "format": "int64"
+          },
+          "partiesRemoved": {
+            "description": "Number of parties removed by this operation.",
+            "type": "string",
+            "format": "int64"
+          },
+          "partiesTotal": {
+            "description": "Total number of parties that are registered in this instance, after the update operation was completed.",
+            "type": "string",
+            "format": "int64"
+          },
+          "partiesFailedToRemove": {
+            "description": "Number of parties that failed to be removed by this operation.",
+            "type": "string",
+            "format": "int64"
+          },
+          "partiesUptiered": {
+            "type": "string",
+            "format": "int64"
+          },
+          "partiesDowntiered": {
+            "description": "Total number of parties that are downtiered in this instance",
+            "type": "string",
+            "format": "int64"
+          },
+          "partiesFailedToDowntier": {
+            "description": "Number of parties that failed to be downtiered",
+            "type": "string",
+            "format": "int64"
+          }
+        }
+      }
+    },
+    "name": "financialservices",
+    "servicePath": "",
+    "basePath": "",
+    "ownerName": "Google",
+    "baseUrl": "https://financialservices.googleapis.com/",
+    "version": "v1",
+    "id": "financialservices:v1",
+    "documentationLink": "https://cloud.google.com/solutions/financial-services",
+    "auth": {
+      "oauth2": {
+        "scopes": {
+          "https://www.googleapis.com/auth/cloud-platform": {
+            "description": "See, edit, configure, and delete your Google Cloud data and see the email address for your Google Account."
+          }
+        }
+      }
+    },
+    "kind": "discovery#restDescription",
+    "resources": {
+      "projects": {
+        "resources": {
+          "locations": {
+            "methods": {
+              "list": {
+                "id": "financialservices.projects.locations.list",
+                "path": "v1/{+name}/locations",
+                "flatPath": "v1/projects/{projectsId}/locations",
+                "httpMethod": "GET",
+                "parameters": {
+                  "name": {
+                    "description": "The resource that owns the locations collection, if applicable.",
+                    "pattern": "^projects/[^/]+$",
+                    "location": "path",
+                    "required": true,
+                    "type": "string"
+                  },
+                  "filter": {
+                    "description": "A filter to narrow down results to a preferred subset. The filtering language accepts strings like `\"displayName=tokyo\"`, and is documented in more detail in [AIP-160](https://google.aip.dev/160).",
+                    "location": "query",
+                    "type": "string"
+                  },
+                  "pageSize": {
+                    "description": "The maximum number of results to return. If not set, the service selects a default.",
+                    "location": "query",
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "pageToken": {
+                    "description": "A page token received from the `next_page_token` field in the response. Send that page token to receive the subsequent page.",
+                    "location": "query",
+                    "type": "string"
+                  }
+                },
+                "parameterOrder": [
+                  "name"
+                ],
+                "response": {
+                  "$ref": "ListLocationsResponse"
+                },
+                "scopes": [
+                  "https://www.googleapis.com/auth/cloud-platform"
+                ],
+                "description": "Lists information about the supported locations for this service."
+              },
+              "get": {
+                "id": "financialservices.projects.locations.get",
+                "path": "v1/{+name}",
+                "flatPath": "v1/projects/{projectsId}/locations/{locationsId}",
+                "httpMethod": "GET",
+                "parameters": {
+                  "name": {
+                    "description": "Resource name for the location.",
+                    "pattern": "^projects/[^/]+/locations/[^/]+$",
+                    "location": "path",
+                    "required": true,
+                    "type": "string"
+                  }
+                },
+                "parameterOrder": [
+                  "name"
+                ],
+                "response": {
+                  "$ref": "Location"
+                },
+                "scopes": [
+                  "https://www.googleapis.com/auth/cloud-platform"
+                ],
+                "description": "Gets information about a location."
+              }
+            },
+            "resources": {
+              "operations": {
+                "methods": {
+                  "list": {
+                    "id": "financialservices.projects.locations.operations.list",
+                    "path": "v1/{+name}/operations",
+                    "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/operations",
+                    "httpMethod": "GET",
+                    "parameters": {
+                      "name": {
+                        "description": "The name of the operation's parent resource.",
+                        "pattern": "^projects/[^/]+/locations/[^/]+$",
+                        "location": "path",
+                        "required": true,
+                        "type": "string"
+                      },
+                      "filter": {
+                        "description": "The standard list filter.",
+                        "location": "query",
+                        "type": "string"
+                      },
+                      "pageSize": {
+                        "description": "The standard list page size.",
+                        "location": "query",
+                        "type": "integer",
+                        "format": "int32"
+                      },
+                      "pageToken": {
+                        "description": "The standard list page token.",
+                        "location": "query",
+                        "type": "string"
+                      }
+                    },
+                    "parameterOrder": [
+                      "name"
+                    ],
+                    "response": {
+                      "$ref": "ListOperationsResponse"
+                    },
+                    "scopes": [
+                      "https://www.googleapis.com/auth/cloud-platform"
+                    ],
+                    "description": "Lists operations that match the specified filter in the request. If the server doesn't support this method, it returns `UNIMPLEMENTED`."
+                  },
+                  "get": {
+                    "id": "financialservices.projects.locations.operations.get",
+                    "path": "v1/{+name}",
+                    "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/operations/{operationsId}",
+                    "httpMethod": "GET",
+                    "parameters": {
+                      "name": {
+                        "description": "The name of the operation resource.",
+                        "pattern": "^projects/[^/]+/locations/[^/]+/operations/[^/]+$",
+                        "location": "path",
+                        "required": true,
+                        "type": "string"
+                      }
+                    },
+                    "parameterOrder": [
+                      "name"
+                    ],
+                    "response": {
+                      "$ref": "Operation"
+                    },
+                    "scopes": [
+                      "https://www.googleapis.com/auth/cloud-platform"
+                    ],
+                    "description": "Gets the latest state of a long-running operation. Clients can use this method to poll the operation result at intervals as recommended by the API service."
+                  },
+                  "delete": {
+                    "id": "financialservices.projects.locations.operations.delete",
+                    "path": "v1/{+name}",
+                    "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/operations/{operationsId}",
+                    "httpMethod": "DELETE",
+                    "parameters": {
+                      "name": {
+                        "description": "The name of the operation resource to be deleted.",
+                        "pattern": "^projects/[^/]+/locations/[^/]+/operations/[^/]+$",
+                        "location": "path",
+                        "required": true,
+                        "type": "string"
+                      }
+                    },
+                    "parameterOrder": [
+                      "name"
+                    ],
+                    "response": {
+                      "$ref": "Empty"
+                    },
+                    "scopes": [
+                      "https://www.googleapis.com/auth/cloud-platform"
+                    ],
+                    "description": "Deletes a long-running operation. This method indicates that the client is no longer interested in the operation result. It does not cancel the operation. If the server doesn't support this method, it returns `google.rpc.Code.UNIMPLEMENTED`."
+                  },
+                  "cancel": {
+                    "id": "financialservices.projects.locations.operations.cancel",
+                    "path": "v1/{+name}:cancel",
+                    "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/operations/{operationsId}:cancel",
+                    "httpMethod": "POST",
+                    "parameters": {
+                      "name": {
+                        "description": "The name of the operation resource to be cancelled.",
+                        "pattern": "^projects/[^/]+/locations/[^/]+/operations/[^/]+$",
+                        "location": "path",
+                        "required": true,
+                        "type": "string"
+                      }
+                    },
+                    "parameterOrder": [
+                      "name"
+                    ],
+                    "request": {
+                      "$ref": "CancelOperationRequest"
+                    },
+                    "response": {
+                      "$ref": "Empty"
+                    },
+                    "scopes": [
+                      "https://www.googleapis.com/auth/cloud-platform"
+                    ],
+                    "description": "Starts asynchronous cancellation on a long-running operation. The server makes a best effort to cancel the operation, but success is not guaranteed. If the server doesn't support this method, it returns `google.rpc.Code.UNIMPLEMENTED`. Clients can use Operations.GetOperation or other methods to check whether the cancellation succeeded or whether the operation completed despite cancellation. On successful cancellation, the operation is not deleted; instead, it becomes an operation with an Operation.error value with a google.rpc.Status.code of 1, corresponding to `Code.CANCELLED`."
+                  }
+                }
+              },
+              "instances": {
+                "methods": {
+                  "list": {
+                    "id": "financialservices.projects.locations.instances.list",
+                    "path": "v1/{+parent}/instances",
+                    "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances",
+                    "httpMethod": "GET",
+                    "parameters": {
+                      "parent": {
+                        "description": "Required. The parent of the Instance is the location for that Instance. Every location has exactly one instance.",
+                        "pattern": "^projects/[^/]+/locations/[^/]+$",
+                        "location": "path",
+                        "required": true,
+                        "type": "string"
+                      },
+                      "pageSize": {
+                        "description": "The number of resources to be included in the response. The response contains a next_page_token, which can be used to retrieve the next page of resources.",
+                        "location": "query",
+                        "type": "integer",
+                        "format": "int32"
+                      },
+                      "pageToken": {
+                        "description": "In case of paginated results, this is the token that was returned in the previous ListInstancesResponse. It should be copied here to retrieve the next page of resources. This will be empty for the first instance of ListInstancesRequest.",
+                        "location": "query",
+                        "type": "string"
+                      },
+                      "filter": {
+                        "description": "Specify a filter to narrow search results.",
+                        "location": "query",
+                        "type": "string"
+                      },
+                      "orderBy": {
+                        "description": "Specify a field to use for ordering.",
+                        "location": "query",
+                        "type": "string"
+                      }
+                    },
+                    "parameterOrder": [
+                      "parent"
+                    ],
+                    "response": {
+                      "$ref": "GoogleCloudFinancialservicesV1ListInstancesResponse"
+                    },
+                    "scopes": [
+                      "https://www.googleapis.com/auth/cloud-platform"
+                    ],
+                    "description": "Lists instances."
+                  },
+                  "get": {
+                    "id": "financialservices.projects.locations.instances.get",
+                    "path": "v1/{+name}",
+                    "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}",
+                    "httpMethod": "GET",
+                    "parameters": {
+                      "name": {
+                        "description": "Required. The resource name of the Instance.",
+                        "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+$",
+                        "location": "path",
+                        "required": true,
+                        "type": "string"
+                      }
+                    },
+                    "parameterOrder": [
+                      "name"
+                    ],
+                    "response": {
+                      "$ref": "GoogleCloudFinancialservicesV1Instance"
+                    },
+                    "scopes": [
+                      "https://www.googleapis.com/auth/cloud-platform"
+                    ],
+                    "description": "Gets an instance."
+                  },
+                  "create": {
+                    "id": "financialservices.projects.locations.instances.create",
+                    "path": "v1/{+parent}/instances",
+                    "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances",
+                    "httpMethod": "POST",
+                    "parameters": {
+                      "parent": {
+                        "description": "Required. The parent of the Instance is the location for that Instance. Every location has exactly one instance.",
+                        "pattern": "^projects/[^/]+/locations/[^/]+$",
+                        "location": "path",
+                        "required": true,
+                        "type": "string"
+                      },
+                      "instanceId": {
+                        "description": "Required. The resource id of the instance.",
+                        "location": "query",
+                        "type": "string"
+                      },
+                      "requestId": {
+                        "description": "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
+                        "location": "query",
+                        "type": "string"
+                      }
+                    },
+                    "parameterOrder": [
+                      "parent"
+                    ],
+                    "request": {
+                      "$ref": "GoogleCloudFinancialservicesV1Instance"
+                    },
+                    "response": {
+                      "$ref": "Operation"
+                    },
+                    "scopes": [
+                      "https://www.googleapis.com/auth/cloud-platform"
+                    ],
+                    "description": "Creates an instance."
+                  },
+                  "patch": {
+                    "id": "financialservices.projects.locations.instances.patch",
+                    "path": "v1/{+name}",
+                    "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}",
+                    "httpMethod": "PATCH",
+                    "parameters": {
+                      "name": {
+                        "description": "Output only. The full path to the Instance resource in this API. format: \"projects/{project}/locations/{location}/instances/{instance}\"",
+                        "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+$",
+                        "location": "path",
+                        "required": true,
+                        "type": "string"
+                      },
+                      "updateMask": {
+                        "description": "Optional. Field mask is used to specify the fields to be overwritten in the Instance resource by the update. The fields specified in the update_mask are relative to the resource, not the full request. A field will be overwritten if it is in the mask. If the user does not provide a mask then all fields will be overwritten.",
+                        "location": "query",
+                        "type": "string",
+                        "format": "google-fieldmask"
+                      },
+                      "requestId": {
+                        "description": "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
+                        "location": "query",
+                        "type": "string"
+                      }
+                    },
+                    "parameterOrder": [
+                      "name"
+                    ],
+                    "request": {
+                      "$ref": "GoogleCloudFinancialservicesV1Instance"
+                    },
+                    "response": {
+                      "$ref": "Operation"
+                    },
+                    "scopes": [
+                      "https://www.googleapis.com/auth/cloud-platform"
+                    ],
+                    "description": "Updates the parameters of a single Instance."
+                  },
+                  "delete": {
+                    "id": "financialservices.projects.locations.instances.delete",
+                    "path": "v1/{+name}",
+                    "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}",
+                    "httpMethod": "DELETE",
+                    "parameters": {
+                      "name": {
+                        "description": "Required. The resource name of the Instance.",
+                        "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+$",
+                        "location": "path",
+                        "required": true,
+                        "type": "string"
+                      },
+                      "requestId": {
+                        "description": "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes after the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
+                        "location": "query",
+                        "type": "string"
+                      }
+                    },
+                    "parameterOrder": [
+                      "name"
+                    ],
+                    "response": {
+                      "$ref": "Operation"
+                    },
+                    "scopes": [
+                      "https://www.googleapis.com/auth/cloud-platform"
+                    ],
+                    "description": "Deletes an instance."
+                  },
+                  "importRegisteredParties": {
+                    "id": "financialservices.projects.locations.instances.importRegisteredParties",
+                    "path": "v1/{+name}:importRegisteredParties",
+                    "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}:importRegisteredParties",
+                    "httpMethod": "POST",
+                    "parameters": {
+                      "name": {
+                        "description": "Required. The full path to the Instance resource in this API. format: \"projects/{project}/locations/{location}/instances/{instance}\"",
+                        "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+$",
+                        "location": "path",
+                        "required": true,
+                        "type": "string"
+                      }
+                    },
+                    "parameterOrder": [
+                      "name"
+                    ],
+                    "request": {
+                      "$ref": "GoogleCloudFinancialservicesV1ImportRegisteredPartiesRequest"
+                    },
+                    "response": {
+                      "$ref": "Operation"
+                    },
+                    "scopes": [
+                      "https://www.googleapis.com/auth/cloud-platform"
+                    ],
+                    "description": "Imports the list of registered parties. See [Create and manage instances](https://cloud.google.com/financial-services/anti-money-laundering/docs/create-and-manage-instances#import-registered-parties) for information on the input schema and response for this method."
+                  },
+                  "exportRegisteredParties": {
+                    "id": "financialservices.projects.locations.instances.exportRegisteredParties",
+                    "path": "v1/{+name}:exportRegisteredParties",
+                    "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}:exportRegisteredParties",
+                    "httpMethod": "POST",
+                    "parameters": {
+                      "name": {
+                        "description": "Required. The full path to the Instance resource in this API. format: \"projects/{project}/locations/{location}/instances/{instance}\"",
+                        "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+$",
+                        "location": "path",
+                        "required": true,
+                        "type": "string"
+                      }
+                    },
+                    "parameterOrder": [
+                      "name"
+                    ],
+                    "request": {
+                      "$ref": "GoogleCloudFinancialservicesV1ExportRegisteredPartiesRequest"
+                    },
+                    "response": {
+                      "$ref": "Operation"
+                    },
+                    "scopes": [
+                      "https://www.googleapis.com/auth/cloud-platform"
+                    ],
+                    "description": "Exports the list of registered parties. See [Create and manage instances](https://cloud.google.com/financial-services/anti-money-laundering/docs/create-and-manage-instances#export-registered-parties) for information on the output schema for this method."
+                  }
+                },
+                "resources": {
+                  "datasets": {
+                    "methods": {
+                      "list": {
+                        "id": "financialservices.projects.locations.instances.datasets.list",
+                        "path": "v1/{+parent}/datasets",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/datasets",
+                        "httpMethod": "GET",
+                        "parameters": {
+                          "parent": {
+                            "description": "Required. The parent of the Dataset is the Instance.",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          },
+                          "pageSize": {
+                            "description": "The number of resources to be included in the response. The response contains a next_page_token, which can be used to retrieve the next page of resources.",
+                            "location": "query",
+                            "type": "integer",
+                            "format": "int32"
+                          },
+                          "pageToken": {
+                            "description": "In case of paginated results, this is the token that was returned in the previous ListDatasetResponse. It should be copied here to retrieve the next page of resources. Empty will give the first page of ListDatasetRequest, and the last page will return an empty page_token.",
+                            "location": "query",
+                            "type": "string"
+                          },
+                          "filter": {
+                            "description": "Specify a filter to narrow search results.",
+                            "location": "query",
+                            "type": "string"
+                          },
+                          "orderBy": {
+                            "description": "Specify a field to use for ordering.",
+                            "location": "query",
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "parent"
+                        ],
+                        "response": {
+                          "$ref": "GoogleCloudFinancialservicesV1ListDatasetsResponse"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Lists datasets."
+                      },
+                      "get": {
+                        "id": "financialservices.projects.locations.instances.datasets.get",
+                        "path": "v1/{+name}",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/datasets/{datasetsId}",
+                        "httpMethod": "GET",
+                        "parameters": {
+                          "name": {
+                            "description": "Required. The resource name of the Dataset",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+/datasets/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "name"
+                        ],
+                        "response": {
+                          "$ref": "GoogleCloudFinancialservicesV1Dataset"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Gets a dataset."
+                      },
+                      "create": {
+                        "id": "financialservices.projects.locations.instances.datasets.create",
+                        "path": "v1/{+parent}/datasets",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/datasets",
+                        "httpMethod": "POST",
+                        "parameters": {
+                          "parent": {
+                            "description": "Required. The parent of the Dataset is the Instance.",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          },
+                          "datasetId": {
+                            "description": "Required. The resource id of the dataset",
+                            "location": "query",
+                            "type": "string"
+                          },
+                          "requestId": {
+                            "description": "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
+                            "location": "query",
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "parent"
+                        ],
+                        "request": {
+                          "$ref": "GoogleCloudFinancialservicesV1Dataset"
+                        },
+                        "response": {
+                          "$ref": "Operation"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Creates a dataset."
+                      },
+                      "patch": {
+                        "id": "financialservices.projects.locations.instances.datasets.patch",
+                        "path": "v1/{+name}",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/datasets/{datasetsId}",
+                        "httpMethod": "PATCH",
+                        "parameters": {
+                          "name": {
+                            "description": "Output only. The resource name of the Dataset. format: \"/projects/{project_num}/locations/{location}/instances/{instance}/datasets/{dataset}\"",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+/datasets/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          },
+                          "updateMask": {
+                            "description": "Optional. Field mask is used to specify the fields to be overwritten in the Dataset resource by the update. The fields specified in the update_mask are relative to the resource, not the full request. A field will be overwritten if it is in the mask. If the user does not provide a mask then all fields will be overwritten.",
+                            "location": "query",
+                            "type": "string",
+                            "format": "google-fieldmask"
+                          },
+                          "requestId": {
+                            "description": "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
+                            "location": "query",
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "name"
+                        ],
+                        "request": {
+                          "$ref": "GoogleCloudFinancialservicesV1Dataset"
+                        },
+                        "response": {
+                          "$ref": "Operation"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Updates the parameters of a single Dataset."
+                      },
+                      "delete": {
+                        "id": "financialservices.projects.locations.instances.datasets.delete",
+                        "path": "v1/{+name}",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/datasets/{datasetsId}",
+                        "httpMethod": "DELETE",
+                        "parameters": {
+                          "name": {
+                            "description": "Required. The resource name of the Dataset.",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+/datasets/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          },
+                          "requestId": {
+                            "description": "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes after the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
+                            "location": "query",
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "name"
+                        ],
+                        "response": {
+                          "$ref": "Operation"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Deletes a dataset."
+                      }
+                    }
+                  },
+                  "models": {
+                    "methods": {
+                      "list": {
+                        "id": "financialservices.projects.locations.instances.models.list",
+                        "path": "v1/{+parent}/models",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/models",
+                        "httpMethod": "GET",
+                        "parameters": {
+                          "parent": {
+                            "description": "Required. The parent of the Model is the Instance.",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          },
+                          "pageSize": {
+                            "description": "The number of resources to be included in the response. The response contains a next_page_token, which can be used to retrieve the next page of resources.",
+                            "location": "query",
+                            "type": "integer",
+                            "format": "int32"
+                          },
+                          "pageToken": {
+                            "description": "In case of paginated results, this is the token that was returned in the previous ListModelsResponse. It should be copied here to retrieve the next page of resources. Empty will give the first page of ListModelsRequest, and the last page will return an empty page_token.",
+                            "location": "query",
+                            "type": "string"
+                          },
+                          "filter": {
+                            "description": "Specify a filter to narrow search results.",
+                            "location": "query",
+                            "type": "string"
+                          },
+                          "orderBy": {
+                            "description": "Specify a field to use for ordering.",
+                            "location": "query",
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "parent"
+                        ],
+                        "response": {
+                          "$ref": "GoogleCloudFinancialservicesV1ListModelsResponse"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Lists models."
+                      },
+                      "get": {
+                        "id": "financialservices.projects.locations.instances.models.get",
+                        "path": "v1/{+name}",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/models/{modelsId}",
+                        "httpMethod": "GET",
+                        "parameters": {
+                          "name": {
+                            "description": "Required. The resource name of the Model",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+/models/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "name"
+                        ],
+                        "response": {
+                          "$ref": "GoogleCloudFinancialservicesV1Model"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Gets a model."
+                      },
+                      "create": {
+                        "id": "financialservices.projects.locations.instances.models.create",
+                        "path": "v1/{+parent}/models",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/models",
+                        "httpMethod": "POST",
+                        "parameters": {
+                          "parent": {
+                            "description": "Required. The parent of the Model is the Instance.",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          },
+                          "modelId": {
+                            "description": "Required. The resource id of the Model",
+                            "location": "query",
+                            "type": "string"
+                          },
+                          "requestId": {
+                            "description": "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
+                            "location": "query",
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "parent"
+                        ],
+                        "request": {
+                          "$ref": "GoogleCloudFinancialservicesV1Model"
+                        },
+                        "response": {
+                          "$ref": "Operation"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Creates a model."
+                      },
+                      "patch": {
+                        "id": "financialservices.projects.locations.instances.models.patch",
+                        "path": "v1/{+name}",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/models/{modelsId}",
+                        "httpMethod": "PATCH",
+                        "parameters": {
+                          "name": {
+                            "description": "Output only. The resource name of the Model. format: \"/projects/{project_num}/locations/{location}/instances/{instance}/models/{model}\"",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+/models/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          },
+                          "updateMask": {
+                            "description": "Optional. Field mask is used to specify the fields to be overwritten in the Model resource by the update. The fields specified in the update_mask are relative to the resource, not the full request. A field will be overwritten if it is in the mask. If the user does not provide a mask then all fields will be overwritten.",
+                            "location": "query",
+                            "type": "string",
+                            "format": "google-fieldmask"
+                          },
+                          "requestId": {
+                            "description": "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
+                            "location": "query",
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "name"
+                        ],
+                        "request": {
+                          "$ref": "GoogleCloudFinancialservicesV1Model"
+                        },
+                        "response": {
+                          "$ref": "Operation"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Updates the parameters of a single Model."
+                      },
+                      "exportMetadata": {
+                        "id": "financialservices.projects.locations.instances.models.exportMetadata",
+                        "path": "v1/{+model}:exportMetadata",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/models/{modelsId}:exportMetadata",
+                        "httpMethod": "POST",
+                        "parameters": {
+                          "model": {
+                            "description": "Required. The resource name of the Model.",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+/models/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "model"
+                        ],
+                        "request": {
+                          "$ref": "GoogleCloudFinancialservicesV1ExportModelMetadataRequest"
+                        },
+                        "response": {
+                          "$ref": "Operation"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Export governance information for a Model resource. For information on the exported fields, see [AML output data model](https://cloud.google.com/financial-services/anti-money-laundering/docs/reference/schemas/aml-output-data-model#model)."
+                      },
+                      "delete": {
+                        "id": "financialservices.projects.locations.instances.models.delete",
+                        "path": "v1/{+name}",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/models/{modelsId}",
+                        "httpMethod": "DELETE",
+                        "parameters": {
+                          "name": {
+                            "description": "Required. The resource name of the Model.",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+/models/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          },
+                          "requestId": {
+                            "description": "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes after the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
+                            "location": "query",
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "name"
+                        ],
+                        "response": {
+                          "$ref": "Operation"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Deletes a model."
+                      }
+                    }
+                  },
+                  "engineConfigs": {
+                    "methods": {
+                      "list": {
+                        "id": "financialservices.projects.locations.instances.engineConfigs.list",
+                        "path": "v1/{+parent}/engineConfigs",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/engineConfigs",
+                        "httpMethod": "GET",
+                        "parameters": {
+                          "parent": {
+                            "description": "Required. The parent of the EngineConfig is the Instance.",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          },
+                          "pageSize": {
+                            "description": "The number of resources to be included in the response. The response contains a next_page_token, which can be used to retrieve the next page of resources.",
+                            "location": "query",
+                            "type": "integer",
+                            "format": "int32"
+                          },
+                          "pageToken": {
+                            "description": "In case of paginated results, this is the token that was returned in the previous ListEngineConfigsResponse. It should be copied here to retrieve the next page of resources. Empty will give the first page of ListEngineConfigsRequest, and the last page will return an empty page_token.",
+                            "location": "query",
+                            "type": "string"
+                          },
+                          "filter": {
+                            "description": "Specify a filter to narrow search results.",
+                            "location": "query",
+                            "type": "string"
+                          },
+                          "orderBy": {
+                            "description": "Specify a field to use for ordering.",
+                            "location": "query",
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "parent"
+                        ],
+                        "response": {
+                          "$ref": "GoogleCloudFinancialservicesV1ListEngineConfigsResponse"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Lists engine configs."
+                      },
+                      "get": {
+                        "id": "financialservices.projects.locations.instances.engineConfigs.get",
+                        "path": "v1/{+name}",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/engineConfigs/{engineConfigsId}",
+                        "httpMethod": "GET",
+                        "parameters": {
+                          "name": {
+                            "description": "Required. The resource name of the EngineConfig",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+/engineConfigs/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "name"
+                        ],
+                        "response": {
+                          "$ref": "GoogleCloudFinancialservicesV1EngineConfig"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Gets an engine config."
+                      },
+                      "create": {
+                        "id": "financialservices.projects.locations.instances.engineConfigs.create",
+                        "path": "v1/{+parent}/engineConfigs",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/engineConfigs",
+                        "httpMethod": "POST",
+                        "parameters": {
+                          "parent": {
+                            "description": "Required. The parent of the EngineConfig is the Instance.",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          },
+                          "engineConfigId": {
+                            "description": "Required. The resource id of the EngineConfig",
+                            "location": "query",
+                            "type": "string"
+                          },
+                          "requestId": {
+                            "description": "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
+                            "location": "query",
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "parent"
+                        ],
+                        "request": {
+                          "$ref": "GoogleCloudFinancialservicesV1EngineConfig"
+                        },
+                        "response": {
+                          "$ref": "Operation"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Creates an engine config."
+                      },
+                      "patch": {
+                        "id": "financialservices.projects.locations.instances.engineConfigs.patch",
+                        "path": "v1/{+name}",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/engineConfigs/{engineConfigsId}",
+                        "httpMethod": "PATCH",
+                        "parameters": {
+                          "name": {
+                            "description": "Output only. The resource name of the EngineConfig. format: \"/projects/{project_num}/locations/{location}/instances/{instance}/engineConfigs/{engine_config}\"",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+/engineConfigs/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          },
+                          "updateMask": {
+                            "description": "Optional. Field mask is used to specify the fields to be overwritten in the EngineConfig resource by the update. The fields specified in the update_mask are relative to the resource, not the full request. A field will be overwritten if it is in the mask. If the user does not provide a mask then all fields will be overwritten.",
+                            "location": "query",
+                            "type": "string",
+                            "format": "google-fieldmask"
+                          },
+                          "requestId": {
+                            "description": "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
+                            "location": "query",
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "name"
+                        ],
+                        "request": {
+                          "$ref": "GoogleCloudFinancialservicesV1EngineConfig"
+                        },
+                        "response": {
+                          "$ref": "Operation"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Updates the parameters of a single EngineConfig."
+                      },
+                      "exportMetadata": {
+                        "id": "financialservices.projects.locations.instances.engineConfigs.exportMetadata",
+                        "path": "v1/{+engineConfig}:exportMetadata",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/engineConfigs/{engineConfigsId}:exportMetadata",
+                        "httpMethod": "POST",
+                        "parameters": {
+                          "engineConfig": {
+                            "description": "Required. The resource name of the EngineConfig.",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+/engineConfigs/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "engineConfig"
+                        ],
+                        "request": {
+                          "$ref": "GoogleCloudFinancialservicesV1ExportEngineConfigMetadataRequest"
+                        },
+                        "response": {
+                          "$ref": "Operation"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Export governance information for an EngineConfig resource. For information on the exported fields, see [AML output data model](https://cloud.google.com/financial-services/anti-money-laundering/docs/reference/schemas/aml-output-data-model#engine-config)."
+                      },
+                      "delete": {
+                        "id": "financialservices.projects.locations.instances.engineConfigs.delete",
+                        "path": "v1/{+name}",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/engineConfigs/{engineConfigsId}",
+                        "httpMethod": "DELETE",
+                        "parameters": {
+                          "name": {
+                            "description": "Required. The resource name of the EngineConfig.",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+/engineConfigs/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          },
+                          "requestId": {
+                            "description": "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes after the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
+                            "location": "query",
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "name"
+                        ],
+                        "response": {
+                          "$ref": "Operation"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Deletes an engine config."
+                      }
+                    }
+                  },
+                  "engineVersions": {
+                    "methods": {
+                      "get": {
+                        "id": "financialservices.projects.locations.instances.engineVersions.get",
+                        "path": "v1/{+name}",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/engineVersions/{engineVersionsId}",
+                        "httpMethod": "GET",
+                        "parameters": {
+                          "name": {
+                            "description": "Required. The resource name of the EngineVersion",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+/engineVersions/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "name"
+                        ],
+                        "response": {
+                          "$ref": "GoogleCloudFinancialservicesV1EngineVersion"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Gets a single EngineVersion."
+                      },
+                      "list": {
+                        "id": "financialservices.projects.locations.instances.engineVersions.list",
+                        "path": "v1/{+parent}/engineVersions",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/engineVersions",
+                        "httpMethod": "GET",
+                        "parameters": {
+                          "parent": {
+                            "description": "Required. The parent of the EngineVersion is the Instance.",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          },
+                          "pageSize": {
+                            "description": "Optional. The number of resources to be included in the response. The response contains a next_page_token, which can be used to retrieve the next page of resources.",
+                            "location": "query",
+                            "type": "integer",
+                            "format": "int32"
+                          },
+                          "pageToken": {
+                            "description": "Optional. In case of paginated results, this is the token that was returned in the previous ListEngineVersionsResponse. It should be copied here to retrieve the next page of resources. Empty will give the first page of ListEngineVersionsRequest, and the last page will return an empty page_token.",
+                            "location": "query",
+                            "type": "string"
+                          },
+                          "filter": {
+                            "description": "Optional. Specify a filter to narrow search results. If empty or unset will default to \"state!=DEPRECATED\", to view deprecated versions use \"state:*\" or any other filter.",
+                            "location": "query",
+                            "type": "string"
+                          },
+                          "orderBy": {
+                            "description": "Optional. Specify a field to use for ordering.",
+                            "location": "query",
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "parent"
+                        ],
+                        "response": {
+                          "$ref": "GoogleCloudFinancialservicesV1ListEngineVersionsResponse"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Lists EngineVersions for given location."
+                      }
+                    }
+                  },
+                  "predictionResults": {
+                    "methods": {
+                      "list": {
+                        "id": "financialservices.projects.locations.instances.predictionResults.list",
+                        "path": "v1/{+parent}/predictionResults",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/predictionResults",
+                        "httpMethod": "GET",
+                        "parameters": {
+                          "parent": {
+                            "description": "Required. The parent of the PredictionResult is the Instance.",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          },
+                          "pageSize": {
+                            "description": "The number of resources to be included in the response. The response contains a next_page_token, which can be used to retrieve the next page of resources.",
+                            "location": "query",
+                            "type": "integer",
+                            "format": "int32"
+                          },
+                          "pageToken": {
+                            "description": "In case of paginated results, this is the token that was returned in the previous ListPredictionResultsResponse. It should be copied here to retrieve the next page of resources. Empty will give the first page of ListPredictionResultsRequest, and the last page will return an empty page_token.",
+                            "location": "query",
+                            "type": "string"
+                          },
+                          "filter": {
+                            "description": "Specify a filter to narrow search results.",
+                            "location": "query",
+                            "type": "string"
+                          },
+                          "orderBy": {
+                            "description": "Specify a field to use for ordering.",
+                            "location": "query",
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "parent"
+                        ],
+                        "response": {
+                          "$ref": "GoogleCloudFinancialservicesV1ListPredictionResultsResponse"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "List PredictionResults."
+                      },
+                      "get": {
+                        "id": "financialservices.projects.locations.instances.predictionResults.get",
+                        "path": "v1/{+name}",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/predictionResults/{predictionResultsId}",
+                        "httpMethod": "GET",
+                        "parameters": {
+                          "name": {
+                            "description": "Required. The resource name of the PredictionResult",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+/predictionResults/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "name"
+                        ],
+                        "response": {
+                          "$ref": "GoogleCloudFinancialservicesV1PredictionResult"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Gets a PredictionResult."
+                      },
+                      "create": {
+                        "id": "financialservices.projects.locations.instances.predictionResults.create",
+                        "path": "v1/{+parent}/predictionResults",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/predictionResults",
+                        "httpMethod": "POST",
+                        "parameters": {
+                          "parent": {
+                            "description": "Required. The parent of the PredictionResult is the Instance.",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          },
+                          "predictionResultId": {
+                            "description": "Required. The resource id of the PredictionResult",
+                            "location": "query",
+                            "type": "string"
+                          },
+                          "requestId": {
+                            "description": "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
+                            "location": "query",
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "parent"
+                        ],
+                        "request": {
+                          "$ref": "GoogleCloudFinancialservicesV1PredictionResult"
+                        },
+                        "response": {
+                          "$ref": "Operation"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Create a PredictionResult."
+                      },
+                      "patch": {
+                        "id": "financialservices.projects.locations.instances.predictionResults.patch",
+                        "path": "v1/{+name}",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/predictionResults/{predictionResultsId}",
+                        "httpMethod": "PATCH",
+                        "parameters": {
+                          "name": {
+                            "description": "Output only. The resource name of the PredictionResult. format: \"/projects/{project_num}/locations/{location}/instances/{instance}/predictionResults/{prediction_result}\"",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+/predictionResults/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          },
+                          "updateMask": {
+                            "description": "Optional. Field mask is used to specify the fields to be overwritten in the PredictionResult resource by the update. The fields specified in the update_mask are relative to the resource, not the full request. A field will be overwritten if it is in the mask. If the user does not provide a mask then all fields will be overwritten.",
+                            "location": "query",
+                            "type": "string",
+                            "format": "google-fieldmask"
+                          },
+                          "requestId": {
+                            "description": "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
+                            "location": "query",
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "name"
+                        ],
+                        "request": {
+                          "$ref": "GoogleCloudFinancialservicesV1PredictionResult"
+                        },
+                        "response": {
+                          "$ref": "Operation"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Updates the parameters of a single PredictionResult."
+                      },
+                      "exportMetadata": {
+                        "id": "financialservices.projects.locations.instances.predictionResults.exportMetadata",
+                        "path": "v1/{+predictionResult}:exportMetadata",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/predictionResults/{predictionResultsId}:exportMetadata",
+                        "httpMethod": "POST",
+                        "parameters": {
+                          "predictionResult": {
+                            "description": "Required. The resource name of the PredictionResult.",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+/predictionResults/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "predictionResult"
+                        ],
+                        "request": {
+                          "$ref": "GoogleCloudFinancialservicesV1ExportPredictionResultMetadataRequest"
+                        },
+                        "response": {
+                          "$ref": "Operation"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Export governance information for a PredictionResult resource. For information on the exported fields, see [AML output data model](https://cloud.google.com/financial-services/anti-money-laundering/docs/reference/schemas/aml-output-data-model#prediction-results)."
+                      },
+                      "delete": {
+                        "id": "financialservices.projects.locations.instances.predictionResults.delete",
+                        "path": "v1/{+name}",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/predictionResults/{predictionResultsId}",
+                        "httpMethod": "DELETE",
+                        "parameters": {
+                          "name": {
+                            "description": "Required. The resource name of the PredictionResult.",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+/predictionResults/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          },
+                          "requestId": {
+                            "description": "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes after the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
+                            "location": "query",
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "name"
+                        ],
+                        "response": {
+                          "$ref": "Operation"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Deletes a PredictionResult."
+                      }
+                    }
+                  },
+                  "backtestResults": {
+                    "methods": {
+                      "list": {
+                        "id": "financialservices.projects.locations.instances.backtestResults.list",
+                        "path": "v1/{+parent}/backtestResults",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/backtestResults",
+                        "httpMethod": "GET",
+                        "parameters": {
+                          "parent": {
+                            "description": "Required. The parent of the BacktestResult is the Instance.",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          },
+                          "pageSize": {
+                            "description": "The number of resources to be included in the response. The response contains a next_page_token, which can be used to retrieve the next page of resources.",
+                            "location": "query",
+                            "type": "integer",
+                            "format": "int32"
+                          },
+                          "pageToken": {
+                            "description": "In case of paginated results, this is the token that was returned in the previous ListBacktestResultsResponse. It should be copied here to retrieve the next page of resources. Empty will give the first page of ListBacktestResultsRequest, and the last page will return an empty page_token.",
+                            "location": "query",
+                            "type": "string"
+                          },
+                          "filter": {
+                            "description": "Specify a filter to narrow search results.",
+                            "location": "query",
+                            "type": "string"
+                          },
+                          "orderBy": {
+                            "description": "Specify a field to use for ordering.",
+                            "location": "query",
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "parent"
+                        ],
+                        "response": {
+                          "$ref": "GoogleCloudFinancialservicesV1ListBacktestResultsResponse"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "List BacktestResults."
+                      },
+                      "get": {
+                        "id": "financialservices.projects.locations.instances.backtestResults.get",
+                        "path": "v1/{+name}",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/backtestResults/{backtestResultsId}",
+                        "httpMethod": "GET",
+                        "parameters": {
+                          "name": {
+                            "description": "Required. The resource name of the BacktestResult",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+/backtestResults/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "name"
+                        ],
+                        "response": {
+                          "$ref": "GoogleCloudFinancialservicesV1BacktestResult"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Gets a BacktestResult."
+                      },
+                      "create": {
+                        "id": "financialservices.projects.locations.instances.backtestResults.create",
+                        "path": "v1/{+parent}/backtestResults",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/backtestResults",
+                        "httpMethod": "POST",
+                        "parameters": {
+                          "parent": {
+                            "description": "Required. The parent of the BacktestResult is the Instance.",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          },
+                          "backtestResultId": {
+                            "description": "Required. The resource id of the BacktestResult",
+                            "location": "query",
+                            "type": "string"
+                          },
+                          "requestId": {
+                            "description": "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
+                            "location": "query",
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "parent"
+                        ],
+                        "request": {
+                          "$ref": "GoogleCloudFinancialservicesV1BacktestResult"
+                        },
+                        "response": {
+                          "$ref": "Operation"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Create a BacktestResult."
+                      },
+                      "patch": {
+                        "id": "financialservices.projects.locations.instances.backtestResults.patch",
+                        "path": "v1/{+name}",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/backtestResults/{backtestResultsId}",
+                        "httpMethod": "PATCH",
+                        "parameters": {
+                          "name": {
+                            "description": "Output only. The resource name of the BacktestResult. format: \"/projects/{project_num}/locations/{location}/instances/{instance}/backtestResults/{backtest_result}\"",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+/backtestResults/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          },
+                          "updateMask": {
+                            "description": "Optional. Field mask is used to specify the fields to be overwritten in the BacktestResult resource by the update. The fields specified in the update_mask are relative to the resource, not the full request. A field will be overwritten if it is in the mask. If the user does not provide a mask then all fields will be overwritten.",
+                            "location": "query",
+                            "type": "string",
+                            "format": "google-fieldmask"
+                          },
+                          "requestId": {
+                            "description": "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
+                            "location": "query",
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "name"
+                        ],
+                        "request": {
+                          "$ref": "GoogleCloudFinancialservicesV1BacktestResult"
+                        },
+                        "response": {
+                          "$ref": "Operation"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Updates the parameters of a single BacktestResult."
+                      },
+                      "exportMetadata": {
+                        "id": "financialservices.projects.locations.instances.backtestResults.exportMetadata",
+                        "path": "v1/{+backtestResult}:exportMetadata",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/backtestResults/{backtestResultsId}:exportMetadata",
+                        "httpMethod": "POST",
+                        "parameters": {
+                          "backtestResult": {
+                            "description": "Required. The resource name of the BacktestResult.",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+/backtestResults/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "backtestResult"
+                        ],
+                        "request": {
+                          "$ref": "GoogleCloudFinancialservicesV1ExportBacktestResultMetadataRequest"
+                        },
+                        "response": {
+                          "$ref": "Operation"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Export governance information for a BacktestResult resource. For information on the exported fields, see [AML output data model](https://cloud.google.com/financial-services/anti-money-laundering/docs/reference/schemas/aml-output-data-model#backtest-results)."
+                      },
+                      "delete": {
+                        "id": "financialservices.projects.locations.instances.backtestResults.delete",
+                        "path": "v1/{+name}",
+                        "flatPath": "v1/projects/{projectsId}/locations/{locationsId}/instances/{instancesId}/backtestResults/{backtestResultsId}",
+                        "httpMethod": "DELETE",
+                        "parameters": {
+                          "name": {
+                            "description": "Required. The resource name of the BacktestResult.",
+                            "pattern": "^projects/[^/]+/locations/[^/]+/instances/[^/]+/backtestResults/[^/]+$",
+                            "location": "path",
+                            "required": true,
+                            "type": "string"
+                          },
+                          "requestId": {
+                            "description": "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes after the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
+                            "location": "query",
+                            "type": "string"
+                          }
+                        },
+                        "parameterOrder": [
+                          "name"
+                        ],
+                        "response": {
+                          "$ref": "Operation"
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/cloud-platform"
+                        ],
+                        "description": "Deletes a BacktestResult."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "version_module": true,
+    "protocol": "rest",
+    "ownerDomain": "google.com",
+    "fullyEncodeReservedExpansion": true,
+    "rootUrl": "https://financialservices.googleapis.com/",
+    "mtlsRootUrl": "https://financialservices.mtls.googleapis.com/",
+    "canonicalName": "Financial Services",
+    "discoveryVersion": "v1",
+    "batchPath": "batch",
+    "description": "",
+    "title": "Financial Services API",
+    "revision": "20241008"
+  }
