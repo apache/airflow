@@ -351,14 +351,14 @@ class TestPostVariable(TestVariableEndpoint):
         response = test_client.post(
             "/public/variables",
             json={
-                "key": {TEST_VARIABLE_KEY},
+                "key": TEST_VARIABLE_KEY,
                 "value": "duplicate value",
                 "description": "duplicate description",
             },
         )
         assert response.status_code == 409
         body = response.json()
-        assert body["detail"] == f"Variable with key `{TEST_VARIABLE_KEY}` already exists"
+        assert body["detail"] == f"The Variable with key: `{TEST_VARIABLE_KEY}` already exists"
 
     def test_post_should_respond_422_when_key_too_large(self, test_client):
         large_key = "a" * 251  # Exceeds the maximum length of 250
