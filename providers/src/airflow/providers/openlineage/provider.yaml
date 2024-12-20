@@ -53,7 +53,7 @@ versions:
 dependencies:
   - apache-airflow>=2.9.0
   - apache-airflow-providers-common-sql>=1.20.0
-  - apache-airflow-providers-common-compat>=1.2.1
+  - apache-airflow-providers-common-compat>=1.3.0
   - attrs>=22.2
   - openlineage-integration-common>=1.24.2
   - openlineage-python>=1.24.2
@@ -184,3 +184,11 @@ config:
         example: ~
         type: boolean
         version_added: 1.11.0
+      spark_inject_parent_job_info:
+        description: |
+          Automatically inject OpenLineage's parent job (namespace, job name, run id) information into Spark
+          application properties for supported Operators.
+        type: boolean
+        default: "False"
+        example: ~
+        version_added: 1.15.0

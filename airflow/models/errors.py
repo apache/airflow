@@ -31,4 +31,3 @@ class ParseImportError(Base):
     timestamp = Column(UtcDateTime)
     filename = Column(String(1024))
     stacktrace = Column(Text)
-    processor_subdir = Column(String(2000), nullable=True)

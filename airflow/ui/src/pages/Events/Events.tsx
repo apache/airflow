@@ -124,14 +124,18 @@ export const Events = () => {
     error: EventsError,
     isFetching,
     isLoading,
-  } = useEventLogServiceGetEventLogs({
-    dagId,
-    limit: pagination.pageSize,
-    offset: pagination.pageIndex * pagination.pageSize,
-    orderBy,
-    runId,
-    taskId,
-  });
+  } = useEventLogServiceGetEventLogs(
+    {
+      dagId,
+      limit: pagination.pageSize,
+      offset: pagination.pageIndex * pagination.pageSize,
+      orderBy,
+      runId,
+      taskId,
+    },
+    undefined,
+    { enabled: !isNaN(pagination.pageSize) },
+  );
 
   return (
     <Box>

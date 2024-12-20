@@ -516,6 +516,27 @@ class TestTaskInstance:
             ti.run()
         assert "on_failure_callback called" in caplog.text
 
+    def test_task_sigterm_calls_with_traceback_in_logs(self, dag_maker, caplog):
+        """
+        Test that ensures that tasks print traceback to the logs when they receive sigterm
+        """
+
+        def task_function(ti):
+            os.kill(ti.pid, signal.SIGTERM)
+
+        with dag_maker():
+            task_ = PythonOperator(
+                task_id="test_on_failure",
+                python_callable=task_function,
+            )
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        ti.task = task_
+        with pytest.raises(AirflowTaskTerminated):
+            ti.run()
+        assert "Stacktrace: " in caplog.text
+
     def test_task_sigterm_works_with_retries(self, dag_maker):
         """
         Test that ensures that tasks are retried when they receive sigterm

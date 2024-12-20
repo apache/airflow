@@ -489,7 +489,6 @@ the test is marked as DB test:
                    TaskCallbackRequest(
                        full_filepath="filepath",
                        simple_task_instance=SimpleTaskInstance.from_ti(ti=TI),
-                       processor_subdir="/test_dir",
                        is_failure_callback=True,
                    ),
                    TaskCallbackRequest,
@@ -499,7 +498,6 @@ the test is marked as DB test:
                        full_filepath="filepath",
                        dag_id="fake_dag",
                        run_id="fake_run",
-                       processor_subdir="/test_dir",
                        is_failure_callback=False,
                    ),
                    DagCallbackRequest,
@@ -508,7 +506,6 @@ the test is marked as DB test:
                    SlaCallbackRequest(
                        full_filepath="filepath",
                        dag_id="fake_dag",
-                       processor_subdir="/test_dir",
                    ),
                    SlaCallbackRequest,
                ),
@@ -540,7 +537,6 @@ top level / parametrize to inside the test:
                       full_filepath="filepath",
                       dag_id="fake_dag",
                       run_id="fake_run",
-                      processor_subdir="/test_dir",
                       is_failure_callback=False,
                   ),
                   DagCallbackRequest,
@@ -549,7 +545,6 @@ top level / parametrize to inside the test:
                   SlaCallbackRequest(
                       full_filepath="filepath",
                       dag_id="fake_dag",
-                      processor_subdir="/test_dir",
                   ),
                   SlaCallbackRequest,
               ),
@@ -568,7 +563,6 @@ top level / parametrize to inside the test:
               input = TaskCallbackRequest(
                   full_filepath="filepath",
                   simple_task_instance=SimpleTaskInstance.from_ti(ti=ti),
-                  processor_subdir="/test_dir",
                   is_failure_callback=True,
               )
 
@@ -1108,11 +1102,11 @@ are not part of the public API. We deal with it in one of the following ways:
 
 .. code-block:: python
 
-  from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS
+  from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
 
 
-  @pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="The tests should be skipped for Airflow < 2.9")
-  def some_test_that_only_works_for_airflow_2_9_plus():
+  @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="The tests should be skipped for Airflow < 2.10")
+  def some_test_that_only_works_for_airflow_2_10_plus():
       pass
 
 4) Sometimes, the tests should only be run when airflow is installed from the sources in main.

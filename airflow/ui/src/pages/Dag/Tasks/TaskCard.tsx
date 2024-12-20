@@ -26,6 +26,7 @@ import type {
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import Time from "src/components/Time";
 import { Status } from "src/components/ui";
+import { getTaskInstanceLink } from "src/utils/links.ts";
 
 import { TaskRecentRuns } from "./TaskRecentRuns.tsx";
 
@@ -70,9 +71,7 @@ export const TaskCard = ({ dagId, task, taskInstances }: Props) => (
         {taskInstances[0] ? (
           <TaskInstanceTooltip taskInstance={taskInstances[0]}>
             <Link asChild color="fg.info" fontSize="sm">
-              <RouterLink
-                to={`/dags/${dagId}/runs/${taskInstances[0].dag_run_id}/tasks/${task.task_id}`}
-              >
+              <RouterLink to={getTaskInstanceLink(taskInstances[0])}>
                 <Time datetime={taskInstances[0].start_date} />
                 {taskInstances[0].state === null ? undefined : (
                   <Status state={taskInstances[0].state}>

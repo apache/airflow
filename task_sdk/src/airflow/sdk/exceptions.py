@@ -14,3 +14,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from __future__ import annotations
+
+import enum
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from airflow.sdk.execution_time.comms import ErrorResponse
+
+
+class AirflowRuntimeError(Exception):
+    def __init__(self, error: ErrorResponse):
+        self.error = error
+        super().__init__(f"{error.error.value}: {error.detail}")
+
+
+class ErrorType(enum.Enum):
+    CONNECTION_NOT_FOUND = "CONNECTION_NOT_FOUND"
+    VARIABLE_NOT_FOUND = "VARIABLE_NOT_FOUND"
+    XCOM_NOT_FOUND = "XCOM_NOT_FOUND"
+    GENERIC_ERROR = "GENERIC_ERROR"

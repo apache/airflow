@@ -247,6 +247,48 @@ Basic usage of the operator:
     :end-before: [END howto_operator_translate_automl_delete_model]
 
 
+.. _howto/operator:TranslateDocumentOperator:
+
+TranslateDocumentOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^
+Translate Document using Cloud Translate API (Advanced V3).
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.translate.TranslateDocumentOperator`
+
+Using the operator
+""""""""""""""""""
+
+Basic usage of the operator:
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/translate/example_translate_document.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_translate_document]
+    :end-before: [END howto_operator_translate_document]
+
+
+.. _howto/operator:TranslateDocumentBatchOperator:
+
+TranslateDocumentBatchOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Translate Documents using Cloud Translate API (Advanced V3), by given input configs.
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.translate.TranslateDocumentBatchOperator`
+
+Using the operator
+""""""""""""""""""
+
+Basic usage of the operator:
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/translate/example_translate_document.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_translate_document_batch]
+    :end-before: [END howto_operator_translate_document_batch]
+
+
 More information
 """"""""""""""""""
 See:

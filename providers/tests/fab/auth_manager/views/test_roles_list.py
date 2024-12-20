@@ -24,12 +24,7 @@ from airflow.www import app as application
 
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
 from providers.tests.fab.auth_manager.views import _assert_dataset_deprecation_warning
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS
 from tests_common.test_utils.www import client_with_login
-
-pytestmark = [
-    pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Tests for Airflow 2.9.0+ only"),
-]
 
 
 @pytest.fixture(scope="module")

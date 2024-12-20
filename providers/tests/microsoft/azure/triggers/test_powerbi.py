@@ -89,7 +89,8 @@ class TestPowerBITrigger:
     ):
         """Assert task isn't completed until timeout if dataset refresh is in progress."""
         mock_get_refresh_details_by_refresh_id.return_value = {
-            "status": PowerBIDatasetRefreshStatus.IN_PROGRESS
+            "status": PowerBIDatasetRefreshStatus.IN_PROGRESS,
+            "error": None,
         }
         mock_trigger_dataset_refresh.return_value = DATASET_REFRESH_ID
         task = asyncio.create_task(powerbi_trigger.run().__anext__())
@@ -106,16 +107,20 @@ class TestPowerBITrigger:
         self, mock_trigger_dataset_refresh, mock_get_refresh_details_by_refresh_id, powerbi_trigger
     ):
         """Assert event is triggered upon failed dataset refresh."""
-        mock_get_refresh_details_by_refresh_id.return_value = {"status": PowerBIDatasetRefreshStatus.FAILED}
+        mock_get_refresh_details_by_refresh_id.return_value = {
+            "status": PowerBIDatasetRefreshStatus.FAILED,
+            "error": "Test error",
+        }
         mock_trigger_dataset_refresh.return_value = DATASET_REFRESH_ID
 
         generator = powerbi_trigger.run()
         actual = await generator.asend(None)
         expected = TriggerEvent(
             {
-                "status": "Failed",
+                "status": "error",
+                "dataset_refresh_status": PowerBIDatasetRefreshStatus.FAILED,
                 "message": f"The dataset refresh {DATASET_REFRESH_ID} has "
-                f"{PowerBIDatasetRefreshStatus.FAILED}.",
+                f"{PowerBIDatasetRefreshStatus.FAILED}. Error: Test error",
                 "dataset_refresh_id": DATASET_REFRESH_ID,
             }
         )
@@ -129,7 +134,8 @@ class TestPowerBITrigger:
     ):
         """Assert event is triggered upon successful dataset refresh."""
         mock_get_refresh_details_by_refresh_id.return_value = {
-            "status": PowerBIDatasetRefreshStatus.COMPLETED
+            "status": PowerBIDatasetRefreshStatus.COMPLETED,
+            "error": None,
         }
         mock_trigger_dataset_refresh.return_value = DATASET_REFRESH_ID
 
@@ -137,7 +143,8 @@ class TestPowerBITrigger:
         actual = await generator.asend(None)
         expected = TriggerEvent(
             {
-                "status": "Completed",
+                "status": "success",
+                "dataset_refresh_status": PowerBIDatasetRefreshStatus.COMPLETED,
                 "message": f"The dataset refresh {DATASET_REFRESH_ID} has "
                 f"{PowerBIDatasetRefreshStatus.COMPLETED}.",
                 "dataset_refresh_id": DATASET_REFRESH_ID,
@@ -164,6 +171,7 @@ class TestPowerBITrigger:
         response = TriggerEvent(
             {
                 "status": "error",
+                "dataset_refresh_status": None,
                 "message": "An error occurred: Test exception",
                 "dataset_refresh_id": DATASET_REFRESH_ID,
             }
@@ -192,6 +200,7 @@ class TestPowerBITrigger:
         response = TriggerEvent(
             {
                 "status": "error",
+                "dataset_refresh_status": None,
                 "message": "An error occurred while canceling dataset: Exception caused by cancel_dataset_refresh",
                 "dataset_refresh_id": DATASET_REFRESH_ID,
             }
@@ -218,6 +227,7 @@ class TestPowerBITrigger:
         response = TriggerEvent(
             {
                 "status": "error",
+                "dataset_refresh_status": None,
                 "message": "An error occurred: Test exception for no dataset_refresh_id",
                 "dataset_refresh_id": None,
             }
@@ -233,7 +243,8 @@ class TestPowerBITrigger:
     ):
         """Assert that powerbi run times out after end_time elapses"""
         mock_get_refresh_details_by_refresh_id.return_value = {
-            "status": PowerBIDatasetRefreshStatus.IN_PROGRESS
+            "status": PowerBIDatasetRefreshStatus.IN_PROGRESS,
+            "error": None,
         }
         mock_trigger_dataset_refresh.return_value = DATASET_REFRESH_ID
 
@@ -242,6 +253,7 @@ class TestPowerBITrigger:
         expected = TriggerEvent(
             {
                 "status": "error",
+                "dataset_refresh_status": PowerBIDatasetRefreshStatus.IN_PROGRESS,
                 "message": f"Timeout occurred while waiting for dataset refresh to complete: The dataset refresh {DATASET_REFRESH_ID} has status {PowerBIDatasetRefreshStatus.IN_PROGRESS}.",
                 "dataset_refresh_id": DATASET_REFRESH_ID,
             }

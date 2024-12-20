@@ -54,10 +54,12 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstance,
     TerminalTIState,
     TIDeferredStatePayload,
+    TIRescheduleStatePayload,
     TIRunContext,
     VariableResponse,
     XComResponse,
 )
+from airflow.sdk.exceptions import ErrorType
 
 
 class StartupDetails(BaseModel):
@@ -84,13 +86,26 @@ class XComResult(XComResponse):
 class ConnectionResult(ConnectionResponse):
     type: Literal["ConnectionResult"] = "ConnectionResult"
 
+    @classmethod
+    def from_conn_response(cls, connection_response: ConnectionResponse) -> ConnectionResult:
+        # Exclude defaults to avoid sending unnecessary data
+        # Pass the type as ConnectionResult explicitly so we can then call model_dump_json with exclude_unset=True
+        # to avoid sending unset fields (which are defaults in our case).
+        return cls(**connection_response.model_dump(exclude_defaults=True), type="ConnectionResult")
+
 
 class VariableResult(VariableResponse):
     type: Literal["VariableResult"] = "VariableResult"
 
 
+class ErrorResponse(BaseModel):
+    error: ErrorType = ErrorType.GENERIC_ERROR
+    detail: dict | None = None
+    type: Literal["ErrorResponse"] = "ErrorResponse"
+
+
 ToTask = Annotated[
-    Union[StartupDetails, XComResult, ConnectionResult, VariableResult],
+    Union[StartupDetails, XComResult, ConnectionResult, VariableResult, ErrorResponse],
     Field(discriminator="type"),
 ]
 
@@ -113,6 +128,12 @@ class DeferTask(TIDeferredStatePayload):
     """Update a task instance state to deferred."""
 
     type: Literal["DeferTask"] = "DeferTask"
+
+
+class RescheduleTask(TIRescheduleStatePayload):
+    """Update a task instance state to reschedule/up_for_reschedule."""
+
+    type: Literal["RescheduleTask"] = "RescheduleTask"
 
 
 class GetXCom(BaseModel):
@@ -183,6 +204,16 @@ class SetRenderedFields(BaseModel):
 
 
 ToSupervisor = Annotated[
-    Union[TaskState, GetXCom, GetConnection, GetVariable, DeferTask, PutVariable, SetXCom, SetRenderedFields],
+    Union[
+        TaskState,
+        GetXCom,
+        GetConnection,
+        GetVariable,
+        DeferTask,
+        PutVariable,
+        SetXCom,
+        SetRenderedFields,
+        RescheduleTask,
+    ],
     Field(discriminator="type"),
 ]

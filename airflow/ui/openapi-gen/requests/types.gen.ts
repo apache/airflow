@@ -374,6 +374,7 @@ export type DAGResponse = {
  */
 export type DAGRunClearBody = {
   dry_run?: boolean;
+  only_failed?: boolean;
 };
 
 /**
@@ -401,7 +402,7 @@ export type DAGRunPatchStates = "queued" | "success" | "failed";
  * DAG Run serializer for responses.
  */
 export type DAGRunResponse = {
-  dag_run_id: string | null;
+  dag_run_id: string;
   dag_id: string;
   logical_date: string | null;
   queued_at: string | null;
@@ -1288,6 +1289,7 @@ export type XComResponse = {
   map_index: number;
   task_id: string;
   dag_id: string;
+  run_id: string;
 };
 
 /**
@@ -1300,6 +1302,7 @@ export type XComResponseNative = {
   map_index: number;
   task_id: string;
   dag_id: string;
+  run_id: string;
   value: unknown;
 };
 
@@ -1313,6 +1316,7 @@ export type XComResponseString = {
   map_index: number;
   task_id: string;
   dag_id: string;
+  run_id: string;
   value: string | null;
 };
 

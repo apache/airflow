@@ -74,7 +74,7 @@ export const TaskInstance = () => {
   ];
 
   if (mapIndexParam !== null) {
-    links.push({ label: mapIndexParam });
+    links.push({ label: taskInstance?.rendered_map_index ?? mapIndexParam });
   }
 
   return (

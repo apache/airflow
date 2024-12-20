@@ -26,7 +26,6 @@ import pendulum
 import pytest
 import time_machine
 
-from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.cli.cli_config import DefaultHelpParser, GroupCommand
 from airflow.cli.cli_parser import AirflowHelpFormatter
 from airflow.executors.base_executor import BaseExecutor, RunningRetryAttemptType
@@ -362,10 +361,9 @@ def test_debug_dump(caplog):
 
 
 def test_base_executor_cannot_send_callback():
-    cbr = CallbackRequest("some_file_path_for_callback")
     executor = BaseExecutor()
     with pytest.raises(ValueError):
-        executor.send_callback(cbr)
+        executor.send_callback(mock.Mock())
 
 
 def test_parser_and_formatter_class():

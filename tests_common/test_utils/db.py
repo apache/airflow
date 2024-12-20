@@ -143,6 +143,14 @@ def clear_db_dags():
         session.query(DagModel).delete()
 
 
+def clear_db_deadline():
+    with create_session() as session:
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.deadline import Deadline
+
+            session.query(Deadline).delete()
+
+
 def drop_tables_with_prefix(prefix):
     with create_session() as session:
         metadata = reflect_tables(None, session)
@@ -232,6 +240,13 @@ def clear_db_dag_parsing_requests():
         session.query(DagPriorityParsingRequest).delete()
 
 
+def clear_db_dag_bundles():
+    with create_session() as session:
+        from airflow.models.dagbundle import DagBundleModel
+
+        session.query(DagBundleModel).delete()
+
+
 def clear_dag_specific_permissions():
     try:
         from airflow.providers.fab.auth_manager.models import Permission, Resource, assoc_permission_role
@@ -285,4 +300,7 @@ def clear_all():
     clear_db_variables()
     clear_db_pools()
     clear_db_connections(add_default_connections_back=True)
+    clear_db_deadline()
     clear_dag_specific_permissions()
+    if AIRFLOW_V_3_0_PLUS:
+        clear_db_dag_bundles()

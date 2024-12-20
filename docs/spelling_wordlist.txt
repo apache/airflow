@@ -356,6 +356,7 @@ dagbag
 dagbags
 DagCallbackRequest
 DagFileProcessorManager
+dagfolder
 dagmodel
 DagParam
 Dagre
@@ -367,6 +368,7 @@ dagruns
 DagRunState
 dagRunState
 DAGs
+DagsFolderDagBundle
 Dask
 dask
 daskexecutor
@@ -577,6 +579,7 @@ errno
 errored
 eslint
 ETag
+etag
 etl
 europe
 eval

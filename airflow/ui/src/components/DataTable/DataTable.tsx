@@ -30,7 +30,7 @@ import {
 } from "@tanstack/react-table";
 import React, { type ReactNode, useCallback, useRef } from "react";
 
-import { ProgressBar, Pagination } from "../ui";
+import { ProgressBar, Pagination, Toaster } from "../ui";
 import { CardList } from "./CardList";
 import { TableList } from "./TableList";
 import { createSkeletonMock } from "./skeleton";
@@ -128,13 +128,14 @@ export const DataTable = <TData,>({
           Boolean(isFetching) && !Boolean(isLoading) ? "visible" : "hidden"
         }
       />
+      <Toaster />
       {errorMessage}
-      {!Boolean(isLoading) && !rows.length && (
-        <Text pt={1}>{noRowsMessage ?? `No ${modelName}s found.`}</Text>
-      )}
       {display === "table" && <TableList table={table} />}
       {display === "card" && cardDef !== undefined && (
         <CardList cardDef={cardDef} isLoading={isLoading} table={table} />
+      )}
+      {!Boolean(isLoading) && !rows.length && (
+        <Text pt={1}>{noRowsMessage ?? `No ${modelName}s found.`}</Text>
       )}
       <Pagination.Root
         count={table.getRowCount()}

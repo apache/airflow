@@ -27,6 +27,29 @@
 Changelog
 ---------
 
+12.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  Deprecated classes, parameters and features have been removed from the Google provider package.
+  The following breaking changes were introduced:
+
+  * Operators
+
+    * Removed ``CreateDataPipelineOperator``. Please use the ``DataflowCreatePipelineOperator`` instead
+    * Removed ``RunDataPipelineOperator``. Please use the ``DataflowRunPipelineOperator`` instead
+
+  * Hooks
+
+    * Removed ``DataPipelineHook``. Please use the ``DataflowHook`` instead
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed.
+
 11.0.0
 ......
 
@@ -80,6 +103,8 @@ Breaking changes
     * Removed ``CreateHyperparameterTuningJobOperator.sync``. This parameter is not in actual use
     * Removed ``CustomTrainingJobBaseOperator.sync``. This parameter is not in actual use
     * Removed ``GKEStartPodOperator.get_gke_config_file()``. Please use ``GKEStartPodOperator.fetch_cluster_info()`` instead
+    * Removed ``CreateDataPipelineOperator``. Please use the ``DataflowCreatePipelineOperator`` instead
+    * Removed ``RunDataPipelineOperator``. Please use the ``DataflowRunPipelineOperator`` instead
 
   * Triggers
 
@@ -141,6 +166,7 @@ Breaking changes
     * Removed ``BigQueryHook.run_query()``. Please use ``BigQueryHook.insert_job()`` instead
     * Removed ``BigQueryHook.create_external_table()``. Please use ``BigQueryHook.create_empty_table()`` instead
     * Removed ``BigQueryHook.get_service()``. Please use ``BigQueryHook.get_client()`` instead
+    * Removed ``DataPipelineHook``. Please use the DataflowHook instead
 
   * Backends
 

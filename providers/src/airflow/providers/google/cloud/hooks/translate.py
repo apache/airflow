@@ -39,9 +39,14 @@ if TYPE_CHECKING:
     from google.api_core.operation import Operation
     from google.cloud.translate_v3.services.translation_service import pagers
     from google.cloud.translate_v3.types import (
+        BatchDocumentInputConfig,
+        BatchDocumentOutputConfig,
         DatasetInputConfig,
+        DocumentInputConfig,
+        DocumentOutputConfig,
         InputConfig,
         OutputConfig,
+        TranslateDocumentResponse,
         TranslateTextGlossaryConfig,
         TransliterationConfig,
         automl_translation,
@@ -714,3 +719,199 @@ class TranslateHook(GoogleBaseHook):
             metadata=metadata,
         )
         return result
+
+    def translate_document(
+        self,
+        *,
+        project_id: str = PROVIDE_PROJECT_ID,
+        source_language_code: str | None = None,
+        target_language_code: str,
+        location: str | None = None,
+        document_input_config: DocumentInputConfig | dict,
+        document_output_config: DocumentOutputConfig | dict | None,
+        customized_attribution: str | None = None,
+        is_translate_native_pdf_only: bool = False,
+        enable_shadow_removal_native_pdf: bool = False,
+        enable_rotation_correction: bool = False,
+        model: str | None = None,
+        glossary_config: TranslateTextGlossaryConfig | None = None,
+        labels: str | None = None,
+        timeout: float | _MethodDefault = DEFAULT,
+        metadata: Sequence[tuple[str, str]] = (),
+        retry: Retry | _MethodDefault | None = DEFAULT,
+    ) -> TranslateDocumentResponse:
+        """
+        Translate the document provided.
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param source_language_code: Optional. The ISO-639 language code of the
+            input document text if known. If the source language isn't specified,
+            the API attempts to identify the source language automatically and returns
+            the source language within the response.
+        :param target_language_code: Required. The ISO-639 language code to use
+            for translation of the input document text.
+        :param location: Optional. Project or location to make a call. Must refer to
+            a caller's project.
+            If not specified, 'global' is used.
+            Non-global location is required for requests using AutoML models or custom glossaries.
+            Models and glossaries must be within the same region (have the same location-id).
+        :param document_input_config: A document translation request input config.
+        :param document_output_config: Optional. A document translation request output config.
+            If not provided the translated file will only be returned through a byte-stream
+            and its output mime type will be the same as the input file's mime type.
+        :param customized_attribution: Optional. This flag is to support user customized
+            attribution. If not provided, the default is ``Machine Translated by Google``.
+            Customized attribution should follow rules in
+            https://cloud.google.com/translate/attribution#attribution_and_logos
+        :param is_translate_native_pdf_only: Optional. Param for external
+            customers. If true, the page limit of online native PDF
+            translation is 300 and only native PDF pages will be
+            translated.
+        :param enable_shadow_removal_native_pdf: Optional. If true, use the text removal server to remove the
+            shadow text on background image for native PDF translation.
+            Shadow removal feature can only be enabled when both ``is_translate_native_pdf_only``,
+            ``pdf_native_only`` are False.
+        :param enable_rotation_correction: Optional. If true, enable auto rotation
+            correction in DVS.
+        :param model: Optional. The ``model`` type requested for this translation.
+            If not provided, the default Google model (NMT) will be used.
+            The format depends on model type:
+
+            -  AutoML Translation models:
+               ``projects/{project-number-or-id}/locations/{location-id}/models/{model-id}``
+            -  General (built-in) models:
+               ``projects/{project-number-or-id}/locations/{location-id}/models/general/nmt``,
+
+            If not provided, the default Google model (NMT) will be used
+            for translation.
+        :param glossary_config: Optional. Glossary to be applied. The glossary must be
+            within the same region (have the same location-id) as the
+            model.
+        :param labels: Optional. The labels with user-defined
+            metadata for the request.
+            See https://cloud.google.com/translate/docs/advanced/labels for more information.
+        :param retry: Designation of what errors, if any, should be retried.
+        :param timeout: The timeout for this request.
+        :param metadata: Strings which should be sent along with the request as metadata.
+
+        :return: Translate document result from the API response.
+        """
+        client = self.get_client()
+        location_id = "global" if not location else location
+        parent = f"projects/{project_id or self.project_id}/locations/{location_id}"
+        return client.translate_document(
+            request={
+                "parent": parent,
+                "source_language_code": source_language_code,
+                "target_language_code": target_language_code,
+                "document_input_config": document_input_config,
+                "document_output_config": document_output_config,
+                "customized_attribution": customized_attribution,
+                "is_translate_native_pdf_only": is_translate_native_pdf_only,
+                "enable_shadow_removal_native_pdf": enable_shadow_removal_native_pdf,
+                "enable_rotation_correction": enable_rotation_correction,
+                "model": model,
+                "glossary_config": glossary_config,
+                "labels": labels,
+            },
+            timeout=timeout,
+            retry=retry,
+            metadata=metadata,
+        )
+
+    def batch_translate_document(
+        self,
+        *,
+        project_id: str = PROVIDE_PROJECT_ID,
+        source_language_code: str,
+        target_language_codes: MutableSequence[str] | None = None,
+        location: str | None = None,
+        input_configs: MutableSequence[BatchDocumentInputConfig | dict],
+        output_config: BatchDocumentOutputConfig | dict,
+        customized_attribution: str | None = None,
+        format_conversions: MutableMapping[str, str] | None = None,
+        enable_shadow_removal_native_pdf: bool = False,
+        enable_rotation_correction: bool = False,
+        models: MutableMapping[str, str] | None = None,
+        glossaries: MutableMapping[str, TranslateTextGlossaryConfig] | None = None,
+        timeout: float | _MethodDefault = DEFAULT,
+        metadata: Sequence[tuple[str, str]] = (),
+        retry: Retry | _MethodDefault | None = DEFAULT,
+    ) -> Operation:
+        """
+        Translate documents batch by configs provided.
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param source_language_code: Optional. The ISO-639 language code of the
+            input text if known. If the source language isn't specified, the API attempts to identify
+            the source language automatically and returns the source language within the response.
+        :param target_language_codes: Required. The ISO-639 language code to use
+            for translation of the input document. Specify up to 10 language codes here.
+        :param location: Optional. Project or location to make a call. Must refer to
+            a caller's project. If not specified, 'global' is used.
+            Non-global location is required for requests using AutoML models or custom glossaries.
+            Models and glossaries must be within the same region (have the same location-id).
+        :param input_configs: Input configurations. The total number of files matched should be <=
+            100. The total content size to translate should be <= 100M Unicode codepoints.
+            The files must use UTF-8 encoding.
+        :param output_config: Output configuration. If 2 input configs match to the same file (that
+            is, same input path), no output for duplicate inputs will be generated.
+        :param format_conversions: Optional. The file format conversion map that is applied to
+            all input files. The map key is the original mime_type.
+            The map value is the target mime_type of translated documents.
+            Supported file format conversion includes:
+
+            -  ``application/pdf`` to
+               ``application/vnd.openxmlformats-officedocument.wordprocessingml.document``
+
+            If nothing specified, output files will be in the same format as the original file.
+        :param customized_attribution: Optional. This flag is to support user customized
+            attribution. If not provided, the default is ``Machine Translated by Google``.
+            Customized attribution should follow rules in
+            https://cloud.google.com/translate/attribution#attribution_and_logos
+        :param enable_shadow_removal_native_pdf: Optional. If true, use the text removal server to remove the
+            shadow text on background image for native PDF translation.
+            Shadow removal feature can only be enabled when both ``is_translate_native_pdf_only``,
+            ``pdf_native_only`` are False.
+        :param enable_rotation_correction: Optional. If true, enable auto rotation
+            correction in DVS.
+        :param models: Optional. The models to use for translation. Map's key is
+            target language code. Map's value is the model name. Value
+            can be a built-in general model, or an AutoML Translation model.
+            The value format depends on model type:
+
+            -  AutoML Translation models:
+               ``projects/{project-number-or-id}/locations/{location-id}/models/{model-id}``
+            -  General (built-in) models:
+               ``projects/{project-number-or-id}/locations/{location-id}/models/general/nmt``,
+
+            If the map is empty or a specific model is not requested for
+            a language pair, then default google model (NMT) is used.
+        :param glossaries: Glossaries to be applied. It's keyed by target language code.
+        :param retry: Designation of what errors, if any, should be retried.
+        :param timeout: The timeout for this request.
+        :param metadata: Strings which should be sent along with the request as metadata.
+
+        :return: Batch translate document result from the API response.
+        """
+        client = self.get_client()
+        location_id = "global" if not location else location
+        parent = f"projects/{project_id or self.project_id}/locations/{location_id}"
+        return client.batch_translate_document(
+            request={
+                "parent": parent,
+                "source_language_code": source_language_code,
+                "target_language_codes": target_language_codes,
+                "input_configs": input_configs,
+                "output_config": output_config,
+                "format_conversions": format_conversions,
+                "customized_attribution": customized_attribution,
+                "enable_shadow_removal_native_pdf": enable_shadow_removal_native_pdf,
+                "enable_rotation_correction": enable_rotation_correction,
+                "models": models,
+                "glossaries": glossaries,
+            },
+            timeout=timeout,
+            retry=retry,
+            metadata=metadata,
+        )

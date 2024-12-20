@@ -25,6 +25,7 @@ from unittest import mock
 import psycopg2.extras
 import pytest
 
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.types import NOTSET
@@ -65,9 +66,42 @@ class TestPostgresHookConn:
         assert mock_connect.call_count == 1
         assert self.db_hook.get_uri() == "postgresql://login:password@host:5432/database"
 
+    def test_sqlalchemy_url(self):
+        conn = Connection(login="login-conn", password="password-conn", host="host", schema="database")
+        hook = PostgresHook(connection=conn)
+        assert str(hook.sqlalchemy_url) == "postgresql://login-conn:password-conn@host/database"
+
+    def test_sqlalchemy_url_with_sqlalchemy_query(self):
+        conn = Connection(
+            login="login-conn",
+            password="password-conn",
+            host="host",
+            schema="database",
+            extra=dict(sqlalchemy_query={"gssencmode": "disable"}),
+        )
+        hook = PostgresHook(connection=conn)
+
+        assert (
+            str(hook.sqlalchemy_url)
+            == "postgresql://login-conn:password-conn@host/database?gssencmode=disable"
+        )
+
+    def test_sqlalchemy_url_with_wrong_sqlalchemy_query_value(self):
+        conn = Connection(
+            login="login-conn",
+            password="password-conn",
+            host="host",
+            schema="database",
+            extra=dict(sqlalchemy_query="wrong type"),
+        )
+        hook = PostgresHook(connection=conn)
+
+        with pytest.raises(AirflowException):
+            hook.sqlalchemy_url
+
     @mock.patch("airflow.providers.postgres.hooks.postgres.psycopg2.connect")
     def test_get_conn_cursor(self, mock_connect):
-        self.connection.extra = '{"cursor": "dictcursor"}'
+        self.connection.extra = '{"cursor": "dictcursor", "sqlalchemy_query": {"gssencmode": "disable"}}'
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with(
             cursor_factory=psycopg2.extras.DictCursor,

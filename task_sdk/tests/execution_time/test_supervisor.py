@@ -45,6 +45,7 @@ from airflow.sdk.execution_time.comms import (
     GetVariable,
     GetXCom,
     PutVariable,
+    RescheduleTask,
     SetXCom,
     TaskState,
     VariableResult,
@@ -763,7 +764,7 @@ class TestHandleRequest:
         [
             pytest.param(
                 GetConnection(conn_id="test_conn"),
-                b'{"conn_id":"test_conn","conn_type":"mysql"}\n',
+                b'{"conn_id":"test_conn","conn_type":"mysql","type":"ConnectionResult"}\n',
                 "connections.get",
                 ("test_conn",),
                 ConnectionResult(conn_id="test_conn", conn_type="mysql"),
@@ -792,6 +793,23 @@ class TestHandleRequest:
                 (TI_ID, DeferTask(next_method="execute_callback", classpath="my-classpath")),
                 "",
                 id="patch_task_instance_to_deferred",
+            ),
+            pytest.param(
+                RescheduleTask(
+                    reschedule_date=timezone.parse("2024-10-31T12:00:00Z"),
+                    end_date=timezone.parse("2024-10-31T12:00:00Z"),
+                ),
+                b"",
+                "task_instances.reschedule",
+                (
+                    TI_ID,
+                    RescheduleTask(
+                        reschedule_date=timezone.parse("2024-10-31T12:00:00Z"),
+                        end_date=timezone.parse("2024-10-31T12:00:00Z"),
+                    ),
+                ),
+                "",
+                id="patch_task_instance_to_up_for_reschedule",
             ),
             pytest.param(
                 GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
@@ -854,6 +872,8 @@ class TestHandleRequest:
                 {"ok": True},
                 id="set_xcom_with_map_index",
             ),
+            # we aren't adding all states under TerminalTIState here, because this test's scope is only to check
+            # if it can handle TaskState message
             pytest.param(
                 TaskState(state=TerminalTIState.SKIPPED, end_date=timezone.parse("2024-10-31T12:00:00Z")),
                 b"",

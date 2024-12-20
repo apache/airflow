@@ -21,7 +21,7 @@ import uuid
 from datetime import timedelta
 from typing import Annotated, Any, Literal, Union
 
-from pydantic import Discriminator, Field, Tag, WithJsonSchema
+from pydantic import AwareDatetime, Discriminator, Field, Tag, TypeAdapter, WithJsonSchema, field_validator
 
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel
@@ -29,6 +29,8 @@ from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionRe
 from airflow.api_fastapi.execution_api.datamodels.variable import VariableResponse
 from airflow.utils.state import IntermediateTIState, TaskInstanceState as TIState, TerminalTIState
 from airflow.utils.types import DagRunType
+
+AwareDatetimeAdapter = TypeAdapter(AwareDatetime)
 
 
 class TIEnterRunningPayload(BaseModel):
@@ -83,6 +85,30 @@ class TIDeferredStatePayload(BaseModel):
     next_method: str
     trigger_timeout: timedelta | None = None
 
+    @field_validator("trigger_kwargs")
+    def validate_moment(cls, v):
+        if "moment" in v:
+            v["moment"] = AwareDatetimeAdapter.validate_strings(v["moment"])
+        return v
+
+
+class TIRescheduleStatePayload(BaseModel):
+    """Schema for updating TaskInstance to a up_for_reschedule state."""
+
+    state: Annotated[
+        Literal[IntermediateTIState.UP_FOR_RESCHEDULE],
+        # Specify a default in the schema, but not in code, so Pydantic marks it as required.
+        WithJsonSchema(
+            {
+                "type": "string",
+                "enum": [IntermediateTIState.UP_FOR_RESCHEDULE],
+                "default": IntermediateTIState.UP_FOR_RESCHEDULE,
+            }
+        ),
+    ]
+    reschedule_date: UtcDateTime
+    end_date: UtcDateTime
+
 
 def ti_state_discriminator(v: dict[str, str] | BaseModel) -> str:
     """
@@ -101,6 +127,8 @@ def ti_state_discriminator(v: dict[str, str] | BaseModel) -> str:
         return "_terminal_"
     elif state == TIState.DEFERRED:
         return "deferred"
+    elif state == TIState.UP_FOR_RESCHEDULE:
+        return "up_for_reschedule"
     return "_other_"
 
 
@@ -111,6 +139,7 @@ TIStateUpdate = Annotated[
         Annotated[TITerminalStatePayload, Tag("_terminal_")],
         Annotated[TITargetStatePayload, Tag("_other_")],
         Annotated[TIDeferredStatePayload, Tag("deferred")],
+        Annotated[TIRescheduleStatePayload, Tag("up_for_reschedule")],
     ],
     Discriminator(ti_state_discriminator),
 ]

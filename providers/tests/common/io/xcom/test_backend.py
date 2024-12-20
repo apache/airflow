@@ -19,22 +19,13 @@ from __future__ import annotations
 
 import pytest
 
-from tests_common.test_utils.compat import ignore_provider_compatibility_error
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS
-
-pytestmark = [
-    pytest.mark.db_test,
-    pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Tests for Airflow 2.9.0+ only"),
-]
-
-
 import airflow.models.xcom
 from airflow.models.xcom import BaseXCom, resolve_xcom_backend
 from airflow.operators.empty import EmptyOperator
 
-with ignore_provider_compatibility_error("2.8.0", __file__):
-    from airflow.providers.common.io.xcom.backend import XComObjectStorageBackend
+pytestmark = [pytest.mark.db_test]
 
+from airflow.providers.common.io.xcom.backend import XComObjectStorageBackend
 from airflow.utils import timezone
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
