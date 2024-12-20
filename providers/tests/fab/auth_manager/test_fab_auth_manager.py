@@ -95,7 +95,9 @@ def flask_app():
 @pytest.fixture
 def auth_manager_with_appbuilder(flask_app):
     appbuilder = init_appbuilder(flask_app)
-    return FabAuthManager(appbuilder)
+    auth_manager = FabAuthManager()
+    auth_manager.appbuilder = appbuilder
+    return auth_manager
 
 
 @pytest.mark.db_test
