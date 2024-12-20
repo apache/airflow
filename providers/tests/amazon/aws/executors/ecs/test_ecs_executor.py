@@ -60,7 +60,7 @@ from airflow.version import version as airflow_version_str
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -1252,6 +1252,8 @@ class TestEcsExecutorConfig:
                 ecs_executor_config.build_task_kwargs(conf)
         assert raised.match("At least one subnet is required to run a task.")
 
+    # TODO: When merged this needs updating to the actually supported version
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3.0+")
     def test_team_config(self):
         # Team name to be used throughout
         team_name = "team_a"
