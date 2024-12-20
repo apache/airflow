@@ -3098,7 +3098,8 @@ export class VariableService {
       errors: {
         401: "Unauthorized",
         403: "Forbidden",
-        422: "Validation Error",
+        409: "Conflict",
+        422: "Unprocessable Entity",
       },
     });
   }
