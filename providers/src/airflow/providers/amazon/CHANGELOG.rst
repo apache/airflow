@@ -26,6 +26,15 @@
 Changelog
 ---------
 
+9.2.0
+.....
+
+Misc
+~~~~
+
+* ``The experimental AWS auth manager is no longer compatible with Airflow 2``
+
+
 9.1.0
 .....
 
