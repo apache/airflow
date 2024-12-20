@@ -147,7 +147,7 @@ def test_parse(test_dags_dir: Path, make_ti_context):
     assert isinstance(ti.task.dag, DAG)
 
 
-def test_run_basic(time_machine, mocked_parse, make_ti_context):
+def test_run_basic(time_machine, mocked_parse, make_ti_context, spy_agency):
     """Test running a basic task."""
     what = StartupDetails(
         ti=TaskInstance(id=uuid7(), task_id="hello", dag_id="super_basic_run", run_id="c", try_number=1),
@@ -163,7 +163,15 @@ def test_run_basic(time_machine, mocked_parse, make_ti_context):
         "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
     ) as mock_supervisor_comms:
         ti = mocked_parse(what, "super_basic_run", CustomOperator(task_id="hello"))
+
+        # Ensure that task is locked for execution
+        spy_agency.spy_on(ti.task.prepare_for_execution)
+        assert not ti.task._lock_for_execution
+
         run(ti, log=mock.MagicMock())
+
+        spy_agency.assert_spy_called(ti.task.prepare_for_execution)
+        assert ti.task._lock_for_execution
 
         mock_supervisor_comms.send_request.assert_called_once_with(
             msg=TaskState(state=TerminalTIState.SUCCESS, end_date=instant), log=mock.ANY
