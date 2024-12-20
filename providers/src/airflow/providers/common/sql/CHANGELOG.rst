@@ -25,15 +25,47 @@
 Changelog
 ---------
 
-main
-.....
+1.21.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 .. warning::
   All deprecated classes, parameters and features have been removed from the Common SQL provider package.
+  It could be that very old providers versions were depended on private functions of common.sql and as a result
+  users may have created custom code around them without realizing using private functions. This has long been fixed
+  and might affect users of very old provider versions. We are not considering this a breaking change yet we are listing
+  the changes explicitly for visibility.
   The following breaking changes were introduced:
 
   * Hooks
       * Remove ``_make_serializable`` method from ``DbApiHook``. Use ``_make_common_data_structure`` instead.
+
+Features
+~~~~~~~~
+
+* ``Added output_processor parameter to SQLQueryOperator and fixed bug with return_single_query_results handler when None is passed as split_statements (#44781)``
+* ``Moved common SQL handler methods of common-sql-provider into dedicated module (#43747)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+* ``Fix static checks in common SQL hooks (#44930)``
+* ``Added documentation for the SqlThresholdCheckOperator (#44787)``
+* ``Remove Provider Deprecations in Common SQL (#44645)``
+* ``Update DAG example links in multiple providers documents (#44034)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+
+
+.. Review and move the new changes to one of the sections above:
+   * ``Update path of example dags in docs (#45069)``
 
 1.20.0
 ......

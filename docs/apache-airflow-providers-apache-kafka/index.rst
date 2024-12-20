@@ -82,7 +82,7 @@ apache-airflow-providers-apache-kafka package
 `Apache Kafka  <https://kafka.apache.org/>`__
 
 
-Release: 1.6.1
+Release: 1.7.0
 
 Provider package
 ----------------
@@ -100,12 +100,12 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.9.0``.
 
 ===================  ==================
 PIP package          Version required
 ===================  ==================
-``apache-airflow``   ``>=2.8.0``
+``apache-airflow``   ``>=2.9.0``
 ``asgiref``          ``>=2.3.0``
 ``confluent-kafka``  ``>=2.3.0``
 ===================  ==================
