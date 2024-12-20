@@ -92,6 +92,24 @@ core:
       type: string
       example: ~
       default: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
+    simple_auth_manager_users:
+      description: |
+        The list of users and their associated role in simple auth manager. If the simple auth manager is
+        used in your environment, this list controls who can access the environment.
+
+        List of user-role delimited with a space. Each user-role is a comma delimited couple of username and
+        role. Roles are predefined in simple auth managers: viewer, user, op, admin.
+      version_added: 3.0.0
+      type: string
+      example: "bob:admin,peter:viewer"
+      default: "admin:admin"
+    simple_auth_manager_all_admins:
+      description: |
+        Whether to disable authentication and allow everyone as admin in the environment.
+      version_added: 3.0.0
+      type: string
+      example: ~
+      default: "False"
     parallelism:
       description: |
         This defines the maximum number of task instances that can run concurrently per scheduler in
