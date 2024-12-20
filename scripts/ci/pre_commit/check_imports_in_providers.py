@@ -27,8 +27,8 @@ sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from common_precommit_utils import (
     AIRFLOW_SOURCES_ROOT_PATH,
     console,
-    get_provider_dir,
-    get_provider_from_path,
+    get_provider_base_dir_from_path,
+    get_provider_id_from_path,
 )
 
 errors_found = False
@@ -53,31 +53,32 @@ def check_imports(folders_to_check: list[Path]):
         if not importing_file.startswith("providers/"):
             console.print(f"[yellow]Skipping non-provider file: {importing_file}")
             continue
-        imported_files = import_tree.get(importing_file, None)
-        if imported_files is None:
+        importing_file_path = Path(importing_file)
+        imported_file_paths = [Path(file) for file in import_tree.get(importing_file, None)]
+        if imported_file_paths is None:
             if importing_file != "providers/src/airflow/providers/__init__.py":
                 # providers/__init__.py should be ignored
                 console.print(f"[red]The file {importing_file} is not discovered by ruff analyze!")
                 errors_found = True
             continue
-        for imported_file in imported_files:
-            if imported_file.endswith("/version_compat.py"):
+        for imported_file_path in imported_file_paths:
+            if imported_file_path.name == "version_compat.py":
                 # Note - this will check also imports from other places - not only from providers
                 # Which means that import from tests_common, and airflow will be also banned
-                common_path = os.path.commonpath([importing_file, imported_file])
-                imported_file_parent_dir = Path(imported_file).parent.as_posix()
+                common_path = os.path.commonpath([importing_file, imported_file_path.as_posix()])
+                imported_file_parent_dir = imported_file_path.parent.as_posix()
                 if common_path != imported_file_parent_dir:
-                    provider_id = get_provider_from_path(Path(importing_file))
-                    provider_dir = get_provider_dir(provider_id)
+                    provider_id = get_provider_id_from_path(importing_file_path)
+                    provider_dir = get_provider_base_dir_from_path(importing_file_path)
                     console.print(
                         f"\n[red]Invalid import of `version_compat` module in provider {provider_id} in:\n"
                     )
-                    console.print(f"[yellow]{importing_file}")
+                    console.print(f"[yellow]{importing_file_path}")
                     console.print(
                         f"\n[bright_blue]The AIRFLOW_V_X_Y_PLUS import should be "
                         f"from the {provider_id} provider root directory ({provider_dir}), but it is currently from:"
                     )
-                    console.print(f"\n[yellow]{imported_file}\n")
+                    console.print(f"\n[yellow]{imported_file_path}\n")
                     console.print(
                         f"1. Copy `version_compat`.py to `{provider_dir}/version_compat.py` if not there.\n"
                         f"2. Import the version constants you need as:\n\n"

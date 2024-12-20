@@ -18,9 +18,9 @@
 Provider packages
 =================
 
-Airflow 2.0 is split into core and providers. They are delivered as separate packages:
+Airflow is split into core and providers. They are delivered as separate packages:
 
-* ``apache-airflow`` - core of Apache Airflow
+* ``apache-airflow`` - core of Apache Airflow (there are few more sub-packages separated)
 * ``apache-airflow-providers-*`` - More than 70 provider packages to communicate with external services
 
 **The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
@@ -48,35 +48,47 @@ This will synchronize all extras that you need for development and testing of Ai
 dependencies including runtime dependencies. See `local virtualenv <../07_local_virtualenv.rst>`_ or the uv project
 for more information.
 
-Therefore, until we can introduce multiple ``pyproject.toml`` for providers information/meta-data about the providers
-is kept in ``provider.yaml`` file in the right sub-directory of ``providers``. This file contains:
+.. note::
 
-* package name (``apache-airflow-provider-*``)
+   We are currently in the process of separating out providers to separate subprojects. This means that
+   "old" providers related code is split across multiple directories "providers", "docs" and that the
+   ``pyproject.toml`` files for them are dynamically generated when provider is built. The "new" providers
+   have all the files stored in the same "subfolder" of "providers" folder (for example all "airbyte" related
+   code is stored in "providers/airbyte" and there is an airbyte "pyproject.toml" stored in that folder and
+   the project is effectively a separate python project. It will take a while to migrate all the providers
+   to the new structure, so you might see both structures in the repository for some time.
+
+We have ``provider.yaml`` file in the provider's module of the ``providers``.
+
+This file contains:
+
 * user-facing name of the provider package
 * description of the package that is available in the documentation
 * list of versions of package that have been released so far
-* list of dependencies of the provider package
 * list of additional-extras that the provider package provides (together with dependencies of those extras)
 * list of integrations, operators, hooks, sensors, transfers provided by the provider (useful for documentation generation)
 * list of connection types, extra-links, secret backends, auth backends, and logging handlers (useful to both
   register them as they are needed by Airflow and to include them in documentation automatically).
-* and more ...
+
+In the old provider.yaml we also keep additional information there - list of dependencies for the provider.
+
+In the old providers, you should only update dependencies for the provider in the corresponding
+``provider.yaml``, in the new providers you should update dependencies in the ``pyproject.toml`` file.
+
+Eventually we might migrate ``provider.yaml`` fully to ``pyproject.toml`` file but that should be a separate
+change after we migrate all the providers to "new" structure.
 
 If you want to add dependencies to the provider, you should add them to the corresponding ``provider.yaml``
 and Airflow pre-commits and package generation commands will use them when preparing package information.
 
-In Airflow 2.0, providers are separated out, and not packaged together with the core when
-you build "apache-airflow" package, however when you install airflow project in editable
-mode with ``pip install -e ".[devel]"`` they are available in the same environment as Airflow.
-
-You should only update dependencies for the provider in the corresponding ``provider.yaml`` which is the
-source of truth for all information about the provider.
+Providers are not packaged together with the core when you build "apache-airflow" package.
 
 Some of the packages have cross-dependencies with other providers packages. This typically happens for
 transfer operators where operators use hooks from the other providers in case they are transferring
 data between the providers. The list of dependencies is maintained (automatically with the
 ``update-providers-dependencies`` pre-commit) in the ``generated/provider_dependencies.json``.
-Same pre-commit also updates generate dependencies in ``pyproject.toml``.
+
+Same pre-commit also updates generated dependencies in ``pyproject.toml`` for the new providers.
 
 Cross-dependencies between provider packages are converted into extras - if you need functionality from
 the other provider package you can install it adding [extra] after the
@@ -86,8 +98,10 @@ transfer operators from Amazon ECS.
 
 If you add a new dependency between different providers packages, it will be detected automatically during
 and pre-commit will generate new entry in ``generated/provider_dependencies.json`` and update
-``pyproject.toml`` so that the package extra dependencies are properly handled when package
-might be installed when breeze is restarted or by your IDE or by running ``pip install -e ".[devel]"``.
+``pyproject.toml`` in the new providers so that the package extra dependencies are properly handled when
+package might be installed when breeze is restarted or by your IDE or by running ``uv sync --extra PROVIDER``
+or when you run ``pip install -e "./providers"`` or ``pip install -e "./providers/<PROVIDER>"`` for the new
+provider structure.
 
 Chicken-egg providers
 ---------------------
@@ -112,9 +126,10 @@ parts of the system are developed in the same repository but then they are packa
 All the community-managed providers are in 'airflow/providers' folder and they are all sub-packages of
 'airflow.providers' package. All the providers are available as ``apache-airflow-providers-<PROVIDER_ID>``
 packages when installed by users, but when you contribute to providers you can work on airflow main
-and install provider dependencies via ``editable`` extras - without having to manage and install providers
-separately, you can easily run tests for the providers and when you run airflow from the ``main``
-sources, all community providers are automatically available for you.
+and install provider dependencies via ``editable`` extras (using uv workspace) - without
+having to manage and install providers separately, you can easily run tests for the providers
+and when you run airflow from the ``main`` sources, all community providers are
+automatically available for you.
 
 The capabilities of the community-managed providers are the same as the third-party ones. When
 the providers are installed from PyPI, they provide the entry-point containing the metadata as described
@@ -125,8 +140,11 @@ there where you should add and remove dependencies for providers (following by r
 ``update-providers-dependencies`` pre-commit to synchronize the dependencies with ``pyproject.toml``
 of Airflow).
 
-The ``provider.yaml`` file is compliant with the schema that is available in
+The old ``provider.yaml`` file is compliant with the schema that is available in
 `json-schema specification <https://github.com/apache/airflow/blob/main/airflow/provider.yaml.schema.json>`_.
+
+The new ``provider.yaml`` file is compliant with the new schema that is available in
+`json-schema specification <https://github.com/apache/airflow/blob/main/airflow/new_provider.yaml.schema.json>`_.
 
 Thanks to that mechanism, you can develop community managed providers in a seamless way directly from
 Airflow sources, without preparing and releasing them as packages separately, which would be rather
@@ -198,7 +216,7 @@ flag is preferred. To build with the version-suffix-for-pypi flag, use the follo
 Naming Conventions for provider packages
 ----------------------------------------
 
-In Airflow 2.0 we standardized and enforced naming for provider packages, modules and classes.
+In Airflow we standardized and enforced naming for provider packages, modules and classes.
 those rules (introduced as AIP-21) were not only introduced but enforced using automated checks
 that verify if the naming conventions are followed. Here is a brief summary of the rules, for
 detailed discussion you can go to `AIP-21 Changes in import paths <https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-21%3A+Changes+in+import+paths>`_
