@@ -293,7 +293,7 @@ class TestPatchVariable(TestVariableEndpoint):
         )
         assert response.status_code == 404
         body = response.json()
-        assert f"The Variable with key: `{TEST_VARIABLE_KEY}` was not found" == body["detail"]
+        assert f"The Variable with key: '{TEST_VARIABLE_KEY}' was not found" == body["detail"]
 
 
 class TestPostVariable(TestVariableEndpoint):
