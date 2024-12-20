@@ -91,7 +91,7 @@ Docker Community Edition
   sudo groupadd docker
   sudo usermod -aG docker $USER
 
-Note : This is done so a non-root user can access the `docker` command.
+Note : This is done so a non-root user can access the ``docker`` command.
 After adding user to docker group Logout and Login again for group membership re-evaluation.
 On some Linux distributions, the system automatically creates this group.
 
@@ -225,8 +225,8 @@ Set it to true for windows.
 
   git config core.autocrlf true
 
-Typical development tasks
-#########################
+Setting up Breeze
+-----------------
 
 For many of the development tasks you will need ``Breeze`` to be configured. ``Breeze`` is a development
 environment which uses docker and docker-compose and its main purpose is to provide a consistent
@@ -234,9 +234,6 @@ and repeatable environment for all the contributors and CI. When using ``Breeze`
 syndrome - because not only others can reproduce easily what you do, but also the CI of Airflow uses
 the same environment to run all tests - so you should be able to easily reproduce the same failures you
 see in CI in your local environment.
-
-Setting up Breeze
------------------
 
 1. Install ``uv`` or ``pipx``. We recommend to install ``uv`` as general purpose python development
    environment - you can install it via https://docs.astral.sh/uv/getting-started/installation/ or you can
@@ -491,27 +488,13 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
     started to use Python 3.9+ features in Airflow and accompanying scripts.
 
 
-Installing pre-commit is best done with ``uv`` (recommended) or ``pipx``:
-
-This will install ``pre-commit`` with ``uv``, and it will change it to use ``uv`` to install its own
-virtualenvs.
-
-.. code-block:: bash
-
-    uv tool install pre-commit --with pre-commit-uv
-
-or
-
-.. code-block:: bash
-
-    pipx install pre-commit
+Installing pre-commit is best done with ``uv`` (recommended) or ``pipx``.
 
 You can add ``uv`` support for ``pre-commit`` even you install it with ``pipx`` using the commands
 (then pre-commit will use ``uv`` to create virtualenvs for the hooks):
 
 .. code-block:: bash
 
-    pipx install pre-commit
     pipx inject pre-commit pre-commit-uv  # optionally if you want to use uv to install virtualenvs
 
 1.  Installing required packages
@@ -528,7 +511,7 @@ on macOS, install via
 
   brew install libxml2
 
-2. Installing pre-commit (if you have not done it yet):
+2. Installing pre-commit:
 
 .. code-block:: bash
 
@@ -539,7 +522,7 @@ or
 .. code-block:: bash
 
   pipx install pre-commit
-  pipx install inject pre-commit pre-commit-uv
+  pipx install inject pre-commit pre-commit-uv # optional, configures pre-commit to use uv to install virtualenvs
 
 3. Go to your project directory
 
@@ -690,18 +673,12 @@ All Tests are inside ./tests directory.
 
 - Running specific type of test
 
-  - Types of tests
-
-  - Running specific type of test
-
   .. code-block:: bash
 
     breeze --backend postgres --postgres-version 15 --python 3.9 --db-reset testing tests --test-type Core
 
 
 - Running Integration test for specific test type
-
-  - Running an Integration Test
 
   .. code-block:: bash
 
@@ -713,7 +690,9 @@ All Tests are inside ./tests directory.
 
    <a href="https://github.com/apache/airflow/blob/main/contributing-docs/09_testing.rst" target="_blank">09_testing.rst</a>
 
-  - |Local and Remote Debugging in IDE|
+- Similarly to regular development, you can also debug while testing using your IDE, for more information, you may refer to
+
+  |Local and Remote Debugging in IDE|
 
   .. |Local and Remote Debugging in IDE| raw:: html
 
