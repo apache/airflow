@@ -40,6 +40,7 @@ from pygments.formatters import HtmlFormatter
 from sqlalchemy import delete, func, select, types
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
 from airflow.models.errors import ParseImportError
@@ -50,7 +51,6 @@ from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.json import WebEncoder
 from airflow.utils.sqlalchemy import tuple_in_condition
 from airflow.utils.state import State, TaskInstanceState
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
 

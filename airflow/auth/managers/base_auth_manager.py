@@ -36,6 +36,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from fastapi import FastAPI
     from flask import Blueprint
     from sqlalchemy.orm import Session
 
@@ -55,7 +56,6 @@ if TYPE_CHECKING:
         VariableDetails,
     )
     from airflow.cli.cli_config import CLICommand
-    from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
     from airflow.www.security_manager import AirflowSecurityManagerV2
 
 ResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
@@ -68,13 +68,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
     Class to derive in order to implement concrete auth managers.
 
     Auth managers are responsible for any user management related operation such as login, logout, authz, ...
-
-    :param appbuilder: the flask app builder
     """
-
-    def __init__(self, appbuilder: AirflowAppBuilder | None = None) -> None:
-        super().__init__()
-        self.appbuilder = appbuilder
 
     def init(self) -> None:
         """
@@ -440,7 +434,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         """
         from airflow.www.security_manager import AirflowSecurityManagerV2
 
-        return AirflowSecurityManagerV2(self.appbuilder)
+        return AirflowSecurityManagerV2(getattr(self, "appbuilder"))
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
@@ -453,6 +447,15 @@ class BaseAuthManager(Generic[T], LoggingMixin):
 
     def get_api_endpoints(self) -> None | Blueprint:
         """Return API endpoint(s) definition for the auth manager."""
+        # TODO: Remove this method when legacy Airflow 2 UI is gone
+        return None
+
+    def get_fastapi_app(self) -> FastAPI | None:
+        """
+        Specify a sub FastAPI application specific to the auth manager.
+
+        This sub application, if specified, is mounted in the main FastAPI application.
+        """
         return None
 
     def register_views(self) -> None:
