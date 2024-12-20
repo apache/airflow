@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+from unittest import mock
 
 import pytest
 from git import Repo
@@ -265,3 +266,25 @@ class TestGitDagBundle:
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert str(bundle.path).endswith(subdir)
         assert {"some_new_file.py"} == files_in_repo
+
+    @pytest.mark.parametrize(
+        "repo_url, expected_url",
+        [
+            ("git@github.com:apache/airflow.git", "https://github.com/apache/airflow/tree/0f0f0f"),
+            ("git@gitlab.com:apache/airflow.git", "https://gitlab.com/apache/airflow/-/tree/0f0f0f"),
+            ("git@bitbucket.org:apache/airflow.git", "https://bitbucket.org/apache/airflow/src/0f0f0f"),
+        ],
+    )
+    @mock.patch("airflow.dag_processing.bundles.git.Repo")
+    @mock.patch.object(GitDagBundle, "_has_version")
+    def test_view_url(self, mock_has_version, mock_gitrepo, repo_url, expected_url):
+        mock_has_version.return_value = True
+
+        bundle = GitDagBundle(
+            name="test",
+            refresh_interval=300,
+            repo_url=repo_url,
+            tracking_ref="main",
+        )
+        view_url = bundle.view_url("0f0f0f")
+        assert view_url == expected_url
