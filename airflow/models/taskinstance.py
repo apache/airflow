@@ -92,7 +92,7 @@ from airflow.exceptions import (
 )
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetEvent, AssetModel
-from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
+from airflow.models.base import COLLATION_ARGS, Base, StringID, TaskInstanceDependencies, _sentinel
 from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
 from airflow.models.param import process_params
@@ -1634,6 +1634,7 @@ def _handle_reschedule(
     # see https://github.com/apache/airflow/pull/21362 for more info
     session.add(
         TaskReschedule(
+            ti.id,
             ti.task_id,
             ti.dag_id,
             ti.run_id,
@@ -3296,6 +3297,7 @@ class TaskInstance(Base, LoggingMixin):
         XCom.set(
             key=key,
             value=value,
+            ti_id=self.id,
             task_id=self.task_id,
             dag_id=self.dag_id,
             run_id=self.run_id,
@@ -3747,11 +3749,14 @@ class TaskInstanceNote(TaskInstanceDependencies):
 
     __tablename__ = "task_instance_note"
 
+    ti_id = Column(
+        String(36, **COLLATION_ARGS).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+        ForeignKey("task_instance.id", name="task_instance_note_ti_fkey", ondelete="CASCADE"),
+        nullable=False,
+        primary_key=True,
+    )
+
     user_id = Column(String(128), nullable=True)
-    task_id = Column(StringID(), primary_key=True, nullable=False)
-    dag_id = Column(StringID(), primary_key=True, nullable=False)
-    run_id = Column(StringID(), primary_key=True, nullable=False)
-    map_index = Column(Integer, primary_key=True, nullable=False)
     content = Column(String(1000).with_variant(Text(1000), "mysql"))
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
@@ -3759,18 +3764,7 @@ class TaskInstanceNote(TaskInstanceDependencies):
     task_instance = relationship("TaskInstance", back_populates="task_instance_note")
 
     __table_args__ = (
-        PrimaryKeyConstraint("task_id", "dag_id", "run_id", "map_index", name="task_instance_note_pkey"),
-        ForeignKeyConstraint(
-            (dag_id, task_id, run_id, map_index),
-            [
-                "task_instance.dag_id",
-                "task_instance.task_id",
-                "task_instance.run_id",
-                "task_instance.map_index",
-            ],
-            name="task_instance_note_ti_fkey",
-            ondelete="CASCADE",
-        ),
+        # define additional table-level arguments or constraints
     )
 
     def __init__(self, content, user_id=None):
