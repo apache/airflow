@@ -28,6 +28,8 @@ from sqlalchemy import (
     Column,
     ForeignKey,
     Index,
+    Integer,
+    PrimaryKeyConstraint,
     String,
     delete,
     select,
@@ -78,6 +80,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         nullable=False,
         primary_key=True,
     )
+    dag_run_id = Column(Integer(), nullable=False, primary_key=True)
     key = Column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
     value = Column(JSON().with_variant(postgresql.JSONB, "postgresql"))
     timestamp = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
@@ -89,6 +92,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         # separately, and enforce uniqueness with DagRun.id instead.
         Index("idx_xcom_key", key),
         Index("idx_xcom_task_instance", ti_id),
+        PrimaryKeyConstraint("dag_run_id", "key", ti_id, name="xcom_pkey"),
     )
 
     dag_run = relationship(
@@ -111,9 +115,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         self.value = self.orm_deserialize_value()
 
     def __repr__(self):
-        if self.map_index < 0:
-            return f'<XCom "{self.key}" ({self.task_id} @ {self.run_id})>'
-        return f'<XCom "{self.key}" ({self.task_id}[{self.map_index}] @ {self.run_id})>'
+        return f'<XCom "{self.key}" ({self.ti_id})>'
 
     @classmethod
     @provide_session
@@ -123,10 +125,6 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         value: Any,
         *,
         ti_id: str,
-        dag_id: str,
-        task_id: str,
-        run_id: str,
-        map_index: int = -1,
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -134,18 +132,19 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
 
         :param key: Key to store the XCom.
         :param value: XCom value to store.
-        :param dag_id: DAG ID.
-        :param task_id: Task ID.
-        :param run_id: DAG run ID for the task.
-        :param map_index: Optional map index to assign XCom for a mapped task.
-            The default is ``-1`` (set for a non-mapped task).
+        :param ti_id: TaskInstance ID.
         :param session: Database session. If not given, a new session will be
             created for this function.
         """
         from airflow.models.dagrun import DagRun
+        from airflow.models.taskinstance import TaskInstance
+
+        dag_id = session.query(TaskInstance.dag_id).filter_by(id=ti_id).scalar()
+        run_id = session.query(TaskInstance.run_id).filter_by(id=ti_id).scalar()
+        task_id = session.query(TaskInstance.task_id).filter_by(id=ti_id).scalar()
 
         if not run_id:
-            raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
+            raise ValueError(f"TaskInstance {ti_id} not found.")
 
         dag_run_id = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
         if dag_run_id is None:
@@ -174,21 +173,14 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
 
         value = cls.serialize_value(
             value=value,
-            key=key,
-            task_id=task_id,
-            dag_id=dag_id,
-            run_id=run_id,
-            map_index=map_index,
         )
 
         # Remove duplicate XComs and insert a new one.
         session.execute(
             delete(cls).where(
                 cls.key == key,
-                cls.run_id == run_id,
-                cls.task_id == task_id,
-                cls.dag_id == dag_id,
-                cls.map_index == map_index,
+                cls.ti_id == ti_id,
+                cls.dag_run_id == dag_run_id,
             )
         )
         new = cast(Any, cls)(  # Work around Mypy complaining model not defining '__init__'.
@@ -196,10 +188,6 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
             dag_run_id=dag_run_id,
             key=key,
             value=value,
-            run_id=run_id,
-            task_id=task_id,
-            dag_id=dag_id,
-            map_index=map_index,
         )
         session.add(new)
         session.flush()
