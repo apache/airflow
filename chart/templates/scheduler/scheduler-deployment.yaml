@@ -30,8 +30,8 @@
 {{- $stateful := and $local $persistence }}
 # We can skip DAGs mounts on scheduler if dagProcessor is enabled, except with $local mode
 {{- $localOrDagProcessorDisabled := or (not .Values.dagProcessor.enabled) $local }}
-# If we're using elasticsearch logging
-{{- $elasticsearch := .Values.elasticsearch.enabled }}
+# If we're using elasticsearch or opensearch logging
+{{- $remoteLogging := or .Values.elasticsearch.enabled .Values.opensearch.enabled }}
 {{- $nodeSelector := or .Values.scheduler.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.scheduler.affinity .Values.affinity }}
 {{- $tolerations := or .Values.scheduler.tolerations .Values.tolerations }}
@@ -217,8 +217,8 @@ spec:
                 {{- else }}
                   {{- include "scheduler_startup_check_command" . | indent 14 }}
                 {{- end }}
-          {{- if and $local (not $elasticsearch) }}
-          # Serve logs if we're in local mode and we don't have elasticsearch enabled.
+          {{- if and $local (not $remoteLogging) }}
+          # Serve logs if we're in local mode and we have neither elasticsearch nor opensearch enabled.
           ports:
             - name: worker-logs
               containerPort: {{ .Values.ports.workerLogs }}
