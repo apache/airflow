@@ -288,7 +288,6 @@ jobs:
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
-      IMAGE_TAG: ${{ inputs.image-tag }}
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}

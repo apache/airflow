@@ -16,7 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 function cleanup_docker {
-    docker system prune --all --force --volumes || true
+    # This is faster than docker prune
+    sudo systemctl stop docker
+    sudo rm -rf /var/lib/docker
+    sudo systemctl start docker
 }
 
 cleanup_docker
