@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import os
 import pathlib
 from typing import TYPE_CHECKING, Any
@@ -27,6 +28,7 @@ if TYPE_CHECKING:
     from google.cloud.bigquery.table import Table
 
     from airflow.providers.common.compat.openlineage.facet import Dataset
+    from airflow.utils.context import Context
 
 from airflow.providers.common.compat.openlineage.facet import (
     BaseFacet,
@@ -40,8 +42,13 @@ from airflow.providers.common.compat.openlineage.facet import (
     SchemaDatasetFacetFields,
     SymlinksDatasetFacet,
 )
+from airflow.providers.common.compat.openlineage.utils.spark import (
+    inject_parent_job_information_into_spark_properties,
+)
 from airflow.providers.google import __version__ as provider_version
 from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
+
+log = logging.getLogger(__name__)
 
 BIGQUERY_NAMESPACE = "bigquery"
 BIGQUERY_URI = "bigquery"
@@ -259,3 +266,123 @@ def get_from_nullable_chain(source: Any, chain: list[str]) -> Any | None:
         return source
     except AttributeError:
         return None
+
+
+def _is_openlineage_provider_accessible() -> bool:
+    """
+    Check if the OpenLineage provider is accessible.
+
+    This function attempts to import the necessary OpenLineage modules and checks if the provider
+    is enabled and the listener is available.
+
+    Returns:
+        bool: True if the OpenLineage provider is accessible, False otherwise.
+    """
+    try:
+        from airflow.providers.openlineage.conf import is_disabled
+        from airflow.providers.openlineage.plugins.listener import get_openlineage_listener
+    except ImportError:
+        log.debug("OpenLineage provider could not be imported.")
+        return False
+
+    if is_disabled():
+        log.debug("OpenLineage provider is disabled.")
+        return False
+
+    if not get_openlineage_listener():
+        log.debug("OpenLineage listener could not be found.")
+        return False
+
+    return True
+
+
+def _extract_supported_job_type_from_dataproc_job(job: dict) -> str | None:
+    """
+    Extract job type from a Dataproc job definition.
+
+    Args:
+        job: The Dataproc job definition.
+
+    Returns:
+        The job type for which the automatic OL injection is supported, if found, otherwise None.
+    """
+    supported_job_types = ("sparkJob", "pysparkJob", "spark_job", "pyspark_job")
+    return next((job_type for job_type in supported_job_types if job_type in job), None)
+
+
+def _replace_dataproc_job_properties(job: dict, job_type: str, new_properties: dict) -> dict:
+    """
+    Replace the properties of a specific job type in a Dataproc job definition.
+
+    Args:
+        job: The original Dataproc job definition.
+        job_type: The key representing the job type (e.g., "sparkJob").
+        new_properties: The new properties to replace the existing ones.
+
+    Returns:
+        A modified copy of the job with updated properties.
+
+    Raises:
+        KeyError: If the job_type does not exist in the job or lacks a "properties" field.
+    """
+    if job_type not in job:
+        raise KeyError(f"Job type '{job_type}' is missing in the job definition.")
+
+    updated_job = job.copy()
+    updated_job[job_type] = job[job_type].copy()
+    updated_job[job_type]["properties"] = new_properties
+
+    return updated_job
+
+
+def inject_openlineage_properties_into_dataproc_job(
+    job: dict, context: Context, inject_parent_job_info: bool
+) -> dict:
+    """
+    Inject OpenLineage properties into Spark job definition.
+
+    Function is not removing any configuration or modifying the job in any other way,
+    apart from adding desired OpenLineage properties to Dataproc job definition if not already present.
+
+    Note:
+        Any modification to job will be skipped if:
+            - OpenLineage provider is not accessible.
+            - The job type is not supported.
+            - Automatic parent job information injection is disabled.
+            - Any OpenLineage properties with parent job information are already present
+              in the Spark job definition.
+
+    Args:
+        job: The original Dataproc job definition.
+        context: The Airflow context in which the job is running.
+        inject_parent_job_info: Flag indicating whether to inject parent job information.
+
+    Returns:
+        The modified job definition with OpenLineage properties injected, if applicable.
+    """
+    if not inject_parent_job_info:
+        log.debug("Automatic injection of OpenLineage information is disabled.")
+        return job
+
+    if not _is_openlineage_provider_accessible():
+        log.warning(
+            "Could not access OpenLineage provider for automatic OpenLineage "
+            "properties injection. No action will be performed."
+        )
+        return job
+
+    if (job_type := _extract_supported_job_type_from_dataproc_job(job)) is None:
+        log.warning(
+            "Could not find a supported Dataproc job type for automatic OpenLineage "
+            "properties injection. No action will be performed.",
+        )
+        return job
+
+    properties = job[job_type].get("properties", {})
+
+    properties = inject_parent_job_information_into_spark_properties(properties=properties, context=context)
+
+    job_with_ol_config = _replace_dataproc_job_properties(
+        job=job, job_type=job_type, new_properties=properties
+    )
+    return job_with_ol_config

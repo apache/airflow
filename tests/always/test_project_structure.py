@@ -354,8 +354,6 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.automl.AutoMLTablesUpdateDatasetOperator",
         "airflow.providers.google.cloud.operators.automl.AutoMLDeployModelOperator",
         "airflow.providers.google.cloud.operators.automl.AutoMLBatchPredictOperator",
-        "airflow.providers.google.cloud.operators.datapipeline.CreateDataPipelineOperator",
-        "airflow.providers.google.cloud.operators.datapipeline.RunDataPipelineOperator",
         "airflow.providers.google.cloud.operators.dataproc.DataprocScaleClusterOperator",
         "airflow.providers.google.cloud.operators.mlengine.MLEngineManageModelOperator",
         "airflow.providers.google.cloud.operators.mlengine.MLEngineManageVersionOperator",
@@ -381,6 +379,8 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
     }
 
     BASE_CLASSES = {
+        "airflow.providers.google.cloud.operators.alloy_db.AlloyDBBaseOperator",
+        "airflow.providers.google.cloud.operators.alloy_db.AlloyDBWriteBaseOperator",
         "airflow.providers.google.cloud.operators.compute.ComputeEngineBaseOperator",
         "airflow.providers.google.cloud.transfers.bigquery_to_sql.BigQueryToSqlBaseOperator",
         "airflow.providers.google.cloud.operators.cloud_sql.CloudSQLBaseOperator",
