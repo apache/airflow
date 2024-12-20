@@ -32,13 +32,10 @@ class CallbackRequest(BaseModel):
     Base Class with information about the callback to be executed.
 
     :param msg: Additional Message that can be used for logging
-    :param processor_subdir: Directory used by Dag Processor when parsed the dag.
     """
 
     full_filepath: str
     """File Path to use to run the callback"""
-    processor_subdir: str | None = None
-    """Directory used by Dag Processor when parsed the dag"""
     msg: str | None = None
     """Additional Message that can be used for logging to determine failure/zombie"""
 

@@ -96,7 +96,8 @@ class TestGetDAGSource:
     def test_should_respond_200_version(self, test_client, accept, session, test_dag):
         dag_content = self._get_dag_file_code(test_dag.fileloc)
         # force reserialization
-        SerializedDagModel.write_dag(test_dag, processor_subdir="/tmp")
+        test_dag.doc_md = "new doc"
+        SerializedDagModel.write_dag(test_dag)
         dagcode = (
             session.query(DagCode)
             .filter(DagCode.fileloc == test_dag.fileloc)

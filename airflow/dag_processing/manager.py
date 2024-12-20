@@ -429,8 +429,6 @@ class DagFileProcessorManager:
         """Detect and deactivate DAGs which are no longer present in files."""
         to_deactivate = set()
         query = select(DagModel.dag_id, DagModel.fileloc, DagModel.last_parsed_time).where(DagModel.is_active)
-        if self.standalone_dag_processor:
-            query = query.where(DagModel.processor_subdir == dag_directory)
         dags_parsed = session.execute(query)
 
         for dag in dags_parsed:
@@ -595,13 +593,8 @@ class DagFileProcessorManager:
         self.log.debug("Fetching callbacks from the database.")
 
         callback_queue: list[CallbackRequest] = []
-        dag_directory = self.get_dag_directory()
         with prohibit_commit(session) as guard:
             query = select(DbCallbackRequest)
-            if self.standalone_dag_processor:
-                query = query.where(
-                    DbCallbackRequest.processor_subdir == dag_directory,
-                )
             query = query.order_by(DbCallbackRequest.priority_weight.asc()).limit(self.max_callbacks_per_loop)
             query = with_row_locks(query, of=DbCallbackRequest, session=session, skip_locked=True)
             callbacks = session.scalars(query)
@@ -677,10 +670,7 @@ class DagFileProcessorManager:
 
         dag_filelocs = {full_loc for path in self._file_paths for full_loc in _iter_dag_filelocs(path)}
 
-        DagModel.deactivate_deleted_dags(
-            dag_filelocs,
-            processor_subdir=self.get_dag_directory(),
-        )
+        DagModel.deactivate_deleted_dags(dag_filelocs)
 
         return True
 
@@ -700,12 +690,11 @@ class DagFileProcessorManager:
         :param session: session for ORM operations
         """
         self.log.debug("Removing old import errors")
-        query = delete(ParseImportError).where(ParseImportError.processor_subdir == self.get_dag_directory())
+        query = delete(ParseImportError)
 
         if self._file_paths:
             query = query.where(
                 ParseImportError.filename.notin_(self._file_paths),
-                ParseImportError.processor_subdir == self.get_dag_directory(),
             )
 
         session.execute(query.execution_options(synchronize_session="fetch"))
@@ -862,7 +851,6 @@ class DagFileProcessorManager:
                 run_count=self._file_stats[path].run_count,
                 parsing_result=proc.parsing_result,
                 path=path,
-                processor_subdir=self.get_dag_directory(),
                 session=session,
             )
 
@@ -1105,7 +1093,6 @@ def process_parse_results(
     run_count: int,
     path: str,
     parsing_result: DagFileParsingResult | None,
-    processor_subdir: str | None,
     session: Session,
 ) -> DagFileStat:
     """Take the parsing result and stats about the parser process and convert it into a DagFileState."""
@@ -1127,7 +1114,6 @@ def process_parse_results(
             dags=parsing_result.serialized_dags,
             import_errors=parsing_result.import_errors or {},
             warnings=set(parsing_result.warnings or []),
-            processor_subdir=processor_subdir,
             session=session,
         )
         stat.num_dags = len(parsing_result.serialized_dags)

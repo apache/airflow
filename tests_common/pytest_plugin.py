@@ -717,7 +717,6 @@ class DagMaker(Protocol):
         serialized: bool = ...,
         activate_assets: bool = ...,
         fileloc: str | None = None,
-        processor_subdir: str | None = None,
         session: Session | None = None,
         **kwargs,
     ) -> Self: ...
@@ -833,7 +832,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 return
 
             dag.clear(session=self.session)
-            dag.sync_to_db(processor_subdir=self.processor_subdir, session=self.session)
+            dag.sync_to_db(session=self.session)
 
             if dag.access_control:
                 from airflow.www.security_appless import ApplessAirflowSecurityManager
@@ -843,9 +842,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             self.dag_model = self.session.get(DagModel, dag.dag_id)
 
             if self.want_serialized:
-                self.serialized_model = SerializedDagModel(
-                    dag, processor_subdir=self.dag_model.processor_subdir
-                )
+                self.serialized_model = SerializedDagModel(dag)
                 sdm = SerializedDagModel.get(dag.dag_id, session=self.session)
 
                 if AIRFLOW_V_3_0_PLUS and not sdm:
@@ -945,7 +942,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             serialized=want_serialized,
             activate_assets=want_activate_assets,
             fileloc=None,
-            processor_subdir=None,
             session=None,
             **kwargs,
         ):
@@ -977,7 +973,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             self.dag.fileloc = fileloc or request.module.__file__
             self.want_serialized = serialized
             self.want_activate_assets = activate_assets
-            self.processor_subdir = processor_subdir
 
             return self
 
