@@ -21,6 +21,7 @@ import {
   DashboardService,
   EventLogService,
   ExtraLinksService,
+  GridService,
   ImportErrorService,
   JobService,
   MonitorService,
@@ -620,9 +621,9 @@ export const useDashboardServiceHistoricalMetrics = <
  * Get Structure Data.
  * @param data The data for the request.
  * @param data.dagId
- * @param data.root
  * @param data.includeUpstream
  * @param data.includeDownstream
+ * @param data.root
  * @param data.externalDependencies
  * @returns StructureDataResponse Successful Response
  * @throws ApiError

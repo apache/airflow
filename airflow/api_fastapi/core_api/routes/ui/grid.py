@@ -47,19 +47,15 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.services.ui.grid import (
     fill_task_instance_summaries,
     get_child_task_map,
-    get_dag_run_sort_param,
     get_task_group_map,
 )
 from airflow.models import DagRun, TaskInstance
-from airflow.models.dagrun import DagRunNote
-from airflow.models.taskinstance import TaskInstanceNote
 
 grid_router = AirflowRouter(prefix="/grid", tags=["Grid"])
 
 
 @grid_router.get(
     "/{dag_id}",
-    include_in_schema=False,
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND]),
 )
 def grid_data(
@@ -93,25 +89,13 @@ def grid_data(
         Range(lower_bound=logical_date_gte, upper_bound=logical_date_lte),
         attribute=DagRun.logical_date,
     )
-    # Retrieve, sort and encode the previous DAG Runs
+    # Retrieve, sort the previous DAG Runs
     base_query = (
-        select(
-            DagRun.run_id,
-            DagRun.queued_at,
-            DagRun.start_date,
-            DagRun.end_date,
-            DagRun.state,
-            DagRun.run_type,
-            DagRun.data_interval_start,
-            DagRun.data_interval_end,
-            DagRun.dag_version_id.label("version_number"),
-            DagRunNote.content.label("note"),
-        )
+        select(DagRun)
         .join(DagRun.dag_run_note, isouter=True)
         .select_from(DagRun)
         .where(DagRun.dag_id == dag.dag_id)
     )
-
     dag_runs_select_filter, _ = paginated_select(
         statement=base_query,
         filters=[
@@ -119,12 +103,15 @@ def grid_data(
             run_states,
             date_filter,
         ],
-        order_by=get_dag_run_sort_param(dag=dag, request_order_by=order_by),
+        order_by=order_by
+        | SortParam(
+            allowed_attrs=["logical_date", "data_interval_start", "data_interval_end"], model=DagRun
+        ).set_value(dag.timetable.run_ordering[0]),
         offset=offset,
         limit=limit,
     )
 
-    dag_runs = session.execute(dag_runs_select_filter)
+    dag_runs = session.scalars(dag_runs_select_filter)
 
     # Check if there are any DAG Runs with given criteria to eliminate unnecessary queries/errors
     if not dag_runs:
@@ -132,16 +119,7 @@ def grid_data(
 
     # Retrieve, sort and encode the Task Instances
     tis_of_dag_runs, _ = paginated_select(
-        statement=select(
-            TaskInstance.run_id,
-            TaskInstance.task_id,
-            TaskInstance.try_number,
-            TaskInstance.state,
-            TaskInstance.start_date,
-            TaskInstance.end_date,
-            TaskInstance.queued_dttm.label("queued_dttm"),
-            TaskInstanceNote.content.label("note"),
-        )
+        statement=select(TaskInstance)
         .join(TaskInstance.task_instance_note, isouter=True)
         .where(TaskInstance.dag_id == dag.dag_id),
         filters=[],
@@ -150,7 +128,7 @@ def grid_data(
         limit=None,
     )
 
-    task_instances = session.execute(tis_of_dag_runs)
+    task_instances = session.scalars(tis_of_dag_runs)
 
     # Generate Grouped Task Instances
     task_node_map_exclude = None
@@ -164,15 +142,19 @@ def grid_data(
         )
 
     task_node_map = get_task_group_map(dag=dag)
+    # Group the Task Instances by Parent Task (TaskGroup or Mapped) and All Task Instances
     parent_tis: dict[tuple[str, str], list] = collections.defaultdict(list)
     all_tis: dict[tuple[str, str], list] = collections.defaultdict(list)
     for ti in task_instances:
+        # Skip the Task Instances if upstream/downstream filtering is applied
         if task_node_map_exclude and ti.task_id not in task_node_map_exclude.keys():
             continue
+        # Populate the Grouped Task Instances (All Task Instances except the Parent Task Instances)
         if ti.task_id in get_child_task_map(
             parent_task_id=task_node_map[ti.task_id]["parent_id"], task_node_map=task_node_map
         ):
             all_tis[(ti.task_id, ti.run_id)].append(ti)
+        # Populate the Parent Task Instances
         parent_id = task_node_map[ti.task_id]["parent_id"]
         if not parent_id and task_node_map[ti.task_id]["is_group"]:
             parent_tis[(ti.task_id, ti.run_id)].append(ti)
@@ -218,7 +200,16 @@ def grid_data(
     # Aggregate the Task Instances by DAG Run
     grid_dag_runs = [
         GridDAGRunwithTIs(
-            **dag_run,
+            run_id=dag_run.run_id,
+            queued_at=dag_run.queued_at,
+            start_date=dag_run.start_date,
+            end_date=dag_run.end_date,
+            state=dag_run.state,
+            run_type=dag_run.run_type,
+            data_interval_start=dag_run.data_interval_start,
+            data_interval_end=dag_run.data_interval_end,
+            version_number=dag_run.dag_version_id,
+            note=dag_run.note,
             task_instances=task_instance_summaries[dag_run.run_id]
             if dag_run.run_id in task_instance_summaries
             else [],
