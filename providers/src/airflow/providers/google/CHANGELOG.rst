@@ -103,8 +103,6 @@ Breaking changes
     * Removed ``CreateHyperparameterTuningJobOperator.sync``. This parameter is not in actual use
     * Removed ``CustomTrainingJobBaseOperator.sync``. This parameter is not in actual use
     * Removed ``GKEStartPodOperator.get_gke_config_file()``. Please use ``GKEStartPodOperator.fetch_cluster_info()`` instead
-    * Removed ``CreateDataPipelineOperator``. Please use the ``DataflowCreatePipelineOperator`` instead
-    * Removed ``RunDataPipelineOperator``. Please use the ``DataflowRunPipelineOperator`` instead
 
   * Triggers
 
@@ -166,7 +164,6 @@ Breaking changes
     * Removed ``BigQueryHook.run_query()``. Please use ``BigQueryHook.insert_job()`` instead
     * Removed ``BigQueryHook.create_external_table()``. Please use ``BigQueryHook.create_empty_table()`` instead
     * Removed ``BigQueryHook.get_service()``. Please use ``BigQueryHook.get_client()`` instead
-    * Removed ``DataPipelineHook``. Please use the DataflowHook instead
 
   * Backends
 
