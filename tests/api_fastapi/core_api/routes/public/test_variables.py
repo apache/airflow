@@ -361,16 +361,22 @@ class TestPostVariable(TestVariableEndpoint):
         assert body["detail"] == f"Variable with key `{TEST_VARIABLE_KEY}` already exists"
 
     def test_post_should_respond_422_when_key_too_large(self, test_client):
-        # Generating a key that exceeds the size limit
-        oversized_key = "a" * 256
-        response = test_client.post(
-            "/public/variables",
-            json={
-                "key": oversized_key,
-                "value": "some value",
-                "description": "some description",
-            },
-        )
+        large_key = "a" * 251  # Exceeds the maximum length of 250
+        body = {
+            "key": large_key,
+            "value": "some_value",
+            "description": "key too large",
+        }
+        response = test_client.post("/public/variables", json=body)
         assert response.status_code == 422
-        body = response.json()
-        assert body["detail"] == "Variable key exceeds maximum length of 250 characters."
+        assert response.json() == {
+            "detail": [
+                {
+                    "type": "string_too_long",
+                    "loc": ["body", "key"],
+                    "msg": "String should have at most 250 characters",
+                    "input": large_key,
+                    "ctx": {"max_length": 250},
+                }
+            ]
+        }
