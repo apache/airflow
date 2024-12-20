@@ -85,6 +85,7 @@ core:
       type: string
       example: ~
       default: "SequentialExecutor"
+      multi_team: true
     auth_manager:
       description: |
         The auth manager class that airflow should use. Full import path to the auth manager class.
@@ -525,6 +526,13 @@ core:
       type: integer
       example: ~
       default: "4096"
+    multi_team_configurations:
+      description: |
+        A comma delimited list of team names and their respective configuration files (separated by a colon).
+      version_added: 3.1.0
+      type: string
+      example: "path/to/team_a/config:team_a,different/path/team_b/configuration:team_b"
+      default: ""
 database:
   description: ~
   options:
