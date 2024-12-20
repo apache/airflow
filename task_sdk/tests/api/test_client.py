@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+from unittest import mock
 
 import httpx
 import pytest
@@ -81,6 +82,122 @@ class TestClient:
             client.get("http://error")
         assert err.value.args == ("Not found",)
         assert err.value.detail is None
+
+    @mock.patch("time.sleep", return_value=None)
+    def test_retry_handling_unrecoverable_error(self, mock_sleep):
+        responses: list[httpx.Response] = [
+            *[httpx.Response(500, text="Internal Server Error")] * 11,
+            httpx.Response(200, json={"detail": "Recovered from error - but will fail before"}),
+            httpx.Response(400, json={"detail": "Should not get here"}),
+        ]
+
+        def mock_handle_request(request: httpx.Request) -> httpx.Response:
+            return responses.pop(0)
+
+        client = Client(
+            base_url=None,
+            dry_run=True,
+            token="",
+            mounts={"'http://": httpx.MockTransport(mock_handle_request)},
+        )
+
+        with pytest.raises(httpx.HTTPStatusError) as err:
+            client.get("http://error")
+        assert not isinstance(err.value, ServerResponseError)
+        assert len(responses) == 3
+        assert mock_sleep.call_count == 9
+
+    @mock.patch("time.sleep", return_value=None)
+    def test_retry_handling_recovered(self, mock_sleep):
+        responses: list[httpx.Response] = [
+            *[httpx.Response(500, text="Internal Server Error")] * 3,
+            httpx.Response(200, json={"detail": "Recovered from error"}),
+            httpx.Response(400, json={"detail": "Should not get here"}),
+        ]
+
+        def mock_handle_request(request: httpx.Request) -> httpx.Response:
+            return responses.pop(0)
+
+        client = Client(
+            base_url=None,
+            dry_run=True,
+            token="",
+            mounts={"'http://": httpx.MockTransport(mock_handle_request)},
+        )
+
+        response = client.get("http://error")
+        assert response.status_code == 200
+        assert len(responses) == 1
+        assert mock_sleep.call_count == 3
+
+    @mock.patch("time.sleep", return_value=None)
+    def test_retry_handling_overload(self, mock_sleep):
+        responses: list[httpx.Response] = [
+            httpx.Response(429, text="I am really busy atm, please back-off", headers={"Retry-After": "37"}),
+            httpx.Response(200, json={"detail": "Recovered from error"}),
+            httpx.Response(400, json={"detail": "Should not get here"}),
+        ]
+
+        def mock_handle_request(request: httpx.Request) -> httpx.Response:
+            return responses.pop(0)
+
+        client = Client(
+            base_url=None,
+            dry_run=True,
+            token="",
+            mounts={"'http://": httpx.MockTransport(mock_handle_request)},
+        )
+
+        response = client.get("http://error")
+        assert response.status_code == 200
+        assert len(responses) == 1
+        assert mock_sleep.call_count == 1
+        assert mock_sleep.call_args[0][0] == 37
+
+    @mock.patch("time.sleep", return_value=None)
+    def test_retry_handling_non_retry_error(self, mock_sleep):
+        responses: list[httpx.Response] = [
+            httpx.Response(422, json={"detail": "Somehow this is a bad request"}),
+            httpx.Response(400, json={"detail": "Should not get here"}),
+        ]
+
+        def mock_handle_request(request: httpx.Request) -> httpx.Response:
+            return responses.pop(0)
+
+        client = Client(
+            base_url=None,
+            dry_run=True,
+            token="",
+            mounts={"'http://": httpx.MockTransport(mock_handle_request)},
+        )
+
+        with pytest.raises(ServerResponseError) as err:
+            client.get("http://error")
+        assert len(responses) == 1
+        assert mock_sleep.call_count == 0
+        assert err.value.args == ("Somehow this is a bad request",)
+
+    @mock.patch("time.sleep", return_value=None)
+    def test_retry_handling_ok(self, mock_sleep):
+        responses: list[httpx.Response] = [
+            httpx.Response(200, json={"detail": "Recovered from error"}),
+            httpx.Response(400, json={"detail": "Should not get here"}),
+        ]
+
+        def mock_handle_request(request: httpx.Request) -> httpx.Response:
+            return responses.pop(0)
+
+        client = Client(
+            base_url=None,
+            dry_run=True,
+            token="",
+            mounts={"'http://": httpx.MockTransport(mock_handle_request)},
+        )
+
+        response = client.get("http://error")
+        assert response.status_code == 200
+        assert len(responses) == 1
+        assert mock_sleep.call_count == 0
 
 
 def make_client(transport: httpx.MockTransport) -> Client:
