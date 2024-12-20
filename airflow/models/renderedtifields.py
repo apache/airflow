@@ -25,19 +25,18 @@ from typing import TYPE_CHECKING
 import sqlalchemy_jsonfield
 from sqlalchemy import (
     Column,
-    ForeignKeyConstraint,
-    Integer,
-    PrimaryKeyConstraint,
+    ForeignKey,
+    String,
     delete,
     exists,
     select,
-    text,
 )
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
 
 from airflow.configuration import conf
-from airflow.models.base import StringID, TaskInstanceDependencies
+from airflow.models.base import COLLATION_ARGS, TaskInstanceDependencies
 from airflow.serialization.helpers import serialize_template_field
 from airflow.settings import json
 from airflow.utils.retries import retry_db_transaction
@@ -69,33 +68,23 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
     __tablename__ = "rendered_task_instance_fields"
 
-    dag_id = Column(StringID(), primary_key=True)
-    task_id = Column(StringID(), primary_key=True)
-    run_id = Column(StringID(), primary_key=True)
-    map_index = Column(Integer, primary_key=True, server_default=text("-1"))
+    ti_id = Column(
+        String(36, **COLLATION_ARGS).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+        ForeignKey("task_instance.id", name="rendered_task_instance_fields_ti_fkey", ondelete="CASCADE"),
+        nullable=False,
+        primary_key=True,
+    )
+
+    # TODO: Add primary key constraint to ti_id
+    # dag_id = Column(StringID(), primary_key=True)
+    # task_id = Column(StringID(), primary_key=True)
+    # run_id = Column(StringID(), primary_key=True)
+    # map_index = Column(Integer, primary_key=True, server_default=text("-1"))
     rendered_fields = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
     k8s_pod_yaml = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
 
-    __table_args__ = (
-        PrimaryKeyConstraint(
-            "dag_id",
-            "task_id",
-            "run_id",
-            "map_index",
-            name="rendered_task_instance_fields_pkey",
-        ),
-        ForeignKeyConstraint(
-            [dag_id, task_id, run_id, map_index],
-            [
-                "task_instance.dag_id",
-                "task_instance.task_id",
-                "task_instance.run_id",
-                "task_instance.map_index",
-            ],
-            name="rtif_ti_fkey",
-            ondelete="CASCADE",
-        ),
-    )
+    __table_args__ = ()
+
     task_instance = relationship(
         "TaskInstance",
         lazy="joined",
@@ -121,6 +110,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
         self.run_id = ti.run_id
         self.map_index = ti.map_index
         self.ti = ti
+        self.ti_id = ti.id
         if render_templates:
             ti.render_templates()
 

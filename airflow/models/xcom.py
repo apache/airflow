@@ -26,21 +26,18 @@ from typing import TYPE_CHECKING, Any, cast
 from sqlalchemy import (
     JSON,
     Column,
-    ForeignKeyConstraint,
+    ForeignKey,
     Index,
-    Integer,
-    PrimaryKeyConstraint,
     String,
     delete,
     select,
-    text,
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Query, reconstructor, relationship
 
 from airflow.configuration import conf
-from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
+from airflow.models.base import COLLATION_ARGS, TaskInstanceDependencies
 from airflow.utils import timezone
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.helpers import is_container
@@ -71,36 +68,27 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
 
     __tablename__ = "xcom"
 
-    dag_run_id = Column(Integer(), nullable=False, primary_key=True)
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False, primary_key=True)
-    map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
+    ti_id = Column(
+        String(36, **COLLATION_ARGS).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+        ForeignKey(
+            "task_instance.id",
+            name="xcom_ti_fkey",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+        primary_key=True,
+    )
     key = Column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
-
-    # Denormalized for easier lookup.
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    run_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-
     value = Column(JSON().with_variant(postgresql.JSONB, "postgresql"))
     timestamp = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     __table_args__ = (
+        # TODO: Make index over (key, ti_id)
         # Ideally we should create a unique index over (key, dag_id, task_id, run_id),
         # but it goes over MySQL's index length limit. So we instead index 'key'
         # separately, and enforce uniqueness with DagRun.id instead.
         Index("idx_xcom_key", key),
-        Index("idx_xcom_task_instance", dag_id, task_id, run_id, map_index),
-        PrimaryKeyConstraint("dag_run_id", "task_id", "map_index", "key", name="xcom_pkey"),
-        ForeignKeyConstraint(
-            [dag_id, task_id, run_id, map_index],
-            [
-                "task_instance.dag_id",
-                "task_instance.task_id",
-                "task_instance.run_id",
-                "task_instance.map_index",
-            ],
-            name="xcom_task_instance_fkey",
-            ondelete="CASCADE",
-        ),
+        Index("idx_xcom_task_instance", ti_id),
     )
 
     dag_run = relationship(
@@ -111,6 +99,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         passive_deletes="all",
     )
     logical_date = association_proxy("dag_run", "logical_date")
+    # TODO: write association_proxy for dag_id and run_id
 
     @reconstructor
     def init_on_load(self):
@@ -133,6 +122,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         key: str,
         value: Any,
         *,
+        ti_id: str,
         dag_id: str,
         task_id: str,
         run_id: str,
@@ -202,6 +192,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
             )
         )
         new = cast(Any, cls)(  # Work around Mypy complaining model not defining '__init__'.
+            ti_id=ti_id,
             dag_run_id=dag_run_id,
             key=key,
             value=value,
