@@ -887,12 +887,7 @@ class TestHandleRequest:
                 SetRenderedFields(rendered_fields={"field1": "rendered_value1", "field2": "rendered_value2"}),
                 b"",
                 "task_instances.set_rtif",
-                (
-                    TI_ID,
-                    SetRenderedFields(
-                        rendered_fields={"field1": "rendered_value1", "field2": "rendered_value2"}
-                    ),
-                ),
+                (TI_ID, {"field1": "rendered_value1", "field2": "rendered_value2"}),
                 {"ok": True},
                 id="set_rtif",
             ),
