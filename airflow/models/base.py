@@ -19,8 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Column, MetaData, String
-from sqlalchemy.dialects import postgresql
+from sqlalchemy import Column, Integer, MetaData, String, text
 from sqlalchemy.orm import registry
 
 from airflow.configuration import conf
@@ -91,7 +90,7 @@ class TaskInstanceDependencies(Base):
 
     __abstract__ = True
 
-    ti_id = Column(
-        String(36, **COLLATION_ARGS).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
-        nullable=False,
-    )
+    task_id = Column(StringID(), nullable=False)
+    dag_id = Column(StringID(), nullable=False)
+    run_id = Column(StringID(), nullable=False)
+    map_index = Column(Integer, nullable=False, server_default=text("-1"))
