@@ -86,12 +86,10 @@ def initial_db_init():
 
     if AIRFLOW_V_3_0_PLUS:
         from airflow.api_fastapi.app import get_auth_manager
-
-        get_auth_manager().init()
     else:
         from airflow.www.extensions.init_auth_manager import get_auth_manager
 
-        get_auth_manager().init()
+    get_auth_manager().init()
 
 
 def clear_db_runs():
