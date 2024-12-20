@@ -709,6 +709,7 @@ class WatchedSubprocess:
             self._handle_request(msg, log)
 
     def _handle_request(self, msg: ToSupervisor, log: FilteringBoundLogger):
+        log.debug("Received message from task runner", msg=msg)
         resp = None
         if isinstance(msg, TaskState):
             self._terminal_state = msg.state
