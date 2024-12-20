@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Iterable
 from contextlib import closing
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Union
@@ -31,11 +30,13 @@ from sqlalchemy.engine import URL
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.postgres.dialects.postgres import PostgresDialect
 
 if TYPE_CHECKING:
     from psycopg2.extensions import connection
 
     from airflow.models.connection import Connection
+    from airflow.providers.common.sql.dialects.dialect import Dialect
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 CursorType = Union[DictCursor, RealDictCursor, NamedTupleCursor]
@@ -122,6 +123,14 @@ class PostgresHook(DbApiHook):
             database=self.database or conn.schema,
             query=query,
         )
+
+    @property
+    def dialect_name(self) -> str:
+        return "postgresql"
+
+    @property
+    def dialect(self) -> Dialect:
+        return PostgresDialect(self)
 
     def _get_cursor(self, raw_cursor: str) -> CursorType:
         _cursor = raw_cursor.lower()
@@ -286,67 +295,7 @@ class PostgresHook(DbApiHook):
         :param schema: Name of the target schema, public by default
         :return: Primary key columns list
         """
-        sql = """
-            select kcu.column_name
-            from information_schema.table_constraints tco
-                    join information_schema.key_column_usage kcu
-                        on kcu.constraint_name = tco.constraint_name
-                            and kcu.constraint_schema = tco.constraint_schema
-                            and kcu.constraint_name = tco.constraint_name
-            where tco.constraint_type = 'PRIMARY KEY'
-            and kcu.table_schema = %s
-            and kcu.table_name = %s
-        """
-        pk_columns = [row[0] for row in self.get_records(sql, (schema, table))]
-        return pk_columns or None
-
-    def _generate_insert_sql(
-        self, table: str, values: tuple[str, ...], target_fields: Iterable[str], replace: bool, **kwargs
-    ) -> str:
-        """
-        Generate the INSERT SQL statement.
-
-        The REPLACE variant is specific to the PostgreSQL syntax.
-
-        :param table: Name of the target table
-        :param values: The row to insert into the table
-        :param target_fields: The names of the columns to fill in the table
-        :param replace: Whether to replace instead of insert
-        :param replace_index: the column or list of column names to act as
-            index for the ON CONFLICT clause
-        :return: The generated INSERT or REPLACE SQL statement
-        """
-        placeholders = [
-            self.placeholder,
-        ] * len(values)
-        replace_index = kwargs.get("replace_index")
-
-        if target_fields:
-            target_fields_fragment = ", ".join(target_fields)
-            target_fields_fragment = f"({target_fields_fragment})"
-        else:
-            target_fields_fragment = ""
-
-        sql = f"INSERT INTO {table} {target_fields_fragment} VALUES ({','.join(placeholders)})"
-
-        if replace:
-            if not target_fields:
-                raise ValueError("PostgreSQL ON CONFLICT upsert syntax requires column names")
-            if not replace_index:
-                raise ValueError("PostgreSQL ON CONFLICT upsert syntax requires an unique index")
-            if isinstance(replace_index, str):
-                replace_index = [replace_index]
-
-            on_conflict_str = f" ON CONFLICT ({', '.join(replace_index)})"
-            replace_target = [f for f in target_fields if f not in replace_index]
-
-            if replace_target:
-                replace_target_str = ", ".join(f"{col} = excluded.{col}" for col in replace_target)
-                sql += f"{on_conflict_str} DO UPDATE SET {replace_target_str}"
-            else:
-                sql += f"{on_conflict_str} DO NOTHING"
-
-        return sql
+        return self.dialect.get_primary_keys(table=table, schema=schema)
 
     def get_openlineage_database_info(self, connection) -> DatabaseInfo:
         """Return Postgres/Redshift specific information for OpenLineage."""

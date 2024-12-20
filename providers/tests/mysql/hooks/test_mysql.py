@@ -24,6 +24,7 @@ from contextlib import closing
 from unittest import mock
 
 import pytest
+import sqlalchemy
 
 from airflow.models import Connection
 from airflow.models.dag import DAG
@@ -31,18 +32,20 @@ from airflow.models.dag import DAG
 try:
     import MySQLdb.cursors
 
-    from airflow.providers.mysql.hooks.mysql import MySqlHook
+    MYSQL_AVAILABLE = True
 except ImportError:
-    pytest.skip("MySQL not available", allow_module_level=True)
+    MYSQL_AVAILABLE = False
 
-
+from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.utils import timezone
 
 from tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 SSL_DICT = {"cert": "/tmp/client-cert.pem", "ca": "/tmp/server-ca.pem", "key": "/tmp/client-key.pem"}
+INSERT_SQL_STATEMENT = "INSERT INTO connection (id, conn_id, conn_type, description, host, `schema`, login, password, port, is_encrypted, is_extra_encrypted, extra) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
 
 
+@pytest.mark.skipif(not MYSQL_AVAILABLE, reason="MySQL not available")
 class TestMySqlHookConn:
     def setup_method(self):
         self.connection = Connection(
@@ -223,6 +226,7 @@ class MockMySQLConnectorConnection:
         self._autocommit = autocommit
 
 
+@pytest.mark.db_test
 class TestMySqlHook:
     def setup_method(self):
         self.cur = mock.MagicMock(rowcount=0)
@@ -327,6 +331,80 @@ class TestMySqlHook:
             ),
         )
 
+    def test_reserved_words(self):
+        hook = MySqlHook()
+        assert hook.reserved_words == sqlalchemy.dialects.mysql.reserved_words.RESERVED_WORDS_MYSQL
+
+    def test_generate_insert_sql_without_already_escaped_column_name(self):
+        values = [
+            "1",
+            "mssql_conn",
+            "mssql",
+            "MSSQL connection",
+            "localhost",
+            "airflow",
+            "admin",
+            "admin",
+            1433,
+            False,
+            False,
+            {},
+        ]
+        target_fields = [
+            "id",
+            "conn_id",
+            "conn_type",
+            "description",
+            "host",
+            "schema",
+            "login",
+            "password",
+            "port",
+            "is_encrypted",
+            "is_extra_encrypted",
+            "extra",
+        ]
+        hook = MySqlHook()
+        assert (
+            hook._generate_insert_sql(table="connection", values=values, target_fields=target_fields)
+            == INSERT_SQL_STATEMENT
+        )
+
+    def test_generate_insert_sql_with_already_escaped_column_name(self):
+        values = [
+            "1",
+            "mssql_conn",
+            "mssql",
+            "MSSQL connection",
+            "localhost",
+            "airflow",
+            "admin",
+            "admin",
+            1433,
+            False,
+            False,
+            {},
+        ]
+        target_fields = [
+            "id",
+            "conn_id",
+            "conn_type",
+            "description",
+            "host",
+            "`schema`",
+            "login",
+            "password",
+            "port",
+            "is_encrypted",
+            "is_extra_encrypted",
+            "extra",
+        ]
+        hook = MySqlHook()
+        assert (
+            hook._generate_insert_sql(table="connection", values=values, target_fields=target_fields)
+            == INSERT_SQL_STATEMENT
+        )
+
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -348,6 +426,7 @@ class MySqlContext:
 
 
 @pytest.mark.backend("mysql")
+@pytest.mark.skipif(not MYSQL_AVAILABLE, reason="MySQL not available")
 class TestMySql:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
