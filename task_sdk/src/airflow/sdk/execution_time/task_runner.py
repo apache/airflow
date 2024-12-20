@@ -320,8 +320,13 @@ def run(ti: RuntimeTaskInstance, log: Logger):
     except SystemExit:
         ...
     except BaseException:
-        # TODO: Handle TI handle failure
-        raise
+        msg = TaskState(state=TerminalTIState.FAILED, end_date=datetime.now(tz=timezone.utc))
+        if not getattr(ti, "task", None):
+            # We do not know about retries, let's mark it -1, so that the execution api can make a guess
+            msg.task_retries = -1
+        else:
+            # `None` indicates no retries provided, the default is anyway 0 which evaluates to false
+            msg.task_retries = ti.task.retries or None
 
     if msg:
         SUPERVISOR_COMMS.send_request(msg=msg, log=log)

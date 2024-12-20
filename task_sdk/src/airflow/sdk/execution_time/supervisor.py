@@ -291,6 +291,8 @@ class WatchedSubprocess:
     _exit_code: int | None = attrs.field(default=None, init=False)
     _terminal_state: str | None = attrs.field(default=None, init=False)
     _final_state: str | None = attrs.field(default=None, init=False)
+    # denotes if a task `has` retries defined or not, helpful to send signals between the handle_requests and wait
+    _should_retry: bool = attrs.field(default=False, init=False)
 
     _last_successful_heartbeat: float = attrs.field(default=0, init=False)
     _last_heartbeat_attempt: float = attrs.field(default=0, init=False)
@@ -515,13 +517,15 @@ class WatchedSubprocess:
         # If it hasn't, assume it's failed
         self._exit_code = self._exit_code if self._exit_code is not None else 1
 
+        print("The exit code is", self._exit_code)
+
         # If the process has finished in a terminal state, update the state of the TaskInstance
         # to reflect the final state of the process.
         # For states like `deferred`, the process will exit with 0, but the state will be updated
         # by the subprocess in the `handle_requests` method.
-        if self.final_state in TerminalTIState:
+        if self.final_state in TerminalTIState and not self._should_retry:
             self.client.task_instances.finish(
-                id=self.id, state=self.final_state, when=datetime.now(tz=timezone.utc)
+                id=self.id, state=self.final_state, when=datetime.now(tz=timezone.utc), task_retries=None
             )
         return self._exit_code
 
@@ -710,6 +714,14 @@ class WatchedSubprocess:
         if isinstance(msg, TaskState):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
+            if msg.task_retries:
+                self.client.task_instances.finish(
+                    id=self.id,
+                    state=self.final_state,
+                    when=datetime.now(tz=timezone.utc),
+                    task_retries=msg.task_retries,
+                )
+                self._should_retry = True
         elif isinstance(msg, GetConnection):
             conn = self.client.connections.get(msg.conn_id)
             if isinstance(conn, ConnectionResponse):

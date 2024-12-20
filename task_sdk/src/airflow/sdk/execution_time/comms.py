@@ -121,6 +121,7 @@ class TaskState(BaseModel):
 
     state: TerminalTIState
     end_date: datetime | None = None
+    task_retries: int | None = None
     type: Literal["TaskState"] = "TaskState"
 
 
