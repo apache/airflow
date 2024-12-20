@@ -79,6 +79,8 @@ from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
+    AirflowInactiveAssetAddedToAssetAliasException,
+    AirflowInactiveAssetInInletOrOutletException,
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
@@ -91,7 +93,7 @@ from airflow.exceptions import (
     XComForMappingNotPushed,
 )
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.asset import AssetEvent, AssetModel
+from airflow.models.asset import AssetActive, AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
 from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
@@ -263,6 +265,7 @@ def _run_raw_task(
         context = ti.get_template_context(ignore_param_exceptions=False, session=session)
 
         try:
+            ti._validate_inlet_outlet_assets_activeness(session=session)
             if not mark_success:
                 TaskInstance._execute_task_with_callbacks(
                     self=ti,  # type: ignore[arg-type]
@@ -2749,16 +2752,22 @@ class TaskInstance(Base, LoggingMixin):
                     frozen_extra = frozenset(asset_alias_event.extra.items())
                     asset_alias_names[(asset_unique_key, frozen_extra)].add(asset_alias_name)
 
+        asset_unique_keys = {key for key, _ in asset_alias_names}
         asset_models: dict[AssetUniqueKey, AssetModel] = {
             AssetUniqueKey.from_asset(asset_obj): asset_obj
             for asset_obj in session.scalars(
                 select(AssetModel).where(
-                    tuple_(AssetModel.name, AssetModel.uri).in_(
-                        (key.name, key.uri) for key, _ in asset_alias_names
-                    )
+                    tuple_(AssetModel.name, AssetModel.uri).in_(key.to_tuple() for key in asset_unique_keys)
                 )
             )
         }
+        inactive_asset_unique_keys = TaskInstance._get_inactive_asset_unique_keys(
+            asset_unique_keys={key for key in asset_unique_keys if key in asset_models},
+            session=session,
+        )
+        if inactive_asset_unique_keys:
+            raise AirflowInactiveAssetAddedToAssetAliasException(inactive_asset_unique_keys)
+
         if missing_assets := [
             asset_unique_key.to_asset()
             for asset_unique_key, _ in asset_alias_names
@@ -3641,6 +3650,35 @@ class TaskInstance(Base, LoggingMixin):
                 ),
             }
         )
+
+    def _validate_inlet_outlet_assets_activeness(self, session: Session) -> None:
+        if not self.task or not (self.task.outlets or self.task.inlets):
+            return
+
+        all_asset_unique_keys = {
+            AssetUniqueKey(inlet_or_outlet.name, inlet_or_outlet.uri)
+            for inlet_or_outlet in itertools.chain(self.task.inlets, self.task.outlets)
+            if isinstance(inlet_or_outlet, Asset)
+        }
+        inactive_asset_unique_keys = self._get_inactive_asset_unique_keys(all_asset_unique_keys, session)
+        if inactive_asset_unique_keys:
+            raise AirflowInactiveAssetInInletOrOutletException(inactive_asset_unique_keys)
+
+    @staticmethod
+    def _get_inactive_asset_unique_keys(
+        asset_unique_keys: set[AssetUniqueKey], session: Session
+    ) -> set[AssetUniqueKey]:
+        active_asset_unique_keys = {
+            AssetUniqueKey(name, uri)
+            for name, uri in session.execute(
+                select(AssetActive.name, AssetActive.uri).where(
+                    tuple_in_condition(
+                        (AssetActive.name, AssetActive.uri), [key.to_tuple() for key in asset_unique_keys]
+                    )
+                )
+            )
+        }
+        return asset_unique_keys - active_asset_unique_keys
 
 
 def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> MappedTaskGroup | None:
