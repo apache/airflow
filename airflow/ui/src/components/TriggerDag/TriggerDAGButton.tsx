@@ -16,27 +16,37 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button } from "@chakra-ui/react";
+import { Box } from "@chakra-ui/react";
 import { useDisclosure } from "@chakra-ui/react";
 import { FiPlay } from "react-icons/fi";
 
-import type { DAGResponse } from "openapi/requests/types.gen";
+import type {
+  DAGResponse,
+  DAGWithLatestDagRunsResponse,
+} from "openapi/requests/types.gen";
 
+import ActionButton from "../ui/ActionButton";
 import TriggerDAGModal from "./TriggerDAGModal";
 
 type Props = {
-  readonly dag: DAGResponse;
+  readonly dag: DAGResponse | DAGWithLatestDagRunsResponse;
+  readonly withText?: boolean;
 };
 
-const TriggerDAGIconButton: React.FC<Props> = ({ dag }) => {
+const TriggerDAGButton: React.FC<Props> = ({ dag, withText = true }) => {
   const { onClose, onOpen, open } = useDisclosure();
 
   return (
     <Box>
-      <Button colorPalette="blue" onClick={onOpen}>
-        <FiPlay />
-        Trigger
-      </Button>
+      <ActionButton
+        actionName="Trigger Dag"
+        colorPalette="blue"
+        icon={<FiPlay />}
+        onClick={onOpen}
+        text="Trigger"
+        variant="solid"
+        withText={withText}
+      />
 
       <TriggerDAGModal
         dagDisplayName={dag.dag_display_name}
@@ -49,4 +59,4 @@ const TriggerDAGIconButton: React.FC<Props> = ({ dag }) => {
   );
 };
 
-export default TriggerDAGIconButton;
+export default TriggerDAGButton;
