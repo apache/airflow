@@ -4483,6 +4483,10 @@ export type $OpenApiTs = {
          */
         403: HTTPExceptionResponse;
         /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
+        /**
          * Validation Error
          */
         422: HTTPValidationError;
