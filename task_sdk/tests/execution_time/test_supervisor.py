@@ -46,6 +46,7 @@ from airflow.sdk.execution_time.comms import (
     GetXCom,
     PutVariable,
     RescheduleTask,
+    SetRenderedFields,
     SetXCom,
     TaskState,
     VariableResult,
@@ -881,6 +882,19 @@ class TestHandleRequest:
                 (),
                 "",
                 id="patch_task_instance_to_skipped",
+            ),
+            pytest.param(
+                SetRenderedFields(rendered_fields={"field1": "rendered_value1", "field2": "rendered_value2"}),
+                b"",
+                "task_instances.set_rtif",
+                (
+                    TI_ID,
+                    SetRenderedFields(
+                        rendered_fields={"field1": "rendered_value1", "field2": "rendered_value2"}
+                    ),
+                ),
+                {"ok": True},
+                id="set_rtif",
             ),
         ],
     )

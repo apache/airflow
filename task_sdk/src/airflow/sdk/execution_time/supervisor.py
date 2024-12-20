@@ -68,6 +68,7 @@ from airflow.sdk.execution_time.comms import (
     GetXCom,
     PutVariable,
     RescheduleTask,
+    SetRenderedFields,
     SetXCom,
     StartupDetails,
     TaskState,
@@ -733,6 +734,8 @@ class WatchedSubprocess:
             self.client.xcoms.set(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.value, msg.map_index)
         elif isinstance(msg, PutVariable):
             self.client.variables.set(msg.key, msg.value, msg.description)
+        elif isinstance(msg, SetRenderedFields):
+            self.client.task_instances.set_rtif(self.id, msg.rendered_fields)
         else:
             log.error("Unhandled request", msg=msg)
             return
