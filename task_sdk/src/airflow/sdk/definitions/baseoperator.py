@@ -69,6 +69,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.serialization.enums import DagAttributeTypes
+    from airflow.typing_compat import Self
     from airflow.utils.operator_resources import Resources
 
 # TODO: Task-SDK
@@ -1219,7 +1220,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         return cls.__serialized_fields
 
-    def prepare_for_execution(self) -> BaseOperator:
+    def prepare_for_execution(self) -> Self:
         """Lock task for execution to disable custom action in ``__setattr__`` and return a copy."""
         other = copy.copy(self)
         other._lock_for_execution = True
