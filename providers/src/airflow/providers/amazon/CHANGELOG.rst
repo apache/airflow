@@ -30,6 +30,14 @@ Changelog
   This release of provider is only available for Airflow 2.9+ as explained in the
   `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
+9.3.0
+.....
+
+Misc
+~~~~
+
+* ``The experimental AWS auth manager is no longer compatible with Airflow 2``
+
 9.2.0
 .....
 

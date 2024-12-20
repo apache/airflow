@@ -21,12 +21,12 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from flask import redirect, request, session, url_for
 from flask_appbuilder import expose
 
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.configuration import conf
 from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.state import State
 from airflow.www.app import csrf
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.views import AirflowBaseView
 
 

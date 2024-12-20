@@ -43,6 +43,7 @@ if TYPE_CHECKING:
         PoolDetails,
         VariableDetails,
     )
+    from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 
 
 class SimpleAuthManagerRole(namedtuple("SimpleAuthManagerRole", "name order"), Enum):
@@ -77,6 +78,9 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
     # Cache containing the password associated to a username
     passwords: dict[str, str] = {}
+
+    # TODO: Needs to be deleted when Airflow 2 legacy UI is gone
+    appbuilder: AirflowAppBuilder | None = None
 
     @staticmethod
     def get_generated_password_file() -> str:
