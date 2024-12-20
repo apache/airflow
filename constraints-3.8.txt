@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-19T15:23:18.526171
+# This constraints file was automatically generated on 2024-12-20T13:09:17.412507
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -514,7 +514,7 @@ ordered-set==4.1.0
 orjson==3.10.12
 oss2==2.19.1
 packaging==24.2
-pandas-gbq==0.25.0
+pandas-gbq==0.26.0
 pandas-stubs==2.0.3.230814
 pandas==2.0.3
 papermill==2.6.0
@@ -523,7 +523,7 @@ parso==0.8.4
 pathable==0.4.3
 pathspec==0.12.1
 pbr==6.1.0
-pdpyras==5.3.0
+pdpyras==5.4.0
 pendulum==3.0.0
 pexpect==4.9.0
 pgvector==0.3.6
@@ -550,7 +550,7 @@ prompt_toolkit==3.0.48
 propcache==0.2.0
 proto-plus==1.25.0
 protobuf==4.25.5
-psutil==6.1.0
+psutil==6.1.1
 psycopg2-binary==2.9.10
 ptyprocess==0.7.0
 pure-sasl==0.6.2
