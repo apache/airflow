@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-19T07:46:39.882142
+# This constraints file was automatically generated on 2024-12-20T02:08:17.673717
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -192,12 +192,12 @@ fastjsonschema==2.21.1
 filelock==3.16.1
 flower==2.0.1
 frozenlist==1.5.0
-fsspec==2024.10.0
+fsspec==2024.12.0
 future==1.0.0
 gcloud-aio-auth==5.3.2
 gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.3.0
-gcsfs==2024.10.0
+gcsfs==2024.12.0
 geomet==0.2.1.post1
 gevent==24.11.1
 gitdb==4.0.11
@@ -209,6 +209,7 @@ google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.37.0
 google-cloud-aiplatform==1.75.0
+google-cloud-alloydb==0.4.1
 google-cloud-appengine-logging==1.5.0
 google-cloud-audit-log==0.3.0
 google-cloud-automl==2.15.0
@@ -365,7 +366,7 @@ mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.1.0
 mysqlclient==2.2.6
-nbclient==0.10.1
+nbclient==0.10.2
 nbformat==5.10.4
 neo4j==5.27.0
 nest-asyncio==1.6.0
@@ -395,7 +396,7 @@ oracledb==2.5.1
 ordered-set==4.1.0
 oss2==2.19.1
 packaging==24.2
-pandas-gbq==0.25.0
+pandas-gbq==0.26.0
 pandas-stubs==2.2.3.241126
 pandas==2.1.4
 papermill==2.6.0
@@ -405,7 +406,7 @@ pathable==0.4.3
 pathspec==0.12.1
 pbr==6.1.0
 pdbr==0.8.9
-pdpyras==5.3.0
+pdpyras==5.4.0
 pendulum==3.0.0
 pexpect==4.9.0
 pgvector==0.3.6
@@ -428,7 +429,7 @@ prompt_toolkit==3.0.48
 propcache==0.2.1
 proto-plus==1.25.0
 protobuf==4.25.5
-psutil==6.1.0
+psutil==6.1.1
 psycopg2-binary==2.9.10
 ptyprocess==0.7.0
 pure-sasl==0.6.2
@@ -509,7 +510,7 @@ rich==13.9.4
 rpds-py==0.22.3
 rsa==4.9
 ruff==0.8.1
-s3fs==2024.10.0
+s3fs==2024.12.0
 s3transfer==0.10.4
 scramp==1.4.5
 scrapbook==0.5.0
@@ -548,7 +549,7 @@ sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==2.0.0
 sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.5
-sphinxcontrib-spelling==8.0.0
+sphinxcontrib-spelling==8.0.1
 spython==0.3.14
 sqlalchemy-bigquery==1.12.0
 sqlalchemy-spanner==1.8.0
@@ -631,7 +632,7 @@ yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.18.3
-ydb-dbapi==0.1.5
+ydb-dbapi==0.1.6
 ydb==3.18.11
 zeep==4.3.1
 zenpy==2.0.56
