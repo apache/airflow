@@ -40,10 +40,9 @@ const AddVariableForm = ({ onClose }: AddVariableFormProps) => {
 
   const {
     control,
-    formState: { isDirty },
+    formState: { isDirty, isValid },
     handleSubmit,
     reset,
-    watch,
   } = useForm<AddVariableBody>({
     defaultValues: {
       description: "",
@@ -52,8 +51,6 @@ const AddVariableForm = ({ onClose }: AddVariableFormProps) => {
     },
     mode: "onChange",
   });
-
-  const { key, value } = watch();
 
   useEffect(() => {
     reset({
@@ -84,6 +81,7 @@ const AddVariableForm = ({ onClose }: AddVariableFormProps) => {
           </Field.Root>
         )}
         rules={{
+          required: "Key is required",
           validate: (_value) =>
             _value.length <= 250 ||
             "Key can contain a maximum of 250 characters",
@@ -93,14 +91,20 @@ const AddVariableForm = ({ onClose }: AddVariableFormProps) => {
       <Controller
         control={control}
         name="value"
-        render={({ field }) => (
-          <Field.Root mt={4} required>
+        render={({ field, fieldState }) => (
+          <Field.Root invalid={Boolean(fieldState.error)} mt={4} required>
             <Field.Label fontSize="md">
               Value <Field.RequiredIndicator />
             </Field.Label>
             <Textarea {...field} required size="sm" />
+            {fieldState.error ? (
+              <Field.ErrorText>{fieldState.error.message}</Field.ErrorText>
+            ) : undefined}
           </Field.Root>
         )}
+        rules={{
+          required: "Value is required",
+        }}
       />
 
       <Controller
@@ -126,7 +130,7 @@ const AddVariableForm = ({ onClose }: AddVariableFormProps) => {
           <Spacer />
           <Button
             colorPalette="blue"
-            disabled={key === "" || value === "" || Boolean(isPending)}
+            disabled={!isValid || isPending}
             onClick={() => void handleSubmit(onSubmit)()}
           >
             <FiSave /> Save
