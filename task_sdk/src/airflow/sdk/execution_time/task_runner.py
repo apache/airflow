@@ -214,9 +214,14 @@ def startup() -> tuple[RuntimeTaskInstance, Logger]:
     msg = SUPERVISOR_COMMS.get_message()
 
     if isinstance(msg, StartupDetails):
-        from setproctitle import setproctitle
+        # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
+        os_type = sys.platform
+        if os_type == "darwin":
+            log.info("Mac OS detected, skipping setproctitle")
+        else:
+            from setproctitle import setproctitle
 
-        setproctitle(f"airflow worker -- {msg.ti.id}")
+            setproctitle(f"airflow worker -- {msg.ti.id}")
 
         log = structlog.get_logger(logger_name="task")
         # TODO: set the "magic loop" context vars for parsing
