@@ -104,26 +104,51 @@ class TestSqsPublishOperator:
             op.execute(mocked_context)
 
     @mock_aws
+    def test_deduplication_failure(self, mocked_context):
+        self.sqs_client.create_queue(
+            QueueName=FIFO_QUEUE_NAME, Attributes={"FifoQueue": "true", "ContentBasedDeduplication": "false"}
+        )
+
+        op = SqsPublishOperator(**self.default_op_kwargs, sqs_queue=FIFO_QUEUE_NAME, message_group_id="abc")
+        error_message = (
+            r"An error occurred \(InvalidParameterValue\) when calling the SendMessage operation: "
+            r"The queue should either have ContentBasedDeduplication enabled or MessageDeduplicationId provided explicitly"
+        )
+        with pytest.raises(ClientError, match=error_message):
+            op.execute(mocked_context)
+
+    @mock_aws
     def test_execute_success_fifo_queue(self, mocked_context):
         self.sqs_client.create_queue(
             QueueName=FIFO_QUEUE_NAME, Attributes={"FifoQueue": "true", "ContentBasedDeduplication": "true"}
         )
 
         # Send SQS Message into the FIFO Queue
-        op = SqsPublishOperator(**self.default_op_kwargs, sqs_queue=FIFO_QUEUE_NAME, message_group_id="abc")
+        op = SqsPublishOperator(
+            **self.default_op_kwargs,
+            sqs_queue=FIFO_QUEUE_NAME,
+            message_group_id="abc",
+            message_deduplication_id="abc",
+        )
         result = op.execute(mocked_context)
         assert "MD5OfMessageBody" in result
         assert "MessageId" in result
 
         # Validate message through moto
-        message = self.sqs_client.receive_message(QueueUrl=FIFO_QUEUE_URL, AttributeNames=["MessageGroupId"])
+        message = self.sqs_client.receive_message(
+            QueueUrl=FIFO_QUEUE_URL, AttributeNames=["MessageGroupId", "MessageDeduplicationId"]
+        )
         assert len(message["Messages"]) == 1
         assert message["Messages"][0]["MessageId"] == result["MessageId"]
         assert message["Messages"][0]["Body"] == "hello"
         assert message["Messages"][0]["Attributes"]["MessageGroupId"] == "abc"
+        assert message["Messages"][0]["Attributes"]["MessageDeduplicationId"] == "abc"
 
     def test_template_fields(self):
         operator = SqsPublishOperator(
-            **self.default_op_kwargs, sqs_queue=FIFO_QUEUE_NAME, message_group_id="abc"
+            **self.default_op_kwargs,
+            sqs_queue=FIFO_QUEUE_NAME,
+            message_group_id="abc",
+            message_deduplication_id="abc",
         )
         validate_template_fields(operator)
