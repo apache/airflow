@@ -50,6 +50,7 @@ const AddVariableForm = ({ onClose }: AddVariableFormProps) => {
       key: "",
       value: "",
     },
+    mode: "onChange",
   });
 
   const { key, value } = watch();
@@ -71,14 +72,22 @@ const AddVariableForm = ({ onClose }: AddVariableFormProps) => {
       <Controller
         control={control}
         name="key"
-        render={({ field }) => (
-          <Field.Root required>
+        render={({ field, fieldState }) => (
+          <Field.Root invalid={Boolean(fieldState.error)} required>
             <Field.Label fontSize="md">
               Key <Field.RequiredIndicator />
             </Field.Label>
             <Input {...field} required size="sm" />
+            {fieldState.error ? (
+              <Field.ErrorText>{fieldState.error.message}</Field.ErrorText>
+            ) : undefined}
           </Field.Root>
         )}
+        rules={{
+          validate: (_value) =>
+            _value.length <= 250 ||
+            "Key can contain a maximum of 250 characters",
+        }}
       />
 
       <Controller
