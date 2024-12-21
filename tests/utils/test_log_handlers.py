@@ -44,8 +44,8 @@ from airflow.utils.log.file_task_handler import (
     FileTaskHandler,
     LogType,
     _fetch_logs_from_service,
+    _get_parsed_log_stream,
     _interleave_logs,
-    _parse_timestamps_in_log_file,
 )
 from airflow.utils.log.logging_mixin import set_context
 from airflow.utils.net import get_hostname
@@ -427,19 +427,55 @@ class TestFileTaskLogHandler:
     def test__read_from_local(self, tmp_path):
         """Tests the behavior of method _read_from_local"""
 
-        path1 = tmp_path / "hello1.log"
-        path2 = tmp_path / "hello1.log.suffix.log"
-        path1.write_text("file1 content")
-        path2.write_text("file2 content")
-        fth = FileTaskHandler("")
-        assert fth._read_from_local(path1) == (
-            [
-                "Found local files:",
-                f"  * {path1}",
-                f"  * {path2}",
-            ],
-            ["file1 content", "file2 content"],
+        path1: Path = tmp_path / "hello1.log"
+        path2: Path = tmp_path / "hello1.log.suffix.log"
+        path1.write_text(
+            """file1 content 1
+file1 content 2
+[2022-11-16T00:05:54.295-0800] file1 content 3"""
         )
+        path2.write_text(
+            """file2 content 1
+file2 content 2
+[2022-11-16T00:05:54.295-0800] file2 content 3"""
+        )
+        fth = FileTaskHandler("")
+        messages, parsed_log_streams, log_size = fth._read_from_local(path1)
+        assert messages == [
+            "Found local files:",
+            f"  * {path1}",
+            f"  * {path2}",
+        ]
+        # Optional[datetime], int, str = record
+        assert [[record for record in parsed_log_stream] for parsed_log_stream in parsed_log_streams] == [
+            [
+                (None, 0, "file1 content 1"),
+                (
+                    None,
+                    1,
+                    "file1 content 2",
+                ),
+                (
+                    pendulum.parse("2022-11-16T00:05:54.295-0800"),
+                    2,
+                    "[2022-11-16T00:05:54.295-0800] file1 content 3",
+                ),
+            ],
+            [
+                (None, 0, "file2 content 1"),
+                (
+                    None,
+                    1,
+                    "file2 content 2",
+                ),
+                (
+                    pendulum.parse("2022-11-16T00:05:54.295-0800"),
+                    2,
+                    "[2022-11-16T00:05:54.295-0800] file2 content 3",
+                ),
+            ],
+        ]
+        assert log_size == 156
 
     @pytest.mark.parametrize(
         "remote_logs, local_logs, served_logs_checked",
@@ -615,11 +651,12 @@ AIRFLOW_CTX_DAG_RUN_ID=manual__2022-11-16T08:05:52.324532+00:00
 """
 
 
-def test_parse_timestamps():
-    actual = []
-    for timestamp, _, _ in _parse_timestamps_in_log_file(log_sample.splitlines()):
-        actual.append(timestamp)
-    assert actual == [
+def test_get_parsed_log_stream(tmp_path):
+    log_path: Path = tmp_path / "test_parsed_log_stream.log"
+    log_path.write_text(log_sample)
+    expected_line_num = 0
+    expected_lines = log_sample.splitlines()
+    expected_timestamps = [
         pendulum.parse("2022-11-16T00:05:54.278000-08:00"),
         pendulum.parse("2022-11-16T00:05:54.278000-08:00"),
         pendulum.parse("2022-11-16T00:05:54.278000-08:00"),
@@ -641,6 +678,13 @@ def test_parse_timestamps():
         pendulum.parse("2022-11-16T00:05:54.592000-08:00"),
         pendulum.parse("2022-11-16T00:05:54.604000-08:00"),
     ]
+    for record in _get_parsed_log_stream(log_path):
+        assert record == (
+            expected_timestamps[expected_line_num],
+            expected_line_num,
+            expected_lines[expected_line_num],
+        )
+        expected_line_num += 1
 
 
 def test_interleave_interleaves():
