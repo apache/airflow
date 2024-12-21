@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box, Field, HStack, Input, Spacer, Textarea } from "@chakra-ui/react";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { FiSave } from "react-icons/fi";
 
@@ -32,19 +32,11 @@ export type AddVariableBody = {
 };
 
 type AddVariableFormProps = {
-  onClose: () => void;
+  readonly onClose: () => void;
 };
 
-const AddVariableForm: React.FC<AddVariableFormProps> = ({ onClose }) => {
+const AddVariableForm = ({ onClose }: AddVariableFormProps) => {
   const { addVariable, error, isPending } = useAddVariable(onClose);
-  const addVariableParams: AddVariableBody = useMemo(
-    () => ({
-      description: "",
-      key: "",
-      value: "",
-    }),
-    [],
-  );
 
   const {
     control,
@@ -53,14 +45,22 @@ const AddVariableForm: React.FC<AddVariableFormProps> = ({ onClose }) => {
     reset,
     watch,
   } = useForm<AddVariableBody>({
-    defaultValues: addVariableParams,
+    defaultValues: {
+      description: "",
+      key: "",
+      value: "",
+    },
   });
 
   const { key, value } = watch();
 
   useEffect(() => {
-    reset(addVariableParams);
-  }, [addVariableParams, reset]);
+    reset({
+      description: "",
+      key: "",
+      value: "",
+    });
+  }, [reset]);
 
   const onSubmit = (data: AddVariableBody) => {
     addVariable(data);
