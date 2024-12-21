@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     import datetime
 
     from azure.servicebus import ServiceBusMessage
-    from azure.servicebus.management._models import AuthorizationRule
+    from azure.servicebus.management import AuthorizationRule, CorrelationRuleFilter, SqlRuleFilter
 
     from airflow.utils.context import Context
 
@@ -378,6 +378,8 @@ class AzureServiceBusSubscriptionCreateOperator(BaseOperator):
     :param auto_delete_on_idle: ISO 8601 time Span idle interval after which the subscription is
         automatically deleted. The minimum duration is 5 minutes. Input value of either
         type ~datetime.timedelta or string in ISO 8601 duration format like "PT300S" is accepted.
+    :param filter_rule: Optional correlation or SQL rule filter to apply on the messages.
+    :param filter_rule_name: Optional rule name to use applying the rule filter to the subscription
     :param azure_service_bus_conn_id: Reference to the
         :ref:`Azure Service Bus connection<howto/connection:azure_service_bus>`.
     """
@@ -402,6 +404,8 @@ class AzureServiceBusSubscriptionCreateOperator(BaseOperator):
         user_metadata: str | None = None,
         forward_dead_lettered_messages_to: str | None = None,
         auto_delete_on_idle: datetime.timedelta | str | None = None,
+        filter_rule: CorrelationRuleFilter | SqlRuleFilter | None = None,
+        filter_rule_name: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -419,6 +423,8 @@ class AzureServiceBusSubscriptionCreateOperator(BaseOperator):
         self.forward_dead_lettered_messages_to = forward_dead_lettered_messages_to
         self.auto_delete_on_idle = auto_delete_on_idle
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
+        self.filter_rule = filter_rule
+        self.filter_rule_name = filter_rule_name
 
     def execute(self, context: Context) -> None:
         """Create Subscription in Service Bus namespace, by connecting to Service Bus Admin client."""
@@ -429,24 +435,24 @@ class AzureServiceBusSubscriptionCreateOperator(BaseOperator):
         # Create the hook
         hook = AdminClientHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
 
-        with hook.get_conn() as service_mgmt_conn:
-            # create subscription with name
-            subscription = service_mgmt_conn.create_subscription(
-                topic_name=self.topic_name,
-                subscription_name=self.subscription_name,
-                lock_duration=self.lock_duration,
-                requires_session=self.requires_session,
-                default_message_time_to_live=self.default_message_time_to_live,
-                dead_lettering_on_message_expiration=self.dl_on_message_expiration,
-                dead_lettering_on_filter_evaluation_exceptions=self.dl_on_filter_evaluation_exceptions,
-                max_delivery_count=self.max_delivery_count,
-                enable_batched_operations=self.enable_batched_operations,
-                forward_to=self.forward_to,
-                user_metadata=self.user_metadata,
-                forward_dead_lettered_messages_to=self.forward_dead_lettered_messages_to,
-                auto_delete_on_idle=self.auto_delete_on_idle,
-            )
-            self.log.info("Created subscription %s", subscription.name)
+        subscription = hook.create_subscription(
+            topic_name=self.topic_name,
+            subscription_name=self.subscription_name,
+            lock_duration=self.lock_duration,
+            requires_session=self.requires_session,
+            default_message_time_to_live=self.default_message_time_to_live,
+            dead_lettering_on_message_expiration=self.dl_on_message_expiration,
+            dead_lettering_on_filter_evaluation_exceptions=self.dl_on_filter_evaluation_exceptions,
+            max_delivery_count=self.max_delivery_count,
+            enable_batched_operations=self.enable_batched_operations,
+            forward_to=self.forward_to,
+            user_metadata=self.user_metadata,
+            forward_dead_lettered_messages_to=self.forward_dead_lettered_messages_to,
+            auto_delete_on_idle=self.auto_delete_on_idle,
+            filter_rule=self.filter_rule,
+            filter_rule_name=self.filter_rule_name,
+        )
+        self.log.info("Created subscription %s", subscription.name)
 
 
 class AzureServiceBusUpdateSubscriptionOperator(BaseOperator):
