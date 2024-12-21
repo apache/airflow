@@ -55,12 +55,19 @@ class KubernetesPodOperatorCallback:
 
     @staticmethod
     def on_pod_manifest_created(
-        *, pod_request: k8s.V1Pod, mode: str, operator: KubernetesPodOperator, context: Context, **kwargs
+        *,
+        pod_request: k8s.V1Pod,
+        client: client_type,
+        mode: str,
+        operator: KubernetesPodOperator,
+        context: Context,
+        **kwargs,
     ) -> None:
         """
         Invoke this callback after KPO creates the V1Pod manifest but before the pod is created.
 
         :param pod_request: the kubernetes pod manifest
+        :param client: the Kubernetes client that can be used in the callback.
         :param mode: the current execution mode, it's one of (`sync`, `async`).
         """
         pass

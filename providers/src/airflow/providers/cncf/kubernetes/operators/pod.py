@@ -315,9 +315,9 @@ class KubernetesPodOperator(BaseOperator):
         is_delete_operator_pod: None | bool = None,
         termination_message_policy: str = "File",
         active_deadline_seconds: int | None = None,
-        callbacks: list[type[KubernetesPodOperatorCallback]]
-        | type[KubernetesPodOperatorCallback]
-        | None = None,
+        callbacks: (
+            list[type[KubernetesPodOperatorCallback]] | type[KubernetesPodOperatorCallback] | None
+        ) = None,
         progress_callback: Callable[[str], None] | None = None,
         logging_interval: int | None = None,
         **kwargs,
@@ -589,7 +589,11 @@ class KubernetesPodOperator(BaseOperator):
                 self.pod_request_obj = self.build_pod_request_obj(context)
             for callback in self.callbacks:
                 callback.on_pod_manifest_created(
-                    pod_request=self.pod_request_obj, mode=ExecutionMode.SYNC, context=context, operator=self
+                    pod_request=self.pod_request_obj,
+                    client=self.client,
+                    mode=ExecutionMode.SYNC,
+                    context=context,
+                    operator=self,
                 )
             if self.pod is None:
                 self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
