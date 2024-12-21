@@ -68,7 +68,6 @@ const AddVariableForm: React.FC<AddVariableFormProps> = ({ onClose }) => {
 
   return (
     <>
-      <ErrorAlert error={error} />
       <Controller
         control={control}
         name="key"
@@ -99,12 +98,14 @@ const AddVariableForm: React.FC<AddVariableFormProps> = ({ onClose }) => {
         control={control}
         name="description"
         render={({ field }) => (
-          <Field.Root mt={4}>
+          <Field.Root mb={4} mt={4}>
             <Field.Label fontSize="md">Description</Field.Label>
             <Textarea {...field} size="sm" />
           </Field.Root>
         )}
       />
+
+      <ErrorAlert error={error} />
 
       <Box as="footer" display="flex" justifyContent="flex-end" mt={8}>
         <HStack w="full">
