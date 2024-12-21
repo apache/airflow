@@ -60,6 +60,9 @@ class TestLocalExecutor:
                 run_id="run1",
                 try_number=1,
                 state="queued",
+                pool_slots=1,
+                queue="default",
+                priority_weight=1,
             )
             for i in range(self.TEST_SUCCESS_COMMANDS)
         ]
