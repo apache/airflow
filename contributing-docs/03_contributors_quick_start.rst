@@ -82,22 +82,26 @@ Docker Community Edition
 .. code-block:: bash
 
   sudo apt-get update
-  sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+  sudo apt-get install docker-ce docker-ce-cli containerd.io
 
-3. Creating group for docker and adding current user to it
+3. Manage docker as non-root user
 
 .. code-block:: bash
 
   sudo groupadd docker
   sudo usermod -aG docker $USER
 
-Note : After adding user to docker group Logout and Login again for group membership re-evaluation.
+Note : This is done so a non-root user can access the ``docker`` command.
+After adding user to docker group Logout and Login again for group membership re-evaluation.
+On some Linux distributions, the system automatically creates this group.
 
 4. Test Docker installation
 
 .. code-block:: bash
 
   docker run hello-world
+
+Note : Read more about `Linux post-installation steps for Docker Engine <https://docs.docker.com/engine/install/linux-postinstall/>`_.
 
 Colima
 ------
@@ -120,7 +124,16 @@ If you use Colima as your container runtimes engine, please follow the next step
 Docker Compose
 --------------
 
-1. Installing latest version of Docker Compose
+1. Installing latest version of the Docker Compose plugin
+
+Install using the repository:
+
+.. code-block:: bash
+
+  sudo apt-get update
+  sudo apt-get install docker-compose-plugin
+
+Install manually:
 
 .. code-block:: bash
 
@@ -133,6 +146,9 @@ Docker Compose
   sudo curl -L "${COMPOSE_URL}" -o /usr/local/bin/docker-compose
 
   sudo chmod +x /usr/local/bin/docker-compose
+
+Note: This option requires you to manage updates manually.
+It is recommended that you set up Docker's repository for easier maintenance.
 
 2. Verifying installation
 
@@ -155,7 +171,7 @@ Setting up virtual-env
 
 .. code-block:: bash
 
-  sudo apt install openssl sqlite default-libmysqlclient-dev libmysqlclient-dev postgresql
+  sudo apt install openssl sqlite3 default-libmysqlclient-dev libmysqlclient-dev postgresql
 
 If you want to install all airflow providers, more system dependencies might be needed. For example on Debian/Ubuntu
 like system, this command will install all necessary dependencies that should be installed when you use
@@ -209,8 +225,8 @@ Set it to true for windows.
 
   git config core.autocrlf true
 
-Typical development tasks
-#########################
+Setting up Breeze
+-----------------
 
 For many of the development tasks you will need ``Breeze`` to be configured. ``Breeze`` is a development
 environment which uses docker and docker-compose and its main purpose is to provide a consistent
@@ -218,9 +234,6 @@ and repeatable environment for all the contributors and CI. When using ``Breeze`
 syndrome - because not only others can reproduce easily what you do, but also the CI of Airflow uses
 the same environment to run all tests - so you should be able to easily reproduce the same failures you
 see in CI in your local environment.
-
-Setting up Breeze
------------------
 
 1. Install ``uv`` or ``pipx``. We recommend to install ``uv`` as general purpose python development
    environment - you can install it via https://docs.astral.sh/uv/getting-started/installation/ or you can
@@ -298,7 +311,6 @@ Setting up Breeze
 
 .. code-block:: bash
 
-  root@b76fcb399bb6:/opt/airflow#
   root@b76fcb399bb6:/opt/airflow# exit
 
 8. You can stop the environment (which means deleting the databases and database servers running in the
@@ -315,7 +327,10 @@ Using Breeze
 1. Starting breeze environment using ``breeze start-airflow`` starts Breeze environment with last configuration run(
    In this case python and backend will be picked up from last execution ``breeze --python 3.9 --backend postgres``)
    It also automatically starts webserver, backend and scheduler. It drops you in tmux with scheduler in bottom left
-   and webserver in bottom right. Use ``[Ctrl + B] and Arrow keys`` to navigate
+   and webserver in bottom right. Use ``[Ctrl + B] and Arrow keys`` to navigate.
+   Keep in mind, you need ``pre-commit`` installed for this to work or you will be prompted with
+   ``FileNotFoundError: [Errno 2] No such file or directory: 'pre-commit'``
+   when attempting to invoke ``breeze start-airflow``.
 
 .. code-block:: bash
 
@@ -414,11 +429,21 @@ Using Breeze
 
 4. Stopping breeze
 
+If Airflow was started with ``breeze start-airflow``:
+
 .. code-block:: bash
 
   root@f3619b74c59a:/opt/airflow# stop_airflow
+  breeze down
+
+If Airflow was started with ``breeze --python 3.9 --backend postgres``:
+
+.. code-block:: bash
+
   root@f3619b74c59a:/opt/airflow# exit
   breeze down
+
+Note : ``stop_airflow`` is available only when Airflow is started with ``breeze start-airflow``.
 
 5. Knowing more about Breeze
 
@@ -463,27 +488,13 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
     started to use Python 3.9+ features in Airflow and accompanying scripts.
 
 
-Installing pre-commit is best done with ``uv`` (recommended) or ``pipx``:
-
-This will install ``pre-commit`` with ``uv``, and it will change it to use ``uv`` to install its own
-virtualenvs.
-
-.. code-block:: bash
-
-    uv tool install pre-commit --with pre-commit-uv
-
-or
-
-.. code-block:: bash
-
-    pipx install pre-commit
+Installing pre-commit is best done with ``uv`` (recommended) or ``pipx``.
 
 You can add ``uv`` support for ``pre-commit`` even you install it with ``pipx`` using the commands
 (then pre-commit will use ``uv`` to create virtualenvs for the hooks):
 
 .. code-block:: bash
 
-    pipx install pre-commit
     pipx inject pre-commit pre-commit-uv  # optionally if you want to use uv to install virtualenvs
 
 1.  Installing required packages
@@ -500,7 +511,7 @@ on macOS, install via
 
   brew install libxml2
 
-2. Installing pre-commit (if you have not done it yet):
+2. Installing pre-commit:
 
 .. code-block:: bash
 
@@ -511,7 +522,7 @@ or
 .. code-block:: bash
 
   pipx install pre-commit
-  pipx install inject pre-commit pre-commit-uv
+  pipx install inject pre-commit pre-commit-uv # optional, configures pre-commit to use uv to install virtualenvs
 
 3. Go to your project directory
 
@@ -611,7 +622,7 @@ Installing airflow in the local venv
 
 .. code-block:: bash
 
-  sudo apt-get install sqlite libsqlite3-dev default-libmysqlclient-dev postgresql
+  sudo apt-get install sqlite3 libsqlite3-dev default-libmysqlclient-dev postgresql
   ./scripts/tools/initialize_virtualenv.py
 
 
@@ -662,18 +673,12 @@ All Tests are inside ./tests directory.
 
 - Running specific type of test
 
-  - Types of tests
-
-  - Running specific type of test
-
   .. code-block:: bash
 
     breeze --backend postgres --postgres-version 15 --python 3.9 --db-reset testing tests --test-type Core
 
 
 - Running Integration test for specific test type
-
-  - Running an Integration Test
 
   .. code-block:: bash
 
@@ -685,7 +690,9 @@ All Tests are inside ./tests directory.
 
    <a href="https://github.com/apache/airflow/blob/main/contributing-docs/09_testing.rst" target="_blank">09_testing.rst</a>
 
-  - |Local and Remote Debugging in IDE|
+- Similarly to regular development, you can also debug while testing using your IDE, for more information, you may refer to
+
+  |Local and Remote Debugging in IDE|
 
   .. |Local and Remote Debugging in IDE| raw:: html
 
