@@ -25,6 +25,8 @@ from airflow.api_fastapi.core_api.base import BaseModel, ConfigDict
 class VariableResponse(BaseModel):
     """Variable schema for responses with fields that are needed for Runtime."""
 
+    model_config = ConfigDict(extra="forbid")
+
     key: str
     val: str | None = Field(alias="value")
 
