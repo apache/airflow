@@ -54,6 +54,7 @@ RUNS_ON_PUBLIC_RUNNER = '["ubuntu-22.04"]'
 # TODO: temporarily we need to switch to public runners to avoid issues with self-hosted runners
 RUNS_ON_SELF_HOSTED_RUNNER = '["ubuntu-22.04"]'
 RUNS_ON_SELF_HOSTED_ASF_RUNNER = '["self-hosted", "asf-runner"]'
+RUNS_ON_SELF_HOSTED_DOCS_BUILD_RUNNER = '["arc-large-amd"]'
 # TODO: when we have it properly set-up with labels we should change it to
 # RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "airflow-runner", "vm-runner", "X64"]'
 # RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "Linux", "X64"]'
