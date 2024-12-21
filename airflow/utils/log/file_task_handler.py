@@ -51,6 +51,7 @@ logger = logging.getLogger(__name__)
 
 CHUNK_SIZE = 1024 * 1024 * 5  # 5MB
 DEFAULT_SORT_DATETIME = pendulum.datetime(2000, 1, 1)
+SORT_KEY_OFFSET = 10000000
 HEAP_DUMP_SIZE = 500000
 HALF_HEAP_DUMP_SIZE = HEAP_DUMP_SIZE // 2
 
@@ -124,6 +125,7 @@ if not _parse_timestamp:
 
 def _get_parsed_log_stream(file_path: Path) -> _ParsedLogStreamType:
     with open(file_path) as f:
+        line_num = 0  # line number for each log line
         for file_chunk in iter(partial(f.read, CHUNK_SIZE), b""):
             if not file_chunk:
                 break
@@ -131,14 +133,16 @@ def _get_parsed_log_stream(file_path: Path) -> _ParsedLogStreamType:
             lines = file_chunk.splitlines()
             timestamp = None
             next_timestamp = None
-            for idx, line in enumerate(lines):
+            for line in lines:
                 if line:
                     with suppress(Exception):
                         # next_timestamp unchanged if line can't be parsed
                         next_timestamp = _parse_timestamp(line)
                     if next_timestamp:
                         timestamp = next_timestamp
-                    yield timestamp, idx, line
+
+                    yield timestamp, line_num, line
+                    line_num += 1
 
 
 def _sort_key(timestamp: pendulum.DateTime | None, line_num: int) -> int:
@@ -149,7 +153,7 @@ def _sort_key(timestamp: pendulum.DateTime | None, line_num: int) -> int:
     :param line_num: line number of the log line
     :return: a integer as sort key to avoid overhead of memory usage
     """
-    return (timestamp or DEFAULT_SORT_DATETIME).int_timestamp * 10000000 + line_num
+    return int((timestamp or DEFAULT_SORT_DATETIME).timestamp() * 1000) * SORT_KEY_OFFSET + line_num
 
 
 def _add_log_from_parsed_log_streams_to_heap(
@@ -165,9 +169,6 @@ def _add_log_from_parsed_log_streams_to_heap(
     :param parsed_log_streams: list of parsed log streams
     """
     for log_stream in parsed_log_streams:
-        if log_stream is None:
-            parsed_log_streams.remove(log_stream)
-            continue
         record: _ParsedLogRecordType | None = next(log_stream, None)
         if record is None:
             parsed_log_streams.remove(log_stream)
@@ -216,15 +217,19 @@ def _interleave_logs(*parsed_log_streams: _ParsedLogStreamType) -> Generator[str
         if len(heap) >= HEAP_DUMP_SIZE:
             for _ in range(HALF_HEAP_DUMP_SIZE):
                 _, line = heapq.heappop(heap)
-                if line != last:  # dedupe
-                    yield line
+                if line == last:  # dedupe
+                    last = line
+                    continue
+                yield line
                 last = line
-            continue
 
     # yield remaining records
-    for _, line in heap:
-        if line != last:  # dedupe
-            yield line
+    for _ in range(len(heap)):
+        _, line = heapq.heappop(heap)
+        if line == last:  # dedupe
+            last = line
+            continue
+        yield line
         last = line
     # free memory
     del heap
