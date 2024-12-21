@@ -1254,6 +1254,7 @@ class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
     :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
     :param workflow_run_metadata: Metadata for the workflow run. This is used when the operator is used within
         a workflow. It is expected to be a dictionary containing the run_id and conn_id for the workflow.
+    :param is_serverless: flag to run job as a serverless job default to false.
     """
 
     template_fields = (
