@@ -57,10 +57,57 @@ class EmptyMockConnectionCursor(BaseMockConnectionCursor):
 
 @pytest.mark.db_test
 class TestHiveCliHook:
+    @pytest.mark.parametrize(
+        "extra_dejson, expected_jdbc_url",
+        [
+            (
+                {
+                    "ssl_trust_store": "",
+                    "transport_mode": "",
+                    "ssl_trust_store_password": "",
+                },
+                "jdbc:hive2://localhost:10000/default",
+            ),
+            (
+                {
+                    "ssl_trust_store": "/path/to/truststore",
+                    "transport_mode": "http",
+                    "ssl_trust_store_password": "@password123;",
+                },
+                "jdbc:hive2://localhost:10000/default;sslTrustStore=/path/to/truststore;transportMode=http;trustStorePassword=%40password123%3B",
+            ),
+            (
+                {"ssl_trust_store": "", "transport_mode": "http", "ssl_trust_store_password": ""},
+                "jdbc:hive2://localhost:10000/default;transportMode=http",
+            ),
+            (
+                {
+                    "ssl_trust_store": "/path/to/truststore",
+                    "transport_mode": "",
+                    "ssl_trust_store_password": "",
+                },
+                "jdbc:hive2://localhost:10000/default;sslTrustStore=/path/to/truststore",
+            ),
+            (
+                {
+                    "ssl_trust_store": "",
+                    "transport_mode": "",
+                    "ssl_trust_store_password": "!@#$%^&*()_+-=,<.>/?[{]}:'",
+                },
+                "jdbc:hive2://localhost:10000/default;trustStorePassword=%21%40%23%24%25%5E%26%2A%28%29_%2B-%3D%2C%3C.%3E%2F%3F%5B%7B%5D%7D%3A%27",
+            ),
+        ],
+    )
     @mock.patch("tempfile.tempdir", "/tmp/")
     @mock.patch("tempfile._RandomNameSequence.__next__")
     @mock.patch("subprocess.Popen")
-    def test_run_cli(self, mock_popen, mock_temp_dir):
+    def test_run_cli(
+        self,
+        mock_popen,
+        mock_temp_dir,
+        extra_dejson,
+        expected_jdbc_url,
+    ):
         mock_subprocess = MockSubProcess()
         mock_popen.return_value = mock_subprocess
         mock_temp_dir.return_value = "test_run_cli"
@@ -79,12 +126,14 @@ class TestHiveCliHook:
             },
         ):
             hook = MockHiveCliHook()
+            hook.conn.extra_dejson = extra_dejson
+
             hook.run_cli("SHOW DATABASES")
         date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         hive_cmd = [
             "beeline",
             "-u",
-            '"jdbc:hive2://localhost:10000/default"',
+            f'"{expected_jdbc_url}"',
             "-hiveconf",
             "airflow.ctx.dag_id=test_dag_id",
             "-hiveconf",
@@ -205,6 +254,7 @@ class TestHiveCliHook:
             },
         ):
             hook = MockHiveCliHook()
+            hook.conn.extra_dejson = {}
             mock_popen.return_value = MockSubProcess(output=mock_output)
 
             output = hook.run_cli(hql=hql, hive_conf={"key": "value"})
@@ -969,3 +1019,25 @@ class TestHiveCli:
             assert expected_keys in result[2]
         else:
             assert expected_keys not in result[2]
+
+    def test_get_wrong_ssl_trust_store(self):
+        hook = MockHiveCliHook()
+        returner = mock.MagicMock()
+        returner.extra_dejson = {"ssl_trust_store": "SSL trust store with ; semicolon"}
+        hook.use_beeline = True
+        hook.conn = returner
+
+        # Run
+        with pytest.raises(RuntimeError, match="The SSL trust store should not contain the ';' character"):
+            hook._prepare_cli_cmd()
+
+    def test_get_wrong_transport_mode(self):
+        hook = MockHiveCliHook()
+        returner = mock.MagicMock()
+        returner.extra_dejson = {"transport_mode": "Transport mode with ; semicolon"}
+        hook.use_beeline = True
+        hook.conn = returner
+
+        # Run
+        with pytest.raises(RuntimeError, match="The transport mode should not contain the ';' character"):
+            hook._prepare_cli_cmd()

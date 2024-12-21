@@ -120,9 +120,9 @@ class HiveCliHook(BaseHook):
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to Hive Client Wrapper connection form."""
-        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
-        from wtforms import BooleanField, StringField
+        from wtforms import BooleanField, PasswordField, StringField
 
         return {
             "use_beeline": BooleanField(lazy_gettext("Use Beeline"), default=True),
@@ -131,6 +131,15 @@ class HiveCliHook(BaseHook):
                 lazy_gettext("Principal"), widget=BS3TextFieldWidget(), default="hive/_HOST@EXAMPLE.COM"
             ),
             "high_availability": BooleanField(lazy_gettext("High Availability mode"), default=False),
+            "ssl_trust_store": StringField(
+                lazy_gettext("SSL trust store"), widget=BS3TextFieldWidget(), default=""
+            ),
+            "ssl_trust_store_password": PasswordField(
+                lazy_gettext("SSL trust store password"), widget=BS3PasswordFieldWidget(), default=""
+            ),
+            "transport_mode": StringField(
+                lazy_gettext("Transport mode"), widget=BS3TextFieldWidget(), default=""
+            ),
         }
 
     @classmethod
@@ -182,6 +191,25 @@ class HiveCliHook(BaseHook):
                     jdbc_url += "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2"
             elif self.auth:
                 jdbc_url += ";auth=" + self.auth
+
+            ssl_trust_store = conn.extra_dejson.get("ssl_trust_store", "")
+            if ssl_trust_store:
+                if ";" in ssl_trust_store:
+                    raise RuntimeError("The SSL trust store should not contain the ';' character")
+                jdbc_url += ";sslTrustStore=" + ssl_trust_store
+
+            transport_mode = conn.extra_dejson.get("transport_mode", "")
+            if transport_mode:
+                if ";" in transport_mode:
+                    raise RuntimeError("The transport mode should not contain the ';' character")
+                jdbc_url += ";transportMode=" + transport_mode
+
+            ssl_trust_store_password = conn.extra_dejson.get("ssl_trust_store_password", "")
+            if ssl_trust_store_password:
+                from urllib.parse import quote
+
+                ssl_trust_store_password = quote(ssl_trust_store_password, safe="")
+                jdbc_url += f";trustStorePassword={ssl_trust_store_password}"
 
             jdbc_url = f'"{jdbc_url}"'
 
