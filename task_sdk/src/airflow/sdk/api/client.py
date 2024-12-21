@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
 import uuid
@@ -28,7 +29,7 @@ import msgspec
 import structlog
 from pydantic import BaseModel
 from retryhttp import retry, wait_retry_after
-from tenacity import wait_random_exponential
+from tenacity import before_log, wait_random_exponential
 from uuid6 import uuid7
 
 from airflow.sdk import __version__
@@ -309,6 +310,7 @@ class Client(httpx.Client):
         wait_network_errors=_default_wait,
         wait_timeouts=_default_wait,
         wait_rate_limited=wait_retry_after(fallback=_default_wait),  # No infinite timeout on HTTP 429
+        before_sleep=before_log(log, logging.WARNING),
     )
     def request(self, *args, **kwargs):
         """Implement a convenience for httpx.Client.request with a retry layer."""
