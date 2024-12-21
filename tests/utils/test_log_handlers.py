@@ -21,6 +21,7 @@ import logging
 import logging.config
 import os
 import re
+from contextlib import suppress
 from http import HTTPStatus
 from importlib import reload
 from pathlib import Path
@@ -45,8 +46,9 @@ from airflow.utils.log.file_task_handler import (
     FileTaskHandler,
     LogType,
     _fetch_logs_from_service,
+    _get_parsed_log_stream,
     _interleave_logs,
-    _parse_timestamps_in_log_file,
+    _parse_timestamp,
 )
 from airflow.utils.log.logging_mixin import set_context
 from airflow.utils.net import get_hostname
@@ -66,6 +68,20 @@ pytestmark = pytest.mark.db_test
 DEFAULT_DATE = datetime(2016, 1, 1)
 TASK_LOGGER = "airflow.task"
 FILE_TASK_HANDLER = "task"
+
+
+def _log_sample_to_parsed_log_stream(log_sample: str):
+    lines = log_sample.splitlines()
+    timestamp = None
+    next_timestamp = None
+    for idx, line in enumerate(lines):
+        if line:
+            with suppress(Exception):
+                # next_timestamp unchanged if line can't be parsed
+                next_timestamp = _parse_timestamp(line)
+            if next_timestamp:
+                timestamp = next_timestamp
+            yield timestamp, idx, line
 
 
 class TestFileTaskLogHandler:
@@ -370,19 +386,55 @@ class TestFileTaskLogHandler:
     def test__read_from_local(self, tmp_path):
         """Tests the behavior of method _read_from_local"""
 
-        path1 = tmp_path / "hello1.log"
-        path2 = tmp_path / "hello1.log.suffix.log"
-        path1.write_text("file1 content")
-        path2.write_text("file2 content")
-        fth = FileTaskHandler("")
-        assert fth._read_from_local(path1) == (
-            [
-                "Found local files:",
-                f"  * {path1}",
-                f"  * {path2}",
-            ],
-            ["file1 content", "file2 content"],
+        path1: Path = tmp_path / "hello1.log"
+        path2: Path = tmp_path / "hello1.log.suffix.log"
+        path1.write_text(
+            """file1 content 1
+file1 content 2
+[2022-11-16T00:05:54.295-0800] file1 content 3"""
         )
+        path2.write_text(
+            """file2 content 1
+file2 content 2
+[2022-11-16T00:05:54.295-0800] file2 content 3"""
+        )
+        fth = FileTaskHandler("")
+        messages, parsed_log_streams, log_size = fth._read_from_local(path1)
+        assert messages == [
+            "Found local files:",
+            f"  * {path1}",
+            f"  * {path2}",
+        ]
+        # Optional[datetime], int, str = record
+        assert [[record for record in parsed_log_stream] for parsed_log_stream in parsed_log_streams] == [
+            [
+                (None, 0, "file1 content 1"),
+                (
+                    None,
+                    1,
+                    "file1 content 2",
+                ),
+                (
+                    pendulum.parse("2022-11-16T00:05:54.295-0800"),
+                    2,
+                    "[2022-11-16T00:05:54.295-0800] file1 content 3",
+                ),
+            ],
+            [
+                (None, 0, "file2 content 1"),
+                (
+                    None,
+                    1,
+                    "file2 content 2",
+                ),
+                (
+                    pendulum.parse("2022-11-16T00:05:54.295-0800"),
+                    2,
+                    "[2022-11-16T00:05:54.295-0800] file2 content 3",
+                ),
+            ],
+        ]
+        assert log_size == 156
 
     @pytest.mark.parametrize(
         "remote_logs, local_logs, served_logs_checked",
@@ -555,11 +607,12 @@ AIRFLOW_CTX_DAG_RUN_ID=manual__2022-11-16T08:05:52.324532+00:00
 """
 
 
-def test_parse_timestamps():
-    actual = []
-    for timestamp, _, _ in _parse_timestamps_in_log_file(log_sample.splitlines()):
-        actual.append(timestamp)
-    assert actual == [
+def test_get_parsed_log_stream(tmp_path):
+    log_path: Path = tmp_path / "test_parsed_log_stream.log"
+    log_path.write_text(log_sample)
+    expected_line_num = 0
+    expected_lines = log_sample.splitlines()
+    expected_timestamps = [
         pendulum.parse("2022-11-16T00:05:54.278000-08:00"),
         pendulum.parse("2022-11-16T00:05:54.278000-08:00"),
         pendulum.parse("2022-11-16T00:05:54.278000-08:00"),
@@ -581,6 +634,13 @@ def test_parse_timestamps():
         pendulum.parse("2022-11-16T00:05:54.592000-08:00"),
         pendulum.parse("2022-11-16T00:05:54.604000-08:00"),
     ]
+    for record in _get_parsed_log_stream(log_path):
+        assert record == (
+            expected_timestamps[expected_line_num],
+            expected_line_num,
+            expected_lines[expected_line_num],
+        )
+        expected_line_num += 1
 
 
 def test_interleave_interleaves():
@@ -589,6 +649,7 @@ def test_interleave_interleaves():
             "[2022-11-16T00:05:54.278-0800] {taskinstance.py:1258} INFO - Starting attempt 1 of 1",
         ]
     )
+    log_sample1_stream = _log_sample_to_parsed_log_stream(log_sample1)
     log_sample2 = "\n".join(
         [
             "[2022-11-16T00:05:54.295-0800] {taskinstance.py:1278} INFO - Executing <Task(TimeDeltaSensorAsync): wait> on 2022-11-16 08:05:52.324532+00:00",
@@ -599,6 +660,7 @@ def test_interleave_interleaves():
             "[2022-11-16T00:05:54.309-0800] {standard_task_runner.py:83} INFO - Job 33648: Subtask wait",
         ]
     )
+    log_sample2_stream = _log_sample_to_parsed_log_stream(log_sample2)
     log_sample3 = "\n".join(
         [
             "[2022-11-16T00:05:54.457-0800] {task_command.py:376} INFO - Running <TaskInstance: simple_async_timedelta.wait manual__2022-11-16T08:05:52.324532+00:00 [running]> on host daniels-mbp-2.lan",
@@ -611,6 +673,7 @@ def test_interleave_interleaves():
             "[2022-11-16T00:05:54.604-0800] {taskinstance.py:1360} INFO - Pausing task as DEFERRED. dag_id=simple_async_timedelta, task_id=wait, execution_date=20221116T080552, start_date=20221116T080554",
         ]
     )
+    log_sample3_stream = _log_sample_to_parsed_log_stream(log_sample3)
     expected = "\n".join(
         [
             "[2022-11-16T00:05:54.278-0800] {taskinstance.py:1258} INFO - Starting attempt 1 of 1",
@@ -628,7 +691,9 @@ def test_interleave_interleaves():
             "[2022-11-16T00:05:54.604-0800] {taskinstance.py:1360} INFO - Pausing task as DEFERRED. dag_id=simple_async_timedelta, task_id=wait, execution_date=20221116T080552, start_date=20221116T080554",
         ]
     )
-    assert "\n".join(_interleave_logs(log_sample2, log_sample1, log_sample3)) == expected
+    interleave_log_stream = _interleave_logs(log_sample1_stream, log_sample2_stream, log_sample3_stream)
+    interleave_log_str = "\n".join(line for line in interleave_log_stream)
+    assert interleave_log_str == expected
 
 
 long_sample = """
@@ -705,22 +770,31 @@ def test_interleave_logs_correct_ordering():
     [2023-01-17T12:47:11.883-0800] {triggerer_job.py:540} INFO - Trigger <airflow.triggers.temporal.DateTimeTrigger moment=2023-01-17T20:47:11.254388+00:00> (ID 1) fired: TriggerEvent<DateTime(2023, 1, 17, 20, 47, 11, 254388, tzinfo=Timezone('UTC'))>
     """
 
-    assert sample_with_dupe == "\n".join(_interleave_logs(sample_with_dupe, "", sample_with_dupe))
+    interleave_stream = _interleave_logs(
+        _log_sample_to_parsed_log_stream(sample_with_dupe),
+        _log_sample_to_parsed_log_stream(""),
+        _log_sample_to_parsed_log_stream(sample_with_dupe),
+    )
+    interleave_str = "\n".join(line for line in interleave_stream)
+    assert interleave_str == sample_with_dupe
 
 
 def test_interleave_logs_correct_dedupe():
     sample_without_dupe = """test,
-    test,
-    test,
-    test,
-    test,
-    test,
-    test,
-    test,
-    test,
-    test"""
+test,
+test,
+test,
+test,
+test,
+test,
+test,
+test,
+test"""
 
-    assert sample_without_dupe == "\n".join(_interleave_logs(",\n    ".join(["test"] * 10)))
+    interleave_stream = _interleave_logs(
+        _log_sample_to_parsed_log_stream(sample_without_dupe),
+    )
+    assert "\n".join(line for line in interleave_stream) == "test,\ntest"
 
 
 def test_permissions_for_new_directories(tmp_path):
