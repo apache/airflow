@@ -638,9 +638,9 @@ export const prefetchUseBackfillServiceGetBackfill = (
  * @param data.logicalDateGte
  * @param data.logicalDateLte
  * @param data.root
+ * @param data.offset
  * @param data.runType
  * @param data.state
- * @param data.offset
  * @param data.limit
  * @param data.orderBy
  * @returns GridResponse Successful Response

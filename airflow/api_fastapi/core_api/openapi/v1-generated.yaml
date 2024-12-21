@@ -391,6 +391,14 @@ paths:
           - type: string
           - type: 'null'
           title: Root
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
       - name: run_type
         in: query
         required: false
@@ -407,14 +415,6 @@ paths:
           items:
             type: string
           title: State
-      - name: offset
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 0
-          default: 0
-          title: Offset
       - name: limit
         in: query
         required: false
