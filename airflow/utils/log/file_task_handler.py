@@ -425,7 +425,7 @@ class FileTaskHandler(logging.Handler):
         ti: TaskInstance,
         try_number: int,
         metadata: dict[str, Any] | None = None,
-    ):
+    ) -> tuple[Iterable[str], dict[str, Any]]:
         """
         Template method that contains custom logic of reading logs given the try_number.
 
@@ -550,7 +550,9 @@ class FileTaskHandler(logging.Handler):
             log_relative_path,
         )
 
-    def read(self, task_instance, try_number=None, metadata=None):
+    def read(
+        self, task_instance, try_number=None, metadata=None
+    ) -> tuple[list[str], list[Generator[str, None, None]], list[dict[str, Any]]]:
         """
         Read logs of given task instance from local machine.
 
@@ -558,7 +560,7 @@ class FileTaskHandler(logging.Handler):
         :param try_number: task instance try_number to read logs from. If None
                            it returns all logs separated by try_number
         :param metadata: log metadata, can be used for steaming log reading and auto-tailing.
-        :return: a list of listed tuples which order log string by host
+        :return: tuple of hosts, log streams, and metadata_array
         """
         # Task instance increments its try number when it starts to run.
         # So the log for a particular task try will only show up when
@@ -568,25 +570,27 @@ class FileTaskHandler(logging.Handler):
             next_try = task_instance.try_number + 1
             try_numbers = list(range(1, next_try))
         elif try_number < 1:
-            logs = [
-                [("default_host", f"Error fetching the logs. Try number {try_number} is invalid.")],
-            ]
-            return logs, [{"end_of_log": True}]
+            error_logs = [(log for log in [f"Error fetching the logs. Try number {try_number} is invalid."])]
+            return ["default_host"], error_logs, [{"end_of_log": True}]
         else:
             try_numbers = [try_number]
 
-        logs = [""] * len(try_numbers)
-        metadata_array = [{}] * len(try_numbers)
+        hosts = [""] * len(try_numbers)
+        logs: list = [] * len(try_numbers)
+        metadata_array: list[dict] = [{}] * len(try_numbers)
 
         # subclasses implement _read and may not have log_type, which was added recently
         for i, try_number_element in enumerate(try_numbers):
-            log, out_metadata = self._read(task_instance, try_number_element, metadata)
+            log_stream, out_metadata = self._read(task_instance, try_number_element, metadata)
             # es_task_handler return logs grouped by host. wrap other handler returning log string
             # with default/ empty host so that UI can render the response in the same way
-            logs[i] = log if self._read_grouped_logs() else [(task_instance.hostname, log)]
+            if not self._read_grouped_logs():
+                hosts[i] = task_instance.hostname
+
+            logs[i] = log_stream
             metadata_array[i] = out_metadata
 
-        return logs, metadata_array
+        return hosts, logs, metadata_array
 
     @staticmethod
     def _prepare_log_folder(directory: Path, new_folder_permissions: int):
