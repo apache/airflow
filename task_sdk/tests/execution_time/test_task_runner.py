@@ -26,10 +26,23 @@ from unittest import mock
 import pytest
 from uuid6 import uuid7
 
-from airflow.exceptions import AirflowFailException, AirflowSensorTimeout, AirflowSkipException
-from airflow.sdk import DAG, BaseOperator
+from airflow.exceptions import (
+    AirflowFailException,
+    AirflowSensorTimeout,
+    AirflowSkipException,
+    AirflowTaskTerminated,
+)
+from airflow.sdk import DAG, BaseOperator, Connection
 from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
-from airflow.sdk.execution_time.comms import DeferTask, SetRenderedFields, StartupDetails, TaskState
+from airflow.sdk.execution_time.comms import (
+    ConnectionResult,
+    DeferTask,
+    GetConnection,
+    SetRenderedFields,
+    StartupDetails,
+    TaskState,
+)
+from airflow.sdk.execution_time.context import ConnectionAccessor
 from airflow.sdk.execution_time.task_runner import CommsDecoder, RuntimeTaskInstance, parse, run, startup
 from airflow.utils import timezone
 
@@ -134,7 +147,7 @@ def test_parse(test_dags_dir: Path, make_ti_context):
     assert isinstance(ti.task.dag, DAG)
 
 
-def test_run_basic(time_machine, mocked_parse, make_ti_context):
+def test_run_basic(time_machine, mocked_parse, make_ti_context, spy_agency):
     """Test running a basic task."""
     what = StartupDetails(
         ti=TaskInstance(id=uuid7(), task_id="hello", dag_id="super_basic_run", run_id="c", try_number=1),
@@ -150,7 +163,15 @@ def test_run_basic(time_machine, mocked_parse, make_ti_context):
         "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
     ) as mock_supervisor_comms:
         ti = mocked_parse(what, "super_basic_run", CustomOperator(task_id="hello"))
+
+        # Ensure that task is locked for execution
+        spy_agency.spy_on(ti.task.prepare_for_execution)
+        assert not ti.task._lock_for_execution
+
         run(ti, log=mock.MagicMock())
+
+        spy_agency.assert_spy_called(ti.task.prepare_for_execution)
+        assert ti.task._lock_for_execution
 
         mock_supervisor_comms.send_request.assert_called_once_with(
             msg=TaskState(state=TerminalTIState.SUCCESS, end_date=instant), log=mock.ANY
@@ -235,43 +256,6 @@ def test_run_basic_skipped(time_machine, mocked_parse, make_ti_context):
         )
 
 
-def test_startup_basic_templated_dag(mocked_parse, make_ti_context):
-    """Test running a DAG with templated task."""
-    from airflow.providers.standard.operators.bash import BashOperator
-
-    task = BashOperator(
-        task_id="templated_task",
-        bash_command="echo 'Logical date is {{ logical_date }}'",
-    )
-
-    what = StartupDetails(
-        ti=TaskInstance(
-            id=uuid7(), task_id="templated_task", dag_id="basic_templated_dag", run_id="c", try_number=1
-        ),
-        file="",
-        requests_fd=0,
-        ti_context=make_ti_context(),
-    )
-    mocked_parse(what, "basic_templated_dag", task)
-
-    with mock.patch(
-        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
-    ) as mock_supervisor_comms:
-        mock_supervisor_comms.get_message.return_value = what
-        startup()
-
-        mock_supervisor_comms.send_request.assert_called_once_with(
-            msg=SetRenderedFields(
-                rendered_fields={
-                    "bash_command": "echo 'Logical date is {{ logical_date }}'",
-                    "cwd": None,
-                    "env": None,
-                }
-            ),
-            log=mock.ANY,
-        )
-
-
 @pytest.mark.parametrize(
     ["task_params", "expected_rendered_fields"],
     [
@@ -298,8 +282,8 @@ def test_startup_basic_templated_dag(mocked_parse, make_ti_context):
         ),
     ],
 )
-def test_startup_dag_with_templated_fields(
-    mocked_parse, task_params, expected_rendered_fields, make_ti_context
+def test_startup_and_run_dag_with_templated_fields(
+    mocked_parse, task_params, expected_rendered_fields, make_ti_context, time_machine
 ):
     """Test startup of a DAG with various templated fields."""
 
@@ -311,6 +295,10 @@ def test_startup_dag_with_templated_fields(
             for key, value in task_params.items():
                 setattr(self, key, value)
 
+        def execute(self, context):
+            for key in self.template_fields:
+                print(key, getattr(self, key))
+
     task = CustomOperator(task_id="templated_task")
 
     what = StartupDetails(
@@ -319,18 +307,28 @@ def test_startup_dag_with_templated_fields(
         requests_fd=0,
         ti_context=make_ti_context(),
     )
-    mocked_parse(what, "basic_dag", task)
+    ti = mocked_parse(what, "basic_dag", task)
 
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
     with mock.patch(
         "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
     ) as mock_supervisor_comms:
         mock_supervisor_comms.get_message.return_value = what
 
         startup()
-        mock_supervisor_comms.send_request.assert_called_once_with(
-            msg=SetRenderedFields(rendered_fields=expected_rendered_fields),
-            log=mock.ANY,
-        )
+        run(ti, log=mock.MagicMock())
+        expected_calls = [
+            mock.call.send_request(
+                msg=SetRenderedFields(rendered_fields=expected_rendered_fields),
+                log=mock.ANY,
+            ),
+            mock.call.send_request(
+                msg=TaskState(end_date=instant, state=TerminalTIState.SUCCESS),
+                log=mock.ANY,
+            ),
+        ]
+        mock_supervisor_comms.assert_has_calls(expected_calls)
 
 
 @pytest.mark.parametrize(
@@ -343,6 +341,11 @@ def test_startup_dag_with_templated_fields(
             "basic_failed2",
             "sensor-timeout-exception",
             AirflowSensorTimeout("Oops. Failing by AirflowSensorTimeout!"),
+        ),
+        pytest.param(
+            "basic_failed3",
+            "task-terminated-exception",
+            AirflowTaskTerminated("Oops. Failing by AirflowTaskTerminated!"),
         ),
     ],
 )
@@ -399,6 +402,7 @@ class TestRuntimeTaskInstance:
 
         # Verify the context keys and values
         assert context == {
+            "conn": ConnectionAccessor(),
             "dag": runtime_ti.task.dag,
             "inlets": task.inlets,
             "map_index_template": task.map_index_template,
@@ -431,6 +435,7 @@ class TestRuntimeTaskInstance:
         context = runtime_ti.get_template_context()
 
         assert context == {
+            "conn": ConnectionAccessor(),
             "dag": runtime_ti.task.dag,
             "inlets": task.inlets,
             "map_index_template": task.map_index_template,
@@ -450,3 +455,57 @@ class TestRuntimeTaskInstance:
             "ts_nodash": "20241201T010000",
             "ts_nodash_with_tz": "20241201T010000+0000",
         }
+
+    def test_get_connection_from_context(self, mocked_parse, make_ti_context):
+        """Test that the connection is fetched from the API server via the Supervisor lazily when accessed"""
+
+        task = BaseOperator(task_id="hello")
+
+        ti_id = uuid7()
+        ti = TaskInstance(
+            id=ti_id, task_id=task.task_id, dag_id="basic_task", run_id="test_run", try_number=1
+        )
+        conn = ConnectionResult(
+            conn_id="test_conn",
+            conn_type="mysql",
+            host="mysql",
+            schema="airflow",
+            login="root",
+            password="password",
+            port=1234,
+            extra='{"extra_key": "extra_value"}',
+        )
+
+        what = StartupDetails(ti=ti, file="", requests_fd=0, ti_context=make_ti_context())
+        runtime_ti = mocked_parse(what, ti.dag_id, task)
+        with mock.patch(
+            "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
+        ) as mock_supervisor_comms:
+            mock_supervisor_comms.get_message.return_value = conn
+
+            context = runtime_ti.get_template_context()
+
+            # Assert that the connection is not fetched from the API server yet!
+            # The connection should be only fetched connection is accessed
+            mock_supervisor_comms.send_request.assert_not_called()
+            mock_supervisor_comms.get_message.assert_not_called()
+
+            # Access the connection from the context
+            conn_from_context = context["conn"].test_conn
+
+            mock_supervisor_comms.send_request.assert_called_once_with(
+                log=mock.ANY, msg=GetConnection(conn_id="test_conn")
+            )
+            mock_supervisor_comms.get_message.assert_called_once_with()
+
+            assert conn_from_context == Connection(
+                conn_id="test_conn",
+                conn_type="mysql",
+                description=None,
+                host="mysql",
+                schema="airflow",
+                login="root",
+                password="password",
+                port=1234,
+                extra='{"extra_key": "extra_value"}',
+            )

@@ -5729,6 +5729,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -7097,9 +7103,7 @@ components:
     DAGRunResponse:
       properties:
         dag_run_id:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Run Id
         dag_id:
           type: string
@@ -9389,6 +9393,7 @@ components:
       properties:
         key:
           type: string
+          maxLength: 250
           title: Key
         value:
           anyOf:

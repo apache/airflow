@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import sys
 import uuid
+from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import httpx
@@ -35,6 +36,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
+    TIRescheduleStatePayload,
     TIRunContext,
     TITerminalStatePayload,
     ValidationError as RemoteValidationError,
@@ -42,12 +44,15 @@ from airflow.sdk.api.datamodels._generated import (
     VariableResponse,
     XComResponse,
 )
+from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time.comms import ErrorResponse
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from airflow.sdk.execution_time.comms import RescheduleTask
     from airflow.typing_compat import ParamSpec
 
     P = ParamSpec("P")
@@ -137,6 +142,13 @@ class TaskInstanceOperations:
         # Create a deferred state payload from msg
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
+    def reschedule(self, id: uuid.UUID, msg: RescheduleTask):
+        """Tell the API server that this TI has been reschduled."""
+        body = TIRescheduleStatePayload(**msg.model_dump(exclude_unset=True))
+
+        # Create a reschedule state payload from msg
+        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
+
     def set_rtif(self, id: uuid.UUID, body: dict[str, str]) -> dict[str, bool]:
         """Set Rendered Task Instance Fields via the API server."""
         self.client.put(f"task-instances/{id}/rtif", json=body)
@@ -152,9 +164,19 @@ class ConnectionOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def get(self, conn_id: str) -> ConnectionResponse:
+    def get(self, conn_id: str) -> ConnectionResponse | ErrorResponse:
         """Get a connection from the API server."""
-        resp = self.client.get(f"connections/{conn_id}")
+        try:
+            resp = self.client.get(f"connections/{conn_id}")
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.error(
+                    "Connection not found",
+                    conn_id=conn_id,
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                return ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND, detail={"conn_id": conn_id})
         return ConnectionResponse.model_validate_json(resp.read())
 
 

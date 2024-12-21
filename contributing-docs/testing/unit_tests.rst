@@ -489,7 +489,6 @@ the test is marked as DB test:
                    TaskCallbackRequest(
                        full_filepath="filepath",
                        simple_task_instance=SimpleTaskInstance.from_ti(ti=TI),
-                       processor_subdir="/test_dir",
                        is_failure_callback=True,
                    ),
                    TaskCallbackRequest,
@@ -499,7 +498,6 @@ the test is marked as DB test:
                        full_filepath="filepath",
                        dag_id="fake_dag",
                        run_id="fake_run",
-                       processor_subdir="/test_dir",
                        is_failure_callback=False,
                    ),
                    DagCallbackRequest,
@@ -508,7 +506,6 @@ the test is marked as DB test:
                    SlaCallbackRequest(
                        full_filepath="filepath",
                        dag_id="fake_dag",
-                       processor_subdir="/test_dir",
                    ),
                    SlaCallbackRequest,
                ),
@@ -540,7 +537,6 @@ top level / parametrize to inside the test:
                       full_filepath="filepath",
                       dag_id="fake_dag",
                       run_id="fake_run",
-                      processor_subdir="/test_dir",
                       is_failure_callback=False,
                   ),
                   DagCallbackRequest,
@@ -549,7 +545,6 @@ top level / parametrize to inside the test:
                   SlaCallbackRequest(
                       full_filepath="filepath",
                       dag_id="fake_dag",
-                      processor_subdir="/test_dir",
                   ),
                   SlaCallbackRequest,
               ),
@@ -568,7 +563,6 @@ top level / parametrize to inside the test:
               input = TaskCallbackRequest(
                   full_filepath="filepath",
                   simple_task_instance=SimpleTaskInstance.from_ti(ti=ti),
-                  processor_subdir="/test_dir",
                   is_failure_callback=True,
               )
 

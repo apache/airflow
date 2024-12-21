@@ -50,13 +50,13 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
       <Dialog.Header>
         <VStack align="start" gap={4}>
           <Heading size="xl">
-            Trigger DAG - {dagDisplayName}{" "}
+            Trigger Dag - {dagDisplayName}{" "}
             <TogglePause dagId={dagId} isPaused={isPaused} skipConfirm />
           </Heading>
           {isPaused ? (
             <Alert status="warning" title="Paused DAG">
               Triggering will create a DAG run, but it will not start until the
-              DAG is unpaused.
+              Dag is unpaused.
             </Alert>
           ) : undefined}
         </VStack>

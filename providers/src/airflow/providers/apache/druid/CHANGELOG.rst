@@ -27,8 +27,15 @@
 Changelog
 ---------
 
-main
+4.0.0
 .....
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
 
 .. warning::
   All deprecated classes, parameters and features have been removed from the Apache Druid provider package.
@@ -37,6 +44,23 @@ main
   * Operators
 
     * Removed ``DruidCheckOperator``. Please use ``airflow.providers.common.sql.operators.sql.SQLCheckOperator`` instead.
+
+* ``Remove DruidCheckOperator (#44765)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+* ``Update DAG example links in multiple providers documents (#44034)``
+* ``Rename execution_date to logical_date across codebase (#43902)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Update path of example dags in docs (#45069)``
 
 3.12.1
 ......

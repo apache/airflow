@@ -14,3 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+
+def test_import():
+    from airflow.providers.common.compat.openlineage.utils.spark import (
+        inject_parent_job_information_into_spark_properties,
+    )
+
+    assert inject_parent_job_information_into_spark_properties is not None

@@ -39,6 +39,7 @@ from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_man
     AwsSecurityManagerOverride,
 )
 from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.security.permissions import (
     RESOURCE_AUDIT_LOG,
     RESOURCE_CLUSTER_ACTIVITY,
@@ -91,23 +92,15 @@ def auth_manager():
         }
     ):
         with patch.object(AwsAuthManager, "_check_avp_schema_version"):
-            return AwsAuthManager(None)
+            return AwsAuthManager()
 
 
 @pytest.fixture
-def auth_manager_with_appbuilder():
+def auth_manager_with_appbuilder(auth_manager):
     flask_app = Flask(__name__)
     appbuilder = init_appbuilder(flask_app)
-    with conf_vars(
-        {
-            (
-                "core",
-                "auth_manager",
-            ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
-        }
-    ):
-        with patch.object(AwsAuthManager, "_check_avp_schema_version"):
-            return AwsAuthManager(appbuilder)
+    auth_manager.appbuilder = appbuilder
+    return auth_manager
 
 
 @pytest.fixture
@@ -154,6 +147,9 @@ def client_admin():
             yield application.create_app(testing=True)
 
 
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_0_PLUS, reason="AWS auth manager is only compatible with Airflow >= 3.0.0"
+)
 class TestAwsAuthManager:
     def test_avp_facade(self, auth_manager):
         assert hasattr(auth_manager, "avp_facade")
