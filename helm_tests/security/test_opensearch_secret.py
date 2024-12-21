@@ -24,13 +24,13 @@ import pytest
 from tests.charts.helm_template_generator import render_chart
 
 
-class TestElasticsearchSecret:
-    """Tests elasticsearch secret."""
+class TestOpenSearchSecret:
+    """Tests opensearch secret."""
 
     def _get_connection(self, values: dict) -> str:
         docs = render_chart(
             values=values,
-            show_only=["templates/secrets/elasticsearch-secret.yaml"],
+            show_only=["templates/secrets/opensearch-secret.yaml"],
         )
         encoded_connection = jmespath.search("data.connection", docs[0])
         return base64.b64decode(encoded_connection).decode()
@@ -38,12 +38,12 @@ class TestElasticsearchSecret:
     def test_should_correctly_handle_password_with_special_characters(self):
         connection = self._get_connection(
             {
-                "elasticsearch": {
+                "opensearch": {
                     "enabled": True,
                     "connection": {
                         "user": "username!@#$%%^&*()",
                         "pass": "password!@#$%%^&*()",
-                        "host": "elastichostname",
+                        "host": "opensearchhostname",
                     },
                 }
             }
@@ -52,43 +52,43 @@ class TestElasticsearchSecret:
         assert (
             connection
             == "http://username%21%40%23$%25%25%5E&%2A%28%29:password%21%40%23$%25%25%5E&%2A%28%29@"
-            "elastichostname:9200"
+            "opensearchhostname:9200"
         )
 
     def test_should_generate_secret_with_specified_port(self):
         connection = self._get_connection(
             {
-                "elasticsearch": {
+                "opensearch": {
                     "enabled": True,
                     "connection": {
                         "user": "username",
                         "pass": "password",
-                        "host": "elastichostname",
+                        "host": "opensearchhostname",
                         "port": 2222,
                     },
                 }
             }
         )
 
-        assert connection == "http://username:password@elastichostname:2222"
+        assert connection == "http://username:password@opensearchhostname:2222"
 
     @pytest.mark.parametrize("scheme", ["http", "https"])
     def test_should_generate_secret_with_specified_schemes(self, scheme):
         connection = self._get_connection(
             {
-                "elasticsearch": {
+                "opensearch": {
                     "enabled": True,
                     "connection": {
                         "scheme": scheme,
                         "user": "username",
                         "pass": "password",
-                        "host": "elastichostname",
+                        "host": "opensearchhostname",
                     },
                 }
             }
         )
 
-        assert f"{scheme}://username:password@elastichostname:9200" == connection
+        assert f"{scheme}://username:password@opensearchhostname:9200" == connection
 
     @pytest.mark.parametrize(
         "extra_conn_kwargs, expected_user_info",
@@ -106,14 +106,14 @@ class TestElasticsearchSecret:
     def test_url_generated_when_user_pass_empty_combinations(self, extra_conn_kwargs, expected_user_info):
         connection = self._get_connection(
             {
-                "elasticsearch": {
+                "opensearch": {
                     "enabled": True,
-                    "connection": {"host": "elastichostname", "port": 8080, **extra_conn_kwargs},
+                    "connection": {"host": "opensearchhostname", "port": 8080, **extra_conn_kwargs},
                 }
             }
         )
 
         if not expected_user_info:
-            assert connection == "http://elastichostname:8080"
+            assert connection == "http://opensearchhostname:8080"
         else:
-            assert f"http://{expected_user_info}@elastichostname:8080" == connection
+            assert f"http://{expected_user_info}@opensearchhostname:8080" == connection
