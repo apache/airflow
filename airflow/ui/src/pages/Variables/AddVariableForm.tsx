@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Input, Spacer, Text, Textarea } from "@chakra-ui/react";
+import { Box, Field, HStack, Input, Spacer, Textarea } from "@chakra-ui/react";
 import { useEffect, useMemo } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { FiSave } from "react-icons/fi";
@@ -69,32 +69,43 @@ const AddVariableForm: React.FC<AddVariableFormProps> = ({ onClose }) => {
   return (
     <>
       <ErrorAlert error={error} />
-      <Text fontSize="md" mb={2} mt={4}>
-        Key <span style={{ color: "red" }}>*</span>
-      </Text>
       <Controller
         control={control}
         name="key"
-        render={({ field }) => <Input {...field} required size="sm" />}
+        render={({ field }) => (
+          <Field.Root required>
+            <Field.Label fontSize="md">
+              Key <Field.RequiredIndicator />
+            </Field.Label>
+            <Input {...field} required size="sm" />
+          </Field.Root>
+        )}
       />
 
-      <Text fontSize="md" mb={2} mt={4}>
-        Value <span style={{ color: "red" }}>*</span>
-      </Text>
       <Controller
         control={control}
         name="value"
-        render={({ field }) => <Textarea {...field} required size="sm" />}
+        render={({ field }) => (
+          <Field.Root mt={4} required>
+            <Field.Label fontSize="md">
+              Value <Field.RequiredIndicator />
+            </Field.Label>
+            <Textarea {...field} required size="sm" />
+          </Field.Root>
+        )}
       />
 
-      <Text fontSize="md" mb={2} mt={4}>
-        Description
-      </Text>
       <Controller
         control={control}
         name="description"
-        render={({ field }) => <Textarea {...field} size="sm" />}
+        render={({ field }) => (
+          <Field.Root mt={4}>
+            <Field.Label fontSize="md">Description</Field.Label>
+            <Textarea {...field} size="sm" />
+          </Field.Root>
+        )}
       />
+
       <Box as="footer" display="flex" justifyContent="flex-end" mt={8}>
         <HStack w="full">
           {isDirty ? (
