@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-from ast import literal_eval
 from typing import Annotated
 
 from sqlalchemy import select, update
@@ -35,6 +34,7 @@ from airflow.providers.edge.worker_api.routes._v2_compat import (
     Depends,
     SessionDep,
     create_openapi_http_exception_doc,
+    parse_command,
     status,
 )
 from airflow.utils import timezone
@@ -91,7 +91,7 @@ def fetch(
         run_id=job.run_id,
         map_index=job.map_index,
         try_number=job.try_number,
-        command=literal_eval(job.command),
+        command=parse_command(job.command),
         concurrency_slots=job.concurrency_slots,
     )
 

@@ -286,7 +286,8 @@ def _run_task_by_executor(args, dag: DAG, ti: TaskInstance) -> None:
         from airflow.executors import workloads
 
         workload = workloads.ExecuteTask.make(ti, dag_path=dag.relative_fileloc)
-        executor.queue_workload(workload)
+        with create_session() as session:
+            executor.queue_workload(workload, session)
     else:
         executor.queue_task_instance(
             ti,
