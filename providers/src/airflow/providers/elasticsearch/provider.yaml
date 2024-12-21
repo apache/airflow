@@ -136,6 +136,20 @@ config:
         type: string
         example: ~
         default: "False"
+      write_to_es:
+        description: |
+          Write the task logs to the ElasticSearch
+        version_added: 5.5.4
+        type: string
+        example: ~
+        default: "False"
+      target_index:
+        description: |
+          Name of the index to write to, when enabling writing the task logs to the ElasticSearch
+        version_added: 5.5.4
+        type: string
+        example: ~
+        default: "airflow-logs"
       json_format:
         description: |
           Instead of the default log formatter, write the log lines as JSON
