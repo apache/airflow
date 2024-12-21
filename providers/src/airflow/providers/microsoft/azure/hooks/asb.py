@@ -282,7 +282,7 @@ class AdminClientHook(BaseAzureServiceBusHook):
                     # as long as it is gone :)
                     self.log.debug("Could not find default rule '$Default' to delete; ignoring error.")
 
-                # add a rule to filter on the correlation ID
+                # add a rule to filter with the filter rule passed in
                 rule_name = filter_rule_name if filter_rule_name else "rule" + str(uuid4())
                 connection.create_rule(topic_name, subscription_name, rule_name, filter=filter_rule)
                 self.log.debug(
