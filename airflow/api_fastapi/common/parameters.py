@@ -53,6 +53,7 @@ from airflow.models.variable import Variable
 from airflow.typing_compat import Self
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from sqlalchemy.sql import ColumnElement, Select
@@ -162,6 +163,19 @@ class SortParam(BaseParam[str]):
         self.allowed_attrs = allowed_attrs
         self.model = model
         self.to_replace = to_replace
+
+    def __or__(self, other):
+        """
+        Return the other if self.value is primary key.
+
+        SortParam value cannot be None due to dynamic_depends() method.
+        Because of this we are returning other if self.value is primary key
+
+        :param other: SortParam
+
+        :return: SortParam
+        """
+        return other if self.value == self.get_primary_key_string() else self
 
     def to_orm(self, select: Select) -> Select:
         if self.skip_none is False:
@@ -528,6 +542,32 @@ QueryDagRunStateFilter = Annotated[
     ),
 ]
 
+
+def _transform_dag_run_types(types: list[str] | None) -> list[DagRunType | None] | None:
+    try:
+        if not types:
+            return None
+        return [None if run_type in ("none", None) else DagRunType(run_type) for run_type in types]
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid value for state. Valid values are {', '.join(DagRunType)}",
+        )
+
+
+QueryDagRunRunTypesFilter = Annotated[
+    FilterParam[list[str]],
+    Depends(
+        filter_param_factory(
+            attribute=DagRun.run_type,
+            _type=list[str],
+            filter_option=FilterOptionEnum.ANY_EQUAL,
+            default_factory=list,
+            transform_callable=_transform_dag_run_types,
+        )
+    ),
+]
+
 # DAGTags
 QueryDagTagPatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(DagTag.name, "tag_name_pattern"))
@@ -600,4 +640,29 @@ QueryAssetDagIdPatternSearch = Annotated[
 # Variables
 QueryVariableKeyPatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(Variable.key, "variable_key_pattern"))
+]
+
+
+# UI Shared
+def _optional_boolean(value: bool | None) -> bool | None:
+    return value if value is not None else False
+
+
+QueryIncludeUpstream = Annotated[Union[bool, None], AfterValidator(_optional_boolean)]
+QueryIncludeDownstream = Annotated[Union[bool, None], AfterValidator(_optional_boolean)]
+
+state_priority: list[None | TaskInstanceState] = [
+    TaskInstanceState.FAILED,
+    TaskInstanceState.UPSTREAM_FAILED,
+    TaskInstanceState.UP_FOR_RETRY,
+    TaskInstanceState.UP_FOR_RESCHEDULE,
+    TaskInstanceState.QUEUED,
+    TaskInstanceState.SCHEDULED,
+    TaskInstanceState.DEFERRED,
+    TaskInstanceState.RUNNING,
+    TaskInstanceState.RESTARTING,
+    None,
+    TaskInstanceState.SUCCESS,
+    TaskInstanceState.SKIPPED,
+    TaskInstanceState.REMOVED,
 ]

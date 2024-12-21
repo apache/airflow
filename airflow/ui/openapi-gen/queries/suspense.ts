@@ -15,6 +15,7 @@ import {
   DashboardService,
   EventLogService,
   ExtraLinksService,
+  GridService,
   ImportErrorService,
   JobService,
   MonitorService,
@@ -595,9 +596,9 @@ export const useDashboardServiceHistoricalMetricsSuspense = <
  * Get Structure Data.
  * @param data The data for the request.
  * @param data.dagId
- * @param data.root
  * @param data.includeUpstream
  * @param data.includeDownstream
+ * @param data.root
  * @param data.externalDependencies
  * @returns StructureDataResponse Successful Response
  * @throws ApiError
@@ -754,6 +755,90 @@ export const useBackfillServiceGetBackfillSuspense = <
       queryKey,
     ),
     queryFn: () => BackfillService.getBackfill({ backfillId }) as TData,
+    ...options,
+  });
+/**
+ * Grid Data
+ * Return grid data.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.includeUpstream
+ * @param data.includeDownstream
+ * @param data.logicalDateGte
+ * @param data.logicalDateLte
+ * @param data.root
+ * @param data.offset
+ * @param data.runType
+ * @param data.state
+ * @param data.limit
+ * @param data.orderBy
+ * @returns GridResponse Successful Response
+ * @throws ApiError
+ */
+export const useGridServiceGridDataSuspense = <
+  TData = Common.GridServiceGridDataDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    includeDownstream,
+    includeUpstream,
+    limit,
+    logicalDateGte,
+    logicalDateLte,
+    offset,
+    orderBy,
+    root,
+    runType,
+    state,
+  }: {
+    dagId: string;
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
+    limit?: number;
+    logicalDateGte?: string;
+    logicalDateLte?: string;
+    offset?: number;
+    orderBy?: string;
+    root?: string;
+    runType?: string[];
+    state?: string[];
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseGridServiceGridDataKeyFn(
+      {
+        dagId,
+        includeDownstream,
+        includeUpstream,
+        limit,
+        logicalDateGte,
+        logicalDateLte,
+        offset,
+        orderBy,
+        root,
+        runType,
+        state,
+      },
+      queryKey,
+    ),
+    queryFn: () =>
+      GridService.gridData({
+        dagId,
+        includeDownstream,
+        includeUpstream,
+        limit,
+        logicalDateGte,
+        logicalDateLte,
+        offset,
+        orderBy,
+        root,
+        runType,
+        state,
+      }) as TData,
     ...options,
   });
 /**
