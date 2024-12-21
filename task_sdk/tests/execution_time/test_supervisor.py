@@ -32,6 +32,7 @@ from unittest.mock import MagicMock
 import httpx
 import psutil
 import pytest
+from pytest_unordered import unordered
 from uuid6 import uuid7
 
 from airflow.sdk.api import client as sdk_client
@@ -44,12 +45,16 @@ from airflow.sdk.execution_time.comms import (
     GetVariable,
     GetXCom,
     PutVariable,
+    RescheduleTask,
+    SetRenderedFields,
     SetXCom,
+    TaskState,
     VariableResult,
     XComResult,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, supervise
-from airflow.utils import timezone as tz
+from airflow.sdk.execution_time.task_runner import CommsDecoder
+from airflow.utils import timezone, timezone as tz
 
 from task_sdk.tests.api.test_client import make_client
 
@@ -96,7 +101,7 @@ class TestWatchedSubprocess:
 
         proc = WatchedSubprocess.start(
             path=os.devnull,
-            ti=TaskInstance(
+            what=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
                 dag_id="c",
@@ -110,44 +115,46 @@ class TestWatchedSubprocess:
         rc = proc.wait()
 
         assert rc == 0
-        assert captured_logs == [
-            {
-                "chan": "stdout",
-                "event": "I'm a short message",
-                "level": "info",
-                "logger": "task",
-                "timestamp": "2024-11-07T12:34:56.078901Z",
-            },
-            {
-                "chan": "stderr",
-                "event": "stderr message",
-                "level": "error",
-                "logger": "task",
-                "timestamp": "2024-11-07T12:34:56.078901Z",
-            },
-            {
-                "chan": "stdout",
-                "event": "Message split across two writes",
-                "level": "info",
-                "logger": "task",
-                "timestamp": "2024-11-07T12:34:56.078901Z",
-            },
-            {
-                "event": "An error message",
-                "level": "error",
-                "logger": "airflow.foobar",
-                "timestamp": instant.replace(tzinfo=None),
-            },
-            {
-                "category": "UserWarning",
-                "event": "Warning should be captured too",
-                "filename": __file__,
-                "level": "warning",
-                "lineno": line,
-                "logger": "py.warnings",
-                "timestamp": instant.replace(tzinfo=None),
-            },
-        ]
+        assert captured_logs == unordered(
+            [
+                {
+                    "chan": "stdout",
+                    "event": "I'm a short message",
+                    "level": "info",
+                    "logger": "task",
+                    "timestamp": "2024-11-07T12:34:56.078901Z",
+                },
+                {
+                    "chan": "stderr",
+                    "event": "stderr message",
+                    "level": "error",
+                    "logger": "task",
+                    "timestamp": "2024-11-07T12:34:56.078901Z",
+                },
+                {
+                    "chan": "stdout",
+                    "event": "Message split across two writes",
+                    "level": "info",
+                    "logger": "task",
+                    "timestamp": "2024-11-07T12:34:56.078901Z",
+                },
+                {
+                    "event": "An error message",
+                    "level": "error",
+                    "logger": "airflow.foobar",
+                    "timestamp": instant.replace(tzinfo=None),
+                },
+                {
+                    "category": "UserWarning",
+                    "event": "Warning should be captured too",
+                    "filename": __file__,
+                    "level": "warning",
+                    "lineno": line,
+                    "logger": "py.warnings",
+                    "timestamp": instant.replace(tzinfo=None),
+                },
+            ]
+        )
 
     def test_subprocess_sigkilled(self):
         main_pid = os.getpid()
@@ -161,7 +168,7 @@ class TestWatchedSubprocess:
 
         proc = WatchedSubprocess.start(
             path=os.devnull,
-            ti=TaskInstance(
+            what=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
                 dag_id="c",
@@ -184,7 +191,7 @@ class TestWatchedSubprocess:
 
         proc = WatchedSubprocess.start(
             path=os.devnull,
-            ti=TaskInstance(
+            what=TaskInstance(
                 id=uuid7(),
                 task_id="b",
                 dag_id="c",
@@ -220,7 +227,7 @@ class TestWatchedSubprocess:
         spy = spy_agency.spy_on(sdk_client.TaskInstanceOperations.heartbeat)
         proc = WatchedSubprocess.start(
             path=os.devnull,
-            ti=TaskInstance(
+            what=TaskInstance(
                 id=ti_id,
                 task_id="b",
                 dag_id="c",
@@ -250,7 +257,7 @@ class TestWatchedSubprocess:
             try_number=1,
         )
         # Assert Exit Code is 0
-        assert supervise(ti=ti, dag_path=dagfile_path, token="", server="", dry_run=True) == 0
+        assert supervise(ti=ti, dag_path=dagfile_path, token="", server="", dry_run=True) == 0, captured_logs
 
         # We should have a log from the task!
         assert {
@@ -261,7 +268,9 @@ class TestWatchedSubprocess:
             "timestamp": "2024-11-07T12:34:56.078901Z",
         } in captured_logs
 
-    def test_supervise_handles_deferred_task(self, test_dags_dir, captured_logs, time_machine, mocker):
+    def test_supervise_handles_deferred_task(
+        self, test_dags_dir, captured_logs, time_machine, mocker, make_ti_context
+    ):
         """
         Test that the supervisor handles a deferred task correctly.
 
@@ -277,12 +286,13 @@ class TestWatchedSubprocess:
         # Create a mock client to assert calls to the client
         # We assume the implementation of the client is correct and only need to check the calls
         mock_client = mocker.Mock(spec=sdk_client.Client)
+        mock_client.task_instances.start.return_value = make_ti_context()
 
         instant = tz.datetime(2024, 11, 7, 12, 34, 56, 0)
         time_machine.move_to(instant, tick=False)
 
         # Assert supervisor runs the task successfully
-        assert supervise(ti=ti, dag_path=dagfile_path, token="", client=mock_client) == 0
+        assert supervise(ti=ti, dag_path=dagfile_path, token="", client=mock_client) == 0, captured_logs
 
         # Validate calls to the client
         mock_client.task_instances.start.assert_called_once_with(ti.id, mocker.ANY, mocker.ANY)
@@ -316,7 +326,7 @@ class TestWatchedSubprocess:
         # The API Server would return a 409 Conflict status code if the TI is not
         # in a "queued" state.
         def handle_request(request: httpx.Request) -> httpx.Response:
-            if request.url.path == f"/task-instances/{ti.id}/state":
+            if request.url.path == f"/task-instances/{ti.id}/run":
                 return httpx.Response(
                     409,
                     json={
@@ -331,7 +341,7 @@ class TestWatchedSubprocess:
         client = make_client(transport=httpx.MockTransport(handle_request))
 
         with pytest.raises(ServerResponseError, match="Server returned error") as err:
-            WatchedSubprocess.start(path=os.devnull, ti=ti, client=client)
+            WatchedSubprocess.start(path=os.devnull, what=ti, client=client)
 
         assert err.value.response.status_code == 409
         assert err.value.detail == {
@@ -341,7 +351,7 @@ class TestWatchedSubprocess:
         }
 
     @pytest.mark.parametrize("captured_logs", [logging.ERROR], indirect=True, ids=["log_level=error"])
-    def test_state_conflict_on_heartbeat(self, captured_logs, monkeypatch, mocker):
+    def test_state_conflict_on_heartbeat(self, captured_logs, monkeypatch, mocker, make_ti_context_dict):
         """
         Test that ensures that the Supervisor does not cause the task to fail if the Task Instance is no longer
         in the running state. Instead, it logs the error and terminates the task process if it
@@ -379,12 +389,14 @@ class TestWatchedSubprocess:
                             "current_state": "success",
                         },
                     )
-            # Return a 204 for all other requests like the initial call to mark the task as running
+            elif request.url.path == f"/task-instances/{ti_id}/run":
+                return httpx.Response(200, json=make_ti_context_dict())
+            # Return a 204 for all other requests
             return httpx.Response(status_code=204)
 
         proc = WatchedSubprocess.start(
             path=os.devnull,
-            ti=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
+            what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
             client=make_client(transport=httpx.MockTransport(handle_request)),
             target=subprocess_main,
         )
@@ -436,7 +448,7 @@ class TestWatchedSubprocess:
         mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
 
         proc = WatchedSubprocess(
-            ti_id=TI_ID,
+            id=TI_ID,
             pid=mock_process.pid,
             stdin=mocker.MagicMock(),
             client=client,
@@ -524,7 +536,7 @@ class TestWatchedSubprocess:
         monkeypatch.setattr(WatchedSubprocess, "TASK_OVERTIME_THRESHOLD", overtime_threshold)
 
         mock_watched_subprocess = WatchedSubprocess(
-            ti_id=TI_ID,
+            id=TI_ID,
             pid=12345,
             stdin=mocker.Mock(),
             process=mocker.Mock(),
@@ -537,13 +549,13 @@ class TestWatchedSubprocess:
 
         # Call `wait` to trigger the overtime handling
         # This will call the `kill` method if the task has been running for too long
-        mock_watched_subprocess._handle_task_overtime_if_needed()
+        mock_watched_subprocess._handle_process_overtime_if_needed()
 
         # Validate process kill behavior and log messages
         if expected_kill:
             mock_kill.assert_called_once_with(signal.SIGTERM, force=True)
             mock_logger.warning.assert_called_once_with(
-                "Task success overtime reached; terminating process",
+                "Workload success overtime reached; terminating process",
                 ti_id=TI_ID,
             )
         else:
@@ -561,7 +573,7 @@ class TestWatchedSubprocessKill:
     @pytest.fixture
     def watched_subprocess(self, mocker, mock_process):
         proc = WatchedSubprocess(
-            ti_id=TI_ID,
+            id=TI_ID,
             pid=12345,
             stdin=mocker.Mock(),
             client=mocker.Mock(),
@@ -652,7 +664,7 @@ class TestWatchedSubprocessKill:
 
         proc = WatchedSubprocess.start(
             path=os.devnull,
-            ti=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
+            what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
             client=MagicMock(spec=sdk_client.Client),
             target=subprocess_main,
         )
@@ -742,7 +754,7 @@ class TestHandleRequest:
     def watched_subprocess(self, mocker):
         """Fixture to provide a WatchedSubprocess instance."""
         return WatchedSubprocess(
-            ti_id=TI_ID,
+            id=TI_ID,
             pid=12345,
             stdin=BytesIO(),
             client=mocker.Mock(),
@@ -754,7 +766,7 @@ class TestHandleRequest:
         [
             pytest.param(
                 GetConnection(conn_id="test_conn"),
-                b'{"conn_id":"test_conn","conn_type":"mysql"}\n',
+                b'{"conn_id":"test_conn","conn_type":"mysql","type":"ConnectionResult"}\n',
                 "connections.get",
                 ("test_conn",),
                 ConnectionResult(conn_id="test_conn", conn_type="mysql"),
@@ -762,7 +774,7 @@ class TestHandleRequest:
             ),
             pytest.param(
                 GetVariable(key="test_key"),
-                b'{"key":"test_key","value":"test_value"}\n',
+                b'{"key":"test_key","value":"test_value","type":"VariableResult"}\n',
                 "variables.get",
                 ("test_key",),
                 VariableResult(key="test_key", value="test_value"),
@@ -785,8 +797,25 @@ class TestHandleRequest:
                 id="patch_task_instance_to_deferred",
             ),
             pytest.param(
+                RescheduleTask(
+                    reschedule_date=timezone.parse("2024-10-31T12:00:00Z"),
+                    end_date=timezone.parse("2024-10-31T12:00:00Z"),
+                ),
+                b"",
+                "task_instances.reschedule",
+                (
+                    TI_ID,
+                    RescheduleTask(
+                        reschedule_date=timezone.parse("2024-10-31T12:00:00Z"),
+                        end_date=timezone.parse("2024-10-31T12:00:00Z"),
+                    ),
+                ),
+                "",
+                id="patch_task_instance_to_up_for_reschedule",
+            ),
+            pytest.param(
                 GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
-                b'{"key":"test_key","value":"test_value"}\n',
+                b'{"key":"test_key","value":"test_value","type":"XComResult"}\n',
                 "xcoms.get",
                 ("test_dag", "test_run", "test_task", "test_key", -1),
                 XComResult(key="test_key", value="test_value"),
@@ -796,7 +825,7 @@ class TestHandleRequest:
                 GetXCom(
                     dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key", map_index=2
                 ),
-                b'{"key":"test_key","value":"test_value"}\n',
+                b'{"key":"test_key","value":"test_value","type":"XComResult"}\n',
                 "xcoms.get",
                 ("test_dag", "test_run", "test_task", "test_key", 2),
                 XComResult(key="test_key", value="test_value"),
@@ -845,6 +874,24 @@ class TestHandleRequest:
                 {"ok": True},
                 id="set_xcom_with_map_index",
             ),
+            # we aren't adding all states under TerminalTIState here, because this test's scope is only to check
+            # if it can handle TaskState message
+            pytest.param(
+                TaskState(state=TerminalTIState.SKIPPED, end_date=timezone.parse("2024-10-31T12:00:00Z")),
+                b"",
+                "",
+                (),
+                "",
+                id="patch_task_instance_to_skipped",
+            ),
+            pytest.param(
+                SetRenderedFields(rendered_fields={"field1": "rendered_value1", "field2": "rendered_value2"}),
+                b"",
+                "task_instances.set_rtif",
+                (TI_ID, {"field1": "rendered_value1", "field2": "rendered_value2"}),
+                {"ok": True},
+                id="set_rtif",
+            ),
         ],
     )
     def test_handle_requests(
@@ -866,6 +913,7 @@ class TestHandleRequest:
             1. Sends the message to the subprocess.
             2. Verifies that the correct client method is called with the expected argument.
             3. Checks that the buffer is updated with the expected response.
+            4. Verifies that the response is correctly decoded.
         """
 
         # Mock the client method. E.g. `client.variables.get` or `client.connections.get`
@@ -880,7 +928,20 @@ class TestHandleRequest:
         generator.send(msg)
 
         # Verify the correct client method was called
-        mock_client_method.assert_called_once_with(*method_arg)
+        if client_attr_path:
+            mock_client_method.assert_called_once_with(*method_arg)
 
         # Verify the response was added to the buffer
-        assert watched_subprocess.stdin.getvalue() == expected_buffer
+        val = watched_subprocess.stdin.getvalue()
+        assert val == expected_buffer
+
+        # Verify the response is correctly decoded
+        # This is important because the subprocess/task runner will read the response
+        # and deserialize it to the correct message type
+
+        # Only decode the buffer if it contains data. An empty buffer implies no response was written.
+        if val:
+            # Using BytesIO to simulate a readable stream for CommsDecoder.
+            input_stream = BytesIO(val)
+            decoder = CommsDecoder(input=input_stream)
+            assert decoder.get_message() == mock_response

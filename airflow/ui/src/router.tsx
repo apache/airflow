@@ -16,19 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { queryOptions } from "@tanstack/react-query";
 import { createBrowserRouter } from "react-router-dom";
 
+import { UseConfigServiceGetConfigsKeyFn } from "openapi/queries";
+import { ConfigService } from "openapi/requests/services.gen";
 import { BaseLayout } from "src/layouts/BaseLayout";
+import { Dag } from "src/pages/Dag";
+import { Code } from "src/pages/Dag/Code";
+import { Overview } from "src/pages/Dag/Overview";
+import { Runs } from "src/pages/Dag/Runs";
+import { Tasks } from "src/pages/Dag/Tasks";
 import { DagsList } from "src/pages/DagsList";
-import { Dag } from "src/pages/DagsList/Dag";
-import { Code } from "src/pages/DagsList/Dag/Code";
-import { Overview } from "src/pages/DagsList/Dag/Overview";
-import { Runs } from "src/pages/DagsList/Dag/Runs";
-import { Tasks } from "src/pages/DagsList/Dag/Tasks";
-import { Run } from "src/pages/DagsList/Run";
 import { Dashboard } from "src/pages/Dashboard";
 import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
+import { Run } from "src/pages/Run";
+import { TaskInstances } from "src/pages/Run/TaskInstances";
+import { Task, Instances } from "src/pages/Task";
+import { TaskInstance, Logs } from "src/pages/TaskInstance";
+import { XCom } from "src/pages/XCom";
+
+import { Variables } from "./pages/Variables";
+import { queryClient } from "./queryClient";
 
 export const router = createBrowserRouter(
   [
@@ -47,6 +57,14 @@ export const router = createBrowserRouter(
           path: "events",
         },
         {
+          element: <XCom />,
+          path: "xcoms",
+        },
+        {
+          element: <Variables />,
+          path: "variables",
+        },
+        {
           children: [
             { element: <Overview />, index: true },
             { element: <Runs />, path: "runs" },
@@ -57,7 +75,34 @@ export const router = createBrowserRouter(
           element: <Dag />,
           path: "dags/:dagId",
         },
-        { element: <Run />, path: "dags/:dagId/runs/:runId" },
+        {
+          children: [
+            { element: <TaskInstances />, index: true },
+            { element: <Events />, path: "events" },
+            { element: <Code />, path: "code" },
+          ],
+          element: <Run />,
+          path: "dags/:dagId/runs/:runId",
+        },
+        {
+          children: [
+            { element: <Logs />, index: true },
+            { element: <Events />, path: "events" },
+            { element: <XCom />, path: "xcom" },
+            { element: <Code />, path: "code" },
+            { element: <div>Details</div>, path: "details" },
+          ],
+          element: <TaskInstance />,
+          path: "dags/:dagId/runs/:runId/tasks/:taskId",
+        },
+        {
+          children: [
+            { element: <Instances />, index: true },
+            { element: <Events />, path: "events" },
+          ],
+          element: <Task />,
+          path: "dags/:dagId/tasks/:taskId",
+        },
       ],
       element: <BaseLayout />,
       errorElement: (
@@ -65,6 +110,17 @@ export const router = createBrowserRouter(
           <ErrorPage />
         </BaseLayout>
       ),
+      // Use react router loader to ensure we have the config before any other requests are made
+      loader: async () => {
+        const data = await queryClient.ensureQueryData(
+          queryOptions({
+            queryFn: ConfigService.getConfigs,
+            queryKey: UseConfigServiceGetConfigsKeyFn(),
+          }),
+        );
+
+        return data;
+      },
       path: "/",
     },
   ],

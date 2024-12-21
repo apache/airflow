@@ -104,7 +104,7 @@ def test_get_long_package_name():
 
 def test_get_provider_requirements():
     # update me when asana dependencies change
-    assert get_provider_requirements("asana") == ["apache-airflow>=2.8.0", "asana>=0.10,<4.0.0"]
+    assert get_provider_requirements("asana") == ["apache-airflow>=2.9.0", "asana>=0.10,<4.0.0"]
 
 
 def test_get_removed_providers():
@@ -210,7 +210,7 @@ def test_get_documentation_package_path():
             "beta0",
             """
     "apache-airflow-providers-common-sql>=1.20.0b0",
-    "apache-airflow>=2.8.0b0",
+    "apache-airflow>=2.9.0b0",
     "asyncpg>=0.30.0",
     "psycopg2-binary>=2.9.4",
     """,
@@ -221,7 +221,7 @@ def test_get_documentation_package_path():
             "",
             """
     "apache-airflow-providers-common-sql>=1.20.0",
-    "apache-airflow>=2.8.0",
+    "apache-airflow>=2.9.0",
     "asyncpg>=0.30.0",
     "psycopg2-binary>=2.9.4",
     """,
@@ -243,7 +243,7 @@ def test_get_install_requirements(provider: str, version_suffix: str, expected: 
                 "amazon": ["apache-airflow-providers-amazon>=2.6.0"],
                 "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
                 "apache.cassandra": ["apache-airflow-providers-apache-cassandra"],
-                "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.2.0"],
+                "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=10.1.0"],
                 "facebook": ["apache-airflow-providers-facebook>=2.2.0"],
                 "leveldb": ["plyvel>=1.5.1"],
                 "microsoft.azure": ["apache-airflow-providers-microsoft-azure"],
@@ -266,7 +266,7 @@ def test_get_install_requirements(provider: str, version_suffix: str, expected: 
                 "amazon": ["apache-airflow-providers-amazon>=2.6.0.dev0"],
                 "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
                 "apache.cassandra": ["apache-airflow-providers-apache-cassandra"],
-                "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.2.0.dev0"],
+                "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=10.1.0.dev0"],
                 "facebook": ["apache-airflow-providers-facebook>=2.2.0.dev0"],
                 "leveldb": ["plyvel>=1.5.1"],
                 "microsoft.azure": ["apache-airflow-providers-microsoft-azure"],
@@ -289,7 +289,7 @@ def test_get_install_requirements(provider: str, version_suffix: str, expected: 
                 "amazon": ["apache-airflow-providers-amazon>=2.6.0b0"],
                 "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
                 "apache.cassandra": ["apache-airflow-providers-apache-cassandra"],
-                "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.2.0b0"],
+                "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=10.1.0b0"],
                 "facebook": ["apache-airflow-providers-facebook>=2.2.0b0"],
                 "leveldb": ["plyvel>=1.5.1"],
                 "microsoft.azure": ["apache-airflow-providers-microsoft-azure"],
@@ -437,7 +437,7 @@ def test_validate_provider_info_with_schema():
 @pytest.mark.parametrize(
     "provider_id, min_version",
     [
-        ("amazon", "2.8.0"),
+        ("amazon", "2.9.0"),
         ("fab", "3.0.0.dev0"),
     ],
 )
@@ -502,7 +502,7 @@ def test_provider_jinja_context():
         "CHANGELOG_RELATIVE_PATH": "../../providers/src/airflow/providers/amazon",
         "SUPPORTED_PYTHON_VERSIONS": ["3.9", "3.10", "3.11", "3.12"],
         "PLUGINS": [],
-        "MIN_AIRFLOW_VERSION": "2.8.0",
+        "MIN_AIRFLOW_VERSION": "2.9.0",
         "PROVIDER_REMOVED": False,
         "PROVIDER_INFO": provider_info,
     }

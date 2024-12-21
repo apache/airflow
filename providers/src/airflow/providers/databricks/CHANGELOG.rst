@@ -26,8 +26,15 @@
 Changelog
 ---------
 
-main
+7.0.0
 .....
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
 
 .. warning::
   All deprecated classes, parameters and features have been removed from the databricks provider package.
@@ -37,6 +44,31 @@ main
   * ``Removed deprecated DatabricksSubmitRunDeferrableOperator. Use DatabricksSubmitRunOperator with deferrable=True instead.``
   * ``Removed deprecated return_tuple parameter from DatabricksSqlHook. Now namedtuple will always returned.``
 
+* ``Remove deprecations from Databricks Provider (#44566)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``[FIX] Fixed databricks repair run deferrable (#44213)``
+* ``fix(providers/databricks): remove additional argument passed to repair_run (#44140)``
+
+Misc
+~~~~
+
+* ``Added job_clusters as a templated parameter to CreateDatabricksWorkflowOperator (#45022)``
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+* ``Bump minimum version of databricks SDK to 3.0.0 (#43272)``
+* ``Update DAG example links in multiple providers documents (#44034)``
+* ``Rename execution_date to logical_date across codebase (#43902)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Update path of example dags in docs (#45069)``
+   * ``Revert "Added job_clusters as a templated parameter to CreateDatabricksWorkfl…" (#45035)``
 
 6.13.0
 ......

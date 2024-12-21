@@ -208,7 +208,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "24.3.1"
-UV_VERSION = "0.5.6"
+UV_VERSION = "0.5.11"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -421,6 +421,7 @@ AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
     "2.10.1": ["3.8", "3.9", "3.10", "3.11", "3.12"],
     "2.10.2": ["3.8", "3.9", "3.10", "3.11", "3.12"],
     "2.10.3": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.10.4": ["3.8", "3.9", "3.10", "3.11", "3.12"],
 }
 
 DB_RESET = False
@@ -607,16 +608,10 @@ DEFAULT_EXTRAS = [
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
-CHICKEN_EGG_PROVIDERS = " ".join(["common.compat"])
+CHICKEN_EGG_PROVIDERS = " ".join(["common.compat", "cncf.kubernetes"])
 
 
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
-    {
-        "python-version": "3.9",
-        "airflow-version": "2.8.4",
-        "remove-providers": "cloudant fab edge",
-        "run-tests": "true",
-    },
     {
         "python-version": "3.9",
         "airflow-version": "2.9.3",
@@ -625,7 +620,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.9",
-        "airflow-version": "2.10.3",
+        "airflow-version": "2.10.4",
         "remove-providers": "cloudant fab",
         "run-tests": "true",
     },

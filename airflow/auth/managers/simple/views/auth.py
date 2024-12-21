@@ -16,20 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-import logging
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from flask import redirect, request, session, url_for
 from flask_appbuilder import expose
 
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.configuration import conf
 from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.state import State
 from airflow.www.app import csrf
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.views import AirflowBaseView
-
-logger = logging.getLogger(__name__)
 
 
 class SimpleAuthManagerAuthenticationViews(AirflowBaseView):
@@ -54,7 +52,9 @@ class SimpleAuthManagerAuthenticationViews(AirflowBaseView):
         return self.render_template(
             "airflow/login.html",
             disable_nav_bar=True,
-            login_submit_url=url_for("SimpleAuthManagerAuthenticationViews.login_submit"),
+            login_submit_url=url_for(
+                "SimpleAuthManagerAuthenticationViews.login_submit", next=request.args.get("next")
+            ),
             auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
             state_color_mapping=state_color_mapping,
             standalone_dag_processor=standalone_dag_processor,
@@ -72,6 +72,7 @@ class SimpleAuthManagerAuthenticationViews(AirflowBaseView):
         """Redirect the user to this callback after login attempt."""
         username = request.form.get("username")
         password = request.form.get("password")
+        next_url = request.args.get("next")
 
         found_users = [
             user
@@ -80,7 +81,7 @@ class SimpleAuthManagerAuthenticationViews(AirflowBaseView):
         ]
 
         if not username or not password or len(found_users) == 0:
-            return redirect(url_for("SimpleAuthManagerAuthenticationViews.login", error=["1"]))
+            return redirect(url_for("SimpleAuthManagerAuthenticationViews.login", error=["1"], next=next_url))
 
         user = SimpleAuthManagerUser(
             username=username,
@@ -96,4 +97,33 @@ class SimpleAuthManagerAuthenticationViews(AirflowBaseView):
         )
         token = signer.generate_signed_token(get_auth_manager().serialize_user(user))
 
-        return redirect(url_for("Airflow.index", token=token))
+        if next_url:
+            return redirect(self._get_redirect_url(next_url, token))
+        else:
+            return redirect(url_for("Airflow.index", token=token))
+
+    def _get_redirect_url(self, next_url: str, token: str) -> str:
+        if self._is_same_domain(next_url, request.url):
+            return self._add_query_params(next_url, {"token": token})
+        else:
+            return url_for("Airflow.index", token=token)
+
+    @staticmethod
+    def _is_same_domain(next_url: str, current_url: str) -> bool:
+        next_url_infos = urlsplit(next_url)
+        current_url_infos = urlsplit(current_url)
+        return (
+            current_url_infos.netloc.startswith("localhost:")
+            or (not next_url_infos.scheme or next_url_infos.scheme == current_url_infos.scheme)
+            and (not next_url_infos.netloc or next_url_infos.netloc == current_url_infos.netloc)
+        )
+
+    @staticmethod
+    def _add_query_params(url: str, params: dict) -> str:
+        url_infos = urlsplit(url)
+        existing_query = dict(parse_qsl(url_infos.query))
+        existing_query.update(params)
+        updated_query = urlencode(existing_query, doseq=True)
+        return urlunsplit(
+            (url_infos.scheme, url_infos.netloc, url_infos.path, updated_query, url_infos.fragment)
+        )

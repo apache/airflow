@@ -20,7 +20,7 @@ import pytest
 
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
 def test_that_compat_does_not_raise():

@@ -42,7 +42,7 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import { TogglePause } from "src/components/TogglePause";
-import TriggerDAGIconButton from "src/components/TriggerDag/TriggerDAGIconButton";
+import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
 import {
   SearchParamsKeys,
   type SearchParamsKeysType,
@@ -100,11 +100,10 @@ const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
           nextDagrunCreateAfter={original.next_dagrun_create_after}
         />
       ) : undefined,
-    enableSorting: false,
     header: "Next Dag Run",
   },
   {
-    accessorKey: "latest_dag_runs",
+    accessorKey: "last_run_start_date",
     cell: ({ row: { original } }) =>
       original.latest_dag_runs[0] ? (
         <DagRunInfo
@@ -115,7 +114,6 @@ const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
           state={original.latest_dag_runs[0].state}
         />
       ) : undefined,
-    enableSorting: false,
     header: "Last Dag Run",
   },
   {
@@ -130,7 +128,7 @@ const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
   },
   {
     accessorKey: "trigger",
-    cell: ({ row }) => <TriggerDAGIconButton dag={row.original} />,
+    cell: ({ row }) => <TriggerDAGButton dag={row.original} withText={false} />,
     enableSorting: false,
     header: "",
   },
@@ -172,13 +170,16 @@ export const DagsList = () => {
   const selectedTags = searchParams.getAll(TAGS_PARAM);
 
   const { setTableURLState, tableURLState } = useTableURLState();
+
   const { pagination, sorting } = tableURLState;
   const [dagDisplayNamePattern, setDagDisplayNamePattern] = useState(
     searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
   );
 
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
+  const orderBy = sort
+    ? `${sort.desc ? "-" : ""}${sort.id}`
+    : "-last_run_start_date";
 
   const handleSearchChange = (value: string) => {
     if (value) {
@@ -206,7 +207,7 @@ export const DagsList = () => {
 
   const { data, error, isFetching, isLoading } = useDags({
     dagDisplayNamePattern: Boolean(dagDisplayNamePattern)
-      ? `%${dagDisplayNamePattern}%`
+      ? `${dagDisplayNamePattern}`
       : undefined,
     lastDagRunState,
     limit: pagination.pageSize,
@@ -237,6 +238,7 @@ export const DagsList = () => {
           buttonProps={{ disabled: true }}
           defaultValue={dagDisplayNamePattern ?? ""}
           onChange={handleSearchChange}
+          placeHolder="Search Dags"
         />
         <DagsFilters />
         <HStack justifyContent="space-between">

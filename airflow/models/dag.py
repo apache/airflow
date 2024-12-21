@@ -25,7 +25,7 @@ import pathlib
 import sys
 import time
 from collections import defaultdict
-from collections.abc import Collection, Container, Iterable, Sequence
+from collections.abc import Collection, Container, Generator, Iterable, Sequence
 from contextlib import ExitStack
 from datetime import datetime, timedelta
 from functools import cache
@@ -34,6 +34,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    TypeVar,
     Union,
     cast,
     overload,
@@ -66,7 +67,6 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref, relationship
 from sqlalchemy.sql import Select, expression
-from sqlalchemy_utils import UUIDType
 
 from airflow import settings, utils
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
@@ -119,12 +119,15 @@ if TYPE_CHECKING:
     from airflow.models.abstractoperator import TaskStateChangeCallback
     from airflow.models.dagbag import DagBag
     from airflow.models.operator import Operator
+    from airflow.serialization.serialized_objects import MaybeSerializedDAG
     from airflow.typing_compat import Literal
 
 log = logging.getLogger(__name__)
 
 DEFAULT_VIEW_PRESETS = ["grid", "graph", "duration", "gantt", "landing_times"]
 ORIENTATION_PRESETS = ["LR", "TB", "RL", "BT"]
+
+AssetT = TypeVar("AssetT", bound=BaseAsset)
 
 TAG_MAX_LEN = 100
 
@@ -1829,8 +1832,7 @@ class DAG(TaskSDKDag, LoggingMixin):
     @provide_session
     def bulk_write_to_db(
         cls,
-        dags: Collection[DAG],
-        processor_subdir: str | None = None,
+        dags: Collection[MaybeSerializedDAG],
         session: Session = NEW_SESSION,
     ):
         """
@@ -1845,10 +1847,10 @@ class DAG(TaskSDKDag, LoggingMixin):
         from airflow.dag_processing.collection import AssetModelOperation, DagModelOperation
 
         log.info("Sync %s DAGs", len(dags))
-        dag_op = DagModelOperation({dag.dag_id: dag for dag in dags})
+        dag_op = DagModelOperation({dag.dag_id: dag for dag in dags})  # type: ignore[misc]
 
         orm_dags = dag_op.add_dags(session=session)
-        dag_op.update_dags(orm_dags, processor_subdir=processor_subdir, session=session)
+        dag_op.update_dags(orm_dags, session=session)
 
         asset_op = AssetModelOperation.collect(dag_op.dags)
 
@@ -1864,13 +1866,13 @@ class DAG(TaskSDKDag, LoggingMixin):
         session.flush()
 
     @provide_session
-    def sync_to_db(self, processor_subdir: str | None = None, session=NEW_SESSION):
+    def sync_to_db(self, session=NEW_SESSION):
         """
         Save attributes about this DAG to the DB.
 
         :return: None
         """
-        self.bulk_write_to_db([self], processor_subdir=processor_subdir, session=session)
+        self.bulk_write_to_db([self], session=session)
 
     def get_default_view(self):
         """Allow backward compatible jinja2 templates."""
@@ -1956,6 +1958,25 @@ class DAG(TaskSDKDag, LoggingMixin):
                 qry = qry.where(TaskInstance.state.in_(states))
         return session.scalar(qry)
 
+    # "default has type "type[Asset]", argument has type "type[AssetT]")  [assignment]" :shrug:
+    def get_task_assets(
+        self,
+        inlets: bool = True,
+        outlets: bool = True,
+        of_type: type[AssetT] = Asset,  # type: ignore[assignment]
+    ) -> Generator[tuple[str, AssetT], None, None]:
+        for task in self.task_dict.values():
+            directions = ("inlets",) if inlets else ()
+            if outlets:
+                directions += ("outlets",)
+            for direction in directions:
+                if not (ports := getattr(task, direction, None)):
+                    continue
+
+                for port in ports:
+                    if isinstance(port, of_type):
+                        yield task.task_id, port
+
 
 class DagTag(Base):
     """A tag name per dag, to allow quick filtering in the DAG view."""
@@ -2026,9 +2047,7 @@ class DagModel(Base):
     # packaged DAG, it will point to the subpath of the DAG within the
     # associated zip.
     fileloc = Column(String(2000))
-    # The base directory used by Dag Processor that parsed this dag.
-    processor_subdir = Column(String(2000), nullable=True)
-    bundle_id = Column(UUIDType(binary=False), ForeignKey("dag_bundle.id"), nullable=True)
+    bundle_name = Column(StringID(), ForeignKey("dag_bundle.name"), nullable=True)
     # The version of the bundle the last time the DAG was parsed
     latest_bundle_version = Column(String(200), nullable=True)
     # String representing the owners
@@ -2240,24 +2259,18 @@ class DagModel(Base):
     def deactivate_deleted_dags(
         cls,
         alive_dag_filelocs: Container[str],
-        processor_subdir: str,
         session: Session = NEW_SESSION,
     ) -> None:
         """
         Set ``is_active=False`` on the DAGs for which the DAG files have been removed.
 
         :param alive_dag_filelocs: file paths of alive DAGs
-        :param processor_subdir: dag processor subdir
         :param session: ORM Session
         """
         log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ", cls.__tablename__)
         dag_models = session.scalars(
             select(cls).where(
                 cls.fileloc.is_not(None),
-                or_(
-                    cls.processor_subdir.is_(None),
-                    cls.processor_subdir == processor_subdir,
-                ),
             )
         )
 
@@ -2281,7 +2294,7 @@ class DagModel(Base):
             # we may be dealing with old version.  In that case,
             # just wait for the dag to be reserialized.
             try:
-                return cond.evaluate(statuses)
+                return cond.evaluate(statuses, session=session)
             except AttributeError:
                 log.warning("dag '%s' has old serialization; skipping DAG run creation.", dag_id)
                 return None

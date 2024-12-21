@@ -160,12 +160,15 @@ jobs:
       - name: "Get information about the Workflow"
         id: source-run-info
         run: breeze ci get-workflow-info 2>> ${GITHUB_OUTPUT}
+        env:
+          SKIP_BREEZE_SELF_UPGRADE_CHECK: "true"
       - name: Selective checks
         id: selective-checks
         env:
           PR_LABELS: "${{ steps.source-run-info.outputs.pr-labels }}"
           COMMIT_REF: "${{ github.sha }}"
           VERBOSE: "false"
+
         run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
       - name: env
         run: printenv
@@ -493,6 +496,7 @@ jobs:
        needs.build-info.outputs.full-tests-needed == 'true')
     with:
       test-groups: ${{ needs.build-info.outputs.test-groups }}
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       core-test-types-list-as-string: ${{ needs.build-info.outputs.core-test-types-list-as-string }}
@@ -739,28 +743,22 @@ jobs:
       - tests-kubernetes
       - tests-task-sdk
       - finalize-tests
-    if: github.event_name == 'schedule' && failure()
+    if: github.event_name == 'schedule' && failure() && github.run_attempt == 1
     runs-on: ["ubuntu-22.04"]
     steps:
       - name: Notify Slack
         id: slack
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: slackapi/slack-github-action@485a9d42d3a73031f12ec201c457e2162c45d02d  # v2.0.0
         with:
-          channel-id: 'internal-airflow-ci-cd'
+          method: chat.postMessage
+          token: ${{ env.SLACK_BOT_TOKEN }}
           # yamllint disable rule:line-length
           payload: |
-            {
-              "text": "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>",
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
-                  }
-                }
-              ]
-            }
+            channel: "internal-airflow-ci-cd"
+            text: "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+            blocks:
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
           # yamllint enable rule:line-length
-        env:
-          SLACK_BOT_TOKEN: ${{ env.SLACK_BOT_TOKEN }}

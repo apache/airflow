@@ -94,7 +94,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "2.9.2": "686269002441",
     "2.10.0": "22ed7efa9da2",
     "2.10.3": "5f2621c13b39",
-    "3.0.0": "e229247a6cb1",
+    "3.0.0": "5c9c0231baa2",
 }
 
 
@@ -1086,7 +1086,7 @@ def _revisions_above_min_for_offline(config, revisions) -> None:
     dbname = settings.engine.dialect.name
     if dbname == "sqlite":
         raise SystemExit("Offline migration not supported for SQLite.")
-    min_version, min_revision = ("3.0.0", "22ed7efa9da2")
+    min_version, min_revision = ("2.7.0", "937cbd173ca1")
 
     # Check if there is history between the revisions and the start revision
     # This ensures that the revisions are above `min_revision`

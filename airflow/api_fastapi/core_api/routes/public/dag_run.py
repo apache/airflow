@@ -21,6 +21,8 @@ from typing import Annotated, Literal, cast
 
 import pendulum
 from fastapi import Depends, HTTPException, Query, Request, status
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 from sqlalchemy import select
 
 from airflow.api.common.mark_tasks import (
@@ -140,10 +142,17 @@ def patch_dag_run(
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 
+    fields_to_update = patch_body.model_fields_set
+
     if update_mask:
-        data = patch_body.model_dump(include=set(update_mask))
+        fields_to_update = fields_to_update.intersection(update_mask)
+        data = patch_body.model_dump(include=fields_to_update, by_alias=True)
     else:
-        data = patch_body.model_dump()
+        try:
+            DAGRunPatchBody(**patch_body.model_dump())
+        except ValidationError as e:
+            raise RequestValidationError(errors=e.errors())
+        data = patch_body.model_dump(by_alias=True)
 
     for attr_name, attr_value in data.items():
         if attr_name == "state":
@@ -225,7 +234,7 @@ def clear_dag_run(
             start_date=start_date,
             end_date=end_date,
             task_ids=None,
-            only_failed=False,
+            only_failed=body.only_failed,
             dry_run=True,
             session=session,
         )
@@ -236,10 +245,10 @@ def clear_dag_run(
         )
     else:
         dag.clear(
-            start_date=dag_run.start_date,
-            end_date=dag_run.end_date,
+            start_date=start_date,
+            end_date=end_date,
             task_ids=None,
-            only_failed=False,
+            only_failed=body.only_failed,
             session=session,
         )
         dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))

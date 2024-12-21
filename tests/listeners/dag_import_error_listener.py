@@ -26,17 +26,13 @@ existing = {}
 @hookimpl
 def on_new_dag_import_error(filename, stacktrace):
     """Execute when new dag import error appears"""
-    new["filename"] = stacktrace
-    print("new error>> filename:" + str(filename))
-    print("new error>> stacktrace:" + str(stacktrace))
+    new[filename] = stacktrace
 
 
 @hookimpl
 def on_existing_dag_import_error(filename, stacktrace):
     """Execute when existing dag import error appears"""
-    existing["filename"] = stacktrace
-    print("existing error>> filename:" + str(filename))
-    print("existing error>> stacktrace:" + str(stacktrace))
+    existing[filename] = stacktrace
 
 
 def clear():

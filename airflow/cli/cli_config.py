@@ -64,7 +64,7 @@ class DefaultHelpParser(argparse.ArgumentParser):
         super()._check_value(action, value)
 
     def error(self, message):
-        """Override error and use print_instead of print_usage."""
+        """Override error and use print_help instead of print_usage."""
         self.print_help()
         self.exit(2, f"\n{self.prog} command error: {message}, see help above.\n")
 
@@ -857,26 +857,30 @@ ARG_OPTION = Arg(
     ("option",),
     help="The option name",
 )
+
+ARG_LINT_CONFIG_SECTION = Arg(
+    ("--section",),
+    help="The section name(s) to lint in the airflow config.",
+    type=string_list_type,
+)
+ARG_LINT_CONFIG_OPTION = Arg(
+    ("--option",),
+    help="The option name(s) to lint in the airflow config.",
+    type=string_list_type,
+)
+ARG_LINT_CONFIG_IGNORE_SECTION = Arg(
+    ("--ignore-section",),
+    help="The section name(s) to ignore to lint in the airflow config.",
+    type=string_list_type,
+)
+ARG_LINT_CONFIG_IGNORE_OPTION = Arg(
+    ("--ignore-option",),
+    help="The option name(s) to ignore to lint in the airflow config.",
+    type=string_list_type,
+)
 ARG_OPTIONAL_SECTION = Arg(
     ("--section",),
     help="The section name",
-)
-
-# kubernetes cleanup-pods
-ARG_NAMESPACE = Arg(
-    ("--namespace",),
-    default=conf.get("kubernetes_executor", "namespace"),
-    help="Kubernetes Namespace. Default value is `[kubernetes] namespace` in configuration.",
-)
-
-ARG_MIN_PENDING_MINUTES = Arg(
-    ("--min-pending-minutes",),
-    default=30,
-    type=positive_int(allow_zero=False),
-    help=(
-        "Pending pods created before the time interval are to be cleaned up, "
-        "measured in minutes. Default value is 30(m). The minimum value is 5(m)."
-    ),
 )
 
 # jobs check
@@ -1750,25 +1754,17 @@ CONFIG_COMMANDS = (
             ARG_VERBOSE,
         ),
     ),
-)
-
-KUBERNETES_COMMANDS = (
     ActionCommand(
-        name="cleanup-pods",
-        help=(
-            "Clean up Kubernetes pods "
-            "(created by KubernetesExecutor/KubernetesPodOperator) "
-            "in evicted/failed/succeeded/pending states"
+        name="lint",
+        help="lint options for the configuration changes while migrating from Airflow 2.x to Airflow 3.0",
+        func=lazy_load_command("airflow.cli.commands.remote_commands.config_command.lint_config"),
+        args=(
+            ARG_LINT_CONFIG_SECTION,
+            ARG_LINT_CONFIG_OPTION,
+            ARG_LINT_CONFIG_IGNORE_SECTION,
+            ARG_LINT_CONFIG_IGNORE_OPTION,
+            ARG_VERBOSE,
         ),
-        func=lazy_load_command("airflow.providers.cncf.kubernetes.cli.kubernetes_command.cleanup_pods"),
-        args=(ARG_NAMESPACE, ARG_MIN_PENDING_MINUTES, ARG_VERBOSE),
-    ),
-    ActionCommand(
-        name="generate-dag-yaml",
-        help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without "
-        "launching into a cluster",
-        func=lazy_load_command("airflow.providers.cncf.kubernetes.cli.kubernetes_command.generate_pod_yaml"),
-        args=(ARG_DAG_ID, ARG_LOGICAL_DATE, ARG_SUBDIR, ARG_OUTPUT_PATH, ARG_VERBOSE),
     ),
 )
 

@@ -64,7 +64,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
+from airflow.models.taskinstance import TaskInstance
 from airflow.models.trigger import TRIGGER_FAIL_REPR, TriggerFailureReason
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
@@ -209,9 +209,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if log:
             self._log = log
 
-        # Check what SQL backend we use
-        sql_conn: str = conf.get_mandatory_value("database", "sql_alchemy_conn").lower()
-        self.using_sqlite = sql_conn.startswith("sqlite")
         # Dag Processor agent - not used in Dag Processor standalone mode.
         self.processor_agent: DagFileProcessorAgent | None = None
 
@@ -879,9 +876,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if task.on_retry_callback or task.on_failure_callback:
                     request = TaskCallbackRequest(
                         full_filepath=ti.dag_model.fileloc,
-                        simple_task_instance=SimpleTaskInstance.from_ti(ti),
+                        ti=ti,
                         msg=msg,
-                        processor_subdir=ti.dag_model.processor_subdir,
                     )
                     executor.send_callback(request)
                 else:
@@ -930,10 +926,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         self.log.info("Processing each file at most %s times", self.num_times_parse_dags)
 
-        # When using sqlite, we do not use async_mode
-        # so the scheduler job and DAG parser don't access the DB at the same time.
-        async_mode = not self.using_sqlite
-
         processor_timeout_seconds: int = conf.getint("core", "dag_file_processor_timeout")
         processor_timeout = timedelta(seconds=processor_timeout_seconds)
         if not self._standalone_dag_processor and not self.processor_agent:
@@ -941,8 +933,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 dag_directory=Path(self.subdir),
                 max_runs=self.num_times_parse_dags,
                 processor_timeout=processor_timeout,
-                dag_ids=[],
-                async_mode=async_mode,
             )
 
         reset_signals = self.register_signals()
@@ -1105,13 +1095,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         "loop_count": loop_count,
                     }
                 )
-
-                if self.using_sqlite and self.processor_agent:
-                    self.processor_agent.run_single_parsing_loop()
-                    # For the sqlite case w/ 1 thread, wait until the processor
-                    # is finished to avoid concurrent access to the DB.
-                    self.log.debug("Waiting for processors to finish since we're using sqlite")
-                    self.processor_agent.wait_until_finished()
 
                 with create_session() as session:
                     # This will schedule for as many executors as possible.
@@ -1723,7 +1706,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag_id=dag.dag_id,
                     run_id=dag_run.run_id,
                     is_failure_callback=True,
-                    processor_subdir=dag_model.processor_subdir,
                     msg="timed_out",
                 )
 
@@ -2082,11 +2064,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if zombies := self._find_zombies(session=session):
                 self._purge_zombies(zombies, session=session)
 
-    def _find_zombies(self, *, session: Session) -> list[tuple[TI, str, str]]:
+    def _find_zombies(self, *, session: Session) -> list[tuple[TI, str]]:
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
         limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
         zombies = session.execute(
-            select(TI, DM.fileloc, DM.processor_subdir)
+            select(TI, DM.fileloc)
             .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
             .join(DM, TI.dag_id == DM.dag_id)
             .where(
@@ -2099,13 +2081,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.warning("Failing %s TIs without heartbeat after %s", len(zombies), limit_dttm)
         return zombies
 
-    def _purge_zombies(self, zombies: list[tuple[TI, str, str]], *, session: Session) -> None:
-        for ti, file_loc, processor_subdir in zombies:
+    def _purge_zombies(self, zombies: list[tuple[TI, str]], *, session: Session) -> None:
+        for ti, file_loc in zombies:
             zombie_message_details = self._generate_zombie_message_details(ti)
             request = TaskCallbackRequest(
                 full_filepath=file_loc,
-                processor_subdir=processor_subdir,
-                simple_task_instance=SimpleTaskInstance.from_ti(ti),
+                ti=ti,
                 msg=str(zombie_message_details),
             )
             session.add(
@@ -2234,7 +2215,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             for ref in itertools.chain(offending.consuming_dags, offending.producing_tasks):
                 yield (
                     ref.dag_id,
-                    f"Cannot activate asset {offending}; {attr} is already associated to {value!r}",
+                    (
+                        "Cannot activate asset "
+                        f'Asset(name="{offending.name}", uri="{offending.uri}", group="{offending.group}"); '
+                        f"{attr} is already associated to {value!r}"
+                    ),
                 )
 
         def _activate_assets_generate_warnings() -> Iterator[tuple[str, str]]:

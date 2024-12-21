@@ -142,8 +142,10 @@ def patch_pool(
             status.HTTP_404_NOT_FOUND, detail=f"The Pool with name: `{pool_name}` was not found"
         )
 
+    fields_to_update = patch_body.model_fields_set
     if update_mask:
-        data = patch_body.model_dump(include=set(update_mask), by_alias=True)
+        fields_to_update = fields_to_update.intersection(update_mask)
+        data = patch_body.model_dump(include=fields_to_update, by_alias=True)
     else:
         data = patch_body.model_dump(by_alias=True)
         try:

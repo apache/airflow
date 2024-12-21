@@ -26,7 +26,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.jobs.job import Job
-    from airflow.serialization.pydantic.job import JobPydantic
 
 
 class BaseJobRunner:
@@ -64,7 +63,7 @@ class BaseJobRunner:
 
     @classmethod
     @provide_session
-    def most_recent_job(cls, session: Session = NEW_SESSION) -> Job | JobPydantic | None:
+    def most_recent_job(cls, session: Session = NEW_SESSION) -> Job | None:
         """Return the most recent job of this type, if any, based on last heartbeat received."""
         from airflow.jobs.job import most_recent_job
 
