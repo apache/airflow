@@ -60,11 +60,11 @@ grid_router = AirflowRouter(prefix="/grid", tags=["Grid"])
 )
 def grid_data(
     dag_id: str,
-    run_types: QueryDagRunRunTypesFilter,
-    run_states: QueryDagRunStateFilter,
     session: SessionDep,
     offset: QueryOffset,
     request: Request,
+    run_type: QueryDagRunRunTypesFilter,
+    state: QueryDagRunStateFilter,
     limit: QueryLimit,
     order_by: Annotated[
         SortParam,
@@ -99,8 +99,8 @@ def grid_data(
     dag_runs_select_filter, _ = paginated_select(
         statement=base_query,
         filters=[
-            run_types,
-            run_states,
+            run_type,
+            state,
             date_filter,
         ],
         order_by=order_by

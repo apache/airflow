@@ -975,9 +975,9 @@ export class GridService {
    * @param data.logicalDateGte
    * @param data.logicalDateLte
    * @param data.root
+   * @param data.offset
    * @param data.runType
    * @param data.state
-   * @param data.offset
    * @param data.limit
    * @param data.orderBy
    * @returns GridResponse Successful Response
@@ -998,9 +998,9 @@ export class GridService {
         logical_date_gte: data.logicalDateGte,
         logical_date_lte: data.logicalDateLte,
         root: data.root,
+        offset: data.offset,
         run_type: data.runType,
         state: data.state,
-        offset: data.offset,
         limit: data.limit,
         order_by: data.orderBy,
       },
