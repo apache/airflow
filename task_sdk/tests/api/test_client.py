@@ -137,7 +137,7 @@ class TestTaskInstanceOperations:
             return httpx.Response(status_code=400, json={"detail": "Bad Request"})
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        client.task_instances.finish(ti_id, state=state, when="2024-10-31T12:00:00Z")
+        client.task_instances.finish(ti_id, state=state, when="2024-10-31T12:00:00Z", task_retries=None)
 
     def test_task_instance_heartbeat(self):
         # Simulate a successful response from the server that sends a heartbeat for a ti

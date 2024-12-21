@@ -59,6 +59,8 @@ class TITerminalStatePayload(BaseModel):
     end_date: UtcDateTime
     """When the task completed executing"""
 
+    task_retries: int | None
+
 
 class TITargetStatePayload(BaseModel):
     """Schema for updating TaskInstance to a target state, excluding terminal and running states."""

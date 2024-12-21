@@ -199,17 +199,22 @@ def ti_update_state(
         )
 
     # We exclude_unset to avoid updating fields that are not set in the payload
-    data = ti_patch_payload.model_dump(exclude_unset=True)
+    # We do not need to deserialize "task_retries" -- it is used for dynamic decision making within failed state
+    data = ti_patch_payload.model_dump(exclude_unset=True, exclude={"task_retries"})
 
     query = update(TI).where(TI.id == ti_id_str).values(data)
 
     if isinstance(ti_patch_payload, TITerminalStatePayload):
         query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
         query = query.values(state=ti_patch_payload.state)
+        updated_state = ti_patch_payload.state
         if ti_patch_payload.state == State.FAILED:
             # clear the next_method and next_kwargs
             query = query.values(next_method=None, next_kwargs=None)
-            updated_state = State.FAILED
+            task_instance = session.get(TI, ti_id_str)
+            if _is_eligible_to_retry(task_instance, ti_patch_payload.task_retries):
+                query = query.values(state=State.UP_FOR_RETRY)
+                updated_state = State.UP_FOR_RETRY
     elif isinstance(ti_patch_payload, TIDeferredStatePayload):
         # Calculate timeout if it was passed
         timeout = None
@@ -359,3 +364,23 @@ def ti_put_rtif(
     _update_rtif(task_instance, put_rtif_payload, session)
 
     return {"message": "Rendered task instance fields successfully set"}
+
+
+def _is_eligible_to_retry(task_instance: TI, task_retries: int | None):
+    """
+    Is task instance is eligible for retry.
+
+    :param task_instance: the task instance
+
+    :meta private:
+    """
+    if task_instance.state == State.RESTARTING:
+        # If a task is cleared when running, it goes into RESTARTING state and is always
+        # eligible for retry
+        return True
+
+    if task_retries == -1:
+        # task_runner indicated that it doesn't know number of retries, guess it from the table
+        return task_instance.try_number <= task_instance.max_tries
+
+    return task_retries and task_instance.try_number <= task_instance.max_tries
