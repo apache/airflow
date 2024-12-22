@@ -523,6 +523,7 @@ class TestTaskInstance:
             ti.run()
         assert "on_failure_callback called" in caplog.text
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_task_sigterm_calls_with_traceback_in_logs(self, dag_maker, caplog):
         """
         Test that ensures that tasks print traceback to the logs when they receive sigterm
