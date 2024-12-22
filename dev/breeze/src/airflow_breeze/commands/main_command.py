@@ -24,16 +24,15 @@ from typing import TYPE_CHECKING, Any
 
 from airflow_breeze.commands.ci_image_commands import ci_image
 from airflow_breeze.commands.common_options import (
+    option_all_integration,
     option_answer,
     option_backend,
     option_builder,
-    option_database_isolation,
     option_db_reset,
     option_docker_host,
     option_dry_run,
     option_forward_credentials,
     option_github_repository,
-    option_integration,
     option_max_time,
     option_mysql_version,
     option_postgres_version,
@@ -108,13 +107,12 @@ class MainGroupWithAliases(BreezeGroup):
 @option_answer
 @option_backend
 @option_builder
-@option_database_isolation
 @option_db_reset
 @option_docker_host
 @option_dry_run
 @option_forward_credentials
 @option_github_repository
-@option_integration
+@option_all_integration
 @option_max_time
 @option_mysql_version
 @option_postgres_version

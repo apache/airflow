@@ -29,8 +29,9 @@ import sys
 import textwrap
 import warnings
 from collections import Counter
+from collections.abc import Iterable
 from enum import Enum
-from typing import Any, Callable, Iterable
+from typing import Any, Callable
 
 import jsonschema
 import yaml

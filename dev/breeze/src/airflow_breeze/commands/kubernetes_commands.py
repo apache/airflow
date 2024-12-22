@@ -75,8 +75,7 @@ from airflow_breeze.utils.parallel import (
 from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.run_utils import RunCommandResult, check_if_image_exists, run_command
 
-PARALLEL_PYTEST_ARGS = [
-    "--verbosity=0",
+KUBERNETES_PYTEST_ARGS = [
     "--strict-markers",
     "--durations=100",
     "--maxfail=50",
@@ -96,6 +95,11 @@ PARALLEL_PYTEST_ARGS = [
     # p - passed
     # P - passed with output
     "-rfEX",
+]
+
+PARALLEL_KUBERNETES_PYTEST_ARGS = [
+    *KUBERNETES_PYTEST_ARGS,
+    "--verbosity=0",
 ]
 
 
@@ -130,14 +134,6 @@ option_force_venv_setup = click.option(
     help="Force recreation of the virtualenv.",
     is_flag=True,
     envvar="FORCE_VENV_SETUP",
-)
-option_image_tag = click.option(
-    "-t",
-    "--image-tag",
-    help="Image tag used to build K8S image from.",
-    default="latest",
-    show_default=True,
-    envvar="IMAGE_TAG",
 )
 option_kubernetes_version = click.option(
     "--kubernetes-version",
@@ -556,18 +552,17 @@ def status(kubernetes_version: str, python: str, wait_time_in_seconds: int, all:
 
 
 def check_if_base_image_exists(params: BuildProdParams) -> bool:
-    return check_if_image_exists(image=params.airflow_image_name_with_tag)
+    return check_if_image_exists(image=params.airflow_image_name)
 
 
 def _rebuild_k8s_image(
     python: str,
-    image_tag: str,
     rebuild_base_image: bool,
     copy_local_sources: bool,
     use_uv: bool,
     output: Output | None,
 ) -> tuple[int, str]:
-    params = BuildProdParams(python=python, image_tag=image_tag, use_uv=use_uv)
+    params = BuildProdParams(python=python, use_uv=use_uv)
     if rebuild_base_image:
         run_build_production_image(
             prod_image_params=params,
@@ -577,29 +572,23 @@ def _rebuild_k8s_image(
     else:
         if not check_if_base_image_exists(params):
             get_console(output=output).print(
-                f"[error]The base PROD image {params.airflow_image_name_with_tag} does not exist locally.\n"
+                f"[error]The base PROD image {params.airflow_image_name} does not exist locally.\n"
             )
-            if image_tag == "latest":
-                get_console(output=output).print(
-                    "[warning]Please add `--rebuild-base-image` flag or rebuild it manually with:\n"
-                )
-                get_console(output=output).print(f"breeze prod-image build --python {python}\n")
-            else:
-                get_console(output=output).print("[warning]Please pull the image:\n")
-                get_console(output=output).print(
-                    f"breeze prod-image pull --python {python} --image-tag {image_tag}\n"
-                )
+            get_console(output=output).print(
+                "[warning]Please add `--rebuild-base-image` flag or rebuild it manually with:\n"
+            )
+            get_console(output=output).print(f"breeze prod-image build --python {python}\n")
             sys.exit(1)
     get_console(output=output).print(
         f"[info]Building the K8S image for Python {python} using "
-        f"airflow base image: {params.airflow_image_name_with_tag}\n"
+        f"airflow base image: {params.airflow_image_name}\n"
     )
     if copy_local_sources:
         extra_copy_command = "COPY --chown=airflow:0 . /opt/airflow/"
     else:
         extra_copy_command = ""
     docker_image_for_kubernetes_tests = f"""
-FROM {params.airflow_image_name_with_tag}
+FROM {params.airflow_image_name}
 
 USER airflow
 
@@ -653,7 +642,6 @@ def _upload_k8s_image(python: str, kubernetes_version: str, output: Output | Non
 @option_copy_local_sources
 @option_debug_resources
 @option_dry_run
-@option_image_tag
 @option_include_success_outputs
 @option_parallelism
 @option_python
@@ -666,7 +654,6 @@ def _upload_k8s_image(python: str, kubernetes_version: str, output: Output | Non
 def build_k8s_image(
     copy_local_sources: bool,
     debug_resources: bool,
-    image_tag: str,
     include_success_outputs: bool,
     parallelism: int,
     python: str,
@@ -694,7 +681,6 @@ def build_k8s_image(
                         _rebuild_k8s_image,
                         kwds={
                             "python": _python,
-                            "image_tag": image_tag,
                             "rebuild_base_image": rebuild_base_image,
                             "copy local sources": copy_local_sources,
                             "use_uv": use_uv,
@@ -713,7 +699,6 @@ def build_k8s_image(
     else:
         return_code, _ = _rebuild_k8s_image(
             python=python,
-            image_tag=image_tag,
             rebuild_base_image=rebuild_base_image,
             copy_local_sources=copy_local_sources,
             use_uv=use_uv,
@@ -974,8 +959,15 @@ def configure_cluster(
             output=None,
         )
         if return_code == 0:
-            get_console().print("\n[warning]NEXT STEP:[/][info] You might now build your k8s image by:\n")
-            get_console().print("\nbreeze k8s build-k8s-image\n")
+            get_console().print(
+                "\n[warning]NEXT STEP:[/][info] You might now build your k8s image "
+                "with all latest dependencies:\n"
+            )
+            get_console().print("\n breeze k8s build-k8s-image --rebuild-base-image\n")
+            get_console().print(
+                "\n[info]Later you can build image without --rebuild-base-image until "
+                "airflow dependencies change (to speed up rebuilds).\n"
+            )
         sys.exit(return_code)
 
 
@@ -998,7 +990,6 @@ def _deploy_helm_chart(
         get_console(output=output).print(f"[info]Copied chart sources to {tmp_chart_path}")
         kubectl_context = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
         params = BuildProdParams(python=python)
-        airflow_kubernetes_image_name = params.airflow_image_kubernetes
         helm_command = [
             "helm",
             "upgrade" if upgrade else "install",
@@ -1011,13 +1002,13 @@ def _deploy_helm_chart(
             "--namespace",
             HELM_AIRFLOW_NAMESPACE,
             "--set",
-            f"defaultAirflowRepository={airflow_kubernetes_image_name}",
+            f"defaultAirflowRepository={params.airflow_image_kubernetes}",
             "--set",
             "defaultAirflowTag=latest",
             "-v",
             "1",
             "--set",
-            f"images.airflow.repository={airflow_kubernetes_image_name}",
+            f"images.airflow.repository={params.airflow_image_kubernetes}",
             "--set",
             "images.airflow.tag=latest",
             "-v",
@@ -1028,6 +1019,8 @@ def _deploy_helm_chart(
             "config.logging.logging_level=DEBUG",
             "--set",
             f"executor={executor}",
+            "--set",
+            f"airflowVersion={params.airflow_semver_version}",
         ]
         if multi_namespace_mode:
             helm_command.extend(["--set", "multiNamespaceMode=true"])
@@ -1401,9 +1394,9 @@ def shell(
 
 
 def _get_parallel_test_args(
-    kubernetes_versions: str, python_versions: str, test_args: tuple[str, ...]
+    kubernetes_versions: str, python_versions: str, test_args: list[str]
 ) -> tuple[list[str], list[KubernetesPythonVersion], list[str], list[str]]:
-    pytest_args = deepcopy(PARALLEL_PYTEST_ARGS)
+    pytest_args = deepcopy(PARALLEL_KUBERNETES_PYTEST_ARGS)
     pytest_args.extend(test_args)
     python_version_array: list[str] = python_versions.split(" ")
     kubernetes_version_array: list[str] = kubernetes_versions.split(" ")
@@ -1418,7 +1411,7 @@ def _run_tests(
     kubernetes_version: str,
     output: Output | None,
     executor: str,
-    test_args: tuple[str, ...],
+    test_args: list[str],
 ) -> tuple[int, str]:
     env = get_k8s_env(python=python, kubernetes_version=kubernetes_version, executor=executor)
     kubectl_cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
@@ -1482,7 +1475,7 @@ def kubernetes_tests_command(
     make_sure_kubernetes_tools_are_installed()
     if run_in_parallel:
         combo_titles, combos, pytest_args, short_combo_titles = _get_parallel_test_args(
-            kubernetes_versions, python_versions, test_args
+            kubernetes_versions, python_versions, list(test_args)
         )
         with ci_group(f"Running tests for: {short_combo_titles}"):
             with run_with_pool(
@@ -1521,7 +1514,7 @@ def kubernetes_tests_command(
             kubernetes_version=kubernetes_version,
             executor=executor,
             output=None,
-            test_args=test_args,
+            test_args=list(test_args),
         )
         sys.exit(result)
 
@@ -1530,7 +1523,6 @@ def _run_complete_tests(
     python: str,
     kubernetes_version: str,
     executor: str,
-    image_tag: str,
     rebuild_base_image: bool,
     copy_local_sources: bool,
     use_uv: bool,
@@ -1540,14 +1532,13 @@ def _run_complete_tests(
     use_standard_naming: bool,
     num_tries: int,
     extra_options: tuple[str, ...] | None,
-    test_args: tuple[str, ...],
+    test_args: list[str],
     output: Output | None,
 ) -> tuple[int, str]:
     get_console(output=output).print(f"\n[info]Rebuilding k8s image for Python {python}\n")
     returncode, message = _rebuild_k8s_image(
         python=python,
         output=output,
-        image_tag=image_tag,
         use_uv=use_uv,
         rebuild_base_image=rebuild_base_image,
         copy_local_sources=copy_local_sources,
@@ -1608,12 +1599,14 @@ def _run_complete_tests(
         get_console(output=output).print(
             f"\n[info]Running tests Python {python}, Kubernetes {kubernetes_version}\n"
         )
+        pytest_args = deepcopy(KUBERNETES_PYTEST_ARGS)
+        pytest_args.extend(test_args)
         returncode, message = _run_tests(
             python=python,
             kubernetes_version=kubernetes_version,
             output=output,
             executor=executor,
-            test_args=test_args,
+            test_args=pytest_args,
         )
         if returncode != 0:
             _logs(python=python, kubernetes_version=kubernetes_version)
@@ -1669,7 +1662,6 @@ def _run_complete_tests(
 @option_executor
 @option_force_recreate_cluster
 @option_force_venv_setup
-@option_image_tag
 @option_include_success_outputs
 @option_kubernetes_version
 @option_kubernetes_versions
@@ -1691,7 +1683,6 @@ def run_complete_tests(
     executor: str,
     force_recreate_cluster: bool,
     force_venv_setup: bool,
-    image_tag: str,
     include_success_outputs: bool,
     kubernetes_version: str,
     kubernetes_versions: str,
@@ -1713,11 +1704,10 @@ def run_complete_tests(
     make_sure_kubernetes_tools_are_installed()
     if run_in_parallel:
         combo_titles, combos, pytest_args, short_combo_titles = _get_parallel_test_args(
-            kubernetes_versions, python_versions, test_args
+            kubernetes_versions, python_versions, list(test_args)
         )
         get_console().print(f"[info]Running complete tests for: {short_combo_titles}")
         get_console().print(f"[info]Parallelism: {parallelism}")
-        get_console().print(f"[info]Image tag: {image_tag}")
         get_console().print(f"[info]Extra test args: {executor}")
         get_console().print(f"[info]Executor: {executor}")
         get_console().print(f"[info]Use standard naming: {use_standard_naming}")
@@ -1747,7 +1737,6 @@ def run_complete_tests(
                             "python": combo.python_version,
                             "kubernetes_version": combo.kubernetes_version,
                             "executor": executor,
-                            "image_tag": image_tag,
                             "rebuild_base_image": rebuild_base_image,
                             "copy_local_sources": copy_local_sources,
                             "use_uv": use_uv,
@@ -1771,11 +1760,12 @@ def run_complete_tests(
             skip_cleanup=skip_cleanup,
         )
     else:
+        pytest_args = deepcopy(KUBERNETES_PYTEST_ARGS)
+        pytest_args.extend(test_args)
         result, _ = _run_complete_tests(
             python=python,
             kubernetes_version=kubernetes_version,
             executor=executor,
-            image_tag=image_tag,
             rebuild_base_image=rebuild_base_image,
             copy_local_sources=copy_local_sources,
             use_uv=use_uv,
@@ -1785,7 +1775,7 @@ def run_complete_tests(
             use_standard_naming=use_standard_naming,
             num_tries=1,
             extra_options=None,
-            test_args=test_args,
+            test_args=pytest_args,
             output=None,
         )
         if result != 0:

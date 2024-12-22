@@ -25,8 +25,9 @@ from __future__ import annotations
 import os
 import re
 import textwrap
+from collections.abc import Iterable
 from pathlib import Path
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING
 
 import re2
 from alembic.script import ScriptDirectory

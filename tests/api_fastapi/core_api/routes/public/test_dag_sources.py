@@ -20,11 +20,11 @@ from __future__ import annotations
 import ast
 import json
 import os
+from typing import TYPE_CHECKING
 
 import pytest
 from httpx import Response
 
-from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 
 from tests_common.test_utils.db import clear_db_dag_code, clear_db_dags, clear_db_serialized_dags
@@ -36,6 +36,9 @@ API_PREFIX = "/public/dagSources"
 # Example bash operator located here: airflow/example_dags/example_bash_operator.py
 EXAMPLE_DAG_FILE = os.path.join("airflow", "example_dags", "example_bash_operator.py")
 TEST_DAG_ID = "latest_only"
+
+if TYPE_CHECKING:
+    from airflow.models.dag import DAG
 
 
 class TestGetDAGSource:

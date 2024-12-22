@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import os
 import sys
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 
 from black import Mode, TargetVersion, format_str, parse_pyproject_toml
@@ -28,7 +28,7 @@ sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_pre
 from common_precommit_utils import AIRFLOW_BREEZE_SOURCES_PATH
 
 
-@lru_cache(maxsize=None)
+@cache
 def black_mode(is_pyi: bool = Mode.is_pyi) -> Mode:
     config = parse_pyproject_toml(os.fspath(AIRFLOW_BREEZE_SOURCES_PATH / "pyproject.toml"))
     target_versions = {TargetVersion[val.upper()] for val in config.get("target_version", ())}
