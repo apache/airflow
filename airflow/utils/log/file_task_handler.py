@@ -109,6 +109,7 @@ def _fetch_logs_from_service(url, log_relative_path):
         url,
         timeout=timeout,
         headers={"Authorization": signer.generate_signed_token({"filename": log_relative_path})},
+        stream=True,
     )
     response.encoding = "utf-8"
     return response
@@ -483,13 +484,17 @@ class FileTaskHandler(logging.Handler):
             local_messages, local_parsed_logs, local_logs_size = self._read_from_local(worker_log_full_path)
             messages_list.extend(local_messages)
         if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not has_k8s_exec_pod:
-            served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
+            served_messages, served_parsed_logs, served_logs_size = self._read_from_logs_server(
+                ti, worker_log_rel_path
+            )
             messages_list.extend(served_messages)
         elif ti.state not in State.unfinished and not (local_parsed_logs or remote_logs):
             # ordinarily we don't check served logs, with the assumption that users set up
             # remote logging or shared drive for logs for persistence, but that's not always true
             # so even if task is done, if no local logs or remote logs are found, we'll check the worker
-            served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
+            served_messages, served_parsed_logs, served_logs_size = self._read_from_logs_server(
+                ti, worker_log_rel_path
+            )
             messages_list.extend(served_messages)
 
         # Log message source details are grouped: they are not relevant for most users and can
@@ -685,9 +690,29 @@ class FileTaskHandler(logging.Handler):
 
         return messages, parsed_log_streams, total_log_size
 
-    def _read_from_logs_server(self, ti, worker_log_rel_path) -> tuple[list[str], list[str]]:
-        messages = []
-        logs = []
+    def _read_from_logs_server(self, ti, worker_log_rel_path) -> _LogSourceType:
+        total_log_size: int = 0
+        messages: list[str] = []
+        parsed_log_streams: list[_ParsedLogStreamType] = []
+
+        def _get_parsed_log_stream_from_response(response):
+            line_num = 0
+            # read response in chunks instead of reading whole response text
+            for resp_chunk in response.iter_content(chunk_size=CHUNK_SIZE, decode_unicode=True):
+                if not resp_chunk:
+                    break
+                lines = resp_chunk.splitlines()
+                timestamp = None
+                next_timestamp = None
+                for line in lines:
+                    if line:
+                        with suppress(Exception):
+                            next_timestamp = _parse_timestamp(line)
+                        if next_timestamp:
+                            timestamp = next_timestamp
+                        yield timestamp, line_num, line
+                        line_num += 1
+
         try:
             log_type = LogType.TRIGGER if ti.triggerer_job else LogType.WORKER
             url, rel_path = self._get_log_retrieval_url(ti, worker_log_rel_path, log_type=log_type)
@@ -703,9 +728,12 @@ class FileTaskHandler(logging.Handler):
                 )
             # Check if the resource was properly fetched
             response.raise_for_status()
-            if response.text:
+            # get the total size of the logs
+            content_length = response.headers.get("Content-Length")
+            if content_length is not None:
+                total_log_size = int(content_length)
                 messages.append(f"Found logs served from host {url}")
-                logs.append(response.text)
+                parsed_log_streams.append(_get_parsed_log_stream_from_response(response))
         except Exception as e:
             from requests.exceptions import InvalidSchema
 
@@ -714,7 +742,7 @@ class FileTaskHandler(logging.Handler):
             else:
                 messages.append(f"Could not read served logs: {e}")
                 logger.exception("Could not read served logs")
-        return messages, logs
+        return messages, parsed_log_streams, total_log_size
 
     def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[list[str], list[str]]:
         """
