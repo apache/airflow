@@ -164,19 +164,6 @@ class SortParam(BaseParam[str]):
         self.model = model
         self.to_replace = to_replace
 
-    def __or__(self, other):
-        """
-        Return the other if self.value is primary key.
-
-        SortParam value cannot be None due to dynamic_depends() method.
-        Because of this we are returning other if self.value is primary key
-
-        :param other: SortParam
-
-        :return: SortParam
-        """
-        return other if self.value == self.get_primary_key_string() else self
-
     def to_orm(self, select: Select) -> Select:
         if self.skip_none is False:
             raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
@@ -232,6 +219,15 @@ class SortParam(BaseParam[str]):
             return self.set_value(self.get_primary_key_string() if order_by == "" else order_by)
 
         return inner
+
+    def depends_factory(self, default: str | None = None) -> Callable:
+        def dynamic_callable_depends(default_value: str | None = None) -> Callable:
+            def inner(order_by: str = default or self.get_primary_key_string()) -> SortParam:
+                return self.set_value(self.get_primary_key_string() if order_by == "" else order_by)
+
+            return inner
+
+        return dynamic_callable_depends
 
 
 class FilterOptionEnum(Enum):

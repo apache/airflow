@@ -96,6 +96,13 @@ def grid_data(
         .select_from(DagRun)
         .where(DagRun.dag_id == dag.dag_id)
     )
+
+    # This comparison is to falls to DAG timetable when no order_by is provided
+    if order_by.value == order_by.get_primary_key_string():
+        order_by = SortParam(
+            allowed_attrs=[run_ordering for run_ordering in dag.timetable.run_ordering], model=DagRun
+        ).set_value(dag.timetable.run_ordering[0])
+
     dag_runs_select_filter, _ = paginated_select(
         statement=base_query,
         filters=[
@@ -103,10 +110,7 @@ def grid_data(
             state,
             date_filter,
         ],
-        order_by=order_by
-        | SortParam(
-            allowed_attrs=["logical_date", "data_interval_start", "data_interval_end"], model=DagRun
-        ).set_value(dag.timetable.run_ordering[0]),
+        order_by=order_by,
         offset=offset,
         limit=limit,
     )
