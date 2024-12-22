@@ -455,6 +455,7 @@ class FileTaskHandler(logging.Handler):
         # is needed to get correct log path.
         worker_log_rel_path = self._render_filename(ti, try_number)
         messages_list: list[str] = []
+        remote_logs: list[str] = []  # compact for running, will be remove in further commit
         remote_parsed_logs: list[_ParsedLogStreamType] = []
         remote_logs_size = 0
         local_parsed_logs: list[_ParsedLogStreamType] = []
@@ -521,7 +522,7 @@ class FileTaskHandler(logging.Handler):
             out_stream = interleave_log_stream
         else:
             # first time reading log, add messages before interleaved log stream
-            out_stream = chain((msg for msg in messages), interleave_log_stream)
+            out_stream = chain([messages], interleave_log_stream)
         return out_stream, {"end_of_log": end_of_log, "log_pos": current_total_logs_size}
 
     @staticmethod
@@ -571,6 +572,7 @@ class FileTaskHandler(logging.Handler):
         # So the log for a particular task try will only show up when
         # try number gets incremented in DB, i.e logs produced the time
         # after cli run and before try_number + 1 in DB will not be displayed.
+        try_numbers: list
         if try_number is None:
             next_try = task_instance.try_number + 1
             try_numbers = list(range(1, next_try))
@@ -581,7 +583,7 @@ class FileTaskHandler(logging.Handler):
             try_numbers = [try_number]
 
         hosts = [""] * len(try_numbers)
-        logs: list = [] * len(try_numbers)
+        logs: list = [None] * len(try_numbers)
         metadata_array: list[dict] = [{}] * len(try_numbers)
 
         # subclasses implement _read and may not have log_type, which was added recently
