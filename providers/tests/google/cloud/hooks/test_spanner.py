@@ -20,7 +20,6 @@ from __future__ import annotations
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock
 
-import pytest
 import sqlalchemy
 
 from airflow.providers.google.cloud.hooks.spanner import SpannerHook
@@ -40,10 +39,6 @@ SPANNER_CONN_PARAMS = (SPANNER_PROJECT_ID, SPANNER_INSTANCE, SPANNER_DATABASE)
 
 
 class TestGcpSpannerHookDefaultProjectId:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            SpannerHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
-
     def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",

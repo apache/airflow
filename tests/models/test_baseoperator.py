@@ -29,7 +29,7 @@ import jinja2
 import pytest
 
 from airflow.decorators import task as task_decorator
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferralTimeout
 from airflow.lineage.entities import File
 from airflow.models.baseoperator import (
     BaseOperator,
@@ -40,6 +40,7 @@ from airflow.models.baseoperator import (
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.trigger import TriggerFailureReason
 from airflow.providers.common.sql.operators import sql
 from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup
@@ -350,12 +351,12 @@ class TestBaseOperator:
         assert [op5] == op3.get_direct_relatives(upstream=False)
         assert {op4, op5} == set(op6.get_direct_relatives(upstream=True))
 
-        assert {"label": "label1"} == dag.get_edge_info(
-            upstream_task_id=op1.task_id, downstream_task_id=op2.task_id
-        )
-        assert {"label": "label2"} == dag.get_edge_info(
-            upstream_task_id=op1.task_id, downstream_task_id=op3.task_id
-        )
+        assert dag.get_edge_info(upstream_task_id=op1.task_id, downstream_task_id=op2.task_id) == {
+            "label": "label1"
+        }
+        assert dag.get_edge_info(upstream_task_id=op1.task_id, downstream_task_id=op3.task_id) == {
+            "label": "label2"
+        }
 
         # Begin test for `XComArgs` with `EdgeModifiers`
         [xlabel1, xlabel2] = [Label(label=f"xcomarg_label{i}") for i in range(1, 3)]
@@ -370,12 +371,12 @@ class TestBaseOperator:
         assert [xop5.operator] == xop3.operator.get_direct_relatives(upstream=False)
         assert {xop4.operator, xop5.operator} == set(xop6.operator.get_direct_relatives(upstream=True))
 
-        assert {"label": "xcomarg_label1"} == dag.get_edge_info(
+        assert dag.get_edge_info(
             upstream_task_id=xop1.operator.task_id, downstream_task_id=xop2.operator.task_id
-        )
-        assert {"label": "xcomarg_label2"} == dag.get_edge_info(
+        ) == {"label": "xcomarg_label1"}
+        assert dag.get_edge_info(
             upstream_task_id=xop1.operator.task_id, downstream_task_id=xop3.operator.task_id
-        )
+        ) == {"label": "xcomarg_label2"}
 
         # Begin test for `TaskGroups`
         [tg1, tg2] = [TaskGroup(group_id=f"tg{i}", dag=dag) for i in range(1, 3)]
@@ -393,6 +394,33 @@ class TestBaseOperator:
         assert {tgop3, tgop4} == set(tgop2.get_direct_relatives(upstream=False))
         assert [op2] == tgop3.get_direct_relatives(upstream=False)
         assert [op2] == tgop4.get_direct_relatives(upstream=False)
+
+    def test_baseoperator_raises_exception_when_task_id_plus_taskgroup_id_exceeds_250_chars(self):
+        """Test exception is raised when operator task id + taskgroup id > 250 chars."""
+        dag = DAG(dag_id="foo", schedule=None, start_date=datetime.now())
+
+        tg1 = TaskGroup("A" * 20, dag=dag)
+        with pytest.raises(ValueError, match="The key has to be less than 250 characters"):
+            BaseOperator(task_id="1" * 250, task_group=tg1, dag=dag)
+
+    def test_baseoperator_with_task_id_and_taskgroup_id_less_than_250_chars(self):
+        """Test exception is not raised when operator task id + taskgroup id < 250 chars."""
+        dag = DAG(dag_id="foo", schedule=None, start_date=datetime.now())
+
+        tg1 = TaskGroup("A" * 10, dag=dag)
+        try:
+            BaseOperator(task_id="1" * 239, task_group=tg1, dag=dag)
+        except Exception as e:
+            pytest.fail(f"Exception raised: {e}")
+
+    def test_baseoperator_with_task_id_less_than_250_chars(self):
+        """Test exception is not raised when operator task id  < 250 chars."""
+        dag = DAG(dag_id="foo", schedule=None, start_date=datetime.now())
+
+        try:
+            BaseOperator(task_id="1" * 249, dag=dag)
+        except Exception as e:
+            pytest.fail(f"Exception raised: {e}")
 
     def test_chain_linear(self):
         dag = DAG(dag_id="test_chain_linear", schedule=None, start_date=datetime.now())
@@ -582,6 +610,15 @@ class TestBaseOperator:
         # leaking a lot of state)
         assert caplog.messages == ["test"]
 
+    def test_resume_execution(self):
+        op = BaseOperator(task_id="hi")
+        with pytest.raises(TaskDeferralTimeout):
+            op.resume_execution(
+                next_method="__fail__",
+                next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
+                context={},
+            )
+
 
 def test_deepcopy():
     # Test bug when copying an operator attached to a DAG
@@ -694,7 +731,6 @@ def get_states(dr):
     return dict(ti_dict)
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 @pytest.mark.db_test
 def test_teardown_and_fail_stop(dag_maker):
     """
@@ -740,27 +776,26 @@ def test_teardown_and_fail_stop(dag_maker):
     assert states == expected
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 @pytest.mark.db_test
 def test_get_task_instances(session):
     import pendulum
 
-    first_execution_date = pendulum.datetime(2023, 1, 1)
-    second_execution_date = pendulum.datetime(2023, 1, 2)
-    third_execution_date = pendulum.datetime(2023, 1, 3)
+    first_logical_date = pendulum.datetime(2023, 1, 1)
+    second_logical_date = pendulum.datetime(2023, 1, 2)
+    third_logical_date = pendulum.datetime(2023, 1, 3)
 
-    test_dag = DAG(dag_id="test_dag", schedule=None, start_date=first_execution_date)
+    test_dag = DAG(dag_id="test_dag", schedule=None, start_date=first_logical_date)
     task = BaseOperator(task_id="test_task", dag=test_dag)
 
     common_dr_kwargs = {
         "dag_id": test_dag.dag_id,
         "run_type": DagRunType.MANUAL,
     }
-    dr1 = DagRun(execution_date=first_execution_date, run_id="test_run_id_1", **common_dr_kwargs)
+    dr1 = DagRun(logical_date=first_logical_date, run_id="test_run_id_1", **common_dr_kwargs)
     ti_1 = TaskInstance(run_id=dr1.run_id, task=task)
-    dr2 = DagRun(execution_date=second_execution_date, run_id="test_run_id_2", **common_dr_kwargs)
+    dr2 = DagRun(logical_date=second_logical_date, run_id="test_run_id_2", **common_dr_kwargs)
     ti_2 = TaskInstance(run_id=dr2.run_id, task=task)
-    dr3 = DagRun(execution_date=third_execution_date, run_id="test_run_id_3", **common_dr_kwargs)
+    dr3 = DagRun(logical_date=third_logical_date, run_id="test_run_id_3", **common_dr_kwargs)
     ti_3 = TaskInstance(run_id=dr3.run_id, task=task)
     session.add_all([dr1, dr2, dr3, ti_1, ti_2, ti_3])
     session.commit()
@@ -768,12 +803,12 @@ def test_get_task_instances(session):
     # get all task instances
     assert task.get_task_instances(session=session) == [ti_1, ti_2, ti_3]
     # get task instances with start_date
-    assert task.get_task_instances(session=session, start_date=second_execution_date) == [ti_2, ti_3]
+    assert task.get_task_instances(session=session, start_date=second_logical_date) == [ti_2, ti_3]
     # get task instances with end_date
-    assert task.get_task_instances(session=session, end_date=second_execution_date) == [ti_1, ti_2]
+    assert task.get_task_instances(session=session, end_date=second_logical_date) == [ti_1, ti_2]
     # get task instances with start_date and end_date
     assert task.get_task_instances(
-        session=session, start_date=second_execution_date, end_date=second_execution_date
+        session=session, start_date=second_logical_date, end_date=second_logical_date
     ) == [ti_2]
 
 

@@ -19,19 +19,25 @@
 import { Button, type ButtonProps } from "@chakra-ui/react";
 
 type QuickFilterButtonProps = {
-  readonly active: boolean;
+  readonly isActive: boolean;
 } & ButtonProps;
 
 export const QuickFilterButton = ({
-  active,
   children,
+  isActive,
   ...rest
 }: QuickFilterButtonProps) => (
   <Button
+    _hover={{ bg: "colorPalette.subtle" }}
+    bg={isActive ? "colorPalette.muted" : undefined}
+    borderColor="colorPalette.fg"
     borderRadius={20}
+    borderWidth={1}
+    color="colorPalette.fg"
     colorPalette="blue"
     fontWeight="normal"
-    variant={active ? "solid" : "outline"}
+    size="sm"
+    variant={isActive ? "solid" : "outline"}
     {...rest}
   >
     {children}

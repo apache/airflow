@@ -87,6 +87,7 @@ Extra (optional)
 
     * ``use_azure_managed_identity``: required boolean flag to specify if managed identity needs to be used instead of
       service principal
+    * ``use_default_azure_credential``: required boolean flag to specify if the `DefaultAzureCredential` class should be used to retrieve a AAD token. For example, this can be used when authenticating with workload identity within an Azure Kubernetes Service cluster. Note that this option can't be set together with the `use_azure_managed_identity` parameter.
     * ``azure_resource_id``: optional Resource ID of the Azure Databricks workspace (required if managed identity isn't
       a user inside workspace)
 

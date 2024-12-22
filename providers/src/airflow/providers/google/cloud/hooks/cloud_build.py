@@ -19,7 +19,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.exceptions import AlreadyExists
@@ -62,12 +63,7 @@ class CloudBuildHook(GoogleBaseHook):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
-        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
+        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
         self._client: dict[str, CloudBuildClient] = {}
 
     def _get_build_id_from_operation(self, operation: Operation) -> str:
@@ -633,14 +629,6 @@ class CloudBuildHook(GoogleBaseHook):
 
 class CloudBuildAsyncHook(GoogleBaseHook):
     """Asynchronous Hook for the Google Cloud Build Service."""
-
-    def __init__(self, **kwargs):
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
-        super().__init__(**kwargs)
 
     @GoogleBaseHook.fallback_to_default_project_id
     async def get_cloud_build(

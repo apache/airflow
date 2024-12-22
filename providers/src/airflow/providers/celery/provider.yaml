@@ -22,9 +22,12 @@ description: |
     `Celery <https://docs.celeryq.dev/en/stable/>`__
 
 state: ready
-source-date-epoch: 1728484718
+source-date-epoch: 1734529029
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 3.9.0
+  - 3.8.5
+  - 3.8.4
   - 3.8.3
   - 3.8.2
   - 3.8.1
@@ -60,7 +63,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.8.0
+  - apache-airflow>=2.9.0
   # The Celery is known to introduce problems when upgraded to a MAJOR version. Airflow Core
   # Uses Celery for CeleryExecutor, and we also know that Kubernetes Python client follows SemVer
   # (https://docs.celeryq.dev/en/stable/contributing.html?highlight=semver#versions).

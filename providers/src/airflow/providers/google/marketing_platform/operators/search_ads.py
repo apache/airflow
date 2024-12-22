@@ -19,8 +19,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from airflow.models import BaseOperator
 from airflow.providers.google.marketing_platform.hooks.search_ads import GoogleSearchAdsReportingHook

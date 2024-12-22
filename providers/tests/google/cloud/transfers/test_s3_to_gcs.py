@@ -270,6 +270,38 @@ class TestS3ToGoogleCloudStorageOperator:
 
         assert sorted([s3_prefix + s3_object]) == sorted(uploaded_files)
 
+    @pytest.mark.parametrize(
+        ("s3_prefix", "gcs_destination", "apply_gcs_prefix", "expected_input", "expected_output"),
+        [
+            ("dir/pre", "gs://bucket/dest_dir/", False, "dir/pre", "dest_dir/dir"),
+            ("dir/pre/", "gs://bucket/dest_dir/", False, "dir/pre", "dest_dir/dir/pre"),
+            ("dir/pre", "gs://bucket/dest_dir/", True, "dir/pre", "dest_dir"),
+            ("dir/pre", "gs://bucket/", False, "dir/pre", "dir"),
+            ("dir/pre", "gs://bucket/", True, "dir/pre", "/"),
+            ("", "gs://bucket/", False, "/", "/"),
+            ("", "gs://bucket/", True, "/", "/"),
+        ],
+    )
+    def test_get_openlineage_facets_on_start(
+        self, s3_prefix, gcs_destination, apply_gcs_prefix, expected_input, expected_output
+    ):
+        operator = S3ToGCSOperator(
+            task_id=TASK_ID,
+            bucket=S3_BUCKET,
+            prefix=s3_prefix,
+            dest_gcs=gcs_destination,
+            apply_gcs_prefix=apply_gcs_prefix,
+        )
+        result = operator.get_openlineage_facets_on_start()
+        assert not result.job_facets
+        assert not result.run_facets
+        assert len(result.outputs) == 1
+        assert len(result.inputs) == 1
+        assert result.outputs[0].namespace == "gs://bucket"
+        assert result.outputs[0].name == expected_output
+        assert result.inputs[0].namespace == f"s3://{S3_BUCKET}"
+        assert result.inputs[0].name == expected_input
+
 
 class TestS3ToGoogleCloudStorageOperatorDeferrable:
     @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.CloudDataTransferServiceHook")

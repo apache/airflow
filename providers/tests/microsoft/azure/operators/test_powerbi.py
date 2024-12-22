@@ -50,6 +50,7 @@ NEW_REFRESH_REQUEST_ID = "5e2d9921-e91b-491f-b7e1-e7d8db49194c"
 
 SUCCESS_TRIGGER_EVENT = {
     "status": "success",
+    "dataset_refresh_status": PowerBIDatasetRefreshStatus.COMPLETED,
     "message": "success",
     "dataset_refresh_id": NEW_REFRESH_REQUEST_ID,
 }
@@ -106,12 +107,37 @@ class TestPowerBIDatasetRefreshOperator(Base):
             **CONFIG,
         )
         context = {"ti": MagicMock()}
-        with pytest.raises(AirflowException):
+        with pytest.raises(AirflowException) as exc:
             operator.execute_complete(
                 context=context,
-                event={"status": "error", "message": "error", "dataset_refresh_id": "1234"},
+                event={
+                    "status": "error",
+                    "dataset_refresh_status": None,
+                    "message": "error",
+                    "dataset_refresh_id": "1234",
+                },
             )
         assert context["ti"].xcom_push.call_count == 0
+        assert str(exc.value) == "error"
+
+    def test_powerbi_operator_refresh_fail(self):
+        """Assert that execute_complete raise exception on refresh fail"""
+        operator = PowerBIDatasetRefreshOperator(
+            **CONFIG,
+        )
+        context = {"ti": MagicMock()}
+        with pytest.raises(AirflowException) as exc:
+            operator.execute_complete(
+                context=context,
+                event={
+                    "status": "error",
+                    "dataset_refresh_status": PowerBIDatasetRefreshStatus.FAILED,
+                    "message": "error message",
+                    "dataset_refresh_id": "1234",
+                },
+            )
+        assert context["ti"].xcom_push.call_count == 0
+        assert str(exc.value) == "error message"
 
     def test_execute_complete_no_event(self):
         """Test execute_complete when event is None or empty."""
@@ -131,7 +157,6 @@ class TestPowerBIDatasetRefreshOperator(Base):
         ti = create_task_instance_of_operator(
             PowerBIDatasetRefreshOperator,
             dag_id="test_powerbi_refresh_op_link",
-            execution_date=DEFAULT_DATE,
             task_id=TASK_ID,
             conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
             group_id=GROUP_ID,

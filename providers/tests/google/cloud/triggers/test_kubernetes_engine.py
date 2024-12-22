@@ -27,7 +27,13 @@ import pytest
 from google.cloud.container_v1.types import Operation
 from kubernetes.client import models as k8s
 
-from airflow.providers.cncf.kubernetes.triggers.kubernetes_pod import ContainerState
+try:
+    from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState
+except ImportError:
+    # preserve backward compatibility for older versions of cncf.kubernetes provider, remove this when minimum cncf.kubernetes provider is 10.0
+    from airflow.providers.cncf.kubernetes.triggers.kubernetes_pod import (  # type: ignore[no-redef]
+        ContainerState,
+    )
 from airflow.providers.google.cloud.triggers.kubernetes_engine import (
     GKEJobTrigger,
     GKEOperationTrigger,
@@ -39,7 +45,6 @@ GKE_TRIGGERS_PATH = "airflow.providers.google.cloud.triggers.kubernetes_engine"
 TRIGGER_GKE_POD_PATH = GKE_TRIGGERS_PATH + ".GKEStartPodTrigger"
 TRIGGER_GKE_JOB_PATH = GKE_TRIGGERS_PATH + ".GKEJobTrigger"
 TRIGGER_KUB_POD_PATH = "airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger"
-HOOK_PATH = "airflow.providers.google.cloud.hooks.kubernetes_engine.GKEPodAsyncHook"
 POD_NAME = "test-pod-name"
 JOB_NAME = "test-job-name"
 NAMESPACE = "default"

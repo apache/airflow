@@ -17,13 +17,12 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
-from airflow.providers.microsoft.azure.hooks.powerbi import (
-    PowerBIHook,
-)
+from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIHook
 from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
 
 if TYPE_CHECKING:

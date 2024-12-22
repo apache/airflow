@@ -60,29 +60,22 @@ TEST_TABLE_ID: str = "test_table"
 TEST_PARTITION_NAME = "column=value"
 TEST_SUBPARTITION_NAME = "column1=value1/column2=value2"
 TEST_PARTITIONS_QUERY_ALL = """
-                SELECT *
-                FROM PARTITIONS
-                INNER JOIN TBLS
-                ON PARTITIONS.TBL_ID = TBLS.TBL_ID
-                WHERE
-                    TBLS.TBL_NAME = '{}';"""
+    SELECT PARTITIONS.*, TBLS.TBL_TYPE, TBLS.TBL_NAME
+    FROM PARTITIONS
+    INNER JOIN TBLS ON PARTITIONS.TBL_ID = TBLS.TBL_ID
+    WHERE TBLS.TBL_NAME = '{}';"""
+
 TEST_PARTITIONS_QUERY = """
-                SELECT *
-                FROM PARTITIONS
-                INNER JOIN TBLS
-                ON PARTITIONS.TBL_ID = TBLS.TBL_ID
-                WHERE
-                    TBLS.TBL_NAME = '{}'
-                    AND PARTITIONS.PART_NAME IN ({});"""
+    SELECT PARTITIONS.*, TBLS.TBL_TYPE, TBLS.TBL_NAME
+    FROM PARTITIONS
+    INNER JOIN TBLS ON PARTITIONS.TBL_ID = TBLS.TBL_ID
+    WHERE TBLS.TBL_NAME = '{}'
+        AND PARTITIONS.PART_NAME IN ({});"""
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 DATAPROC_METASTORE_STRING = "airflow.providers.google.cloud.hooks.dataproc_metastore.{}"
 
 
 class TestDataprocMetastoreWithDefaultProjectIdHook:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            DataprocMetastoreHook(gcp_conn_id=TEST_GCP_CONN_ID, delegate_to="delegate_to")
-
     def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id

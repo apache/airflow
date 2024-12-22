@@ -77,7 +77,7 @@ def get_dag_fail_root(dag_maker):
     return dag
 
 
-@pytest.mark.system("core")
+@pytest.mark.system
 class TestExampleDagsSystem(SystemTest):
     @pytest.mark.parametrize(
         "module",
@@ -135,7 +135,7 @@ class TestExampleDagsSystem(SystemTest):
                 python_callable=lambda: print("hello"),
                 start_date=fut_start_date,
             )
-        run = get_test_run(dag, execution_date=exec_date)
+        run = get_test_run(dag, logical_date=exec_date)
         run()
         dr = session.scalar(select(DagRun))
         tis = dr.task_instances

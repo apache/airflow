@@ -33,7 +33,6 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
 
-@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 class TestTaskInstanceSchema:
     @pytest.fixture(autouse=True)
@@ -42,7 +41,7 @@ class TestTaskInstanceSchema:
         with dag_maker(dag_id="TEST_DAG_ID", session=session):
             self.task = EmptyOperator(task_id="TEST_TASK_ID", start_date=self.default_time)
 
-        self.dr = dag_maker.create_dagrun(execution_date=self.default_time)
+        self.dr = dag_maker.create_dagrun(logical_date=self.default_time)
         session.flush()
 
         self.default_ti_init = {
@@ -74,7 +73,7 @@ class TestTaskInstanceSchema:
             "dag_id": "TEST_DAG_ID",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
-            "execution_date": "2020-01-01T00:00:00+00:00",
+            "logical_date": "2020-01-01T00:00:00+00:00",
             "executor": None,
             "executor_config": "{}",
             "hostname": "",
@@ -166,7 +165,7 @@ class TestSetTaskInstanceStateFormSchema:
     current_input = {
         "dry_run": True,
         "task_id": "print_the_context",
-        "execution_date": "2020-01-01T00:00:00+00:00",
+        "dag_run_id": "test_run_id",
         "include_upstream": True,
         "include_downstream": True,
         "include_future": True,
@@ -178,7 +177,7 @@ class TestSetTaskInstanceStateFormSchema:
         result = set_task_instance_state_form.load(self.current_input)
         expected_result = {
             "dry_run": True,
-            "execution_date": dt.datetime(2020, 1, 1, 0, 0, tzinfo=dt.timezone(dt.timedelta(0), "+0000")),
+            "dag_run_id": "test_run_id",
             "include_downstream": True,
             "include_future": True,
             "include_past": True,
@@ -194,7 +193,7 @@ class TestSetTaskInstanceStateFormSchema:
         result = set_task_instance_state_form.load(self.current_input)
         expected_result = {
             "dry_run": True,
-            "execution_date": dt.datetime(2020, 1, 1, 0, 0, tzinfo=dt.timezone(dt.timedelta(0), "+0000")),
+            "dag_run_id": "test_run_id",
             "include_downstream": True,
             "include_future": True,
             "include_past": True,
@@ -209,9 +208,8 @@ class TestSetTaskInstanceStateFormSchema:
         [
             {"task_id": None},
             {"include_future": "foo"},
-            {"execution_date": "NOW"},
             {"new_state": "INVALID_STATE"},
-            {"execution_date": "2020-01-01T00:00:00+00:00", "dag_run_id": "some-run-id"},
+            {"logical_date": "2020-01-01T00:00:00+00:00", "dag_run_id": "some-run-id"},
         ],
     )
     def test_validation_error(self, override_data):

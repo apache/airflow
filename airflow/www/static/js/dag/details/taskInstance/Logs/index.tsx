@@ -64,7 +64,7 @@ interface Props {
   dagRunId: DagRun["runId"];
   taskId: TaskInstance["taskId"];
   mapIndex?: TaskInstance["mapIndex"];
-  executionDate: DagRun["executionDate"];
+  logicalDate: DagRun["logicalDate"];
   tryNumber: TaskInstance["tryNumber"];
   state?: TaskInstance["state"];
 }
@@ -74,7 +74,7 @@ const Logs = ({
   dagRunId,
   taskId,
   mapIndex,
-  executionDate,
+  logicalDate,
   tryNumber: finalTryNumber,
   state,
 }: Props) => {
@@ -109,7 +109,7 @@ const Logs = ({
 
   const params = new URLSearchParamsWrapper({
     task_id: taskId,
-    execution_date: executionDate,
+    logical_date: logicalDate,
   });
 
   if (mapIndex !== undefined) {
@@ -164,7 +164,7 @@ const Logs = ({
                   key={tryNumber}
                   dagId={dagId}
                   taskId={taskId}
-                  executionDate={executionDate}
+                  logicalDate={logicalDate}
                   tryNumber={tryNumber}
                   mapIndex={mapIndex}
                 />
@@ -231,7 +231,7 @@ const Logs = ({
             <LogLink
               dagId={dagId}
               taskId={taskId}
-              executionDate={executionDate}
+              logicalDate={logicalDate}
               isInternal
               tryNumber={selectedTryNumber}
               mapIndex={mapIndex}

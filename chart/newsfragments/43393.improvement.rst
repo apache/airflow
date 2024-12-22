@@ -1,0 +1,1 @@
+Update quay.io/prometheus/statsd-exporter from v0.27.2 to v0.28.0

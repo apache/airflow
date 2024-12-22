@@ -17,8 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Iterator
 from datetime import datetime
-from typing import TYPE_CHECKING, Iterator
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import Mock
 
@@ -33,7 +34,7 @@ from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTISta
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session

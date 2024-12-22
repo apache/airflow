@@ -21,7 +21,8 @@ from __future__ import annotations
 
 import csv
 import json
-from typing import TYPE_CHECKING, Any, ClassVar, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from databricks.sql.utils import ParamEscaper
 
@@ -114,7 +115,6 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
             "catalog": self.catalog,
             "schema": self.schema,
             "caller": "DatabricksSqlOperator",
-            "return_tuple": True,
             **self.client_parameters,
             **self.hook_params,
         }
@@ -353,3 +353,8 @@ FILEFORMAT = {self._file_format}
         self.log.info("Executing: %s", sql)
         hook = self._get_hook()
         hook.run(sql)
+
+    def on_kill(self) -> None:
+        # NB: on_kill isn't required for this operator since query cancelling gets
+        # handled in `DatabricksSqlHook.run()` method which is called in `execute()`
+        ...

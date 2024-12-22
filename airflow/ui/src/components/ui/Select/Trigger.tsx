@@ -21,32 +21,31 @@ import { forwardRef } from "react";
 
 import { CloseButton } from "../CloseButton";
 
-type TriggerProps = {
+type Props = {
   clearable?: boolean;
+  isActive?: boolean;
 } & ChakraSelect.ControlProps;
 
-export const Trigger = forwardRef<HTMLButtonElement, TriggerProps>(
-  (props, ref) => {
-    const { children, clearable, ...rest } = props;
+export const Trigger = forwardRef<HTMLButtonElement, Props>((props, ref) => {
+  const { children, clearable, isActive, ...rest } = props;
 
-    return (
-      <ChakraSelect.Control {...rest}>
-        <ChakraSelect.Trigger ref={ref}>{children}</ChakraSelect.Trigger>
-        <ChakraSelect.IndicatorGroup>
-          {clearable ? (
-            <ChakraSelect.ClearTrigger asChild>
-              <CloseButton
-                focusRingWidth="2px"
-                focusVisibleRing="inside"
-                pointerEvents="auto"
-                size="xs"
-                variant="plain"
-              />
-            </ChakraSelect.ClearTrigger>
-          ) : undefined}
-          <ChakraSelect.Indicator />
-        </ChakraSelect.IndicatorGroup>
-      </ChakraSelect.Control>
-    );
-  },
-);
+  return (
+    <ChakraSelect.Control {...rest}>
+      <ChakraSelect.Trigger ref={ref}>{children}</ChakraSelect.Trigger>
+      <ChakraSelect.IndicatorGroup>
+        {clearable ? (
+          <ChakraSelect.ClearTrigger asChild>
+            <CloseButton
+              focusRingWidth="2px"
+              focusVisibleRing="inside"
+              pointerEvents="auto"
+              size="xs"
+              variant="plain"
+            />
+          </ChakraSelect.ClearTrigger>
+        ) : undefined}
+        <ChakraSelect.Indicator />
+      </ChakraSelect.IndicatorGroup>
+    </ChakraSelect.Control>
+  );
+});

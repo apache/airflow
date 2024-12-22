@@ -382,8 +382,3 @@ However, you can also look at other non-performance-related scheduler configurat
   in the loop. i.e. if it scheduled something then it will start the next loop
   iteration straight away. This parameter is badly named (historical reasons) and it will be
   renamed in the future with deprecation of the current name.
-
-- :ref:`config:scheduler__schedule_after_task_execution`
-  Should the Task supervisor process perform a "mini scheduler" to attempt to schedule more tasks of
-  the same DAG. Leaving this on will mean tasks in the same DAG execute quicker,
-  but might starve out other DAGs in some circumstances.

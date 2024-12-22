@@ -17,8 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any, Generator, NamedTuple
+from typing import Any, NamedTuple
 
 import flask
 import jinja2
@@ -186,9 +187,11 @@ class _TemplateWithContext(NamedTuple):
             # airflow.www.views.AirflowBaseView.extra_args
             "macros",
             "auth_manager",
+            "triggerer_job",
         ]
         for key in keys_to_delete:
-            del result[key]
+            if key in result:
+                del result[key]
 
         return result
 

@@ -164,9 +164,10 @@ def on_dag_run_running(dag_run: DagRun, msg: str):
     """
     print("Dag run  in running state")
     queued_at = dag_run.queued_at
-    dag_hash_info = dag_run.dag_hash
 
-    print(f"Dag information Queued at: {queued_at} hash info: {dag_hash_info}")
+    version = dag_run.dag_version.version
+
+    print(f"Dag information Queued at: {queued_at} version: {version}")
 
 
 # [END howto_listen_dagrun_running_task]

@@ -118,7 +118,7 @@ class TestAwsBaseSensor:
         with dag_maker("test_aws_base_sensor", serialized=True):
             FakeDynamoDBSensor(task_id="fake-task-id", **op_kwargs, poke_interval=1)
 
-        dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        dagrun = dag_maker.create_dagrun(logical_date=timezone.utcnow())
         tis = {ti.task_id: ti for ti in dagrun.task_instances}
         tis["fake-task-id"].run()
 

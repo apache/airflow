@@ -174,6 +174,13 @@ repos:
         language: python
         additional_dependencies: ['rich>=12.4.4']
         require_serial: true
+      - id: check-imports-in-providers
+        name: Check imports in providers
+        entry: ./scripts/ci/pre_commit/check_imports_in_providers.py
+        language: python
+        additional_dependencies: ['rich>=12.4.4', "ruff==0.8.1"]
+        files: ^providers/src/airflow/providers/.*\.py$
+        require_serial: true
       - id: update-common-sql-api-stubs
         name: Check and update common.sql API stubs
         entry: ./scripts/ci/pre_commit/update_common_sql_api_stubs.py
@@ -330,7 +337,7 @@ repos:
           The word(s) should be in lowercase." && exec codespell "$@"' --
         language: python
         types: [text]
-        exclude: ^.*/.*_vendor/|^airflow/www/static/css/material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$|^.*pnpm-lock\.yaml$
+        exclude: ^.*/.*_vendor/|material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$|^.*pnpm-lock\.yaml$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=providers/src/airflow/providers/*/*.rst,airflow/www/*.log,docs/*/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
@@ -352,6 +359,13 @@ repos:
         pass_filenames: true
         files: ^providers/src/airflow/providers/.*/(operators|transfers|sensors)/.*\.py$
         additional_dependencies: [ 'rich>=12.4.4' ]
+      - id: update-providers-init-py
+        name: Update providers __init__.py files
+        entry: ./scripts/ci/pre_commit/update_providers_init.py
+        language: python
+        pass_filenames: true
+        files: ^providers/.*/__init__.py$|^providers/.*/provider.yaml$|^airflow_breeze/templates/PROVIDER__INIT__PY_TEMPLATE.py.jinja2^
+        additional_dependencies: ['rich>=12.4.4','requests']
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
@@ -360,7 +374,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ["ruff==0.7.1"]
+        additional_dependencies: ["ruff==0.8.1"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^performance/tests/test_.*.py
       - id: ruff-format
         name: Run 'ruff format'
@@ -370,7 +384,7 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ["ruff==0.7.1"]
+        additional_dependencies: ["ruff==0.8.1"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py$
       - id: replace-bad-characters
         name: Replace bad characters
@@ -477,21 +491,21 @@ repos:
         files: ^docs/apache-airflow/extra-packages-ref\.rst$|^hatch_build.py
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/check_extra_packages_ref.py
-        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.25.0', 'tabulate']
+        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.27.0', 'tabulate']
       - id: check-hatch-build-order
         name: Check order of dependencies in hatch_build.py
         language: python
         files: ^hatch_build.py$
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/check_order_hatch_build.py
-        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.25.0']
+        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.27.0']
       - id: update-extras
         name: Update extras in documentation
         entry: ./scripts/ci/pre_commit/insert_extras.py
         language: python
         files: ^contributing-docs/12_airflow_dependencies_and_extras.rst$|^INSTALL$|^providers/src/airflow/providers/.*/provider\.yaml$|^Dockerfile.*
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.25.0']
+        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.27.0']
       - id: check-extras-order
         name: Check order of extras in Dockerfile
         entry: ./scripts/ci/pre_commit/check_order_dockerfile_extras.py
@@ -607,9 +621,8 @@ repos:
           (?x)
           ^airflow/api_connexion/openapi/v1.yaml$|
           ^airflow/ui/openapi-gen/|
-          ^airflow/cli/commands/internal_api_command.py$|
-          ^airflow/cli/commands/fastapi_api_command.py$|
-          ^airflow/cli/commands/webserver_command.py$|
+          ^airflow/cli/commands/local_commands/fastapi_api_command.py$|
+          ^airflow/cli/commands/local_commands/webserver_command.py$|
           ^airflow/config_templates/|
           ^airflow/models/baseoperator.py$|
           ^airflow/operators/__init__.py$|
@@ -623,6 +636,7 @@ repos:
           ^providers/src/airflow/providers/apache/spark/operators/|
           ^providers/src/airflow/providers/exasol/hooks/exasol.py$|
           ^providers/src/airflow/providers/fab/auth_manager/security_manager/|
+          ^providers/src/airflow/providers/fab/www/static/css/bootstrap-theme.css$|
           ^providers/src/airflow/providers/google/cloud/hooks/bigquery.py$|
           ^providers/src/airflow/providers/google/cloud/operators/cloud_build.py$|
           ^providers/src/airflow/providers/google/cloud/operators/dataproc.py$|
@@ -667,7 +681,8 @@ repos:
           ^.*RELEASE_NOTES\.rst$|
           ^contributing-docs/03_contributors_quick_start.rst$|
           ^.*\.(png|gif|jp[e]?g|tgz|lock)$|
-          git
+          git|
+          ^newsfragments/43349\.significant\.rst$
       - id: check-base-operator-partial-arguments
         name: Check BaseOperator and partial() arguments
         language: python
@@ -698,7 +713,7 @@ repos:
           ^airflow/hooks/.*$|
           ^airflow/operators/.*$|
           ^providers/src/airflow/providers/.*$|
-          ^airflow/sensors/.*$|
+          ^providers/src/airflow/providers/standard/sensors/.*$|
           ^dev/provider_packages/.*$
       - id: check-base-operator-usage
         language: pygrep
@@ -713,7 +728,7 @@ repos:
           ^airflow/hooks/.*$|
           ^airflow/operators/.*$|
           ^providers/src/airflow/providers/.*$|
-          ^airflow/sensors/.*$|
+          ^providers/src/airflow/providers/standard/sensors/.*$|
           ^dev/provider_packages/.*$
       - id: check-base-operator-usage
         language: pygrep
@@ -724,7 +739,7 @@ repos:
         files: >
           (?x)
           ^providers/src/airflow/providers/.*\.py$
-        exclude: ^.*/.*_vendor/|providers/src/airflow/providers/standard/operators/bash.py|providers/src/airflow/providers/standard/operators/python.py
+        exclude: ^.*/.*_vendor/|providers/src/airflow/providers/standard/operators/bash.py|providers/src/airflow/providers/standard/operators/python.py|providers/src/airflow/providers/standard/sensors/external_task.py
       - id: check-get-lineage-collector-providers
         language: python
         name: Check providers import hook lineage code from compat
@@ -749,10 +764,9 @@ repos:
         pass_filenames: true
       - id: check-provide-create-sessions-imports
         language: pygrep
-        name: Check provide_session and create_session imports
-        description: provide_session and create_session should be imported from airflow.utils.session
-          to avoid import cycles.
-        entry: "from airflow\\.utils\\.db import.* (provide_session|create_session)"
+        name: Check session util imports
+        description: NEW_SESSION, provide_session, and create_session should be imported from airflow.utils.session to avoid import cycles.
+        entry: "from airflow\\.utils\\.db import.* (NEW_SESSION|provide_session|create_session)"
         files: \.py$
         exclude: ^.*/.*_vendor/
         pass_filenames: true
@@ -797,7 +811,7 @@ repos:
         entry: ./scripts/ci/pre_commit/boring_cyborg.py
         pass_filenames: false
         require_serial: true
-        additional_dependencies: ['pyyaml', 'termcolor==1.1.0', 'wcmatch==8.2']
+        additional_dependencies: ['pyyaml', 'termcolor==2.5.0', 'wcmatch==8.2']
       - id: update-in-the-wild-to-be-sorted
         name: Sort INTHEWILD.md alphabetically
         entry: ./scripts/ci/pre_commit/sort_in_the_wild.py
@@ -1188,7 +1202,13 @@ repos:
         files: \.py$
         exclude: |
           (?x)
+          ^airflow/configuration.py$ |
+          ^airflow/metrics/validators.py$ |
+          ^airflow/models/dag.py$ |
+          ^airflow/serialization/serde.py$ |
+          ^airflow/utils/file.py$ |
           ^airflow/utils/helpers.py$ |
+          ^airflow/utils/log/secrets_masker.py$ |
           ^providers/src/airflow/providers/ |
           ^(providers/)?tests/ |
           task_sdk/src/airflow/sdk/definitions/dag.py$ |
@@ -1267,13 +1287,14 @@ repos:
         # These migrations contain FAB related changes but existed before moving FAB auth manager
         # to its own provider
         exclude: >
-          (?ix)
-          ^airflow/migrations/versions/00.*\.py$|
-          ^airflow/migrations/versions/0106.*\.py$|
-          ^airflow/migrations/versions/0118.*\.py$|
-          ^airflow/migrations/versions/0119.*\.py$|
-          ^airflow/migrations/versions/0121.*\.py$|
-          ^airflow/migrations/versions/0124.*\.py$
+          (?ix)^(
+            airflow/migrations/versions/00.*\.py|
+            airflow/migrations/versions/0106.*\.py|
+            airflow/migrations/versions/0118.*\.py|
+            airflow/migrations/versions/0119.*\.py|
+            airflow/migrations/versions/0121.*\.py|
+            airflow/migrations/versions/0124.*\.py
+          )$
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy-dev
@@ -1291,36 +1312,37 @@ repos:
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
-        additional_dependencies: [ 'rich>=12.4.4' ]
+        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-airflow
         name: Run mypy for airflow
         language: python
         entry: ./scripts/ci/pre_commit/mypy.py
         files: \.py$
         exclude: |
-          (?x)
-          ^.*/.*_vendor/ |
-          ^airflow/migrations |
-          ^providers/ |
-          ^task_sdk/ |
-          ^dev |
-          ^scripts |
-          ^docs |
-          ^provider_packages |
-          ^performance/ |
-          ^tests/dags/test_imports.py |
-          ^clients/python/test_.*\.py
+          (?x)^(
+            .*/.*_vendor/|
+            airflow/migrations|
+            clients/python/test_.*\.py|
+            dev|
+            docs|
+            performance/|
+            provider_packages|
+            providers/|
+            scripts|
+            task_sdk/|
+            tests/dags/test_imports\.py
+          )
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: mypy-airflow
-        stages: [ 'manual' ]
+        stages: ['manual']
         name: Run mypy for airflow (manual)
         language: python
         entry: ./scripts/ci/pre_commit/mypy_folder.py airflow
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
-        additional_dependencies: [ 'rich>=12.4.4' ]
+        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-providers
         name: Run mypy for providers
         language: python

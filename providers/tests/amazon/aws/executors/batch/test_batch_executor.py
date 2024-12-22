@@ -98,7 +98,7 @@ class TestBatchJobCollection:
     """Tests BatchJobCollection Class"""
 
     @pytest.fixture(autouse=True)
-    def setup_method(self):
+    def _setup_method(self):
         """
         Create a BatchJobCollection object and add 2 airflow tasks. Populates self.collection,
         self.first/second_task, self.first/second_airflow_key, and self.first/second_airflow_cmd.
@@ -148,7 +148,7 @@ class TestBatchJob:
     """Tests the BatchJob DTO"""
 
     @pytest.fixture(autouse=True)
-    def setup_method(self):
+    def _setup_method(self):
         self.all_statuses = ["SUBMITTED", "PENDING", "RUNNABLE", "STARTING", "RUNNING", "SUCCEEDED", "FAILED"]
         self.running = "RUNNING"
         self.success = "SUCCEEDED"
@@ -633,7 +633,7 @@ class TestAwsBatchExecutor:
         # Two of the three tasks should be adopted.
         assert len(orphaned_tasks) - 1 == len(mock_executor.active_workers)
         # The remaining one task is unable to be adopted.
-        assert 1 == len(not_adopted_tasks)
+        assert len(not_adopted_tasks) == 1
 
 
 class TestBatchExecutorConfig:

@@ -32,23 +32,23 @@ export const CardList = <TData,>({
   isLoading,
   table,
 }: DataTableProps<TData>) => (
-  <Box overflow="auto" width="100%">
-    <SimpleGrid {...{ column: { base: 1 }, gap: 2, ...cardDef.gridProps }}>
-      {table.getRowModel().rows.map((row) => (
-        <Box key={row.id}>
-          {Boolean(isLoading) &&
-            (cardDef.meta?.customSkeleton ?? (
-              <Skeleton
-                data-testid="skeleton"
-                display="inline-block"
-                height={80}
-                width="100%"
-              />
-            ))}
-          {!Boolean(isLoading) &&
-            flexRender(cardDef.card, { row: row.original })}
-        </Box>
-      ))}
-    </SimpleGrid>
-  </Box>
+  <SimpleGrid
+    data-testid="card-list"
+    {...{ column: { base: 1 }, gap: 2, ...cardDef.gridProps }}
+  >
+    {table.getRowModel().rows.map((row) => (
+      <Box key={row.id}>
+        {Boolean(isLoading) &&
+          (cardDef.meta?.customSkeleton ?? (
+            <Skeleton
+              data-testid="skeleton"
+              display="inline-block"
+              height={80}
+              width="100%"
+            />
+          ))}
+        {!Boolean(isLoading) && flexRender(cardDef.card, { row: row.original })}
+      </Box>
+    ))}
+  </SimpleGrid>
 );

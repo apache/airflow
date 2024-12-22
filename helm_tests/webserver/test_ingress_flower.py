@@ -58,7 +58,7 @@ class TestIngressFlower:
             },
             show_only=["templates/flower/flower-ingress.yaml"],
         )
-        assert "foo" == jmespath.search("spec.ingressClassName", docs[0])
+        assert jmespath.search("spec.ingressClassName", docs[0]) == "foo"
 
     def test_should_ingress_hosts_objs_have_priority_over_host(self):
         docs = render_chart(
@@ -81,14 +81,18 @@ class TestIngressFlower:
             },
             show_only=["templates/flower/flower-ingress.yaml"],
         )
-        assert ["*.a-host", "b-host", "c-host", "d-host", "e-host"] == jmespath.search(
-            "spec.rules[*].host", docs[0]
-        )
-        assert [
+        assert jmespath.search("spec.rules[*].host", docs[0]) == [
+            "*.a-host",
+            "b-host",
+            "c-host",
+            "d-host",
+            "e-host",
+        ]
+        assert jmespath.search("spec.tls[*]", docs[0]) == [
             {"hosts": ["*.a-host"], "secretName": "newsecret1"},
             {"hosts": ["b-host"], "secretName": "newsecret2"},
             {"hosts": ["c-host"], "secretName": "newsecret1"},
-        ] == jmespath.search("spec.tls[*]", docs[0])
+        ]
 
     def test_should_ingress_hosts_strs_have_priority_over_host(self):
         docs = render_chart(
@@ -106,10 +110,10 @@ class TestIngressFlower:
             show_only=["templates/flower/flower-ingress.yaml"],
         )
 
-        assert ["*.a-host", "b-host", "c-host", "d-host"] == jmespath.search("spec.rules[*].host", docs[0])
-        assert [
+        assert jmespath.search("spec.rules[*].host", docs[0]) == ["*.a-host", "b-host", "c-host", "d-host"]
+        assert jmespath.search("spec.tls[*]", docs[0]) == [
             {"hosts": ["*.a-host", "b-host", "c-host", "d-host"], "secretName": "secret"}
-        ] == jmespath.search("spec.tls[*]", docs[0])
+        ]
 
     def test_should_ingress_deprecated_host_and_top_level_tls_still_work(self):
         docs = render_chart(
@@ -159,7 +163,7 @@ class TestIngressFlower:
         if values["ingress"] == {}:
             del values["ingress"]
         docs = render_chart(values=values, show_only=["templates/flower/flower-ingress.yaml"])
-        assert expected == (1 == len(docs))
+        assert expected == (len(docs) == 1)
 
     def test_ingress_not_created_flower_disabled(self):
         docs = render_chart(
@@ -170,7 +174,7 @@ class TestIngressFlower:
             },
             show_only=["templates/flower/flower-ingress.yaml"],
         )
-        assert 0 == len(docs)
+        assert len(docs) == 0
 
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
@@ -214,12 +218,12 @@ class TestIngressFlower:
             namespace="airflow",
         )
 
-        assert [
+        assert jmespath.search("spec.rules[*].host", docs[0]) == [
             "*.airflow.example.com",
             "aa.example.com",
             "cc.example.com",
             "dd.example.com",
-        ] == jmespath.search("spec.rules[*].host", docs[0])
+        ]
 
     def test_backend_service_name(self):
         docs = render_chart(
@@ -227,8 +231,9 @@ class TestIngressFlower:
             show_only=["templates/flower/flower-ingress.yaml"],
         )
 
-        assert "release-name-flower" == jmespath.search(
-            "spec.rules[0].http.paths[0].backend.service.name", docs[0]
+        assert (
+            jmespath.search("spec.rules[0].http.paths[0].backend.service.name", docs[0])
+            == "release-name-flower"
         )
 
     def test_backend_service_name_with_fullname_override(self):
@@ -242,6 +247,7 @@ class TestIngressFlower:
             show_only=["templates/flower/flower-ingress.yaml"],
         )
 
-        assert "test-basic-flower" == jmespath.search(
-            "spec.rules[0].http.paths[0].backend.service.name", docs[0]
+        assert (
+            jmespath.search("spec.rules[0].http.paths[0].backend.service.name", docs[0])
+            == "test-basic-flower"
         )

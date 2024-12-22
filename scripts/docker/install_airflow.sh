@@ -54,7 +54,7 @@ function install_airflow() {
 
         # Similarly we need _a_ file for task_sdk too
         mkdir -p ./task_sdk/src/airflow/sdk/
-        touch ./task_sdk/src/airflow/__init__.py
+        echo '__version__ = "0.0.0dev0"' > ./task_sdk/src/airflow/sdk/__init__.py
 
         trap 'rm -f ./providers/src/airflow/providers/__init__.py ./task_sdk/src/airflow/__init__.py 2>/dev/null' EXIT
 

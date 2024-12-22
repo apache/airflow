@@ -29,7 +29,7 @@ from tests_common.test_utils.compat import ParseImportError
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_import_errors
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 TEST_DAG_IDS = ["test_dag", "test_dag2"]
 
@@ -88,22 +88,22 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         assert response.status_code == 200
         response_data = response.json
         response_data["import_error_id"] = 1
-        assert {
+        assert response_data == {
             "filename": "Lorem_ipsum.py",
             "import_error_id": 1,
             "stack_trace": "Lorem ipsum",
             "timestamp": "2020-06-10T12:00:00+00:00",
-        } == response_data
+        }
 
     def test_response_404(self):
         response = self.client.get("/api/v1/importErrors/2", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "The ImportError with import_error_id: `2` was not found",
             "status": 404,
             "title": "Import error not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
     def test_should_raises_401_unauthenticated(self, session):
         import_error = ParseImportError(
@@ -143,7 +143,7 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
         assert response.status_code == 200
         response_data = response.json
         self._normalize_import_errors(response_data["import_errors"])
-        assert {
+        assert response_data == {
             "import_errors": [
                 {
                     "filename": "Lorem_ipsum.py",
@@ -159,7 +159,7 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
                 },
             ],
             "total_entries": 2,
-        } == response_data
+        }
 
     def test_get_import_errors_order_by(self, session):
         import_error = [
@@ -180,7 +180,7 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
         assert response.status_code == 200
         response_data = response.json
         self._normalize_import_errors(response_data["import_errors"])
-        assert {
+        assert response_data == {
             "import_errors": [
                 {
                     "filename": "Lorem_ipsum1.py",
@@ -196,7 +196,7 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
                 },
             ],
             "total_entries": 2,
-        } == response_data
+        }
 
     def test_order_by_raises_400_for_invalid_attr(self, session):
         import_error = [

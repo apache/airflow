@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 from unittest import mock
 
 import boto3
@@ -32,7 +32,7 @@ class TestCustomEmrServiceWaiters:
     STEP_ID2 = "test_step_id_2"
 
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self, monkeypatch):
+    def _setup_test_cases(self, monkeypatch):
         self.client = boto3.client("emr", region_name="eu-west-3")
         monkeypatch.setattr(EmrHook, "conn", self.client)
 

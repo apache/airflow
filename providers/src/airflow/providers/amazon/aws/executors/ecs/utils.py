@@ -26,7 +26,7 @@ from __future__ import annotations
 import datetime
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Dict, List
+from typing import TYPE_CHECKING, Any, Callable
 
 from inflection import camelize
 
@@ -36,9 +36,9 @@ from airflow.utils.state import State
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey
 
-CommandType = List[str]
+CommandType = list[str]
 ExecutorConfigFunctionType = Callable[[CommandType], dict]
-ExecutorConfigType = Dict[str, Any]
+ExecutorConfigType = dict[str, Any]
 
 ECS_LAUNCH_TYPE_EC2 = "EC2"
 ECS_LAUNCH_TYPE_FARGATE = "FARGATE"

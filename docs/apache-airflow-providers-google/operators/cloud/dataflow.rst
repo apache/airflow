@@ -37,8 +37,8 @@ There are several ways to run a Dataflow pipeline depending on your environment,
   dependencies must be installed on the worker.  For Java, worker must have the JRE Runtime installed.
   For Python, the Python interpreter. The runtime versions must be compatible with the pipeline versions.
   This is the fastest way to start a pipeline, but because of its frequent problems with system dependencies,
-  it may cause problems. See: :ref:`howto/operator:DataflowCreateJavaJobOperator`,
-  :ref:`howto/operator:DataflowCreatePythonJobOperator` for more detailed information.
+  it may cause problems. See: :ref:`howto/operator:JavaSDKPipelines`,
+  :ref:`howto/operator:PythonSDKPipelines` for more detailed information.
   Developer can also create a pipeline by passing its structure in a JSON format and then run it to create
   a Job.
   See: :ref:`howto/operator:DataflowCreatePipelineOperator` and :ref:`howto/operator:DataflowRunPipelineOperator`
@@ -107,7 +107,7 @@ the create job operators. The source file can be located on GCS or on the local 
 or
 :class:`~airflow.providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator`
 
-.. _howto/operator:DataflowCreateJavaJobOperator:
+.. _howto/operator:JavaSDKPipelines:
 
 Java SDK pipelines
 """"""""""""""""""
@@ -141,7 +141,7 @@ Here is an example of creating and running a pipeline in Java with jar stored on
     :start-after: [START howto_operator_start_java_job_local_jar]
     :end-before: [END howto_operator_start_java_job_local_jar]
 
-.. _howto/operator:DataflowCreatePythonJobOperator:
+.. _howto/operator:PythonSDKPipelines:
 
 Python SDK pipelines
 """"""""""""""""""""

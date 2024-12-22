@@ -75,7 +75,7 @@ jobs:
       - name: "Prepare breeze & CI image: ${{inputs.default-python-version}}:${{inputs.image-tag}}"
         uses: ./.github/actions/prepare_breeze_and_image
       - name: "Helm Unit Tests: ${{ matrix.helm-test-package }}"
-        run: breeze testing helm-tests --helm-test-package "${{ matrix.helm-test-package }}"
+        run: breeze testing helm-tests --test-type "${{ matrix.helm-test-package }}"
 
   tests-helm-release:
     timeout-minutes: 80

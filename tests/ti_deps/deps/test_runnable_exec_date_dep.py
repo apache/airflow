@@ -28,7 +28,7 @@ from airflow.ti_deps.deps.runnable_exec_date_dep import RunnableExecDateDep
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(autouse=True)
@@ -40,9 +40,8 @@ def clean_db(session):
 
 @time_machine.travel("2016-11-01")
 @pytest.mark.parametrize(
-    "allow_trigger_in_future,schedule,execution_date,is_met",
+    "allow_trigger_in_future,schedule,logical_date,is_met",
     [
-        (True, None, datetime(2016, 11, 3), True),
         (True, "@daily", datetime(2016, 11, 3), False),
         (False, None, datetime(2016, 11, 3), False),
         (False, "@daily", datetime(2016, 11, 3), False),
@@ -50,20 +49,20 @@ def clean_db(session):
         (False, None, datetime(2016, 11, 1), True),
     ],
 )
-def test_exec_date_dep(
+def test_logical_date_dep(
     dag_maker,
     session,
     create_dummy_dag,
     allow_trigger_in_future,
     schedule,
-    execution_date,
+    logical_date,
     is_met,
 ):
     """
-    If the dag's execution date is in the future but (allow_trigger_in_future=False or not schedule)
+    If the dag's logical date is in the future but (allow_trigger_in_future=False or not schedule)
     this dep should fail
     """
-    with patch.object(settings, "ALLOW_FUTURE_EXEC_DATES", allow_trigger_in_future):
+    with patch.object(settings, "ALLOW_FUTURE_LOGICAL_DATES", allow_trigger_in_future):
         create_dummy_dag(
             "test_localtaskjob_heartbeat",
             start_date=datetime(2015, 1, 1),
@@ -72,14 +71,14 @@ def test_exec_date_dep(
             with_dagrun_type=DagRunType.MANUAL,
             session=session,
         )
-        (ti,) = dag_maker.create_dagrun(execution_date=execution_date).task_instances
+        (ti,) = dag_maker.create_dagrun(run_id="scheduled", logical_date=logical_date).task_instances
         assert RunnableExecDateDep().is_met(ti=ti) == is_met
 
 
 @time_machine.travel("2016-01-01")
-def test_exec_date_after_end_date(session, dag_maker, create_dummy_dag):
+def test_logical_date_after_end_date(session, dag_maker, create_dummy_dag):
     """
-    If the dag's execution date is in the future this dep should fail
+    If the dag's logical date is in the future this dep should fail
     """
     create_dummy_dag(
         "test_localtaskjob_heartbeat",
@@ -89,38 +88,38 @@ def test_exec_date_after_end_date(session, dag_maker, create_dummy_dag):
         with_dagrun_type=DagRunType.MANUAL,
         session=session,
     )
-    (ti,) = dag_maker.create_dagrun(execution_date=datetime(2016, 11, 2)).task_instances
+    (ti,) = dag_maker.create_dagrun(logical_date=datetime(2016, 11, 2)).task_instances
     assert not RunnableExecDateDep().is_met(ti=ti)
 
 
 class TestRunnableExecDateDep:
-    def _get_task_instance(self, execution_date, dag_end_date=None, task_end_date=None):
+    def _get_task_instance(self, logical_date, dag_end_date=None, task_end_date=None):
         dag = Mock(end_date=dag_end_date)
-        dagrun = Mock(execution_date=execution_date)
+        dagrun = Mock(logical_date=logical_date)
         task = Mock(dag=dag, end_date=task_end_date)
         return Mock(task=task, get_dagrun=Mock(return_value=dagrun))
 
-    def test_exec_date_after_task_end_date(self):
+    def test_logical_date_after_task_end_date(self):
         """
-        If the task instance execution date is after the tasks end date
+        If the task instance logical date is after the tasks end date
         this dep should fail
         """
         ti = self._get_task_instance(
             dag_end_date=datetime(2016, 1, 3),
             task_end_date=datetime(2016, 1, 1),
-            execution_date=datetime(2016, 1, 2),
+            logical_date=datetime(2016, 1, 2),
         )
         assert not RunnableExecDateDep().is_met(ti=ti)
 
     def test_exec_date_after_dag_end_date(self):
         """
-        If the task instance execution date is after the dag's end date
+        If the task instance logical date is after the dag's end date
         this dep should fail
         """
         ti = self._get_task_instance(
             dag_end_date=datetime(2016, 1, 1),
             task_end_date=datetime(2016, 1, 3),
-            execution_date=datetime(2016, 1, 2),
+            logical_date=datetime(2016, 1, 2),
         )
         assert not RunnableExecDateDep().is_met(ti=ti)
 
@@ -131,6 +130,6 @@ class TestRunnableExecDateDep:
         ti = self._get_task_instance(
             dag_end_date=datetime(2016, 1, 2),
             task_end_date=datetime(2016, 1, 2),
-            execution_date=datetime(2016, 1, 1),
+            logical_date=datetime(2016, 1, 1),
         )
         assert RunnableExecDateDep().is_met(ti=ti)

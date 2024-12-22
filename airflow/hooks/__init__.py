@@ -16,3 +16,20 @@
 # specific language governing permissions and limitations
 # under the License.
 # fmt:, off
+
+from __future__ import annotations
+
+from airflow.utils.deprecation_tools import add_deprecated_classes
+
+__deprecated_classes = {
+    "filesystem": {
+        "FSHook": "airflow.providers.standard.hooks.filesystem.FSHook",
+    },
+    "package_index": {
+        "PackageIndexHook": "airflow.providers.standard.hooks.package_index.PackageIndexHook",
+    },
+    "subprocess": {
+        "SubprocessHook": "airflow.providers.standard.hooks.subprocess.SubprocessHook",
+    },
+}
+add_deprecated_classes(__deprecated_classes, __name__)

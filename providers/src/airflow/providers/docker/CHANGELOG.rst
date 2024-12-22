@@ -27,6 +27,63 @@
 Changelog
 ---------
 
+4.0.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the Kubernetes provider package.
+  The following breaking changes were introduced:
+
+  * Decorators
+     * Deprecated parameter ``use_dill`` was removed. Please use ``serializer='dill'`` instead.
+  * Operators
+     * Deprecated parameter ``use_dill`` was removed. Please use ``serializer='dill'`` instead.
+     * Deprecated parameter ``skip_exit_code`` was removed. Please use ``skip_on_exit_code`` instead.
+     * Deprecated method ``get_hook()`` was removed. Please use ``hook`` property instead.
+
+* ``Remove Provider Deprecations in Docker (#44583)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+* ``fix docker documentation auth url (#44112)``
+* ``Update DAG example links in multiple providers documents (#44034)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Correct new changelog breaking changes header (#44659)``
+   * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Update path of example dags in docs (#45069)``
+
+3.14.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix logs with leading spaces in the Docker operator (#33692) (#43840)``
+
+Misc
+~~~~
+
+* ``Move python operator to Standard provider (#42081)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+
 3.14.0
 ......
 

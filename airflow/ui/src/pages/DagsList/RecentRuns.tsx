@@ -19,6 +19,7 @@
 import { Flex, Box, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import duration from "dayjs/plugin/duration";
+import { Link } from "react-router-dom";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
@@ -58,12 +59,12 @@ export const RecentRuns = ({
             <Box>
               <Text>State: {run.state}</Text>
               <Text>
-                Logical Date: <Time datetime={run.logical_date} />
+                Start Date: <Time datetime={run.start_date} />
               </Text>
               <Text>Duration: {run.duration.toFixed(2)}s</Text>
             </Box>
           }
-          key={run.run_id}
+          key={run.dag_run_id}
           positioning={{
             offset: {
               crossAxis: 5,
@@ -73,15 +74,17 @@ export const RecentRuns = ({
           }}
           showArrow
         >
-          <Box p={1}>
-            <Box
-              bg={stateColor[run.state]}
-              borderRadius="4px"
-              height={`${(run.duration / max) * BAR_HEIGHT}px`}
-              minHeight={1}
-              width="4px"
-            />
-          </Box>
+          <Link to={`/dags/${run.dag_id}/runs/${run.dag_run_id}/`}>
+            <Box p={1}>
+              <Box
+                bg={stateColor[run.state]}
+                borderRadius="4px"
+                height={`${(run.duration / max) * BAR_HEIGHT}px`}
+                minHeight={1}
+                width="4px"
+              />
+            </Box>
+          </Link>
         </Tooltip>
       ))}
     </Flex>

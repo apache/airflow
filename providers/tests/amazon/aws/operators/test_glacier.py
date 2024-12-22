@@ -71,7 +71,7 @@ class TestGlacierCreateJobOperator(BaseGlacierOperatorsTests):
     op_class = GlacierCreateJobOperator
 
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self):
+    def _setup_test_cases(self):
         self.default_op_kwargs = {"vault_name": VAULT_NAME, "task_id": TASK_ID}
 
     @mock.patch.object(GlacierCreateJobOperator, "hook", new_callable=mock.PropertyMock)
@@ -89,7 +89,7 @@ class TestGlacierUploadArchiveOperator(BaseGlacierOperatorsTests):
     op_class = GlacierUploadArchiveOperator
 
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self):
+    def _setup_test_cases(self):
         self.default_op_kwargs = {"vault_name": VAULT_NAME, "task_id": TASK_ID, "body": b"Test Data"}
 
     def test_execute(self):

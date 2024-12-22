@@ -24,10 +24,12 @@ description: |
     `Pinecone <https://docs.pinecone.io/docs/overview>`__
 
 state: ready
-source-date-epoch: 1723970514
+source-date-epoch: 1734536278
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 2.2.0
+  - 2.1.1
   - 2.1.0
   - 2.0.1
   - 2.0.0
@@ -44,7 +46,7 @@ integrations:
     tags: [software]
 
 dependencies:
-  - apache-airflow>=2.8.0
+  - apache-airflow>=2.9.0
   - pinecone-client>=3.1.0
 
 hooks:

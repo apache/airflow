@@ -30,7 +30,7 @@ from airflow.utils.types import DagRunType
 from tests_common.test_utils.api_connexion_utils import create_user, delete_user
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module")
@@ -84,7 +84,7 @@ class TestDagStatsEndpoint:
             dag_id="dag_stats_dag",
             run_id="test_dag_run_id_1",
             run_type=DagRunType.MANUAL,
-            execution_date=timezone.parse(self.default_time),
+            logical_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
             external_trigger=True,
             state="running",
@@ -93,7 +93,7 @@ class TestDagStatsEndpoint:
             dag_id="dag_stats_dag",
             run_id="test_dag_run_id_2",
             run_type=DagRunType.MANUAL,
-            execution_date=timezone.parse(self.default_time) + timedelta(days=1),
+            logical_date=timezone.parse(self.default_time) + timedelta(days=1),
             start_date=timezone.parse(self.default_time),
             external_trigger=True,
             state="failed",
@@ -102,7 +102,7 @@ class TestDagStatsEndpoint:
             dag_id="dag_stats_dag_2",
             run_id="test_dag_2_run_id_1",
             run_type=DagRunType.MANUAL,
-            execution_date=timezone.parse(self.default_time),
+            logical_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
             external_trigger=True,
             state="queued",
@@ -111,7 +111,7 @@ class TestDagStatsEndpoint:
             dag_id="dag_stats_dag_3",
             run_id="test_dag_3_run_id_1",
             run_type=DagRunType.MANUAL,
-            execution_date=timezone.parse(self.default_time),
+            logical_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
             external_trigger=True,
             state="success",

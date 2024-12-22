@@ -30,12 +30,6 @@ from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, fetch_one_handler
 
-from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS
-
-pytestmark = [
-    pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="Tests for Airflow 2.8.0+ only"),
-]
-
 
 class DbApiHookInProvider(DbApiHook):
     conn_name_attr = "test_conn_id"
@@ -278,7 +272,7 @@ class TestDbApiHook:
                 port=1,
             )
         )
-        assert "conn-type://login:password@host:1/schema" == self.db_hook.get_uri()
+        assert self.db_hook.get_uri() == "conn-type://login:password@host:1/schema"
 
     def test_get_uri_schema_override(self):
         self.db_hook_schema_override.get_connection = mock.MagicMock(
@@ -291,7 +285,7 @@ class TestDbApiHook:
                 port=1,
             )
         )
-        assert "conn-type://login:password@host:1/schema-override" == self.db_hook_schema_override.get_uri()
+        assert self.db_hook_schema_override.get_uri() == "conn-type://login:password@host:1/schema-override"
 
     def test_get_uri_schema_none(self):
         self.db_hook.get_connection = mock.MagicMock(
@@ -299,7 +293,7 @@ class TestDbApiHook:
                 conn_type="conn-type", host="host", login="login", password="password", schema=None, port=1
             )
         )
-        assert "conn-type://login:password@host:1" == self.db_hook.get_uri()
+        assert self.db_hook.get_uri() == "conn-type://login:password@host:1"
 
     def test_get_uri_special_characters(self):
         self.db_hook.get_connection = mock.MagicMock(
@@ -313,7 +307,7 @@ class TestDbApiHook:
             )
         )
         assert (
-            "conn-type://lo%2Fgi%23%21%20n:pass%2A%21%20word%2F@host%2F:1/schema%2F" == self.db_hook.get_uri()
+            self.db_hook.get_uri() == "conn-type://lo%2Fgi%23%21%20n:pass%2A%21%20word%2F@host%2F:1/schema%2F"
         )
 
     def test_get_uri_login_none(self):
@@ -327,7 +321,7 @@ class TestDbApiHook:
                 port=1,
             )
         )
-        assert "conn-type://:password@host:1/schema" == self.db_hook.get_uri()
+        assert self.db_hook.get_uri() == "conn-type://:password@host:1/schema"
 
     def test_get_uri_password_none(self):
         self.db_hook.get_connection = mock.MagicMock(
@@ -340,7 +334,7 @@ class TestDbApiHook:
                 port=1,
             )
         )
-        assert "conn-type://login@host:1/schema" == self.db_hook.get_uri()
+        assert self.db_hook.get_uri() == "conn-type://login@host:1/schema"
 
     def test_get_uri_authority_none(self):
         self.db_hook.get_connection = mock.MagicMock(
@@ -353,7 +347,7 @@ class TestDbApiHook:
                 port=1,
             )
         )
-        assert "conn-type://host:1/schema" == self.db_hook.get_uri()
+        assert self.db_hook.get_uri() == "conn-type://host:1/schema"
 
     def test_get_uri_extra(self):
         self.db_hook.get_connection = mock.MagicMock(

@@ -207,11 +207,6 @@ In order for this example to work, the account ``impersonated_account`` must gra
 access token, which will allow to act on its behalf using its permissions. ``impersonated_account``
 does not even need to have a generated key.
 
-.. warning::
-  :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreateJavaJobOperator` and
-  :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator`
-  do not support direct impersonation as of now.
-
 In case of operators that connect to multiple Google services, all hooks use the same value of
 ``impersonation_chain`` (if applicable). You can also impersonate accounts from projects
 other than the project of the originating account. In that case, the project id of the impersonated
@@ -306,7 +301,7 @@ For example:
             task_id="create-spreadsheet",
             gcp_conn_id="google_cloud_default",
             spreadsheet=SPREADSHEET,
-            delegate_to=f"projects/-/serviceAccounts/SA@{PROJECT_ID}.iam.gserviceaccount.com",
+            impersonation_chain=f"projects/-/serviceAccounts/SA@{PROJECT_ID}.iam.gserviceaccount.com",
         )
 
 Note that as domain-wide delegation is currently supported by most of the Google operators and hooks, its usage should be limited only to Google Workspace (gsuite) and marketing platform operators and hooks or by accessing these services through the GoogleDiscoveryAPI hook. It is deprecated in the following usages:

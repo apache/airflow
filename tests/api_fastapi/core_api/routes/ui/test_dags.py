@@ -52,7 +52,7 @@ class TestRecentDagRuns(TestPublicDagEndpoint):
                     run_id=f"run_id_{i+1}",
                     run_type=DagRunType.MANUAL,
                     start_date=start_date,
-                    execution_date=start_date,
+                    logical_date=start_date,
                     state=(DagRunState.FAILED if i % 2 == 0 else DagRunState.SUCCESS),
                     triggered_by=DagRunTriggeredByType.TEST,
                 )
@@ -73,6 +73,8 @@ class TestRecentDagRuns(TestPublicDagEndpoint):
             ({"paused": False}, [DAG1_ID, DAG2_ID], 11),
             ({"owners": ["airflow"]}, [DAG1_ID, DAG2_ID], 11),
             ({"owners": ["test_owner"], "only_active": False}, [DAG3_ID], 4),
+            ({"dag_ids": [DAG1_ID]}, [DAG1_ID], 6),
+            ({"dag_ids": [DAG1_ID, DAG2_ID]}, [DAG1_ID, DAG2_ID], 11),
             ({"last_dag_run_state": "success", "only_active": False}, [DAG1_ID, DAG2_ID, DAG3_ID], 6),
             ({"last_dag_run_state": "failed", "only_active": False}, [DAG1_ID, DAG2_ID, DAG3_ID], 9),
             # Search
@@ -84,9 +86,8 @@ class TestRecentDagRuns(TestPublicDagEndpoint):
         response = test_client.get("/ui/dags/recent_dag_runs", params=query_params)
         assert response.status_code == 200
         body = response.json()
-        assert body["total_entries"] == len(expected_ids)
         required_dag_run_key = [
-            "run_id",
+            "dag_run_id",
             "dag_id",
             "state",
             "logical_date",
@@ -94,11 +95,11 @@ class TestRecentDagRuns(TestPublicDagEndpoint):
         for recent_dag_runs in body["dags"]:
             dag_runs = recent_dag_runs["latest_dag_runs"]
             # check date ordering
-            previous_execution_date = None
+            previous_logical_date = None
             for dag_run in dag_runs:
                 # validate the response
                 for key in required_dag_run_key:
                     assert key in dag_run
-                if previous_execution_date:
-                    assert previous_execution_date > dag_run["logical_date"]
-                previous_execution_date = dag_run["logical_date"]
+                if previous_logical_date:
+                    assert previous_logical_date > dag_run["logical_date"]
+                previous_logical_date = dag_run["logical_date"]

@@ -34,8 +34,9 @@
     :maxdepth: 1
     :caption: Guides
 
-    Operators <operators>
-    Sensors <sensors>
+    Operators <operators/index>
+    Sensors <sensors/index>
+    Configuration <configurations-ref>
 
 .. toctree::
     :hidden:
@@ -62,8 +63,10 @@
 apache-airflow-providers-standard package
 ------------------------------------------------------
 
+Airflow Standard Provider
 
-Release: 1.0.0
+
+Release: 0.0.3
 
 Provider package
 ----------------
@@ -81,10 +84,11 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.9.0``.
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.8.0``
-==================  ==================
+=======================================  ==================
+PIP package                              Version required
+=======================================  ==================
+``apache-airflow``                       ``>=2.9.0``
+``apache-airflow-providers-common-sql``  ``>=1.20.0``
+=======================================  ==================

@@ -16,7 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
@@ -93,8 +94,8 @@ class RedshiftHook(AwsBaseHook):
 
     async def cluster_status_async(self, cluster_identifier: str) -> str:
         async with self.async_conn as client:
-            response = await client.describe_clusters(ClusterIdentifier=cluster_identifier)["Clusters"]
-            return response[0]["ClusterStatus"] if response else None
+            response = await client.describe_clusters(ClusterIdentifier=cluster_identifier)
+            return response["Clusters"][0]["ClusterStatus"] if response else None
 
     def delete_cluster(
         self,

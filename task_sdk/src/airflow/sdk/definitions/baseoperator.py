@@ -60,6 +60,7 @@ from airflow.utils import timezone
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import AttributeRemoved
+from airflow.utils.weight_rule import db_safe_priority
 
 T = TypeVar("T", bound=FunctionType)
 
@@ -68,6 +69,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.serialization.enums import DagAttributeTypes
+    from airflow.typing_compat import Self
     from airflow.utils.operator_resources import Resources
 
 # TODO: Task-SDK
@@ -329,16 +331,16 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param max_retry_delay: maximum delay interval between retries, can be set as
         ``timedelta`` or ``float`` seconds, which will be converted into ``timedelta``.
     :param start_date: The ``start_date`` for the task, determines
-        the ``execution_date`` for the first task instance. The best practice
+        the ``logical_date`` for the first task instance. The best practice
         is to have the start_date rounded
         to your DAG's ``schedule_interval``. Daily jobs have their start_date
         some day at 00:00:00, hourly jobs have their start_date at 00:00
         of a specific hour. Note that Airflow simply looks at the latest
-        ``execution_date`` and adds the ``schedule_interval`` to determine
-        the next ``execution_date``. It is also very important
+        ``logical_date`` and adds the ``schedule_interval`` to determine
+        the next ``logical_date``. It is also very important
         to note that different tasks' dependencies
         need to line up in time. If task A depends on task B and their
-        start_date are offset in a way that their execution_date don't line
+        start_date are offset in a way that their logical_date don't line
         up, A's dependencies will never be met. If you are looking to delay
         a task, for example running a daily task at 2AM, look into the
         ``TimeSensor`` and ``TimeDeltaSensor``. We advise against using
@@ -364,6 +366,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         This allows the executor to trigger higher priority tasks before
         others when things get backed up. Set priority_weight as a higher
         number for more important tasks.
+        As not all database engines support 64-bit integers, values are capped with 32-bit.
+        Valid range is from -2,147,483,648 to 2,147,483,647.
     :param weight_rule: weighting method used for the effective total
         priority weight of the task. Options are:
         ``{ downstream | upstream | absolute }`` default is ``downstream``
@@ -385,7 +389,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         Additionally, when set to ``absolute``, there is bonus effect of
         significantly speeding up the task creation process as for very large
         DAGs. Options can be set as string or using the constants defined in
-        the static class ``airflow.utils.WeightRule``
+        the static class ``airflow.utils.WeightRule``.
+        Irrespective of the weight rule, resulting priority values are capped with 32-bit.
         |experimental|
         Since 2.9.0, Airflow allows to define custom priority weight strategy,
         by creating a subclass of
@@ -450,7 +455,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         Resources constructor) to their values.
     :param run_as_user: unix username to impersonate while running the task
     :param max_active_tis_per_dag: When set, a task will be able to limit the concurrent
-        runs across execution_dates.
+        runs across logical_dates.
     :param max_active_tis_per_dagrun: When set, a task will be able to limit the concurrent
         task instances per DAG run.
     :param executor: Which executor to target when running this task. NOT YET SUPPORTED
@@ -728,7 +733,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 f"Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). "
                 f"Invalid arguments were:\n**kwargs: {kwargs}",
             )
-        validate_key(task_id)
+        validate_key(self.task_id)
 
         self.owner = owner
         self.email = email
@@ -869,6 +874,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         validate_instance_args(self, BASEOPERATOR_ARGS_EXPECTED_TYPES)
 
+        # Ensure priority_weight is within the valid range
+        # Note: Cross-import from airflow.utils to be cleaned up later
+        self.priority_weight = db_safe_priority(self.priority_weight)
+
     def __eq__(self, other):
         if type(self) is type(other):
             # Use getattr() instead of __dict__ as __dict__ doesn't return
@@ -966,7 +975,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def __getstate__(self):
         state = dict(self.__dict__)
-        if self._log:
+        if "_log" in state:
             del state["_log"]
 
         return state
@@ -1210,6 +1219,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             DagContext.pop()
 
         return cls.__serialized_fields
+
+    def prepare_for_execution(self) -> Self:
+        """Lock task for execution to disable custom action in ``__setattr__`` and return a copy."""
+        other = copy.copy(self)
+        other._lock_for_execution = True
+        return other
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
         """Serialize; required by DAGNode."""

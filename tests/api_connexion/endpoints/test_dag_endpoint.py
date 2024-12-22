@@ -36,7 +36,7 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 from tests_common.test_utils.www import _check_last_log
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture
@@ -165,7 +165,7 @@ class TestGetDag(TestDagEndpoint):
         self._create_dag_models(1)
         response = self.client.get("/api/v1/dags/TEST_DAG_1", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert {
+        assert response.json == {
             "dag_id": "TEST_DAG_1",
             "dag_display_name": "TEST_DAG_1",
             "description": None,
@@ -185,12 +185,11 @@ class TestGetDag(TestDagEndpoint):
             "next_dagrun_create_after": None,
             "last_expired": None,
             "max_active_tasks": 16,
-            "last_pickled": None,
             "default_view": None,
             "last_parsed_time": None,
             "timetable_description": None,
             "has_import_errors": False,
-        } == response.json
+        }
 
     @conf_vars({("webserver", "secret_key"): "mysecret"})
     def test_should_respond_200_with_schedule_none(self, session):
@@ -204,7 +203,7 @@ class TestGetDag(TestDagEndpoint):
         session.commit()
         response = self.client.get("/api/v1/dags/TEST_DAG_1", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert {
+        assert response.json == {
             "dag_id": "TEST_DAG_1",
             "dag_display_name": "TEST_DAG_1",
             "description": None,
@@ -224,12 +223,11 @@ class TestGetDag(TestDagEndpoint):
             "next_dagrun_create_after": None,
             "last_expired": None,
             "max_active_tasks": 16,
-            "last_pickled": None,
             "default_view": None,
             "last_parsed_time": None,
             "timetable_description": None,
             "has_import_errors": False,
-        } == response.json
+        }
 
     def test_should_respond_404(self):
         response = self.client.get("/api/v1/dags/INVALID_DAG", environ_overrides={"REMOTE_USER": "test"})
@@ -311,7 +309,6 @@ class TestGetDagDetails(TestDagEndpoint):
             "last_expired": None,
             "last_parsed": last_parsed,
             "last_parsed_time": None,
-            "last_pickled": None,
             "max_active_runs": 16,
             "max_active_tasks": 16,
             "max_consecutive_failed_dag_runs": 0,
@@ -372,7 +369,6 @@ class TestGetDagDetails(TestDagEndpoint):
             "last_expired": None,
             "last_parsed": last_parsed,
             "last_parsed_time": None,
-            "last_pickled": None,
             "max_active_runs": 16,
             "max_consecutive_failed_dag_runs": 0,
             "max_active_tasks": 16,
@@ -428,7 +424,6 @@ class TestGetDagDetails(TestDagEndpoint):
             "last_expired": None,
             "last_parsed": last_parsed,
             "last_parsed_time": None,
-            "last_pickled": None,
             "max_active_runs": 16,
             "max_consecutive_failed_dag_runs": 0,
             "max_active_tasks": 16,
@@ -477,7 +472,6 @@ class TestGetDagDetails(TestDagEndpoint):
             "last_expired": None,
             "last_parsed": last_parsed,
             "last_parsed_time": None,
-            "last_pickled": None,
             "max_active_runs": 16,
             "max_consecutive_failed_dag_runs": 0,
             "max_active_tasks": 16,
@@ -528,7 +522,6 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_paused_upon_creation": None,
             "last_expired": None,
             "last_parsed_time": None,
-            "last_pickled": None,
             "max_active_runs": 16,
             "max_consecutive_failed_dag_runs": 0,
             "max_active_tasks": 16,
@@ -587,7 +580,6 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_paused_upon_creation": None,
             "last_expired": None,
             "last_parsed_time": None,
-            "last_pickled": None,
             "max_active_runs": 16,
             "max_consecutive_failed_dag_runs": 0,
             "max_active_tasks": 16,
@@ -677,7 +669,7 @@ class TestGetDags(TestDagEndpoint):
         file_token2 = url_safe_serializer.dumps("/tmp/dag_2.py")
 
         assert response.status_code == 200
-        assert {
+        assert response.json == {
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
@@ -699,7 +691,6 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
-                    "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
                     "timetable_description": None,
@@ -725,7 +716,6 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
-                    "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
                     "timetable_description": None,
@@ -733,7 +723,7 @@ class TestGetDags(TestDagEndpoint):
                 },
             ],
             "total_entries": 2,
-        } == response.json
+        }
 
     def test_only_active_true_returns_active_dags(self, url_safe_serializer):
         self._create_dag_models(1)
@@ -741,7 +731,7 @@ class TestGetDags(TestDagEndpoint):
         response = self.client.get("api/v1/dags?only_active=True", environ_overrides={"REMOTE_USER": "test"})
         file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
         assert response.status_code == 200
-        assert {
+        assert response.json == {
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
@@ -763,7 +753,6 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
-                    "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
                     "timetable_description": None,
@@ -771,7 +760,7 @@ class TestGetDags(TestDagEndpoint):
                 }
             ],
             "total_entries": 1,
-        } == response.json
+        }
 
     def test_only_active_false_returns_all_dags(self, url_safe_serializer):
         self._create_dag_models(1)
@@ -780,7 +769,7 @@ class TestGetDags(TestDagEndpoint):
         file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
         file_token_2 = url_safe_serializer.dumps("/tmp/dag_del_1.py")
         assert response.status_code == 200
-        assert {
+        assert response.json == {
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
@@ -802,7 +791,6 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
-                    "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
                     "timetable_description": None,
@@ -828,7 +816,6 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
-                    "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
                     "timetable_description": None,
@@ -836,7 +823,7 @@ class TestGetDags(TestDagEndpoint):
                 },
             ],
             "total_entries": 2,
-        } == response.json
+        }
 
     @pytest.mark.parametrize(
         "url, expected_dag_ids",
@@ -931,7 +918,7 @@ class TestGetDags(TestDagEndpoint):
         dag_ids = [dag["dag_id"] for dag in response.json["dags"]]
 
         assert expected_dag_ids == dag_ids
-        assert 10 == response.json["total_entries"]
+        assert response.json["total_entries"] == 10
 
     def test_should_respond_200_default_limit(self):
         self._create_dag_models(101)
@@ -940,8 +927,8 @@ class TestGetDags(TestDagEndpoint):
 
         assert response.status_code == 200
 
-        assert 100 == len(response.json["dags"])
-        assert 101 == response.json["total_entries"]
+        assert len(response.json["dags"]) == 100
+        assert response.json["total_entries"] == 101
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get("api/v1/dags")
@@ -961,7 +948,7 @@ class TestGetDags(TestDagEndpoint):
         response = self.client.get("api/v1/dags?paused=True", environ_overrides={"REMOTE_USER": "test"})
         file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
         assert response.status_code == 200
-        assert {
+        assert response.json == {
             "dags": [
                 {
                     "dag_id": "TEST_DAG_PAUSED_1",
@@ -983,7 +970,6 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
-                    "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
                     "timetable_description": None,
@@ -991,7 +977,7 @@ class TestGetDags(TestDagEndpoint):
                 }
             ],
             "total_entries": 1,
-        } == response.json
+        }
 
     def test_paused_false_returns_unpaused_dags(self, url_safe_serializer):
         self._create_dag_models(1, dag_id_prefix="TEST_DAG_PAUSED", is_paused=True)
@@ -999,7 +985,7 @@ class TestGetDags(TestDagEndpoint):
         response = self.client.get("api/v1/dags?paused=False", environ_overrides={"REMOTE_USER": "test"})
         file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
         assert response.status_code == 200
-        assert {
+        assert response.json == {
             "dags": [
                 {
                     "dag_id": "TEST_DAG_UNPAUSED_1",
@@ -1021,7 +1007,6 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
-                    "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
                     "timetable_description": None,
@@ -1029,7 +1014,7 @@ class TestGetDags(TestDagEndpoint):
                 }
             ],
             "total_entries": 1,
-        } == response.json
+        }
 
     def test_paused_none_returns_all_dags(self, url_safe_serializer):
         self._create_dag_models(1, dag_id_prefix="TEST_DAG_PAUSED", is_paused=True)
@@ -1037,7 +1022,7 @@ class TestGetDags(TestDagEndpoint):
         response = self.client.get("api/v1/dags", environ_overrides={"REMOTE_USER": "test"})
         file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
         assert response.status_code == 200
-        assert {
+        assert response.json == {
             "dags": [
                 {
                     "dag_id": "TEST_DAG_PAUSED_1",
@@ -1059,7 +1044,6 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
-                    "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
                     "timetable_description": None,
@@ -1085,7 +1069,6 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
-                    "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
                     "timetable_description": None,
@@ -1093,7 +1076,7 @@ class TestGetDags(TestDagEndpoint):
                 },
             ],
             "total_entries": 2,
-        } == response.json
+        }
 
     def test_should_return_specified_fields(self):
         self._create_dag_models(2)
@@ -1173,7 +1156,6 @@ class TestPatchDag(TestDagEndpoint):
             "next_dagrun_create_after": None,
             "last_expired": None,
             "max_active_tasks": 16,
-            "last_pickled": None,
             "default_view": None,
             "last_parsed_time": None,
             "timetable_description": None,
@@ -1181,7 +1163,7 @@ class TestPatchDag(TestDagEndpoint):
         }
         assert response.json == expected_response
         _check_last_log(
-            session, dag_id="TEST_DAG_1", event="api.patch_dag", execution_date=None, expected_extra=payload
+            session, dag_id="TEST_DAG_1", event="api.patch_dag", logical_date=None, expected_extra=payload
         )
 
     def test_should_respond_400_on_invalid_request(self):
@@ -1270,7 +1252,6 @@ class TestPatchDag(TestDagEndpoint):
             "next_dagrun_create_after": None,
             "last_expired": None,
             "max_active_tasks": 16,
-            "last_pickled": None,
             "default_view": None,
             "last_parsed_time": None,
             "timetable_description": None,
@@ -1341,7 +1322,7 @@ class TestPatchDags(TestDagEndpoint):
         )
 
         assert response.status_code == 200
-        assert {
+        assert response.json == {
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
@@ -1363,7 +1344,6 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
-                    "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
                     "timetable_description": None,
@@ -1389,7 +1369,6 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
-                    "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
                     "timetable_description": None,
@@ -1397,8 +1376,8 @@ class TestPatchDags(TestDagEndpoint):
                 },
             ],
             "total_entries": 2,
-        } == response.json
-        _check_last_log(session, dag_id=None, event="api.patch_dags", execution_date=None)
+        }
+        _check_last_log(session, dag_id=None, event="api.patch_dags", logical_date=None)
 
     def test_should_respond_200_on_patch_is_paused_using_update_mask(self, session, url_safe_serializer):
         file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
@@ -1418,7 +1397,7 @@ class TestPatchDags(TestDagEndpoint):
         )
 
         assert response.status_code == 200
-        assert {
+        assert response.json == {
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
@@ -1440,7 +1419,6 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
-                    "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
                     "timetable_description": None,
@@ -1466,7 +1444,6 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
-                    "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
                     "timetable_description": None,
@@ -1474,8 +1451,8 @@ class TestPatchDags(TestDagEndpoint):
                 },
             ],
             "total_entries": 2,
-        } == response.json
-        _check_last_log(session, dag_id=None, event="api.patch_dags", execution_date=None)
+        }
+        _check_last_log(session, dag_id=None, event="api.patch_dags", logical_date=None)
 
     def test_wrong_value_as_update_mask_rasise(self, session):
         self._create_dag_models(2)
@@ -1535,7 +1512,7 @@ class TestPatchDags(TestDagEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
-        assert {
+        assert response.json == {
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
@@ -1557,7 +1534,6 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
-                    "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
                     "timetable_description": None,
@@ -1565,8 +1541,8 @@ class TestPatchDags(TestDagEndpoint):
                 }
             ],
             "total_entries": 1,
-        } == response.json
-        _check_last_log(session, dag_id=None, event="api.patch_dags", execution_date=None)
+        }
+        _check_last_log(session, dag_id=None, event="api.patch_dags", logical_date=None)
 
     def test_only_active_false_returns_all_dags(self, url_safe_serializer, session):
         file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
@@ -1582,7 +1558,7 @@ class TestPatchDags(TestDagEndpoint):
 
         file_token_2 = url_safe_serializer.dumps("/tmp/dag_del_1.py")
         assert response.status_code == 200
-        assert {
+        assert response.json == {
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
@@ -1604,7 +1580,6 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
-                    "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
                     "timetable_description": None,
@@ -1630,7 +1605,6 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
-                    "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
                     "timetable_description": None,
@@ -1638,8 +1612,8 @@ class TestPatchDags(TestDagEndpoint):
                 },
             ],
             "total_entries": 2,
-        } == response.json
-        _check_last_log(session, dag_id=None, event="api.patch_dags", execution_date=None)
+        }
+        _check_last_log(session, dag_id=None, event="api.patch_dags", logical_date=None)
 
     @pytest.mark.parametrize(
         "url, expected_dag_ids",
@@ -1751,7 +1725,7 @@ class TestPatchDags(TestDagEndpoint):
         dag_ids = [dag["dag_id"] for dag in response.json["dags"]]
 
         assert expected_dag_ids == dag_ids
-        assert 10 == response.json["total_entries"]
+        assert response.json["total_entries"] == 10
 
     def test_should_respond_200_default_limit(self):
         self._create_dag_models(101)
@@ -1766,8 +1740,8 @@ class TestPatchDags(TestDagEndpoint):
 
         assert response.status_code == 200
 
-        assert 100 == len(response.json["dags"])
-        assert 101 == response.json["total_entries"]
+        assert len(response.json["dags"]) == 100
+        assert response.json["total_entries"] == 101
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.patch(
@@ -1805,7 +1779,7 @@ class TestPatchDags(TestDagEndpoint):
         )
 
         assert response.status_code == 200
-        assert {
+        assert response.json == {
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
@@ -1827,7 +1801,6 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
-                    "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
                     "timetable_description": None,
@@ -1853,7 +1826,6 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
-                    "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
                     "timetable_description": None,
@@ -1861,7 +1833,7 @@ class TestPatchDags(TestDagEndpoint):
                 },
             ],
             "total_entries": 2,
-        } == response.json
+        }
 
     @provide_session
     def test_should_respond_200_and_pause_dag_pattern(self, session, url_safe_serializer):
@@ -1878,7 +1850,7 @@ class TestPatchDags(TestDagEndpoint):
         )
 
         assert response.status_code == 200
-        assert {
+        assert response.json == {
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
@@ -1900,7 +1872,6 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
-                    "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
                     "timetable_description": None,
@@ -1926,7 +1897,6 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
-                    "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
                     "timetable_description": None,
@@ -1934,7 +1904,7 @@ class TestPatchDags(TestDagEndpoint):
                 },
             ],
             "total_entries": 2,
-        } == response.json
+        }
 
         dags_not_updated = session.query(DagModel).filter(~DagModel.is_paused)
         assert len(dags_not_updated.all()) == 8
@@ -1953,7 +1923,7 @@ class TestPatchDags(TestDagEndpoint):
         )
 
         assert response.status_code == 200
-        assert {
+        assert response.json == {
             "dags": [
                 {
                     "dag_id": "TEST_DAG_2",
@@ -1975,7 +1945,6 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
-                    "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
                     "timetable_description": None,
@@ -2001,7 +1970,6 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
-                    "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
                     "timetable_description": None,
@@ -2009,7 +1977,7 @@ class TestPatchDags(TestDagEndpoint):
                 },
             ],
             "total_entries": 2,
-        } == response.json
+        }
 
     def test_should_respons_400_dag_id_pattern_missing(self):
         self._create_dag_models(1)
@@ -2032,7 +2000,7 @@ class TestDeleteDagEndpoint(TestDagEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 204
-        _check_last_log(session, dag_id="TEST_DAG_1", event="api.delete_dag", execution_date=None)
+        _check_last_log(session, dag_id="TEST_DAG_1", event="api.delete_dag", logical_date=None)
 
     def test_raise_when_dag_is_not_found(self):
         response = self.client.delete(

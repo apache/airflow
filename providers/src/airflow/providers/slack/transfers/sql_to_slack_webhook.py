@@ -16,16 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
-from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any
 
-from deprecated import deprecated
 from tabulate import tabulate
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.providers.slack.transfers.base_sql_to_slack import BaseSqlToSlackOperator
-from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -88,23 +86,8 @@ class SqlToSlackWebhookOperator(BaseSqlToSlackOperator):
         slack_message: str,
         results_df_name: str = "results_df",
         parameters: list | tuple | Mapping[str, Any] | None = None,
-        slack_conn_id: str | ArgNotSet = NOTSET,
         **kwargs,
     ) -> None:
-        if slack_conn_id is not NOTSET:
-            warnings.warn(
-                "Parameter `slack_conn_id` is deprecated because this attribute initially intend to use with "
-                "Slack API however this operator provided integration with Slack Incoming Webhook. "
-                "Please use `slack_webhook_conn_id` instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=3,
-            )
-            if slack_webhook_conn_id and slack_conn_id != slack_webhook_conn_id:
-                raise ValueError(
-                    "Conflicting Connection ids provided, "
-                    f"slack_webhook_conn_id={slack_webhook_conn_id!r}, slack_conn_id={slack_conn_id!r}."
-                )
-            slack_webhook_conn_id = slack_conn_id  # type: ignore[assignment]
         if not slack_webhook_conn_id:
             raise ValueError("Got an empty `slack_webhook_conn_id` value.")
         super().__init__(
@@ -163,14 +146,3 @@ class SqlToSlackWebhookOperator(BaseSqlToSlackOperator):
         self._render_and_send_slack_message(context, df)
 
         self.log.debug("Finished sending SQL data to Slack")
-
-    @property
-    @deprecated(
-        reason=(
-            "`SqlToSlackWebhookOperator.slack_conn_id` property deprecated and will be removed in a future. "
-            "Please use `slack_webhook_conn_id` instead."
-        ),
-        category=AirflowProviderDeprecationWarning,
-    )
-    def slack_conn_id(self):
-        return self.slack_webhook_conn_id

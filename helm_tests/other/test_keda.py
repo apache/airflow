@@ -88,7 +88,7 @@ class TestKeda:
             f"SELECT ceil(COUNT(*)::decimal / {concurrency}) "
             "FROM task_instance WHERE (state='running' OR state='queued')"
         )
-        if executor == "CeleryKubernetesExecutor":
+        if "CeleryKubernetesExecutor" in executor or "KubernetesExecutor" in executor:
             query += f" AND queue != '{queue or 'kubernetes'}'"
         return query
 
@@ -121,6 +121,8 @@ class TestKeda:
             ("CeleryExecutor", "my_queue", False),
             ("CeleryKubernetesExecutor", None, True),
             ("CeleryKubernetesExecutor", "my_queue", True),
+            ("CeleryExecutor,KubernetesExecutor", "None", False),
+            ("CeleryExecutor,KubernetesExecutor", "my_queue", True),
         ],
     )
     def test_keda_query_kubernetes_queue(self, executor, queue, should_filter):

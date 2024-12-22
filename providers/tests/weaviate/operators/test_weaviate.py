@@ -20,7 +20,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.utils.task_instance_session import set_current_task_instance_session
 
 pytest.importorskip("weaviate")
@@ -48,30 +47,6 @@ class TestWeaviateIngestOperator:
         assert operator.hook_params == {}
 
     @patch("airflow.providers.weaviate.operators.weaviate.WeaviateIngestOperator.log")
-    def test_execute_with_input_json(self, mock_log, operator):
-        with pytest.warns(
-            AirflowProviderDeprecationWarning,
-            match="Passing 'input_json' to WeaviateIngestOperator is deprecated and you should use 'input_data' instead",
-        ):
-            operator = WeaviateIngestOperator(
-                task_id="weaviate_task",
-                conn_id="weaviate_conn",
-                collection_name="my_collection",
-                input_json=[{"data": "sample_data"}],
-            )
-        operator.hook.batch_data = MagicMock()
-
-        operator.execute(context=None)
-
-        operator.hook.batch_data.assert_called_once_with(
-            collection_name="my_collection",
-            data=[{"data": "sample_data"}],
-            vector_col="Vector",
-            uuid_col="id",
-        )
-        mock_log.debug.assert_called_once_with("Input data: %s", [{"data": "sample_data"}])
-
-    @patch("airflow.providers.weaviate.operators.weaviate.WeaviateIngestOperator.log")
     def test_execute_with_input_data(self, mock_log, operator):
         operator.hook.batch_data = MagicMock()
 
@@ -94,12 +69,10 @@ class TestWeaviateIngestOperator:
             task_id="task-id",
             conn_id="weaviate_conn",
             collection_name="my_collection",
-            input_json="{{ dag.dag_id }}",
             input_data="{{ dag.dag_id }}",
         )
         ti.render_templates()
 
-        assert dag_id == ti.task.input_json
         assert dag_id == ti.task.input_data
 
     @pytest.mark.db_test

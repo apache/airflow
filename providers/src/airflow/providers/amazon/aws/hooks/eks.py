@@ -22,10 +22,11 @@ import base64
 import json
 import sys
 import tempfile
+from collections.abc import Generator
 from contextlib import contextmanager
 from enum import Enum
 from functools import partial
-from typing import Callable, Generator
+from typing import Callable
 
 from botocore.exceptions import ClientError
 from botocore.signers import RequestSigner
@@ -85,8 +86,8 @@ COMMAND = """
                 exit 1
             fi
 
-            expiration_timestamp=$(echo "$output" | grep -oP 'expirationTimestamp:\s*\K[^,]+')
-            token=$(echo "$output" | grep -oP 'token:\s*\K[^,]+')
+            expiration_timestamp=$(echo "$output" | grep -oP 'expirationTimestamp: \\K[^,]+')
+            token=$(echo "$output" | grep -oP 'token: \\K[^,]+')
 
             json_string=$(printf '{{"kind": "ExecCredential","apiVersion": \
                 "client.authentication.k8s.io/v1alpha1","spec": {{}},"status": \

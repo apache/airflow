@@ -27,6 +27,43 @@
 Changelog
 ---------
 
+4.0.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+   All deprecated classes, parameters and features have been removed from the pagerduty provider package.
+   The following breaking changes were introduced:
+
+   * Removed deprecated method ``create_event`` from ``providers.pagerduty.hooks.pagerduty`` and ``providers.pagerduty.hooks.pagerduty_events``. Please use the ``airflow.providers.pagerduty.hooks.pagerduty_events.PagerdutyEventsHook.send_event`` to interact with the Events API
+
+* ``Remove deprecated code from Pagerduty provider  (#44653)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+
+3.8.1
+.....
+
+Misc
+~~~~
+
+* ``Move bash operator to Standard provider (#42252)``
+* ``Purge existing SLA implementation (#42285)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+
 3.8.0
 .....
 

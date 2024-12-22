@@ -38,8 +38,8 @@ from __future__ import annotations
 import pendulum
 
 from airflow import DAG
-from airflow.assets import Asset, AssetAlias
 from airflow.decorators import task
+from airflow.sdk.definitions.asset import Asset, AssetAlias
 
 with DAG(
     dag_id="asset_s3_bucket_producer",
@@ -67,7 +67,7 @@ with DAG(
     def produce_asset_events_through_asset_alias(*, outlet_events=None):
         bucket_name = "bucket"
         object_path = "my-task"
-        outlet_events["example-alias"].add(Asset(f"s3://{bucket_name}/{object_path}"))
+        outlet_events[AssetAlias("example-alias")].add(Asset(f"s3://{bucket_name}/{object_path}"))
 
     produce_asset_events_through_asset_alias()
 

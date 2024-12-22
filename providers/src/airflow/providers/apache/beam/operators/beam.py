@@ -19,17 +19,16 @@
 
 from __future__ import annotations
 
-import asyncio
-import contextlib
 import copy
 import os
 import stat
 import tempfile
 from abc import ABC, ABCMeta, abstractmethod
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import ExitStack
 from functools import partial
-from typing import IO, TYPE_CHECKING, Any, Callable, Sequence
+from typing import TYPE_CHECKING, Any, Callable
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -275,6 +274,17 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
             self.task_id,
             event["message"],
         )
+        self.dataflow_job_id = event["dataflow_job_id"]
+        self.project_id = event["project_id"]
+        self.location = event["location"]
+
+        DataflowJobLink.persist(
+            self,
+            context,
+            self.project_id,
+            self.location,
+            self.dataflow_job_id,
+        )
         return {"dataflow_job_id": self.dataflow_job_id}
 
 
@@ -376,7 +386,7 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
         # Check deferrable parameter passed to the operator
         # to determine type of run - asynchronous or synchronous
         if self.deferrable:
-            asyncio.run(self.execute_async(context))
+            self.execute_async(context)
         else:
             return self.execute_sync(context)
 
@@ -424,31 +434,8 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
                     process_line_callback=self.process_line_callback,
                 )
 
-    async def execute_async(self, context: Context):
-        # Creating a new event loop to manage I/O operations asynchronously
-        loop = asyncio.get_event_loop()
-        if self.py_file.lower().startswith("gs://"):
-            gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id)
-            # Running synchronous `enter_context()` method in a separate
-            # thread using the default executor `None`. The `run_in_executor()` function returns the
-            # file object, which is created using gcs function `provide_file()`, asynchronously.
-            # This means we can perform asynchronous operations with this file.
-            create_tmp_file_call = gcs_hook.provide_file(object_url=self.py_file)
-            tmp_gcs_file: IO[str] = await loop.run_in_executor(
-                None,
-                contextlib.ExitStack().enter_context,  # type: ignore[arg-type]
-                create_tmp_file_call,
-            )
-            self.py_file = tmp_gcs_file.name
-
+    def execute_async(self, context: Context):
         if self.is_dataflow and self.dataflow_hook:
-            DataflowJobLink.persist(
-                self,
-                context,
-                self.dataflow_config.project_id,
-                self.dataflow_config.location,
-                self.dataflow_job_id,
-            )
             with self.dataflow_hook.provide_authorized_gcloud():
                 self.defer(
                     trigger=BeamPythonPipelineTrigger(
@@ -459,6 +446,9 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
                         py_requirements=self.py_requirements,
                         py_system_site_packages=self.py_system_site_packages,
                         runner=self.runner,
+                        gcp_conn_id=self.gcp_conn_id,
+                        project_id=self.dataflow_config.project_id,
+                        location=self.dataflow_config.location,
                     ),
                     method_name="execute_complete",
                 )
@@ -472,6 +462,7 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
                     py_requirements=self.py_requirements,
                     py_system_site_packages=self.py_system_site_packages,
                     runner=self.runner,
+                    gcp_conn_id=self.gcp_conn_id,
                 ),
                 method_name="execute_complete",
             )
@@ -628,13 +619,6 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
 
     def execute_async(self, context: Context):
         if self.is_dataflow and self.dataflow_hook:
-            DataflowJobLink.persist(
-                self,
-                context,
-                self.dataflow_config.project_id,
-                self.dataflow_config.location,
-                self.dataflow_job_id,
-            )
             with self.dataflow_hook.provide_authorized_gcloud():
                 self.pipeline_options["jobName"] = self.dataflow_job_name
                 self.defer(

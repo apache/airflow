@@ -25,6 +25,48 @@
 Changelog
 ---------
 
+3.0.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the teradata provider package.
+  The following breaking changes were introduced:
+
+  * Removed deprecated ``bulk_insert_rows`` method from ``hooks``. Use ``insert_rows`` instead.
+
+* ``Remove deprecations from Teradata Provider (#44746)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+
+2.6.1
+.....
+
+Misc
+~~~~
+
+* ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Start porting DAG definition code to the Task SDK (#43076)``
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+
 2.6.0
 .....
 

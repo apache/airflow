@@ -26,16 +26,14 @@ import os
 import re
 import shlex
 import string
-import warnings
-from collections.abc import Container, Mapping
+from collections.abc import Container, Iterable, Mapping, Sequence
 from contextlib import AbstractContextManager
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Literal, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Literal
 
 import kubernetes
 import tenacity
-from deprecated import deprecated
 from kubernetes.client import CoreV1Api, V1Pod, models as k8s
 from kubernetes.client.exceptions import ApiException
 from kubernetes.stream import stream
@@ -44,7 +42,6 @@ from urllib3.exceptions import HTTPError
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
-    AirflowProviderDeprecationWarning,
     AirflowSkipException,
     TaskDeferred,
 )
@@ -158,6 +155,9 @@ class KubernetesPodOperator(BaseOperator):
     :param startup_timeout_seconds: timeout in seconds to startup the pod.
     :param startup_check_interval_seconds: interval in seconds to check if the pod has already started
     :param get_logs: get the stdout of the base container as logs of the tasks.
+    :param init_container_logs: list of init containers whose logs will be published to stdout
+        Takes a sequence of containers, a single container name or True. If True,
+        all the containers logs are published.
     :param container_logs: list of containers whose logs will be published to stdout
         Takes a sequence of containers, a single container name or True. If True,
         all the containers logs are published. Works in conjunction with get_logs param.
@@ -215,18 +215,12 @@ class KubernetesPodOperator(BaseOperator):
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
         If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
-    :param is_delete_operator_pod: What to do when the pod reaches its final
-        state, or the execution is interrupted. If True (default), delete the
-        pod; if False, leave the pod.
-        Deprecated - use `on_finish_action` instead.
     :param termination_message_policy: The termination message policy of the base container.
         Default value is "File"
     :param active_deadline_seconds: The active_deadline_seconds which translates to active_deadline_seconds
         in V1PodSpec.
     :param callbacks: KubernetesPodOperatorCallback instance contains the callbacks methods on different step
         of KubernetesPodOperator.
-    :param progress_callback: Callback function for receiving k8s container logs.
-        `progress_callback` is deprecated, please use :param `callbacks` instead.
     :param logging_interval: max time in seconds that task should be in deferred state before
         resuming to fetch the latest logs. If ``None``, then the task will remain in deferred state until pod
         is done, and no logs will be visible until that time.
@@ -287,6 +281,7 @@ class KubernetesPodOperator(BaseOperator):
         startup_check_interval_seconds: int = 5,
         get_logs: bool = True,
         base_container_name: str | None = None,
+        init_container_logs: Iterable[str] | str | Literal[True] | None = None,
         container_logs: Iterable[str] | str | Literal[True] | None = None,
         image_pull_policy: str | None = None,
         annotations: dict | None = None,
@@ -361,6 +356,7 @@ class KubernetesPodOperator(BaseOperator):
         # Fallback to the class variable BASE_CONTAINER_NAME here instead of via default argument value
         # in the init method signature, to be compatible with subclasses overloading the class variable value.
         self.base_container_name = base_container_name or self.BASE_CONTAINER_NAME
+        self.init_container_logs = init_container_logs
         self.container_logs = container_logs or self.base_container_name
         self.image_pull_policy = image_pull_policy
         self.node_selector = node_selector or {}
@@ -404,19 +400,10 @@ class KubernetesPodOperator(BaseOperator):
         self.poll_interval = poll_interval
         self.remote_pod: k8s.V1Pod | None = None
         self.log_pod_spec_on_failure = log_pod_spec_on_failure
-        if is_delete_operator_pod is not None:
-            warnings.warn(
-                "`is_delete_operator_pod` parameter is deprecated, please use `on_finish_action`",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            self.on_finish_action = (
-                OnFinishAction.DELETE_POD if is_delete_operator_pod else OnFinishAction.KEEP_POD
-            )
-            self.is_delete_operator_pod = is_delete_operator_pod
-        else:
-            self.on_finish_action = OnFinishAction(on_finish_action)
-            self.is_delete_operator_pod = self.on_finish_action == OnFinishAction.DELETE_POD
+        self.on_finish_action = OnFinishAction(on_finish_action)
+        # The `is_delete_operator_pod` parameter should have been removed in provider version 10.0.0.
+        # TODO: remove it from here and from the operator's parameters list when the next major version bumped
+        self._is_delete_operator_pod = self.on_finish_action == OnFinishAction.DELETE_POD
         self.termination_message_policy = termination_message_policy
         self.active_deadline_seconds = active_deadline_seconds
         self.logging_interval = logging_interval
@@ -512,9 +499,7 @@ class KubernetesPodOperator(BaseOperator):
 
     @cached_property
     def pod_manager(self) -> PodManager:
-        return PodManager(
-            kube_client=self.client, callbacks=self.callbacks, progress_callback=self._progress_callback
-        )
+        return PodManager(kube_client=self.client, callbacks=self.callbacks)
 
     @cached_property
     def hook(self) -> PodOperatorHookProtocol:
@@ -563,7 +548,7 @@ class KubernetesPodOperator(BaseOperator):
 
     def get_or_create_pod(self, pod_request_obj: k8s.V1Pod, context: Context) -> k8s.V1Pod:
         if self.reattach_on_restart:
-            pod = self.find_pod(self.namespace or pod_request_obj.metadata.namespace, context=context)
+            pod = self.find_pod(pod_request_obj.metadata.namespace, context=context)
             if pod:
                 return pod
         self.log.debug("Starting pod:\n%s", yaml.safe_dump(pod_request_obj.to_dict()))
@@ -620,6 +605,9 @@ class KubernetesPodOperator(BaseOperator):
                 self.callbacks.on_pod_creation(
                     pod=self.remote_pod, client=self.client, mode=ExecutionMode.SYNC
                 )
+
+            self.await_init_containers_completion(pod=self.pod)
+
             self.await_pod_start(pod=self.pod)
             if self.callbacks:
                 self.callbacks.on_pod_starting(
@@ -660,6 +648,22 @@ class KubernetesPodOperator(BaseOperator):
         retry=tenacity.retry_if_exception_type(PodCredentialsExpiredFailure),
         reraise=True,
     )
+    def await_init_containers_completion(self, pod: k8s.V1Pod):
+        try:
+            if self.init_container_logs:
+                self.pod_manager.fetch_requested_init_container_logs(
+                    pod=pod,
+                    init_containers=self.init_container_logs,
+                    follow_logs=True,
+                )
+        except kubernetes.client.exceptions.ApiException as exc:
+            self._handle_api_exception(exc, pod)
+
+    @tenacity.retry(
+        wait=tenacity.wait_exponential(max=15),
+        retry=tenacity.retry_if_exception_type(PodCredentialsExpiredFailure),
+        reraise=True,
+    )
     def await_pod_completion(self, pod: k8s.V1Pod):
         try:
             if self.get_logs:
@@ -673,16 +677,21 @@ class KubernetesPodOperator(BaseOperator):
             ):
                 self.pod_manager.await_container_completion(pod=pod, container_name=self.base_container_name)
         except kubernetes.client.exceptions.ApiException as exc:
-            if exc.status and str(exc.status) == "401":
-                self.log.warning(
-                    "Failed to check container status due to permission error. Refreshing credentials and retrying."
-                )
-                self._refresh_cached_properties()
-                self.pod_manager.read_pod(
-                    pod=pod
-                )  # attempt using refreshed credentials, raises if still invalid
-                raise PodCredentialsExpiredFailure("Kubernetes credentials expired, retrying after refresh.")
-            raise exc
+            self._handle_api_exception(exc, pod)
+
+    def _handle_api_exception(
+        self,
+        exc: kubernetes.client.exceptions.ApiException,
+        pod: k8s.V1Pod,
+    ):
+        if exc.status and str(exc.status) == "401":
+            self.log.warning(
+                "Failed to check container status due to permission error. Refreshing credentials and retrying."
+            )
+            self._refresh_cached_properties()
+            self.pod_manager.read_pod(pod=pod)  # attempt using refreshed credentials, raises if still invalid
+            raise PodCredentialsExpiredFailure("Kubernetes credentials expired, retrying after refresh.")
+        raise exc
 
     def _refresh_cached_properties(self):
         del self.hook
@@ -1160,10 +1169,6 @@ class KubernetesPodOperator(BaseOperator):
         """
         pod = self.build_pod_request_obj()
         print(yaml.dump(prune_dict(pod.to_dict(), mode="strict")))
-
-    @deprecated(reason="use `trigger_reentry` instead.", category=AirflowProviderDeprecationWarning)
-    def execute_complete(self, context: Context, event: dict, **kwargs):
-        return self.trigger_reentry(context=context, event=event)
 
     def process_duplicate_label_pods(self, pod_list: list[k8s.V1Pod]) -> k8s.V1Pod:
         """

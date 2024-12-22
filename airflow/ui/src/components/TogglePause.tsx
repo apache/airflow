@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useDisclosure } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 
@@ -24,16 +25,26 @@ import {
   useDagServiceGetDagsKey,
   useDagServicePatchDag,
 } from "openapi/queries";
+import { useConfig } from "src/queries/useConfig";
 
+import { ConfirmationModal } from "./ConfirmationModal";
 import { Switch } from "./ui";
 
 type Props = {
+  readonly dagDisplayName?: string;
   readonly dagId: string;
   readonly isPaused: boolean;
+  readonly skipConfirm?: boolean;
 };
 
-export const TogglePause = ({ dagId, isPaused }: Props) => {
+export const TogglePause = ({
+  dagDisplayName,
+  dagId,
+  isPaused,
+  skipConfirm,
+}: Props) => {
   const queryClient = useQueryClient();
+  const { onClose, onOpen, open } = useDisclosure();
 
   const onSuccess = async () => {
     await queryClient.invalidateQueries({
@@ -49,7 +60,11 @@ export const TogglePause = ({ dagId, isPaused }: Props) => {
     onSuccess,
   });
 
-  const onChange = useCallback(() => {
+  const showConfirmation = Boolean(
+    useConfig("require_confirmation_dag_change"),
+  );
+
+  const onToggle = useCallback(() => {
     mutate({
       dagId,
       requestBody: {
@@ -58,12 +73,28 @@ export const TogglePause = ({ dagId, isPaused }: Props) => {
     });
   }, [dagId, isPaused, mutate]);
 
+  const onChange = () => {
+    if (showConfirmation && skipConfirm !== true) {
+      onOpen();
+    } else {
+      onToggle();
+    }
+  };
+
   return (
-    <Switch
-      checked={!isPaused}
-      colorPalette="blue"
-      onCheckedChange={onChange}
-      size="sm"
-    />
+    <>
+      <Switch
+        checked={!isPaused}
+        colorPalette="blue"
+        onCheckedChange={onChange}
+        size="sm"
+      />
+      <ConfirmationModal
+        header={`${isPaused ? "Unpause" : "Pause"} ${dagDisplayName ?? dagId}?`}
+        onConfirm={onToggle}
+        onOpenChange={onClose}
+        open={open}
+      />
+    </>
   );
 };

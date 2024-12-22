@@ -32,7 +32,7 @@ def fail():
 
 
 def success(ti=None, *args, **kwargs):
-    if ti.execution_date != DEFAULT_DATE + timedelta(days=1):
+    if ti.logical_date != DEFAULT_DATE + timedelta(days=1):
         fail()
 
 

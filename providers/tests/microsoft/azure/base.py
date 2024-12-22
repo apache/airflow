@@ -68,6 +68,7 @@ class Base:
         result = None
         triggered_events = []
         try:
+            operator.render_template_fields(context=context)
             result = operator.execute(context=context)
         except TaskDeferred as deferred:
             task = deferred

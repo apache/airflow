@@ -17,16 +17,18 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import Depends
 from sqlalchemy import and_, func, select
-from sqlalchemy.orm import Session
-from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import (
-    get_session,
+    SessionDep,
     paginated_select,
 )
 from airflow.api_fastapi.common.parameters import (
+    FilterOptionEnum,
+    FilterParam,
     QueryDagDisplayNamePatternSearch,
     QueryDagIdPatternSearch,
     QueryLastDagRunStateFilter,
@@ -36,11 +38,12 @@ from airflow.api_fastapi.common.parameters import (
     QueryOwnersFilter,
     QueryPausedFilter,
     QueryTagsFilter,
+    filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.serializers.dag_run import DAGRunResponse
-from airflow.api_fastapi.core_api.serializers.dags import DAGResponse
-from airflow.api_fastapi.core_api.serializers.ui.dags import (
+from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
+from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
+from airflow.api_fastapi.core_api.datamodels.ui.dags import (
     DAGWithLatestDagRunsCollectionResponse,
     DAGWithLatestDagRunsResponse,
 )
@@ -49,64 +52,77 @@ from airflow.models import DagModel, DagRun
 dags_router = AirflowRouter(prefix="/dags", tags=["Dags"])
 
 
-@dags_router.get("/recent_dag_runs", include_in_schema=False, response_model_exclude_none=True)
-async def recent_dag_runs(
+@dags_router.get("/recent_dag_runs", response_model_exclude_none=True)
+def recent_dag_runs(
     limit: QueryLimit,
     offset: QueryOffset,
     tags: QueryTagsFilter,
     owners: QueryOwnersFilter,
+    dag_ids: Annotated[
+        FilterParam[list[str] | None],
+        Depends(filter_param_factory(DagRun.dag_id, list[str] | None, FilterOptionEnum.IN, "dag_ids")),
+    ],
     dag_id_pattern: QueryDagIdPatternSearch,
     dag_display_name_pattern: QueryDagDisplayNamePatternSearch,
     only_active: QueryOnlyActiveFilter,
     paused: QueryPausedFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     dag_runs_limit: int = 10,
 ) -> DAGWithLatestDagRunsCollectionResponse:
     """Get recent DAG runs."""
     recent_runs_subquery = (
         select(
             DagRun.dag_id,
-            DagRun.execution_date,
+            DagRun.logical_date,
             func.rank()
             .over(
                 partition_by=DagRun.dag_id,
-                order_by=DagRun.execution_date.desc(),
+                order_by=DagRun.logical_date.desc(),
             )
             .label("rank"),
         )
-        .order_by(DagRun.execution_date.desc())
+        .order_by(DagRun.logical_date.desc())
         .subquery()
     )
     dags_with_recent_dag_runs_select = (
         select(
             DagRun,
             DagModel,
-            recent_runs_subquery.c.execution_date,
+            recent_runs_subquery.c.logical_date,
         )
         .join(DagModel, DagModel.dag_id == recent_runs_subquery.c.dag_id)
         .join(
             DagRun,
             and_(
                 DagRun.dag_id == DagModel.dag_id,
-                DagRun.execution_date == recent_runs_subquery.c.execution_date,
+                DagRun.logical_date == recent_runs_subquery.c.logical_date,
             ),
         )
         .where(recent_runs_subquery.c.rank <= dag_runs_limit)
         .group_by(
             DagModel.dag_id,
-            recent_runs_subquery.c.execution_date,
-            DagRun.execution_date,
+            recent_runs_subquery.c.logical_date,
+            DagRun.logical_date,
             DagRun.id,
         )
-        .order_by(recent_runs_subquery.c.execution_date.desc())
+        .order_by(recent_runs_subquery.c.logical_date.desc())
     )
     dags_with_recent_dag_runs_select_filter, _ = paginated_select(
-        dags_with_recent_dag_runs_select,
-        [only_active, paused, dag_id_pattern, dag_display_name_pattern, tags, owners, last_dag_run_state],
-        None,
-        offset,
-        limit,
+        statement=dags_with_recent_dag_runs_select,
+        filters=[
+            only_active,
+            paused,
+            dag_id_pattern,
+            dag_ids,
+            dag_display_name_pattern,
+            tags,
+            owners,
+            last_dag_run_state,
+        ],
+        order_by=None,
+        offset=offset,
+        limit=limit,
     )
     dags_with_recent_dag_runs = session.execute(dags_with_recent_dag_runs_select_filter)
     # aggregate rows by dag_id
@@ -115,9 +131,9 @@ async def recent_dag_runs(
     for row in dags_with_recent_dag_runs:
         dag_run, dag, *_ = row
         dag_id = dag.dag_id
-        dag_run_response = DAGRunResponse.model_validate(dag_run, from_attributes=True)
+        dag_run_response = DAGRunResponse.model_validate(dag_run)
         if dag_id not in dag_runs_by_dag_id:
-            dag_response = DAGResponse.model_validate(dag, from_attributes=True)
+            dag_response = DAGResponse.model_validate(dag)
             dag_runs_by_dag_id[dag_id] = DAGWithLatestDagRunsResponse.model_validate(
                 {
                     **dag_response.dict(),

@@ -45,7 +45,7 @@ const dagId = getMetaValue("dag_id");
 interface Props {
   runId: string;
   taskId: string;
-  executionDate: string;
+  logicalDate: string;
   isGroup?: boolean;
   isMapped?: boolean;
   mapIndex?: number;
@@ -60,7 +60,7 @@ const ClearModal = ({
   runId,
   taskId,
   mapIndex,
-  executionDate,
+  logicalDate,
   isGroup,
   isMapped,
   isOpen,
@@ -94,7 +94,7 @@ const ClearModal = ({
       dagId,
       runId,
       taskId,
-      executionDate,
+      logicalDate,
       isGroup: !!isGroup,
       past,
       future,
@@ -110,7 +110,7 @@ const ClearModal = ({
     dagId,
     runId,
     taskId,
-    executionDate,
+    logicalDate,
     isGroup: !!isGroup,
   });
 
@@ -233,7 +233,7 @@ const ClearInstance = ({
   runId,
   taskId,
   mapIndex,
-  executionDate,
+  logicalDate,
   isGroup,
   isMapped,
   ...otherProps
@@ -262,7 +262,7 @@ const ClearInstance = ({
           runId={runId}
           taskId={taskId}
           mapIndex={mapIndex}
-          executionDate={executionDate}
+          logicalDate={logicalDate}
           isGroup={isGroup}
           isMapped={isMapped}
           isOpen={isOpen}

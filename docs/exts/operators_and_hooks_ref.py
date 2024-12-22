@@ -18,9 +18,10 @@ from __future__ import annotations
 
 import ast
 import os
-from functools import lru_cache
+from collections.abc import Iterable, Iterator
+from functools import cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterable, Iterator
+from typing import TYPE_CHECKING, Any
 
 import jinja2
 import rich_click as click
@@ -56,7 +57,7 @@ ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir))
 DOCS_DIR = os.path.join(ROOT_DIR, "docs")
 
 
-@lru_cache(maxsize=None)
+@cache
 def _get_jinja_env():
     loader = jinja2.FileSystemLoader(TEMPLATE_DIR, followlinks=True)
     env = jinja2.Environment(loader=loader, undefined=jinja2.StrictUndefined)

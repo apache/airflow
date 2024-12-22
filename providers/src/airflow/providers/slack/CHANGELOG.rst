@@ -27,6 +27,54 @@
 Changelog
 ---------
 
+9.0.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the slack provider package.
+  The following breaking changes were introduced:
+
+  * Removed deprecated ``SqlToSlackOperator``. Use ``SqlToSlackWebhookOperator`` instead.
+  * Removed deprecated ``send_file`` method from hooks. Use ``send_file_v2`` or ``send_file_v1_to_v2`` instead.
+  * Removed deprecated module lack_notifier.py. Use ``airflow.providers.slack.notifications.slack`` instead.
+  * Define method parameter as empty string or None is deprecated.
+  * Removed deprecated parameter ``slack_conn_id`` from ``SqlToSlackWebhookOperator``. Use ``slack_webhook_conn_id`` instead.
+
+* ``Remove deprecations from Slack Provider (#44693)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+* ``Update DAG example links in multiple providers documents (#44034)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Update path of example dags in docs (#45069)``
+
+8.9.2
+.....
+
+Misc
+~~~~
+
+* ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 8.9.1
 .....
 

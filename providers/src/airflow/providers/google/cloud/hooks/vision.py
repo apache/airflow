@@ -19,9 +19,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from copy import deepcopy
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from typing import TYPE_CHECKING, Any, Callable
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.vision_v1 import (
@@ -130,14 +131,10 @@ class CloudVisionHook(GoogleBaseHook):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,
+            **kwargs,
         )
         self._client = None
 

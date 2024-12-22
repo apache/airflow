@@ -16,13 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from flask_appbuilder.menu import Menu
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
+from airflow.auth.managers.models.base_user import BaseUser
 from airflow.auth.managers.models.resource_details import (
     ConnectionDetails,
     DagDetails,
@@ -32,17 +33,25 @@ from airflow.auth.managers.models.resource_details import (
 from airflow.exceptions import AirflowException
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.models.base_user import BaseUser
     from airflow.auth.managers.models.resource_details import (
         AccessView,
         AssetDetails,
         ConfigurationDetails,
         DagAccessEntity,
     )
+    from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 
 
-class EmptyAuthManager(BaseAuthManager):
+class EmptyAuthManager(BaseAuthManager[BaseUser]):
+    appbuilder: AirflowAppBuilder | None = None
+
     def get_user(self) -> BaseUser:
+        raise NotImplementedError()
+
+    def deserialize_user(self, token: dict[str, Any]) -> BaseUser:
+        raise NotImplementedError()
+
+    def serialize_user(self, user: BaseUser) -> dict[str, Any]:
         raise NotImplementedError()
 
     def is_authorized_configuration(
@@ -108,7 +117,7 @@ class EmptyAuthManager(BaseAuthManager):
 
 @pytest.fixture
 def auth_manager():
-    return EmptyAuthManager(None)
+    return EmptyAuthManager()
 
 
 class TestBaseAuthManager:
@@ -117,6 +126,9 @@ class TestBaseAuthManager:
 
     def test_get_api_endpoints_return_none(self, auth_manager):
         assert auth_manager.get_api_endpoints() is None
+
+    def test_get_fastapi_app_return_none(self, auth_manager):
+        assert auth_manager.get_fastapi_app() is None
 
     def test_get_user_name(self, auth_manager):
         user = Mock()

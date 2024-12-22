@@ -18,7 +18,8 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Iterable, Sequence, cast
+from collections.abc import Iterable, Sequence
+from typing import TYPE_CHECKING, Any, cast
 
 from bson import json_util
 

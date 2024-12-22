@@ -38,8 +38,8 @@ class TestResourceQuota:
             },
             show_only=["templates/resourcequota.yaml"],
         )
-        assert "ResourceQuota" == jmespath.search("kind", docs[0])
-        assert "20" == jmespath.search("spec.hard.replicationcontrollers", docs[0])
+        assert jmespath.search("kind", docs[0]) == "ResourceQuota"
+        assert jmespath.search("spec.hard.replicationcontrollers", docs[0]) == "20"
 
     def test_resource_quota_are_not_added_by_default(self):
         docs = render_chart(

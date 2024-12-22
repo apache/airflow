@@ -17,7 +17,7 @@
   * Rename class ``DatasetEventCollectionSchema`` as ``AssetEventCollectionSchema``
   * Rename class ``CreateDatasetEventSchema`` as ``CreateAssetEventSchema``
 
-* Rename module ``airflow.datasets`` as ``airflow.assets``
+* Move module ``airflow.datasets`` to ``airflow.sdk.definitions.asset``
 
   * Rename class ``DatasetAlias`` as ``AssetAlias``
   * Rename class ``DatasetAll`` as ``AssetAll``
@@ -25,7 +25,7 @@
   * Rename function ``expand_alias_to_datasets`` as ``expand_alias_to_assets``
   * Rename class ``DatasetAliasEvent`` as ``AssetAliasEvent``
 
-    * Rename method ``dest_dataset_uri`` as ``dest_asset_uri``
+    * Rename attribute ``dest_dataset_uri`` as ``dest_asset_uri``
 
   * Rename class ``BaseDataset`` as ``BaseAsset``
 
@@ -52,7 +52,7 @@
       * Rename method ``create_datasets`` as ``create_assets``
       * Rename method ``register_dataset_change`` as ``notify_asset_created``
       * Rename method ``notify_dataset_changed`` as ``notify_asset_changed``
-      * Renme method ``notify_dataset_alias_created`` as ``notify_asset_alias_created``
+      * Rename method ``notify_dataset_alias_created`` as ``notify_asset_alias_created``
 
 * Rename module ``airflow.models.dataset`` as ``airflow.models.asset``
 
@@ -84,7 +84,7 @@
     * Rename class ``DatasetPydantic`` as ``AssetPydantic``
     * Rename class ``DatasetEventPydantic`` as ``AssetEventPydantic``
 
-* Rename module ``airflow.datasets.metadata`` as ``airflow.assets.metadata``
+* Rename module ``airflow.datasets.metadata`` as ``airflow.sdk.definitions.asset.metadata``
 
 * In module ``airflow.jobs.scheduler_job_runner``
 
@@ -187,7 +187,7 @@
 
     * Rename function ``has_access_dataset`` as ``has_access_asset``
 
-* Rename configuration ``core.strict_dataset_uri_validation`` as ``core.strict_asset_uri_validation``, ``core.dataset_manager_class`` as ``core.asset_manager_class`` and ``core.dataset_manager_class`` as ``core.asset_manager_class``
+* Rename configuration ``core.dataset_manager_class`` as ``core.asset_manager_class`` and ``core.dataset_manager_class`` as ``core.asset_manager_class``
 * Rename example dags  ``example_dataset_alias.py``, ``example_dataset_alias_with_no_taskflow.py``, ``example_datasets.py`` as ``example_asset_alias.py``, ``example_asset_alias_with_no_taskflow.py``, ``example_assets.py``
 * Rename DagDependency name ``dataset-alias``, ``dataset`` as ``asset-alias``, ``asset``
 * Rename context key ``triggering_dataset_events`` as ``triggering_asset_events``

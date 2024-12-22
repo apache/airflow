@@ -19,13 +19,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
-
-from deprecated.classic import deprecated
+from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
 
@@ -71,11 +69,6 @@ class AzureDataExplorerQueryOperator(BaseOperator):
         """Return new instance of AzureDataExplorerHook."""
         return AzureDataExplorerHook(self.azure_data_explorer_conn_id)
 
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
-    def get_hook(self) -> AzureDataExplorerHook:
-        """Return new instance of AzureDataExplorerHook."""
-        return self.hook
-
     def execute(self, context: Context) -> KustoResultTable | str:
         """
         Run KQL Query on Azure Data Explorer (Kusto).
@@ -85,7 +78,8 @@ class AzureDataExplorerQueryOperator(BaseOperator):
         https://docs.microsoft.com/en-us/azure/kusto/api/rest/response2
         """
         response = self.hook.run_query(self.query, self.database, self.options)
-        if conf.getboolean("core", "enable_xcom_pickling"):
+        # TODO: Remove this after minimum Airflow version is 3.0
+        if conf.getboolean("core", "enable_xcom_pickling", fallback=False):
             return response.primary_results[0]
         else:
             return str(response.primary_results[0])

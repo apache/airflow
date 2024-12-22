@@ -25,7 +25,7 @@ import { useExtraLinks } from "src/api";
 interface Props {
   dagId: string;
   taskId: string;
-  executionDate: string;
+  logicalDate: string;
   mapIndex?: number | undefined;
   extraLinks: string[];
   tryNumber?: number | undefined;
@@ -34,7 +34,7 @@ interface Props {
 const ExtraLinks = ({
   dagId,
   taskId,
-  executionDate,
+  logicalDate,
   mapIndex,
   extraLinks,
   tryNumber,
@@ -42,7 +42,7 @@ const ExtraLinks = ({
   const { data: links } = useExtraLinks({
     dagId,
     taskId,
-    executionDate,
+    logicalDate,
     mapIndex,
     extraLinks,
     tryNumber,
@@ -55,7 +55,7 @@ const ExtraLinks = ({
 
   const isSanitised = (url: string | null) => {
     if (!url) {
-      return true;
+      return false; // Empty or null urls should cause the link to be disabled
     }
     const path = new URL(url, "http://localhost");
     // Allow Absolute/Relative URL and prevent javascript:() from executing when passed as path.

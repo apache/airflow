@@ -94,7 +94,9 @@ export const searchParamsToState = (
     id: sort.replace("-", ""),
   }));
 
-  urlState = { ...urlState, sorting };
+  if (sorting.length) {
+    urlState = { ...urlState, sorting };
+  }
 
   return { ...defaultState, ...urlState };
 };

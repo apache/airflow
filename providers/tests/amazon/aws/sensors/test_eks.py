@@ -69,7 +69,7 @@ NODEGROUP_UNEXPECTED_TERMINAL_STATES = sorted(
 
 class TestEksClusterStateSensor:
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self):
+    def _setup_test_cases(self):
         self.target_state = ClusterStates.ACTIVE
         self.sensor = EksClusterStateSensor(
             task_id=TASK_ID,
@@ -108,7 +108,7 @@ class TestEksClusterStateSensor:
 
 class TestEksFargateProfileStateSensor:
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self):
+    def _setup_test_cases(self):
         self.target_state = FargateProfileStates.ACTIVE
         self.sensor = EksFargateProfileStateSensor(
             task_id=TASK_ID,
@@ -156,7 +156,7 @@ class TestEksFargateProfileStateSensor:
 
 class TestEksNodegroupStateSensor:
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self):
+    def _setup_test_cases(self):
         self.target_state = NodegroupStates.ACTIVE
         self.sensor = EksNodegroupStateSensor(
             task_id=TASK_ID,

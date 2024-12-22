@@ -52,7 +52,7 @@ class TestSensorDecorator:
             sf >> df
 
         dr = dag_maker.create_dagrun()
-        sf.operator.run(start_date=dr.execution_date, end_date=dr.execution_date, ignore_ti_state=True)
+        sf.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
         tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
@@ -65,7 +65,6 @@ class TestSensorDecorator:
         )
         assert actual_xcom_value == sensor_xcom_value
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_basic_sensor_success_returns_bool(self, dag_maker):
         @task.sensor
         def sensor_f():
@@ -81,7 +80,7 @@ class TestSensorDecorator:
             sf >> df
 
         dr = dag_maker.create_dagrun()
-        sf.operator.run(start_date=dr.execution_date, end_date=dr.execution_date, ignore_ti_state=True)
+        sf.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
         tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
@@ -90,7 +89,6 @@ class TestSensorDecorator:
             if ti.task_id == "dummy_f":
                 assert ti.state == State.NONE
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_basic_sensor_failure(self, dag_maker):
         @task.sensor(timeout=0)
         def sensor_f():
@@ -107,7 +105,7 @@ class TestSensorDecorator:
 
         dr = dag_maker.create_dagrun()
         with pytest.raises(AirflowSensorTimeout):
-            sf.operator.run(start_date=dr.execution_date, end_date=dr.execution_date, ignore_ti_state=True)
+            sf.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
 
         tis = dr.get_task_instances()
         assert len(tis) == 2
@@ -117,7 +115,6 @@ class TestSensorDecorator:
             if ti.task_id == "dummy_f":
                 assert ti.state == State.NONE
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_basic_sensor_failure_returns_bool(self, dag_maker):
         @task.sensor(timeout=0)
         def sensor_f():
@@ -134,7 +131,7 @@ class TestSensorDecorator:
 
         dr = dag_maker.create_dagrun()
         with pytest.raises(AirflowSensorTimeout):
-            sf.operator.run(start_date=dr.execution_date, end_date=dr.execution_date, ignore_ti_state=True)
+            sf.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
 
         tis = dr.get_task_instances()
         assert len(tis) == 2
@@ -144,7 +141,6 @@ class TestSensorDecorator:
             if ti.task_id == "dummy_f":
                 assert ti.state == State.NONE
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_basic_sensor_soft_fail(self, dag_maker):
         @task.sensor(timeout=0, soft_fail=True)
         def sensor_f():
@@ -160,7 +156,7 @@ class TestSensorDecorator:
             sf >> df
 
         dr = dag_maker.create_dagrun()
-        sf.operator.run(start_date=dr.execution_date, end_date=dr.execution_date, ignore_ti_state=True)
+        sf.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
         tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
@@ -169,7 +165,6 @@ class TestSensorDecorator:
             if ti.task_id == "dummy_f":
                 assert ti.state == State.NONE
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_basic_sensor_soft_fail_returns_bool(self, dag_maker):
         @task.sensor(timeout=0, soft_fail=True)
         def sensor_f():
@@ -185,7 +180,7 @@ class TestSensorDecorator:
             sf >> df
 
         dr = dag_maker.create_dagrun()
-        sf.operator.run(start_date=dr.execution_date, end_date=dr.execution_date, ignore_ti_state=True)
+        sf.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
         tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
@@ -194,7 +189,6 @@ class TestSensorDecorator:
             if ti.task_id == "dummy_f":
                 assert ti.state == State.NONE
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_basic_sensor_get_upstream_output(self, dag_maker):
         ret_val = 100
         sensor_xcom_value = "xcom_value"
@@ -213,8 +207,8 @@ class TestSensorDecorator:
             sf = sensor_f(uf)
 
         dr = dag_maker.create_dagrun()
-        uf.operator.run(start_date=dr.execution_date, end_date=dr.execution_date, ignore_ti_state=True)
-        sf.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+        uf.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
+        sf.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
         tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:

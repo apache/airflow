@@ -81,16 +81,16 @@ class HiveOperatorTest(TestHiveEnvironment):
         op = HiveOperator(task_id="test_mapred_job_name", hql=self.hql, dag=self.dag)
 
         fake_run_id = "test_mapred_job_name"
-        fake_execution_date = timezone.datetime(2018, 6, 19)
+        fake_logical_date = timezone.datetime(2018, 6, 19)
         fake_ti = TaskInstance(task=op)
-        fake_ti.dag_run = DagRun(run_id=fake_run_id, execution_date=fake_execution_date)
+        fake_ti.dag_run = DagRun(run_id=fake_run_id, logical_date=fake_logical_date)
         fake_ti.hostname = "fake_hostname"
         fake_context = {"ti": fake_ti}
 
         op.execute(fake_context)
         assert (
             "Airflow HiveOperator task for "
-            f"{fake_ti.hostname}.{self.dag.dag_id}.{op.task_id}.{fake_execution_date.isoformat()}"
+            f"{fake_ti.hostname}.{self.dag.dag_id}.{op.task_id}.{fake_logical_date.isoformat()}"
             == mock_hook.mapred_job_name
         )
 
@@ -118,7 +118,7 @@ class TestHivePresto(TestHiveEnvironment):
             "-hiveconf",
             "airflow.ctx.task_id=basic_hql",
             "-hiveconf",
-            "airflow.ctx.execution_date=2015-01-01T00:00:00+00:00",
+            "airflow.ctx.logical_date=2015-01-01T00:00:00+00:00",
             "-hiveconf",
             "airflow.ctx.dag_run_id=",
             "-hiveconf",
@@ -162,7 +162,7 @@ class TestHivePresto(TestHiveEnvironment):
             "-hiveconf",
             "airflow.ctx.task_id=test_hive_queues",
             "-hiveconf",
-            "airflow.ctx.execution_date=2015-01-01T00:00:00+00:00",
+            "airflow.ctx.logical_date=2015-01-01T00:00:00+00:00",
             "-hiveconf",
             "airflow.ctx.dag_run_id=",
             "-hiveconf",
@@ -220,7 +220,7 @@ class TestHivePresto(TestHiveEnvironment):
             "-hiveconf",
             "airflow.ctx.task_id=",
             "-hiveconf",
-            "airflow.ctx.execution_date=",
+            "airflow.ctx.logical_date=",
             "-hiveconf",
             "airflow.ctx.dag_run_id=",
             "-hiveconf",
@@ -261,7 +261,7 @@ class TestHivePresto(TestHiveEnvironment):
             "-hiveconf",
             "airflow.ctx.task_id=beeline_hql",
             "-hiveconf",
-            "airflow.ctx.execution_date=2015-01-01T00:00:00+00:00",
+            "airflow.ctx.logical_date=2015-01-01T00:00:00+00:00",
             "-hiveconf",
             "airflow.ctx.dag_run_id=",
             "-hiveconf",

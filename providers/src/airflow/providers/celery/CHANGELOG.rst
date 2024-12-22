@@ -27,6 +27,47 @@
 Changelog
 ---------
 
+3.9.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+* ``AIP-81 Move CLI Commands to directories according to Hybrid, Local and Remote (#44538)``
+* ``Remove AIP-44 configuration from the code (#44454)``
+
+3.8.5
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Re-queue tassk when they are stuck in queued (#43520)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+
+3.8.4
+.....
+
+Misc
+~~~~
+
+* ``AIP-72: Remove DAG pickling (#43667)``
+* ``Move python operator to Standard provider (#42081)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+
 3.8.3
 .....
 

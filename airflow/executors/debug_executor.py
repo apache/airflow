@@ -47,7 +47,6 @@ class DebugExecutor(BaseExecutor):
 
     _terminated = threading.Event()
 
-    is_single_threaded: bool = True
     is_production: bool = False
 
     change_sensor_mode_to_reschedule: bool = True
@@ -97,7 +96,6 @@ class DebugExecutor(BaseExecutor):
         self,
         task_instance: TaskInstance,
         mark_success: bool = False,
-        pickle_id: int | None = None,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
         wait_for_past_depends_before_skipping: bool = False,

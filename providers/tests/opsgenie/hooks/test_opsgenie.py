@@ -81,11 +81,11 @@ class TestOpsgenieAlertHook:
     def test_get_api_key(self):
         hook = OpsgenieAlertHook(opsgenie_conn_id=self.conn_id)
         api_key = hook._get_api_key()
-        assert "eb243592-faa2-4ba2-a551q-1afdf565c889" == api_key
+        assert api_key == "eb243592-faa2-4ba2-a551q-1afdf565c889"
 
     def test_get_conn_defaults_host(self):
         hook = OpsgenieAlertHook()
-        assert "https://api.opsgenie.com" == hook.get_conn().api_client.configuration.host
+        assert hook.get_conn().api_client.configuration.host == "https://api.opsgenie.com"
 
     def test_get_conn_custom_host(self):
         conn_id = "custom_host_opsgenie_test"
@@ -99,7 +99,7 @@ class TestOpsgenieAlertHook:
         )
 
         hook = OpsgenieAlertHook(conn_id)
-        assert "https://app.eu.opsgenie.com" == hook.get_conn().api_client.configuration.host
+        assert hook.get_conn().api_client.configuration.host == "https://app.eu.opsgenie.com"
 
     def test_verify_api_key_set(self):
         hook = OpsgenieAlertHook(opsgenie_conn_id=self.conn_id)

@@ -68,7 +68,7 @@ class ShortCircuitExecutorMixin:
 
         super().change_state(key, state, info=info)
 
-        dag_id, _, execution_date, __ = key
+        dag_id, _, logical_date, __ = key
         if dag_id not in self.dags_to_watch:
             return
 
@@ -76,15 +76,15 @@ class ShortCircuitExecutorMixin:
         # check the DR.state - so instead we need to check the state of the
         # tasks in that run
 
-        run = self.dags_to_watch[dag_id].runs.get(execution_date)
+        run = self.dags_to_watch[dag_id].runs.get(logical_date)
         if not run:
             import airflow.models
 
-            run = airflow.models.DagRun.find(dag_id=dag_id, execution_date=execution_date)[0]
-            self.dags_to_watch[dag_id].runs[execution_date] = run
+            run = airflow.models.DagRun.find(dag_id=dag_id, logical_date=logical_date)[0]
+            self.dags_to_watch[dag_id].runs[logical_date] = run
 
         if run and all(t.state == TaskInstanceState.SUCCESS for t in run.get_task_instances()):
-            self.dags_to_watch[dag_id].runs.pop(execution_date)
+            self.dags_to_watch[dag_id].runs.pop(logical_date)
             self.dags_to_watch[dag_id].waiting_for -= 1
 
             if self.dags_to_watch[dag_id].waiting_for == 0:
@@ -171,7 +171,7 @@ def create_dag_runs(dag, num_runs, session):
         logical_date = next_info.logical_date
         dag.create_dagrun(
             run_id=f"{id_prefix}{logical_date.isoformat()}",
-            execution_date=logical_date,
+            logical_date=logical_date,
             start_date=timezone.utcnow(),
             state=DagRunState.RUNNING,
             external_trigger=False,
@@ -278,7 +278,7 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
 
     executor = ShortCircuitExecutor(dag_ids_to_watch=dag_ids, num_runs=num_runs)
     scheduler_job = Job(executor=executor)
-    job_runner = SchedulerJobRunner(job=scheduler_job, dag_ids=dag_ids, do_pickle=False)
+    job_runner = SchedulerJobRunner(job=scheduler_job, dag_ids=dag_ids)
     executor.job_runner = job_runner
 
     total_tasks = sum(len(dag.tasks) for dag in dags)
@@ -301,7 +301,7 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
                     reset_dag(dag, session)
             executor.reset(dag_ids)
             scheduler_job = Job(executor=executor)
-            job_runner = SchedulerJobRunner(job=scheduler_job, dag_ids=dag_ids, do_pickle=False)
+            job_runner = SchedulerJobRunner(job=scheduler_job, dag_ids=dag_ids)
             executor.scheduler_job = scheduler_job
 
         gc.disable()

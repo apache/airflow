@@ -37,8 +37,8 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.triggers.base import TriggerEvent
-from airflow.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import RedirectStdHandler
@@ -96,7 +96,7 @@ def create_trigger_in_db(session, trigger, operator=None):
     run = DagRun(
         dag_id=dag_model.dag_id,
         run_id="test_run",
-        execution_date=pendulum.datetime(2023, 1, 1),
+        logical_date=pendulum.datetime(2023, 1, 1),
         run_type=DagRunType.MANUAL,
     )
     trigger_orm = Trigger.from_object(trigger)
@@ -115,7 +115,6 @@ def create_trigger_in_db(session, trigger, operator=None):
     return dag_model, run, trigger_orm, task_instance
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_trigger_logging_sensitive_info(session, caplog):
     """
     Checks that when a trigger fires, it doesn't log any sensitive
@@ -179,7 +178,6 @@ def test_is_alive():
     assert not triggerer_job.is_alive(), "Completed jobs even with recent heartbeat should not be alive"
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_is_needed(session):
     """Checks the triggerer-is-needed logic"""
     # No triggers, no need
@@ -223,7 +221,6 @@ def test_capacity_decode():
             TriggererJobRunner(job=job, capacity=input_str)
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_trigger_lifecycle(session):
     """
     Checks that the triggerer will correctly see a new Trigger in the database
@@ -314,7 +311,6 @@ class TestTriggerRunner:
         assert "got an unexpected keyword argument 'not_exists_arg'" in caplog.text
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 @pytest.mark.asyncio
 async def test_trigger_create_race_condition_38599(session, tmp_path):
     """
@@ -395,7 +391,6 @@ async def test_trigger_create_race_condition_38599(session, tmp_path):
     assert path.read_text() == "hi\n"
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_trigger_create_race_condition_18392(session, tmp_path):
     """
     This verifies the resolution of race condition documented in github issue #18392.
@@ -506,7 +501,6 @@ def test_trigger_create_race_condition_18392(session, tmp_path):
     assert len(instances) == 1
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_trigger_from_dead_triggerer(session, create_task_instance):
     """
     Checks that the triggerer will correctly claim a Trigger that is assigned to a
@@ -520,7 +514,7 @@ def test_trigger_from_dead_triggerer(session, create_task_instance):
     session.add(trigger_orm)
     ti_orm = create_task_instance(
         task_id="ti_orm",
-        execution_date=timezone.utcnow(),
+        logical_date=timezone.utcnow(),
         run_id="orm_run_id",
     )
     ti_orm.trigger_id = trigger_orm.id
@@ -534,7 +528,6 @@ def test_trigger_from_dead_triggerer(session, create_task_instance):
     assert [x for x, y in job_runner.trigger_runner.to_create] == [1]
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_trigger_from_expired_triggerer(session, create_task_instance):
     """
     Checks that the triggerer will correctly claim a Trigger that is assigned to a
@@ -548,7 +541,7 @@ def test_trigger_from_expired_triggerer(session, create_task_instance):
     session.add(trigger_orm)
     ti_orm = create_task_instance(
         task_id="ti_orm",
-        execution_date=timezone.utcnow(),
+        logical_date=timezone.utcnow(),
         run_id="orm_run_id",
     )
     ti_orm.trigger_id = trigger_orm.id
@@ -569,7 +562,6 @@ def test_trigger_from_expired_triggerer(session, create_task_instance):
     assert [x for x, y in job_runner.trigger_runner.to_create] == [1]
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_trigger_runner_exception_stops_triggerer(session):
     """
     Checks that if an exception occurs when creating triggers, that the triggerer
@@ -613,7 +605,6 @@ def test_trigger_runner_exception_stops_triggerer(session):
         thread.join()
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_trigger_firing(session):
     """
     Checks that when a trigger fires, it correctly makes it into the
@@ -644,7 +635,6 @@ def test_trigger_firing(session):
         job_runner.trigger_runner.join(30)
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_trigger_failing(session):
     """
     Checks that when a trigger fails, it correctly makes it into the
@@ -679,7 +669,6 @@ def test_trigger_failing(session):
         job_runner.trigger_runner.join(30)
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_trigger_cleanup(session):
     """
     Checks that the triggerer will correctly clean up triggers that do not
@@ -699,7 +688,6 @@ def test_trigger_cleanup(session):
     assert session.query(Trigger).count() == 0
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_invalid_trigger(session, dag_maker):
     """
     Checks that the triggerer will correctly fail task instances that depend on

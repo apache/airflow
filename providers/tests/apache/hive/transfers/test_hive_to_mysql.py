@@ -170,7 +170,7 @@ class TestHiveToMySqlTransfer(TestHiveEnvironment):
             "airflow.ctx.dag_owner": "airflow",
             "airflow.ctx.dag_id": "test_dag_id",
             "airflow.ctx.task_id": "hive_to_mysql_check",
-            "airflow.ctx.execution_date": "2015-01-01T00:00:00+00:00",
+            "airflow.ctx.logical_date": "2015-01-01T00:00:00+00:00",
         }
         assert expected_hive_conf == actual_hive_conf
 

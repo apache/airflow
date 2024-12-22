@@ -49,7 +49,7 @@ class TestStepFunctionGetExecutionOutputOperator:
     TASK_ID = "step_function_get_execution_output"
 
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self):
+    def _setup_test_cases(self):
         with mock.patch(
             "airflow.providers.amazon.aws.links.step_function.StateMachineExecutionsDetailsLink.persist"
         ) as executions_details_link:
@@ -117,7 +117,7 @@ class TestStepFunctionStartExecutionOperator:
     TASK_ID = "step_function_start_execution_task"
 
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self):
+    def _setup_test_cases(self):
         with (
             mock.patch(
                 "airflow.providers.amazon.aws.links.step_function.StateMachineExecutionsDetailsLink.persist"

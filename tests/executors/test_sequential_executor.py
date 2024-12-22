@@ -23,9 +23,6 @@ from airflow.executors.sequential_executor import SequentialExecutor
 
 
 class TestSequentialExecutor:
-    def test_supports_pickling(self):
-        assert not SequentialExecutor.supports_pickling
-
     def test_supports_sentry(self):
         assert not SequentialExecutor.supports_sentry
 
@@ -37,9 +34,6 @@ class TestSequentialExecutor:
 
     def test_serve_logs_default_value(self):
         assert SequentialExecutor.serve_logs
-
-    def test_is_single_threaded_default_value(self):
-        assert SequentialExecutor.is_single_threaded
 
     @mock.patch("airflow.executors.sequential_executor.SequentialExecutor.sync")
     @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")

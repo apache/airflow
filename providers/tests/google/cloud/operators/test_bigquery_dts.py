@@ -28,10 +28,9 @@ from airflow.providers.google.cloud.operators.bigquery_dts import (
     BigQueryDeleteDataTransferConfigOperator,
 )
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 PROJECT_ID = "id"
-
 
 TRANSFER_CONFIG = {
     "data_source_id": "google_cloud_storage",

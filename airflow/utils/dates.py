@@ -27,6 +27,8 @@ cron_presets: dict[str, str] = {
 }
 
 
-def datetime_to_nano(datetime) -> int:
+def datetime_to_nano(datetime) -> int | None:
     """Convert datetime to nanoseconds."""
-    return int(datetime.timestamp() * 1000000000)
+    if datetime:
+        return int(datetime.timestamp() * 1000000000)
+    return None

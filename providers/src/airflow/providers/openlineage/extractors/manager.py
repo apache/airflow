@@ -16,7 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterator
+from collections.abc import Iterator
+from typing import TYPE_CHECKING
 
 from airflow.providers.common.compat.openlineage.utils.utils import (
     translate_airflow_asset,
@@ -198,6 +199,8 @@ class ExtractorManager(LoggingMixin):
         except ImportError:
             return None
 
+        if not hasattr(get_hook_lineage_collector(), "has_collected"):
+            return None
         if not get_hook_lineage_collector().has_collected:
             return None
 

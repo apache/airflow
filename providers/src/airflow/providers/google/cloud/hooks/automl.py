@@ -25,8 +25,9 @@ This module contains a Google AutoML hook.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.automl_v1beta1 import (
@@ -42,8 +43,9 @@ from google.cloud.automl_v1beta1 import (
     PredictResponse,
 )
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 if TYPE_CHECKING:
@@ -57,6 +59,12 @@ if TYPE_CHECKING:
     from google.protobuf.field_mask_pb2 import FieldMask
 
 
+@deprecated(
+    planned_removal_date="September 30, 2025",
+    use_instead="airflow.providers.google.cloud.hooks.vertex_ai.auto_ml.AutoMLHook, "
+    "airflow.providers.google.cloud.hooks.translate.TranslateHook",
+    category=AirflowProviderDeprecationWarning,
+)
 class CloudAutoMLHook(GoogleBaseHook):
     """
     Google Cloud AutoML hook.
@@ -71,14 +79,10 @@ class CloudAutoMLHook(GoogleBaseHook):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,
+            **kwargs,
         )
         self._client: AutoMlClient | None = None
 

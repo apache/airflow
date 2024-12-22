@@ -47,7 +47,7 @@ Once that is done, you can run -
 
 ``migrate`` keeps track of migrations already applied, so it's safe to run as often as you need.
 
-.. note::
+.. warning::
 
     Prior to Airflow version 2.7.0, ``airflow db upgrade`` was used to apply migrations,
     however, it has been deprecated in favor of ``airflow db migrate``.

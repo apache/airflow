@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 import time
-from typing import Sequence
+from collections.abc import Sequence
 
 import requests
 from googleapiclient.discovery import build
@@ -49,14 +49,10 @@ class CloudFunctionsHook(GoogleBaseHook):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,
+            **kwargs,
         )
         self.api_version = api_version
 

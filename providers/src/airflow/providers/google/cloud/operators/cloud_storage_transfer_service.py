@@ -19,9 +19,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from copy import deepcopy
 from datetime import date, time
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook

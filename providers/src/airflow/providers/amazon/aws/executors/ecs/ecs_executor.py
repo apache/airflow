@@ -25,9 +25,10 @@ from __future__ import annotations
 
 import time
 from collections import defaultdict, deque
+from collections.abc import Sequence
 from contextlib import suppress
 from copy import deepcopy
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 from botocore.exceptions import ClientError, NoCredentialsError
 

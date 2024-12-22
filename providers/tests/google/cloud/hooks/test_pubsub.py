@@ -73,10 +73,6 @@ def _generate_messages(count) -> list[ReceivedMessage]:
 
 
 class TestPubSubHook:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            PubSubHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
-
     def setup_method(self):
         with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
             self.pubsub_hook = PubSubHook(gcp_conn_id="test")
@@ -197,7 +193,7 @@ class TestPubSubHook:
             timeout=None,
             metadata=(),
         )
-        assert TEST_SUBSCRIPTION == response
+        assert response == TEST_SUBSCRIPTION
 
     @mock.patch(PUBSUB_STRING.format("PubSubHook.subscriber_client"))
     def test_create_subscription_different_project_topic(self, mock_service):
@@ -229,7 +225,7 @@ class TestPubSubHook:
             metadata=(),
         )
 
-        assert TEST_SUBSCRIPTION == response
+        assert response == TEST_SUBSCRIPTION
 
     @mock.patch(PUBSUB_STRING.format("PubSubHook.subscriber_client"))
     def test_delete_subscription(self, mock_service):
@@ -314,7 +310,7 @@ class TestPubSubHook:
             timeout=None,
             metadata=(),
         )
-        assert TEST_SUBSCRIPTION == response
+        assert response == TEST_SUBSCRIPTION
 
     @mock.patch(PUBSUB_STRING.format("PubSubHook.subscriber_client"))
     def test_create_subscription_with_filter(self, mock_service):
@@ -345,7 +341,7 @@ class TestPubSubHook:
             timeout=None,
             metadata=(),
         )
-        assert TEST_SUBSCRIPTION == response
+        assert response == TEST_SUBSCRIPTION
 
     @mock.patch(PUBSUB_STRING.format("PubSubHook.subscriber_client"))
     def test_create_subscription_failifexists(self, mock_service):
@@ -376,7 +372,7 @@ class TestPubSubHook:
         response = self.pubsub_hook.create_subscription(
             project_id=TEST_PROJECT, topic=TEST_TOPIC, subscription=TEST_SUBSCRIPTION
         )
-        assert TEST_SUBSCRIPTION == response
+        assert response == TEST_SUBSCRIPTION
 
     @mock.patch(PUBSUB_STRING.format("PubSubHook.get_conn"))
     def test_publish(self, mock_service):
@@ -440,7 +436,7 @@ class TestPubSubHook:
             timeout=None,
             metadata=(),
         )
-        assert [] == response
+        assert response == []
 
     @pytest.mark.parametrize(
         "exception",

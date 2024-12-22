@@ -54,7 +54,6 @@ class DAGSchema(SQLAlchemySchema):
     is_paused = auto_field()
     is_active = auto_field(dump_only=True)
     last_parsed_time = auto_field(dump_only=True)
-    last_pickled = auto_field(dump_only=True)
     last_expired = auto_field(dump_only=True)
     default_view = auto_field(dump_only=True)
     fileloc = auto_field(dump_only=True)

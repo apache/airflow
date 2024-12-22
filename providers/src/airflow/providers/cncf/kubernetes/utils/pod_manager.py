@@ -19,18 +19,18 @@
 from __future__ import annotations
 
 import enum
+import itertools
 import json
 import math
 import time
-from collections.abc import Iterable
+from collections.abc import Generator, Iterable
 from contextlib import closing, suppress
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Callable, Generator, Protocol, cast
+from typing import TYPE_CHECKING, Protocol, cast
 
 import pendulum
 import tenacity
-from deprecated import deprecated
 from kubernetes import client, watch
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
@@ -39,7 +39,7 @@ from pendulum.parsing.exceptions import ParserError
 from typing_extensions import Literal
 from urllib3.exceptions import HTTPError, TimeoutError
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, KubernetesPodOperatorCallback
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -118,7 +118,13 @@ class PodOperatorHookProtocol(Protocol):
 
 def get_container_status(pod: V1Pod, container_name: str) -> V1ContainerStatus | None:
     """Retrieve container status."""
-    container_statuses = pod.status.container_statuses if pod and pod.status else None
+    if pod and pod.status:
+        container_statuses = itertools.chain(
+            pod.status.container_statuses, pod.status.init_container_statuses
+        )
+    else:
+        container_statuses = None
+
     if container_statuses:
         # In general the variable container_statuses can store multiple items matching different containers.
         # The following generator expression yields all items that have name equal to the container_name.
@@ -165,6 +171,19 @@ def container_is_succeeded(pod: V1Pod, container_name: str) -> bool:
     if not container_status:
         return False
     return container_status.state.terminated.exit_code == 0
+
+
+def container_is_wait(pod: V1Pod, container_name: str) -> bool:
+    """
+    Examine V1Pod ``pod`` to determine whether ``container_name`` is waiting.
+
+    If that container is present and waiting, returns True.  Returns False otherwise.
+    """
+    container_status = get_container_status(pod, container_name)
+    if not container_status:
+        return False
+
+    return container_status.state.waiting is not None
 
 
 def container_is_terminated(pod: V1Pod, container_name: str) -> bool:
@@ -302,19 +321,15 @@ class PodManager(LoggingMixin):
         self,
         kube_client: client.CoreV1Api,
         callbacks: type[KubernetesPodOperatorCallback] | None = None,
-        progress_callback: Callable[[str], None] | None = None,
     ):
         """
         Create the launcher.
 
         :param kube_client: kubernetes client
         :param callbacks:
-        :param progress_callback: Callback function invoked when fetching container log.
-            This parameter is deprecated, please use ````
         """
         super().__init__()
         self._client = kube_client
-        self._progress_callback = progress_callback
         self._watch = watch.Watch()
         self._callbacks = callbacks
 
@@ -382,16 +397,6 @@ class PodManager(LoggingMixin):
                 )
                 raise PodLaunchFailedException(msg)
             time.sleep(startup_check_interval)
-
-    @deprecated(
-        reason=(
-            "Method `follow_container_logs` is deprecated.  Use `fetch_container_logs` instead "
-            "with option `follow=True`."
-        ),
-        category=AirflowProviderDeprecationWarning,
-    )
-    def follow_container_logs(self, pod: V1Pod, container_name: str) -> PodLoggingStatus:
-        return self.fetch_container_logs(pod=pod, container_name=container_name, follow=True)
 
     def fetch_container_logs(
         self,
@@ -461,14 +466,15 @@ class PodManager(LoggingMixin):
                                 progress_callback_lines.append(line)
                             else:  # previous log line is complete
                                 for line in progress_callback_lines:
-                                    if self._progress_callback:
-                                        self._progress_callback(line)
                                     if self._callbacks:
                                         self._callbacks.progress_callback(
                                             line=line, client=self._client, mode=ExecutionMode.SYNC
                                         )
                                 if message_to_log is not None:
-                                    self.log.info("[%s] %s", container_name, message_to_log)
+                                    if is_log_group_marker(message_to_log):
+                                        print(message_to_log)
+                                    else:
+                                        self.log.info("[%s] %s", container_name, message_to_log)
                                 last_captured_timestamp = message_timestamp
                                 message_to_log = message
                                 message_timestamp = line_timestamp
@@ -479,14 +485,15 @@ class PodManager(LoggingMixin):
                 finally:
                     # log the last line and update the last_captured_timestamp
                     for line in progress_callback_lines:
-                        if self._progress_callback:
-                            self._progress_callback(line)
                         if self._callbacks:
                             self._callbacks.progress_callback(
                                 line=line, client=self._client, mode=ExecutionMode.SYNC
                             )
                     if message_to_log is not None:
-                        self.log.info("[%s] %s", container_name, message_to_log)
+                        if is_log_group_marker(message_to_log):
+                            print(message_to_log)
+                        else:
+                            self.log.info("[%s] %s", container_name, message_to_log)
                     last_captured_timestamp = message_timestamp
             except TimeoutError as e:
                 # in case of timeout, increment return time by 2 seconds to avoid
@@ -522,7 +529,7 @@ class PodManager(LoggingMixin):
                 time.sleep(1)
 
     def _reconcile_requested_log_containers(
-        self, requested: Iterable[str] | str | bool, actual: list[str], pod_name
+        self, requested: Iterable[str] | str | bool | None, actual: list[str], pod_name
     ) -> list[str]:
         """Return actual containers based on requested."""
         containers_to_log = []
@@ -564,6 +571,31 @@ class PodManager(LoggingMixin):
         else:
             self.log.error("Could not retrieve containers for the pod: %s", pod_name)
         return containers_to_log
+
+    def fetch_requested_init_container_logs(
+        self, pod: V1Pod, init_containers: Iterable[str] | str | Literal[True] | None, follow_logs=False
+    ) -> list[PodLoggingStatus]:
+        """
+        Follow the logs of containers in the specified pod and publish it to airflow logging.
+
+        Returns when all the containers exit.
+
+        :meta private:
+        """
+        pod_logging_statuses = []
+        all_containers = self.get_init_container_names(pod)
+        containers_to_log = self._reconcile_requested_log_containers(
+            requested=init_containers,
+            actual=all_containers,
+            pod_name=pod.metadata.name,
+        )
+        # sort by spec.initContainers because containers runs sequentially
+        containers_to_log = sorted(containers_to_log, key=lambda cn: all_containers.index(cn))
+        for c in containers_to_log:
+            self._await_init_container_start(pod=pod, container_name=c)
+            status = self.fetch_container_logs(pod=pod, container_name=c, follow=follow_logs)
+            pod_logging_statuses.append(status)
+        return pod_logging_statuses
 
     def fetch_requested_container_logs(
         self, pod: V1Pod, containers: Iterable[str] | str | Literal[True], follow_logs=False
@@ -693,8 +725,21 @@ class PodManager(LoggingMixin):
         )
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
+    def get_init_container_names(self, pod: V1Pod) -> list[str]:
+        """
+        Return container names from the POD except for the airflow-xcom-sidecar container.
+
+        :meta private:
+        """
+        return [container_spec.name for container_spec in pod.spec.init_containers]
+
+    @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     def get_container_names(self, pod: V1Pod) -> list[str]:
-        """Return container names from the POD except for the airflow-xcom-sidecar container."""
+        """
+        Return container names from the POD except for the airflow-xcom-sidecar container.
+
+        :meta private:
+        """
         pod_info = self.read_pod(pod)
         return [
             container_spec.name
@@ -810,7 +855,7 @@ class PodManager(LoggingMixin):
                 _preload_content=False,
             )
         ) as resp:
-            self._exec_pod_command(resp, "kill -2 1")
+            self._exec_pod_command(resp, "kill -2 $(pgrep -u $(whoami) -f trap)")
 
     def _exec_pod_command(self, resp, command: str) -> str | None:
         res = ""
@@ -832,6 +877,20 @@ class PodManager(LoggingMixin):
                 return res
         return None
 
+    def _await_init_container_start(self, pod: V1Pod, container_name: str):
+        while True:
+            remote_pod = self.read_pod(pod)
+
+            if (
+                remote_pod.status is not None
+                and remote_pod.status.phase != PodPhase.PENDING
+                and get_container_status(remote_pod, container_name) is not None
+                and not container_is_wait(remote_pod, container_name)
+            ):
+                return
+
+            time.sleep(1)
+
 
 class OnFinishAction(str, enum.Enum):
     """Action to take when the pod finishes."""
@@ -839,3 +898,8 @@ class OnFinishAction(str, enum.Enum):
     KEEP_POD = "keep_pod"
     DELETE_POD = "delete_pod"
     DELETE_SUCCEEDED_POD = "delete_succeeded_pod"
+
+
+def is_log_group_marker(line: str) -> bool:
+    """Check if the line is a log group marker like `::group::` or `::endgroup::`."""
+    return line.startswith("::group::") or line.startswith("::endgroup::")

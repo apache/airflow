@@ -30,10 +30,9 @@ import pytest
 from asyncssh import SFTPAttrs, SFTPNoSuchFile
 from asyncssh.sftp import SFTPName
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.sftp.hooks.sftp import SFTPHook, SFTPHookAsync
-from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.utils.session import provide_session
 
 pytestmark = pytest.mark.db_test
@@ -116,6 +115,12 @@ class TestSFTPHook:
     def test_list_directory(self):
         output = self.hook.list_directory(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
         assert output == [SUB_DIR, FIFO_FOR_TESTS]
+
+    def test_list_directory_with_attr(self):
+        output = self.hook.list_directory_with_attr(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+        file_names = [f.filename for f in output]
+        assert all(isinstance(f, paramiko.SFTPAttributes) for f in output)
+        assert sorted(file_names) == [SUB_DIR, FIFO_FOR_TESTS]
 
     def test_mkdir(self):
         new_dir_name = "mk_dir"
@@ -383,44 +388,6 @@ class TestSFTPHook:
         assert status is True
         assert msg == "Connection successfully tested"
 
-    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
-    def test_deprecation_ftp_conn_id(self, mock_get_connection):
-        connection = Connection(conn_id="ftp_default", login="login", host="host")
-        mock_get_connection.return_value = connection
-        # If `ftp_conn_id` is provided, it will be used but would show a deprecation warning.
-        with pytest.warns(AirflowProviderDeprecationWarning, match=r"Parameter `ftp_conn_id` is deprecated"):
-            assert SFTPHook(ftp_conn_id="ftp_default").ssh_conn_id == "ftp_default"
-
-        # If both are provided, ftp_conn_id  will be used but would show a deprecation warning.
-        with pytest.warns(AirflowProviderDeprecationWarning, match=r"Parameter `ftp_conn_id` is deprecated"):
-            assert (
-                SFTPHook(ftp_conn_id="ftp_default", ssh_conn_id="sftp_default").ssh_conn_id == "ftp_default"
-            )
-
-        # If `ssh_conn_id` is provided, it should use it for ssh_conn_id
-        assert SFTPHook(ssh_conn_id="sftp_default").ssh_conn_id == "sftp_default"
-        # Default is 'sftp_default
-        assert SFTPHook().ssh_conn_id == "sftp_default"
-
-    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
-    def test_invalid_ssh_hook(self, mock_get_connection):
-        connection = Connection(conn_id="sftp_default", login="root", host="localhost")
-        mock_get_connection.return_value = connection
-        with (
-            pytest.raises(AirflowException, match="ssh_hook must be an instance of SSHHook"),
-            pytest.warns(AirflowProviderDeprecationWarning, match=r"Parameter `ssh_hook` is deprecated.*"),
-        ):
-            SFTPHook(ssh_hook="invalid_hook")
-
-    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_connection")
-    def test_valid_ssh_hook(self, mock_get_connection):
-        connection = Connection(conn_id="sftp_test", login="root", host="localhost")
-        mock_get_connection.return_value = connection
-        with pytest.warns(AirflowProviderDeprecationWarning, match=r"Parameter `ssh_hook` is deprecated.*"):
-            hook = SFTPHook(ssh_hook=SSHHook(ssh_conn_id="sftp_test"))
-        assert hook.ssh_conn_id == "sftp_test"
-        assert isinstance(hook.get_conn(), paramiko.SFTPClient)
-
     def test_get_suffix_pattern_match(self):
         output = self.hook.get_file_by_pattern(self.temp_dir, "*.txt")
         # In CI files might have different name, so we check that file found rather than actual name
@@ -457,7 +424,7 @@ class TestSFTPHook:
 
     def test_get_all_matched_files(self):
         output = self.hook.get_files_by_pattern(self.temp_dir, "test_*.txt")
-        assert output == [TMP_FILE_FOR_TESTS, ANOTHER_FILE_FOR_TESTS]
+        assert sorted(output) == [TMP_FILE_FOR_TESTS, ANOTHER_FILE_FOR_TESTS]
 
     def test_get_matched_files_with_different_pattern(self):
         output = self.hook.get_files_by_pattern(self.temp_dir, "*_file_*.txt")
@@ -788,3 +755,31 @@ class TestSFTPHookAsync:
         with pytest.raises(AirflowException) as exc:
             await hook.get_mod_time("/path/does_not/exist/")
         assert str(exc.value) == "No files matching"
+
+    @patch("paramiko.SSHClient")
+    @mock.patch("paramiko.ProxyCommand")
+    def test_sftp_hook_with_proxy_command(self, mock_proxy_command, mock_ssh_client):
+        mock_transport = mock.MagicMock()
+        mock_ssh_client.return_value.get_transport.return_value = mock_transport
+        mock_proxy_command.return_value = mock.MagicMock()
+
+        host_proxy_cmd = "ncat --proxy-auth proxy_user:**** --proxy proxy_host:port %h %p"
+        hook = SFTPHook(
+            remote_host="example.com",
+            username="user",
+            host_proxy_cmd=host_proxy_cmd,
+        )
+        hook.get_conn()
+
+        mock_proxy_command.assert_called_once_with(host_proxy_cmd)
+        mock_ssh_client.return_value.connect.assert_called_once_with(
+            hostname="example.com",
+            username="user",
+            timeout=None,
+            compress=True,
+            port=22,
+            sock=mock_proxy_command.return_value,
+            look_for_keys=True,
+            banner_timeout=30.0,
+            auth_timeout=None,
+        )

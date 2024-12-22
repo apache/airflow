@@ -40,6 +40,11 @@ TEST_VARIABLE_VALUE3 = '{"password": "some_password"}'
 TEST_VARIABLE_DESCRIPTION3 = "Some description for the variable"
 
 
+TEST_VARIABLE_SEARCH_KEY = "test_variable_search_key"
+TEST_VARIABLE_SEARCH_VALUE = "random search value"
+TEST_VARIABLE_SEARCH_DESCRIPTION = "Some description for the variable"
+
+
 @provide_session
 def _create_variables(session) -> None:
     Variable.set(
@@ -63,6 +68,13 @@ def _create_variables(session) -> None:
         session=session,
     )
 
+    Variable.set(
+        key=TEST_VARIABLE_SEARCH_KEY,
+        value=TEST_VARIABLE_SEARCH_VALUE,
+        description=TEST_VARIABLE_SEARCH_DESCRIPTION,
+        session=session,
+    )
+
 
 class TestVariableEndpoint:
     @pytest.fixture(autouse=True)
@@ -80,11 +92,11 @@ class TestDeleteVariable(TestVariableEndpoint):
     def test_delete_should_respond_204(self, test_client, session):
         self.create_variables()
         variables = session.query(Variable).all()
-        assert len(variables) == 3
+        assert len(variables) == 4
         response = test_client.delete(f"/public/variables/{TEST_VARIABLE_KEY}")
         assert response.status_code == 204
         variables = session.query(Variable).all()
-        assert len(variables) == 2
+        assert len(variables) == 3
 
     def test_delete_should_respond_404(self, test_client):
         response = test_client.delete(f"/public/variables/{TEST_VARIABLE_KEY}")
@@ -122,6 +134,14 @@ class TestGetVariable(TestVariableEndpoint):
                     "description": TEST_VARIABLE_DESCRIPTION3,
                 },
             ),
+            (
+                TEST_VARIABLE_SEARCH_KEY,
+                {
+                    "key": TEST_VARIABLE_SEARCH_KEY,
+                    "value": TEST_VARIABLE_SEARCH_VALUE,
+                    "description": TEST_VARIABLE_SEARCH_DESCRIPTION,
+                },
+            ),
         ],
     )
     def test_get_should_respond_200(self, test_client, session, key, expected_response):
@@ -143,21 +163,44 @@ class TestGetVariables(TestVariableEndpoint):
         "query_params, expected_total_entries, expected_keys",
         [
             # Filters
-            ({}, 3, [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3]),
-            ({"limit": 1}, 3, [TEST_VARIABLE_KEY]),
-            ({"limit": 1, "offset": 1}, 3, [TEST_VARIABLE_KEY2]),
+            ({}, 4, [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3, TEST_VARIABLE_SEARCH_KEY]),
+            ({"limit": 1}, 4, [TEST_VARIABLE_KEY]),
+            ({"limit": 1, "offset": 1}, 4, [TEST_VARIABLE_KEY2]),
             # Sort
-            ({"order_by": "id"}, 3, [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3]),
-            ({"order_by": "-id"}, 3, [TEST_VARIABLE_KEY3, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY]),
-            ({"order_by": "key"}, 3, [TEST_VARIABLE_KEY3, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY]),
-            ({"order_by": "-key"}, 3, [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3]),
+            (
+                {"order_by": "id"},
+                4,
+                [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3, TEST_VARIABLE_SEARCH_KEY],
+            ),
+            (
+                {"order_by": "-id"},
+                4,
+                [TEST_VARIABLE_SEARCH_KEY, TEST_VARIABLE_KEY3, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY],
+            ),
+            (
+                {"order_by": "key"},
+                4,
+                [TEST_VARIABLE_KEY3, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY, TEST_VARIABLE_SEARCH_KEY],
+            ),
+            (
+                {"order_by": "-key"},
+                4,
+                [TEST_VARIABLE_SEARCH_KEY, TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3],
+            ),
+            # Search
+            (
+                {"variable_key_pattern": "~"},
+                4,
+                [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3, TEST_VARIABLE_SEARCH_KEY],
+            ),
+            ({"variable_key_pattern": "search"}, 1, [TEST_VARIABLE_SEARCH_KEY]),
         ],
     )
     def test_should_respond_200(
         self, session, test_client, query_params, expected_total_entries, expected_keys
     ):
         self.create_variables()
-        response = test_client.get("/public/variables/", params=query_params)
+        response = test_client.get("/public/variables", params=query_params)
 
         assert response.status_code == 200
         body = response.json()
@@ -241,7 +284,7 @@ class TestPatchVariable(TestVariableEndpoint):
         )
         assert response.status_code == 400
         body = response.json()
-        assert "Invalid body, key from request body doesn't match uri parameter" == body["detail"]
+        assert body["detail"] == "Invalid body, key from request body doesn't match uri parameter"
 
     def test_patch_should_respond_404(self, test_client):
         response = test_client.patch(
@@ -298,6 +341,42 @@ class TestPostVariable(TestVariableEndpoint):
     )
     def test_post_should_respond_201(self, test_client, session, body, expected_response):
         self.create_variables()
-        response = test_client.post("/public/variables/", json=body)
+        response = test_client.post("/public/variables", json=body)
         assert response.status_code == 201
         assert response.json() == expected_response
+
+    def test_post_should_respond_409_when_key_exists(self, test_client, session):
+        self.create_variables()
+        # Attempting to post a variable with an existing key
+        response = test_client.post(
+            "/public/variables",
+            json={
+                "key": TEST_VARIABLE_KEY,
+                "value": "duplicate value",
+                "description": "duplicate description",
+            },
+        )
+        assert response.status_code == 409
+        body = response.json()
+        assert body["detail"] == f"The Variable with key: `{TEST_VARIABLE_KEY}` already exists"
+
+    def test_post_should_respond_422_when_key_too_large(self, test_client):
+        large_key = "a" * 251  # Exceeds the maximum length of 250
+        body = {
+            "key": large_key,
+            "value": "some_value",
+            "description": "key too large",
+        }
+        response = test_client.post("/public/variables", json=body)
+        assert response.status_code == 422
+        assert response.json() == {
+            "detail": [
+                {
+                    "type": "string_too_long",
+                    "loc": ["body", "key"],
+                    "msg": "String should have at most 250 characters",
+                    "input": large_key,
+                    "ctx": {"max_length": 250},
+                }
+            ]
+        }

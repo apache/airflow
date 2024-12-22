@@ -26,17 +26,19 @@ import os
 import platform
 import random
 import re
+import shlex
 import shutil
 import socket
 import string
 import subprocess
 import time
 import uuid
+from collections.abc import Sequence
 from inspect import signature
 from pathlib import Path
 from subprocess import PIPE, Popen
 from tempfile import NamedTemporaryFile, _TemporaryFileWrapper, gettempdir
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 from urllib.parse import quote_plus
 
 import httpx
@@ -107,14 +109,10 @@ class CloudSQLHook(GoogleBaseHook):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,
+            **kwargs,
         )
         self.api_version = api_version
         self._conn = None
@@ -777,6 +775,8 @@ class CloudSQLDatabaseHook(BaseHook):
       SQL DB.
     * **use_ssl** - (default False) Whether SSL should be used to connect to Cloud SQL DB.
       You cannot use proxy and SSL together.
+    * **use_iam** - (default False) Whether IAM should be used to connect to Cloud SQL DB.
+      With using IAM password field should be empty string.
     * **sql_proxy_use_tcp** - (default False) If set to true, TCP is used to connect via
       proxy, otherwise UNIX sockets are used.
     * **sql_proxy_version** -  Specific version of the proxy to download (for example
@@ -825,8 +825,9 @@ class CloudSQLDatabaseHook(BaseHook):
         ssl_key: str | None = None,
         ssl_root_cert: str | None = None,
         ssl_secret_id: str | None = None,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.gcp_cloudsql_conn_id = gcp_cloudsql_conn_id
         self.impersonation_chain = impersonation_chain
@@ -839,11 +840,16 @@ class CloudSQLDatabaseHook(BaseHook):
         self.database_type = self.extras.get("database_type")
         self.use_proxy = self._get_bool(self.extras.get("use_proxy", "False"))
         self.use_ssl = self._get_bool(self.extras.get("use_ssl", "False"))
+        self.use_iam = self._get_bool(self.extras.get("use_iam", "False"))
         self.sql_proxy_use_tcp = self._get_bool(self.extras.get("sql_proxy_use_tcp", "False"))
         self.sql_proxy_version = self.extras.get("sql_proxy_version")
         self.sql_proxy_binary_path = sql_proxy_binary_path
-        self.user = self.cloudsql_connection.login
-        self.password = self.cloudsql_connection.password
+        if self.use_iam:
+            self.user = self._get_iam_db_login()
+            self.password = self._generate_login_token(service_account=self.cloudsql_connection.login)
+        else:
+            self.user = self.cloudsql_connection.login
+            self.password = self.cloudsql_connection.password
         self.public_ip = self.cloudsql_connection.host
         self.public_port = self.cloudsql_connection.port
         self.ssl_cert = ssl_cert
@@ -1187,3 +1193,32 @@ class CloudSQLDatabaseHook(BaseHook):
         if self.reserved_tcp_socket:
             self.reserved_tcp_socket.close()
             self.reserved_tcp_socket = None
+
+    def _get_iam_db_login(self) -> str:
+        """Get an IAM login for Cloud SQL database."""
+        if not self.cloudsql_connection.login:
+            raise AirflowException("The login parameter needs to be set in connection")
+
+        if self.database_type == "postgres":
+            return self.cloudsql_connection.login.split(".gserviceaccount.com")[0]
+        else:
+            return self.cloudsql_connection.login.split("@")[0]
+
+    def _generate_login_token(self, service_account) -> str:
+        """Generate an IAM login token for Cloud SQL and return the token."""
+        cmd = ["gcloud", "sql", "generate-login-token", f"--impersonate-service-account={service_account}"]
+        self.log.info("Executing command: %s", " ".join(shlex.quote(c) for c in cmd))
+        cloud_sql_hook = CloudSQLHook(api_version="v1", gcp_conn_id=self.gcp_conn_id)
+
+        with cloud_sql_hook.provide_authorized_gcloud():
+            proc = subprocess.run(cmd, capture_output=True)
+
+        if proc.returncode != 0:
+            stderr_last_20_lines = "\n".join(proc.stderr.decode().strip().splitlines()[-20:])
+            raise AirflowException(
+                f"Process exited with non-zero exit code. Exit code: {proc.returncode}. Error Details: "
+                f"{stderr_last_20_lines}"
+            )
+
+        auth_token = proc.stdout.decode().strip()
+        return auth_token

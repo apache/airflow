@@ -19,9 +19,11 @@ from __future__ import annotations
 import urllib.parse
 from typing import TYPE_CHECKING
 
-try:
-    from airflow.assets import Asset
-except ModuleNotFoundError:
+from airflow.providers.common.io.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.definitions.asset import Asset
+else:
     from airflow.datasets import Dataset as Asset  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
@@ -50,4 +52,6 @@ def convert_asset_to_openlineage(asset: Asset, lineage_context) -> OpenLineageDa
     from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
 
     parsed = urllib.parse.urlsplit(asset.uri)
-    return OpenLineageDataset(namespace=f"file://{parsed.netloc}", name=parsed.path)
+    return OpenLineageDataset(
+        namespace=f"file://{parsed.netloc}" if parsed.netloc else "file", name=parsed.path
+    )

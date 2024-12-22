@@ -1,0 +1,8 @@
+Virtualenv installation uses ``uv`` now per default if ``uv`` is available.
+
+If you want to control how the virtualenv is created, you can use the
+AIRFLOW__STANDARD__VENV_INSTALL_METHOD option. The possible values are:
+
+- ``auto``: Automatically select, use ``uv`` if available, otherwise use ``pip``.
+- ``pip``: Use pip to install the virtual environment.
+- ``uv``: Use uv to install the virtual environment. Must be available in environment PATH.

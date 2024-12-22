@@ -22,7 +22,8 @@ from __future__ import annotations
 import json
 import tempfile
 import uuid
-from typing import TYPE_CHECKING, Any, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 from googleapiclient import http
 
@@ -52,9 +53,6 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
     :param report_id: The ID of the report.
     :param api_version: The version of the api that will be requested, for example 'v4'.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -71,7 +69,6 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
         "report_name",
         "api_version",
         "gcp_conn_id",
-        "delegate_to",
         "impersonation_chain",
     )
 
@@ -83,7 +80,6 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
         report_id: str | None = None,
         api_version: str = "v4",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -98,13 +94,11 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
         self.report_id = report_id
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context) -> None:
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
@@ -143,9 +137,6 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
     :param chunk_size: File will be downloaded in chunks of this many bytes.
     :param api_version: The version of the api that will be requested, for example 'v4'.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -165,7 +156,6 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
         "chunk_size",
         "api_version",
         "gcp_conn_id",
-        "delegate_to",
         "impersonation_chain",
     )
 
@@ -181,7 +171,6 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
         chunk_size: int = 10 * 1024 * 1024,
         api_version: str = "v4",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -195,7 +184,6 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
         self.bucket_name = bucket_name
         self.report_name = report_name
         self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def _resolve_file_name(self, name: str) -> str:
@@ -215,13 +203,11 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
     def execute(self, context: Context) -> None:
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         # Get name of the report
@@ -270,9 +256,6 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
     :param report: Report to be created.
     :param api_version: The version of the api that will be requested, for example 'v4'.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -288,7 +271,6 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
         "report",
         "api_version",
         "gcp_conn_id",
-        "delegate_to",
         "impersonation_chain",
     )
 
@@ -301,7 +283,6 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
         report: dict[str, Any],
         api_version: str = "v4",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -310,7 +291,6 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
         self.report = report
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def prepare_template(self) -> None:
@@ -322,7 +302,6 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
     def execute(self, context: Context):
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
@@ -351,9 +330,6 @@ class GoogleCampaignManagerRunReportOperator(BaseOperator):
     :param synchronous: If set and true, tries to run the report synchronously.
     :param api_version: The version of the api that will be requested, for example 'v4'.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -370,7 +346,6 @@ class GoogleCampaignManagerRunReportOperator(BaseOperator):
         "synchronous",
         "api_version",
         "gcp_conn_id",
-        "delegate_to",
         "impersonation_chain",
     )
 
@@ -382,7 +357,6 @@ class GoogleCampaignManagerRunReportOperator(BaseOperator):
         synchronous: bool = False,
         api_version: str = "v4",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -392,13 +366,11 @@ class GoogleCampaignManagerRunReportOperator(BaseOperator):
         self.synchronous = synchronous
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
@@ -438,9 +410,6 @@ class GoogleCampaignManagerBatchInsertConversionsOperator(BaseOperator):
     :param max_failed_inserts: The maximum number of conversions that failed to be inserted
     :param api_version: The version of the api that will be requested, for example 'v4'.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -471,7 +440,6 @@ class GoogleCampaignManagerBatchInsertConversionsOperator(BaseOperator):
         max_failed_inserts: int = 0,
         api_version: str = "v4",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -484,13 +452,11 @@ class GoogleCampaignManagerBatchInsertConversionsOperator(BaseOperator):
         self.max_failed_inserts = max_failed_inserts
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
@@ -529,9 +495,6 @@ class GoogleCampaignManagerBatchUpdateConversionsOperator(BaseOperator):
     :param max_failed_updates: The maximum number of conversions that failed to be updated
     :param api_version: The version of the api that will be requested, for example 'v4'.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -562,7 +525,6 @@ class GoogleCampaignManagerBatchUpdateConversionsOperator(BaseOperator):
         max_failed_updates: int = 0,
         api_version: str = "v4",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -575,13 +537,11 @@ class GoogleCampaignManagerBatchUpdateConversionsOperator(BaseOperator):
         self.max_failed_updates = max_failed_updates
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )

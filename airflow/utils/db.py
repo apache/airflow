@@ -27,16 +27,13 @@ import os
 import sys
 import time
 import warnings
+from collections.abc import Generator, Iterable, Iterator, Sequence
 from tempfile import gettempdir
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Generator,
-    Iterable,
-    Iterator,
     Protocol,
-    Sequence,
     TypeVar,
     overload,
 )
@@ -44,7 +41,6 @@ from typing import (
 import attrs
 from sqlalchemy import (
     Table,
-    delete,
     exc,
     func,
     inspect,
@@ -70,6 +66,7 @@ if TYPE_CHECKING:
     from alembic.runtime.environment import EnvironmentContext
     from alembic.script import ScriptDirectory
     from sqlalchemy.engine import Row
+    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.elements import ClauseElement, TextClause
     from sqlalchemy.sql.selectable import Select
@@ -97,7 +94,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "2.9.2": "686269002441",
     "2.10.0": "22ed7efa9da2",
     "2.10.3": "5f2621c13b39",
-    "3.0.0": "d8cd3297971e",
+    "3.0.0": "5c9c0231baa2",
 }
 
 
@@ -857,10 +854,13 @@ def _configured_alembic_environment() -> Generator[EnvironmentContext, None, Non
     config = _get_alembic_config()
     script = _get_script_object(config)
 
-    with EnvironmentContext(
-        config,
-        script,
-    ) as env, settings.engine.connect() as connection:
+    with (
+        EnvironmentContext(
+            config,
+            script,
+        ) as env,
+        settings.engine.connect() as connection,
+    ):
         alembic_logger = logging.getLogger("alembic")
         level = alembic_logger.level
         alembic_logger.setLevel(logging.WARNING)
@@ -923,9 +923,7 @@ def check_and_run_migrations():
 
 def _reserialize_dags(*, session: Session) -> None:
     from airflow.models.dagbag import DagBag
-    from airflow.models.serialized_dag import SerializedDagModel
 
-    session.execute(delete(SerializedDagModel).execution_options(synchronize_session=False))
     dagbag = DagBag(collect_dags=False)
     dagbag.collect_dags(only_if_updated=False)
     dagbag.sync_to_db(session=session)
@@ -973,7 +971,7 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
             session.add(
                 LogTemplate(
                     filename="{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log",
-                    elasticsearch_id="{dag_id}-{task_id}-{execution_date}-{try_number}",
+                    elasticsearch_id="{dag_id}-{task_id}-{logical_date}-{try_number}",
                 )
             )
 
@@ -1088,7 +1086,7 @@ def _revisions_above_min_for_offline(config, revisions) -> None:
     dbname = settings.engine.dialect.name
     if dbname == "sqlite":
         raise SystemExit("Offline migration not supported for SQLite.")
-    min_version, min_revision = ("3.0.0", "22ed7efa9da2")
+    min_version, min_revision = ("2.7.0", "937cbd173ca1")
 
     # Check if there is history between the revisions and the start revision
     # This ensures that the revisions are above `min_revision`
@@ -1221,19 +1219,6 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
 
     if not skip_init:
         initdb(session=session)
-
-
-@provide_session
-def bootstrap_dagbag(session: Session = NEW_SESSION):
-    from airflow.models.dag import DAG
-    from airflow.models.dagbag import DagBag
-
-    dagbag = DagBag()
-    # Save DAGs in the ORM
-    dagbag.sync_to_db(session=session)
-
-    # Deactivate the unknown ones
-    DAG.deactivate_unknown_dags(dagbag.dags.keys(), session=session)
 
 
 @provide_session
@@ -1447,6 +1432,21 @@ def get_query_count(query_stmt: Select, *, session: Session) -> int:
     return session.scalar(count_stmt)
 
 
+async def get_query_count_async(statement: Select, *, session: AsyncSession) -> int:
+    """
+    Get count of a query.
+
+    A SELECT COUNT() FROM is issued against the subquery built from the
+    given statement. The ORDER BY clause is stripped from the statement
+    since it's unnecessary for COUNT, and can impact query planning and
+    degrade performance.
+
+    :meta private:
+    """
+    count_stmt = select(func.count()).select_from(statement.order_by(None).subquery())
+    return await session.scalar(count_stmt)
+
+
 def check_query_exists(query_stmt: Select, *, session: Session) -> bool:
     """
     Check whether there is at least one row matching a query.
@@ -1458,7 +1458,8 @@ def check_query_exists(query_stmt: Select, *, session: Session) -> bool:
     :meta private:
     """
     count_stmt = select(literal(True)).select_from(query_stmt.order_by(None).subquery())
-    return session.scalar(count_stmt)
+    # we must cast to bool because scalar() can return None
+    return bool(session.scalar(count_stmt))
 
 
 def exists_query(*where: ClauseElement, session: Session) -> bool:

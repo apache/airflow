@@ -28,8 +28,7 @@
           },
           {
             "Name": "ENDS_ON",
-            "Type": "timestamp",
-            "Comment": "from deserializer"
+            "Type": "timestamp"
           }
         ],
         "PartitionKeys": [],

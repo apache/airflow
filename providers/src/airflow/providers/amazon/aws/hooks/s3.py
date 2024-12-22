@@ -28,6 +28,7 @@ import os
 import re
 import shutil
 import time
+from collections.abc import AsyncIterator
 from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime
@@ -36,7 +37,7 @@ from inspect import signature
 from io import BytesIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile, gettempdir
-from typing import TYPE_CHECKING, Any, AsyncIterator, Callable
+from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import urlsplit
 from uuid import uuid4
 
@@ -86,7 +87,7 @@ def provide_bucket_name(func: Callable) -> Callable:
     async def maybe_add_bucket_name(*args, **kwargs):
         bound_args = function_signature.bind(*args, **kwargs)
 
-        if "bucket_name" not in bound_args.arguments:
+        if not bound_args.arguments.get("bucket_name"):
             self = args[0]
             if self.aws_conn_id:
                 connection = await sync_to_async(self.get_connection)(self.aws_conn_id)
@@ -116,7 +117,7 @@ def provide_bucket_name(func: Callable) -> Callable:
         def wrapper(*args, **kwargs) -> Callable:
             bound_args = function_signature.bind(*args, **kwargs)
 
-            if "bucket_name" not in bound_args.arguments:
+            if not bound_args.arguments.get("bucket_name"):
                 self = args[0]
 
                 if "bucket_name" in self.service_config:
@@ -1297,6 +1298,7 @@ class S3Hook(AwsBaseHook):
         dest_bucket_name: str | None = None,
         source_version_id: str | None = None,
         acl_policy: str | None = None,
+        meta_data_directive: str | None = None,
         **kwargs,
     ) -> None:
         """
@@ -1326,10 +1328,14 @@ class S3Hook(AwsBaseHook):
         :param source_version_id: Version ID of the source object (OPTIONAL)
         :param acl_policy: The string to specify the canned ACL policy for the
             object to be copied which is private by default.
+        :param meta_data_directive: Whether to `COPY` the metadata from the source object or `REPLACE` it
+            with metadata that's provided in the request.
         """
         acl_policy = acl_policy or "private"
         if acl_policy != NO_ACL:
             kwargs["ACL"] = acl_policy
+        if meta_data_directive:
+            kwargs["MetadataDirective"] = meta_data_directive
 
         dest_bucket_name, dest_bucket_key = self.get_s3_bucket_key(
             dest_bucket_name, dest_bucket_key, "dest_bucket_name", "dest_bucket_key"

@@ -17,7 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from airflow.providers.arangodb.hooks.arangodb import ArangoDBHook
 from airflow.sensors.base import BaseSensorOperator
@@ -51,4 +52,4 @@ class AQLSensor(BaseSensorOperator):
         hook = ArangoDBHook(self.arangodb_conn_id)
         records = hook.query(self.query, count=True).count()
         self.log.info("Total records found: %d", records)
-        return 0 != records
+        return records != 0

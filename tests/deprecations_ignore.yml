@@ -16,10 +16,6 @@
 # under the License.
 ---
 
-# CLI
-# https://github.com/apache/airflow/issues/39199
-- tests/cli/commands/test_kubernetes_command.py::TestGenerateDagYamlCommand::test_generate_dag_yaml
-
 
 # Core
 - tests/models/test_dagbag.py::TestDagBag::test_load_subdags

@@ -48,7 +48,7 @@ command as in the example below.
 Kerberos authentication
 '''''''''''''''''''''''
 
-Kerberos authentication is currently supported for the API.
+Kerberos authentication is currently supported for the API, both experimental and stable.
 
 To enable Kerberos authentication, set the following in the configuration:
 
@@ -60,11 +60,29 @@ To enable Kerberos authentication, set the following in the configuration:
     [kerberos]
     keytab = <KEYTAB>
 
-The Kerberos service is configured as ``airflow/fully.qualified.domainname@REALM``. Make sure this
-principal exists in the keytab file.
+The airflow Kerberos service is configured as ``airflow/fully.qualified.domainname@REALM``. Make sure this
+principal exists `in both the Kerberos database as well as in the keytab file </docs/apache-airflow/stable/security/kerberos.html#enabling-kerberos>`_.
 
 You have to make sure to name your users with the kerberos full username/realm in order to make it
-works. This means that your user name should be ``user_name@KERBEROS-REALM``.
+work. This means that your user name should be ``user_name@REALM``.
+
+.. code-block:: bash
+
+    kinit user_name@REALM
+    ENDPOINT_URL="http://localhost:8080/"
+    curl -X GET  \
+        --negotiate \  # enables Negotiate (SPNEGO) authentication
+        --service airflow \  # matches the `airflow` service name in the `airflow/fully.qualified.domainname@REALM` principal
+        --user : \
+        "${ENDPOINT_URL}/api/v1/pools"
+
+
+.. note::
+
+    Remember that the stable API is secured by both authentication and `access control <./access-control.html>`_.
+    This means that your user needs to have a Role with necessary associated permissions, otherwise you'll receive
+    a 403 response.
+
 
 Basic authentication
 ''''''''''''''''''''

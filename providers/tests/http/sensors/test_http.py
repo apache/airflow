@@ -138,7 +138,6 @@ class TestHttpSensor:
         task_instance = create_task_instance_of_operator(
             HttpSensor,
             dag_id="http_sensor_poke_exception",
-            execution_date=DEFAULT_DATE,
             task_id="http_sensor_poke_exception",
             http_conn_id="http_default",
             endpoint="",

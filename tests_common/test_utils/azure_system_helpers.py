@@ -105,7 +105,7 @@ def provide_azure_fileshare(share_name: str, azure_fileshare_conn_id: str, file_
     AzureSystemTest.delete_share(share_name=share_name, azure_fileshare_conn_id=azure_fileshare_conn_id)
 
 
-@pytest.mark.system("azure")
+@pytest.mark.system
 class AzureSystemTest(SystemTest):
     """Base class for Azure system tests."""
 

@@ -179,7 +179,6 @@ with DAG(
         dataset_id=tabular_dataset_id,
         replica_count=1,
         model_display_name=MODEL_DISPLAY_NAME,
-        sync=False,
         region=REGION,
         project_id=PROJECT_ID,
     )
@@ -198,7 +197,6 @@ with DAG(
         dataset_id=tabular_dataset_id,
         replica_count=1,
         model_display_name=MODEL_DISPLAY_NAME,
-        sync=False,
         region=REGION,
         project_id=PROJECT_ID,
     )

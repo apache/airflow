@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -119,3 +119,85 @@ class TestWinRMHook:
         winrm_hook.get_conn()
 
         assert f"http://{winrm_hook.remote_host}:{winrm_hook.remote_port}/wsman" == winrm_hook.endpoint
+
+    @patch("airflow.providers.microsoft.winrm.hooks.winrm.Protocol", autospec=True)
+    @patch(
+        "airflow.providers.microsoft.winrm.hooks.winrm.WinRMHook.get_connection",
+        return_value=Connection(
+            login="username",
+            password="password",
+            host="remote_host",
+            extra="""{
+                      "endpoint": "endpoint",
+                      "remote_port": 123,
+                      "transport": "plaintext",
+                      "service": "service",
+                      "keytab": "keytab",
+                      "ca_trust_path": "ca_trust_path",
+                      "cert_pem": "cert_pem",
+                      "cert_key_pem": "cert_key_pem",
+                      "server_cert_validation": "validate",
+                      "kerberos_delegation": "true",
+                      "read_timeout_sec": 124,
+                      "operation_timeout_sec": 123,
+                      "kerberos_hostname_override": "kerberos_hostname_override",
+                      "message_encryption": "auto",
+                      "credssp_disable_tlsv1_2": "true",
+                      "send_cbt": "false"
+                  }""",
+        ),
+    )
+    def test_run_with_stdout(self, mock_get_connection, mock_protocol):
+        winrm_hook = WinRMHook(ssh_conn_id="conn_id")
+
+        mock_protocol.return_value.run_command = MagicMock(return_value="command_id")
+        mock_protocol.return_value._raw_get_command_output = MagicMock(
+            return_value=(b"stdout", b"stderr", 0, True)
+        )
+
+        return_code, stdout_buffer, stderr_buffer = winrm_hook.run("dir")
+
+        assert return_code == 0
+        assert stdout_buffer == [b"stdout"]
+        assert stderr_buffer == [b"stderr"]
+
+    @patch("airflow.providers.microsoft.winrm.hooks.winrm.Protocol", autospec=True)
+    @patch(
+        "airflow.providers.microsoft.winrm.hooks.winrm.WinRMHook.get_connection",
+        return_value=Connection(
+            login="username",
+            password="password",
+            host="remote_host",
+            extra="""{
+                      "endpoint": "endpoint",
+                      "remote_port": 123,
+                      "transport": "plaintext",
+                      "service": "service",
+                      "keytab": "keytab",
+                      "ca_trust_path": "ca_trust_path",
+                      "cert_pem": "cert_pem",
+                      "cert_key_pem": "cert_key_pem",
+                      "server_cert_validation": "validate",
+                      "kerberos_delegation": "true",
+                      "read_timeout_sec": 124,
+                      "operation_timeout_sec": 123,
+                      "kerberos_hostname_override": "kerberos_hostname_override",
+                      "message_encryption": "auto",
+                      "credssp_disable_tlsv1_2": "true",
+                      "send_cbt": "false"
+                  }""",
+        ),
+    )
+    def test_run_without_stdout(self, mock_get_connection, mock_protocol):
+        winrm_hook = WinRMHook(ssh_conn_id="conn_id")
+
+        mock_protocol.return_value.run_command = MagicMock(return_value="command_id")
+        mock_protocol.return_value._raw_get_command_output = MagicMock(
+            return_value=(b"stdout", b"stderr", 0, True)
+        )
+
+        return_code, stdout_buffer, stderr_buffer = winrm_hook.run("dir", return_output=False)
+
+        assert return_code == 0
+        assert not stdout_buffer
+        assert stderr_buffer == [b"stderr"]

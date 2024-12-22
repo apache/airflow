@@ -19,7 +19,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from airflow.providers.google.marketing_platform.hooks.campaign_manager import GoogleCampaignManagerHook
 from airflow.sensors.base import BaseSensorOperator
@@ -45,9 +46,6 @@ class GoogleCampaignManagerReportSensor(BaseSensorOperator):
     :param file_id: The ID of the report file.
     :param api_version: The version of the api that will be requested, for example 'v4'.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -68,7 +66,6 @@ class GoogleCampaignManagerReportSensor(BaseSensorOperator):
     def poke(self, context: Context) -> bool:
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
@@ -84,7 +81,6 @@ class GoogleCampaignManagerReportSensor(BaseSensorOperator):
         file_id: str,
         api_version: str = "v4",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         mode: str = "reschedule",
         poke_interval: int = 60 * 5,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -98,5 +94,4 @@ class GoogleCampaignManagerReportSensor(BaseSensorOperator):
         self.file_id = file_id
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain

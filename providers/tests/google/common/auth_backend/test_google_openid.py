@@ -23,7 +23,6 @@ from google.auth.exceptions import GoogleAuthError
 
 from airflow.www.app import create_app
 
-from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_pools
 from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
@@ -75,8 +74,6 @@ def admin_user(google_openid_app):
     return role_admin
 
 
-@pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="The tests should be skipped for Airflow < 2.9")
-@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 class TestGoogleOpenID:
     @pytest.fixture(autouse=True)
@@ -96,7 +93,7 @@ class TestGoogleOpenID:
         with self.app.test_client() as test_client:
             response = test_client.get("/api/v1/pools", headers={"Authorization": "bearer JWT_TOKEN"})
 
-            assert 200 == response.status_code
+            assert response.status_code == 200
             assert "Default pool" in str(response.json)
 
     @pytest.mark.parametrize("auth_header", ["bearer", "JWT_TOKEN", "bearer "])
@@ -111,7 +108,7 @@ class TestGoogleOpenID:
         with self.app.test_client() as test_client:
             response = test_client.get("/api/v1/pools", headers={"Authorization": auth_header})
 
-        assert 401 == response.status_code
+        assert response.status_code == 401
 
     @mock.patch("google.oauth2.id_token.verify_token")
     def test_invalid_iss_in_jwt_token(self, mock_verify_token):
@@ -124,7 +121,7 @@ class TestGoogleOpenID:
         with self.app.test_client() as test_client:
             response = test_client.get("/api/v1/pools", headers={"Authorization": "bearer JWT_TOKEN"})
 
-        assert 401 == response.status_code
+        assert response.status_code == 401
 
     @mock.patch("google.oauth2.id_token.verify_token")
     def test_user_not_exists(self, mock_verify_token):
@@ -137,14 +134,14 @@ class TestGoogleOpenID:
         with self.app.test_client() as test_client:
             response = test_client.get("/api/v1/pools", headers={"Authorization": "bearer JWT_TOKEN"})
 
-        assert 401 == response.status_code
+        assert response.status_code == 401
 
     @conf_vars({("api", "auth_backends"): "airflow.providers.google.common.auth_backend.google_openid"})
     def test_missing_id_token(self):
         with self.app.test_client() as test_client:
             response = test_client.get("/api/v1/pools")
 
-        assert 401 == response.status_code
+        assert response.status_code == 401
 
     @conf_vars({("api", "auth_backends"): "airflow.providers.google.common.auth_backend.google_openid"})
     @mock.patch("google.oauth2.id_token.verify_token")
@@ -154,4 +151,4 @@ class TestGoogleOpenID:
         with self.app.test_client() as test_client:
             response = test_client.get("/api/v1/pools", headers={"Authorization": "bearer JWT_TOKEN"})
 
-        assert 401 == response.status_code
+        assert response.status_code == 401

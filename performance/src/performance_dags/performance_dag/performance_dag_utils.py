@@ -426,7 +426,7 @@ def generate_copies_of_performance_dag(
 
     :yields: a pair consisting of path to the temporary directory
         and a list with paths to copies of performance DAG
-    :type: Tuple[str, List[str]]
+    :type: tuple[str, list[str]]
     """
     dag_files_count = int(
         get_performance_dag_environment_variable(performance_dag_conf, "PERF_DAG_FILES_COUNT")
@@ -665,7 +665,7 @@ def parse_start_date(date, start_ago):
 
     Returns the start date for the performance DAGs and string to be used as part of their ids.
 
-    :return Tuple[datetime.datetime, str]: A tuple of datetime.datetime object to be used
+    :return tuple[datetime.datetime, str]: A tuple of datetime.datetime object to be used
         as a start_date and a string that should be used as part of the dag_id.
     """
     if date:

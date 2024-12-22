@@ -22,9 +22,11 @@ description: |
     `Apache Impala <https://impala.apache.org/>`__.
 
 state: ready
-source-date-epoch: 1726860060
+source-date-epoch: 1734528154
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.6.0
+  - 1.5.2
   - 1.5.1
   - 1.5.0
   - 1.4.2
@@ -41,8 +43,8 @@ versions:
 
 dependencies:
   - impyla>=0.18.0,<1.0
-  - apache-airflow-providers-common-sql>=1.14.1
-  - apache-airflow>=2.8.0
+  - apache-airflow-providers-common-sql>=1.20.0
+  - apache-airflow>=2.9.0
 
 additional-extras:
   - name: kerberos

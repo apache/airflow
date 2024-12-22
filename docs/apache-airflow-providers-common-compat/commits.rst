@@ -35,14 +35,53 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.3.0
+.....
+
+Latest change: 2024-12-19
+
+=================================================================================================  ===========  =============================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================================================================
+`04ccef9b3a <https://github.com/apache/airflow/commit/04ccef9b3a4073eaf313db3905803e7ef3f910fb>`_  2024-12-19   ``feat: automatically inject OL info into spark job in DataprocSubmitJobOperator (#44477)``
+`2a33da0246 <https://github.com/apache/airflow/commit/2a33da0246c811a98d5cdaf0af2bcca0dee8556a>`_  2024-12-18   ``Remove references to AIRFLOW_V_2_9_PLUS (#44987)``
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`490b5e816b <https://github.com/apache/airflow/commit/490b5e816b804f338b0eb97f240ae874d4e15810>`_  2024-12-10   ``Consistent way of checking Airflow version in providers (#44686)``
+`3d421f78d7 <https://github.com/apache/airflow/commit/3d421f78d7046474c5684580a744f87160378935>`_  2024-12-06   ``Bumping common compat to 1.3.0 (#44728)``
+`bcc8a4abd1 <https://github.com/apache/airflow/commit/bcc8a4abd148455042d4d56408ff0565cc901bf3>`_  2024-12-06   ``Prevent __init__.py in providers from being modified (#44713)``
+`450132bc85 <https://github.com/apache/airflow/commit/450132bc859ad4ec1686d4e521efc1efe79a47b8>`_  2024-12-06   ``Remove unnecessary compatibility code in S3 asset import (#44714)``
+`5f4a30117d <https://github.com/apache/airflow/commit/5f4a30117d82e5981a36cec99a0bbda2bddb54d9>`_  2024-12-06   ``Make AssetAliasEvent a class context.py (#44709)``
+`d9001cd14a <https://github.com/apache/airflow/commit/d9001cd14aaf8c35e22de3290bbe01ea3513979d>`_  2024-12-06   ``Fix accidental db tests in Task SDK (#44690)``
+`b9ab0b5ffc <https://github.com/apache/airflow/commit/b9ab0b5ffcbf551fcad3f6e7e0382a78db23a23a>`_  2024-12-05   ``fix(providers/common/compat): add back add_input_dataset and add_output_dataset to NoOpCollector (#44681)``
+`cac2d1dfda <https://github.com/apache/airflow/commit/cac2d1dfdab471d0dbd152951ce6dc6b3ca5c63b>`_  2024-12-05   ``Fix name of private function in compat provider (#44680)``
+`4404e64247 <https://github.com/apache/airflow/commit/4404e64247daf37b350bc7cd835d397256507ad1>`_  2024-11-25   ``Move triggers to standard provider (#43608)``
+`a0f3353c47 <https://github.com/apache/airflow/commit/a0f3353c471e4d9a2cd4b23f0c358d0ae908580a>`_  2024-11-20   ``Move Asset user facing components to task_sdk (#43773)``
+=================================================================================================  ===========  =============================================================================================================
+
+1.2.2
+.....
+
+Latest change: 2024-11-14
+
+=================================================================================================  ===========  ================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================================
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
+`73f2eab680 <https://github.com/apache/airflow/commit/73f2eab68081e966fd808bfaca923eed1f81bc43>`_  2024-11-05   ``serialize asset/dataset timetable conditions in OpenLineage info also for Airflow 2 (#43434)``
+`06088a3abc <https://github.com/apache/airflow/commit/06088a3abcbb46533e74de360746db766d50cf66>`_  2024-10-31   ``Standard provider python operator (#42081)``
+`68f8164a36 <https://github.com/apache/airflow/commit/68f8164a36db66e7096c1205abead183d34b8ae6>`_  2024-10-18   ``Fix provider title in documentation (#43157)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  ================================================================================================
+
 1.2.1
 .....
 
-Latest change: 2024-09-30
+Latest change: 2024-10-09
 
 =================================================================================================  ===========  ==================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================
+`2bb8628463 <https://github.com/apache/airflow/commit/2bb862846358d1c5a59b354adb39bc68d5aeae5e>`_  2024-10-09   ``Prepare docs for Oct 1st adhoc wave of providers (#42862)``
 `ede7cb27fd <https://github.com/apache/airflow/commit/ede7cb27fd39e233889d127490a2255df8c5d27d>`_  2024-09-30   ``Rename dataset related python variable names to asset (#41348)``
 =================================================================================================  ===========  ==================================================================
 

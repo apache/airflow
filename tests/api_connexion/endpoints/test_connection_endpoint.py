@@ -31,7 +31,7 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_connections
 from tests_common.test_utils.www import _check_last_log
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module")
@@ -81,7 +81,7 @@ class TestDeleteConnection(TestConnectionEndpoint):
         assert response.status_code == 204
         connection = session.query(Connection).all()
         assert len(connection) == 0
-        _check_last_log(session, dag_id=None, event="api.connection.delete", execution_date=None)
+        _check_last_log(session, dag_id=None, event="api.connection.delete", logical_date=None)
 
     def test_delete_should_respond_404(self):
         response = self.client.delete(
@@ -160,12 +160,12 @@ class TestGetConnection(TestConnectionEndpoint):
             "/api/v1/connections/invalid-connection", environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "The Connection with connection_id: `invalid-connection` was not found",
             "status": 404,
             "title": "Connection not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get("/api/v1/connections/test-connection-id")
@@ -370,7 +370,7 @@ class TestPatchConnection(TestConnectionEndpoint):
             "/api/v1/connections/test-connection-id", json=payload, environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
-        _check_last_log(session, dag_id=None, event="api.connection.edit", execution_date=None)
+        _check_last_log(session, dag_id=None, event="api.connection.edit", logical_date=None)
 
     def test_patch_should_respond_200_with_update_mask(self, session):
         self._create_connection(session)
@@ -506,12 +506,12 @@ class TestPatchConnection(TestConnectionEndpoint):
             "/api/v1/connections/test-connection-id", json=payload, environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "The Connection with connection_id: `test-connection-id` was not found",
             "status": 404,
             "title": "Connection not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
     def test_should_raises_401_unauthenticated(self, session):
         self._create_connection(session)
@@ -535,7 +535,7 @@ class TestPostConnection(TestConnectionEndpoint):
         assert len(connection) == 1
         assert connection[0].conn_id == "test-connection-id"
         _check_last_log(
-            session, dag_id=None, event="api.connection.create", execution_date=None, expected_extra=payload
+            session, dag_id=None, event="api.connection.create", logical_date=None, expected_extra=payload
         )
 
     def test_post_should_respond_200_extra_null(self, session):

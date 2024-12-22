@@ -89,7 +89,7 @@ class TestConsumeFromTopic:
         operator = ConsumeFromTopicOperator(
             kafka_config_id=TOPIC,
             topics=[TOPIC],
-            apply_function="tests.integration.providers.apache.kafka.operators.test_consume._basic_message_tester",
+            apply_function="providers.tests.integration.apache.kafka.operators.test_consume._basic_message_tester",
             apply_function_kwargs={"test": TOPIC},
             task_id="test",
             poll_timeout=10,

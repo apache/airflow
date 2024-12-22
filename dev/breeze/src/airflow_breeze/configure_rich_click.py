@@ -97,7 +97,7 @@ else:
                 "commands": ["setup", "ci"],
             },
         ],
-        "breeze testing": [TESTING_COMMANDS],
+        "breeze testing": TESTING_COMMANDS,
         "breeze k8s": [
             KUBERNETES_CLUSTER_COMMANDS,
             KUBERNETES_INSPECTION_COMMANDS,

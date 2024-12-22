@@ -23,7 +23,7 @@ from airflow.utils.session import provide_session
 
 
 class RunnableExecDateDep(BaseTIDep):
-    """Determines whether a task's execution date is valid."""
+    """Determines whether a task's logical date is valid."""
 
     NAME = "Execution Date"
     IGNORABLE = True
@@ -34,11 +34,11 @@ class RunnableExecDateDep(BaseTIDep):
 
         # don't consider runs that are executed in the future unless
         # specified by config and schedule is None
-        logical_date = ti.get_dagrun(session).execution_date
+        logical_date = ti.get_dagrun(session).logical_date
         if logical_date > cur_date and not ti.task.dag.allow_future_exec_dates:
             yield self._failing_status(
                 reason=(
-                    f"Execution date {logical_date.isoformat()} is in the future "
+                    f"Logical date {logical_date.isoformat()} is in the future "
                     f"(the current date is {cur_date.isoformat()})."
                 )
             )
@@ -46,7 +46,7 @@ class RunnableExecDateDep(BaseTIDep):
         if ti.task.end_date and logical_date > ti.task.end_date:
             yield self._failing_status(
                 reason=(
-                    f"The execution date is {logical_date.isoformat()} but this is "
+                    f"The logical date is {logical_date.isoformat()} but this is "
                     f"after the task's end date {ti.task.end_date.isoformat()}."
                 )
             )
@@ -54,7 +54,7 @@ class RunnableExecDateDep(BaseTIDep):
         if ti.task.dag and ti.task.dag.end_date and logical_date > ti.task.dag.end_date:
             yield self._failing_status(
                 reason=(
-                    f"The execution date is {logical_date.isoformat()} but this is after "
+                    f"The logical date is {logical_date.isoformat()} but this is after "
                     f"the task's DAG's end date {ti.task.dag.end_date.isoformat()}."
                 )
             )

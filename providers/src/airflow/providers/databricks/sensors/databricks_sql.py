@@ -20,8 +20,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
+from typing import TYPE_CHECKING, Any, Callable
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler

@@ -17,56 +17,60 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import Depends
 from sqlalchemy import select
-from sqlalchemy.orm import Session
-from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import (
-    get_session,
+    SessionDep,
     paginated_select,
 )
 from airflow.api_fastapi.common.parameters import (
-    QueryDagIdInDagWarningFilter,
+    FilterParam,
     QueryLimit,
     QueryOffset,
-    QueryWarningTypeFilter,
     SortParam,
+    filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.dag_warning import (
+from airflow.api_fastapi.core_api.datamodels.dag_warning import (
     DAGWarningCollectionResponse,
-    DAGWarningResponse,
 )
-from airflow.models import DagWarning
+from airflow.models.dagwarning import DagWarning, DagWarningType
 
 dag_warning_router = AirflowRouter(tags=["DagWarning"])
 
 
-@dag_warning_router.get("/dagWarnings", responses=create_openapi_http_exception_doc([401, 403]))
-async def list_dag_warnings(
-    dag_id: QueryDagIdInDagWarningFilter,
-    warning_type: QueryWarningTypeFilter,
+@dag_warning_router.get(
+    "/dagWarnings",
+)
+def list_dag_warnings(
+    dag_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(DagWarning.dag_id, str | None))],
+    warning_type: Annotated[
+        FilterParam[DagWarningType | None],
+        Depends(filter_param_factory(DagWarning.warning_type, DagWarningType | None)),
+    ],
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
         SortParam,
         Depends(SortParam(["dag_id", "warning_type", "message", "timestamp"], DagWarning).dynamic_depends()),
     ],
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> DAGWarningCollectionResponse:
     """Get a list of DAG warnings."""
     dag_warnings_select, total_entries = paginated_select(
-        select(DagWarning), [warning_type, dag_id], order_by, offset, limit, session
+        statement=select(DagWarning),
+        filters=[warning_type, dag_id],
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
     )
-
-    dag_warnings = session.scalars(dag_warnings_select).all()
+    dag_warnings = session.scalars(dag_warnings_select)
 
     return DAGWarningCollectionResponse(
-        dag_warnings=[
-            DAGWarningResponse.model_validate(dag_warning, from_attributes=True)
-            for dag_warning in dag_warnings
-        ],
+        dag_warnings=dag_warnings,
         total_entries=total_entries,
     )

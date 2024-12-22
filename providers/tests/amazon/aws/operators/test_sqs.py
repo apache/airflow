@@ -42,7 +42,7 @@ def mocked_context():
 
 class TestSqsPublishOperator:
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self):
+    def _setup_test_cases(self):
         self.default_op_kwargs = {
             "task_id": "test_task",
             "message_content": "hello",

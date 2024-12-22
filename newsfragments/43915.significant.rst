@@ -1,0 +1,4 @@
+Configuration ``[core] strict_dataset_uri_validation`` is removed
+
+Asset URI with a defined scheme will now always be validated strictly, raising
+a hard error on validation failure.

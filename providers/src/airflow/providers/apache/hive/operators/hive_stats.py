@@ -18,7 +18,8 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, Callable
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator

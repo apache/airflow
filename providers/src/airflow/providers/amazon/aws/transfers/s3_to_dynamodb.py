@@ -17,7 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, Sequence, TypedDict
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 from botocore.exceptions import ClientError, WaiterError
 
@@ -240,7 +241,7 @@ class S3ToDynamoDBOperator(BaseOperator):
         finally:
             self.log.info("Delete tmp DynamoDB table %s", self.tmp_table_name)
             client.delete_table(TableName=self.tmp_table_name)
-            return dynamodb_hook.get_conn().Table(self.dynamodb_table_name).table_arn
+        return dynamodb_hook.get_conn().Table(self.dynamodb_table_name).table_arn
 
     def execute(self, context: Context) -> str:
         """

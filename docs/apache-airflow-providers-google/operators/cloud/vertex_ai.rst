@@ -216,7 +216,7 @@ To create a Google Vertex AI Auto ML training jobs you have five operators
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLForecastingTrainingJobOperator`
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLImageTrainingJobOperator`
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTabularTrainingJobOperator`
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTextTrainingJobOperator`
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator`
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLVideoTrainingJobOperator`
 Each of them will wait for the operation to complete. The results of each operator will be a model
 which was trained by user using these operators.
@@ -245,6 +245,14 @@ put dataset id to ``dataset_id`` parameter in operator.
     :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_image_training_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_image_training_job_operator]
 
+To run AutoML image detection training job:
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_image_object_detection.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_image_object_detection_training_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_image_object_detection_training_job_operator]
+
 How to run AutoML Tabular Training Job
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTabularTrainingJobOperator`
 
@@ -256,17 +264,6 @@ put dataset id to ``dataset_id`` parameter in operator.
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_tabular_training_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_tabular_training_job_operator]
-
-How to run AutoML Text Training Job
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTextTrainingJobOperator`
-
-Operator is deprecated, the non-training (existing legacy models) AutoMLText API will be deprecated
-on June 15, 2025.
-There are 2 options for text classification, extraction, and sentiment analysis tasks replacement:
-- Prompts with pre-trained Gemini model, using :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.TextGenerationModelPredictOperator`.
-- Fine tuning over Gemini model, For more tailored results, using :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator`.
-
-Please visit the https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini-tuning for more details.
 
 How to run AutoML Video Training Job
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLVideoTrainingJobOperator`
@@ -289,6 +286,15 @@ version of existing Model instead of new Model created in Model Registry. This c
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_video_training_job_v2_operator]
     :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_video_training_job_v2_operator]
+
+Also you can use vertex_ai AutoML model for video tracking.
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_video_tracking.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_video_tracking_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_video_tracking_job_operator]
+
 
 You can get a list of AutoML Training Jobs using
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.ListAutoMLTrainingJobOperator`.
@@ -584,16 +590,6 @@ To get a pipeline job list you can use
 Interacting with Generative AI
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To generate a prediction via language model you can use
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.TextGenerationModelPredictOperator`.
-The operator returns the model's response in :ref:`XCom <concepts:xcom>` under ``model_response`` key.
-
-.. exampleinclude:: /../../providers/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
-    :language: python
-    :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_text_generation_model_predict_operator]
-    :end-before: [END how_to_cloud_vertex_ai_text_generation_model_predict_operator]
-
 To generate text embeddings you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.TextEmbeddingModelGetEmbeddingsOperator`.
 The operator returns the model's response in :ref:`XCom <concepts:xcom>` under ``model_response`` key.
@@ -664,6 +660,38 @@ The operator returns the cached content response in :ref:`XCom <concepts:xcom>` 
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_generate_from_cached_content_operator]
     :end-before: [END how_to_cloud_vertex_ai_generate_from_cached_content_operator]
+
+Interacting with Vertex AI Feature Store
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To get a feature view sync job you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.feature_store.GetFeatureViewSyncOperator`.
+The operator returns sync job results in :ref:`XCom <concepts:xcom>` under ``return_value`` key.
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/vertex_ai/example_vertex_ai_feature_store.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_feature_store_get_feature_view_sync_operator]
+    :end-before: [END how_to_cloud_vertex_ai_feature_store_get_feature_view_sync_operator]
+
+To sync a feature view you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.feature_store.SyncFeatureViewOperator`.
+The operator returns the sync job name in :ref:`XCom <concepts:xcom>` under ``return_value`` key.
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/vertex_ai/example_vertex_ai_feature_store.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_feature_store_sync_feature_view_operator]
+    :end-before: [END how_to_cloud_vertex_ai_feature_store_sync_feature_view_operator]
+
+To check if Feature View Sync succeeded you can use
+:class:`~airflow.providers.google.cloud.sensors.vertex_ai.FeatureViewSyncSensor`.
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/vertex_ai/example_vertex_ai_feature_store.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_feature_store_feature_view_sync_sensor]
+    :end-before: [END how_to_cloud_vertex_ai_feature_store_feature_view_sync_sensor]
 
 Reference
 ^^^^^^^^^

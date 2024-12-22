@@ -19,19 +19,23 @@
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import { useConfig } from "src/queries/useConfig";
+
 import { searchParamsToState, stateToSearchParams } from "./searchParams";
 import type { TableState } from "./types";
 
-export const defaultTableState = {
-  pagination: {
-    pageIndex: 0,
-    pageSize: 50,
-  },
-  sorting: [],
-} as const satisfies TableState;
-
 export const useTableURLState = (defaultState?: Partial<TableState>) => {
   const [searchParams, setSearchParams] = useSearchParams();
+
+  const pageSize = useConfig("page_size") as number;
+
+  const defaultTableState = {
+    pagination: {
+      pageIndex: 0,
+      pageSize,
+    },
+    sorting: [],
+  } as const satisfies TableState;
 
   const handleStateChange = useCallback(
     (state: TableState) => {
@@ -39,7 +43,7 @@ export const useTableURLState = (defaultState?: Partial<TableState>) => {
         replace: true,
       });
     },
-    [setSearchParams],
+    [setSearchParams, defaultTableState],
   );
 
   const tableURLState = useMemo(
@@ -48,7 +52,7 @@ export const useTableURLState = (defaultState?: Partial<TableState>) => {
         ...defaultTableState,
         ...defaultState,
       }),
-    [searchParams, defaultState],
+    [searchParams, defaultState, defaultTableState],
   );
 
   return {

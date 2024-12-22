@@ -23,8 +23,10 @@ import abc
 import logging
 import string
 import warnings
+from collections.abc import Iterable
 from functools import partial, wraps
-from typing import Callable, Iterable, Pattern, cast
+from re import Pattern
+from typing import Callable, cast
 
 import re2
 
@@ -44,7 +46,7 @@ class MetricNameLengthExemptionWarning(Warning):
 
 # Only characters in the character set are considered valid
 # for the stat_name if stat_name_default_handler is used.
-ALLOWED_CHARACTERS = frozenset(string.ascii_letters + string.digits + "_.-")
+ALLOWED_CHARACTERS = frozenset(string.ascii_letters + string.digits + "_.-/")
 
 # The following set contains existing metrics whose names are too long for
 # OpenTelemetry and should be deprecated over time. This is implemented to

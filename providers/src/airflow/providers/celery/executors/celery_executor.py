@@ -30,11 +30,13 @@ import math
 import operator
 import time
 from collections import Counter
+from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import cpu_count
-from typing import TYPE_CHECKING, Any, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Optional
 
 from celery import states as celery_states
+from deprecated import deprecated
 from packaging.version import Version
 
 from airflow import __version__ as airflow_version
@@ -52,7 +54,7 @@ from airflow.cli.cli_config import (
     lazy_load_command,
 )
 from airflow.configuration import conf
-from airflow.exceptions import AirflowTaskTimeout
+from airflow.exceptions import AirflowProviderDeprecationWarning, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
 from airflow.stats import Stats
 from airflow.utils.state import TaskInstanceState
@@ -74,7 +76,7 @@ if TYPE_CHECKING:
 
     # Task instance that is sent over Celery queues
     # TaskInstanceKey, Command, queue_name, CallableTask
-    TaskInstanceInCelery = Tuple[TaskInstanceKey, CommandType, Optional[str], Task]
+    TaskInstanceInCelery = tuple[TaskInstanceKey, CommandType, Optional[str], Task]
 
 
 # PEP562
@@ -162,7 +164,7 @@ ARG_WITHOUT_GOSSIP = Arg(
 CELERY_CLI_COMMAND_PATH = (
     "airflow.providers.celery.cli.celery_command"
     if Version(airflow_version) >= Version("2.8.0")
-    else "airflow.cli.commands.celery_command"
+    else "airflow.cli.commands.local_commands.celery_command"
 )
 
 CELERY_COMMANDS = (
@@ -433,31 +435,34 @@ class CeleryExecutor(BaseExecutor):
 
         return not_adopted_tis
 
+    @deprecated(
+        reason="Replaced by function `revoke_task`. Upgrade airflow core to make this go away.",
+        category=AirflowProviderDeprecationWarning,
+    )
     def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
         """
-        Handle remnants of tasks that were failed because they were stuck in queued.
+        Remove tasks stuck in queued from executor and fail them.
 
-        Tasks can get stuck in queued. If such a task is detected, it will be marked
-        as `UP_FOR_RETRY` if the task instance has remaining retries or marked as `FAILED`
-        if it doesn't.
-
-        :param tis: List of Task Instances to clean up
-        :return: List of readable task instances for a warning message
+        This method is deprecated. Use `cleanup_tasks_stuck_in_queued` instead.
         """
-        readable_tis = []
+        reprs = []
+        for ti in tis:
+            reprs.append(repr(ti))
+            self.revoke_task(ti=ti)
+            self.fail(ti.key)
+        return reprs
+
+    def revoke_task(self, *, ti: TaskInstance):
         from airflow.providers.celery.executors.celery_executor_utils import app
 
-        for ti in tis:
-            readable_tis.append(repr(ti))
-            task_instance_key = ti.key
-            self.fail(task_instance_key, None)
-            celery_async_result = self.tasks.pop(task_instance_key, None)
-            if celery_async_result:
-                try:
-                    app.control.revoke(celery_async_result.task_id)
-                except Exception as ex:
-                    self.log.error("Error revoking task instance %s from celery: %s", task_instance_key, ex)
-        return readable_tis
+        celery_async_result = self.tasks.pop(ti.key, None)
+        if celery_async_result:
+            try:
+                app.control.revoke(celery_async_result.task_id)
+            except Exception:
+                self.log.exception("Error revoking task instance %s from celery", ti.key)
+        self.running.discard(ti.key)
+        self.queued_tasks.pop(ti.key, None)
 
     @staticmethod
     def get_cli_commands() -> list[GroupCommand]:

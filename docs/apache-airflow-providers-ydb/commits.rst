@@ -35,14 +35,43 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.1.0
+.....
+
+Latest change: 2024-12-19
+
+=================================================================================================  ===========  =====================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================================================
+`088242a911 <https://github.com/apache/airflow/commit/088242a911ba52f16a8c97df0d6dcb7e47ca1b73>`_  2024-12-19   ``Update Example URL in YDB docs (#45033)``
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`4dfae23532 <https://github.com/apache/airflow/commit/4dfae23532d26ed838069c49d48f28c185e954c6>`_  2024-11-15   ``Update DAG example links in multiple providers documents (#44034)``
+=================================================================================================  ===========  =====================================================================
+
+2.0.0
+.....
+
+Latest change: 2024-11-14
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
+`e7194dff6a <https://github.com/apache/airflow/commit/e7194dff6a816bf3a721cbf579ceac19c11cd111>`_  2024-11-13   ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+`cf3d55d8ed <https://github.com/apache/airflow/commit/cf3d55d8ed7524cd073b8d7ce3c2d8fd57043348>`_  2024-11-12   ``Migrate YDB Operator to new DBAPI (#43784)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  ========================================================================================
+
 1.4.0
 .....
 
-Latest change: 2024-10-03
+Latest change: 2024-10-09
 
 =================================================================================================  ===========  ====================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================
+`2bb8628463 <https://github.com/apache/airflow/commit/2bb862846358d1c5a59b354adb39bc68d5aeae5e>`_  2024-10-09   ``Prepare docs for Oct 1st adhoc wave of providers (#42862)``
 `3c4fbce5d6 <https://github.com/apache/airflow/commit/3c4fbce5d621e1e701a9a8574e50844821de37d4>`_  2024-10-03   ``Add an ability to use scan queries via new YDB operator (#42311)``
 =================================================================================================  ===========  ====================================================================
 

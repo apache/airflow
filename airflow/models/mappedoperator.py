@@ -21,7 +21,8 @@ import collections.abc
 import contextlib
 import copy
 import warnings
-from typing import TYPE_CHECKING, Any, ClassVar, Collection, Iterable, Iterator, Mapping, Sequence, Union
+from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar, Union
 
 import attr
 import methodtools
@@ -61,7 +62,6 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     import datetime
-    from typing import List
 
     import jinja2  # Slow import.
     import pendulum
@@ -87,7 +87,7 @@ if TYPE_CHECKING:
     from airflow.utils.task_group import TaskGroup
     from airflow.utils.trigger_rule import TriggerRule
 
-    TaskStateChangeCallbackAttrType = Union[None, TaskStateChangeCallback, List[TaskStateChangeCallback]]
+    TaskStateChangeCallbackAttrType = Union[None, TaskStateChangeCallback, list[TaskStateChangeCallback]]
 
 ValidationSource = Union[Literal["expand"], Literal["partial"]]
 
@@ -821,6 +821,8 @@ class MappedOperator(AbstractOperator):
         from airflow.serialization.serialized_objects import SerializedBaseOperator
 
         op = SerializedBaseOperator(task_id=self.task_id, params=self.params, _airflow_from_mapped=True)
+        for partial_attr, value in self.partial_kwargs.items():
+            setattr(op, partial_attr, value)
         SerializedBaseOperator.populate_operator(op, self.operator_class)
         if self.dag is not None:  # For Mypy; we only serialize tasks in a DAG so the check always satisfies.
             SerializedBaseOperator.set_task_dag_references(op, self.dag)

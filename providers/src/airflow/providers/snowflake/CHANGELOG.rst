@@ -27,6 +27,60 @@
 Changelog
 ---------
 
+6.0.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the snowflake provider package.
+  The following breaking changes were introduced:
+
+  * Removed deprecated ``SnowflakeOperator``. Use ``SQLExecuteQueryOperator`` instead.
+
+* ``Remove Provider Deprecations in Snowflake (#44756)``
+
+Features
+~~~~~~~~
+
+* ``enable client_store_temporary_credential for snowflake provider (#44431)``
+* ``Allow 'json_result_force_utf8_encoding' specification in 'providers.snowflake.hooks.SnowflakeHook' extra dict (#44264)``
+* ``make host/port configurable for Snowflake connections (#44079)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+* ``Update DAG example links in multiple providers documents (#44034)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Update path of example dags in docs (#45069)``
+
+5.8.1
+.....
+
+Misc
+~~~~
+
+* ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+* ``Move python operator to Standard provider (#42081)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Start porting DAG definition code to the Task SDK (#43076)``
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+
 5.8.0
 .....
 

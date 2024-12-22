@@ -18,16 +18,19 @@ from __future__ import annotations
 
 import logging
 import os
+import warnings
 from pathlib import Path
 from typing import cast
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from starlette.requests import Request
 from starlette.responses import HTMLResponse
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 
+from airflow.exceptions import AirflowException
 from airflow.settings import AIRFLOW_PATH
 from airflow.www.extensions.init_dagbag import get_dag_bag
 
@@ -97,6 +100,41 @@ def init_plugins(app: FastAPI) -> None:
         app.mount(url_prefix, subapp)
 
 
+def init_flask_plugins(app: FastAPI) -> None:
+    """Integrate Flask plugins (plugins from Airflow 2)."""
+    from airflow import plugins_manager
+
+    plugins_manager.initialize_flask_plugins()
+
+    # If no Airflow 2.x plugin is in the environment, no need to go further
+    if (
+        not plugins_manager.flask_blueprints
+        and not plugins_manager.flask_appbuilder_views
+        and not plugins_manager.flask_appbuilder_menu_links
+    ):
+        return
+
+    from fastapi.middleware.wsgi import WSGIMiddleware
+
+    try:
+        from airflow.providers.fab.www.app import create_app
+    except ImportError:
+        raise AirflowException(
+            "Some Airflow 2 plugins have been detected in your environment. "
+            "To run them with Airflow 3, you must install the FAB provider in your Airflow environment."
+        )
+
+    warnings.warn(
+        "You have a plugin that is using a FAB view or Flask Blueprint, which was used for the Airflow 2 UI,"
+        "and is now deprecated. Please update your plugin to be compatible with the Airflow 3 UI.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
+    flask_app = create_app()
+    app.mount("/pluginsv2", WSGIMiddleware(flask_app))
+
+
 def init_config(app: FastAPI) -> None:
     from airflow.configuration import conf
 
@@ -113,4 +151,17 @@ def init_config(app: FastAPI) -> None:
             allow_headers=allow_headers,
         )
 
+    # Compress responses greater than 1kB with optimal compression level as 5
+    # with level ranging from 1 to 9 with 1 (fastest, least compression)
+    # and 9 (slowest, most compression)
+    app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
+
     app.state.secret_key = conf.get("webserver", "secret_key")
+
+
+def init_error_handlers(app: FastAPI) -> None:
+    from airflow.api_fastapi.common.exceptions import DatabaseErrorHandlers
+
+    # register database error handlers
+    for handler in DatabaseErrorHandlers:
+        app.add_exception_handler(handler.exception_cls, handler.exception_handler)

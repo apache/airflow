@@ -25,6 +25,53 @@
 Changelog
 ---------
 
+1.3.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/common/compat): add back add_input_dataset and add_output_dataset to NoOpCollector (#44681)``
+* ``Fix name of private function in compat provider (#44680)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+* ``Remove references to AIRFLOW_V_2_9_PLUS (#44987)``
+* ``Consistent way of checking Airflow version in providers (#44686)``
+* ``Remove unnecessary compatibility code in S3 asset import (#44714)``
+* ``Move Asset user facing components to task_sdk (#43773)``
+* ``Make AssetAliasEvent a class context.py (#44709)``
+* ``Move triggers to standard provider (#43608)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bumping common compat to 1.3.0 (#44728)``
+   * ``Prevent __init__.py in providers from being modified (#44713)``
+   * ``Fix accidental db tests in Task SDK (#44690)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``feat: automatically inject OL info into spark job in DataprocSubmitJobOperator (#44477)``
+
+1.2.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``serialize asset/dataset timetable conditions in OpenLineage info also for Airflow 2 (#43434)``
+* ``Move python operator to Standard provider (#42081)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+   * ``Fix provider title in documentation (#43157)``
+
 1.2.1
 .....
 

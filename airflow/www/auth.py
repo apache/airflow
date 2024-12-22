@@ -18,8 +18,9 @@ from __future__ import annotations
 
 import functools
 import logging
+from collections.abc import Sequence
 from functools import wraps
-from typing import TYPE_CHECKING, Callable, Sequence, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
 from flask import flash, redirect, render_template, request, url_for
 from flask_appbuilder._compat import as_unicode
@@ -29,6 +30,7 @@ from flask_appbuilder.const import (
     PERMISSION_PREFIX,
 )
 
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.auth.managers.models.resource_details import (
     AccessView,
     ConnectionDetails,
@@ -39,7 +41,6 @@ from airflow.auth.managers.models.resource_details import (
 )
 from airflow.configuration import conf
 from airflow.utils.net import get_hostname
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod

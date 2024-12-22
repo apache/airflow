@@ -17,12 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
-from deprecated.classic import deprecated
-
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.alibaba.cloud.hooks.analyticdb_spark import AnalyticDBSparkHook, AppState
 from airflow.sensors.base import BaseSensorOperator
 
@@ -58,11 +56,6 @@ class AnalyticDBSparkSensor(BaseSensorOperator):
     def hook(self) -> AnalyticDBSparkHook:
         """Get valid hook."""
         return AnalyticDBSparkHook(adb_spark_conn_id=self._adb_spark_conn_id, region=self._region)
-
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
-    def get_hook(self) -> AnalyticDBSparkHook:
-        """Get valid hook."""
-        return self.hook
 
     def poke(self, context: Context) -> bool:
         app_id = self.app_id

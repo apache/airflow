@@ -18,8 +18,9 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, AsyncIterator
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
@@ -62,7 +63,7 @@ class GlueJobCompleteTrigger(BaseTrigger):
             {
                 "job_name": self.job_name,
                 "run_id": self.run_id,
-                "verbose": str(self.verbose),
+                "verbose": self.verbose,
                 "aws_conn_id": self.aws_conn_id,
                 "job_poll_interval": self.job_poll_interval,
             },

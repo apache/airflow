@@ -32,6 +32,7 @@ airbyte
 AirflowException
 airflowignore
 ajax
+aks
 AlertApi
 alertPolicies
 Alibaba
@@ -124,6 +125,7 @@ autoscale
 autoscaled
 autoscaler
 autoscaling
+available
 avp
 Avro
 avro
@@ -355,6 +357,7 @@ dagbag
 dagbags
 DagCallbackRequest
 DagFileProcessorManager
+dagfolder
 dagmodel
 DagParam
 Dagre
@@ -366,6 +369,7 @@ dagruns
 DagRunState
 dagRunState
 DAGs
+DagsFolderDagBundle
 Dask
 dask
 daskexecutor
@@ -576,6 +580,7 @@ errno
 errored
 eslint
 ETag
+etag
 etl
 europe
 eval
@@ -683,6 +688,7 @@ getframe
 getint
 GetPartitions
 getsource
+getters
 gevent
 GH
 GiB
@@ -790,6 +796,7 @@ ignoreUnknownValues
 ImageAnnotatorClient
 imageORfile
 imagePullPolicy
+imagePullSecrets
 imageVersion
 Imap
 imap
@@ -896,6 +903,7 @@ Jupyter
 jupyter
 jupytercmd
 JWT
+jwt
 Kafka
 kafka
 Kalibrr
@@ -964,8 +972,10 @@ LineItem
 lineterminator
 linter
 linux
+ListDatasetsPager
 ListGenerator
 ListInfoTypesResponse
+ListModelsPager
 ListSecretsPager
 Liveness
 liveness
@@ -1054,6 +1064,8 @@ moto
 mouseover
 msg
 mssql
+mTLS
+mtls
 muldelete
 Multinamespace
 mutex
@@ -1373,6 +1385,7 @@ repos
 repr
 req
 reqs
+requeued
 Reserialize
 reserialize
 reserialized
@@ -1614,6 +1627,7 @@ symlinking
 symlinks
 sync'ed
 sys
+sysinfo
 syspath
 Systemd
 systemd
@@ -1698,6 +1712,7 @@ traceback
 tracebacks
 tracemalloc
 TrainingPipeline
+TranslationServiceClient
 travis
 triage
 triaging

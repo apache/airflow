@@ -56,7 +56,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-asana/|version|/providers/tests/system/asana/example_asana.py>
+    Example DAGs <https://github.com/apache/airflow/blob/providers-asana/|version|/providers/tests/system/asana/example_asana.py>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-asana/>
     Installing from sources <installing-providers-from-sources>
 
@@ -77,7 +77,7 @@ apache-airflow-providers-asana package
 `Asana <https://asana.com/>`__
 
 
-Release: 2.6.0
+Release: 2.7.0
 
 Provider package
 ----------------
@@ -95,11 +95,11 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.9.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.8.0``
+``apache-airflow``  ``>=2.9.0``
 ``asana``           ``>=0.10,<4.0.0``
 ==================  ==================

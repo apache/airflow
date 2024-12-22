@@ -52,6 +52,7 @@ def get_event_log(*, event_log_id: int, session: Session = NEW_SESSION) -> APIRe
     return event_log_schema.dump(event_log)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.AUDIT_LOG)
 @format_parameters({"limit": check_limit})
 @provide_session

@@ -20,7 +20,8 @@ import datetime
 import json
 import re
 import uuid
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -113,7 +114,7 @@ class WorkflowsCreateWorkflowOperator(GoogleCloudBaseOperator):
 
         # We are limited by allowed length of workflow_id so
         # we use hash of whole information
-        exec_date = context["execution_date"].isoformat()
+        exec_date = context["logical_date"].isoformat()
         base = f"airflow_{self.dag_id}_{self.task_id}_{exec_date}_{hash_base}"
         workflow_id = md5(base.encode()).hexdigest()
         return re.sub(r"[:\-+.]", "_", workflow_id)

@@ -22,9 +22,11 @@ description: |
     `Apache Pinot <https://pinot.apache.org/>`__
 
 state: ready
-source-date-epoch: 1723969316
+source-date-epoch: 1734528530
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.6.0
+  - 4.5.1
   - 4.5.0
   - 4.4.2
   - 4.4.1
@@ -52,8 +54,8 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.8.0
-  - apache-airflow-providers-common-sql>=1.14.1
+  - apache-airflow>=2.9.0
+  - apache-airflow-providers-common-sql>=1.20.0
   - pinotdb>=5.1.0
 
 integrations:

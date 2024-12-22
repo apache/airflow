@@ -19,21 +19,24 @@
 import { Dialog as ChakraDialog } from "@chakra-ui/react";
 import { forwardRef } from "react";
 
-import { CloseButton } from "../CloseButton";
+import { CloseButton, type CloseButtonProps } from "../CloseButton";
 
-export const CloseTrigger = forwardRef<
-  HTMLButtonElement,
-  ChakraDialog.CloseTriggerProps
->((props, ref) => (
-  <ChakraDialog.CloseTrigger
-    insetEnd="2"
-    position="absolute"
-    top="2"
-    {...props}
-    asChild
-  >
-    <CloseButton ref={ref} size="sm">
-      {props.children}
-    </CloseButton>
-  </ChakraDialog.CloseTrigger>
-));
+type Props = {
+  closeButtonProps?: CloseButtonProps;
+} & ChakraDialog.CloseTriggerProps;
+
+export const CloseTrigger = forwardRef<HTMLButtonElement, Props>(
+  ({ children, closeButtonProps, ...rest }, ref) => (
+    <ChakraDialog.CloseTrigger
+      insetEnd="2"
+      position="absolute"
+      top="2"
+      {...rest}
+      asChild
+    >
+      <CloseButton ref={ref} size="sm" {...closeButtonProps}>
+        {children}
+      </CloseButton>
+    </ChakraDialog.CloseTrigger>
+  ),
+);

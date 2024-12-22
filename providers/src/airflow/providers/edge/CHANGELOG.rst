@@ -27,6 +27,159 @@
 Changelog
 ---------
 
+0.9.6pre0
+.........
+
+Misc
+~~~~
+
+* ``Replace null value in log file chunk with question mark to fix exception by pushing log into DB.``
+
+0.9.5pre0
+.........
+
+Misc
+~~~~
+
+* ``Revert removal of Pydantic model support from PR 44552 to restore compatibility with Airflow 2.10.``
+
+0.9.4pre0
+.........
+
+Misc
+~~~~
+
+* ``Fix to keep edge executor and edge job table in sync. Important in multi scheduler deployments.``
+
+0.9.3pre0
+.........
+
+Misc
+~~~~
+
+* ``Handle purging of restarting edge jobs.``
+
+0.9.2pre0
+.........
+
+Misc
+~~~~
+
+* ``Fix check edge worker api call authentication with different base url. Authentication failed when Airflow is not installed in webserver root.``
+
+0.9.1pre0
+.........
+
+Misc
+~~~~
+
+* ``Make edge executor DB access is multi instance save.``
+
+0.9.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Remove dependency to Internal API after migration to FastAPI.``
+
+0.8.2pre0
+.........
+
+Misc
+~~~~
+
+* ``Migrate worker job calls to FastAPI.``
+
+0.8.1pre0
+.........
+
+Misc
+~~~~
+
+* ``Migrate worker log calls to FastAPI.``
+
+0.8.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Migrate worker registration and heartbeat to FastAPI.``
+
+0.7.1pre0
+.........
+
+Misc
+~~~~
+
+* ``Edge worker state is sent as 0 to DB if offline or unknown.``
+
+0.7.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Edge worker supports concurrency slots feature so that jobs which need more concurrency blocking other jobs beeing executed on the same worker in parallel.``
+
+0.6.2pre0
+.........
+
+Misc
+~~~~
+
+* ``Fix race that reporting status fails if the task has been cleaned in parallel.``
+
+0.6.1pre0
+.........
+
+Misc
+~~~~
+
+* ``Update jobs or edge workers who have been killed to clean up job table.``
+
+0.6.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Support for FastAPI in Airflow 3 as API backend.``
+
+0.5.5pre0
+.........
+
+Misc
+~~~~
+
+* ``Fixed reading none UTF-8 signs in log file.``
+
+0.5.4pre0
+.........
+
+Misc
+~~~~
+
+* ``Fix SIGINT handling of child processes. Ensure graceful shutdown when SIGINT in received (not killing working tasks).``
+* ``Fix SIGTERM handling of child processes. Ensure all childs are terminated on SIGTERM.``
+
+0.5.3pre0
+.........
+
+Misc
+~~~~
+
+* ``Adding some links to host and job overview pages.``
+
+0.5.2pre0
+.........
+
+Misc
+~~~~
+
+* ``Small beautification for host status in Edge Worker view.``
+
 0.5.1pre0
 .........
 

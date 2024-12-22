@@ -58,11 +58,16 @@ def lineage_run_id(task_instance: TaskInstance):
         For more information take a look at the guide:
         :ref:`howto/macros:openlineage`
     """
+    if hasattr(task_instance, "logical_date"):
+        logical_date = task_instance.logical_date
+    else:
+        logical_date = task_instance.execution_date
     return OpenLineageAdapter.build_task_instance_run_id(
         dag_id=task_instance.dag_id,
         task_id=task_instance.task_id,
         try_number=task_instance.try_number,
-        execution_date=task_instance.execution_date,
+        logical_date=logical_date,
+        map_index=task_instance.map_index,
     )
 
 

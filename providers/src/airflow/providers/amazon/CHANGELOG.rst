@@ -26,6 +26,52 @@
 Changelog
 ---------
 
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+9.3.0
+.....
+
+Misc
+~~~~
+
+* ``The experimental AWS auth manager is no longer compatible with Airflow 2``
+
+9.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add DMS Serverless Operators (#43988)``
+* ``Add fail_on_file_not_exist option to SFTPToS3Operator (#44320)``
+* ``Add 'wait_policy' option to 'EmrCreateJobFlowOperator' (#44055)``
+* ``Add meta_data_directive to 'S3CopyObjectOperator' (#44160)``
+
+Misc
+~~~~
+
+* ``Remove references to AIRFLOW_V_2_9_PLUS (#44987)``
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+* ``Consistent way of checking Airflow version in providers (#44686)``
+* ``Remove unnecessary compatibility code in S3 asset import (#44714)``
+* ``Remove AIP-44 from taskinstance (#44540)``
+* ``Add do_xcom_push documentation in EcsRunTaskOperator (#44440)``
+* ``Move Asset user facing components to task_sdk (#43773)``
+* ``Set up JWT token authentication in Fast APIs (#42634)``
+* ``Bump to mypy-boto3-appflow and pass without '# type: ignore[arg-type]' (#44115)``
+* ``Update DAG example links in multiple providers documents (#44034)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix deferrable RedshiftClusterSensor (#45098)``
+   * ``Update path of example dags in docs (#45069)``
+
 9.1.0
 .....
 
@@ -41,6 +87,15 @@ Bug Fixes
 
 * ``fix(providers/amazon): alias is_authorized_dataset to is_authorized_asset (#43470)``
 * ``Remove returns in final clause of athena hooks (#43426)``
+* ``fix: replace \s with space in EksHook (#43849)``
+* ``Fix 'HttpToS3Operator' throws exception if s3_bucket parameter is not passed (#43828)``
+* ``Add 'container_name' and update 'awslogs_stream_prefix' pattern (#43138)``
+* ``Check if awslogs_stream_prefix already ends with container_name (#43724)``
+* ``bugfix description should be optional for openlineage integration with 'AthenaOperator' (#43576)``
+* ``(bugfix): 'EcsRunTaskOperator' decouple 'volume_configurations' from 'capacity_provider_strategy' (#43047)``
+* ``GlueJobOperator: add option to wait for cleanup before returning job status (#43688)``
+* ``Resolve 'GlueJobTrigger' serialization bug causing verbose to always be True (#43622)``
+* ``Remove returns in final clause of S3ToDynamoDBOperator (#43456)``
 
 Misc
 ~~~~
@@ -50,6 +105,9 @@ Misc
 * ``Restrict looker-sdk version 24.18.0 and microsoft-kiota-http 1.3.4 (#42954)``
 * ``Limit mypy-boto3-appflow (#43436)``
 * ``Move PythonOperator to Standard provider (#42081)``
+* ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+* ``Remove deprecations from cncf.kubernetes provider (#43689)``
+* ``Fix docstring for AthenaTrigger (#43616)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -58,6 +116,7 @@ Misc
    * ``Start porting DAG definition code to the Task SDK (#43076)``
    * ``Prepare docs for Oct 2nd wave of providers (#43409)``
    * ``Prepare docs for Oct 2nd wave of providers RC2 (#43540)``
+   * ``Prepare docs for Oct 2nd wave of providers rc3 (#43613)``
 
 9.0.0
 .....

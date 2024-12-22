@@ -19,7 +19,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -40,14 +41,6 @@ if TYPE_CHECKING:
 class DataprocMetastoreHook(GoogleBaseHook):
     """Hook for Google Cloud Dataproc Metastore APIs."""
 
-    def __init__(self, **kwargs):
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
-        super().__init__(**kwargs)
-
     def get_dataproc_metastore_client(self) -> DataprocMetastoreClient:
         """Return DataprocMetastoreClient."""
         client_options = ClientOptions(api_endpoint="metastore.googleapis.com:443")
@@ -67,11 +60,16 @@ class DataprocMetastoreHook(GoogleBaseHook):
 
     def wait_for_operation(self, timeout: float | None, operation: Operation):
         """Wait for long-lasting operation to complete."""
+        self.log.info("Waiting for operation (timeout: %s seconds)", timeout)
+
         try:
-            return operation.result(timeout=timeout)
-        except Exception:
+            result = operation.result(timeout=timeout)
+            self.log.info("Operation completed successfully")
+            return result
+        except Exception as e:
+            self.log.error("Operation failed: %s", str(e))
             error = operation.exception(timeout=timeout)
-            raise AirflowException(error)
+            raise AirflowException(f"Operation failed: {error}")
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_backup(
@@ -676,23 +674,37 @@ class DataprocMetastoreHook(GoogleBaseHook):
         # because dictionaries are ordered since Python 3.7+
         _partitions = list(dict.fromkeys(partition_names)) if partition_names else []
 
-        query = f"""
-                SELECT *
-                FROM PARTITIONS
-                INNER JOIN TBLS
-                ON PARTITIONS.TBL_ID = TBLS.TBL_ID
-                WHERE
-                    TBLS.TBL_NAME = '{table}'"""
         if _partitions:
-            query += f"""
-                    AND PARTITIONS.PART_NAME IN ({', '.join(f"'{p}'" for p in _partitions)})"""
-        query += ";"
+            partition_list = ", ".join(f"'{p}'" for p in _partitions)
+            query = f"""
+    SELECT PARTITIONS.*, TBLS.TBL_TYPE, TBLS.TBL_NAME
+    FROM PARTITIONS
+    INNER JOIN TBLS ON PARTITIONS.TBL_ID = TBLS.TBL_ID
+    WHERE TBLS.TBL_NAME = '{table}'
+        AND PARTITIONS.PART_NAME IN ({partition_list});"""
+        else:
+            query = f"""
+    SELECT PARTITIONS.*, TBLS.TBL_TYPE, TBLS.TBL_NAME
+    FROM PARTITIONS
+    INNER JOIN TBLS ON PARTITIONS.TBL_ID = TBLS.TBL_ID
+    WHERE TBLS.TBL_NAME = '{table}';"""
 
-        client = self.get_dataproc_metastore_client_v1beta()
-        result = client.query_metadata(
-            request={
-                "service": f"projects/{project_id}/locations/{region}/services/{service_id}",
-                "query": query,
-            }
-        )
-        return result
+        request = {
+            "service": f"projects/{project_id}/locations/{region}/services/{service_id}",
+            "query": query,
+        }
+
+        self.log.info("Prepared request:")
+        self.log.info(request)
+
+        # Execute query
+        try:
+            self.log.info("Getting Dataproc Metastore client (v1beta)...")
+            client = self.get_dataproc_metastore_client_v1beta()
+            self.log.info("Executing query_metadata...")
+            result = client.query_metadata(request=request)
+            self.log.info("Query executed successfully")
+            return result
+        except Exception as e:
+            self.log.error("Error executing query_metadata: %s", str(e))
+            raise

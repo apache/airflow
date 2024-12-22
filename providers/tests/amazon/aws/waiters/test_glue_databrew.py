@@ -35,7 +35,7 @@ class TestCustomDataBrewWaiters:
     RUN_ID = "123"
 
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self, monkeypatch):
+    def _setup_test_cases(self, monkeypatch):
         self.client = boto3.client("databrew", region_name="eu-west-3")
         monkeypatch.setattr(GlueDataBrewHook, "conn", self.client)
 

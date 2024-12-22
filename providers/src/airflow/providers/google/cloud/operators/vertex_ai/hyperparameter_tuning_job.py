@@ -20,15 +20,15 @@
 
 from __future__ import annotations
 
-import warnings
-from typing import TYPE_CHECKING, Any, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform_v1 import types
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.hyperparameter_tuning_job import (
     HyperparameterTuningJobHook,
 )
@@ -128,8 +128,6 @@ class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         `service_account` is required with provided `tensorboard`. For more information on configuring
         your service account please visit:
         https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
-    :param sync: (Deprecated) Whether to execute this method synchronously. If False, this method will
-        unblock, and it will be executed in a concurrent Future.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -180,7 +178,6 @@ class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         restart_job_on_worker_restart: bool = False,
         enable_web_access: bool = False,
         tensorboard: str | None = None,
-        sync: bool = True,
         # END: run param
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -214,7 +211,6 @@ class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         self.restart_job_on_worker_restart = restart_job_on_worker_restart
         self.enable_web_access = enable_web_access
         self.tensorboard = tensorboard
-        self.sync = sync
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.hook: HyperparameterTuningJobHook | None = None
@@ -222,12 +218,6 @@ class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         self.poll_interval = poll_interval
 
     def execute(self, context: Context):
-        warnings.warn(
-            "The 'sync' parameter is deprecated and will be removed after 01.09.2024.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-
         self.log.info("Creating Hyperparameter Tuning job")
         self.hook = HyperparameterTuningJobHook(
             gcp_conn_id=self.gcp_conn_id,

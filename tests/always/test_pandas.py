@@ -28,7 +28,7 @@ pytestmark = pytest.mark.db_test
 @pytest.mark.backend("postgres", "mysql")
 class TestPandasSQLAlchemyCompatibility:
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self):
+    def _setup_test_cases(self):
         self.temp_table = "test_to_pandas"
         uri = conf.get_mandatory_value("database", "sql_alchemy_conn")
         self.engine = create_engine(uri)
@@ -45,7 +45,7 @@ class TestPandasSQLAlchemyCompatibility:
 
 class TestPandasSQLAlchemyCompatibilitySQLite:
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self):
+    def _setup_test_cases(self):
         self.temp_table = "test_to_pandas"
         self.engine = create_engine("sqlite:///:memory:")
         yield

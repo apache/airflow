@@ -23,7 +23,7 @@ from io import StringIO as StringBuffer
 import pytest
 
 from airflow.decorators import setup, task, teardown
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG
 from airflow.utils import timezone
@@ -51,7 +51,7 @@ class TestDockerDecorator:
             ret = f()
 
         dr = dag_maker.create_dagrun()
-        ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
         ti = dr.get_task_instances()[0]
         assert len(ti.xcom_pull()) == 100
 
@@ -66,7 +66,7 @@ class TestDockerDecorator:
             ret = f(50)
 
         dr = dag_maker.create_dagrun()
-        ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
         ti = dr.get_task_instances()[0]
         result = ti.xcom_pull()
         assert isinstance(result, list)
@@ -95,7 +95,7 @@ class TestDockerDecorator:
             ret = return_dict(test_number)
 
         dr = dag_maker.create_dagrun()
-        ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
 
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull(key="number") == test_number + 1
@@ -111,7 +111,7 @@ class TestDockerDecorator:
             ret = f()
 
         dr = dag_maker.create_dagrun()
-        ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() is None
 
@@ -163,9 +163,9 @@ class TestDockerDecorator:
         dr = dag_maker.create_dagrun()
         if expected_state == TaskInstanceState.FAILED:
             with pytest.raises(AirflowException):
-                ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+                ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
         else:
-            ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+            ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
             ti = dr.get_task_instances()[0]
             assert ti.state == expected_state
 
@@ -261,7 +261,6 @@ class TestDockerDecorator:
         assert some_task.command == clone_of_docker_operator.command
         assert some_task.expect_airflow == clone_of_docker_operator.expect_airflow
         assert some_task.serializer == clone_of_docker_operator.serializer
-        assert some_task.use_dill == clone_of_docker_operator.use_dill
         assert some_task.pickling_library is clone_of_docker_operator.pickling_library
 
     def test_respect_docker_host_env(self, monkeypatch, dag_maker):
@@ -323,7 +322,7 @@ class TestDockerDecorator:
 
         dr = dag_maker.create_dagrun()
         with pytest.raises(AirflowException):
-            ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+            ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
         ti = dr.get_task_instances()[0]
         assert ti.state == TaskInstanceState.FAILED
 
@@ -331,28 +330,6 @@ class TestDockerDecorator:
         assert 'with open(sys.argv[4], "w") as file:' not in log_content
         last_line_of_docker_operator_log = log_content.splitlines()[-1]
         assert "ValueError: This task is expected to fail" in last_line_of_docker_operator_log
-
-    @pytest.mark.parametrize(
-        "serializer",
-        [
-            pytest.param("pickle", id="pickle"),
-            pytest.param("dill", marks=DILL_MARKER, id="dill"),
-            pytest.param("cloudpickle", marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
-        ],
-    )
-    def test_ambiguous_serializer(self, dag_maker, serializer):
-        @task.docker(image="python:3.9-slim", auto_remove="force", use_dill=True, serializer=serializer)
-        def f():
-            pass
-
-        with dag_maker():
-            with pytest.warns(
-                AirflowProviderDeprecationWarning, match="`use_dill` is deprecated and will be removed"
-            ):
-                with pytest.raises(
-                    AirflowException, match="Both 'use_dill' and 'serializer' parameters are set"
-                ):
-                    f()
 
     def test_invalid_serializer(self, dag_maker):
         @task.docker(image="python:3.9-slim", auto_remove="force", serializer="airflow")
@@ -413,16 +390,3 @@ class TestDockerDecorator:
 
         with dag_maker():
             f()
-
-    @DILL_MARKER
-    def test_add_dill_use_dill(self, dag_maker):
-        @task.docker(image="python:3.9-slim", auto_remove="force", use_dill=True)
-        def f():
-            """Ensure dill is correctly installed."""
-            import dill  # noqa: F401
-
-        with dag_maker():
-            with pytest.warns(
-                AirflowProviderDeprecationWarning, match="`use_dill` is deprecated and will be removed"
-            ):
-                f()

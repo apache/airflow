@@ -16,10 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import datetime as dt
 import inspect
 from unittest import mock
 from unittest.mock import MagicMock, Mock, call
-from uuid import UUID
 
 import pytest
 from google.api_core.exceptions import AlreadyExists, NotFound
@@ -28,6 +28,7 @@ from google.api_core.retry_async import AsyncRetry
 from google.cloud import dataproc
 from google.cloud.dataproc_v1 import Batch, Cluster, JobStatus
 
+from airflow import __version__ as AIRFLOW_VERSION
 from airflow.exceptions import (
     AirflowException,
     AirflowProviderDeprecationWarning,
@@ -58,13 +59,7 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocScaleClusterOperator,
     DataprocStartClusterOperator,
     DataprocStopClusterOperator,
-    DataprocSubmitHadoopJobOperator,
-    DataprocSubmitHiveJobOperator,
     DataprocSubmitJobOperator,
-    DataprocSubmitPigJobOperator,
-    DataprocSubmitPySparkJobOperator,
-    DataprocSubmitSparkJobOperator,
-    DataprocSubmitSparkSqlJobOperator,
     DataprocUpdateClusterOperator,
     InstanceFlexibilityPolicy,
     InstanceSelection,
@@ -80,8 +75,8 @@ from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_MET
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.timezone import datetime
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_VERSION
 from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 AIRFLOW_VERSION_LABEL = "v" + str(AIRFLOW_VERSION).replace(".", "-").replace("+", "-")
 
@@ -560,7 +555,7 @@ class TestsClusterGenerator:
             driver_pool_size=2,
         )
         cluster = generator.make()
-        assert CONFIG == cluster
+        assert cluster == CONFIG
 
     def test_build_with_custom_image_family(self):
         generator = ClusterGenerator(
@@ -599,7 +594,7 @@ class TestsClusterGenerator:
             enable_component_gateway=True,
         )
         cluster = generator.make()
-        assert CONFIG_WITH_CUSTOM_IMAGE_FAMILY == cluster
+        assert cluster == CONFIG_WITH_CUSTOM_IMAGE_FAMILY
 
     def test_build_with_flex_migs(self):
         generator = ClusterGenerator(
@@ -649,7 +644,7 @@ class TestsClusterGenerator:
             ),
         )
         cluster = generator.make()
-        assert CONFIG_WITH_FLEX_MIG == cluster
+        assert cluster == CONFIG_WITH_FLEX_MIG
 
     def test_build_with_gpu_accelerator(self):
         generator = ClusterGenerator(
@@ -694,7 +689,7 @@ class TestsClusterGenerator:
             customer_managed_key="customer_managed_key",
         )
         cluster = generator.make()
-        assert CONFIG_WITH_GPU_ACCELERATOR == cluster
+        assert cluster == CONFIG_WITH_GPU_ACCELERATOR
 
     def test_build_with_default_value_for_internal_ip_only(self):
         generator = ClusterGenerator(project_id="project_id")
@@ -1082,7 +1077,6 @@ def test_create_cluster_operator_extra_links(dag_maker, create_task_instance_of_
     ti = create_task_instance_of_operator(
         DataprocCreateClusterOperator,
         dag_id=TEST_DAG_ID,
-        execution_date=DEFAULT_DATE,
         task_id=TASK_ID,
         region=GCP_REGION,
         project_id=GCP_PROJECT,
@@ -1192,7 +1186,6 @@ def test_scale_cluster_operator_extra_links(dag_maker, create_task_instance_of_o
     ti = create_task_instance_of_operator(
         DataprocScaleClusterOperator,
         dag_id=TEST_DAG_ID,
-        execution_date=DEFAULT_DATE,
         task_id=TASK_ID,
         cluster_name=CLUSTER_NAME,
         project_id=GCP_PROJECT,
@@ -1517,6 +1510,188 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         op.execute(context=self.mock_context)
         assert not mock_defer.called
 
+    @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_openlineage_parent_job_info_injection(self, mock_hook, mock_ol_accessible):
+        job_config = {
+            "placement": {"cluster_name": CLUSTER_NAME},
+            "pyspark_job": {
+                "main_python_file_uri": "gs://example/wordcount.py",
+                "properties": {
+                    "spark.sql.shuffle.partitions": "1",
+                    "spark.openlineage.transport.type": "console",
+                },
+            },
+        }
+        expected_config = {
+            "placement": {"cluster_name": CLUSTER_NAME},
+            "pyspark_job": {
+                "main_python_file_uri": "gs://example/wordcount.py",
+                "properties": {
+                    "spark.sql.shuffle.partitions": "1",
+                    "spark.openlineage.transport.type": "console",
+                    "spark.openlineage.parentJobName": "dag_id.task_id",
+                    "spark.openlineage.parentJobNamespace": "default",
+                    "spark.openlineage.parentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+                },
+            },
+        }
+        context = {
+            "ti": MagicMock(
+                dag_id="dag_id",
+                task_id="task_id",
+                try_number=1,
+                map_index=1,
+                logical_date=dt.datetime(2024, 11, 11),
+            )
+        }
+
+        mock_ol_accessible.return_value = True
+
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            job=job_config,
+            openlineage_inject_parent_job_info=True,
+        )
+        op.execute(context=context)
+
+        mock_hook.return_value.submit_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_REGION,
+            job=expected_config,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_openlineage_parent_job_info_injection_skipped_when_already_present(
+        self, mock_hook, mock_ol_accessible
+    ):
+        job_config = {
+            "placement": {"cluster_name": CLUSTER_NAME},
+            "pyspark_job": {
+                "main_python_file_uri": "gs://example/wordcount.py",
+                "properties": {
+                    "spark.sql.shuffle.partitions": "1",
+                    "spark.openlineage.parentJobNamespace": "default",
+                },
+            },
+        }
+
+        mock_ol_accessible.return_value = True
+
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            job=job_config,
+            openlineage_inject_parent_job_info=True,
+        )
+        op.execute(context=self.mock_context)
+
+        mock_hook.return_value.submit_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_REGION,
+            job=job_config,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_openlineage_parent_job_info_injection_skipped_by_default_unless_enabled(
+        self, mock_hook, mock_ol_accessible
+    ):
+        job_config = {
+            "placement": {"cluster_name": CLUSTER_NAME},
+            "pyspark_job": {
+                "main_python_file_uri": "gs://example/wordcount.py",
+                "properties": {
+                    "spark.sql.shuffle.partitions": "1",
+                },
+            },
+        }
+
+        mock_ol_accessible.return_value = True
+
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            job=job_config,
+            # not passing openlineage_inject_parent_job_info, should be False by default
+        )
+        op.execute(context=self.mock_context)
+
+        mock_hook.return_value.submit_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_REGION,
+            job=job_config,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_openlineage_parent_job_info_injection_skipped_when_ol_not_accessible(
+        self, mock_hook, mock_ol_accessible
+    ):
+        job_config = {
+            "placement": {"cluster_name": CLUSTER_NAME},
+            "pyspark_job": {
+                "main_python_file_uri": "gs://example/wordcount.py",
+                "properties": {
+                    "spark.sql.shuffle.partitions": "1",
+                },
+            },
+        }
+
+        mock_ol_accessible.return_value = False
+
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            job=job_config,
+            openlineage_inject_parent_job_info=True,
+        )
+        op.execute(context=self.mock_context)
+
+        mock_hook.return_value.submit_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_REGION,
+            job=job_config,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_on_kill(self, mock_hook):
         job = {}
@@ -1599,7 +1774,6 @@ def test_submit_job_operator_extra_links(mock_hook, dag_maker, create_task_insta
     ti = create_task_instance_of_operator(
         DataprocSubmitJobOperator,
         dag_id=TEST_DAG_ID,
-        execution_date=DEFAULT_DATE,
         task_id=TASK_ID,
         region=GCP_REGION,
         project_id=GCP_PROJECT,
@@ -1807,7 +1981,6 @@ def test_update_cluster_operator_extra_links(dag_maker, create_task_instance_of_
     ti = create_task_instance_of_operator(
         DataprocUpdateClusterOperator,
         dag_id=TEST_DAG_ID,
-        execution_date=DEFAULT_DATE,
         task_id=TASK_ID,
         region=GCP_REGION,
         cluster_name=CLUSTER_NAME,
@@ -2033,7 +2206,6 @@ def test_instantiate_workflow_operator_extra_links(mock_hook, dag_maker, create_
     ti = create_task_instance_of_operator(
         DataprocInstantiateWorkflowTemplateOperator,
         dag_id=TEST_DAG_ID,
-        execution_date=DEFAULT_DATE,
         task_id=TASK_ID,
         region=GCP_REGION,
         project_id=GCP_PROJECT,
@@ -2195,7 +2367,6 @@ def test_instantiate_inline_workflow_operator_extra_links(
     ti = create_task_instance_of_operator(
         DataprocInstantiateInlineWorkflowTemplateOperator,
         dag_id=TEST_DAG_ID,
-        execution_date=DEFAULT_DATE,
         task_id=TASK_ID,
         region=GCP_REGION,
         project_id=GCP_PROJECT,
@@ -2227,429 +2398,6 @@ def test_instantiate_inline_workflow_operator_extra_links(
 
     # Assert operator links after execution
     assert ti.task.get_extra_links(ti, DataprocWorkflowLink.name) == DATAPROC_WORKFLOW_LINK_EXPECTED
-
-
-class TestDataProcHiveOperator:
-    query = "define sin HiveUDF('sin');"
-    variables = {"key": "value"}
-    job_id = "uuid_id"
-    job_name = "simple"
-    job = {
-        "reference": {"project_id": GCP_PROJECT, "job_id": f"{job_name}_{job_id}"},
-        "placement": {"cluster_name": "cluster-1"},
-        "labels": {"airflow-version": AIRFLOW_VERSION_LABEL},
-        "hive_job": {"query_list": {"queries": [query]}, "script_variables": variables},
-    }
-
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_deprecation_warning(self, mock_hook):
-        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
-            DataprocSubmitHiveJobOperator(task_id=TASK_ID, region=GCP_REGION, query="query")
-        assert_warning("DataprocSubmitJobOperator", warnings)
-
-    @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_execute(self, mock_hook, mock_uuid):
-        mock_uuid.return_value = self.job_id
-        mock_hook.return_value.project_id = GCP_PROJECT
-        mock_hook.return_value.wait_for_job.return_value = None
-        mock_hook.return_value.submit_job.return_value.reference.job_id = self.job_id
-
-        op = DataprocSubmitHiveJobOperator(
-            job_name=self.job_name,
-            task_id=TASK_ID,
-            region=GCP_REGION,
-            gcp_conn_id=GCP_CONN_ID,
-            query=self.query,
-            variables=self.variables,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
-        op.execute(context=MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
-        mock_hook.return_value.submit_job.assert_called_once_with(
-            project_id=GCP_PROJECT, job=self.job, region=GCP_REGION
-        )
-        mock_hook.return_value.wait_for_job.assert_called_once_with(
-            job_id=self.job_id, region=GCP_REGION, project_id=GCP_PROJECT
-        )
-
-    @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_builder(self, mock_hook, mock_uuid):
-        mock_hook.return_value.project_id = GCP_PROJECT
-        mock_uuid.return_value = self.job_id
-
-        op = DataprocSubmitHiveJobOperator(
-            job_name=self.job_name,
-            task_id=TASK_ID,
-            region=GCP_REGION,
-            gcp_conn_id=GCP_CONN_ID,
-            query=self.query,
-            variables=self.variables,
-        )
-        job = op.generate_job()
-        assert self.job == job
-
-
-class TestDataProcPigOperator:
-    query = "define sin HiveUDF('sin');"
-    variables = {"key": "value"}
-    job_id = "uuid_id"
-    job_name = "simple"
-    job = {
-        "reference": {"project_id": GCP_PROJECT, "job_id": f"{job_name}_{job_id}"},
-        "placement": {"cluster_name": "cluster-1"},
-        "labels": {"airflow-version": AIRFLOW_VERSION_LABEL},
-        "pig_job": {"query_list": {"queries": [query]}, "script_variables": variables},
-    }
-
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_deprecation_warning(self, mock_hook):
-        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
-            DataprocSubmitPigJobOperator(task_id=TASK_ID, region=GCP_REGION, query="query")
-        assert_warning("DataprocSubmitJobOperator", warnings)
-
-    @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_execute(self, mock_hook, mock_uuid):
-        mock_uuid.return_value = self.job_id
-        mock_hook.return_value.project_id = GCP_PROJECT
-        mock_hook.return_value.wait_for_job.return_value = None
-        mock_hook.return_value.submit_job.return_value.reference.job_id = self.job_id
-
-        op = DataprocSubmitPigJobOperator(
-            job_name=self.job_name,
-            task_id=TASK_ID,
-            region=GCP_REGION,
-            gcp_conn_id=GCP_CONN_ID,
-            query=self.query,
-            variables=self.variables,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
-        op.execute(context=MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
-        mock_hook.return_value.submit_job.assert_called_once_with(
-            project_id=GCP_PROJECT, job=self.job, region=GCP_REGION
-        )
-        mock_hook.return_value.wait_for_job.assert_called_once_with(
-            job_id=self.job_id, region=GCP_REGION, project_id=GCP_PROJECT
-        )
-
-    @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_builder(self, mock_hook, mock_uuid):
-        mock_hook.return_value.project_id = GCP_PROJECT
-        mock_uuid.return_value = self.job_id
-
-        op = DataprocSubmitPigJobOperator(
-            job_name=self.job_name,
-            task_id=TASK_ID,
-            region=GCP_REGION,
-            gcp_conn_id=GCP_CONN_ID,
-            query=self.query,
-            variables=self.variables,
-        )
-        job = op.generate_job()
-        assert self.job == job
-
-
-class TestDataProcSparkSqlOperator:
-    query = "SHOW DATABASES;"
-    variables = {"key": "value"}
-    job_name = "simple"
-    job_id = "uuid_id"
-    job = {
-        "reference": {"project_id": GCP_PROJECT, "job_id": f"{job_name}_{job_id}"},
-        "placement": {"cluster_name": "cluster-1"},
-        "labels": {"airflow-version": AIRFLOW_VERSION_LABEL},
-        "spark_sql_job": {"query_list": {"queries": [query]}, "script_variables": variables},
-    }
-    other_project_job = {
-        "reference": {"project_id": "other-project", "job_id": f"{job_name}_{job_id}"},
-        "placement": {"cluster_name": "cluster-1"},
-        "labels": {"airflow-version": AIRFLOW_VERSION_LABEL},
-        "spark_sql_job": {"query_list": {"queries": [query]}, "script_variables": variables},
-    }
-
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_deprecation_warning(self, mock_hook):
-        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
-            DataprocSubmitSparkSqlJobOperator(task_id=TASK_ID, region=GCP_REGION, query="query")
-        assert_warning("DataprocSubmitJobOperator", warnings)
-
-    @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_execute(self, mock_hook, mock_uuid):
-        mock_uuid.return_value = self.job_id
-        mock_hook.return_value.project_id = GCP_PROJECT
-        mock_hook.return_value.wait_for_job.return_value = None
-        mock_hook.return_value.submit_job.return_value.reference.job_id = self.job_id
-
-        op = DataprocSubmitSparkSqlJobOperator(
-            job_name=self.job_name,
-            task_id=TASK_ID,
-            region=GCP_REGION,
-            gcp_conn_id=GCP_CONN_ID,
-            query=self.query,
-            variables=self.variables,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
-        op.execute(context=MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
-        mock_hook.return_value.submit_job.assert_called_once_with(
-            project_id=GCP_PROJECT, job=self.job, region=GCP_REGION
-        )
-        mock_hook.return_value.wait_for_job.assert_called_once_with(
-            job_id=self.job_id, region=GCP_REGION, project_id=GCP_PROJECT
-        )
-
-    @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_execute_override_project_id(self, mock_hook, mock_uuid):
-        mock_uuid.return_value = self.job_id
-        mock_hook.return_value.project_id = GCP_PROJECT
-        mock_hook.return_value.wait_for_job.return_value = None
-        mock_hook.return_value.submit_job.return_value.reference.job_id = self.job_id
-
-        op = DataprocSubmitSparkSqlJobOperator(
-            job_name=self.job_name,
-            project_id="other-project",
-            task_id=TASK_ID,
-            region=GCP_REGION,
-            gcp_conn_id=GCP_CONN_ID,
-            query=self.query,
-            variables=self.variables,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
-        op.execute(context=MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
-        mock_hook.return_value.submit_job.assert_called_once_with(
-            project_id="other-project", job=self.other_project_job, region=GCP_REGION
-        )
-        mock_hook.return_value.wait_for_job.assert_called_once_with(
-            job_id=self.job_id, region=GCP_REGION, project_id="other-project"
-        )
-
-    @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_builder(self, mock_hook, mock_uuid):
-        mock_hook.return_value.project_id = GCP_PROJECT
-        mock_uuid.return_value = self.job_id
-
-        op = DataprocSubmitSparkSqlJobOperator(
-            job_name=self.job_name,
-            task_id=TASK_ID,
-            region=GCP_REGION,
-            gcp_conn_id=GCP_CONN_ID,
-            query=self.query,
-            variables=self.variables,
-        )
-        job = op.generate_job()
-        assert self.job == job
-
-
-class TestDataProcSparkOperator(DataprocJobTestBase):
-    @classmethod
-    def setup_class(cls):
-        if AIRFLOW_V_3_0_PLUS:
-            cls.extra_links_expected_calls = [
-                call.ti.xcom_push(key="conf", value=DATAPROC_JOB_CONF_EXPECTED),
-                call.hook().wait_for_job(job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT),
-            ]
-        else:
-            cls.extra_links_expected_calls = [
-                call.ti.xcom_push(key="conf", value=DATAPROC_JOB_CONF_EXPECTED, execution_date=None),
-                call.hook().wait_for_job(job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT),
-            ]
-
-    main_class = "org.apache.spark.examples.SparkPi"
-    jars = ["file:///usr/lib/spark/examples/jars/spark-examples.jar"]
-    job_name = "simple"
-    job = {
-        "reference": {
-            "project_id": GCP_PROJECT,
-            "job_id": f"{job_name}_{TEST_JOB_ID}",
-        },
-        "placement": {"cluster_name": "cluster-1"},
-        "labels": {"airflow-version": AIRFLOW_VERSION_LABEL},
-        "spark_job": {"jar_file_uris": jars, "main_class": main_class},
-    }
-
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_deprecation_warning(self, mock_hook):
-        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
-            DataprocSubmitSparkJobOperator(
-                task_id=TASK_ID, region=GCP_REGION, main_class=self.main_class, dataproc_jars=self.jars
-            )
-        assert_warning("DataprocSubmitJobOperator", warnings)
-
-    @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_execute(self, mock_hook, mock_uuid):
-        mock_uuid.return_value = TEST_JOB_ID
-        mock_hook.return_value.project_id = GCP_PROJECT
-        mock_uuid.return_value = TEST_JOB_ID
-        mock_hook.return_value.submit_job.return_value.reference.job_id = TEST_JOB_ID
-        self.extra_links_manager_mock.attach_mock(mock_hook, "hook")
-
-        op = DataprocSubmitSparkJobOperator(
-            job_name=self.job_name,
-            task_id=TASK_ID,
-            region=GCP_REGION,
-            gcp_conn_id=GCP_CONN_ID,
-            main_class=self.main_class,
-            dataproc_jars=self.jars,
-        )
-        job = op.generate_job()
-        assert self.job == job
-
-        op.execute(context=self.mock_context)
-        if AIRFLOW_V_3_0_PLUS:
-            self.mock_ti.xcom_push.assert_called_once_with(key="conf", value=DATAPROC_JOB_CONF_EXPECTED)
-        else:
-            self.mock_ti.xcom_push.assert_called_once_with(
-                key="conf", value=DATAPROC_JOB_CONF_EXPECTED, execution_date=None
-            )
-
-        # Test whether xcom push occurs before polling for job
-        self.extra_links_manager_mock.assert_has_calls(self.extra_links_expected_calls, any_order=False)
-
-
-@pytest.mark.db_test
-@pytest.mark.need_serialized_dag
-@mock.patch(DATAPROC_PATH.format("DataprocHook"))
-def test_submit_spark_job_operator_extra_links(mock_hook, dag_maker, create_task_instance_of_operator):
-    mock_hook.return_value.project_id = GCP_PROJECT
-
-    ti = create_task_instance_of_operator(
-        DataprocSubmitSparkJobOperator,
-        dag_id=TEST_DAG_ID,
-        execution_date=DEFAULT_DATE,
-        task_id=TASK_ID,
-        region=GCP_REGION,
-        gcp_conn_id=GCP_CONN_ID,
-        main_class="org.apache.spark.examples.SparkPi",
-        dataproc_jars=["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
-    )
-
-    serialized_dag = dag_maker.get_serialized_data()
-    deserialized_dag = SerializedDAG.from_dict(serialized_dag)
-    deserialized_task = deserialized_dag.task_dict[TASK_ID]
-
-    # Assert operator links for serialized DAG
-    deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
-    operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
-    assert operator_extra_link.name == "Dataproc resource"
-
-    # Assert operator link types are preserved during deserialization
-    assert isinstance(deserialized_task.operator_extra_links[0], DataprocLink)
-
-    # Assert operator link is empty when no XCom push occurred
-    assert ti.task.get_extra_links(ti, DataprocLink.name) == ""
-
-    # Assert operator link is empty for deserialized task when no XCom push occurred
-    assert deserialized_task.get_extra_links(ti, DataprocLink.name) == ""
-
-    ti.xcom_push(key="conf", value=DATAPROC_JOB_CONF_EXPECTED)
-
-    # Assert operator links after task execution
-    assert ti.task.get_extra_links(ti, DataprocLink.name) == DATAPROC_JOB_LINK_EXPECTED
-
-    # Assert operator links are preserved in deserialized tasks
-    link = deserialized_task.get_extra_links(ti, DataprocLink.name)
-    assert link == DATAPROC_JOB_LINK_EXPECTED
-
-
-class TestDataProcHadoopOperator:
-    args = ["wordcount", "gs://pub/shakespeare/rose.txt"]
-    jar = "file:///usr/lib/spark/examples/jars/spark-examples.jar"
-    job_name = "simple"
-    job_id = "uuid_id"
-    job = {
-        "reference": {"project_id": GCP_PROJECT, "job_id": f"{job_name}_{job_id}"},
-        "placement": {"cluster_name": "cluster-1"},
-        "labels": {"airflow-version": AIRFLOW_VERSION_LABEL},
-        "hadoop_job": {"main_jar_file_uri": jar, "args": args},
-    }
-
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_deprecation_warning(self, mock_hook):
-        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
-            DataprocSubmitHadoopJobOperator(
-                task_id=TASK_ID, region=GCP_REGION, main_jar=self.jar, arguments=self.args
-            )
-        assert_warning("DataprocSubmitJobOperator", warnings)
-
-    @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_execute(self, mock_hook, mock_uuid):
-        mock_uuid.return_value = self.job_id
-        mock_hook.return_value.project_id = GCP_PROJECT
-        mock_uuid.return_value = self.job_id
-
-        op = DataprocSubmitHadoopJobOperator(
-            job_name=self.job_name,
-            task_id=TASK_ID,
-            region=GCP_REGION,
-            gcp_conn_id=GCP_CONN_ID,
-            main_jar=self.jar,
-            arguments=self.args,
-        )
-        job = op.generate_job()
-        assert self.job == job
-
-
-class TestDataProcPySparkOperator:
-    uri = "gs://{}/{}"
-    job_id = "uuid_id"
-    job_name = "simple"
-    job = {
-        "reference": {"project_id": GCP_PROJECT, "job_id": f"{job_name}_{job_id}"},
-        "placement": {"cluster_name": "cluster-1"},
-        "labels": {"airflow-version": AIRFLOW_VERSION_LABEL},
-        "pyspark_job": {"main_python_file_uri": uri},
-    }
-
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_deprecation_warning(self, mock_hook):
-        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
-            DataprocSubmitPySparkJobOperator(task_id=TASK_ID, region=GCP_REGION, main=self.uri)
-        assert_warning("DataprocSubmitJobOperator", warnings)
-
-    @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_execute(self, mock_hook, mock_uuid):
-        mock_hook.return_value.project_id = GCP_PROJECT
-        mock_uuid.return_value = self.job_id
-
-        op = DataprocSubmitPySparkJobOperator(
-            job_name=self.job_name,
-            task_id=TASK_ID,
-            region=GCP_REGION,
-            gcp_conn_id=GCP_CONN_ID,
-            main=self.uri,
-        )
-        job = op.generate_job()
-        assert self.job == job
-
-    @pytest.mark.parametrize(
-        "filename",
-        [
-            pytest.param("/foo/bar/baz.py", id="absolute"),
-            pytest.param("foo/bar/baz.py", id="relative"),
-            pytest.param("baz.py", id="base-filename"),
-            pytest.param(r"C:\foo\bar\baz.py", id="windows-path"),
-        ],
-    )
-    def test_generate_temp_filename(self, filename, time_machine):
-        time_machine.move_to(datetime(2024, 2, 29, 1, 2, 3), tick=False)
-        with mock.patch(
-            DATAPROC_PATH.format("uuid.uuid4"), return_value=UUID("12345678-0000-4000-0000-000000000000")
-        ):
-            assert (
-                DataprocSubmitPySparkJobOperator._generate_temp_filename(filename)
-                == "20240229010203_12345678_baz.py"
-            )
 
 
 class TestDataprocCreateWorkflowTemplateOperator:

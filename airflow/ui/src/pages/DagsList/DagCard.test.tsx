@@ -20,7 +20,7 @@
  */
 import { render, screen } from "@testing-library/react";
 import type {
-  DagTagPydantic,
+  DagTagResponse,
   DAGWithLatestDagRunsResponse,
 } from "openapi-gen/requests/types.gen";
 import { afterEach, describe, it, vi, expect } from "vitest";
@@ -43,7 +43,6 @@ const mockDag = {
   is_paused: false,
   last_expired: null,
   last_parsed_time: "2024-08-22T13:50:10.372238+00:00",
-  last_pickled: null,
   latest_dag_runs: [],
   max_active_runs: 16,
   max_active_tasks: 16,
@@ -53,7 +52,6 @@ const mockDag = {
   next_dagrun_data_interval_end: "2024-08-23T00:00:00+00:00",
   next_dagrun_data_interval_start: "2024-08-22T00:00:00+00:00",
   owners: ["airflow"],
-  pickle_id: null,
   tags: [],
   timetable_description: "",
   timetable_summary: "",
@@ -76,7 +74,7 @@ describe("DagCard", () => {
       { dag_id: "id", name: "tag2" },
       { dag_id: "id", name: "tag3" },
       { dag_id: "id", name: "tag4" },
-    ] satisfies Array<DagTagPydantic>;
+    ] satisfies Array<DagTagResponse>;
 
     const expandedMockDag = {
       ...mockDag,

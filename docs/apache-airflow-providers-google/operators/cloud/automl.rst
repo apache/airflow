@@ -16,7 +16,14 @@
     under the License.
 
 Google Cloud AutoML Operators
-=======================================
+=============================
+
+.. warning::
+  The AutoML API is deprecated. Planned removal date is September 30, 2025, but some operators might be deleted
+  earlier, according to the docs and deprecation warnings!
+  The replacement suggestions can be found in the deprecation warnings or in the doc below.
+  Please note that AutoML for translation API functionality has been moved to the Advanced Translation service,
+  the operators can be found at ``airflow.providers.google.cloud.operators.translate`` module.
 
 The `Google Cloud AutoML <https://cloud.google.com/automl/docs/>`__
 makes the power of machine learning available to you even if you have limited knowledge
@@ -41,33 +48,23 @@ To create a Google AutoML dataset you can use
 :class:`~airflow.providers.google.cloud.operators.automl.AutoMLCreateDatasetOperator`.
 The operator returns dataset id in :ref:`XCom <concepts:xcom>` under ``dataset_id`` key.
 
-This operator is deprecated when running for text, video and vision prediction and will be removed soon.
+This operator is deprecated when running for text, video and vision prediction and will be removed after September 30, 2025.
 All the functionality of legacy AutoML Natural Language, Vision, Video Intelligence and new features are
 available on the Vertex AI platform. Please use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.dataset.CreateDatasetOperator`
-
-.. exampleinclude:: /../../providers/tests/system/google/cloud/automl/example_automl_dataset.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_automl_create_dataset]
-    :end-before: [END howto_operator_automl_create_dataset]
+:class:`~airflow.providers.google.cloud.operators.translate.TranslateCreateDatasetOperator`.
 
 After creating a dataset you can use it to import some data using
 :class:`~airflow.providers.google.cloud.operators.automl.AutoMLImportDataOperator`.
 
-.. exampleinclude:: /../../providers/tests/system/google/cloud/automl/example_automl_dataset.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_automl_import_data]
-    :end-before: [END howto_operator_automl_import_data]
-
 To update dataset you can use
 :class:`~airflow.providers.google.cloud.operators.automl.AutoMLTablesUpdateDatasetOperator`.
 
-This operator is deprecated when running for text, video and vision prediction and will be removed soon.
-All the functionality of legacy AutoML Natural Language, Vision, Video Intelligence and new features are
-available on the Vertex AI platform. Please use
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.dataset.UpdateDatasetOperator`
+.. warning::
+    This operator is deprecated when running for text, video and vision prediction and will be removed soon.
+    All the functionality of legacy AutoML Natural Language, Vision, Video Intelligence and new features are
+    available on the Vertex AI platform. Please use
+    :class:`~airflow.providers.google.cloud.operators.vertex_ai.dataset.UpdateDatasetOperator`
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/vertex_ai/example_vertex_ai_dataset.py
     :language: python
@@ -102,28 +99,15 @@ To create a Google AutoML model you can use
 The operator will wait for the operation to complete. Additionally the operator
 returns the id of model in :ref:`XCom <concepts:xcom>` under ``model_id`` key.
 
-This operator is deprecated when running for text, video and vision prediction and will be removed soon.
-All the functionality of legacy AutoML Natural Language, Vision, Video Intelligence and new features are
-available on the Vertex AI platform. Please use
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTextTrainingJobOperator`,
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLImageTrainingJobOperator` or
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLVideoTrainingJobOperator`.
-
-You can find example on how to use VertexAI operators for AutoML Vision classification here:
-
-.. exampleinclude:: /../../providers/tests/system/google/cloud/automl/example_automl_vision_classification.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_cloud_create_image_classification_training_job_operator]
-    :end-before: [END howto_cloud_create_image_classification_training_job_operator]
-
-Example on how to use VertexAI operators for AutoML Video Intelligence classification you can find here:
-
-.. exampleinclude:: /../../providers/tests/system/google/cloud/automl/example_automl_video_classification.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_cloud_create_video_classification_training_job_operator]
-    :end-before: [END howto_cloud_create_video_classification_training_job_operator]
+.. warning::
+    This operator is deprecated when running for text, video and vision prediction and will be removed after September 30, 2025.
+    All the functionality of legacy AutoML Natural Language, Vision, Video Intelligence and new features are
+    available on the Vertex AI platform. Please use
+    :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTabularTrainingJobOperator`,
+    :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLVideoTrainingJobOperator`,
+    :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLImageTrainingJobOperator`,
+    :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator`,
+    :class:`~airflow.providers.google.cloud.operators.translate.TranslateCreateModelOperator`.
 
 When running Vertex AI Operator for training data, please ensure that your data is correctly stored in Vertex AI
 datasets. To create and import data to the dataset please use
@@ -131,18 +115,17 @@ datasets. To create and import data to the dataset please use
 and
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.dataset.ImportDataOperator`
 
-.. exampleinclude:: /../../providers/tests/system/google/cloud/automl/example_automl_translation.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_automl_create_model]
-    :end-before: [END howto_operator_automl_create_model]
+For the AutoML translation please use the
+:class:`~airflow.providers.google.cloud.operators.translate.TranslateTextOperator`
+or
+:class:`~airflow.providers.google.cloud.operators.translate.TranslateTextBatchOperator`.
 
 To get existing model one can use
 :class:`~airflow.providers.google.cloud.operators.automl.AutoMLGetModelOperator`.
 
 This operator deprecated for tables, video intelligence, vision and natural language is deprecated
 and will be removed after 31.03.2024. Please use
-:class:`airflow.providers.google.cloud.operators.vertex_ai.model_service.GetModelOperator` instead.
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.GetModelOperator` instead.
 You can find example on how to use VertexAI operators here:
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/vertex_ai/example_vertex_ai_model_service.py
@@ -190,14 +173,10 @@ To obtain predictions from Google Cloud AutoML model you can use
 :class:`~airflow.providers.google.cloud.operators.automl.AutoMLBatchPredictOperator`. In the first case
 the model must be deployed.
 
-.. exampleinclude:: /../../providers/tests/system/google/cloud/automl/example_automl_translation.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_prediction]
-    :end-before: [END howto_operator_prediction]
 
 Th :class:`~airflow.providers.google.cloud.operators.automl.AutoMLBatchPredictOperator` deprecated for tables,
-video intelligence, vision and natural language is deprecated and will be removed after 31.03.2024. Please use
+video intelligence, vision and natural language is deprecated and will be removed after 31.03.2024.
+Please use
 :class:`airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.CreateBatchPredictionJobOperator`,
 :class:`airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.GetBatchPredictionJobOperator`,
 :class:`airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.ListBatchPredictionJobsOperator`,
@@ -235,7 +214,9 @@ of datasets ids in :ref:`XCom <concepts:xcom>` under ``dataset_id_list`` key.
 
 This operator deprecated for tables, video intelligence, vision and natural language is deprecated
 and will be removed after 31.03.2024. Please use
-:class:`airflow.providers.google.cloud.operators.vertex_ai.dataset.ListDatasetsOperator` instead.
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.dataset.ListDatasetsOperator`,
+:class:`~airflow.providers.google.cloud.operators.translate.TranslateDatasetsListOperator`
+instead.
 You can find example on how to use VertexAI operators here:
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/vertex_ai/example_vertex_ai_dataset.py

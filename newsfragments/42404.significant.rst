@@ -1,0 +1,6 @@
+Removed ``logical_date`` arguments from functions and APIs for DAG run lookups to align with Airflow 3.0.
+
+The shift towards using ``run_id`` as the sole identifier for DAG runs eliminates the limitations of ``execution_date`` and ``logical_date``, particularly for dynamic DAG runs and cases where multiple runs occur at the same logical time. This change impacts database models, templates, and functions:
+
+- Removed ``logical_date`` arguments from public APIs and Python functions related to DAG run lookups.
+- ``run_id`` is now the exclusive identifier for DAG runs in these contexts.

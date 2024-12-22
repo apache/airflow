@@ -25,6 +25,7 @@ from airflow.api_connexion.exceptions import NotFound, PermissionDenied
 from airflow.api_connexion.schemas.config_schema import Config, ConfigOption, ConfigSection, config_schema
 from airflow.configuration import conf
 from airflow.settings import json
+from airflow.utils.api_migration import mark_fastapi_migration_done
 
 LINE_SEP = "\n"  # `\n` cannot appear in f-strings
 
@@ -65,6 +66,7 @@ def _config_to_json(config: Config) -> str:
     return json.dumps(config_schema.dump(config), indent=4)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_configuration("GET")
 def get_config(*, section: str | None = None) -> Response:
     """Get current configuration."""
@@ -102,6 +104,7 @@ def get_config(*, section: str | None = None) -> Response:
         )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_configuration("GET")
 def get_value(*, section: str, option: str) -> Response:
     serializer = {

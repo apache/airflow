@@ -65,13 +65,16 @@ runs:
         rm -rfv "dev"
         rm -rfv ".github/actions"
         rm -rfv ".github/workflows"
+        rm -v ".dockerignore" || true
         mv -v "target-airflow/scripts/ci" "scripts"
         mv -v "target-airflow/dev" "."
         mv -v "target-airflow/.github/actions" "target-airflow/.github/workflows" ".github"
+        mv -v "target-airflow/.dockerignore" ".dockerignore" || true
       if: inputs.pull-request-target == 'true' && inputs.is-committer-build != 'true'
       ####################################################################################################
-      #  AFTER IT'S SAFE. THE `dev`, `scripts/ci` AND `.github/actions` ARE NOW COMING FROM THE
-      #  BASE_REF - WHICH IS THE TARGET BRANCH OF THE PR. WE CAN TRUST THAT THOSE SCRIPTS ARE SAFE TO RUN.
+      #  AFTER IT'S SAFE. THE `dev`, `scripts/ci` AND `.github/actions` and `.dockerignore` ARE NOW COMING
+      #  FROM THE BASE_REF - WHICH IS THE TARGET BRANCH OF THE PR. WE CAN TRUST THAT THOSE SCRIPTS ARE
+      #  SAFE TO RUN AND CODE AVAILABLE IN THE DOCKER BUILD PHASE IS CONTROLLED BY THE `.dockerignore`.
       #  ALL THE REST OF THE CODE COMES FROM THE PR, AND FOR EXAMPLE THE CODE IN THE `Dockerfile.ci` CAN
       #  BE RUN SAFELY AS PART OF DOCKER BUILD. BECAUSE IT RUNS INSIDE THE DOCKER CONTAINER AND IT IS
       #  ISOLATED FROM THE RUNNER.

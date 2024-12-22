@@ -21,8 +21,9 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+from collections.abc import Sequence
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 import requests

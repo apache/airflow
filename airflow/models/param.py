@@ -20,7 +20,8 @@ import contextlib
 import copy
 import json
 import logging
-from typing import TYPE_CHECKING, Any, ClassVar, ItemsView, Iterable, MutableMapping, ValuesView
+from collections.abc import ItemsView, Iterable, MutableMapping, ValuesView
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.exceptions import AirflowException, ParamValidationError
 from airflow.utils.mixins import ResolveMixin
@@ -29,8 +30,7 @@ from airflow.utils.types import NOTSET, ArgNotSet
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
-    from airflow.sdk import DAG
-    from airflow.serialization.pydantic.dag_run import DagRunPydantic
+    from airflow.sdk.definitions.dag import DAG
     from airflow.utils.context import Context
 
 logger = logging.getLogger(__name__)
@@ -333,7 +333,7 @@ class DagParam(ResolveMixin):
 def process_params(
     dag: DAG,
     task: Operator,
-    dag_run: DagRun | DagRunPydantic | None,
+    dag_run: DagRun | None,
     *,
     suppress_exception: bool,
 ) -> dict[str, Any]:

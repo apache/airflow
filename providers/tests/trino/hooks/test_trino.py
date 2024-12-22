@@ -27,7 +27,15 @@ from trino.transaction import IsolationLevel
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.openlineage.facet import (
+    Dataset,
+    SchemaDatasetFacet,
+    SchemaDatasetFacetFields,
+)
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.trino.hooks.trino import TrinoHook
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 HOOK_GET_CONNECTION = "airflow.providers.trino.hooks.trino.TrinoHook.get_connection"
 BASIC_AUTHENTICATION = "airflow.providers.trino.hooks.trino.trino.auth.BasicAuthentication"
@@ -35,6 +43,8 @@ KERBEROS_AUTHENTICATION = "airflow.providers.trino.hooks.trino.trino.auth.Kerber
 TRINO_DBAPI_CONNECT = "airflow.providers.trino.hooks.trino.trino.dbapi.connect"
 JWT_AUTHENTICATION = "airflow.providers.trino.hooks.trino.trino.auth.JWTAuthentication"
 CERT_AUTHENTICATION = "airflow.providers.trino.hooks.trino.trino.auth.CertificateAuthentication"
+TRINO_CONN_ID = "test_trino"
+TRINO_DEFAULT = "trino_default"
 
 
 @pytest.fixture
@@ -68,10 +78,11 @@ class TestTrinoHookConn:
         mock_get_connection.return_value = Connection(
             login="login", password="password", host="host", schema="hive"
         )
+        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         client = json.dumps(
             {
                 "dag_id": "dag-id",
-                "execution_date": "2022-01-01T00:00:00",
+                date_key: "2022-01-01T00:00:00",
                 "task_id": "task-id",
                 "try_number": "1",
                 "dag_run_id": "dag-run-id",
@@ -345,6 +356,16 @@ class TestTrinoHook:
 
         self.cur.execute.assert_called_once_with(statement, None)
 
+    def test_split_sql_string(self):
+        statement = "SELECT 1; SELECT 2"
+        result_sets = ["SELECT 1", "SELECT 2"]
+        self.cur.fetchall.return_value = result_sets
+
+        assert result_sets == self.db_hook.split_sql_string(
+            sql=statement,
+            strip_semicolon=self.db_hook.strip_semicolon,
+        )
+
     @patch("airflow.providers.trino.hooks.trino.TrinoHook.run")
     def test_run(self, mock_run):
         sql = "SELECT 1"
@@ -368,5 +389,58 @@ class TestTrinoHook:
         assert msg == "Test"
 
     def test_serialize_cell(self):
-        assert "foo" == self.db_hook._serialize_cell("foo", None)
-        assert 1 == self.db_hook._serialize_cell(1, None)
+        assert self.db_hook._serialize_cell("foo", None) == "foo"
+        assert self.db_hook._serialize_cell(1, None) == 1
+
+
+def test_execute_openlineage_events():
+    DB_NAME = "tpch"
+    DB_SCHEMA_NAME = "sf1"
+
+    class TrinoHookForTests(TrinoHook):
+        get_conn = mock.MagicMock(name="conn")
+        get_connection = mock.MagicMock()
+
+        def get_first(self, *_):
+            return [f"{DB_NAME}.{DB_SCHEMA_NAME}"]
+
+    dbapi_hook = TrinoHookForTests()
+
+    sql = "SELECT name FROM tpch.sf1.customer LIMIT 3"
+    op = SQLExecuteQueryOperator(task_id="trino_test", sql=sql, conn_id=TRINO_DEFAULT)
+    op._hook = dbapi_hook
+    rows = [
+        (DB_SCHEMA_NAME, "customer", "custkey", 1, "bigint", DB_NAME),
+        (DB_SCHEMA_NAME, "customer", "name", 2, "varchar(25)", DB_NAME),
+        (DB_SCHEMA_NAME, "customer", "address", 3, "varchar(40)", DB_NAME),
+        (DB_SCHEMA_NAME, "customer", "nationkey", 4, "bigint", DB_NAME),
+        (DB_SCHEMA_NAME, "customer", "phone", 5, "varchar(15)", DB_NAME),
+        (DB_SCHEMA_NAME, "customer", "acctbal", 6, "double", DB_NAME),
+    ]
+    dbapi_hook.get_connection.return_value = Connection(
+        conn_id=TRINO_DEFAULT,
+        conn_type="trino",
+        host="trino",
+        port=8080,
+    )
+    dbapi_hook.get_conn.return_value.cursor.return_value.fetchall.side_effect = [rows, []]
+
+    lineage = op.get_openlineage_facets_on_start()
+    assert lineage.inputs == [
+        Dataset(
+            namespace="trino://trino:8080",
+            name=f"{DB_NAME}.{DB_SCHEMA_NAME}.customer",
+            facets={
+                "schema": SchemaDatasetFacet(
+                    fields=[
+                        SchemaDatasetFacetFields(name="custkey", type="bigint"),
+                        SchemaDatasetFacetFields(name="name", type="varchar(25)"),
+                        SchemaDatasetFacetFields(name="address", type="varchar(40)"),
+                        SchemaDatasetFacetFields(name="nationkey", type="bigint"),
+                        SchemaDatasetFacetFields(name="phone", type="varchar(15)"),
+                        SchemaDatasetFacetFields(name="acctbal", type="double"),
+                    ]
+                )
+            },
+        )
+    ]
