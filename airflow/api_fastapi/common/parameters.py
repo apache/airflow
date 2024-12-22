@@ -220,15 +220,6 @@ class SortParam(BaseParam[str]):
 
         return inner
 
-    def depends_factory(self, default: str | None = None) -> Callable:
-        def dynamic_callable_depends(default_value: str | None = None) -> Callable:
-            def inner(order_by: str = default or self.get_primary_key_string()) -> SortParam:
-                return self.set_value(self.get_primary_key_string() if order_by == "" else order_by)
-
-            return inner
-
-        return dynamic_callable_depends
-
 
 class FilterOptionEnum(Enum):
     """Filter options for FilterParam."""
