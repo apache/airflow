@@ -407,6 +407,4 @@ def test_celery_extra_celery_config_loaded_from_string():
 
     # reload celery conf to apply the new config
     importlib.reload(default_celery)
-    assert default_celery.DEFAULT_CELERY_CONFIG["extra_celery_config"] == {
-        "worker_max_tasks_per_child": 10
-    }
+    assert default_celery.DEFAULT_CELERY_CONFIG["extra_celery_config"] == {"worker_max_tasks_per_child": 10}
