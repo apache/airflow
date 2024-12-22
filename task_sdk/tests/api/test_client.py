@@ -31,18 +31,28 @@ from airflow.utils import timezone
 from airflow.utils.state import TerminalTIState
 
 
+def make_client(transport: httpx.MockTransport) -> Client:
+    """Get a client with a custom transport"""
+    return Client(base_url="test://server", token="", transport=transport)
+
+
+def make_client_w_responses(responses: list[httpx.Response]) -> Client:
+    """Helper fixture to create a mock client with custom responses."""
+
+    def handle_request(request: httpx.Request) -> httpx.Response:
+        return responses.pop(0)
+
+    return Client(
+        base_url=None, dry_run=True, token="", mounts={"'http://": httpx.MockTransport(handle_request)}
+    )
+
+
 class TestClient:
     def test_error_parsing(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            """
-            A transport handle that always returns errors
-            """
-
-            return httpx.Response(422, json={"detail": [{"loc": ["#0"], "msg": "err", "type": "required"}]})
-
-        client = Client(
-            base_url=None, dry_run=True, token="", mounts={"'http://": httpx.MockTransport(handle_request)}
-        )
+        responses = [
+            httpx.Response(422, json={"detail": [{"loc": ["#0"], "msg": "err", "type": "required"}]})
+        ]
+        client = make_client_w_responses(responses)
 
         with pytest.raises(ServerResponseError) as err:
             client.get("http://error")
@@ -54,29 +64,16 @@ class TestClient:
         ]
 
     def test_error_parsing_plain_text(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            """
-            A transport handle that always returns errors
-            """
-
-            return httpx.Response(422, content=b"Internal Server Error")
-
-        client = Client(
-            base_url=None, dry_run=True, token="", mounts={"'http://": httpx.MockTransport(handle_request)}
-        )
+        responses = [httpx.Response(422, content=b"Internal Server Error")]
+        client = make_client_w_responses(responses)
 
         with pytest.raises(httpx.HTTPStatusError) as err:
             client.get("http://error")
         assert not isinstance(err.value, ServerResponseError)
 
     def test_error_parsing_other_json(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            # Some other json than an error body.
-            return httpx.Response(404, json={"detail": "Not found"})
-
-        client = Client(
-            base_url=None, dry_run=True, token="", mounts={"'http://": httpx.MockTransport(handle_request)}
-        )
+        responses = [httpx.Response(404, json={"detail": "Not found"})]
+        client = make_client_w_responses(responses)
 
         with pytest.raises(ServerResponseError) as err:
             client.get("http://error")
@@ -90,16 +87,7 @@ class TestClient:
             httpx.Response(200, json={"detail": "Recovered from error - but will fail before"}),
             httpx.Response(400, json={"detail": "Should not get here"}),
         ]
-
-        def mock_handle_request(request: httpx.Request) -> httpx.Response:
-            return responses.pop(0)
-
-        client = Client(
-            base_url=None,
-            dry_run=True,
-            token="",
-            mounts={"'http://": httpx.MockTransport(mock_handle_request)},
-        )
+        client = make_client_w_responses(responses)
 
         with pytest.raises(httpx.HTTPStatusError) as err:
             client.get("http://error")
@@ -114,16 +102,7 @@ class TestClient:
             httpx.Response(200, json={"detail": "Recovered from error"}),
             httpx.Response(400, json={"detail": "Should not get here"}),
         ]
-
-        def mock_handle_request(request: httpx.Request) -> httpx.Response:
-            return responses.pop(0)
-
-        client = Client(
-            base_url=None,
-            dry_run=True,
-            token="",
-            mounts={"'http://": httpx.MockTransport(mock_handle_request)},
-        )
+        client = make_client_w_responses(responses)
 
         response = client.get("http://error")
         assert response.status_code == 200
@@ -137,16 +116,7 @@ class TestClient:
             httpx.Response(200, json={"detail": "Recovered from error"}),
             httpx.Response(400, json={"detail": "Should not get here"}),
         ]
-
-        def mock_handle_request(request: httpx.Request) -> httpx.Response:
-            return responses.pop(0)
-
-        client = Client(
-            base_url=None,
-            dry_run=True,
-            token="",
-            mounts={"'http://": httpx.MockTransport(mock_handle_request)},
-        )
+        client = make_client_w_responses(responses)
 
         response = client.get("http://error")
         assert response.status_code == 200
@@ -160,16 +130,7 @@ class TestClient:
             httpx.Response(422, json={"detail": "Somehow this is a bad request"}),
             httpx.Response(400, json={"detail": "Should not get here"}),
         ]
-
-        def mock_handle_request(request: httpx.Request) -> httpx.Response:
-            return responses.pop(0)
-
-        client = Client(
-            base_url=None,
-            dry_run=True,
-            token="",
-            mounts={"'http://": httpx.MockTransport(mock_handle_request)},
-        )
+        client = make_client_w_responses(responses)
 
         with pytest.raises(ServerResponseError) as err:
             client.get("http://error")
@@ -183,26 +144,12 @@ class TestClient:
             httpx.Response(200, json={"detail": "Recovered from error"}),
             httpx.Response(400, json={"detail": "Should not get here"}),
         ]
-
-        def mock_handle_request(request: httpx.Request) -> httpx.Response:
-            return responses.pop(0)
-
-        client = Client(
-            base_url=None,
-            dry_run=True,
-            token="",
-            mounts={"'http://": httpx.MockTransport(mock_handle_request)},
-        )
+        client = make_client_w_responses(responses)
 
         response = client.get("http://error")
         assert response.status_code == 200
         assert len(responses) == 1
         assert mock_sleep.call_count == 0
-
-
-def make_client(transport: httpx.MockTransport) -> Client:
-    """Get a client with a custom transport"""
-    return Client(base_url="test://server", token="", transport=transport)
 
 
 class TestTaskInstanceOperations:
