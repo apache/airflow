@@ -2463,6 +2463,8 @@ elasticsearch:
   enabled: false
   # A secret containing the connection
   secretName: ~
+  # Whether to generate a secret even if secret name is specified
+  alwaysGenerateSecret: false
   # Or an object representing the connection
   # Example:
   # connection:

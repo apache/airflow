@@ -8000,6 +8000,11 @@
                     ],
                     "default": null
                 },
+                "alwaysGenerateSecret": {
+                    "description": "Whether to generate a secret even if secret name is specified.",
+                    "type": "boolean",
+                    "default": false
+                },
                 "connection": {
                     "description": "Elasticsearch connection configuration.",
                     "type": "object",
