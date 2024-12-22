@@ -28,7 +28,7 @@ from enum import Enum
 from functools import partial
 from itertools import chain
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 from urllib.parse import urljoin
 
 import pendulum
@@ -61,6 +61,10 @@ _ParsedLogStreamType = Generator[_ParsedLogRecordType, None, None]
 """Generator of parsed log streams, each yielding a tuple of timestamp, line number, and line."""
 _LogSourceType = tuple[list[str], list[_ParsedLogStreamType], int]
 """Tuple of messages, parsed log streams, total size of logs."""
+_OldLogSourceType = tuple[list[str], list[str]]
+"""Tuple of messages and list of log str, will be removed after all providers adapt to stream-based log reading."""
+_CompatibleLogSourceType = Union[_LogSourceType, _OldLogSourceType]
+"""Compatible type hint for stream-based log reading and old log reading."""
 
 
 class LogType(str, Enum):
@@ -263,6 +267,27 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
     return val
 
 
+def _get_compatible_parse_log_stream(remote_logs: list[str]) -> _ParsedLogStreamType:
+    """
+    Compatible utility for new log reading(stream-based + k-way merge log) and old log reading(read whole log in memory + sorting).
+
+    Turn old log reading into new stream-based log reading.
+    Will be removed after all providers adapt to stream-based log reading.
+
+    :param remote_logs: list of log lines
+    :return: parsed log stream
+    """
+    timestamp = None
+    next_timestamp = None
+    for line_num, line in enumerate(remote_logs):
+        with suppress(Exception):
+            # next_timestamp unchanged if line can't be parsed
+            next_timestamp = _parse_timestamp(line)
+        if next_timestamp:
+            timestamp = next_timestamp
+        yield timestamp, line_num, line
+
+
 class FileTaskHandler(logging.Handler):
     """
     FileTaskHandler is a python log handler that handles and reads task instance logs.
@@ -456,7 +481,6 @@ class FileTaskHandler(logging.Handler):
         # is needed to get correct log path.
         worker_log_rel_path = self._render_filename(ti, try_number)
         messages_list: list[str] = []
-        remote_logs: list[str] = []  # compact for running, will be remove in further commit
         remote_parsed_logs: list[_ParsedLogStreamType] = []
         remote_logs_size = 0
         local_parsed_logs: list[_ParsedLogStreamType] = []
@@ -467,7 +491,18 @@ class FileTaskHandler(logging.Handler):
         served_parsed_logs: list[_ParsedLogStreamType] = []
         served_logs_size = 0
         with suppress(NotImplementedError):
-            remote_messages, remote_logs = self._read_remote_logs(ti, try_number, metadata)
+            remote_log_result = self._read_remote_logs(ti, try_number, metadata)
+            if len(remote_log_result) == 2:
+                # old log reading
+                remote_messages, remote_logs = remote_log_result
+                remote_logs_size = sum(len(log) for log in remote_logs)
+                remote_parsed_logs = [_get_compatible_parse_log_stream(remote_logs)]
+            elif len(remote_log_result) == 3:
+                # new stream-based log reading
+                remote_messages, remote_parsed_logs, remote_logs_size = remote_log_result
+            else:
+                raise ValueError("Unexpected return value from _read_remote_logs")
+            # common logic for both old and new log reading
             messages_list.extend(remote_messages)
         has_k8s_exec_pod = False
         if ti.state == TaskInstanceState.RUNNING:
@@ -475,10 +510,17 @@ class FileTaskHandler(logging.Handler):
             response = executor_get_task_log(ti, try_number)
             if response:
                 executor_messages, executor_logs = response
+                executor_logs_size = sum(len(log) for log in executor_logs)
+                executor_parsed_logs = [_get_compatible_parse_log_stream(executor_logs)]
+            elif response and len(response) == 3:
+                executor_messages, executor_parsed_logs, executor_logs_size = response
+            else:
+                raise ValueError("Unexpected return value from executor.get_task_log")
+            # common logic for both old and new log reading
             if executor_messages:
                 messages_list.extend(executor_messages)
                 has_k8s_exec_pod = True
-        if not (remote_logs and ti.state not in State.unfinished):
+        if not (remote_parsed_logs and ti.state not in State.unfinished):
             # when finished, if we have remote logs, no need to check local
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
             local_messages, local_parsed_logs, local_logs_size = self._read_from_local(worker_log_full_path)
@@ -488,7 +530,7 @@ class FileTaskHandler(logging.Handler):
                 ti, worker_log_rel_path
             )
             messages_list.extend(served_messages)
-        elif ti.state not in State.unfinished and not (local_parsed_logs or remote_logs):
+        elif ti.state not in State.unfinished and not (local_parsed_logs or remote_parsed_logs):
             # ordinarily we don't check served logs, with the assumption that users set up
             # remote logging or shared drive for logs for persistence, but that's not always true
             # so even if task is done, if no local logs or remote logs are found, we'll check the worker
@@ -744,7 +786,7 @@ class FileTaskHandler(logging.Handler):
                 logger.exception("Could not read served logs")
         return messages, parsed_log_streams, total_log_size
 
-    def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[list[str], list[str]]:
+    def _read_remote_logs(self, ti, try_number, metadata=None) -> _CompatibleLogSourceType:
         """
         Implement in subclasses to read from the remote service.
 
