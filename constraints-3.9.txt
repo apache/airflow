@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-21T18:28:24.933485
+# This constraints file was automatically generated on 2024-12-22T13:00:08.020090
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -47,7 +47,7 @@ Flask-WTF==1.2.2
 Flask==2.2.5
 GitPython==3.1.43
 JayDeBeApi==1.2.3
-Jinja2==3.1.4
+Jinja2==3.1.5
 Mako==1.3.8
 Markdown==3.7
 MarkupSafe==3.0.2
@@ -255,7 +255,7 @@ ciso8601==2.3.2
 click-didyoumean==0.3.1
 click-plugins==1.1.1
 click-repl==0.3.0
-click==8.1.7
+click==8.1.8
 clickclick==20.10.2
 cloudant==2.15.0
 cloudpickle==2.2.1
@@ -295,7 +295,7 @@ email_validator==2.2.0
 entrypoints==0.4
 eralchemy2==1.4.1
 et_xmlfile==2.0.0
-eval_type_backport==0.2.0
+eval_type_backport==0.2.2
 eventlet==0.38.2
 exceptiongroup==1.2.2
 execnet==2.1.1

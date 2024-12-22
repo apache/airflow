@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-21T18:25:14.607268
+# This constraints file was automatically generated on 2024-12-22T12:57:00.104214
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -22,7 +22,7 @@ Flask-SQLAlchemy==2.5.1
 Flask-Session==0.5.0
 Flask-WTF==1.2.2
 Flask==2.2.5
-Jinja2==3.1.4
+Jinja2==3.1.5
 Mako==1.3.8
 MarkupSafe==3.0.2
 PyJWT==2.10.1
@@ -56,7 +56,7 @@ certifi==2024.12.14
 cffi==1.17.1
 cgroupspy==0.2.3
 charset-normalizer==3.4.0
-click==8.1.7
+click==8.1.8
 clickclick==20.10.2
 cloudpickle==3.1.0
 colorama==0.4.6
@@ -177,7 +177,7 @@ typing_extensions==4.12.2
 tzdata==2024.2
 uc-micro-py==1.0.3
 universal_pathlib==0.2.6
-urllib3==2.2.3
+urllib3==2.3.0
 uv==0.4.29
 vine==5.1.0
 virtualenv==20.28.0
