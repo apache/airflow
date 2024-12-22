@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-21T07:39:47.094887
+# This constraints file was automatically generated on 2024-12-22T19:40:42.388645
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -26,7 +26,7 @@ Flask-WTF==1.2.2
 Flask==2.2.5
 GitPython==3.1.43
 JayDeBeApi==1.2.3
-Jinja2==3.1.4
+Jinja2==3.1.5
 Mako==1.3.8
 Markdown==3.7
 MarkupSafe==3.0.2
@@ -145,7 +145,7 @@ ciso8601==2.3.2
 click-didyoumean==0.3.1
 click-plugins==1.1.1
 click-repl==0.3.0
-click==8.1.7
+click==8.1.8
 clickclick==20.10.2
 cloudpickle==2.2.1
 cohere==4.57
@@ -620,7 +620,7 @@ tzlocal==5.2
 uc-micro-py==1.0.3
 universal_pathlib==0.2.6
 uritemplate==4.1.1
-urllib3==2.2.3
+urllib3==2.3.0
 uuid6==2024.7.10
 uv==0.5.11
 uvicorn==0.34.0
