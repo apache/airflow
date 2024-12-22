@@ -94,7 +94,7 @@ class TaskLogReader:
                 log_stream: Iterable[str]
                 host, log_stream, metadata = self.read_log_chunks(ti, current_try_number, metadata)
                 for log in log_stream:
-                    yield f"\n{host or ''}\n{log}\n"
+                    yield f"{host or ''}\n{log}\n"
                 if "end_of_log" not in metadata or (
                     not metadata["end_of_log"]
                     and ti.state not in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED)
