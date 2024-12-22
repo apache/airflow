@@ -71,9 +71,13 @@ if __name__ == "__main__":
     env = os.environ.copy()
     env["FORCE_COLOR"] = "true"
     for try_num in range(3):
-        print(f"### Trying to install yarn dependencies: attempt: {try_num} ###")
+        print(f"### Trying to install yarn dependencies: attempt: {try_num + 1} ###")
         result = subprocess.run(
-            ["yarn", "install", "--frozen-lockfile"], cwd=os.fspath(www_directory), text=True, check=False
+            ["yarn", "install", "--frozen-lockfile"],
+            cwd=os.fspath(www_directory),
+            text=True,
+            check=False,
+            capture_output=True,
         )
         if result.returncode == 0:
             break
