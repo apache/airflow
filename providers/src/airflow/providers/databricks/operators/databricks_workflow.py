@@ -335,7 +335,7 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
 
         for task in tasks:
             if not (
-                hasattr(task, "_convert_to_databricks_workflow_task")
+                hasattr(task, "_convert_to_databricks_workflow_task.")
                 and callable(task._convert_to_databricks_workflow_task)
             ):
                 raise AirflowException(
