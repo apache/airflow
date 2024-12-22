@@ -1408,7 +1408,7 @@ class DatabricksTaskOperator(DatabricksTaskBaseOperator):
     :param polling_period_seconds: Controls the rate which we poll for the result of this notebook job run.
     :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
     :param databricks_environments: An optional list of task execution environment specifications
-        that can be referenced by serverless tasks of this job.
+that can be referenced by serverless tasks of this job
     """
 
     CALLER = "DatabricksTaskOperator"
@@ -1446,7 +1446,7 @@ class DatabricksTaskOperator(DatabricksTaskBaseOperator):
             polling_period_seconds=polling_period_seconds,
             wait_for_termination=wait_for_termination,
             workflow_run_metadata=workflow_run_metadata,
-            databricks_environments=databricks_environments
+            databricks_environments=databricks_environments,
             **kwargs,
         )
 
