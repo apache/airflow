@@ -2214,17 +2214,16 @@ class TestDatabricksNotebookOperator:
         exception_message = "Both new_cluster and existing_cluster_id are set. Only one should be set."
         assert str(exc_info.value) == exception_message
 
-    def test_both_new_and_existing_cluster_unset(self):
+    def test_both_new_and_existing_cluster_unset(self, caplog):
         operator = DatabricksNotebookOperator(
             task_id="test_task",
             notebook_path="test_path",
             source="test_source",
             databricks_conn_id="test_conn_id",
         )
-        with pytest.raises(ValueError) as exc_info:
-            operator._get_run_json()
-        exception_message = "Must specify either existing_cluster_id or new_cluster."
-        assert str(exc_info.value) == exception_message
+        operator._get_run_json()
+        log_message = "The task adhoc_airflow__test_task will be executed in serverless mode"
+        assert log_message in caplog.text
 
     def test_job_runs_forever_by_default(self):
         operator = DatabricksNotebookOperator(
@@ -2406,6 +2405,19 @@ class TestDatabricksTaskOperator:
             task_id="test_task",
             databricks_conn_id="test_conn_id",
             task_config=task_config,
+        )
+        task_base_json = operator._get_task_base_json()
+
+        assert operator.task_config == task_config
+        assert task_base_json == task_config
+
+    def test_get_task_base_json_serverless(self):
+        task_config = SPARK_PYTHON_TASK
+        operator = DatabricksTaskOperator(
+            task_id="test_task",
+            databricks_conn_id="test_conn_id",
+            task_config=task_config,
+            databricks_environments=ENVIRONMENTS,
         )
         task_base_json = operator._get_task_base_json()
 

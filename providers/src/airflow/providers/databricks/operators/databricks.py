@@ -1162,7 +1162,9 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         }
 
         if self.existing_cluster_id and self.job_cluster_key:
-            self.log.info("The task %s will be executed in serverless mode", result["task_key"])
+            raise ValueError(
+                "Both existing_cluster_id and job_cluster_key are set. Only one can be set per task."
+            )
         if self.existing_cluster_id:
             result["existing_cluster_id"] = self.existing_cluster_id
         elif self.job_cluster_key:
