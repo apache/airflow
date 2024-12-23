@@ -26,11 +26,14 @@ from git import Repo
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.bundles.dagfolder import DagsFolderDagBundle
-from airflow.dag_processing.bundles.git import GitDagBundle
+from airflow.dag_processing.bundles.git import GitDagBundle, GitHook, SSHHook
 from airflow.dag_processing.bundles.local import LocalDagBundle
 from airflow.exceptions import AirflowException
+from airflow.models import Connection
+from airflow.utils import db
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_connections
 
 
 @pytest.fixture(autouse=True)
@@ -107,28 +110,125 @@ def git_repo(tmp_path_factory):
     return (directory, repo)
 
 
+AIRFLOW_HTTPS_URL = "https://github.com/apache/airflow.git"
+AIRFLOW_GIT = "git@github.com:apache/airflow.git"
+ACCESS_TOKEN = "my_access_token"
+CONN_DEFAULT = "git_default"
+CONN_HTTPS = "my_git_conn"
+CONN_HTTPS_PASSWORD = "my_git_conn_https_password"
+CONN_ONLY_PATH = "my_git_conn_only_path"
+CONN_NO_REPO_URL = "my_git_conn_no_repo_url"
+
+
+class TestGitHook:
+    @classmethod
+    def teardown_class(cls) -> None:
+        clear_db_connections()
+
+    @classmethod
+    def setup_class(cls) -> None:
+        db.merge_conn(
+            Connection(
+                conn_id=CONN_DEFAULT,
+                host="github.com",
+                conn_type="git",
+                extra={"git_repo_url": AIRFLOW_GIT},
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id=CONN_HTTPS,
+                host="github.com",
+                conn_type="git",
+                extra={"git_repo_url": AIRFLOW_HTTPS_URL, "git_access_token": ACCESS_TOKEN},
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id=CONN_HTTPS_PASSWORD,
+                host="github.com",
+                conn_type="git",
+                password=ACCESS_TOKEN,
+                extra={"git_repo_url": AIRFLOW_HTTPS_URL},
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id=CONN_ONLY_PATH,
+                host="github.com",
+                conn_type="git",
+                extra={"git_repo_url": "path/to/repo"},
+            )
+        )
+
+    @pytest.mark.parametrize(
+        "conn_id, expected_repo_url",
+        [
+            (CONN_DEFAULT, AIRFLOW_GIT),
+            (CONN_HTTPS, f"https://{ACCESS_TOKEN}@github.com/apache/airflow.git"),
+            (CONN_HTTPS_PASSWORD, f"https://{ACCESS_TOKEN}@github.com/apache/airflow.git"),
+            (CONN_ONLY_PATH, "path/to/repo"),
+        ],
+    )
+    def test_correct_repo_urls(self, conn_id, expected_repo_url):
+        hook = GitHook(git_conn_id=conn_id)
+        assert hook.repo_url == expected_repo_url
+
+    @mock.patch.object(SSHHook, "get_conn")
+    def test_connection_made_to_ssh_hook(self, mock_ssh_hook_get_conn):
+        hook = GitHook(git_conn_id=CONN_DEFAULT)
+        hook.get_conn()
+        mock_ssh_hook_get_conn.assert_called_once_with()
+
+
 class TestGitDagBundle:
+    @classmethod
+    def teardown_class(cls) -> None:
+        clear_db_connections()
+
+    @classmethod
+    def setup_class(cls) -> None:
+        db.merge_conn(
+            Connection(
+                conn_id="git_default",
+                host="github.com",
+                conn_type="git",
+                extra={"git_repo_url": "git@github.com:apache/airflow.git"},
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id=CONN_NO_REPO_URL,
+                host="github.com",
+                conn_type="git",
+                extra="{}",
+            )
+        )
+
     def test_supports_versioning(self):
         assert GitDagBundle.supports_versioning is True
 
     def test_uses_dag_bundle_root_storage_path(self, git_repo):
         repo_path, repo = git_repo
-        bundle = GitDagBundle(
-            name="test", refresh_interval=300, repo_url=repo_path, tracking_ref=GIT_DEFAULT_BRANCH
-        )
+        bundle = GitDagBundle(name="test", refresh_interval=300, tracking_ref=GIT_DEFAULT_BRANCH)
         assert str(bundle._dag_bundle_root_storage_path) in str(bundle.path)
 
-    def test_get_current_version(self, git_repo):
+    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    def test_get_current_version(self, mock_githook, git_repo):
+        mock_githook.get_conn.return_value = mock.MagicMock()
         repo_path, repo = git_repo
-        bundle = GitDagBundle(
-            name="test", refresh_interval=300, repo_url=repo_path, tracking_ref=GIT_DEFAULT_BRANCH
-        )
+        mock_githook.return_value.repo_url = repo_path
+        bundle = GitDagBundle(name="test", refresh_interval=300, tracking_ref=GIT_DEFAULT_BRANCH)
+
         bundle.initialize()
 
         assert bundle.get_current_version() == repo.head.commit.hexsha
 
-    def test_get_specific_version(self, git_repo):
+    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    def test_get_specific_version(self, mock_githook, git_repo):
+        mock_githook.get_conn.return_value = mock.MagicMock()
         repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
         starting_commit = repo.head.commit
 
         # Add new file to the repo
@@ -142,7 +242,6 @@ class TestGitDagBundle:
             name="test",
             refresh_interval=300,
             version=starting_commit.hexsha,
-            repo_url=repo_path,
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
         bundle.initialize()
@@ -152,8 +251,11 @@ class TestGitDagBundle:
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py"} == files_in_repo
 
-    def test_get_tag_version(self, git_repo):
+    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    def test_get_tag_version(self, mock_githook, git_repo):
+        mock_githook.get_conn.return_value = mock.MagicMock()
         repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
         starting_commit = repo.head.commit
 
         # add tag
@@ -171,7 +273,6 @@ class TestGitDagBundle:
             name="test",
             refresh_interval=300,
             version="test",
-            repo_url=repo_path,
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
         bundle.initialize()
@@ -180,8 +281,11 @@ class TestGitDagBundle:
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py"} == files_in_repo
 
-    def test_get_latest(self, git_repo):
+    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    def test_get_latest(self, mock_githook, git_repo):
+        mock_githook.get_conn.return_value = mock.MagicMock()
         repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
         starting_commit = repo.head.commit
 
         file_path = repo_path / "new_test.py"
@@ -190,9 +294,7 @@ class TestGitDagBundle:
         repo.index.add([file_path])
         repo.index.commit("Another commit")
 
-        bundle = GitDagBundle(
-            name="test", refresh_interval=300, repo_url=repo_path, tracking_ref=GIT_DEFAULT_BRANCH
-        )
+        bundle = GitDagBundle(name="test", refresh_interval=300, tracking_ref=GIT_DEFAULT_BRANCH)
         bundle.initialize()
 
         assert bundle.get_current_version() != starting_commit.hexsha
@@ -200,13 +302,14 @@ class TestGitDagBundle:
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py", "new_test.py"} == files_in_repo
 
-    def test_refresh(self, git_repo):
+    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    def test_refresh(self, mock_githook, git_repo):
+        mock_githook.get_conn.return_value = mock.MagicMock()
         repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
         starting_commit = repo.head.commit
 
-        bundle = GitDagBundle(
-            name="test", refresh_interval=300, repo_url=repo_path, tracking_ref=GIT_DEFAULT_BRANCH
-        )
+        bundle = GitDagBundle(name="test", refresh_interval=300, tracking_ref=GIT_DEFAULT_BRANCH)
         bundle.initialize()
 
         assert bundle.get_current_version() == starting_commit.hexsha
@@ -227,29 +330,37 @@ class TestGitDagBundle:
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py", "new_test.py"} == files_in_repo
 
-    def test_head(self, git_repo):
+    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    def test_head(self, mock_githook, git_repo):
+        mock_githook.get_conn.return_value = mock.MagicMock()
         repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
 
         repo.create_head("test")
-        bundle = GitDagBundle(name="test", refresh_interval=300, repo_url=repo_path, tracking_ref="test")
+        bundle = GitDagBundle(name="test", refresh_interval=300, tracking_ref="test")
         bundle.initialize()
         assert bundle.repo.head.ref.name == "test"
 
-    def test_version_not_found(self, git_repo):
+    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    def test_version_not_found(self, mock_githook, git_repo):
+        mock_githook.get_conn.return_value = mock.MagicMock()
         repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
         bundle = GitDagBundle(
             name="test",
             refresh_interval=300,
             version="not_found",
-            repo_url=repo_path,
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
 
         with pytest.raises(AirflowException, match="Version not_found not found in the repository"):
             bundle.initialize()
 
-    def test_subdir(self, git_repo):
+    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    def test_subdir(self, mock_githook, git_repo):
+        mock_githook.get_conn.return_value = mock.MagicMock()
         repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
 
         subdir = "somesubdir"
         subdir_path = repo_path / subdir
@@ -264,7 +375,6 @@ class TestGitDagBundle:
         bundle = GitDagBundle(
             name="test",
             refresh_interval=300,
-            repo_url=repo_path,
             tracking_ref=GIT_DEFAULT_BRANCH,
             subdir=subdir,
         )
@@ -274,30 +384,39 @@ class TestGitDagBundle:
         assert str(bundle.path).endswith(subdir)
         assert {"some_new_file.py"} == files_in_repo
 
-    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHHook")
-    @mock.patch("airflow.dag_processing.bundles.git.Repo")
-    def test_with_ssh_conn_id(self, mock_gitRepo, mock_hook):
-        repo_url = "git@github.com:apache/airflow.git"
-        conn_id = "ssh_default"
+    def test_raises_when_no_repo_url(self):
         bundle = GitDagBundle(
-            repo_url=repo_url,
             name="test",
             refresh_interval=300,
-            ssh_conn_kwargs={"ssh_conn_id": "ssh_default"},
+            git_conn_id=CONN_NO_REPO_URL,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+        )
+        with pytest.raises(
+            AirflowException, match=f"Connection {CONN_NO_REPO_URL} doesn't have a git_repo_url"
+        ):
+            bundle.initialize()
+
+    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    @mock.patch("airflow.dag_processing.bundles.git.Repo")
+    @mock.patch.object(GitDagBundle, "_clone_from")
+    def test_with_path_as_repo_url(self, mock_clone_from, mock_gitRepo, mock_githook):
+        bundle = GitDagBundle(
+            name="test",
+            refresh_interval=300,
+            git_conn_id=CONN_ONLY_PATH,
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
         bundle.initialize()
-        mock_hook.assert_called_once_with(ssh_conn_id=conn_id)
+        assert mock_clone_from.call_count == 2
+        assert mock_gitRepo.return_value.git.checkout.call_count == 1
 
-    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHHook")
+    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
     @mock.patch("airflow.dag_processing.bundles.git.Repo")
-    def test_refresh_with_ssh_connection(self, mock_gitRepo, mock_hook):
-        repo_url = "git@github.com:apache/airflow.git"
+    def test_refresh_with_git_connection(self, mock_gitRepo, mock_hook):
         bundle = GitDagBundle(
-            repo_url=repo_url,
             name="test",
             refresh_interval=300,
-            ssh_conn_kwargs={"ssh_conn_id": "ssh_default"},
+            git_conn_id="git_default",
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
         bundle.initialize()
@@ -305,13 +424,22 @@ class TestGitDagBundle:
         # check remotes called twice. one at initialize and one at refresh above
         assert mock_gitRepo.return_value.remotes.origin.fetch.call_count == 2
 
-    def test_repo_url_starts_with_git_when_using_ssh_conn_id(self):
-        repo_url = "https://github.com/apache/airflow"
+    @pytest.mark.parametrize(
+        "repo_url",
+        [
+            pytest.param("https://github.com/apache/airflow", id="https_url"),
+            pytest.param("airflow@example:apache/airflow.git", id="does_not_start_with_git_at"),
+            pytest.param("git@example:apache/airflow", id="does_not_end_with_dot_git"),
+        ],
+    )
+    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    def test_repo_url_starts_with_git_when_using_ssh_conn_id(self, mock_hook, repo_url, session):
+        mock_hook.get_conn.return_value = mock.MagicMock()
+        mock_hook.return_value.repo_url = repo_url
         bundle = GitDagBundle(
-            repo_url=repo_url,
             name="test",
             refresh_interval=300,
-            ssh_conn_kwargs={"ssh_conn_id": "ssh_default"},
+            git_conn_id="git_default",
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
         with pytest.raises(

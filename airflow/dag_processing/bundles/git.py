@@ -74,6 +74,8 @@ class GitHook(SSHHook):
             return
         if self.auth_token and self.repo_url.startswith("https://"):
             self.repo_url = self.repo_url.replace("https://", f"https://{self.auth_token}@")
+        elif not self.repo_url.startswith("git@") or not self.repo_url.startswith("https://"):
+            self.repo_url = os.path.expanduser(self.repo_url)
 
     def get_conn(self):
         """
@@ -143,11 +145,13 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
     def initialize(self) -> None:
         if not self.repo_url:
             raise AirflowException(f"Connection {self.git_conn_id} doesn't have a git_repo_url")
-        if self.repo_url.startswith("git@"):
-            if not self.repo_url.startswith("git@") and not self.repo_url.endswith(".git"):
-                raise AirflowException(
-                    f"Invalid git URL: {self.repo_url}. URL must start with git@ and end with .git"
-                )
+        if isinstance(self.repo_url, os.PathLike):
+            self._initialize()
+        elif not self.repo_url.startswith("git@") or not self.repo_url.endswith(".git"):
+            raise AirflowException(
+                f"Invalid git URL: {self.repo_url}. URL must start with git@ and end with .git"
+            )
+        elif self.repo_url.startswith("git@"):
             with self.hook.get_conn():
                 self._initialize()
         else:
