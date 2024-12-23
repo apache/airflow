@@ -16,8 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Code, HStack, Skeleton, VStack, Heading } from "@chakra-ui/react";
+import {
+  Box,
+  Code,
+  HStack,
+  Skeleton,
+  VStack,
+  Heading,
+  IconButton,
+} from "@chakra-ui/react";
 import { useState } from "react";
+import { MdOutlineOpenInFull } from "react-icons/md";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
