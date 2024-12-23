@@ -42,7 +42,7 @@ class TaskLogReader:
 
     def read_log_chunks(
         self, ti: TaskInstance, try_number: int | None, metadata
-    ) -> tuple[str, Iterable[str], dict[str, Any]]:
+    ) -> tuple[list[str], list[Iterable[str]], dict[str, Any]]:
         """
         Read chunks of Task Instance logs.
 
@@ -66,10 +66,8 @@ class TaskLogReader:
         log_streams: list[Iterable[str]]
         metadata_array: list[dict[str, Any]]
         hosts, log_streams, metadata_array = self.log_handler.read(ti, try_number, metadata=metadata)
-        host = hosts[0]
-        log_stream = log_streams[0]
         metadata = metadata_array[0]
-        return host, log_stream, metadata
+        return hosts, log_streams, metadata
 
     def read_log_stream(self, ti: TaskInstance, try_number: int | None, metadata: dict) -> Iterator[str]:
         """
@@ -92,9 +90,12 @@ class TaskLogReader:
             while True:
                 host: str
                 log_stream: Iterable[str]
-                host, log_stream, metadata = self.read_log_chunks(ti, current_try_number, metadata)
+                hosts, log_streams, metadata = self.read_log_chunks(ti, current_try_number, metadata)
+                host = hosts[0]
+                log_stream = log_streams[0]
+                yield f"{host or ''}\n"
                 for log in log_stream:
-                    yield f"{host or ''}\n{log}\n"
+                    yield f"{log}\n"
                 if "end_of_log" not in metadata or (
                     not metadata["end_of_log"]
                     and ti.state not in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED)
