@@ -89,3 +89,15 @@ def test_no_runs_after_end_date(timetable, restriction):
     )
 
     assert next_info is None
+
+
+@time_machine.travel(DURING_DATE)
+def test_no_false_triggering_with_future_start_date_after_run(timetable, restriction):
+    FUTURE_DATE = DURING_DATE.add(days=1)
+
+    next_info = timetable.next_dagrun_info(
+        last_automated_data_interval=DataInterval(START_DATE, FUTURE_DATE),
+        restriction=restriction,
+    )
+
+    assert next_info is None
