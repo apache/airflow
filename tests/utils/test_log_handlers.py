@@ -20,7 +20,6 @@ from __future__ import annotations
 import logging
 import logging.config
 import os
-from contextlib import suppress
 from http import HTTPStatus
 from importlib import reload
 from itertools import chain
@@ -48,7 +47,6 @@ from airflow.utils.log.file_task_handler import (
     _fetch_logs_from_service,
     _get_parsed_log_stream,
     _interleave_logs,
-    _parse_timestamp,
 )
 from airflow.utils.log.logging_mixin import set_context
 from airflow.utils.net import get_hostname
@@ -58,26 +56,13 @@ from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.file_task_handler import log_str_to_parsed_log_stream
 
 pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 TASK_LOGGER = "airflow.task"
 FILE_TASK_HANDLER = "task"
-
-
-def _log_sample_to_parsed_log_stream(log_sample: str):
-    lines = log_sample.splitlines()
-    timestamp = None
-    next_timestamp = None
-    for idx, line in enumerate(lines):
-        if line:
-            with suppress(Exception):
-                # next_timestamp unchanged if line can't be parsed
-                next_timestamp = _parse_timestamp(line)
-            if next_timestamp:
-                timestamp = next_timestamp
-            yield timestamp, idx, line
 
 
 class TestFileTaskLogHandler:
@@ -439,7 +424,7 @@ class TestFileTaskLogHandler:
         # messages, parsed_log_streams, log_size
         mock_read_local.return_value = (
             ["the messages"],
-            [_log_sample_to_parsed_log_stream("the log")],
+            [log_str_to_parsed_log_stream("the log")],
             len("the log"),
         )
         local_log_file_read = create_task_instance(
@@ -550,7 +535,7 @@ file2 content 2
                     # new implementation returns: messages, parsed_log_streams, log_size
                     fth._read_remote_logs.return_value = (
                         ["found remote logs"],
-                        [_log_sample_to_parsed_log_stream("remote\nlog\ncontent")],
+                        [log_str_to_parsed_log_stream("remote\nlog\ncontent")],
                         16,
                     )
                 else:
@@ -560,13 +545,13 @@ file2 content 2
                 fth._read_from_local = mock.Mock()
                 fth._read_from_local.return_value = (
                     ["found local logs"],
-                    [_log_sample_to_parsed_log_stream("local\nlog\ncontent")],
+                    [log_str_to_parsed_log_stream("local\nlog\ncontent")],
                     16,
                 )
             fth._read_from_logs_server = mock.Mock()
             fth._read_from_logs_server.return_value = (
                 ["this message"],
-                [_log_sample_to_parsed_log_stream("this\nlog\ncontent")],
+                [log_str_to_parsed_log_stream("this\nlog\ncontent")],
                 16,
             )
 
@@ -748,7 +733,7 @@ def test_interleave_interleaves():
             "[2022-11-16T00:05:54.278-0800] {taskinstance.py:1258} INFO - Starting attempt 1 of 1",
         ]
     )
-    log_sample1_stream = _log_sample_to_parsed_log_stream(log_sample1)
+    log_sample1_stream = log_str_to_parsed_log_stream(log_sample1)
     log_sample2 = "\n".join(
         [
             "[2022-11-16T00:05:54.295-0800] {taskinstance.py:1278} INFO - Executing <Task(TimeDeltaSensorAsync): wait> on 2022-11-16 08:05:52.324532+00:00",
@@ -759,7 +744,7 @@ def test_interleave_interleaves():
             "[2022-11-16T00:05:54.309-0800] {standard_task_runner.py:83} INFO - Job 33648: Subtask wait",
         ]
     )
-    log_sample2_stream = _log_sample_to_parsed_log_stream(log_sample2)
+    log_sample2_stream = log_str_to_parsed_log_stream(log_sample2)
     log_sample3 = "\n".join(
         [
             "[2022-11-16T00:05:54.457-0800] {task_command.py:376} INFO - Running <TaskInstance: simple_async_timedelta.wait manual__2022-11-16T08:05:52.324532+00:00 [running]> on host daniels-mbp-2.lan",
@@ -772,7 +757,7 @@ def test_interleave_interleaves():
             "[2022-11-16T00:05:54.604-0800] {taskinstance.py:1360} INFO - Pausing task as DEFERRED. dag_id=simple_async_timedelta, task_id=wait, execution_date=20221116T080552, start_date=20221116T080554",
         ]
     )
-    log_sample3_stream = _log_sample_to_parsed_log_stream(log_sample3)
+    log_sample3_stream = log_str_to_parsed_log_stream(log_sample3)
     expected = "\n".join(
         [
             "[2022-11-16T00:05:54.278-0800] {taskinstance.py:1258} INFO - Starting attempt 1 of 1",
@@ -870,9 +855,9 @@ def test_interleave_logs_correct_ordering():
     """
 
     interleave_stream = _interleave_logs(
-        _log_sample_to_parsed_log_stream(sample_with_dupe),
-        _log_sample_to_parsed_log_stream(""),
-        _log_sample_to_parsed_log_stream(sample_with_dupe),
+        log_str_to_parsed_log_stream(sample_with_dupe),
+        log_str_to_parsed_log_stream(""),
+        log_str_to_parsed_log_stream(sample_with_dupe),
     )
     interleave_str = "\n".join(line for line in interleave_stream)
     assert interleave_str == sample_with_dupe
@@ -891,7 +876,7 @@ test,
 test"""
 
     interleave_stream = _interleave_logs(
-        _log_sample_to_parsed_log_stream(sample_without_dupe),
+        log_str_to_parsed_log_stream(sample_without_dupe),
     )
     assert "\n".join(line for line in interleave_stream) == "test,\ntest"
 
