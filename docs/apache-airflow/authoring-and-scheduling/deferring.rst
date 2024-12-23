@@ -400,7 +400,7 @@ In the above example, the trigger will end the task instance directly if ``end_f
 Handling XComs for Deferred Tasks
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-When working with deferred tasks that exit directly from triggers, you may need to push XCom values for subsequent tasks in the pipeline. The method ``_push_xcoms_if_necessary`` is responsible for pushing these values. Below is an example of how this can be implemented:
+When working with deferred tasks that exit directly from triggers, you may need to push XCom values for subsequent tasks in the pipeline when it succeeds, because there is no "return" value that can be pushed like in classic operators. The example method ``_push_xcoms_if_necessary`` is responsible for pushing these values on success/failure. Below is an example of how this can be implemented:
 
 .. code-block:: python
 
