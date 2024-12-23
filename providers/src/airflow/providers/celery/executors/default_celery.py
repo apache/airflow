@@ -87,7 +87,7 @@ DEFAULT_CELERY_CONFIG = {
     ),
     "worker_concurrency": conf.getint("celery", "WORKER_CONCURRENCY", fallback=16),
     "worker_enable_remote_control": conf.getboolean("celery", "worker_enable_remote_control", fallback=True),
-    **extra_celery_config,
+    **(extra_celery_config if isinstance(extra_celery_config, dict) else {}),
 }
 
 

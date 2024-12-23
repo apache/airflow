@@ -340,7 +340,7 @@ config:
         version_added: ~
         type: string
         example: ~
-        default: "{}"
+        default: "{{}}"
   celery_broker_transport_options:
     description: |
       This section is for specifying options which can be passed to the
