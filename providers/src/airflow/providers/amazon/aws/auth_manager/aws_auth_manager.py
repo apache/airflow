@@ -25,6 +25,15 @@ from typing import TYPE_CHECKING, cast
 
 from flask import session, url_for
 
+from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
+from airflow.auth.managers.models.resource_details import (
+    AccessView,
+    ConnectionDetails,
+    DagAccessEntity,
+    DagDetails,
+    PoolDetails,
+    VariableDetails,
+)
 from airflow.cli.cli_config import CLICommand, DefaultHelpParser, GroupCommand
 from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
@@ -39,21 +48,7 @@ from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_man
     AwsSecurityManagerOverride,
 )
 from airflow.providers.amazon.aws.auth_manager.views.auth import AwsAuthManagerAuthenticationViews
-
-try:
-    from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
-    from airflow.auth.managers.models.resource_details import (
-        AccessView,
-        ConnectionDetails,
-        DagAccessEntity,
-        DagDetails,
-        PoolDetails,
-        VariableDetails,
-    )
-except ImportError:
-    raise AirflowOptionalProviderFeatureException(
-        "Failed to import BaseUser. This feature is only available in Airflow versions >= 2.8.0"
-    )
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from flask_appbuilder.menu import MenuItem
@@ -76,12 +71,17 @@ class AwsAuthManager(BaseAuthManager):
 
     Leverages AWS services such as Amazon Identity Center and Amazon Verified Permissions to perform
     authentication and authorization in Airflow.
-
-    :param appbuilder: the flask app builder
     """
 
-    def __init__(self, appbuilder: AirflowAppBuilder) -> None:
-        super().__init__(appbuilder)
+    appbuilder: AirflowAppBuilder | None = None
+
+    def __init__(self) -> None:
+        if not AIRFLOW_V_3_0_PLUS:
+            raise AirflowOptionalProviderFeatureException(
+                "AWS auth manager is only compatible with Airflow versions >= 3.0.0"
+            )
+
+        super().__init__()
         self._check_avp_schema_version()
 
     @cached_property

@@ -160,12 +160,21 @@ def patch_variable(
 @variables_router.post(
     "",
     status_code=status.HTTP_201_CREATED,
+    responses=create_openapi_http_exception_doc([status.HTTP_409_CONFLICT]),
 )
 def post_variable(
     post_body: VariableBody,
     session: SessionDep,
 ) -> VariableResponse:
     """Create a variable."""
+    # Check if the key already exists
+    existing_variable = session.scalar(select(Variable).where(Variable.key == post_body.key).limit(1))
+    if existing_variable:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"The Variable with key: `{post_body.key}` already exists",
+        )
+
     Variable.set(**post_body.model_dump(), session=session)
 
     variable = session.scalar(select(Variable).where(Variable.key == post_body.key).limit(1))

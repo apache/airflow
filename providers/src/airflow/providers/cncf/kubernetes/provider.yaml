@@ -22,7 +22,7 @@ description: |
     `Kubernetes <https://kubernetes.io/>`__
 
 state: ready
-source-date-epoch: 1732429220
+source-date-epoch: 1734537609
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 10.1.0

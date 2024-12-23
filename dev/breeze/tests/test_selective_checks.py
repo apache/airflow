@@ -371,6 +371,104 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
+                ("providers/tests/system/apache/beam/file.py",),
+                {
+                    "selected-providers-list-as-string": "apache.beam common.compat google",
+                    "all-python-versions": "['3.9']",
+                    "all-python-versions-list-as-string": "3.9",
+                    "python-versions": "['3.9']",
+                    "python-versions-list-as-string": "3.9",
+                    "ci-image-build": "true",
+                    "prod-image-build": "false",
+                    "needs-helm-tests": "false",
+                    "run-tests": "true",
+                    "run-amazon-tests": "false",
+                    "docs-build": "false",
+                    "skip-pre-commits": (
+                        "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs"
+                        ",mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui,ts-compile-format-lint-www"
+                    ),
+                    "run-kubernetes-tests": "false",
+                    "upgrade-to-newer-dependencies": "false",
+                    "core-test-types-list-as-string": "Always",
+                    "providers-test-types-list-as-string": "Providers[apache.beam,common.compat] Providers[google]",
+                    "individual-providers-test-types-list-as-string": "Providers[apache.beam] Providers[common.compat] Providers[google]",
+                    "needs-mypy": "true",
+                    "mypy-checks": "['mypy-providers']",
+                    "skip-providers-tests": "false",
+                },
+                id="Selected Providers and docs should run when system tests are modified",
+            )
+        ),
+        (
+            pytest.param(
+                ("providers/tests/system/apache/beam/file.py", "providers/tests/apache/beam/file.py"),
+                {
+                    "selected-providers-list-as-string": "apache.beam common.compat google",
+                    "all-python-versions": "['3.9']",
+                    "all-python-versions-list-as-string": "3.9",
+                    "python-versions": "['3.9']",
+                    "python-versions-list-as-string": "3.9",
+                    "ci-image-build": "true",
+                    "prod-image-build": "false",
+                    "needs-helm-tests": "false",
+                    "run-tests": "true",
+                    "run-amazon-tests": "false",
+                    "docs-build": "false",
+                    "skip-pre-commits": (
+                        "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs"
+                        ",mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui,ts-compile-format-lint-www"
+                    ),
+                    "run-kubernetes-tests": "false",
+                    "upgrade-to-newer-dependencies": "false",
+                    "core-test-types-list-as-string": "Always",
+                    "providers-test-types-list-as-string": "Providers[apache.beam,common.compat] Providers[google]",
+                    "individual-providers-test-types-list-as-string": "Providers[apache.beam] Providers[common.compat] Providers[google]",
+                    "needs-mypy": "true",
+                    "mypy-checks": "['mypy-providers']",
+                    "skip-providers-tests": "false",
+                },
+                id="Selected Providers and docs should run when both system tests and tests are modified",
+            )
+        ),
+        (
+            pytest.param(
+                (
+                    "providers/tests/system/apache/beam/file.py",
+                    "providers/tests/apache/beam/file.py",
+                    "providers/tests/system/zendesk/file.py",
+                    "providers/tests/zendesk/file.py",
+                ),
+                {
+                    "selected-providers-list-as-string": "apache.beam common.compat google zendesk",
+                    "all-python-versions": "['3.9']",
+                    "all-python-versions-list-as-string": "3.9",
+                    "python-versions": "['3.9']",
+                    "python-versions-list-as-string": "3.9",
+                    "ci-image-build": "true",
+                    "prod-image-build": "false",
+                    "needs-helm-tests": "false",
+                    "run-tests": "true",
+                    "run-amazon-tests": "false",
+                    "docs-build": "false",
+                    "skip-pre-commits": (
+                        "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs"
+                        ",mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui,ts-compile-format-lint-www"
+                    ),
+                    "run-kubernetes-tests": "false",
+                    "upgrade-to-newer-dependencies": "false",
+                    "core-test-types-list-as-string": "Always",
+                    "providers-test-types-list-as-string": "Providers[apache.beam,common.compat,zendesk] Providers[google]",
+                    "individual-providers-test-types-list-as-string": "Providers[apache.beam] Providers[common.compat] Providers[google] Providers[zendesk]",
+                    "needs-mypy": "true",
+                    "mypy-checks": "['mypy-providers']",
+                    "skip-providers-tests": "false",
+                },
+                id="Selected Providers and docs should run when both system tests and tests are modified for more than one provider",
+            )
+        ),
+        (
+            pytest.param(
                 ("docs/file.rst",),
                 {
                     "selected-providers-list-as-string": None,
