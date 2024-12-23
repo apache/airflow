@@ -882,6 +882,19 @@ class TestHandleRequest:
                 "",
                 id="patch_task_instance_to_skipped",
             ),
+            # checking if we are capable of handling if task_retries is passed
+            pytest.param(
+                TaskState(
+                    state=TerminalTIState.FAILED,
+                    end_date=timezone.parse("2024-10-31T12:00:00Z"),
+                    task_retries=2,
+                ),
+                b"",
+                "",
+                (),
+                "",
+                id="patch_task_instance_to_failed_with_retries",
+            ),
         ],
     )
     def test_handle_requests(

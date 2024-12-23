@@ -248,6 +248,87 @@ def test_run_basic_skipped(time_machine, mocked_parse, make_ti_context):
         )
 
 
+@pytest.mark.parametrize(
+    ["retries", "expected_msg"],
+    [
+        # No retries configured
+        pytest.param(None, TaskState(state=TerminalTIState.FAILED, task_retries=None)),
+        # Retries configured
+        pytest.param(2, TaskState(state=TerminalTIState.FAILED, task_retries=2)),
+        # Retries configured but with 0
+        pytest.param(0, TaskState(state=TerminalTIState.FAILED, task_retries=None)),
+    ],
+)
+def test_run_raises_base_exception(time_machine, mocked_parse, make_ti_context, retries, expected_msg):
+    """Test running a basic task that raises a base exception."""
+    from airflow.providers.standard.operators.python import PythonOperator
+
+    task = PythonOperator(
+        task_id="zero_division_error",
+        retries=retries,
+        python_callable=lambda: 1 / 0,
+    )
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="zero_division_error",
+            dag_id="basic_dag_base_exception",
+            run_id="c",
+            try_number=1,
+        ),
+        file="",
+        requests_fd=0,
+        ti_context=make_ti_context(),
+    )
+
+    ti = mocked_parse(what, "basic_dag_base_exception", task)
+
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
+
+    with mock.patch(
+        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
+    ) as mock_supervisor_comms:
+        run(ti, log=mock.MagicMock())
+        expected_msg.end_date = instant
+        mock_supervisor_comms.send_request.assert_called_once_with(msg=expected_msg, log=mock.ANY)
+
+
+def test_run_raises_missing_task(time_machine, mocked_parse, make_ti_context):
+    """Test running a basic dag with missing ti.task."""
+    from airflow.providers.standard.operators.python import PythonOperator
+
+    task = PythonOperator(
+        task_id="missing_task",
+        python_callable=lambda: 1 / 0,
+    )
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(), task_id="missing_task", dag_id="basic_dag_missing_task", run_id="c", try_number=1
+        ),
+        file="",
+        requests_fd=0,
+        ti_context=make_ti_context(),
+    )
+
+    ti = mocked_parse(what, "basic_dag_missing_task", task)
+
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
+
+    with mock.patch(
+        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
+    ) as mock_supervisor_comms:
+        # set ti.task as None
+        ti.task = None
+        run(ti, log=mock.MagicMock())
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            msg=TaskState(state=TerminalTIState.FAILED, task_retries=-1, end_date=instant), log=mock.ANY
+        )
+
+
 def test_startup_basic_templated_dag(mocked_parse, make_ti_context):
     """Test running a DAG with templated task."""
     from airflow.providers.standard.operators.bash import BashOperator

@@ -139,6 +139,26 @@ class TestTaskInstanceOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         client.task_instances.finish(ti_id, state=state, when="2024-10-31T12:00:00Z", task_retries=None)
 
+    def test_task_instance_finish_with_retries(self):
+        # Simulate a successful response from the server that finishes (moved to terminal state) a task when retries are present
+        ti_id = uuid6.uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti_id}/state":
+                actual_body = json.loads(request.read())
+                assert actual_body["end_date"] == "2024-10-31T12:00:00Z"
+                assert actual_body["state"] == TerminalTIState.FAILED
+                assert actual_body["task_retries"] == 2
+                return httpx.Response(
+                    status_code=204,
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        client.task_instances.finish(
+            ti_id, state=TerminalTIState.FAILED, when="2024-10-31T12:00:00Z", task_retries=2
+        )
+
     def test_task_instance_heartbeat(self):
         # Simulate a successful response from the server that sends a heartbeat for a ti
         ti_id = uuid6.uuid7()
