@@ -340,6 +340,71 @@ class TestTIUpdateState:
         assert trs[0].map_index == -1
         assert trs[0].duration == 129600
 
+    @pytest.mark.parametrize(
+        ("retries", "expected_state"),
+        [
+            # retries given
+            (2, State.UP_FOR_RETRY),
+            # retries not given
+            (None, State.FAILED),
+            # retries given but as 0
+            (0, State.FAILED),
+            # retries not known, given as -1, calculates on table default
+            (-1, State.UP_FOR_RETRY),
+        ],
+    )
+    def test_ti_update_state_to_retry(self, client, session, create_task_instance, retries, expected_state):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_retry",
+            state=State.RUNNING,
+        )
+        ti.retries = retries
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": State.FAILED,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "task_retries": retries,
+            },
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.state == expected_state
+        assert ti.next_method is None
+        assert ti.next_kwargs is None
+
+    def test_ti_update_state_to_retry_when_restarting(self, client, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_retry_when_restarting",
+            state=State.RESTARTING,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": State.FAILED,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.state == State.UP_FOR_RETRY
+        assert ti.next_method is None
+        assert ti.next_kwargs is None
+
 
 class TestTIHealthEndpoint:
     def setup_method(self):
