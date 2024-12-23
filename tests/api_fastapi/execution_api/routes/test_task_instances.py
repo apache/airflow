@@ -340,6 +340,33 @@ class TestTIUpdateState:
         assert trs[0].map_index == -1
         assert trs[0].duration == 129600
 
+    def test_ti_update_state_to_failed_table_check(self, client, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_failed_table_check",
+            state=State.RUNNING,
+        )
+        ti.start_date = DEFAULT_START_DATE
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": State.FAILED,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.state == State.FAILED
+        assert ti.next_method is None
+        assert ti.next_kwargs is None
+        assert ti.duration == 3600.00
+
 
 class TestTIHealthEndpoint:
     def setup_method(self):
@@ -508,33 +535,6 @@ class TestTIHealthEndpoint:
         # If successful, ensure last_heartbeat_at is updated
         session.refresh(ti)
         assert ti.last_heartbeat_at == time_now.add(minutes=10)
-
-    def test_ti_update_state_to_failed_table_check(self, client, session, create_task_instance):
-        ti = create_task_instance(
-            task_id="test_ti_update_state_to_failed_table_check",
-            state=State.RUNNING,
-        )
-        ti.start_date = DEFAULT_START_DATE
-        session.commit()
-
-        response = client.patch(
-            f"/execution/task-instances/{ti.id}/state",
-            json={
-                "state": State.FAILED,
-                "end_date": DEFAULT_END_DATE.isoformat(),
-            },
-        )
-
-        assert response.status_code == 204
-        assert response.text == ""
-
-        session.expire_all()
-
-        ti = session.get(TaskInstance, ti.id)
-        assert ti.state == State.FAILED
-        assert ti.next_method is None
-        assert ti.next_kwargs is None
-        assert ti.duration == 3600.00
 
 
 class TestTIPutRTIF:
