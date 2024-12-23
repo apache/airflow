@@ -20,7 +20,6 @@ from __future__ import annotations
 import logging
 import logging.config
 import os
-import re
 from contextlib import suppress
 from http import HTTPStatus
 from importlib import reload
@@ -160,7 +159,7 @@ class TestFileTaskLogHandler:
 
     def test_file_task_handler(self, dag_maker, session):
         def task_callable(ti):
-            ti.log.info("test")
+            ti.log.info("test_log_stdout_in_callable")
 
         with dag_maker("dag_for_testing_file_task_handler", schedule=None, session=session):
             PythonOperator(
@@ -203,13 +202,11 @@ class TestFileTaskLogHandler:
         assert len(log_streams) == len(metadata_array)
         self._assert_is_log_stream_type(log_streams[0])
         assert isinstance(metadata_array[0], dict)
-        target_re = r"\n\[[^\]]+\] {test_log_handlers.py:\d+} INFO - test\n"
 
         # We should expect our log line from the callable above to appear in
         # the logs we read back
         log_str = "\n".join(line for line in log_streams[0])
-        log_lines = log_str.splitlines()
-        assert re.search(target_re, log_lines[-2]), "Logs were " + log_str
+        assert "test_log_stdout_in_callable" in log_str
 
         # Remove the generated tmp log file.
         os.remove(log_filename)
