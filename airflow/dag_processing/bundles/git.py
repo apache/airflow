@@ -27,8 +27,64 @@ from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
+try:
+    from airflow.providers.ssh.hooks.ssh import SSHHook
+except ImportError as e:
+    raise AirflowOptionalProviderFeatureException(e)
+
 if TYPE_CHECKING:
     from pathlib import Path
+
+    import paramiko
+
+
+class GitHook(SSHHook):
+    """
+    Hook for git repositories.
+
+    :param git_conn_id: Connection ID for SSH connection to the repository
+
+    """
+
+    conn_name_attr = "git_conn_id"
+    default_conn_name = "git_default"
+    conn_type = "git"
+    hook_name = "GIT"
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        return {
+            "hidden_fields": ["schema"],
+            "relabeling": {
+                "login": "Username",
+            },
+        }
+
+    def __init__(self, git_conn_id="git_default", *args, **kwargs):
+        self.conn: paramiko.SSHClient | None = None
+        kwargs["ssh_conn_id"] = git_conn_id
+        super().__init__(*args, **kwargs)
+        connection = self.get_connection(git_conn_id)
+        self.repo_url = connection.extra_dejson.get("git_repo_url")
+        self.auth_token = connection.extra_dejson.get("git_access_token", None) or connection.password
+        self._process_git_auth_url()
+
+    def _process_git_auth_url(self):
+        if not isinstance(self.repo_url, str):
+            return
+        if self.auth_token and self.repo_url.startswith("https://"):
+            self.repo_url = self.repo_url.replace("https://", f"https://{self.auth_token}@")
+
+    def get_conn(self):
+        """
+        Establish an SSH connection.
+
+        Please use as a context manager to ensure the connection is closed after use.
+        :return: SSH connection
+        """
+        if self.conn is None:
+            self.conn = super().get_conn()
+        return self.conn
 
 
 class GitDagBundle(BaseDagBundle, LoggingMixin):
@@ -49,22 +105,21 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
     def __init__(
         self,
         *,
-        repo_url: str,
         tracking_ref: str,
         subdir: str | None = None,
-        ssh_conn_kwargs: dict[str, str] | None = None,
+        git_conn_id: str = "git_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.repo_url = repo_url
         self.tracking_ref = tracking_ref
         self.subdir = subdir
         self.bare_repo_path = self._dag_bundle_root_storage_path / "git" / self.name
         self.repo_path = (
             self._dag_bundle_root_storage_path / "git" / (self.name + f"+{self.version or self.tracking_ref}")
         )
-        self.ssh_conn_kwargs = ssh_conn_kwargs
-        self.ssh_hook: Any | None = None
+        self.git_conn_id = git_conn_id
+        self.hook = GitHook(git_conn_id=self.git_conn_id)
+        self.repo_url = self.hook.repo_url
 
     def _clone_from(self, to_path: Path, bare: bool = False) -> Repo:
         self.log.info("Cloning %s to %s", self.repo_url, to_path)
@@ -85,21 +140,15 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         else:
             self._refresh()
 
-    def _ssh_hook(self):
-        try:
-            from airflow.providers.ssh.hooks.ssh import SSHHook
-        except ImportError as e:
-            raise AirflowOptionalProviderFeatureException(e)
-        return SSHHook(**self.ssh_conn_kwargs)
-
     def initialize(self) -> None:
-        if self.ssh_conn_kwargs:
+        if not self.repo_url:
+            raise AirflowException(f"Connection {self.git_conn_id} doesn't have a git_repo_url")
+        if self.repo_url.startswith("git@"):
             if not self.repo_url.startswith("git@") and not self.repo_url.endswith(".git"):
                 raise AirflowException(
                     f"Invalid git URL: {self.repo_url}. URL must start with git@ and end with .git"
                 )
-            self.ssh_hook = self._ssh_hook()
-            with self.ssh_hook.get_conn():
+            with self.hook.get_conn():
                 self._initialize()
         else:
             self._initialize()
@@ -162,8 +211,8 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         if self.version:
             raise AirflowException("Refreshing a specific version is not supported")
 
-        if self.ssh_hook:
-            with self.ssh_hook.get_conn():
+        if self.hook:
+            with self.hook.get_conn():
                 self._refresh()
         else:
             self._refresh()
