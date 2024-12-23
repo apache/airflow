@@ -696,14 +696,7 @@ class TestDatabricksSubmitRunOperator:
                         "max_workers": 16,
                     },
                 },
-                "notebook_task": {
-                    "notebook_path": "/Users/user.name@databricks.com/Match",
-                    "source": "WORKSPACE",
-                    "base_parameters": {
-                        "name": "John Doe",
-                        "age": "35",
-                    },
-                },
+                "spark_python_task": {"python_file": "/Users/jsmith@example.com/example_file.py"},
                 "timeout_seconds": 86400,
                 "max_retries": 3,
                 "min_retry_interval_millis": 2000,
