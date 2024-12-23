@@ -538,7 +538,7 @@ def _transform_dag_run_types(types: list[str] | None) -> list[DagRunType | None]
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Invalid value for state. Valid values are {', '.join(DagRunType)}",
+            detail=f"Invalid value for run type. Valid values are {', '.join(DagRunType)}",
         )
 
 
@@ -635,8 +635,8 @@ def _optional_boolean(value: bool | None) -> bool | None:
     return value if value is not None else False
 
 
-QueryIncludeUpstream = Annotated[Union[bool, None], AfterValidator(_optional_boolean)]
-QueryIncludeDownstream = Annotated[Union[bool, None], AfterValidator(_optional_boolean)]
+QueryIncludeUpstream = Annotated[Union[bool], AfterValidator(_optional_boolean)]
+QueryIncludeDownstream = Annotated[Union[bool], AfterValidator(_optional_boolean)]
 
 state_priority: list[None | TaskInstanceState] = [
     TaskInstanceState.FAILED,

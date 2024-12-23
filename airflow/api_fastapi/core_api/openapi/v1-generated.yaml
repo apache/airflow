@@ -222,18 +222,14 @@ paths:
         in: query
         required: false
         schema:
-          anyOf:
-          - type: boolean
-          - type: 'null'
+          type: boolean
           default: false
           title: Include Upstream
       - name: include_downstream
         in: query
         required: false
         schema:
-          anyOf:
-          - type: boolean
-          - type: 'null'
+          type: boolean
           default: false
           title: Include Downstream
       - name: root
@@ -353,18 +349,14 @@ paths:
         in: query
         required: false
         schema:
-          anyOf:
-          - type: boolean
-          - type: 'null'
+          type: boolean
           default: false
           title: Include Upstream
       - name: include_downstream
         in: query
         required: false
         schema:
-          anyOf:
-          - type: boolean
-          - type: 'null'
+          type: boolean
           default: false
           title: Include Downstream
       - name: logical_date_gte

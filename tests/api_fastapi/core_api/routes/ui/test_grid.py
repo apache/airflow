@@ -2799,7 +2799,7 @@ class TestGetGridDataEndpoint:
         [
             (
                 ["invalid"],
-                {"detail": f"Invalid value for state. Valid values are {', '.join(DagRunType)}"},
+                {"detail": f"Invalid value for run type. Valid values are {', '.join(DagRunType)}"},
             )
         ],
     )
