@@ -137,14 +137,18 @@ class ContinuousTimetable(_TrivialTimetable):
     ) -> DagRunInfo | None:
         if restriction.earliest is None:  # No start date, won't run.
             return None
+
+        current_time = timezone.coerce_datetime(timezone.utcnow())
+
         if last_automated_data_interval is not None:  # has already run once
             start = last_automated_data_interval.end
-            end = timezone.coerce_datetime(timezone.utcnow())
+            end = current_time
+
+            if start > end:  # Skip scheduling if the last run ended in the future
+                return None
         else:  # first run
             start = restriction.earliest
-            end = max(
-                restriction.earliest, timezone.coerce_datetime(timezone.utcnow())
-            )  # won't run any earlier than start_date
+            end = max(restriction.earliest, current_time)
 
         if restriction.latest is not None and end > restriction.latest:
             return None
