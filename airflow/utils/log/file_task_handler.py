@@ -207,15 +207,9 @@ def _interleave_logs(*parsed_log_streams: _ParsedLogStreamType) -> Generator[str
     # to allow removing empty streams while iterating
     log_streams: list[_ParsedLogStreamType] = [log_stream for log_stream in parsed_log_streams]
 
-    # add first record from each log stream to heap
-    _add_log_from_parsed_log_streams_to_heap(heap, log_streams)
-
     # keep adding records from logs until all logs are empty
     last = None
-    while heap:
-        if not log_streams:
-            break
-
+    while log_streams:
         _add_log_from_parsed_log_streams_to_heap(heap, log_streams)
 
         # yield HALF_HEAP_DUMP_SIZE records when heap size exceeds HEAP_DUMP_SIZE
