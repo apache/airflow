@@ -35,14 +35,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.0.0
+.....
+
+Latest change: 2024-12-19
+
+=================================================================================================  ===========  =====================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================================================
+`35b927fe17 <https://github.com/apache/airflow/commit/35b927fe177065dad0e00c49d72b494e58b27ca8>`_  2024-12-19   ``Update path of example dags in docs (#45069)``
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`e03265bb56 <https://github.com/apache/airflow/commit/e03265bb5613b8cfcaa2a42cf6369b1ba091ddf4>`_  2024-12-05   ``Correct new changelog breaking changes header (#44659)``
+`f1f64998bd <https://github.com/apache/airflow/commit/f1f64998bd9614989167e4b80150ff800d3a1c1b>`_  2024-12-02   ``Remove Provider Deprecations in Docker (#44583)``
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`8d8bb0f23e <https://github.com/apache/airflow/commit/8d8bb0f23e1ffa1c6518486eaee3c9df1bc3e0a5>`_  2024-11-17   ``fix docker documentation auth url (#44112)``
+`4dfae23532 <https://github.com/apache/airflow/commit/4dfae23532d26ed838069c49d48f28c185e954c6>`_  2024-11-15   ``Update DAG example links in multiple providers documents (#44034)``
+=================================================================================================  ===========  =====================================================================
+
 3.14.1
 ......
 
-Latest change: 2024-11-09
+Latest change: 2024-11-14
 
 =================================================================================================  ===========  ========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
 `74bc8728fb <https://github.com/apache/airflow/commit/74bc8728fb58f73d65b9283e33577f234e7b8bb3>`_  2024-11-09   ``Fix logs with leading spaces in the Docker operator (#33692) (#43840)``
 `06088a3abc <https://github.com/apache/airflow/commit/06088a3abcbb46533e74de360746db766d50cf66>`_  2024-10-31   ``Standard provider python operator (#42081)``
 `857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``

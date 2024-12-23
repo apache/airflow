@@ -28,8 +28,12 @@
 Changelog
 ---------
 
-main
-....
+4.0.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
@@ -40,6 +44,18 @@ Breaking changes
 
   * Operators
      * Remove ``airflow.providers.vertica.operators.vertica.VerticaOperator``. Please use ``airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator``.
+
+* ``Remove Provider Deprecations in Vertica (#44748)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
 
 3.9.1
 .....

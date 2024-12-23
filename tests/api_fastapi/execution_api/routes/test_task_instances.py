@@ -25,7 +25,7 @@ import uuid6
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
-from airflow.models import RenderedTaskInstanceFields, Trigger
+from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
@@ -39,40 +39,58 @@ DEFAULT_START_DATE = timezone.parse("2024-10-31T11:00:00Z")
 DEFAULT_END_DATE = timezone.parse("2024-10-31T12:00:00Z")
 
 
-class TestTIUpdateState:
+class TestTIRunState:
     def setup_method(self):
         clear_db_runs()
 
     def teardown_method(self):
         clear_db_runs()
 
-    def test_ti_update_state_to_running(self, client, session, create_task_instance):
+    def test_ti_run_state_to_running(self, client, session, create_task_instance, time_machine):
         """
         Test that the Task Instance state is updated to running when the Task Instance is in a state where it can be
         marked as running.
         """
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
 
         ti = create_task_instance(
-            task_id="test_ti_update_state_to_running",
+            task_id="test_ti_run_state_to_running",
             state=State.QUEUED,
             session=session,
+            start_date=instant,
         )
 
         session.commit()
 
         response = client.patch(
-            f"/execution/task-instances/{ti.id}/state",
+            f"/execution/task-instances/{ti.id}/run",
             json={
                 "state": "running",
                 "hostname": "random-hostname",
                 "unixname": "random-unixname",
                 "pid": 100,
-                "start_date": "2024-10-31T12:00:00Z",
+                "start_date": instant_str,
             },
         )
 
-        assert response.status_code == 204
-        assert response.text == ""
+        assert response.status_code == 200
+        assert response.json() == {
+            "dag_run": {
+                "dag_id": "dag",
+                "run_id": "test",
+                "logical_date": instant_str,
+                "data_interval_start": instant.subtract(days=1).to_iso8601_string(),
+                "data_interval_end": instant_str,
+                "start_date": instant_str,
+                "end_date": None,
+                "run_type": "manual",
+                "conf": {},
+            },
+            "variables": [],
+            "connections": [],
+        }
 
         # Refresh the Task Instance from the database so that we can check the updated values
         session.refresh(ti)
@@ -80,10 +98,10 @@ class TestTIUpdateState:
         assert ti.hostname == "random-hostname"
         assert ti.unixname == "random-unixname"
         assert ti.pid == 100
-        assert ti.start_date.isoformat() == "2024-10-31T12:00:00+00:00"
+        assert ti.start_date == instant
 
     @pytest.mark.parametrize("initial_ti_state", [s for s in TaskInstanceState if s != State.QUEUED])
-    def test_ti_update_state_conflict_if_not_queued(
+    def test_ti_run_state_conflict_if_not_queued(
         self, client, session, create_task_instance, initial_ti_state
     ):
         """
@@ -91,13 +109,13 @@ class TestTIUpdateState:
         running. In this case, the Task Instance is first in NONE state so it cannot be marked as running.
         """
         ti = create_task_instance(
-            task_id="test_ti_update_state_conflict_if_not_queued",
+            task_id="test_ti_run_state_conflict_if_not_queued",
             state=initial_ti_state,
         )
         session.commit()
 
         response = client.patch(
-            f"/execution/task-instances/{ti.id}/state",
+            f"/execution/task-instances/{ti.id}/run",
             json={
                 "state": "running",
                 "hostname": "random-hostname",
@@ -117,6 +135,14 @@ class TestTIUpdateState:
         }
 
         assert session.scalar(select(TaskInstance.state).where(TaskInstance.id == ti.id)) == initial_ti_state
+
+
+class TestTIUpdateState:
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
 
     @pytest.mark.parametrize(
         ("state", "end_date", "expected_state"),
@@ -160,7 +186,7 @@ class TestTIUpdateState:
         task_instance_id = "0182e924-0f1e-77e6-ab50-e977118bc139"
 
         # Pre-condition: the Task Instance does not exist
-        assert session.scalar(select(TaskInstance.id).where(TaskInstance.id == task_instance_id)) is None
+        assert session.get(TaskInstance, task_instance_id) is None
 
         payload = {"state": "success", "end_date": "2024-10-31T12:30:00Z"}
 
@@ -170,6 +196,26 @@ class TestTIUpdateState:
             "reason": "not_found",
             "message": "Task Instance not found",
         }
+
+    def test_ti_update_state_running_errors(self, client, session, create_task_instance, time_machine):
+        """
+        Test that a 422 error is returned when the Task Instance state is RUNNING in the payload.
+
+        Task should be set to Running state via the /execution/task-instances/{task_instance_id}/run endpoint.
+        """
+
+        ti = create_task_instance(
+            task_id="test_ti_update_state_running_errors",
+            state=State.QUEUED,
+            session=session,
+            start_date=DEFAULT_START_DATE,
+        )
+
+        session.commit()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json={"state": "running"})
+
+        assert response.status_code == 422
 
     def test_ti_update_state_database_error(self, client, session, create_task_instance):
         """
@@ -181,17 +227,14 @@ class TestTIUpdateState:
         )
         session.commit()
         payload = {
-            "state": "running",
-            "hostname": "random-hostname",
-            "unixname": "random-unixname",
-            "pid": 100,
-            "start_date": "2024-10-31T12:00:00Z",
+            "state": "success",
+            "end_date": "2024-10-31T12:00:00Z",
         }
 
         with mock.patch(
             "airflow.api_fastapi.common.db.common.Session.execute",
             side_effect=[
-                mock.Mock(one=lambda: ("queued",)),  # First call returns "queued"
+                mock.Mock(one=lambda: ("running",)),  # First call returns "queued"
                 SQLAlchemyError("Database error"),  # Second call raises an error
             ],
         ):
@@ -216,7 +259,7 @@ class TestTIUpdateState:
 
         payload = {
             "state": "deferred",
-            "trigger_kwargs": {"key": "value"},
+            "trigger_kwargs": {"key": "value", "moment": "2024-12-18T00:00:00Z"},
             "classpath": "my-classpath",
             "next_method": "execute_callback",
             "trigger_timeout": "P1D",  # 1 day
@@ -234,14 +277,68 @@ class TestTIUpdateState:
 
         assert tis[0].state == TaskInstanceState.DEFERRED
         assert tis[0].next_method == "execute_callback"
-        assert tis[0].next_kwargs == {"key": "value"}
+        assert tis[0].next_kwargs == {
+            "key": "value",
+            "moment": datetime(2024, 12, 18, 00, 00, 00, tzinfo=timezone.utc),
+        }
         assert tis[0].trigger_timeout == timezone.make_aware(datetime(2024, 11, 23), timezone=timezone.utc)
 
         t = session.query(Trigger).all()
         assert len(t) == 1
         assert t[0].created_date == instant
         assert t[0].classpath == "my-classpath"
-        assert t[0].kwargs == {"key": "value"}
+        assert t[0].kwargs == {
+            "key": "value",
+            "moment": datetime(2024, 12, 18, 00, 00, 00, tzinfo=timezone.utc),
+        }
+
+    def test_ti_update_state_to_reschedule(self, client, session, create_task_instance, time_machine):
+        """
+        Test that tests if the transition to reschedule state is handled correctly.
+        """
+
+        instant = timezone.datetime(2024, 10, 30)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_reschedule",
+            state=State.RUNNING,
+            session=session,
+        )
+        ti.start_date = instant
+        session.commit()
+
+        payload = {
+            "state": "up_for_reschedule",
+            "reschedule_date": "2024-10-31T11:03:00+00:00",
+            "end_date": DEFAULT_END_DATE.isoformat(),
+        }
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        tis = session.query(TaskInstance).all()
+        assert len(tis) == 1
+        assert tis[0].state == TaskInstanceState.UP_FOR_RESCHEDULE
+        assert tis[0].next_method is None
+        assert tis[0].next_kwargs is None
+        assert tis[0].duration == 129600
+
+        trs = session.query(TaskReschedule).all()
+        assert len(trs) == 1
+        assert trs[0].dag_id == "dag"
+        assert trs[0].task_id == "test_ti_update_state_to_reschedule"
+        assert trs[0].run_id == "test"
+        assert trs[0].try_number == 0
+        assert trs[0].start_date == instant
+        assert trs[0].end_date == DEFAULT_END_DATE
+        assert trs[0].reschedule_date == timezone.parse("2024-10-31T11:03:00+00:00")
+        assert trs[0].map_index == -1
+        assert trs[0].duration == 129600
 
 
 class TestTIHealthEndpoint:
@@ -334,7 +431,7 @@ class TestTIHealthEndpoint:
         task_instance_id = "0182e924-0f1e-77e6-ab50-e977118bc139"
 
         # Pre-condition: the Task Instance does not exist
-        assert session.scalar(select(TaskInstance.id).where(TaskInstance.id == task_instance_id)) is None
+        assert session.get(TaskInstance, task_instance_id) is None
 
         response = client.put(
             f"/execution/task-instances/{task_instance_id}/heartbeat",
@@ -411,6 +508,33 @@ class TestTIHealthEndpoint:
         # If successful, ensure last_heartbeat_at is updated
         session.refresh(ti)
         assert ti.last_heartbeat_at == time_now.add(minutes=10)
+
+    def test_ti_update_state_to_failed_table_check(self, client, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_failed_table_check",
+            state=State.RUNNING,
+        )
+        ti.start_date = DEFAULT_START_DATE
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": State.FAILED,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.state == State.FAILED
+        assert ti.next_method is None
+        assert ti.next_kwargs is None
+        assert ti.duration == 3600.00
 
 
 class TestTIPutRTIF:

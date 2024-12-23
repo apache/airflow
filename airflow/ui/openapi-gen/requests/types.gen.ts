@@ -374,6 +374,7 @@ export type DAGResponse = {
  */
 export type DAGRunClearBody = {
   dry_run?: boolean;
+  only_failed?: boolean;
 };
 
 /**
@@ -401,7 +402,7 @@ export type DAGRunPatchStates = "queued" | "success" | "failed";
  * DAG Run serializer for responses.
  */
 export type DAGRunResponse = {
-  dag_run_id: string | null;
+  dag_run_id: string;
   dag_id: string;
   logical_date: string | null;
   queued_at: string | null;
@@ -643,6 +644,7 @@ export type EdgeResponse = {
   label?: string | null;
   source_id: string;
   target_id: string;
+  is_source_asset?: boolean | null;
 };
 
 /**
@@ -783,6 +785,7 @@ export type NodeResponse = {
     | "sensor"
     | "trigger";
   operator?: string | null;
+  asset_condition_type?: "or-gate" | "and-gate" | null;
 };
 
 export type type =
@@ -1286,6 +1289,7 @@ export type XComResponse = {
   map_index: number;
   task_id: string;
   dag_id: string;
+  run_id: string;
 };
 
 /**
@@ -1298,6 +1302,7 @@ export type XComResponseNative = {
   map_index: number;
   task_id: string;
   dag_id: string;
+  run_id: string;
   value: unknown;
 };
 
@@ -1311,6 +1316,7 @@ export type XComResponseString = {
   map_index: number;
   task_id: string;
   dag_id: string;
+  run_id: string;
   value: string | null;
 };
 
@@ -4476,6 +4482,10 @@ export type $OpenApiTs = {
          * Forbidden
          */
         403: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
         /**
          * Validation Error
          */

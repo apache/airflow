@@ -22,9 +22,10 @@ description: |
     `Facebook Ads <https://www.facebook.com/about/ads>`__
 
 state: ready
-source-date-epoch: 1723970150
+source-date-epoch: 1734533838
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 3.7.0
   - 3.6.0
   - 3.5.2
   - 3.5.1
@@ -49,7 +50,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.8.0
+  - apache-airflow>=2.9.0
   - facebook-business>=15.0.2
 
 integrations:

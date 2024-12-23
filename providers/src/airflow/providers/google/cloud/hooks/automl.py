@@ -43,8 +43,9 @@ from google.cloud.automl_v1beta1 import (
     PredictResponse,
 )
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 if TYPE_CHECKING:
@@ -58,6 +59,12 @@ if TYPE_CHECKING:
     from google.protobuf.field_mask_pb2 import FieldMask
 
 
+@deprecated(
+    planned_removal_date="September 30, 2025",
+    use_instead="airflow.providers.google.cloud.hooks.vertex_ai.auto_ml.AutoMLHook, "
+    "airflow.providers.google.cloud.hooks.translate.TranslateHook",
+    category=AirflowProviderDeprecationWarning,
+)
 class CloudAutoMLHook(GoogleBaseHook):
     """
     Google Cloud AutoML hook.
