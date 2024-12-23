@@ -98,6 +98,13 @@ export type BackfillCollectionResponse = {
 };
 
 /**
+ * Serializer for responses in dry-run mode for backfill operations.
+ */
+export type BackfillDryRunResponse = {
+  run_info_list: Array<BackfillRunInfo>;
+};
+
+/**
  * Object used for create backfill request.
  */
 export type BackfillPostBody = {
@@ -110,6 +117,7 @@ export type BackfillPostBody = {
   };
   reprocess_behavior?: ReprocessBehavior;
   max_active_runs?: number;
+  dry_run?: boolean;
 };
 
 /**
@@ -129,6 +137,13 @@ export type BackfillResponse = {
   created_at: string;
   completed_at: string | null;
   updated_at: string;
+};
+
+/**
+ * Data model for run information during a backfill operation.
+ */
+export type BackfillRunInfo = {
+  logical_date: string;
 };
 
 /**
@@ -1524,6 +1539,12 @@ export type CancelBackfillData = {
 
 export type CancelBackfillResponse = BackfillResponse;
 
+export type CreateBackfillDryRunData = {
+  requestBody: BackfillPostBody;
+};
+
+export type CreateBackfillDryRunResponse = BackfillDryRunResponse;
+
 export type DeleteConnectionData = {
   connectionId: string;
 };
@@ -2751,6 +2772,37 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: BackfillResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/backfills/dry_run": {
+    post: {
+      req: CreateBackfillDryRunData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: BackfillDryRunResponse;
         /**
          * Unauthorized
          */

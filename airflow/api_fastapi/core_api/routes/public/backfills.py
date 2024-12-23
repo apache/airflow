@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import select, update
+from sqlalchemy import desc, select, update
 
 from airflow.api_fastapi.common.db.common import (
     AsyncSessionDep,
@@ -30,8 +30,10 @@ from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortP
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.backfills import (
     BackfillCollectionResponse,
+    BackfillDryRunResponse,
     BackfillPostBody,
     BackfillResponse,
+    BackfillRunInfo,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import (
     create_openapi_http_exception_doc,
@@ -41,9 +43,14 @@ from airflow.models.backfill import (
     AlreadyRunningBackfill,
     Backfill,
     BackfillDagRun,
+    BackfillDagRunExceptionReason,
+    ReprocessBehavior,
     _create_backfill,
+    _get_info_list,
 )
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import timezone
+from airflow.utils.sqlalchemy import nulls_first
 from airflow.utils.state import DagRunState
 
 backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
@@ -206,3 +213,55 @@ def create_backfill(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"There is already a running backfill for dag {backfill_request.dag_id}",
         )
+
+
+@backfills_router.post(
+    path="/dry_run",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
+        ]
+    ),
+)
+def create_backfill_dry_run(
+    backfill_request: BackfillPostBody,
+    session: SessionDep,
+) -> BackfillDryRunResponse:
+    from_date = timezone.coerce_datetime(backfill_request.from_date)
+    to_date = timezone.coerce_datetime(backfill_request.to_date)
+    serdag = session.scalar(SerializedDagModel.latest_item_select_object(backfill_request.dag_id))
+    if not serdag:
+        raise HTTPException(status_code=404, detail=f"Could not find dag {backfill_request.dag_id}")
+
+    info_list = _get_info_list(
+        dag=serdag.dag,
+        from_date=from_date,
+        to_date=to_date,
+        reverse=backfill_request.run_backwards,
+    )
+    backfill_response_item = []
+    for info in info_list:
+        dr = session.scalar(
+            select(DagRun)
+            .where(DagRun.logical_date == info.logical_date)
+            .order_by(nulls_first(desc(DagRun.start_date), session))
+            .limit(1)
+        )
+
+        if dr:
+            non_create_reason = None
+            if dr.state not in (DagRunState.SUCCESS, DagRunState.FAILED):
+                non_create_reason = BackfillDagRunExceptionReason.IN_FLIGHT
+            elif backfill_request.reprocess_behavior is ReprocessBehavior.NONE:
+                non_create_reason = BackfillDagRunExceptionReason.ALREADY_EXISTS
+            elif backfill_request.reprocess_behavior is ReprocessBehavior.FAILED:
+                if dr.state != DagRunState.FAILED:
+                    non_create_reason = BackfillDagRunExceptionReason.ALREADY_EXISTS
+            if not non_create_reason:
+                backfill_response_item.append(BackfillRunInfo(logical_date=info.logical_date))
+
+        else:
+            backfill_response_item.append(BackfillRunInfo(logical_date=info.logical_date))
+
+    return BackfillDryRunResponse(run_info_list=backfill_response_item)
