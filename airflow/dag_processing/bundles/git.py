@@ -128,27 +128,23 @@ class GitDagBundle(BaseDagBundle):
         self.repo.remotes.origin.pull()
 
     def _convert_git_ssh_url_to_https(self) -> str:
-        if self.repo_url.startswith("git@"):
-            parts = self.repo_url.split(":")
-            domain = parts[0].replace("git@", "https://")
-            repo_path = parts[1].replace(".git", "")
-            return f"{domain}/{repo_path}"
-        raise ValueError(f"Invalid git SSH URL: {self.repo_url}")
+        if not self.repo_url.startswith("git@"):
+            raise ValueError(f"Invalid git SSH URL: {self.repo_url}")
+        parts = self.repo_url.split(":")
+        domain = parts[0].replace("git@", "https://")
+        repo_path = parts[1].replace(".git", "")
+        return f"{domain}/{repo_path}"
 
-    def view_url(self, version: str | None = None) -> str:
+    def view_url(self, version: str | None = None) -> str | None:
         if not version:
-            raise AirflowException("Version is required to view the repository")
-        if not self._has_version(self.repo, version):
-            raise AirflowException(f"Version {version} not found in the repository")
+            return None
         url = self.repo_url
         if url.startswith("git@"):
             url = self._convert_git_ssh_url_to_https()
-        if url.endswith(".git"):
-            url = url[:-4]
-        if "github" in url:
+        if url.startswith("https://github.com"):
             return f"{url}/tree/{version}"
-        if "gitlab" in url:
+        if url.startswith("https://gitlab.com"):
             return f"{url}/-/tree/{version}"
-        if "bitbucket" in url:
+        if url.startswith("https://bitbucket.org"):
             return f"{url}/src/{version}"
-        return f"{url}/tree/{version}"
+        return None
