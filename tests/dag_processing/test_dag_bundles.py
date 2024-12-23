@@ -276,10 +276,7 @@ class TestGitDagBundle:
         ],
     )
     @mock.patch("airflow.dag_processing.bundles.git.Repo")
-    @mock.patch.object(GitDagBundle, "_has_version")
-    def test_view_url(self, mock_has_version, mock_gitrepo, repo_url, expected_url):
-        mock_has_version.return_value = True
-
+    def test_view_url(self, mock_gitrepo, repo_url, expected_url):
         bundle = GitDagBundle(
             name="test",
             refresh_interval=300,
@@ -290,25 +287,12 @@ class TestGitDagBundle:
         assert view_url == expected_url
 
     @mock.patch("airflow.dag_processing.bundles.git.Repo")
-    def test_view_url_raises_if_no_version(self, mock_gitrepo):
+    def test_view_url_returns_none_when_no_version_in_view_url(self, mock_gitrepo):
         bundle = GitDagBundle(
             name="test",
             refresh_interval=300,
             repo_url="git@github.com:apache/airflow.git",
             tracking_ref="main",
         )
-        with pytest.raises(AirflowException, match="Version is required to view the repository"):
-            bundle.view_url(None)
-
-    @mock.patch("airflow.dag_processing.bundles.git.Repo")
-    @mock.patch.object(GitDagBundle, "_has_version")
-    def test_view_url_raises_if_version_not_found(self, mock_has_version, mock_gitrepo):
-        mock_has_version.return_value = False
-        bundle = GitDagBundle(
-            name="test",
-            refresh_interval=300,
-            repo_url="git@github.com:apache/airflow.git",
-            tracking_ref="main",
-        )
-        with pytest.raises(AirflowException, match="Version not_found not found in the repository"):
-            bundle.view_url("not_found")
+        view_url = bundle.view_url(None)
+        assert view_url is None
