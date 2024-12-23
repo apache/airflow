@@ -1785,7 +1785,7 @@
                             "default": "100Gi"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here.",
+                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (can be templated).",
                             "type": [
                                 "string",
                                 "null"
@@ -3156,7 +3156,7 @@
                             "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here.",
+                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (can be templated).",
                             "type": [
                                 "string",
                                 "null"
@@ -7684,7 +7684,7 @@
                             "default": "1Gi"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here.",
+                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (can be templated).",
                             "type": [
                                 "string",
                                 "null"
@@ -8553,7 +8553,7 @@
                             "default": "1Gi"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name here.",
+                            "description": "If using a custom StorageClass, pass name here (can be templated).",
                             "type": [
                                 "string",
                                 "null"
@@ -8862,7 +8862,7 @@
                             "default": "100Gi"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name here.",
+                            "description": "If using a custom StorageClass, pass name here (can be templated).",
                             "type": [
                                 "string",
                                 "null"
