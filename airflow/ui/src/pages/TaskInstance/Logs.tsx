@@ -103,17 +103,24 @@ export const Logs = () => {
             taskInstance={taskInstance}
           />
         )}
-        <Button aria-label={wrap ? "Unwrap" : "Wrap"} bg="bg.panel" onClick={toggleWrap} variant="outline">
-          {wrap ? "Unwrap" : "Wrap"}
-        </Button>
-        <IconButton
-          aria-label="Full screen"
-          bg="bg.panel"
-          onClick={toggleFullscreeen}
-          variant="outline"
-        >
-          <MdOutlineOpenInFull />
-        </IconButton>
+        <HStack>
+          <Button
+            aria-label={wrap ? "Unwrap" : "Wrap"}
+            bg="bg.panel"
+            onClick={toggleWrap}
+            variant="outline"
+          >
+            {wrap ? "Unwrap" : "Wrap"}
+          </Button>
+          <IconButton
+            aria-label="Full screen"
+            bg="bg.panel"
+            onClick={toggleFullscreeen}
+            variant="outline"
+          >
+            <MdOutlineOpenInFull />
+          </IconButton>
+        </HStack>
       </HStack>
       <ErrorAlert error={error ?? logError} />
       <Skeleton />
