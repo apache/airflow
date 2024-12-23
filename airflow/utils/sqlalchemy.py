@@ -110,6 +110,8 @@ class ExtendedJSON(TypeDecorator):
 
     cache_ok = True
 
+    should_evaluate_none = True
+
     def load_dialect_impl(self, dialect) -> TypeEngine:
         return dialect.type_descriptor(JSON)
 

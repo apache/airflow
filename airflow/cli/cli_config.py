@@ -64,7 +64,7 @@ class DefaultHelpParser(argparse.ArgumentParser):
         super()._check_value(action, value)
 
     def error(self, message):
-        """Override error and use print_instead of print_usage."""
+        """Override error and use print_help instead of print_usage."""
         self.print_help()
         self.exit(2, f"\n{self.prog} command error: {message}, see help above.\n")
 

@@ -471,6 +471,18 @@ considered by the release management commands.
 
 As soon as the provider is released, you should update the provider to ``state: ready``.
 
+Releasing providers for past releases
+=====================================
+
+Sometimes we might want to release provider for previous MAJOR when new release is already
+released (or bumped in main). This is done by releasing them from ``providers-<PROVIDER>/vX-Y`` branch
+- for example ``providers-fab/v1-5`` can be used to release the ``1.5.2`` when ``2.0.0`` is already being
+released or voted on.
+
+The release process looks like usual, the only difference is that the specific branch is used to release
+the provider and update all documentation, the changes and cherry-picking should be targeting that
+branch.
+
 Suspending providers
 ====================
 

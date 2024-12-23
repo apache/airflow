@@ -271,6 +271,7 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         # TODO: pre execute etc.
         # TODO next_method to support resuming from deferred
         # TODO: Get a real context object
+        ti.task = ti.task.prepare_for_execution()
         context = ti.get_template_context()
         ti.task.execute(context)  # type: ignore[attr-defined]
         msg = TaskState(state=TerminalTIState.SUCCESS, end_date=datetime.now(tz=timezone.utc))
@@ -305,8 +306,18 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         )
 
         # TODO: Run task failure callbacks here
-    except (AirflowTaskTimeout, AirflowException, AirflowTaskTerminated):
+    except (AirflowTaskTimeout, AirflowException):
+        # TODO: handle the case of up_for_retry here
         ...
+    except AirflowTaskTerminated:
+        # External state updates are already handled with `ti_heartbeat` and will be
+        # updated already be another UI API. So, these exceptions should ideally never be thrown.
+        # If these are thrown, we should mark the TI state as failed.
+        msg = TaskState(
+            state=TerminalTIState.FAILED,
+            end_date=datetime.now(tz=timezone.utc),
+        )
+        # TODO: Run task failure callbacks here
     except SystemExit:
         ...
     except BaseException:
@@ -324,7 +335,7 @@ def main():
     # TODO: add an exception here, it causes an oof of a stack trace!
 
     global SUPERVISOR_COMMS
-    SUPERVISOR_COMMS = CommsDecoder(input=sys.stdin)
+    SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](input=sys.stdin)
     try:
         ti, log = startup()
         run(ti, log)

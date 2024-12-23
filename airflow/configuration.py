@@ -187,7 +187,7 @@ class AirflowConfigParser(ConfigParser):
 
     This is a subclass of ConfigParser that supports defaults and deprecated options.
 
-    The defaults are stored in the ``_default_values ConfigParser. The configuration description keeps
+    The defaults are stored in the ``_default_values``. The configuration description keeps
     description of all the options available in Airflow (description follow config.yaml.schema).
 
     :param default_config: default configuration (in the form of ini file).
