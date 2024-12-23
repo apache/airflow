@@ -16,17 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Box,
-  Code,
-  HStack,
-  Skeleton,
-  VStack,
-  Heading,
-  IconButton,
-} from "@chakra-ui/react";
+import { Box, Code, HStack, Skeleton, VStack, Heading } from "@chakra-ui/react";
 import { useState } from "react";
-import { MdOutlineOpenInFull } from "react-icons/md";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
@@ -108,22 +99,24 @@ export const Logs = () => {
             taskInstance={taskInstance}
           />
         )}
-        <Button
-          aria-label={wrap ? "Unwrap" : "Wrap"}
-          bg="bg.panel"
-          onClick={toggleWrap}
-          variant="outline"
-        >
-          {wrap ? "Unwrap" : "Wrap"}
-        </Button>
-        <IconButton
-          aria-label="Full screen"
-          bg="bg.panel"
-          onClick={toggleFullscreeen}
-          variant="outline"
-        >
-          <MdOutlineOpenInFull />
-        </IconButton>
+        <HStack mb={2}>
+          <Button
+            aria-label={wrap ? "Unwrap" : "Wrap"}
+            bg="bg.panel"
+            onClick={toggleWrap}
+            variant="outline"
+          >
+            {wrap ? "Unwrap" : "Wrap"}
+          </Button>
+          <Button
+            aria-label="Full screen"
+            bg="bg.panel"
+            onClick={toggleFullscreeen}
+            variant="outline"
+          >
+            Full Screen
+          </Button>
+        </HStack>
       </HStack>
       <ErrorAlert error={error ?? logError} />
       <Skeleton />
