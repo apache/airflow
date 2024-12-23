@@ -295,7 +295,7 @@ class TestCreateBackfillDryRun(TestBackfillEndpoint):
         }
 
         response = test_client.post(
-            url="/public/backfills",
+            url="/public/backfills/dry_run",
             json=data,
         )
 

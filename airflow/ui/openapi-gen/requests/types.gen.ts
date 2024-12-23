@@ -1513,7 +1513,7 @@ export type CreateBackfillData = {
   requestBody: BackfillPostBody;
 };
 
-export type CreateBackfillResponse = BackfillResponse | BackfillDryRunResponse;
+export type CreateBackfillResponse = BackfillResponse;
 
 export type GetBackfillData = {
   backfillId: string;
@@ -1538,6 +1538,12 @@ export type CancelBackfillData = {
 };
 
 export type CancelBackfillResponse = BackfillResponse;
+
+export type CreateBackfillDryRunData = {
+  requestBody: BackfillPostBody;
+};
+
+export type CreateBackfillDryRunResponse = BackfillDryRunResponse;
 
 export type DeleteConnectionData = {
   connectionId: string;
@@ -2645,7 +2651,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: BackfillResponse | BackfillDryRunResponse;
+        200: BackfillResponse;
         /**
          * Unauthorized
          */
@@ -2766,6 +2772,37 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: BackfillResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/backfills/dry_run": {
+    post: {
+      req: CreateBackfillDryRunData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: BackfillDryRunResponse;
         /**
          * Unauthorized
          */

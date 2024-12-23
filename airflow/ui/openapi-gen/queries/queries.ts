@@ -2779,7 +2779,7 @@ export const useAssetServiceCreateAssetEvent = <
  * Create Backfill
  * @param data The data for the request.
  * @param data.requestBody
- * @returns unknown Successful Response
+ * @returns BackfillResponse Successful Response
  * @throws ApiError
  */
 export const useBackfillServiceCreateBackfill = <
@@ -2809,6 +2809,44 @@ export const useBackfillServiceCreateBackfill = <
   >({
     mutationFn: ({ requestBody }) =>
       BackfillService.createBackfill({
+        requestBody,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Create Backfill Dry Run
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns BackfillDryRunResponse Successful Response
+ * @throws ApiError
+ */
+export const useBackfillServiceCreateBackfillDryRun = <
+  TData = Common.BackfillServiceCreateBackfillDryRunMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: BackfillPostBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: BackfillPostBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      BackfillService.createBackfillDryRun({
         requestBody,
       }) as unknown as Promise<TData>,
     ...options,
