@@ -59,7 +59,7 @@ class TITerminalStatePayload(BaseModel):
     end_date: UtcDateTime
     """When the task completed executing"""
 
-    task_retries: int | None
+    task_retries: int | None = None
 
 
 class TITargetStatePayload(BaseModel):
