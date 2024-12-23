@@ -2861,6 +2861,245 @@ export const $FastAPIAppResponse = {
   description: "Serializer for Plugin FastAPI App responses.",
 } as const;
 
+export const $GridDAGRunwithTIs = {
+  properties: {
+    dag_run_id: {
+      type: "string",
+      title: "Dag Run Id",
+    },
+    queued_at: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Queued At",
+    },
+    start_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Start Date",
+    },
+    end_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "End Date",
+    },
+    state: {
+      $ref: "#/components/schemas/DagRunState",
+    },
+    run_type: {
+      $ref: "#/components/schemas/DagRunType",
+    },
+    data_interval_start: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Data Interval Start",
+    },
+    data_interval_end: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Data Interval End",
+    },
+    version_number: {
+      anyOf: [
+        {
+          type: "string",
+          format: "uuid",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Version Number",
+    },
+    note: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Note",
+    },
+    task_instances: {
+      items: {
+        $ref: "#/components/schemas/GridTaskInstanceSummary",
+      },
+      type: "array",
+      title: "Task Instances",
+    },
+  },
+  type: "object",
+  required: [
+    "dag_run_id",
+    "queued_at",
+    "start_date",
+    "end_date",
+    "state",
+    "run_type",
+    "data_interval_start",
+    "data_interval_end",
+    "version_number",
+    "note",
+    "task_instances",
+  ],
+  title: "GridDAGRunwithTIs",
+  description: "DAG Run model for the Grid UI.",
+} as const;
+
+export const $GridResponse = {
+  properties: {
+    dag_runs: {
+      items: {
+        $ref: "#/components/schemas/GridDAGRunwithTIs",
+      },
+      type: "array",
+      title: "Dag Runs",
+    },
+  },
+  type: "object",
+  required: ["dag_runs"],
+  title: "GridResponse",
+  description: "Response model for the Grid UI.",
+} as const;
+
+export const $GridTaskInstanceSummary = {
+  properties: {
+    task_id: {
+      type: "string",
+      title: "Task Id",
+    },
+    try_number: {
+      type: "integer",
+      title: "Try Number",
+    },
+    start_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Start Date",
+    },
+    end_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "End Date",
+    },
+    queued_dttm: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Queued Dttm",
+    },
+    child_states: {
+      anyOf: [
+        {
+          additionalProperties: {
+            type: "integer",
+          },
+          type: "object",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Child States",
+    },
+    task_count: {
+      type: "integer",
+      title: "Task Count",
+    },
+    state: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/TaskInstanceState",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    note: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Note",
+    },
+  },
+  type: "object",
+  required: [
+    "task_id",
+    "try_number",
+    "start_date",
+    "end_date",
+    "queued_dttm",
+    "child_states",
+    "task_count",
+    "state",
+    "note",
+  ],
+  title: "GridTaskInstanceSummary",
+  description: "Task Instance Summary model for the Grid UI.",
+} as const;
+
 export const $HTTPExceptionResponse = {
   properties: {
     detail: {
