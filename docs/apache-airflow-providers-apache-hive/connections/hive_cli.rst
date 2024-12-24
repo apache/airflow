@@ -77,6 +77,16 @@ High Availability (optional)
     Specify as ``True`` if you want to connect to a Hive installation running in high
     availability mode. Specify host accordingly.
 
+SSL Trust Store (optional)
+    Specify the path to SSL trust store to be used with Hive Beeline.
+
+SSL Trust Store Password (optional)
+    Specify the password to SSL trust store to be used with Hive Beeline.
+
+Transport mode (optional)
+    Specify the transport mode to be used with Hive Beeline.
+
+
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.
