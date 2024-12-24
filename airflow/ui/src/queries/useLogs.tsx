@@ -30,7 +30,7 @@ type ParseLogsProps = {
   data: string | undefined;
 };
 
-// TODO: add support for log groups, colors, formats, filters
+// TODO: add support for log groups, colors, formats,  
 const parseLogs = ({ data }: ParseLogsProps) => {
   if (data === undefined) {
     return {};

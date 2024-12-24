@@ -21,6 +21,7 @@ import { Box, Heading } from "@chakra-ui/react";
 import { Health } from "./Health";
 import { HistoricalMetrics } from "./HistoricalMetrics";
 import { Stats } from "./Stats";
+import { Poolslots } from '../../queries/usePoolSlots';
 
 export const Dashboard = () => (
   <Box>
@@ -34,5 +35,8 @@ export const Dashboard = () => (
     <Box mt={5}>
       <HistoricalMetrics />
     </Box>
+    <Box >
+      <Poolslots />
+      </Box>
   </Box>
 );

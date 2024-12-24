@@ -22,6 +22,7 @@
     "@emotion/react": "^11.13.3",
     "@tanstack/react-query": "^5.52.1",
     "@tanstack/react-table": "^8.20.1",
+    "@types/recharts": "^1.8.29",
     "@uiw/codemirror-themes-all": "^4.23.5",
     "@uiw/react-codemirror": "^4.23.5",
     "@visx/group": "^3.12.0",
@@ -41,6 +42,7 @@
     "react-markdown": "^9.0.1",
     "react-router-dom": "^6.26.2",
     "react-syntax-highlighter": "^15.5.6",
+    "recharts": "^2.15.0",
     "use-debounce": "^10.0.3",
     "usehooks-ts": "^3.1.0"
   },

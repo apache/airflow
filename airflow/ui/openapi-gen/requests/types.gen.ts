@@ -882,6 +882,7 @@ export type PluginResponse = {
  * Pool Collection serializer for responses.
  */
 export type PoolCollectionResponse = {
+  map(arg0: (entry: any, index: any) => import("react/jsx-runtime").JSX.Element): import("react").ReactNode;
   pools: Array<PoolResponse>;
   total_entries: number;
 };
