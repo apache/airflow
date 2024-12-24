@@ -684,8 +684,6 @@ def task_decorator_factory(
             kwargs=kwargs,
         )
         return cast(TaskDecorator, decorator)
-    elif python_callable is not None:
-        raise TypeError("No args allowed while using @task, use kwargs instead")
 
     def decorator_factory(python_callable):
         return _TaskDecorator(
