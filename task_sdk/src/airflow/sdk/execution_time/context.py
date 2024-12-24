@@ -135,3 +135,25 @@ class VariableAccessor:
             if e.error.error == ErrorType.VARIABLE_NOT_FOUND:
                 return default_var
             raise
+
+
+class MacrosAccessor:
+    """Wrapper to access Macros module lazily."""
+
+    _macros_module = None
+
+    def __getattr__(self, item: str) -> Any:
+        # Lazily load Macros module
+        if not self._macros_module:
+            import airflow.sdk.definitions.macros
+
+            self._macros_module = airflow.sdk.definitions.macros
+        return getattr(self._macros_module, item)
+
+    def __repr__(self) -> str:
+        return "<MacrosAccessor (dynamic access to macros)>"
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, MacrosAccessor):
+            return False
+        return True

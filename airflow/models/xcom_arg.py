@@ -29,9 +29,9 @@ from airflow.exceptions import AirflowException, XComNotFound
 from airflow.models import MappedOperator, TaskInstance
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.taskmixin import DependencyMixin
+from airflow.sdk.definitions.mixins import ResolveMixin
 from airflow.sdk.types import NOTSET, ArgNotSet
 from airflow.utils.db import exists_query
-from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.state import State
@@ -206,8 +206,7 @@ class XComArg(ResolveMixin, DependencyMixin):
         """
         raise NotImplementedError()
 
-    @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
+    def resolve(self, context: Context, session: Session | None = None, *, include_xcom: bool = True) -> Any:
         """
         Pull XCom value.
 
@@ -420,8 +419,8 @@ class PlainXComArg(XComArg):
             )
         return session.scalar(query)
 
-    @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
+    # TODO: Task-SDK: Remove session argument once everything is ported over to Task SDK
+    def resolve(self, context: Context, session: Session | None = None, *, include_xcom: bool = True) -> Any:
         ti = context["ti"]
         if TYPE_CHECKING:
             assert isinstance(ti, TaskInstance)
@@ -431,12 +430,12 @@ class PlainXComArg(XComArg):
             context["expanded_ti_count"],
             session=session,
         )
+
         result = ti.xcom_pull(
             task_ids=task_id,
             map_indexes=map_indexes,
             key=self.key,
             default=NOTSET,
-            session=session,
         )
         if not isinstance(result, ArgNotSet):
             return result

@@ -794,7 +794,10 @@ def test_resolve_application_file_real_file(
 
     application_file = application_file.resolve().as_posix()
     if use_literal_value:
-        from airflow.template.templater import LiteralValue
+        try:
+            from airflow.sdk.definitions.templater import LiteralValue
+        except ImportError:
+            from airflow.template.templater import LiteralValue
 
         application_file = LiteralValue(application_file)
     else:
@@ -820,7 +823,10 @@ def test_resolve_application_file_real_file(
 @pytest.mark.db_test
 def test_resolve_application_file_real_file_not_exists(create_task_instance_of_operator, tmp_path, session):
     application_file = (tmp_path / "test-application-file.yml").resolve().as_posix()
-    from airflow.template.templater import LiteralValue
+    try:
+        from airflow.sdk.definitions.templater import LiteralValue
+    except ImportError:
+        from airflow.template.templater import LiteralValue
 
     ti = create_task_instance_of_operator(
         SparkKubernetesOperator,

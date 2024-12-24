@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,17 +17,38 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+import pendulum
 
-from airflow.template.templater import LiteralValue
+from airflow.decorators import dag, task
 
 
-def literal(value: Any) -> LiteralValue:
-    """
-    Wrap a value to ensure it is rendered as-is without applying Jinja templating to its contents.
+@dag(
+    schedule=None,
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    catchup=False,
+)
+def taskflow_api():
+    @task()
+    def extract():
+        order_data_dict = {"1001": 301.27, "1002": 433.21, "1003": 502.22}
+        return order_data_dict
 
-    Designed for use in an operator's template field.
+    @task(multiple_outputs=True)
+    def transform(order_data_dict: dict):
+        total_order_value = 0
 
-    :param value: The value to be rendered without templating
-    """
-    return LiteralValue(value)
+        for value in order_data_dict.values():
+            total_order_value += value
+
+        return {"total_order_value": total_order_value}
+
+    @task()
+    def load(total_order_value: float):
+        print(f"Total order value is: {total_order_value:.2f}")
+
+    order_data = extract()
+    order_summary = transform(order_data)
+    load(order_summary["total_order_value"])
+
+
+taskflow_api()
