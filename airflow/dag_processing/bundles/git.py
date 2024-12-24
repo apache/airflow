@@ -126,3 +126,25 @@ class GitDagBundle(BaseDagBundle):
 
         self.bare_repo.remotes.origin.fetch("+refs/heads/*:refs/heads/*")
         self.repo.remotes.origin.pull()
+
+    def _convert_git_ssh_url_to_https(self) -> str:
+        if not self.repo_url.startswith("git@"):
+            raise ValueError(f"Invalid git SSH URL: {self.repo_url}")
+        parts = self.repo_url.split(":")
+        domain = parts[0].replace("git@", "https://")
+        repo_path = parts[1].replace(".git", "")
+        return f"{domain}/{repo_path}"
+
+    def view_url(self, version: str | None = None) -> str | None:
+        if not version:
+            return None
+        url = self.repo_url
+        if url.startswith("git@"):
+            url = self._convert_git_ssh_url_to_https()
+        if url.startswith("https://github.com"):
+            return f"{url}/tree/{version}"
+        if url.startswith("https://gitlab.com"):
+            return f"{url}/-/tree/{version}"
+        if url.startswith("https://bitbucket.org"):
+            return f"{url}/src/{version}"
+        return None

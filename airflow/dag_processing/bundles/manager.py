@@ -94,3 +94,7 @@ class DagBundlesManager(LoggingMixin):
         bundle_config = self.bundle_configs[name]
         bundle_class = import_string(bundle_config["classpath"])
         return bundle_class(name=name, version=version, **bundle_config["kwargs"])
+
+    def view_url(self, name: str, version: str | None = None) -> str | None:
+        bundle = self.get_bundle(name, version)
+        return bundle.view_url(version=version)
