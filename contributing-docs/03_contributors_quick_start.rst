@@ -440,7 +440,7 @@ If ``breeze`` was started with ``breeze start-airflow``, this command will stop 
   root@f3619b74c59a:/opt/airflow# stop_airflow
   breeze down
 
-If ``breeze`` was started with ``breeze --python 3.9 --backend postgres``:
+If ``breeze`` was started with ``breeze --python 3.9 --backend postgres`` (or similar):
 
 .. code-block:: bash
 
