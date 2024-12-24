@@ -19,8 +19,11 @@
 import { Field } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AsyncSelect } from "chakra-react-select";
-import type { OptionsOrGroups, GroupBase } from "chakra-react-select";
-import type { OnChangeValue } from "chakra-react-select";
+import type {
+  OptionsOrGroups,
+  GroupBase,
+  OnChangeValue,
+} from "chakra-react-select";
 import debounce from "debounce-promise";
 import { useNavigate } from "react-router-dom";
 
@@ -90,7 +93,7 @@ export const SearchDags = () => {
         loadOptions={searchDagDebounced}
         onChange={onSelect}
         placeholder="Search Dags"
-        value={undefined}
+        value={null} // null is required https://github.com/JedWatson/react-select/issues/3066
       />
     </Field.Root>
   );
