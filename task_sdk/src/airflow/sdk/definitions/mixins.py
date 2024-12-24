@@ -96,12 +96,12 @@ class DependencyMixin:
         return other
 
     def __rrshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
-        """Implement Task >> [Task] because list don't have __rshift__ operators."""
+        """Implement [Task] >> Task because list don't have __rshift__ operators."""
         self.__lshift__(other)
         return self
 
     def __rlshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
-        """Implement Task << [Task] because list don't have __lshift__ operators."""
+        """Implement [Task] << Task because list don't have __lshift__ operators."""
         self.__rshift__(other)
         return self
 
