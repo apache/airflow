@@ -273,7 +273,12 @@ class DatabricksCopyIntoOperator(BaseOperator):
         if force_copy is not None:
             self._copy_options["force"] = "true" if force_copy else "false"
 
+        # These will be used by OpenLineage
+        self._sql: str | None = None
+        self._result: list[Any] = []
+
     def _get_hook(self) -> DatabricksSqlHook:
+        """Returns a DatabricksSqlHook properly configured for this operator."""
         return DatabricksSqlHook(
             self.databricks_conn_id,
             http_path=self._http_path,
@@ -293,6 +298,10 @@ class DatabricksCopyIntoOperator(BaseOperator):
         opts: dict[str, str] | None = None,
         escape_key: bool = True,
     ) -> str:
+        """
+        Generates the bracketed options clause for the COPY INTO command.
+        Example: FORMAT_OPTIONS (header = 'true', inferSchema = 'true').
+        """
         formatted_opts = ""
         if opts:
             pairs = [
@@ -304,6 +313,9 @@ class DatabricksCopyIntoOperator(BaseOperator):
         return formatted_opts
 
     def _create_sql_query(self) -> str:
+        """
+        Constructs the COPY INTO statement from the provided options.
+        """
         escaper = ParamEscaper()
         maybe_with = ""
         if self._encryption is not None or self._credential is not None:
@@ -349,12 +361,205 @@ FILEFORMAT = {self._file_format}
         return sql.strip()
 
     def execute(self, context: Context) -> Any:
-        sql = self._create_sql_query()
-        self.log.info("Executing: %s", sql)
+        """Executes the COPY INTO command and stores the result for lineage reporting."""
+        self._sql = self._create_sql_query()
+        self.log.info("Executing SQL: %s", self._sql)
+
         hook = self._get_hook()
-        hook.run(sql)
+        # Run the query and store the result
+        self._result = hook.run(self._sql, handler=lambda cur: cur.fetchall())
 
     def on_kill(self) -> None:
         # NB: on_kill isn't required for this operator since query cancelling gets
         # handled in `DatabricksSqlHook.run()` method which is called in `execute()`
         ...
+
+
+    def get_openlineage_facets_on_complete(self, task_instance):
+        """
+        Compute OpenLineage facets for the COPY INTO command.
+        Attempts to parse input files (from S3, GCS, Azure Blob, etc.) and build an
+        input dataset list and an output dataset (the Delta table).
+        """
+        import re
+        from urllib.parse import urlparse
+
+        from airflow.providers.common.compat.openlineage.facet import (
+            Dataset,
+            Error,
+            ExternalQueryRunFacet,
+            ExtractionErrorRunFacet,
+            SQLJobFacet,
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+        from airflow.providers.openlineage.sqlparser import SQLParser
+
+        self.log.info("Starting OpenLineage facets extraction...")
+
+        if not self._sql:
+            self.log.warning("No SQL query found, returning empty OperatorLineage.")
+            return OperatorLineage()
+
+        input_datasets = []
+        extraction_errors = []
+
+        # Parse file_location to build the input dataset (if possible).
+        try:
+            parsed_uri = urlparse(self.file_location)
+            namespace = f"{parsed_uri.scheme}://{parsed_uri.netloc}"
+            path = parsed_uri.path.lstrip("/") or "/"
+            input_datasets.append(Dataset(namespace=namespace, name=path))
+        except Exception as e:
+            self.log.error("Failed to parse file_location: %s, error: %s", self.file_location, str(e))
+            extraction_errors.append(
+                Error(errorMessage=str(e), stackTrace=None, task=self.file_location, taskNumber=None)
+            )
+
+        # Build the output dataset from the table_name
+        output_dataset = None
+        try:
+            table_parts = self.table_name.split(".")
+            if len(table_parts) == 3:  # catalog.schema.table
+                catalog, schema, table = table_parts
+            elif len(table_parts) == 2:  # schema.table
+                catalog = None
+                schema, table = table_parts
+            else:
+                catalog = None
+                schema = None
+                table = self.table_name
+
+            hook = self._get_hook()
+            conn = hook.get_connection(hook.databricks_conn_id)
+            output_namespace = f"databricks://{conn.host}"
+
+            # Combine schema/table with optional catalog for final dataset name
+            fq_name = table
+            if schema:
+                fq_name = f"{schema}.{fq_name}"
+            if catalog:
+                fq_name = f"{catalog}.{fq_name}"
+
+            output_dataset = Dataset(namespace=output_namespace, name=fq_name)
+        except Exception as e:
+            self.log.error("Failed to construct output dataset: %s", str(e))
+            # If we fail to build the output dataset, we still return partial lineage
+            pass
+
+        # Build SQLJobFacet
+        job_facets = {}
+        try:
+            normalized_sql = SQLParser.normalize_sql(self._sql)
+            normalized_sql = re.sub(r"\n+", "\n", re.sub(r" +", " ", normalized_sql))
+            job_facets["sql"] = SQLJobFacet(query=normalized_sql)
+        except Exception as e:
+            self.log.error("Failed creating SQL job facet: %s", str(e))
+
+        # Handle any extraction errors
+        run_facets = {}
+        if extraction_errors:
+            run_facets["extractionError"] = ExtractionErrorRunFacet(
+                totalTasks=1,
+                failedTasks=len(extraction_errors),
+                errors=extraction_errors,
+            )
+
+        # Add external query facet if we have run results
+        try:
+            if hasattr(self, "_result") and self._result:
+                run_facets["externalQuery"] = ExternalQueryRunFacet(
+                    externalQueryId=str(id(self._result)),
+                    source=output_dataset.namespace if output_dataset else "databricks",
+                )
+        except Exception as e:
+            self.log.error("Failed to create external query facet: %s", str(e))
+
+        if output_dataset is None:
+            # If no output dataset was built, return partial lineage with only the inputs
+            return OperatorLineage(inputs=input_datasets, outputs=[], job_facets=job_facets, run_facets=run_facets)
+
+        return OperatorLineage(
+            inputs=input_datasets,
+            outputs=[output_dataset],
+            job_facets=job_facets,
+            run_facets=run_facets,
+        )
+
+    @staticmethod
+    def _extract_openlineage_unique_dataset_paths(
+        query_result: list[dict[str, Any]],
+    ) -> tuple[list[tuple[str, str]], list[str]]:
+        """
+        Extract unique (namespace, name) pairs from a query result that includes a
+        'file' field in each row. This method is used internally for extended lineage
+        if needed (for example, if multiple distinct files lead to a single table).
+
+        The recognized schemes are:
+        - azure:// (converted to wasbs://)
+        - abfss://
+        - wasbs://
+        - dbfs://
+        - s3://
+        - gs://
+        Others will be flagged as extraction errors.
+        """
+        import re
+        from pathlib import Path
+        from urllib.parse import urlparse
+
+        azure_regex = r"azure:\/\/([^.]+)\.blob\.core\.windows\.net\/([^/]+)\/?(.*)?"
+        abfss_regex = r"abfss:\/\/([^@]+)@([^.]+)\.dfs\.core\.windows\.net\/?(.*)?"
+        wasbs_regex = r"wasbs:\/\/([^@]+)@([^.]+)\.blob\.core\.windows\.net\/?(.*)?"
+
+        extraction_error_files = []
+        unique_dataset_paths = set()
+
+        for row in query_result:
+            file_uri = row.get("file")
+            if not file_uri:
+                extraction_error_files.append(str(row))
+                continue
+
+            uri = urlparse(file_uri)
+            try:
+                if uri.scheme == "azure":
+                    match = re.fullmatch(azure_regex, file_uri)
+                    if not match:
+                        extraction_error_files.append(file_uri)
+                        continue
+                    account_name, container_name, path = match.groups()
+                    namespace = f"wasbs://{container_name}@{account_name}"
+                elif uri.scheme == "abfss":
+                    match = re.fullmatch(abfss_regex, file_uri)
+                    if not match:
+                        extraction_error_files.append(file_uri)
+                        continue
+                    container_name, account_name, path = match.groups()
+                    namespace = f"abfss://{container_name}@{account_name}"
+                elif uri.scheme == "wasbs":
+                    match = re.fullmatch(wasbs_regex, file_uri)
+                    if not match:
+                        extraction_error_files.append(file_uri)
+                        continue
+                    container_name, account_name, path = match.groups()
+                    namespace = f"wasbs://{container_name}@{account_name}"
+                elif uri.scheme == "dbfs":
+                    namespace = "dbfs://"
+                    path = uri.path.lstrip("/")
+                elif uri.scheme in ("s3", "gs"):
+                    namespace = f"{uri.scheme}://{uri.netloc}"
+                    path = uri.path.lstrip("/")
+                else:
+                    # unknown scheme
+                    extraction_error_files.append(file_uri)
+                    continue
+
+                # keep only the parent directory for the path
+                parent_dir = Path(path or "").parent.as_posix()
+                if parent_dir in ("", "."):
+                    parent_dir = "/"
+                unique_dataset_paths.add((namespace, parent_dir))
+            except Exception:
+                extraction_error_files.append(file_uri)
+
+        return sorted(unique_dataset_paths), sorted(extraction_error_files)
