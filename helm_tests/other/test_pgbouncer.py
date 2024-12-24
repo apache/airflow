@@ -724,7 +724,7 @@ class TestPgBouncerServiceAccount:
             },
             show_only=["templates/pgbouncer/pgbouncer-serviceaccount.yaml"],
         )
-        assert jmespath.search("automountServiceAccountToken", docs[0]) is True
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is False
 
     def test_overridden_automount_service_account_token(self):
         docs = render_chart(
