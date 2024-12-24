@@ -68,12 +68,16 @@ def _get_count(
             count = 0
         else:
             count = (
-                session.scalar(
-                    _count_query(TI, states, dttm_filter, external_dag_id, session).filter(
-                        tuple_in_condition((TI.task_id, TI.map_index), external_task_group_task_ids)
+                (
+                    session.scalar(
+                        _count_query(TI, states, dttm_filter, external_dag_id, session).filter(
+                            tuple_in_condition((TI.task_id, TI.map_index), external_task_group_task_ids)
+                        )
                     )
                 )
-            ) / len(external_task_group_task_ids)
+                / len(external_task_group_task_ids)
+                * len(dttm_filter)
+            )
     else:
         count = session.scalar(_count_query(DR, states, dttm_filter, external_dag_id, session))
     return cast(int, count)
