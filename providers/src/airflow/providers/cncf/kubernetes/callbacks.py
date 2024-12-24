@@ -17,10 +17,14 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Union
+from typing import TYPE_CHECKING, Union
 
 import kubernetes.client as k8s
 import kubernetes_asyncio.client as async_k8s
+
+if TYPE_CHECKING:
+    from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
+    from airflow.utils.context import Context
 
 client_type = Union[k8s.CoreV1Api, async_k8s.CoreV1Api]
 
@@ -41,7 +45,7 @@ class KubernetesPodOperatorCallback:
     """
 
     @staticmethod
-    def on_sync_client_creation(*, client: k8s.CoreV1Api, **kwargs) -> None:
+    def on_sync_client_creation(*, client: k8s.CoreV1Api, operator: KubernetesPodOperator, **kwargs) -> None:
         """
         Invoke this callback after creating the sync client.
 
@@ -50,7 +54,34 @@ class KubernetesPodOperatorCallback:
         pass
 
     @staticmethod
-    def on_pod_creation(*, pod: k8s.V1Pod, client: client_type, mode: str, **kwargs) -> None:
+    def on_pod_manifest_created(
+        *,
+        pod_request: k8s.V1Pod,
+        client: client_type,
+        mode: str,
+        operator: KubernetesPodOperator,
+        context: Context,
+        **kwargs,
+    ) -> None:
+        """
+        Invoke this callback after KPO creates the V1Pod manifest but before the pod is created.
+
+        :param pod_request: the kubernetes pod manifest
+        :param client: the Kubernetes client that can be used in the callback.
+        :param mode: the current execution mode, it's one of (`sync`, `async`).
+        """
+        pass
+
+    @staticmethod
+    def on_pod_creation(
+        *,
+        pod: k8s.V1Pod,
+        client: client_type,
+        mode: str,
+        operator: KubernetesPodOperator,
+        context: Context,
+        **kwargs,
+    ) -> None:
         """
         Invoke this callback after creating the pod.
 
@@ -61,7 +92,15 @@ class KubernetesPodOperatorCallback:
         pass
 
     @staticmethod
-    def on_pod_starting(*, pod: k8s.V1Pod, client: client_type, mode: str, **kwargs) -> None:
+    def on_pod_starting(
+        *,
+        pod: k8s.V1Pod,
+        client: client_type,
+        mode: str,
+        operator: KubernetesPodOperator,
+        context: Context,
+        **kwargs,
+    ) -> None:
         """
         Invoke this callback when the pod starts.
 
@@ -72,7 +111,15 @@ class KubernetesPodOperatorCallback:
         pass
 
     @staticmethod
-    def on_pod_completion(*, pod: k8s.V1Pod, client: client_type, mode: str, **kwargs) -> None:
+    def on_pod_completion(
+        *,
+        pod: k8s.V1Pod,
+        client: client_type,
+        mode: str,
+        operator: KubernetesPodOperator,
+        context: Context,
+        **kwargs,
+    ) -> None:
         """
         Invoke this callback when the pod completes.
 
@@ -83,7 +130,34 @@ class KubernetesPodOperatorCallback:
         pass
 
     @staticmethod
-    def on_pod_cleanup(*, pod: k8s.V1Pod, client: client_type, mode: str, **kwargs):
+    def on_pod_teardown(
+        *,
+        pod: k8s.V1Pod,
+        client: client_type,
+        mode: str,
+        operator: KubernetesPodOperator,
+        context: Context,
+        **kwargs,
+    ) -> None:
+        """
+        Invoke this callback after all pod completion callbacks but before the pod is deleted.
+
+        :param pod: the completed pod.
+        :param client: the Kubernetes client that can be used in the callback.
+        :param mode: the current execution mode, it's one of (`sync`, `async`).
+        """
+        pass
+
+    @staticmethod
+    def on_pod_cleanup(
+        *,
+        pod: k8s.V1Pod,
+        client: client_type,
+        mode: str,
+        operator: KubernetesPodOperator,
+        context: Context,
+        **kwargs,
+    ):
         """
         Invoke this callback after cleaning/deleting the pod.
 
@@ -95,7 +169,14 @@ class KubernetesPodOperatorCallback:
 
     @staticmethod
     def on_operator_resuming(
-        *, pod: k8s.V1Pod, event: dict, client: client_type, mode: str, **kwargs
+        *,
+        pod: k8s.V1Pod,
+        event: dict,
+        client: client_type,
+        mode: str,
+        operator: KubernetesPodOperator,
+        context: Context,
+        **kwargs,
     ) -> None:
         """
         Invoke this callback when resuming the `KubernetesPodOperator` from deferred state.
