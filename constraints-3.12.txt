@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-23T07:47:45.278196
+# This constraints file was automatically generated on 2024-12-24T02:15:37.657807
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -547,7 +547,7 @@ pure_eval==0.2.3
 py-partiql-parser==0.5.6
 py4j==0.10.9.7
 pyOpenSSL==24.3.0
-pyarrow==16.1.0
+pyarrow==18.1.0
 pyasn1==0.6.1
 pyasn1_modules==0.4.0
 pycountry==24.6.1
@@ -743,7 +743,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.18.3
 ydb-dbapi==0.1.6
-ydb==3.18.11
+ydb==3.18.12
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.21.0
