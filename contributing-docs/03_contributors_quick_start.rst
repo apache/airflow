@@ -229,243 +229,6 @@ Forking and cloning Project
 
   git config core.autocrlf true
 
-Setting up Breeze
-#################
-
-For many of the development tasks you will need ``Breeze`` to be configured. ``Breeze`` is a development
-environment which uses docker and docker-compose and its main purpose is to provide a consistent
-and repeatable environment for all the contributors and CI. When using ``Breeze`` you avoid the "works for me"
-syndrome - because not only others can reproduce easily what you do, but also the CI of Airflow uses
-the same environment to run all tests - so you should be able to easily reproduce the same failures you
-see in CI in your local environment.
-
-1. Install ``uv`` or ``pipx``. We recommend to install ``uv`` as general purpose python development
-   environment - you can install it via https://docs.astral.sh/uv/getting-started/installation/ or you can
-   install ``pipx`` (>=1.2.1) - follow the instructions in `Install pipx <https://pipx.pypa.io/stable/>`_
-   It is important to install version of pipx >= 1.2.1 to workaround ``packaging`` breaking change introduced
-   in September 2023
-
-2. Run ``uv tool install -e ./dev/breeze`` (or ``pipx install -e ./dev/breeze`` in your checked-out
-   repository. Make sure to follow any instructions printed by during the installation - this is needed
-   to make sure that ``breeze`` command is available in your PATH
-
-.. warning::
-
-  If you see below warning while running pipx - it means that you hit the
-  `known issue <https://github.com/pypa/pipx/issues/1092>`_ with ``packaging`` version 23.2:
-  ⚠️ Ignoring --editable install option. pipx disallows it for anything but a local path,
-  to avoid having to create a new src/ directory.
-
-  The workaround is to downgrade packaging to 23.1 and re-running the ``pipx install`` command, for example
-  by running ``pip install "packaging<23.2"``.
-
-  .. code-block:: bash
-
-     pip install "packaging==23.1"
-     pipx install -e ./dev/breeze --force
-
-3. Initialize breeze autocomplete
-
-.. code-block:: bash
-
-  breeze setup autocomplete
-
-4. Initialize breeze environment with required python version and backend. This may take a while for first time.
-
-.. code-block:: bash
-
-  breeze --python 3.9 --backend postgres
-
-.. note::
-   If you encounter an error like "docker.credentials.errors.InitializationError:
-   docker-credential-secretservice not installed or not available in PATH", you may execute the following command to fix it:
-
-   .. code-block:: bash
-
-      sudo apt install golang-docker-credential-helper
-
-   Once the package is installed, execute the breeze command again to resume image building.
-
-
-5. When you enter Breeze environment you should see prompt similar to ``root@e4756f6ac886:/opt/airflow#``. This
-   means that you are inside the Breeze container and ready to run most of the development tasks. You can leave
-   the environment with ``exit`` and re-enter it with just ``breeze`` command
-
-6. Once you enter breeze environment, create airflow tables and users from the breeze CLI. ``airflow db reset``
-   is required to execute at least once for Airflow Breeze to get the database/tables created. If you run
-   tests, however - the test database will be initialized automatically for you
-
-.. code-block:: bash
-
-  root@b76fcb399bb6:/opt/airflow# airflow db reset
-
-.. code-block:: bash
-
-        root@b76fcb399bb6:/opt/airflow# airflow users create \
-                --username admin \
-                --firstname FIRST_NAME \
-                --lastname LAST_NAME \
-                --role Admin \
-                --email admin@example.org
-
-
-7. Exiting Breeze environment. After successfully finishing above command will leave you in container,
-   type ``exit`` to exit the container. The database created before will remain and servers will be
-   running though, until you stop breeze environment completely
-
-.. code-block:: bash
-
-  root@b76fcb399bb6:/opt/airflow# exit
-
-8. You can stop the environment (which means deleting the databases and database servers running in the
-   background) via ``breeze down`` command
-
-.. code-block:: bash
-
-  breeze down
-
-
-Using Breeze
-------------
-
-1. Starting breeze environment using ``breeze start-airflow`` starts Breeze environment with last configuration run(
-   In this case python and backend will be picked up from last execution ``breeze --python 3.9 --backend postgres``)
-   It also automatically starts webserver, backend and scheduler. It drops you in tmux with scheduler in bottom left
-   and webserver in bottom right. Use ``[Ctrl + B] and Arrow keys`` to navigate.
-   Keep in mind, you need ``pre-commit`` installed for this to work or you will be prompted with
-   ``FileNotFoundError: [Errno 2] No such file or directory: 'pre-commit'``
-   when attempting to invoke ``breeze start-airflow``.
-
-.. code-block:: bash
-
-  breeze start-airflow
-
-      Use CI image.
-
-   Branch name:            main
-   Docker image:           ghcr.io/apache/airflow/main/ci/python3.9:latest
-   Airflow source version: 2.4.0.dev0
-   Python version:         3.9
-   Backend:                mysql 5.7
-
-
-   Port forwarding:
-
-   Ports are forwarded to the running docker containers for webserver and database
-     * 12322 -> forwarded to Airflow ssh server -> airflow:22
-     * 28080 -> forwarded to Airflow webserver -> airflow:8080
-     * 29091 -> forwarded to Airflow FastAPI API -> airflow:9091
-     * 25555 -> forwarded to Flower dashboard -> airflow:5555
-     * 25433 -> forwarded to Postgres database -> postgres:5432
-     * 23306 -> forwarded to MySQL database  -> mysql:3306
-     * 26379 -> forwarded to Redis broker -> redis:6379
-
-   Here are links to those services that you can use on host:
-     * ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 (password: airflow)
-     * Webserver: http://127.0.0.1:28080
-     * FastAPI API:    http://127.0.0.1:29091
-     * Flower:    http://127.0.0.1:25555
-     * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
-     * Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root
-     * Redis:     redis://127.0.0.1:26379/0
-
-
-.. raw:: html
-
-      <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/start_airflow_tmux.png"
-             alt="Accessing local airflow">
-      </div>
-
-
-- Alternatively you can start the same using following commands
-
-  1. Start Breeze
-
-  .. code-block:: bash
-
-    breeze --python 3.9 --backend postgres
-
-  2. Open tmux
-
-  .. code-block:: bash
-
-    root@0c6e4ff0ab3d:/opt/airflow# tmux
-
-  3. Press Ctrl + B and "
-
-  .. code-block:: bash
-
-    root@0c6e4ff0ab3d:/opt/airflow# airflow scheduler
-
-
-  4. Press Ctrl + B and %
-
-  .. code-block:: bash
-
-    root@0c6e4ff0ab3d:/opt/airflow# airflow webserver
-
-
-2. Now you can access airflow web interface on your local machine at |http://127.0.0.1:28080| with user name ``admin``
-   and password ``admin``
-
-   .. |http://127.0.0.1:28080| raw:: html
-
-      <a href="http://127.0.0.1:28080" target="_blank">http://127.0.0.1:28080</a>
-
-   .. raw:: html
-
-      <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/local_airflow.png"
-             alt="Accessing local airflow">
-      </div>
-
-3. Setup a PostgreSQL database in your database management tool of choice
-   (e.g. DBeaver, DataGrip) with host ``127.0.0.1``, port ``25433``,
-   user ``postgres``,  password ``airflow``, and default schema ``airflow``
-
-   .. raw:: html
-
-      <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/postgresql_connection.png"
-             alt="Connecting to postgresql">
-      </div>
-
-4. Stopping breeze
-
-If ``breeze`` was started with ``breeze start-airflow``, this command will stop breeze and Airflow:
-
-.. code-block:: bash
-
-  root@f3619b74c59a:/opt/airflow# stop_airflow
-  breeze down
-
-If ``breeze`` was started with ``breeze --python 3.9 --backend postgres`` (or similar):
-
-.. code-block:: bash
-
-  root@f3619b74c59a:/opt/airflow# exit
-  breeze down
-
-.. note::
-    ``stop_airflow`` is available only when `breeze` is started with ``breeze start-airflow``.
-
-1. Knowing more about Breeze
-
-.. code-block:: bash
-
-  breeze --help
-
-
-Following are some of important topics of `Breeze documentation <../dev/breeze/doc/README.rst>`__:
-
-* `Breeze Installation <../dev/breeze/doc/01_installation.rst>`__
-* `Installing Additional tools to the Docker Image <../dev/breeze/doc/02-customizing.rst#additional-tools-in-breeze-container>`__
-* `Regular developer tasks <../dev/breeze/doc/03_developer_tasks.rst>`__
-* `Cleaning the environment <../dev/breeze/doc/03_developer_tasks.rst#breeze-cleanup>`__
-* `Troubleshooting Breeze environment <../dev/breeze/doc/04_troubleshooting.rst>`__
-
-
 Configuring Pre-commit
 ----------------------
 
@@ -609,6 +372,240 @@ You can add ``uv`` support for ``pre-commit`` even you install it with ``pipx`` 
 
    <a href="https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst#running-static-code-checks-via-breeze"
    target="_blank">Running Static Code Checks via Breeze</a>
+
+
+Setting up Breeze
+#################
+
+For many of the development tasks you will need ``Breeze`` to be configured. ``Breeze`` is a development
+environment which uses docker and docker-compose and its main purpose is to provide a consistent
+and repeatable environment for all the contributors and CI. When using ``Breeze`` you avoid the "works for me"
+syndrome - because not only others can reproduce easily what you do, but also the CI of Airflow uses
+the same environment to run all tests - so you should be able to easily reproduce the same failures you
+see in CI in your local environment.
+
+1. Install ``uv`` or ``pipx``. We recommend to install ``uv`` as general purpose python development
+   environment - you can install it via https://docs.astral.sh/uv/getting-started/installation/ or you can
+   install ``pipx`` (>=1.2.1) - follow the instructions in `Install pipx <https://pipx.pypa.io/stable/>`_
+   It is important to install version of pipx >= 1.2.1 to workaround ``packaging`` breaking change introduced
+   in September 2023
+
+2. Run ``uv tool install -e ./dev/breeze`` (or ``pipx install -e ./dev/breeze`` in your checked-out
+   repository. Make sure to follow any instructions printed by during the installation - this is needed
+   to make sure that ``breeze`` command is available in your PATH
+
+.. warning::
+
+  If you see below warning while running pipx - it means that you hit the
+  `known issue <https://github.com/pypa/pipx/issues/1092>`_ with ``packaging`` version 23.2:
+  ⚠️ Ignoring --editable install option. pipx disallows it for anything but a local path,
+  to avoid having to create a new src/ directory.
+
+  The workaround is to downgrade packaging to 23.1 and re-running the ``pipx install`` command, for example
+  by running ``pip install "packaging<23.2"``.
+
+  .. code-block:: bash
+
+     pip install "packaging==23.1"
+     pipx install -e ./dev/breeze --force
+
+3. Initialize breeze autocomplete
+
+.. code-block:: bash
+
+  breeze setup autocomplete
+
+4. Initialize breeze environment with required python version and backend. This may take a while for first time.
+
+.. code-block:: bash
+
+  breeze --python 3.9 --backend postgres
+
+.. note::
+   If you encounter an error like "docker.credentials.errors.InitializationError:
+   docker-credential-secretservice not installed or not available in PATH", you may execute the following command to fix it:
+
+   .. code-block:: bash
+
+      sudo apt install golang-docker-credential-helper
+
+   Once the package is installed, execute the breeze command again to resume image building.
+
+
+5. When you enter Breeze environment you should see prompt similar to ``root@e4756f6ac886:/opt/airflow#``. This
+   means that you are inside the Breeze container and ready to run most of the development tasks. You can leave
+   the environment with ``exit`` and re-enter it with just ``breeze`` command
+
+6. Once you enter breeze environment, create airflow tables and users from the breeze CLI. ``airflow db reset``
+   is required to execute at least once for Airflow Breeze to get the database/tables created. If you run
+   tests, however - the test database will be initialized automatically for you
+
+.. code-block:: bash
+
+  root@b76fcb399bb6:/opt/airflow# airflow db reset
+
+.. code-block:: bash
+
+        root@b76fcb399bb6:/opt/airflow# airflow users create \
+                --username admin \
+                --firstname FIRST_NAME \
+                --lastname LAST_NAME \
+                --role Admin \
+                --email admin@example.org
+
+
+7. Exiting Breeze environment. After successfully finishing above command will leave you in container,
+   type ``exit`` to exit the container. The database created before will remain and servers will be
+   running though, until you stop breeze environment completely
+
+.. code-block:: bash
+
+  root@b76fcb399bb6:/opt/airflow# exit
+
+8. You can stop the environment (which means deleting the databases and database servers running in the
+   background) via ``breeze down`` command
+
+.. code-block:: bash
+
+  breeze down
+
+
+Using Breeze
+------------
+
+1. Starting breeze environment using ``breeze start-airflow`` starts Breeze environment with last configuration run(
+   In this case python and backend will be picked up from last execution ``breeze --python 3.9 --backend postgres``)
+   It also automatically starts webserver, backend and scheduler. It drops you in tmux with scheduler in bottom left
+   and webserver in bottom right. Use ``[Ctrl + B] and Arrow keys`` to navigate.
+
+.. code-block:: bash
+
+  breeze start-airflow
+
+      Use CI image.
+
+   Branch name:            main
+   Docker image:           ghcr.io/apache/airflow/main/ci/python3.9:latest
+   Airflow source version: 2.4.0.dev0
+   Python version:         3.9
+   Backend:                mysql 5.7
+
+
+   Port forwarding:
+
+   Ports are forwarded to the running docker containers for webserver and database
+     * 12322 -> forwarded to Airflow ssh server -> airflow:22
+     * 28080 -> forwarded to Airflow webserver -> airflow:8080
+     * 29091 -> forwarded to Airflow FastAPI API -> airflow:9091
+     * 25555 -> forwarded to Flower dashboard -> airflow:5555
+     * 25433 -> forwarded to Postgres database -> postgres:5432
+     * 23306 -> forwarded to MySQL database  -> mysql:3306
+     * 26379 -> forwarded to Redis broker -> redis:6379
+
+   Here are links to those services that you can use on host:
+     * ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 (password: airflow)
+     * Webserver: http://127.0.0.1:28080
+     * FastAPI API:    http://127.0.0.1:29091
+     * Flower:    http://127.0.0.1:25555
+     * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
+     * Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root
+     * Redis:     redis://127.0.0.1:26379/0
+
+
+.. raw:: html
+
+      <div align="center" style="padding-bottom:10px">
+        <img src="images/quick_start/start_airflow_tmux.png"
+             alt="Accessing local airflow">
+      </div>
+
+
+- Alternatively you can start the same using following commands
+
+  1. Start Breeze
+
+  .. code-block:: bash
+
+    breeze --python 3.9 --backend postgres
+
+  2. Open tmux
+
+  .. code-block:: bash
+
+    root@0c6e4ff0ab3d:/opt/airflow# tmux
+
+  3. Press Ctrl + B and "
+
+  .. code-block:: bash
+
+    root@0c6e4ff0ab3d:/opt/airflow# airflow scheduler
+
+
+  4. Press Ctrl + B and %
+
+  .. code-block:: bash
+
+    root@0c6e4ff0ab3d:/opt/airflow# airflow webserver
+
+
+2. Now you can access airflow web interface on your local machine at |http://127.0.0.1:28080| with user name ``admin``
+   and password ``admin``
+
+   .. |http://127.0.0.1:28080| raw:: html
+
+      <a href="http://127.0.0.1:28080" target="_blank">http://127.0.0.1:28080</a>
+
+   .. raw:: html
+
+      <div align="center" style="padding-bottom:10px">
+        <img src="images/quick_start/local_airflow.png"
+             alt="Accessing local airflow">
+      </div>
+
+3. Setup a PostgreSQL database in your database management tool of choice
+   (e.g. DBeaver, DataGrip) with host ``127.0.0.1``, port ``25433``,
+   user ``postgres``,  password ``airflow``, and default schema ``airflow``
+
+   .. raw:: html
+
+      <div align="center" style="padding-bottom:10px">
+        <img src="images/quick_start/postgresql_connection.png"
+             alt="Connecting to postgresql">
+      </div>
+
+4. Stopping breeze
+
+If ``breeze`` was started with ``breeze start-airflow``, this command will stop breeze and Airflow:
+
+.. code-block:: bash
+
+  root@f3619b74c59a:/opt/airflow# stop_airflow
+  breeze down
+
+If ``breeze`` was started with ``breeze --python 3.9 --backend postgres`` (or similar):
+
+.. code-block:: bash
+
+  root@f3619b74c59a:/opt/airflow# exit
+  breeze down
+
+.. note::
+    ``stop_airflow`` is available only when `breeze` is started with ``breeze start-airflow``.
+
+1. Knowing more about Breeze
+
+.. code-block:: bash
+
+  breeze --help
+
+
+Following are some of important topics of `Breeze documentation <../dev/breeze/doc/README.rst>`__:
+
+* `Breeze Installation <../dev/breeze/doc/01_installation.rst>`__
+* `Installing Additional tools to the Docker Image <../dev/breeze/doc/02-customizing.rst#additional-tools-in-breeze-container>`__
+* `Regular developer tasks <../dev/breeze/doc/03_developer_tasks.rst>`__
+* `Cleaning the environment <../dev/breeze/doc/03_developer_tasks.rst#breeze-cleanup>`__
+* `Troubleshooting Breeze environment <../dev/breeze/doc/04_troubleshooting.rst>`__
 
 
 Installing airflow in the local venv
