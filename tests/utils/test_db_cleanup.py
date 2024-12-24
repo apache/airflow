@@ -346,6 +346,8 @@ class TestDBCleanup:
             "slot_pool",  # leave alone
             "dag_schedule_asset_reference",  # leave alone for now
             "dag_schedule_asset_alias_reference",  # leave alone for now
+            "dag_schedule_asset_name_reference",  # leave alone for now
+            "dag_schedule_asset_uri_reference",  # leave alone for now
             "task_outlet_asset_reference",  # leave alone for now
             "asset_dag_run_queue",  # self-managed
             "asset_event_dag_run",  # foreign keys
