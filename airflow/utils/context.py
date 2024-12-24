@@ -477,7 +477,7 @@ def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]:
     """
     if not isinstance(source, Context):
         # Sometimes we are passed a plain dict (usually in tests, or in User's
-        # custom operators) -- be lienent about what we accept so we don't
+        # custom operators) -- be lenient about what we accept so we don't
         # break anything for users.
         return source
 

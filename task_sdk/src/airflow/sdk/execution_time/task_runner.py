@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import os
 import sys
+from collections.abc import Iterable
 from datetime import datetime, timezone
 from io import FileIO
 from typing import TYPE_CHECKING, Annotated, Any, Generic, TextIO, TypeVar
@@ -33,12 +34,15 @@ from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState,
 from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.execution_time.comms import (
     DeferTask,
+    GetXCom,
     RescheduleTask,
     SetRenderedFields,
+    SetXCom,
     StartupDetails,
     TaskState,
     ToSupervisor,
     ToTask,
+    XComResult,
 )
 from airflow.sdk.execution_time.context import ConnectionAccessor
 
@@ -111,11 +115,109 @@ class RuntimeTaskInstance(TaskInstance):
                 "ts_nodash_with_tz": ts_nodash_with_tz,
             }
             context.update(context_from_server)
+        # TODO: We should use/move TypeDict from airflow.utils.context.Context
         return context
 
-    def xcom_pull(self, *args, **kwargs): ...
+    def xcom_pull(
+        self,
+        task_ids: str | Iterable[str] | None = None,  # TODO: Simplify to a single task_id? (breaking change)
+        dag_id: str | None = None,
+        key: str = "return_value",  # TODO: Make this a constant (``XCOM_RETURN_KEY``)
+        include_prior_dates: bool = False,  # TODO: Add support for this
+        *,
+        map_indexes: int | Iterable[int] | None = None,
+        default: Any = None,
+        run_id: str | None = None,
+    ) -> Any:
+        """
+        Pull XComs that optionally meet certain criteria.
 
-    def xcom_push(self, *args, **kwargs): ...
+        :param key: A key for the XCom. If provided, only XComs with matching
+            keys will be returned. The default key is ``'return_value'``, also
+            available as constant ``XCOM_RETURN_KEY``. This key is automatically
+            given to XComs returned by tasks (as opposed to being pushed
+            manually). To remove the filter, pass *None*.
+        :param task_ids: Only XComs from tasks with matching ids will be
+            pulled. Pass *None* to remove the filter.
+        :param dag_id: If provided, only pulls XComs from this DAG. If *None*
+            (default), the DAG of the calling task is used.
+        :param map_indexes: If provided, only pull XComs with matching indexes.
+            If *None* (default), this is inferred from the task(s) being pulled
+            (see below for details).
+        :param include_prior_dates: If False, only XComs from the current
+            logical_date are returned. If *True*, XComs from previous dates
+            are returned as well.
+        :param run_id: If provided, only pulls XComs from a DagRun w/a matching run_id.
+            If *None* (default), the run_id of the calling task is used.
+
+        When pulling one single task (``task_id`` is *None* or a str) without
+        specifying ``map_indexes``, the return value is inferred from whether
+        the specified task is mapped. If not, value from the one single task
+        instance is returned. If the task to pull is mapped, an iterator (not a
+        list) yielding XComs from mapped task instances is returned. In either
+        case, ``default`` (*None* if not specified) is returned if no matching
+        XComs are found.
+
+        When pulling multiple tasks (i.e. either ``task_id`` or ``map_index`` is
+        a non-str iterable), a list of matching XComs is returned. Elements in
+        the list is ordered by item ordering in ``task_id`` and ``map_index``.
+        """
+        if dag_id is None:
+            dag_id = self.dag_id
+        if run_id is None:
+            run_id = self.run_id
+
+        if task_ids is None:
+            task_ids = self.task_id
+        elif not isinstance(task_ids, str) and isinstance(task_ids, Iterable):
+            # TODO: Handle multiple task_ids or remove support
+            raise NotImplementedError("Multiple task_ids are not supported yet")
+
+        if map_indexes is None:
+            map_indexes = self.map_index
+        elif isinstance(map_indexes, Iterable):
+            # TODO: Handle multiple map_indexes or remove support
+            raise NotImplementedError("Multiple map_indexes are not supported yet")
+
+        log = structlog.get_logger(logger_name="task")
+        SUPERVISOR_COMMS.send_request(
+            log=log,
+            msg=GetXCom(
+                key=key,
+                dag_id=dag_id,
+                task_id=task_ids,
+                run_id=run_id,
+                map_index=map_indexes,
+            ),
+        )
+
+        msg = SUPERVISOR_COMMS.get_message()
+        if TYPE_CHECKING:
+            assert isinstance(msg, XComResult)
+
+        value = msg.value
+        if value is not None:
+            return value
+        return default
+
+    def xcom_push(self, key: str, value: Any):
+        """
+        Make an XCom available for tasks to pull.
+
+        :param key: Key to store the value under.
+        :param value: Value to store. Only be JSON-serializable may be used otherwise.
+        """
+        log = structlog.get_logger(logger_name="task")
+        SUPERVISOR_COMMS.send_request(
+            log=log,
+            msg=SetXCom(
+                key=key,
+                value=value,
+                dag_id=self.dag_id,
+                task_id=self.task_id,
+                run_id=self.run_id,
+            ),
+        )
 
 
 def parse(what: StartupDetails) -> RuntimeTaskInstance:
@@ -269,10 +371,16 @@ def run(ti: RuntimeTaskInstance, log: Logger):
     msg: ToSupervisor | None = None
     try:
         # TODO: pre execute etc.
-        # TODO next_method to support resuming from deferred
         # TODO: Get a real context object
         ti.task = ti.task.prepare_for_execution()
         context = ti.get_template_context()
+        # TODO: Get things from _execute_task_with_callbacks
+        #   - Clearing XCom
+        #   - Setting Current Context (set_current_context)
+        #   - Render Templates
+        #   - Update RTIF
+        #   - Pre Execute
+        #   etc
         ti.task.execute(context)  # type: ignore[attr-defined]
         msg = TaskState(state=TerminalTIState.SUCCESS, end_date=datetime.now(tz=timezone.utc))
     except TaskDeferred as defer:
