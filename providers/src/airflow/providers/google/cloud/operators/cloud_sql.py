@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
+from contextlib import contextmanager
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
@@ -30,6 +31,7 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLDatabaseHook, CloudSQLHook
 from airflow.providers.google.cloud.links.cloud_sql import CloudSQLInstanceDatabaseLink, CloudSQLInstanceLink
+from airflow.providers.google.cloud.openlineage.mixins import _SQLOpenLineageMixin
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.cloud_sql import CloudSQLExportTrigger
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
@@ -38,8 +40,7 @@ from airflow.providers.google.common.links.storage import FileDetailsLink
 
 if TYPE_CHECKING:
     from airflow.models import Connection
-    from airflow.providers.mysql.hooks.mysql import MySqlHook
-    from airflow.providers.postgres.hooks.postgres import PostgresHook
+    from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.context import Context
 
 
@@ -1167,7 +1168,7 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
         return hook.import_instance(project_id=self.project_id, instance=self.instance, body=self.body)
 
 
-class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
+class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator, _SQLOpenLineageMixin):
     """
     Perform DML or DDL query on an existing Cloud Sql instance.
 
@@ -1256,7 +1257,8 @@ class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
         self.ssl_client_key = ssl_client_key
         self.ssl_secret_id = ssl_secret_id
 
-    def _execute_query(self, hook: CloudSQLDatabaseHook, database_hook: PostgresHook | MySqlHook) -> None:
+    @contextmanager
+    def cloud_sql_proxy_context(self, hook: CloudSQLDatabaseHook):
         cloud_sql_proxy_runner = None
         try:
             if hook.use_proxy:
@@ -1266,8 +1268,7 @@ class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
                 # be taken over here by another bind(0).
                 # It's quite unlikely to happen though!
                 cloud_sql_proxy_runner.start_proxy()
-            self.log.info('Executing: "%s"', self.sql)
-            database_hook.run(self.sql, self.autocommit, parameters=self.parameters)
+            yield
         finally:
             if cloud_sql_proxy_runner:
                 cloud_sql_proxy_runner.stop_proxy()
@@ -1281,7 +1282,9 @@ class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
         hook.validate_socket_path_length()
         database_hook = hook.get_database_hook(connection=connection)
         try:
-            self._execute_query(hook, database_hook)
+            with self.cloud_sql_proxy_context(hook):
+                self.log.info('Executing: "%s"', self.sql)
+                database_hook.run(self.sql, self.autocommit, parameters=self.parameters)
         finally:
             hook.cleanup_database_hook()
 
@@ -1297,3 +1300,13 @@ class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
             ssl_key=self.ssl_client_key,
             ssl_secret_id=self.ssl_secret_id,
         )
+
+    def get_openlineage_facets_on_complete(self, _) -> OperatorLineage | None:
+        with self.cloud_sql_proxy_context(self.hook):
+            return self._get_openlineage_facets(
+                hook=self.hook.db_hook,
+                sql=self.sql,
+                conn_id=self.gcp_cloudsql_conn_id,
+                database=self.hook.database,
+                logger=self.log,
+            )

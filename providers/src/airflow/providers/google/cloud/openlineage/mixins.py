@@ -32,9 +32,57 @@ if TYPE_CHECKING:
         SchemaDatasetFacet,
     )
     from airflow.providers.google.cloud.openlineage.utils import BigQueryJobRunFacet
+    from airflow.providers.openlineage.extractors import OperatorLineage
 
 
 BIGQUERY_NAMESPACE = "bigquery"
+
+
+class _SQLOpenLineageMixin:
+    @staticmethod
+    def _get_openlineage_facets(hook, sql, conn_id, database, logger) -> OperatorLineage | None:
+        try:
+            from airflow.providers.openlineage.sqlparser import SQLParser
+        except ImportError:
+            return None
+
+        try:
+            from airflow.providers.openlineage.utils.utils import should_use_external_connection
+
+            use_external_connection = should_use_external_connection(hook)
+        except ImportError:
+            # OpenLineage provider release < 1.8.0 - we always use connection
+            use_external_connection = True
+
+        connection = hook.get_connection(conn_id)
+        try:
+            database_info = hook.get_openlineage_database_info(connection)
+        except AttributeError:
+            logger.debug("%s has no database info provided", hook)
+            database_info = None
+
+        if database_info is None:
+            return None
+
+        try:
+            sql_parser = SQLParser(
+                dialect=hook.get_openlineage_database_dialect(connection),
+                default_schema=hook.get_openlineage_default_schema(),
+            )
+        except AttributeError:
+            logger.debug("%s failed to get database dialect", hook)
+            return None
+
+        operator_lineage = sql_parser.generate_openlineage_metadata_from_sql(
+            sql=sql,
+            hook=hook,
+            database_info=database_info,
+            database=database,
+            sqlalchemy_engine=hook.get_sqlalchemy_engine(),
+            use_connection=use_external_connection,
+        )
+
+        return operator_lineage
 
 
 class _BigQueryOpenLineageMixin:
