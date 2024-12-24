@@ -255,6 +255,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "beautifulsoup4>=4.7.1",
         # Coverage 7.4.0 added experimental support for Python 3.12 PEP669 which we use in Airflow
         "coverage>=7.4.0",
+        "deepdiff>=8.1.1",
         "jmespath>=0.7.0",
         "kgb>=7.0.0",
         "pytest-asyncio>=0.23.6",
