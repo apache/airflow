@@ -230,7 +230,7 @@ Forking and cloning Project
   git config core.autocrlf true
 
 Setting up Breeze
------------------
+#################
 
 For many of the development tasks you will need ``Breeze`` to be configured. ``Breeze`` is a development
 environment which uses docker and docker-compose and its main purpose is to provide a consistent
@@ -433,14 +433,14 @@ Using Breeze
 
 4. Stopping breeze
 
-If Airflow was started with ``breeze start-airflow``:
+If ``breeze`` was started with ``breeze start-airflow``, this command will stop breeze and Airflow:
 
 .. code-block:: bash
 
   root@f3619b74c59a:/opt/airflow# stop_airflow
   breeze down
 
-If Airflow was started with ``breeze --python 3.9 --backend postgres``:
+If ``breeze`` was started with ``breeze --python 3.9 --backend postgres``:
 
 .. code-block:: bash
 
@@ -448,7 +448,7 @@ If Airflow was started with ``breeze --python 3.9 --backend postgres``:
   breeze down
 
 .. note::
-    ``stop_airflow`` is available only when Airflow is started with ``breeze start-airflow``.
+    ``stop_airflow`` is available only when `breeze` is started with ``breeze start-airflow``.
 
 1. Knowing more about Breeze
 
@@ -492,13 +492,6 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
 Installing pre-commit is best done with ``uv`` (recommended) or ``pipx``.
 
-You can add ``uv`` support for ``pre-commit`` even you install it with ``pipx`` using the commands
-(then pre-commit will use ``uv`` to create virtualenvs for the hooks):
-
-.. code-block:: bash
-
-    pipx inject pre-commit pre-commit-uv  # optionally if you want to use uv to install virtualenvs
-
 1.  Installing required packages
 
 on Debian / Ubuntu, install via
@@ -519,7 +512,8 @@ on macOS, install via
 
   uv tool install pre-commit --with pre-commit-uv
 
-or
+You can add ``uv`` support for ``pre-commit`` even you install it with ``pipx`` using the commands
+(then pre-commit will use ``uv`` to create virtualenvs for the hooks):
 
 .. code-block:: bash
 
