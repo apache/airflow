@@ -21,19 +21,20 @@ import datetime
 import json
 import os
 import shutil
-from io import StringIO
+from io import BytesIO, StringIO
 from unittest import mock
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, patch, MagicMock
 
 import paramiko
 import pytest
-from asyncssh import SFTPAttrs, SFTPNoSuchFile
-from asyncssh.sftp import SFTPName
-
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.sftp.hooks.sftp import SFTPHook, SFTPHookAsync
 from airflow.utils.session import provide_session
+from asyncssh import SFTPAttrs, SFTPNoSuchFile
+from asyncssh.sftp import SFTPName
+from paramiko.client import SSHClient
+from paramiko.sftp_client import SFTPClient
 
 pytestmark = pytest.mark.db_test
 
@@ -87,7 +88,10 @@ class TestSFTPHook:
                 file.write("Test file")
         with open(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS), "a") as file:
             file.write("Test file")
-        os.mkfifo(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, FIFO_FOR_TESTS))
+        try:
+            os.mkfifo(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, FIFO_FOR_TESTS))
+        except AttributeError:
+            os.makedirs(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, FIFO_FOR_TESTS))
 
         self.temp_dir = str(temp_dir)
 
@@ -181,6 +185,24 @@ class TestSFTPHook:
         )
         assert retrieved_file_name in os.listdir(self.temp_dir)
         os.remove(os.path.join(self.temp_dir, retrieved_file_name))
+        self.hook.delete_file(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS))
+        output = self.hook.list_directory(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+        assert output == [SUB_DIR, FIFO_FOR_TESTS]
+
+    def test_store_retrieve_and_delete_file_using_buffer(self):
+        file_contents = BytesIO(b"Test file")
+        self.hook.store_file(
+            remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
+            local_full_path=file_contents,
+        )
+        output = self.hook.list_directory(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+        assert output == [SUB_DIR, FIFO_FOR_TESTS, TMP_FILE_FOR_TESTS]
+        retrieved_file_contents = BytesIO()
+        self.hook.retrieve_file(
+            remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
+            local_full_path=retrieved_file_contents,
+        )
+        assert retrieved_file_contents.getvalue() == file_contents.getvalue()
         self.hook.delete_file(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS))
         output = self.hook.list_directory(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
         assert output == [SUB_DIR, FIFO_FOR_TESTS]
@@ -373,20 +395,33 @@ class TestSFTPHook:
         assert status is False
         assert msg == "Connection Error"
 
-    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
-    def test_connection_success(self, mock_get_connection):
-        connection = Connection(
-            login="login",
-            host="host",
-        )
-        mock_get_connection.return_value = connection
+    @pytest.mark.parametrize(
+        "test_connection_side_effect",
+        [
+            (lambda arg: (True, "Connection successfully tested")),
+            (lambda arg: RuntimeError("Test connection failed")),
+        ],
+    )
+    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_conn")
+    def test_context_manager(self, mock_get_conn, test_connection_side_effect):
+        ssh_conn = MagicMock(spec=SSHClient)
+        mock_get_conn.return_value = ssh_conn
+        sftp_conn = MagicMock(spec=SFTPClient)
+        ssh_conn.open_sftp.return_value = sftp_conn
+        sftp_conn.normalize.side_effect = test_connection_side_effect
 
-        with mock.patch.object(SFTPHook, "get_conn") as get_conn:
-            get_conn.return_value.pwd = "/home/someuser"
-            hook = SFTPHook()
+        hook = SFTPHook()
+        if isinstance(test_connection_side_effect, RuntimeError):
+            with pytest.raises(RuntimeError, match="Test connection failed"):
+                hook.test_connection()
+        else:
             status, msg = hook.test_connection()
-        assert status is True
-        assert msg == "Connection successfully tested"
+
+            assert status is True
+            assert msg == "Connection successfully tested"
+
+        ssh_conn.open_sftp.assert_called_once()
+        sftp_conn.close.assert_called()
 
     def test_get_suffix_pattern_match(self):
         output = self.hook.get_file_by_pattern(self.temp_dir, "*.txt")
