@@ -97,7 +97,7 @@ that defines the ``dag_id``, which serves as a unique identifier for your DAG.
 We also pass the default argument dictionary that we just defined and
 define a ``schedule`` of 1 day for the DAG.
 
-.. exampleinclude:: /../../airflow/example_dags/tutorial.py
+.. exampleinclude:: /../../airflow/example_dags/tutorial.py  # the example shown here defines the default args manually again whereas, "We also pass the default argument dictionary that we just defined" implies "default_args=default_args,"
     :language: python
     :start-after: [START instantiate_dag]
     :end-before: [END instantiate_dag]
