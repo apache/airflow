@@ -25,7 +25,6 @@ import string
 import warnings
 from collections.abc import Iterable
 from functools import partial, wraps
-from re import Pattern
 from typing import Callable, cast
 
 import re2
@@ -82,7 +81,6 @@ BACK_COMPAT_METRIC_NAME_PATTERNS: set[str] = {
     r"^dagrun\.schedule_delay\.(?P<dag_id>.*)$",
     r"^dagrun\.(?P<dag_id>.*)\.first_task_scheduling_delay$",
 }
-BACK_COMPAT_METRIC_NAMES: set[Pattern[str]] = {re2.compile(name) for name in BACK_COMPAT_METRIC_NAME_PATTERNS}
 
 OTEL_NAME_MAX_LENGTH = 63
 DEFAULT_VALIDATOR_TYPE = "allow"
@@ -157,26 +155,11 @@ def stat_name_otel_handler(
     if not (isinstance(stat_name, str) and isinstance(stat_prefix, str)):
         raise InvalidStatsNameException("Stat name and prefix must both be strings.")
 
-    if len(proposed_stat_name) > OTEL_NAME_MAX_LENGTH:
-        # If the name is in the exceptions list, do not fail it for being too long.
-        # It may still be deemed invalid for other reasons below.
-        for exemption in BACK_COMPAT_METRIC_NAMES:
-            if re2.match(exemption, stat_name):
-                # There is a back-compat exception for this name; proceed
-                name_length_exemption = True
-                matched_exemption = exemption.pattern
-                break
-        else:
-            raise InvalidStatsNameException(
-                f"Invalid stat name: {proposed_stat_name}.  Please see "
-                f"https://opentelemetry.io/docs/reference/specification/metrics/api/#instrument-name-syntax"
-            )
-
     # `stat_name_default_handler` throws InvalidStatsNameException if the
     # provided value is not valid or returns the value if it is.  We don't
     # need the return value but will make use of the validation checks. If
     # no exception is thrown, then the proposed name meets OTel requirements.
-    stat_name_default_handler(proposed_stat_name, max_length=999 if name_length_exemption else max_length)
+    stat_name_default_handler(proposed_stat_name, max_length=256)
 
     # This warning is down here instead of up above because the exemption only
     # applies to the length and a name may still be invalid for other reasons.
