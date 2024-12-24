@@ -77,7 +77,7 @@ Docker Community Edition
     "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
     $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-2. Install Docker Engine, containerd, and Docker Compose Plugin
+1. Install Docker Engine, containerd
 
 .. code-block:: bash
 
@@ -91,9 +91,10 @@ Docker Community Edition
   sudo groupadd docker
   sudo usermod -aG docker $USER
 
-Note : This is done so a non-root user can access the ``docker`` command.
-After adding user to docker group Logout and Login again for group membership re-evaluation.
-On some Linux distributions, the system automatically creates this group.
+.. note::
+    This is done so a non-root user can access the ``docker`` command.
+    After adding user to docker group Logout and Login again for group membership re-evaluation.
+    On some Linux distributions, the system automatically creates this group.
 
 4. Test Docker installation
 
@@ -101,7 +102,8 @@ On some Linux distributions, the system automatically creates this group.
 
   docker run hello-world
 
-Note : Read more about `Linux post-installation steps for Docker Engine <https://docs.docker.com/engine/install/linux-postinstall/>`_.
+.. note::
+    Read more about `Linux post-installation steps for Docker Engine <https://docs.docker.com/engine/install/linux-postinstall/>`_.
 
 Colima
 ------
@@ -147,10 +149,11 @@ Install manually:
 
   sudo chmod +x /usr/local/bin/docker-compose
 
-Note: This option requires you to manage updates manually.
-It is recommended that you set up Docker's repository for easier maintenance.
+.. note::
+    This option requires you to manage updates manually.
+    It is recommended that you set up Docker's repository for easier maintenance.
 
-2. Verifying installation
+1. Verifying installation
 
 .. code-block:: bash
 
@@ -217,9 +220,10 @@ Forking and cloning Project
    to clone the repo locally (you can also do it in your IDE - see the `Using your IDE`_
    chapter below
 
-Note: For windows based machines, on cloning, the Git line endings may be different from unix based systems
-and might lead to unexpected behaviour on running breeze tooling. Manually setting a property will mitigate this issue.
-Set it to true for windows.
+.. note::
+    For windows based machines, on cloning, the Git line endings may be different from unix based systems
+    and might lead to unexpected behaviour on running breeze tooling. Manually setting a property will mitigate this issue.
+    Set it to true for windows.
 
 .. code-block:: bash
 
@@ -443,9 +447,10 @@ If Airflow was started with ``breeze --python 3.9 --backend postgres``:
   root@f3619b74c59a:/opt/airflow# exit
   breeze down
 
-Note : ``stop_airflow`` is available only when Airflow is started with ``breeze start-airflow``.
+.. note::
+    ``stop_airflow`` is available only when Airflow is started with ``breeze start-airflow``.
 
-5. Knowing more about Breeze
+1. Knowing more about Breeze
 
 .. code-block:: bash
 
@@ -479,14 +484,11 @@ tests are applied when you commit your code.
 To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be run locally before committing changes.
 
 .. note::
-
     We have recently started to recommend ``uv`` for our local development.
 
 .. note::
-
     Remember to have global python set to Python >= 3.9 - Python 3.8 is end-of-life already and we've
     started to use Python 3.9+ features in Airflow and accompanying scripts.
-
 
 Installing pre-commit is best done with ``uv`` (recommended) or ``pipx``.
 
