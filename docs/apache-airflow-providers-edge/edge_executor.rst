@@ -294,11 +294,8 @@ The following features are known missing and will be implemented in increments:
 
 - Scaling test - Check and define boundaries of workers/jobs
 - Load tests - impact of scaled execution and code optimization
-- Airflow 3 / AIP-72 Migration
-
-  - Thin deployment based on Task SDK
-  - DAG Code push (no need to GIT Sync)
-  - Implicit with AIP-72: Move task context generation from Remote to Executor
+- Incremental logs during task execution can be served w/o shared log disk
+- Host name of worker is applied as job runner host name as well
 
 - Documentation
 
