@@ -207,11 +207,16 @@ class XComOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def get(self, dag_id: str, run_id: str, task_id: str, key: str, map_index: int = -1) -> XComResponse:
+    def get(
+        self, dag_id: str, run_id: str, task_id: str, key: str, map_index: int | None = None
+    ) -> XComResponse:
         """Get a XCom value from the API server."""
         # TODO: check if we need to use map_index as params in the uri
         # ref: https://github.com/apache/airflow/blob/v2-10-stable/airflow/api_connexion/openapi/v1.yaml#L1785C1-L1785C81
-        resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params={"map_index": map_index})
+        params = {}
+        if map_index is not None:
+            params.update({"map_index": map_index})
+        resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
         return XComResponse.model_validate_json(resp.read())
 
     def set(
