@@ -5482,7 +5482,6 @@ export const $VariableBody = {
   properties: {
     key: {
       type: "string",
-      maxLength: 250,
       title: "Key",
     },
     value: {
