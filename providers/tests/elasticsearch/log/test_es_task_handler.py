@@ -81,9 +81,11 @@ class TestElasticsearchTaskHandler:
     def ti(self, create_task_instance, create_log_template):
         create_log_template(
             self.FILENAME_TEMPLATE,
-            "{dag_id}-{task_id}-{logical_date}-{try_number}"
-            if AIRFLOW_V_3_0_PLUS
-            else "{dag_id}-{task_id}-{execution_date}-{try_number}",
+            (
+                "{dag_id}-{task_id}-{logical_date}-{try_number}"
+                if AIRFLOW_V_3_0_PLUS
+                else "{dag_id}-{task_id}-{execution_date}-{try_number}"
+            ),
         )
         yield get_ti(
             dag_id=self.DAG_ID,
@@ -672,6 +674,24 @@ class TestElasticsearchTaskHandler:
             json_fields="asctime,filename,lineno,levelname,message,exc_text",
             filename_template=None,
         )
+
+    def test_write_to_es(self, ti):
+        self.es_task_handler.write_to_es = True
+        self.es_task_handler.json_format = True
+        self.es_task_handler.write_stdout = False
+        self.es_task_handler.local_base = Path(os.getcwd()) / "local" / "log" / "location"
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        self.es_task_handler.formatter = formatter
+
+        self.es_task_handler.set_context(ti)
+        with patch(
+            "airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchTaskHandler._write_to_es"
+        ) as mock_write_to_es:
+            mock_write = Mock(return_value=True)
+            mock_write_to_es.return_value = mock_write
+            self.es_task_handler._write_to_es = mock_write_to_es
+            self.es_task_handler.close()
+            mock_write_to_es.assert_called_once()
 
 
 def test_safe_attrgetter():
