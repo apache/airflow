@@ -63,6 +63,8 @@ _ParsedLogStreamType = Generator[_ParsedLogRecordType, None, None]
 _LogSourceType = tuple[list[str], list[_ParsedLogStreamType], int]
 """Tuple of messages, parsed log streams, total size of logs."""
 _OldLogSourceType = tuple[list[str], list[str]]
+_OldGroupedByHostLogType = tuple[list[tuple[str, str]], dict]
+"""Elasticsearch and OpenSearch log reading return type, add this to avoid mypy error during migration."""
 """Tuple of messages and list of log str, will be removed after all providers adapt to stream-based log reading."""
 _CompatibleLogSourceType = Union[_LogSourceType, _OldLogSourceType]
 """Compatible type hint for stream-based log reading and old log reading."""
@@ -487,7 +489,7 @@ class FileTaskHandler(logging.Handler):
         ti: TaskInstance,
         try_number: int,
         metadata: dict[str, Any] | None = None,
-    ) -> tuple[Iterable[str], dict[str, Any]]:
+    ) -> tuple[Iterable[str], dict[str, Any]] | _OldGroupedByHostLogType:
         """
         Template method that contains custom logic of reading logs given the try_number.
 
@@ -570,6 +572,7 @@ class FileTaskHandler(logging.Handler):
             )
             messages_list.extend(served_messages)
 
+        print("messages_list", messages_list)
         # Log message source details are grouped: they are not relevant for most users and can
         # distract them from finding the root cause of their errors
         messages = " INFO - ::group::Log message source details\n"
