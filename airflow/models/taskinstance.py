@@ -35,6 +35,7 @@ from functools import cache
 from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import quote
 
+import attrs
 import dill
 import jinja2
 import lazy_object_proxy
@@ -2757,7 +2758,9 @@ class TaskInstance(Base, LoggingMixin):
             AssetUniqueKey.from_asset(asset_obj): asset_obj
             for asset_obj in session.scalars(
                 select(AssetModel).where(
-                    tuple_(AssetModel.name, AssetModel.uri).in_(key.to_tuple() for key in asset_unique_keys)
+                    tuple_(AssetModel.name, AssetModel.uri).in_(
+                        attrs.astuple(key) for key in asset_unique_keys
+                    )
                 )
             )
         }
@@ -3673,7 +3676,7 @@ class TaskInstance(Base, LoggingMixin):
             for name, uri in session.execute(
                 select(AssetActive.name, AssetActive.uri).where(
                     tuple_in_condition(
-                        (AssetActive.name, AssetActive.uri), [key.to_tuple() for key in asset_unique_keys]
+                        (AssetActive.name, AssetActive.uri), [attrs.astuple(key) for key in asset_unique_keys]
                     )
                 )
             )
