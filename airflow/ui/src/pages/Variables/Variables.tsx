@@ -33,27 +33,30 @@ import {
 } from "src/constants/searchParams";
 
 import AddVariableModal from "./AddVariableModal";
+import { VariableActions } from "./VariableAction";
 
 const columns: Array<ColumnDef<VariableResponse>> = [
   {
     accessorKey: "key",
     header: "Key",
-    meta: {
-      skeletonWidth: 25,
-    },
   },
   {
     accessorKey: "value",
     header: "Value",
-    meta: {
-      skeletonWidth: 25,
-    },
   },
   {
     accessorKey: "description",
     header: "Description",
+  },
+  {
+    accessorKey: "actions",
+    cell: ({ row: { original } }) => (
+      <VariableActions variableKey={original.key} />
+    ),
+    enableSorting: false,
+    header: "Actions",
     meta: {
-      skeletonWidth: 50,
+      skeletonWidth: 10,
     },
   },
 ];
