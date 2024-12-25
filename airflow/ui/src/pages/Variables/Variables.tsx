@@ -58,7 +58,7 @@ const columns: Array<ColumnDef<VariableResponse>> = [
   },
   {
     accessorKey: "is_encrypted",
-    header: "Encrypted",
+    header: "Is Encrypted",
   },
 ];
 
