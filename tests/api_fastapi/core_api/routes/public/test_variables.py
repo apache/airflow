@@ -116,6 +116,7 @@ class TestGetVariable(TestVariableEndpoint):
                     "key": TEST_VARIABLE_KEY,
                     "value": TEST_VARIABLE_VALUE,
                     "description": TEST_VARIABLE_DESCRIPTION,
+                    "is_encrypted": True,
                 },
             ),
             (
@@ -124,6 +125,7 @@ class TestGetVariable(TestVariableEndpoint):
                     "key": TEST_VARIABLE_KEY2,
                     "value": "***",
                     "description": TEST_VARIABLE_DESCRIPTION2,
+                    "is_encrypted": True,
                 },
             ),
             (
@@ -132,6 +134,7 @@ class TestGetVariable(TestVariableEndpoint):
                     "key": TEST_VARIABLE_KEY3,
                     "value": '{"password": "***"}',
                     "description": TEST_VARIABLE_DESCRIPTION3,
+                    "is_encrypted": True,
                 },
             ),
             (
@@ -140,6 +143,7 @@ class TestGetVariable(TestVariableEndpoint):
                     "key": TEST_VARIABLE_SEARCH_KEY,
                     "value": TEST_VARIABLE_SEARCH_VALUE,
                     "description": TEST_VARIABLE_SEARCH_DESCRIPTION,
+                    "is_encrypted": True,
                 },
             ),
         ],
@@ -225,6 +229,7 @@ class TestPatchVariable(TestVariableEndpoint):
                     "key": TEST_VARIABLE_KEY,
                     "value": "The new value",
                     "description": "The new description",
+                    "is_encrypted": True,
                 },
             ),
             (
@@ -239,6 +244,7 @@ class TestPatchVariable(TestVariableEndpoint):
                     "key": TEST_VARIABLE_KEY,
                     "value": "The new value",
                     "description": TEST_VARIABLE_DESCRIPTION,
+                    "is_encrypted": True,
                 },
             ),
             (
@@ -253,6 +259,7 @@ class TestPatchVariable(TestVariableEndpoint):
                     "key": TEST_VARIABLE_KEY2,
                     "value": "***",
                     "description": TEST_VARIABLE_DESCRIPTION2,
+                    "is_encrypted": True,
                 },
             ),
             (
@@ -267,6 +274,7 @@ class TestPatchVariable(TestVariableEndpoint):
                     "key": TEST_VARIABLE_KEY3,
                     "value": '{"password": "***"}',
                     "description": "new description",
+                    "is_encrypted": True,
                 },
             ),
         ],
@@ -311,6 +319,7 @@ class TestPostVariable(TestVariableEndpoint):
                     "key": "new variable key",
                     "value": "new variable value",
                     "description": "new variable description",
+                    "is_encrypted": True,
                 },
             ),
             (
@@ -323,6 +332,7 @@ class TestPostVariable(TestVariableEndpoint):
                     "key": "another_password",
                     "value": "***",
                     "description": "another password",
+                    "is_encrypted": True,
                 },
             ),
             (
@@ -335,6 +345,7 @@ class TestPostVariable(TestVariableEndpoint):
                     "key": "another value with sensitive information",
                     "value": '{"password": "***"}',
                     "description": "some description",
+                    "is_encrypted": True,
                 },
             ),
         ],
