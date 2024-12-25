@@ -191,34 +191,35 @@ class TestOpensearchTaskHandler:
 
     def test_read(self, ti):
         ts = pendulum.now()
-        logs, metadatas = self.os_task_handler.read(
+        hosts, log_streams, metadata_array = self.os_task_handler.read(
             ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
         )
 
-        assert len(logs) == 1
-        assert len(logs) == len(metadatas)
-        assert len(logs[0]) == 1
+        assert len(log_streams) == 1
+        assert len(log_streams) == len(metadata_array)
+        assert len(log_streams) == 1
+        log_str = "".join(line for line in log_streams[0])
         assert (
-            logs[0][0][-1] == "Dependencies all met for dep_context=non-requeueable"
+            log_str == "Dependencies all met for dep_context=non-requeueable"
             " deps ti=<TaskInstance: example_bash_operator.run_after_loop owen_run_run [queued]>\n"
             "Starting attempt 1 of 1\nExecuting <Task(BashOperator): run_after_loop> "
             "on 2023-07-09 07:47:32+00:00"
         )
-        assert not metadatas[0]["end_of_log"]
-        assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
+        assert not metadata_array[0]["end_of_log"]
+        assert timezone.parse(metadata_array[0]["last_log_timestamp"]) > ts
 
     def test_read_with_patterns(self, ti):
         ts = pendulum.now()
         with mock.patch.object(self.os_task_handler, "index_patterns", new="test_*,other_*"):
-            logs, metadatas = self.os_task_handler.read(
+            _, log_streams, metadatas = self.os_task_handler.read(
                 ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
             )
 
-        assert len(logs) == 1
-        assert len(logs) == len(metadatas)
-        assert len(logs[0]) == 1
-        assert (
-            logs[0][0][-1] == "Dependencies all met for dep_context=non-requeueable"
+        assert len(log_streams) == 1
+        assert len(log_streams) == len(metadatas)
+        log_str = "".join(line for line in log_streams[0])
+        assert log_str.endswith(
+            "Dependencies all met for dep_context=non-requeueable"
             " deps ti=<TaskInstance: example_bash_operator.run_after_loop owen_run_run [queued]>\n"
             "Starting attempt 1 of 1\nExecuting <Task(BashOperator): run_after_loop> "
             "on 2023-07-09 07:47:32+00:00"
@@ -239,13 +240,14 @@ class TestOpensearchTaskHandler:
                     "took": 7,
                 },
             ):
-                logs, metadatas = self.os_task_handler.read(
+                _, log_streams, metadatas = self.os_task_handler.read(
                     ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
                 )
 
-        assert len(logs) == 1
-        assert len(logs) == len(metadatas)
-        assert logs == [[]]
+        assert len(log_streams) == 1
+        assert len(log_streams) == len(metadatas)
+        log_str = "".join(line for line in log_streams[0])
+        assert log_str == ""
         assert not metadatas[0]["end_of_log"]
         assert metadatas[0]["offset"] == "0"
         # last_log_timestamp won't change if no log lines read.
@@ -285,31 +287,32 @@ class TestOpensearchTaskHandler:
                 "took": 7,
             },
         ):
-            logs, metadatas = self.os_task_handler.read(ti, 1, {"offset": 0, "last_log_timestamp": str(ts)})
+            _, log_streams, metadatas = self.os_task_handler.read(
+                ti, 1, {"offset": 0, "last_log_timestamp": str(ts)}
+            )
 
-        assert len(logs) == 1
+        assert len(log_streams) == 1
+        log_str = "".join(line for line in log_streams[0])
         if seconds > 5:
             # we expect a log not found message when checking began more than 5 seconds ago
-            assert len(logs[0]) == 1
-            actual_message = logs[0][0][1]
             expected_pattern = r"^\*\*\* Log .* not found in Opensearch.*"
-            assert re.match(expected_pattern, actual_message) is not None
+            assert re.match(expected_pattern, log_str) is not None
             assert metadatas[0]["end_of_log"] is True
         else:
             # we've "waited" less than 5 seconds so it should not be "end of log" and should be no log message
-            assert len(logs[0]) == 0
-            assert logs == [[]]
+            assert log_str == ""
             assert metadatas[0]["end_of_log"] is False
-        assert len(logs) == len(metadatas)
+        assert len(log_streams) == len(metadatas)
         assert metadatas[0]["offset"] == "0"
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
 
     def test_read_with_none_metadata(self, ti):
-        logs, metadatas = self.os_task_handler.read(ti, 1)
-        assert len(logs) == 1
-        assert len(logs) == len(metadatas)
-        assert (
-            logs[0][0][-1] == "Dependencies all met for dep_context=non-requeueable"
+        _, log_streams, metadatas = self.os_task_handler.read(ti, 1)
+        assert len(log_streams) == 1
+        assert len(log_streams) == len(metadatas)
+        log_str = "".join(line for line in log_streams[0])
+        assert log_str.endswith(
+            "Dependencies all met for dep_context=non-requeueable"
             " deps ti=<TaskInstance: example_bash_operator.run_after_loop owen_run_run [queued]>\n"
             "Starting attempt 1 of 1\nExecuting <Task(BashOperator): run_after_loop> "
             "on 2023-07-09 07:47:32+00:00"

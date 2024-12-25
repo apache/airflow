@@ -130,23 +130,27 @@ class TestS3TaskHandler:
         self.conn.put_object(Bucket="bucket", Key=self.remote_log_key, Body=b"Log line\n")
         ti = copy.copy(self.ti)
         ti.state = TaskInstanceState.SUCCESS
-        log, metadata = self.s3_task_handler.read(ti)
-        actual = log[0][0][-1]
-        assert "*** Found logs in s3:\n***   * s3://bucket/remote/log/location/1.log\n" in actual
-        assert actual.endswith("Log line")
-        assert metadata == [{"end_of_log": True, "log_pos": 8}]
+        read_result = self.s3_task_handler.read(ti)
+        print("read_result", read_result)
+        _, log_streams, metadata_array = read_result
+        log_str = "".join(line for line in log_streams[0])
+        assert "*** Found logs in s3:\n***   * s3://bucket/remote/log/location/1.log\n" in log_str
+        assert log_str.endswith("Log line\n")
+        assert metadata_array == [{"end_of_log": True, "log_pos": 9}]
 
     def test_read_when_s3_log_missing(self):
         ti = copy.copy(self.ti)
         ti.state = TaskInstanceState.SUCCESS
-        self.s3_task_handler._read_from_logs_server = mock.Mock(return_value=([], []))
-        log, metadata = self.s3_task_handler.read(ti)
-        assert len(log) == 1
-        assert len(log) == len(metadata)
-        actual = log[0][0][-1]
+        self.s3_task_handler._read_from_logs_server = mock.Mock(return_value=([], [], 0))
+        read_result = self.s3_task_handler.read(ti)
+        print("read_result", read_result)
+        _, log_streams, metadata_array = read_result
+        assert len(log_streams) == 1
+        assert len(log_streams) == len(metadata_array)
+        log_str = "".join(line for line in log_streams[0])
         expected = "*** No logs found on s3 for ti=<TaskInstance: dag_for_testing_s3_task_handler.task_for_testing_s3_log_handler test [success]>\n"
-        assert expected in actual
-        assert metadata[0] == {"end_of_log": True, "log_pos": 0}
+        assert expected in log_str
+        assert metadata_array[0] == {"end_of_log": True, "log_pos": 0}
 
     def test_s3_read_when_log_missing(self):
         handler = self.s3_task_handler

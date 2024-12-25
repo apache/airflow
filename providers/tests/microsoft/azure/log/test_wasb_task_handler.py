@@ -112,13 +112,15 @@ class TestWasbTaskHandler:
         assert self.wasb_task_handler.wasb_read(self.remote_log_location) == "Log line"
         ti = copy.copy(ti)
         ti.state = TaskInstanceState.SUCCESS
-        assert self.wasb_task_handler.read(ti)[0][0][0][0] == "localhost"
+        hosts, log_streams, metadatas = self.wasb_task_handler.read(ti)
+        assert hosts[0] == "localhost"
+        log_str = "".join(line for line in log_streams[0])
         assert (
             "*** Found remote logs:\n***   * https://wasb-container.blob.core.windows.net/abc/hello.log\n"
-            in self.wasb_task_handler.read(ti)[0][0][0][1]
+            in log_str
         )
-        assert "Log line" in self.wasb_task_handler.read(ti)[0][0][0][1]
-        assert self.wasb_task_handler.read(ti)[1][0] == {"end_of_log": True, "log_pos": 8}
+        assert "Log line" in log_str
+        assert metadatas[0] == {"end_of_log": True, "log_pos": 8}
 
     @mock.patch(
         "airflow.providers.microsoft.azure.hooks.wasb.WasbHook",
