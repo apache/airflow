@@ -58,9 +58,9 @@ from sqlalchemy import (
     and_,
     case,
     func,
-    not_,
     or_,
     select,
+    tuple_,
     update,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -108,7 +108,7 @@ from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, lock_rows, tuple_in_condition, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, lock_rows, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -1081,7 +1081,7 @@ class DAG(TaskSDKDag, LoggingMixin):
                     tis = tis.where(TaskInstance.state.in_(state))
 
         if exclude_run_ids:
-            tis = tis.where(not_(TaskInstance.run_id.in_(exclude_run_ids)))
+            tis = tis.where(TaskInstance.run_id.not_in(exclude_run_ids))
 
         if include_dependent_dags:
             # Recursively find external tasks indicated by ExternalTaskMarker
@@ -1192,7 +1192,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         elif isinstance(next(iter(exclude_task_ids), None), str):
             tis = tis.where(TI.task_id.notin_(exclude_task_ids))
         else:
-            tis = tis.where(not_(tuple_in_condition((TI.task_id, TI.map_index), exclude_task_ids)))
+            tis = tis.where(tuple_(TI.task_id, TI.map_index).not_in(exclude_task_ids))
 
         return tis
 
