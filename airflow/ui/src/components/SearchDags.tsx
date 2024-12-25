@@ -54,7 +54,7 @@ export const SearchDags = () => {
     }
   };
 
-  const searchDag = async (
+  const searchDag = (
     inputValue: string,
     callback: (options: OptionsOrGroups<Option, GroupBase<Option>>) => void,
   ): Promise<OptionsOrGroups<Option, GroupBase<Option>>> =>
