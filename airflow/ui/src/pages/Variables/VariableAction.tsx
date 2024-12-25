@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-// Disable lint will be removed once the implementation completed
+// TODO: Disable lint will be removed once the implementation completed
 
 /* eslint-disable no-alert */
 import { IconButton } from "@chakra-ui/react";
