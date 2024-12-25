@@ -35,6 +35,7 @@ class VariableResponse(BaseModel):
     key: str
     val: str | None = Field(alias="value")
     description: str | None
+    is_encrypted: bool
 
     @model_validator(mode="after")
     def redact_val(self) -> Self:

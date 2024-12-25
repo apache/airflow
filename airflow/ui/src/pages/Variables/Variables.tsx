@@ -56,6 +56,10 @@ const columns: Array<ColumnDef<VariableResponse>> = [
       skeletonWidth: 50,
     },
   },
+  {
+    accessorKey: "is_encrypted",
+    header: "Is Encrypted",
+  },
 ];
 
 export const Variables = () => {
