@@ -334,10 +334,10 @@ def test_get_logs_for_changed_filename_format_db(
 @unittest.mock.patch(
     "airflow.utils.log.file_task_handler.FileTaskHandler.read",
     side_effect=[
-        ([[("default_log", "1st line")]], [{}]),
-        ([[("default_log", "2nd line")]], [{"end_of_log": False}]),
-        ([[("default_log", "3rd line")]], [{"end_of_log": True}]),
-        ([[("default_log", "should never be read")]], [{"end_of_log": True}]),
+        (["default_log"], [["1st line"]], [{}]),
+        (["default_log"], [["2nd line"]], [{"end_of_log": False}]),
+        (["default_log"], [["3rd line"]], [{"end_of_log": True}]),
+        (["default_log"], [["should never be read"]], [{"end_of_log": True}]),
     ],
 )
 def test_get_logs_with_metadata_as_download_large_file(_, log_admin_client):
@@ -409,7 +409,7 @@ def test_get_logs_with_invalid_metadata(log_admin_client):
 
 @unittest.mock.patch(
     "airflow.utils.log.file_task_handler.FileTaskHandler.read",
-    return_value=(["airflow log line"], [{"end_of_log": True}]),
+    return_value=([""], [["airflow log line"]], [{"end_of_log": True}]),
 )
 def test_get_logs_with_metadata_for_removed_dag(_, log_admin_client):
     url_template = "get_logs_with_metadata?dag_id={}&task_id={}&logical_date={}&try_number={}&metadata={}"
@@ -474,7 +474,7 @@ def test_get_logs_with_json_response_format(log_admin_client, create_expected_lo
 
     assert "message" in response.json
     assert "metadata" in response.json
-    assert "Log for testing." in response.json["message"][0][1]
+    assert "Log for testing." in response.json["message"]
 
 
 def test_get_logs_invalid_execution_data_format(log_admin_client):
