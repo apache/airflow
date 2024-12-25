@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, VStack } from "@chakra-ui/react";
+import { Box, Flex, HStack, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -33,7 +33,8 @@ import {
 } from "src/constants/searchParams";
 
 import AddVariableModal from "./AddVariableModal";
-import { VariableActions } from "./VariableAction";
+import DeleteVariableButton from "./DeleteVariableButton";
+import EditVariableButton from "./EditVariableButton";
 
 const columns: Array<ColumnDef<VariableResponse>> = [
   {
@@ -51,13 +52,13 @@ const columns: Array<ColumnDef<VariableResponse>> = [
   {
     accessorKey: "actions",
     cell: ({ row: { original } }) => (
-      <VariableActions variableKey={original.key} />
+      <Flex justifyContent="end">
+        <EditVariableButton editKey={original.key} />
+        <DeleteVariableButton deleteKey={original.key} />
+      </Flex>
     ),
     enableSorting: false,
-    header: "Actions",
-    meta: {
-      skeletonWidth: 10,
-    },
+    header: "",
   },
 ];
 
