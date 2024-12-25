@@ -20,7 +20,7 @@
 
 /* eslint-disable no-alert */
 import { IconButton } from "@chakra-ui/react";
-import { FiMoreVertical } from "react-icons/fi";
+import { FiEdit, FiEye, FiMoreVertical, FiTrash } from "react-icons/fi";
 
 import { Menu } from "../../components/ui/Menu";
 
@@ -43,7 +43,7 @@ export const VariableActions = ({ variableKey }: VariableActionsProps) => (
         }
         value="view variable"
       >
-        View
+        <FiEye /> View
       </Menu.Item>
       <Menu.Item
         onClick={() =>
@@ -51,7 +51,7 @@ export const VariableActions = ({ variableKey }: VariableActionsProps) => (
         }
         value="edit variable"
       >
-        Edit
+        <FiEdit /> Edit
       </Menu.Item>
       <Menu.Item
         onClick={() =>
@@ -59,7 +59,7 @@ export const VariableActions = ({ variableKey }: VariableActionsProps) => (
         }
         value="delete variable"
       >
-        Delete
+        <FiTrash /> Delete
       </Menu.Item>
     </Menu.Content>
   </Menu.Root>
