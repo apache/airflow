@@ -264,7 +264,7 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
     return val
 
 
-def _get_compatible_parse_log_stream(remote_logs: list[str]) -> _ParsedLogStreamType:
+def _get_compatible_parse_log_streams(remote_logs: list[str]) -> list[_ParsedLogStreamType]:
     """
     Compatible utility for new log reading(stream-based + k-way merge log) and old log reading(read whole log in memory + sorting).
 
@@ -272,17 +272,24 @@ def _get_compatible_parse_log_stream(remote_logs: list[str]) -> _ParsedLogStream
     Will be removed after all providers adapt to stream-based log reading.
 
     :param remote_logs: list of log lines
-    :return: parsed log stream
+    :return: parsed log streams if remote_logs is not empty, otherwise empty list
     """
-    timestamp = None
-    next_timestamp = None
-    for line_num, line in enumerate(remote_logs):
-        with suppress(Exception):
-            # next_timestamp unchanged if line can't be parsed
-            next_timestamp = _parse_timestamp(line)
-        if next_timestamp:
-            timestamp = next_timestamp
-        yield timestamp, line_num, line
+    if not remote_logs:
+        # empty remote logs
+        return []
+
+    def _parse_log(logs: list[str]):
+        timestamp = None
+        next_timestamp = None
+        for line_num, line in enumerate(logs):
+            with suppress(Exception):
+                # next_timestamp unchanged if line can't be parsed
+                next_timestamp = _parse_timestamp(line)
+            if next_timestamp:
+                timestamp = next_timestamp
+            yield timestamp, line_num, line
+
+    return [_parse_log(remote_logs)]
 
 
 def _get_compatible_read_for_providers(read_response: tuple) -> tuple[Iterable[str], dict[str, Any]]:
@@ -529,7 +536,7 @@ class FileTaskHandler(logging.Handler):
                 # old log reading
                 remote_messages, remote_logs = remote_log_result
                 remote_logs_size = sum(len(log) for log in remote_logs)
-                remote_parsed_logs = [_get_compatible_parse_log_stream(remote_logs)]
+                remote_parsed_logs = _get_compatible_parse_log_streams(remote_logs)
             elif len(remote_log_result) == 3:
                 # new stream-based log reading
                 remote_messages, remote_parsed_logs, remote_logs_size = remote_log_result
@@ -544,7 +551,7 @@ class FileTaskHandler(logging.Handler):
             if response:
                 executor_messages, executor_logs = response
                 executor_logs_size = sum(len(log) for log in executor_logs)
-                executor_parsed_logs = [_get_compatible_parse_log_stream(executor_logs)]
+                executor_parsed_logs = _get_compatible_parse_log_streams(executor_logs)
             elif response and len(response) == 3:
                 executor_messages, executor_parsed_logs, executor_logs_size = response
             else:
@@ -572,7 +579,6 @@ class FileTaskHandler(logging.Handler):
             )
             messages_list.extend(served_messages)
 
-        print("messages_list", messages_list)
         # Log message source details are grouped: they are not relevant for most users and can
         # distract them from finding the root cause of their errors
         messages = " INFO - ::group::Log message source details\n"
