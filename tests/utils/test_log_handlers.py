@@ -393,9 +393,10 @@ class TestFileTaskLogHandler:
         find_current_log = False
         find_rotate_log_1 = False
         for log_stream in log_streams:
-            if log_filename in "\n".join(line for line in log_stream):
+            log_str = "".join(line for line in log_stream)
+            if log_filename in log_str:
                 find_current_log = True
-            if log_rotate_1_name in "\n".join(line for line in log_stream):
+            if log_rotate_1_name in log_str:
                 find_rotate_log_1 = True
         assert find_current_log is True
         assert find_rotate_log_1 is True
