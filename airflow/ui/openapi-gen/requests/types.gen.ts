@@ -1302,6 +1302,7 @@ export type VariableResponse = {
   key: string;
   value: string | null;
   description: string | null;
+  is_encrypted: boolean;
 };
 
 /**
