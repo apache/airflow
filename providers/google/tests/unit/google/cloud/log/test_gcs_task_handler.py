@@ -103,12 +103,13 @@ class TestGCSTaskHandler:
         ti.state = TaskInstanceState.SUCCESS
         session.add(ti)
         session.commit()
-        logs, metadata = self.gcs_task_handler._read(ti, self.ti.try_number)
+        log_stream, metadata = self.gcs_task_handler._read(ti, self.ti.try_number)
         mock_blob.from_string.assert_called_once_with(
             "gs://bucket/remote/log/location/1.log", mock_client.return_value
         )
-        assert "*** Found remote logs:\n***   * gs://bucket/remote/log/location/1.log\n" in logs
-        assert logs.endswith("CONTENT")
+        log_str = "".join(line for line in log_stream)
+        assert "*** Found remote logs:\n***   * gs://bucket/remote/log/location/1.log\n" in log_str
+        assert log_str.endswith("CONTENT")
         assert metadata == {"end_of_log": True, "log_pos": 7}
 
     @mock.patch(
@@ -126,15 +127,15 @@ class TestGCSTaskHandler:
         self.gcs_task_handler.set_context(self.ti)
         ti = copy.copy(self.ti)
         ti.state = TaskInstanceState.SUCCESS
-        log, metadata = self.gcs_task_handler._read(ti, self.ti.try_number)
-
+        log_stream, metadata = self.gcs_task_handler._read(ti, self.ti.try_number)
+        log_str = "".join(line for line in log_stream)
         assert (
             "*** Found remote logs:\n"
             "***   * gs://bucket/remote/log/location/1.log\n"
             "*** Unable to read remote log Failed to connect\n"
             "*** Found local files:\n"
             f"***   * {self.gcs_task_handler.local_base}/1.log\n"
-        ) in log
+        ) in log_str
         assert metadata == {"end_of_log": True, "log_pos": 0}
         mock_blob.from_string.assert_called_once_with(
             "gs://bucket/remote/log/location/1.log", mock_client.return_value
@@ -204,7 +205,7 @@ class TestGCSTaskHandler:
             (
                 "airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler",
                 logging.ERROR,
-                "Could not write logs to gs://bucket/remote/log/location/1.log: Failed to connect",
+                "Could not write logs to \x1b[1mgs://bucket/remote/log/location/1.log\x1b[22m: \x1b[1mFailed to connect\x1b[22m",
             ),
         ]
         mock_blob.assert_has_calls(

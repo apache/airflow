@@ -103,7 +103,10 @@ class TestRedisTaskHandler:
 
         with patch("redis.Redis.lrange") as lrange:
             lrange.return_value = [b"Line 1", b"Line 2"]
-            logs = handler.read(ti)
+            hosts, log_streams, metadatas = handler.read(ti)
 
-        assert logs == ([[("", "Line 1\nLine 2")]], [{"end_of_log": True}])
+        assert hosts == [""]
+        log_str = "\n".join(line for line in log_streams[0])
+        assert log_str == "Line 1\nLine 2"
+        assert metadatas == [{"end_of_log": True}]
         lrange.assert_called_once_with(key, start=0, end=-1)

@@ -147,7 +147,7 @@ class TestCloudwatchTaskHandler:
             ],
         )
 
-        msg_template = "*** Reading remote log from Cloudwatch log_group: {} log_stream: {}.\n{}\n"
+        msg_template = "*** Reading remote log from Cloudwatch log_group: {} log_stream: {}.\n{}"
         events = "\n".join(
             [
                 f"[{get_time_str(current_time-2000)}] First",
@@ -155,10 +155,11 @@ class TestCloudwatchTaskHandler:
                 f"[{get_time_str(current_time)}] Third",
             ]
         )
-        assert self.cloudwatch_task_handler.read(self.ti) == (
-            [[("", msg_template.format(self.remote_log_group, self.remote_log_stream, events))]],
-            [{"end_of_log": True}],
-        )
+        hosts, log_streams, metadatas = self.cloudwatch_task_handler.read(self.ti)
+        assert hosts == [""]
+        log_str = "\n".join(line for line in log_streams[0])
+        assert log_str == msg_template.format(self.remote_log_group, self.remote_log_stream, events)
+        assert metadatas == [{"end_of_log": True}]
 
     @pytest.mark.parametrize(
         "end_date, expected_end_time",
