@@ -145,10 +145,23 @@ class TaskState(BaseModel):
     - anything else = FAILED
     """
 
-    state: TerminalTIState
+    state: Literal[TerminalTIState.SUCCESS, TerminalTIState.REMOVED, TerminalTIState.SKIPPED]
     end_date: datetime | None = None
-    task_retries: int | None = None
     type: Literal["TaskState"] = "TaskState"
+
+
+class FailState(BaseModel):
+    """
+    Update a task's state to FAILED.
+
+    Contains attributes specific to FAILING a state like
+    ability to retry.
+    """
+
+    should_retry: bool = True
+    end_date: datetime | None = None
+    state: Literal[TerminalTIState.FAILED] = TerminalTIState.FAILED
+    type: Literal["FailState"] = "FailState"
 
 
 class DeferTask(TIDeferredStatePayload):
@@ -233,6 +246,7 @@ class SetRenderedFields(BaseModel):
 ToSupervisor = Annotated[
     Union[
         TaskState,
+        FailState,
         GetXCom,
         GetConnection,
         GetVariable,

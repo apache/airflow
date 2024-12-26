@@ -200,7 +200,7 @@ def ti_update_state(
 
     # We exclude_unset to avoid updating fields that are not set in the payload
     # We do not need to deserialize "task_retries" -- it is used for dynamic decision making within failed state
-    data = ti_patch_payload.model_dump(exclude_unset=True, exclude={"task_retries"})
+    data = ti_patch_payload.model_dump(exclude_unset=True, exclude={"should_retry"})
 
     query = update(TI).where(TI.id == ti_id_str).values(data)
 
@@ -212,7 +212,7 @@ def ti_update_state(
             # clear the next_method and next_kwargs
             query = query.values(next_method=None, next_kwargs=None)
             task_instance = session.get(TI, ti_id_str)
-            if _is_eligible_to_retry(task_instance, ti_patch_payload.task_retries):
+            if _is_eligible_to_retry(task_instance, ti_patch_payload.should_retry):
                 query = query.values(state=State.UP_FOR_RETRY)
                 updated_state = State.UP_FOR_RETRY
     elif isinstance(ti_patch_payload, TIDeferredStatePayload):
@@ -366,7 +366,7 @@ def ti_put_rtif(
     return {"message": "Rendered task instance fields successfully set"}
 
 
-def _is_eligible_to_retry(task_instance: TI, task_retries: int | None):
+def _is_eligible_to_retry(task_instance: TI, should_retry: bool) -> bool:
     """
     Is task instance is eligible for retry.
 
@@ -374,13 +374,14 @@ def _is_eligible_to_retry(task_instance: TI, task_retries: int | None):
 
     :meta private:
     """
+    if not should_retry:
+        return False
+
     if task_instance.state == State.RESTARTING:
         # If a task is cleared when running, it goes into RESTARTING state and is always
         # eligible for retry
         return True
 
-    if task_retries == -1:
-        # task_runner indicated that it doesn't know number of retries, guess it from the table
-        return task_instance.try_number <= task_instance.max_tries
-
-    return task_retries and task_instance.try_number <= task_instance.max_tries
+    # max_tries is initialised with the retries defined at task level, we do not need to explicitly ask for
+    # retries from the task SDK now, we can handle using max_tries
+    return task_instance.max_tries and task_instance.try_number <= task_instance.max_tries

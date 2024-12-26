@@ -63,6 +63,7 @@ from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeferTask,
     ErrorResponse,
+    FailState,
     GetConnection,
     GetVariable,
     GetXCom,
@@ -294,8 +295,9 @@ class WatchedSubprocess:
     _exit_code: int | None = attrs.field(default=None, init=False)
     _terminal_state: str | None = attrs.field(default=None, init=False)
     _final_state: str | None = attrs.field(default=None, init=False)
-    # denotes if a task `has` retries defined or not, helpful to send signals between the handle_requests and wait
-    _should_retry: bool = attrs.field(default=False, init=False)
+    # denotes if a request to `fail` has been sent from the _handle_requests or not, or it will be handled in wait()
+    # useful to synchronise the API requests for `fail` between handle_requests and wait
+    _fail_request_sent: bool = attrs.field(default=False, init=False)
 
     _last_successful_heartbeat: float = attrs.field(default=0, init=False)
     _last_heartbeat_attempt: float = attrs.field(default=0, init=False)
@@ -520,15 +522,13 @@ class WatchedSubprocess:
         # If it hasn't, assume it's failed
         self._exit_code = self._exit_code if self._exit_code is not None else 1
 
-        print("The exit code is", self._exit_code)
-
         # If the process has finished in a terminal state, update the state of the TaskInstance
         # to reflect the final state of the process.
         # For states like `deferred`, the process will exit with 0, but the state will be updated
         # by the subprocess in the `handle_requests` method.
-        if self.final_state in TerminalTIState and not self._should_retry:
+        if (not self._fail_request_sent) and self.final_state in TerminalTIState:
             self.client.task_instances.finish(
-                id=self.id, state=self.final_state, when=datetime.now(tz=timezone.utc), task_retries=None
+                id=self.id, state=self.final_state, when=datetime.now(tz=timezone.utc)
             )
         return self._exit_code
 
@@ -715,17 +715,16 @@ class WatchedSubprocess:
     def _handle_request(self, msg: ToSupervisor, log: FilteringBoundLogger):
         log.debug("Received message from task runner", msg=msg)
         resp = None
-        if isinstance(msg, TaskState):
+        if isinstance(msg, FailState):
+            self._terminal_state = TerminalTIState.FAILED
+            self._task_end_time_monotonic = time.monotonic()
+            self._fail_request_sent = True
+            log.debug("IN SIDE FAILSTATE.")
+            self.client.task_instances.fail(self.id, datetime.now(tz=timezone.utc), msg.should_retry)
+        elif isinstance(msg, TaskState):
+            log.debug("IN SIDE TaskState.")
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
-            if msg.task_retries:
-                self.client.task_instances.finish(
-                    id=self.id,
-                    state=self.final_state,
-                    when=datetime.now(tz=timezone.utc),
-                    task_retries=msg.task_retries,
-                )
-                self._should_retry = True
         elif isinstance(msg, GetConnection):
             conn = self.client.connections.get(msg.conn_id)
             if isinstance(conn, ConnectionResponse):

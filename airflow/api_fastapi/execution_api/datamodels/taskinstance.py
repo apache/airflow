@@ -59,7 +59,8 @@ class TITerminalStatePayload(BaseModel):
     end_date: UtcDateTime
     """When the task completed executing"""
 
-    task_retries: int | None = None
+    """Indicates if the task should retry before failing or not."""
+    should_retry: bool = False
 
 
 class TITargetStatePayload(BaseModel):

@@ -33,6 +33,7 @@ from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState,
 from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.execution_time.comms import (
     DeferTask,
+    FailState,
     RescheduleTask,
     SetRenderedFields,
     StartupDetails,
@@ -300,9 +301,10 @@ def run(ti: RuntimeTaskInstance, log: Logger):
 
         # TODO: Handle fail_stop here: https://github.com/apache/airflow/issues/44951
         # TODO: Handle addition to Log table: https://github.com/apache/airflow/issues/44952
-        msg = TaskState(
+        msg = FailState(
             state=TerminalTIState.FAILED,
             end_date=datetime.now(tz=timezone.utc),
+            should_retry=False,
         )
 
         # TODO: Run task failure callbacks here
@@ -313,22 +315,16 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         # External state updates are already handled with `ti_heartbeat` and will be
         # updated already be another UI API. So, these exceptions should ideally never be thrown.
         # If these are thrown, we should mark the TI state as failed.
-        msg = TaskState(
+        msg = FailState(
             state=TerminalTIState.FAILED,
             end_date=datetime.now(tz=timezone.utc),
+            should_retry=False,
         )
         # TODO: Run task failure callbacks here
     except SystemExit:
         ...
     except BaseException:
-        msg = TaskState(state=TerminalTIState.FAILED, end_date=datetime.now(tz=timezone.utc))
-        if not getattr(ti, "task", None):
-            # We do not know about retries, let's mark it -1, so that the execution api can make a guess
-            msg.task_retries = -1
-        else:
-            # `None` indicates no retries provided, the default is anyway 0 which evaluates to false
-            msg.task_retries = ti.task.retries or None
-
+        msg = FailState(should_retry=True, end_date=datetime.now(tz=timezone.utc))
     if msg:
         SUPERVISOR_COMMS.send_request(msg=msg, log=log)
 

@@ -124,14 +124,15 @@ class TaskInstanceOperations:
         resp = self.client.patch(f"task-instances/{id}/run", content=body.model_dump_json())
         return TIRunContext.model_validate_json(resp.read())
 
-    def finish(self, id: uuid.UUID, state: TerminalTIState, when: datetime, task_retries: int | None):
+    def finish(self, id: uuid.UUID, state: TerminalTIState, when: datetime):
         """Tell the API server that this TI has reached a terminal state."""
         # TODO: handle the naming better. finish sounds wrong as "even" deferred is essentially finishing.
         body = TITerminalStatePayload(end_date=when, state=TerminalTIState(state))
+        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
-        if task_retries:
-            body.task_retries = task_retries
-
+    def fail(self, id: uuid.UUID, when: datetime, should_retry: bool):
+        """Tell the API server that this TI has to fail, with or without retries."""
+        body = TITerminalStatePayload(end_date=when, state=TerminalTIState.FAILED, should_retry=should_retry)
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
     def heartbeat(self, id: uuid.UUID, pid: int):

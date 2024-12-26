@@ -217,4 +217,4 @@ class TITerminalStatePayload(BaseModel):
 
     state: TerminalTIState
     end_date: Annotated[datetime, Field(title="End Date")]
-    task_retries: Annotated[int | None, Field(title="Task Retries")] = None
+    should_retry: Annotated[bool | None, Field(title="Should Retry")] = False

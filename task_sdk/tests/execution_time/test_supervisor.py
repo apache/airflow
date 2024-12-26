@@ -41,6 +41,7 @@ from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeferTask,
+    FailState,
     GetConnection,
     GetVariable,
     GetXCom,
@@ -884,18 +885,18 @@ class TestHandleRequest:
                 "",
                 id="patch_task_instance_to_skipped",
             ),
-            # checking if we are capable of handling if task_retries is passed
+            # testing to see if supervisor can handle FailState message
             pytest.param(
-                TaskState(
+                FailState(
                     state=TerminalTIState.FAILED,
                     end_date=timezone.parse("2024-10-31T12:00:00Z"),
-                    task_retries=2,
+                    should_retry=False,
                 ),
                 b"",
+                "task_instances.fail",
+                (TI_ID, timezone.parse("2024-11-7T12:00:00Z"), False),
                 "",
-                (),
-                "",
-                id="patch_task_instance_to_failed_with_retries",
+                id="patch_task_instance_to_failed",
             ),
             pytest.param(
                 SetRenderedFields(rendered_fields={"field1": "rendered_value1", "field2": "rendered_value2"}),
@@ -916,6 +917,7 @@ class TestHandleRequest:
         client_attr_path,
         method_arg,
         mock_response,
+        time_machine,
     ):
         """
         Test handling of different messages to the subprocess. For any new message type, add a
@@ -928,6 +930,9 @@ class TestHandleRequest:
             3. Checks that the buffer is updated with the expected response.
             4. Verifies that the response is correctly decoded.
         """
+
+        instant = tz.datetime(2024, 11, 7, 12, 0, 0, 0)
+        time_machine.move_to(instant, tick=False)
 
         # Mock the client method. E.g. `client.variables.get` or `client.connections.get`
         mock_client_method = attrgetter(client_attr_path)(watched_subprocess.client)

@@ -121,7 +121,7 @@ class TestTaskInstanceOperations:
         resp = client.task_instances.start(ti_id, 100, start_date)
         assert resp == ti_context
 
-    @pytest.mark.parametrize("state", [state for state in TerminalTIState])
+    @pytest.mark.parametrize("state", [state for state in TerminalTIState if state != TerminalTIState.FAILED])
     def test_task_instance_finish(self, state):
         # Simulate a successful response from the server that finishes (moved to terminal state) a task
         ti_id = uuid6.uuid7()
@@ -137,10 +137,10 @@ class TestTaskInstanceOperations:
             return httpx.Response(status_code=400, json={"detail": "Bad Request"})
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        client.task_instances.finish(ti_id, state=state, when="2024-10-31T12:00:00Z", task_retries=None)
+        client.task_instances.finish(ti_id, state=state, when="2024-10-31T12:00:00Z")
 
-    def test_task_instance_finish_with_retries(self):
-        # Simulate a successful response from the server that finishes (moved to terminal state) a task when retries are present
+    def test_task_instance_fail(self):
+        # Simulate a successful response from the server that fails a task with retry.
         ti_id = uuid6.uuid7()
 
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -148,16 +148,14 @@ class TestTaskInstanceOperations:
                 actual_body = json.loads(request.read())
                 assert actual_body["end_date"] == "2024-10-31T12:00:00Z"
                 assert actual_body["state"] == TerminalTIState.FAILED
-                assert actual_body["task_retries"] == 2
+                assert actual_body["should_retry"] is True
                 return httpx.Response(
                     status_code=204,
                 )
             return httpx.Response(status_code=400, json={"detail": "Bad Request"})
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        client.task_instances.finish(
-            ti_id, state=TerminalTIState.FAILED, when="2024-10-31T12:00:00Z", task_retries=2
-        )
+        client.task_instances.fail(ti_id, when="2024-10-31T12:00:00Z", should_retry=True)
 
     def test_task_instance_heartbeat(self):
         # Simulate a successful response from the server that sends a heartbeat for a ti
