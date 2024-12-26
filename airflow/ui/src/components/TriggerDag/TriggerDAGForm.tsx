@@ -20,7 +20,7 @@ import { Input, Button, Box, Spacer, HStack, Field } from "@chakra-ui/react";
 import { json } from "@codemirror/lang-json";
 import { githubLight, githubDark } from "@uiw/codemirror-themes-all";
 import CodeMirror from "@uiw/react-codemirror";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { FiPlay } from "react-icons/fi";
 
@@ -67,12 +67,36 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
     },
   });
 
+  // Automatically reset form when conf is fetched
+  useEffect(() => {
+    if (conf) {
+      reset({ conf });
+    }
+  }, [conf, reset]);
+
   const dataIntervalStart = watch("dataIntervalStart");
   const dataIntervalEnd = watch("dataIntervalEnd");
 
   const handleReset = () => {
     setErrors({ conf: undefined, date: undefined });
     reset();
+  };
+
+  const onSubmit = (data: DagRunTriggerParams) => {
+    if (Boolean(data.dataIntervalStart) !== Boolean(data.dataIntervalEnd)) {
+      setErrors((prev) => ({
+        ...prev,
+        date: {
+          body: {
+            detail:
+              "Either both Data Interval Start and End must be provided, or both must be empty.",
+          },
+        },
+      }));
+
+      return;
+    }
+    triggerDagRun(dagId, data);
   };
 
   const validateAndPrettifyJson = (value: string) => {
@@ -93,23 +117,6 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
 
       return value;
     }
-  };
-
-  const onSubmit = (data: DagRunTriggerParams) => {
-    if (Boolean(data.dataIntervalStart) !== Boolean(data.dataIntervalEnd)) {
-      setErrors((prev) => ({
-        ...prev,
-        date: {
-          body: {
-            detail:
-              "Either both Data Interval Start and End must be provided, or both must be empty.",
-          },
-        },
-      }));
-
-      return;
-    }
-    triggerDagRun(dagId, data);
   };
 
   const validateDates = (
@@ -214,11 +221,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
                       extensions={[json()]}
                       height="200px"
                       onBlur={() => {
-                        const prettifiedJson = validateAndPrettifyJson(
-                          field.value,
-                        );
-
-                        field.onChange(prettifiedJson);
+                        field.onChange(validateAndPrettifyJson(field.value));
                       }}
                       style={{
                         border: "1px solid #CBD5E0",
