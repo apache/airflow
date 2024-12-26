@@ -32,9 +32,9 @@ import { ErrorAlert } from "../ErrorAlert";
 import { Accordion } from "../ui";
 
 type TriggerDAGFormProps = {
-  dagId: string;
-  onClose: () => void;
-  open: boolean;
+  readonly dagId: string;
+  readonly onClose: () => void;
+  readonly open: boolean;
 };
 
 export type DagRunTriggerParams = {
@@ -45,11 +45,7 @@ export type DagRunTriggerParams = {
   note: string;
 };
 
-const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
-  dagId,
-  onClose,
-  open,
-}) => {
+const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const conf = useDagParams(dagId, open);
   const { error: errorTrigger, isPending, triggerDagRun } = useTrigger(onClose);
