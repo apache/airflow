@@ -106,7 +106,7 @@ from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import LazyXComSelectSequence, XCom
 from airflow.plugins_manager import integrate_macros_plugins
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
 from airflow.sentry import Sentry
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
@@ -2732,6 +2732,10 @@ class TaskInstance(Base, LoggingMixin):
         # This tuple[asset uri, extra] to sets alias names mapping is used to find whether
         # there're assets with same uri but different extra that we need to emit more than one asset events.
         asset_alias_names: dict[tuple[AssetUniqueKey, frozenset], set[str]] = defaultdict(set)
+
+        asset_name_refs: set[str] = set()
+        asset_uri_refs: set[str] = set()
+
         for obj in ti.task.outlets or []:
             ti.log.debug("outlet obj %s", obj)
             # Lineage can have other types of objects besides assets
@@ -2742,6 +2746,10 @@ class TaskInstance(Base, LoggingMixin):
                     extra=events[obj].extra,
                     session=session,
                 )
+            elif isinstance(obj, AssetNameRef):
+                asset_name_refs.add(obj.name)
+            elif isinstance(obj, AssetUriRef):
+                asset_uri_refs.add(obj.uri)
             elif isinstance(obj, AssetAlias):
                 for asset_alias_event in events[obj].asset_alias_events:
                     asset_alias_name = asset_alias_event.source_alias_name
@@ -2750,8 +2758,8 @@ class TaskInstance(Base, LoggingMixin):
                     asset_alias_names[(asset_unique_key, frozen_extra)].add(asset_alias_name)
 
         asset_unique_keys = {key for key, _ in asset_alias_names}
-        asset_models: dict[AssetUniqueKey, AssetModel] = {
-            AssetUniqueKey.from_asset(asset_obj): asset_obj
+        existing_aliased_assets: set[AssetUniqueKey] = {
+            AssetUniqueKey.from_asset(asset_obj)
             for asset_obj in session.scalars(
                 select(AssetModel).where(
                     tuple_(AssetModel.name, AssetModel.uri).in_(
@@ -2761,7 +2769,7 @@ class TaskInstance(Base, LoggingMixin):
             )
         }
         inactive_asset_unique_keys = TaskInstance._get_inactive_asset_unique_keys(
-            asset_unique_keys={key for key in asset_unique_keys if key in asset_models},
+            asset_unique_keys={key for key in asset_unique_keys if key in existing_aliased_assets},
             session=session,
         )
         if inactive_asset_unique_keys:
@@ -2770,29 +2778,45 @@ class TaskInstance(Base, LoggingMixin):
         if missing_assets := [
             asset_unique_key.to_asset()
             for asset_unique_key, _ in asset_alias_names
-            if asset_unique_key not in asset_models
+            if asset_unique_key not in existing_aliased_assets
         ]:
-            asset_models.update(
-                (AssetUniqueKey.from_asset(asset_obj), asset_obj)
-                for asset_obj in asset_manager.create_assets(missing_assets, session=session)
-            )
+            asset_manager.create_assets(missing_assets, session=session)
             ti.log.warning("Created new assets for alias reference: %s", missing_assets)
             session.flush()  # Needed because we need the id for fk.
 
         for (unique_key, extra_items), alias_names in asset_alias_names.items():
-            asset_obj = asset_models[unique_key]
             ti.log.info(
                 'Creating event for %r through aliases "%s"',
-                asset_obj,
+                unique_key,
                 ", ".join(alias_names),
             )
             asset_manager.register_asset_change(
                 task_instance=ti,
-                asset=asset_obj,
+                asset=unique_key,
                 aliases=[AssetAlias(name=name) for name in alias_names],
                 extra=dict(extra_items),
                 session=session,
                 source_alias_names=alias_names,
+            )
+
+        # Handle events derived from references.
+        asset_stmt = select(AssetModel).where(AssetModel.name.in_(asset_name_refs), AssetModel.active.has())
+        for asset_model in session.scalars(asset_stmt):
+            ti.log.info("Creating event through asset name reference %r", asset_model.name)
+            asset_manager.register_asset_change(
+                task_instance=ti,
+                asset=asset_model,
+                extra=events[asset_model].extra,
+                session=session,
+            )
+        asset_stmt = select(AssetModel).where(AssetModel.uri.in_(asset_uri_refs), AssetModel.active.has())
+        for asset_model in session.scalars(asset_stmt):
+            ti.log.info("Creating event for through asset URI reference %r", asset_model.uri)
+            asset_manager.register_asset_change(
+                task_instance=ti,
+                asset=asset_model,
+                extra=events[asset_model].extra,
+                session=session,
             )
 
     def _execute_task_with_callbacks(self, context: Context, test_mode: bool = False, *, session: Session):
