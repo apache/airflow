@@ -53,7 +53,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
     error: errorTrigger,
     isPending,
     triggerDagRun,
-  } = useTrigger(onClose);
+  } = useTrigger({ onSuccessConfirm: onClose });
 
   const {
     control,

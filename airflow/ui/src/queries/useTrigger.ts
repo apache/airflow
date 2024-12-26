@@ -28,7 +28,11 @@ import {
 import type { DagRunTriggerParams } from "src/components/TriggerDag/TriggerDAGForm";
 import { toaster } from "src/components/ui";
 
-export const useTrigger = (onClose: () => void) => {
+export const useTrigger = ({
+  onSuccessConfirm,
+}: {
+  onSuccessConfirm: () => void;
+}) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
 
@@ -52,7 +56,7 @@ export const useTrigger = (onClose: () => void) => {
         title: "DAG Run Request Submitted",
         type: "success",
       });
-      onClose();
+      onSuccessConfirm();
     });
   };
 
