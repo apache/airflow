@@ -44,7 +44,7 @@ export type Option = {
 export const SearchDags = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const SEARCH_LIMIT = 5;
+  const SEARCH_LIMIT = 10;
 
   const onSelect = (newValue: OnChangeValue<Option, false>) => {
     const selected = newValue as Option;
@@ -85,7 +85,7 @@ export const SearchDags = () => {
   const searchDagDebounced = debounce(searchDag, 300);
 
   return (
-    <Field.Root width={300}>
+    <Field.Root width={400}>
       <AsyncSelect
         backspaceRemovesValue={true}
         components={{ DropdownIndicator }}
