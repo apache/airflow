@@ -50,14 +50,13 @@ export const useTrigger = ({
       queryKeys.map((key) =>
         queryClient.invalidateQueries({ queryKey: [key] }),
       ),
-    ).then(() => {
-      toaster.create({
-        description: "DAG run has been successfully triggered.",
-        title: "DAG Run Request Submitted",
-        type: "success",
-      });
-      onSuccessConfirm();
+    );
+    toaster.create({
+      description: "DAG run has been successfully triggered.",
+      title: "DAG Run Request Submitted",
+      type: "success",
     });
+    onSuccessConfirm();
   };
 
   const onError = (_error: unknown) => {
