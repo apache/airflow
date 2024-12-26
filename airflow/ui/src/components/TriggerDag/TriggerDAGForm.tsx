@@ -20,7 +20,7 @@ import { Input, Button, Box, Text, Spacer, HStack } from "@chakra-ui/react";
 import { json } from "@codemirror/lang-json";
 import { githubLight, githubDark } from "@uiw/codemirror-themes-all";
 import CodeMirror from "@uiw/react-codemirror";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { FiPlay } from "react-icons/fi";
 
@@ -54,17 +54,6 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
   const conf = useDagParams(dagId, open);
   const { error: errorTrigger, isPending, triggerDagRun } = useTrigger(onClose);
 
-  const dagRunRequestBody: DagRunTriggerParams = useMemo(
-    () => ({
-      conf,
-      dagRunId: "",
-      dataIntervalEnd: "",
-      dataIntervalStart: "",
-      note: "",
-    }),
-    [conf],
-  );
-
   const {
     control,
     formState: { isDirty },
@@ -72,14 +61,23 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
     reset,
     setValue,
     watch,
-  } = useForm<DagRunTriggerParams>({ defaultValues: dagRunRequestBody });
+  } = useForm<DagRunTriggerParams>({
+    defaultValues: {
+      conf,
+      dagRunId: "",
+      dataIntervalEnd: "",
+      dataIntervalStart: "",
+      note: "",
+    },
+  });
 
   const dataIntervalStart = watch("dataIntervalStart");
   const dataIntervalEnd = watch("dataIntervalEnd");
 
-  useEffect(() => {
-    reset(dagRunRequestBody);
-  }, [dagRunRequestBody, reset]);
+  const handleReset = () => {
+    setErrors({ conf: undefined, date: undefined });
+    reset();
+  };
 
   const validateAndPrettifyJson = (value: string) => {
     try {
@@ -259,7 +257,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         <HStack w="full">
           {isDirty ? (
-            <Button onClick={() => reset()} variant="outline">
+            <Button onClick={handleReset} variant="outline">
               Reset
             </Button>
           ) : undefined}
