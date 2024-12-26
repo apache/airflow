@@ -50,6 +50,10 @@ const columns: Array<ColumnDef<VariableResponse>> = [
     header: "Description",
   },
   {
+    accessorKey: "is_encrypted",
+    header: "Is Encrypted",
+  },
+  {
     accessorKey: "actions",
     cell: ({ row: { original } }) => (
       <Flex justifyContent="end">
@@ -59,10 +63,6 @@ const columns: Array<ColumnDef<VariableResponse>> = [
     ),
     enableSorting: false,
     header: "",
-  },
-  {
-    accessorKey: "is_encrypted",
-    header: "Is Encrypted",
   },
 ];
 
