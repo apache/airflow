@@ -43,15 +43,14 @@ export const useTrigger = (onClose: () => void) => {
       queryKeys.map((key) =>
         queryClient.invalidateQueries({ queryKey: [key] }),
       ),
-    );
-
-    toaster.create({
-      description: "DAG run has been successfully triggered.",
-      title: "DAG Run Request Submitted",
-      type: "success",
+    ).then(() => {
+      toaster.create({
+        description: "DAG run has been successfully triggered.",
+        title: "DAG Run Request Submitted",
+        type: "success",
+      });
+      onClose();
     });
-
-    onClose();
   };
 
   const onError = (_error: unknown) => {
