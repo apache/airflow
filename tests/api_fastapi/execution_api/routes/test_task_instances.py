@@ -341,19 +341,17 @@ class TestTIUpdateState:
         assert trs[0].duration == 129600
 
     @pytest.mark.parametrize(
-        ("retries", "expected_state"),
+        ("should_retry", "expected_state"),
         [
             # retries given
-            (2, State.UP_FOR_RETRY),
+            (True, State.UP_FOR_RETRY),
             # retries not given
-            (None, State.FAILED),
-            # retries given but as 0
-            (0, State.FAILED),
-            # retries not known, given as -1, calculates on table default
-            (-1, State.UP_FOR_RETRY),
+            (False, State.FAILED),
         ],
     )
-    def test_ti_update_state_to_retry(self, client, session, create_task_instance):
+    def test_ti_update_state_to_failed_with_retries(
+        self, client, session, create_task_instance, should_retry, expected_state
+    ):
         ti = create_task_instance(
             task_id="test_ti_update_state_to_retry",
             state=State.RUNNING,
@@ -366,7 +364,7 @@ class TestTIUpdateState:
             json={
                 "state": State.FAILED,
                 "end_date": DEFAULT_END_DATE.isoformat(),
-                "should_retry": True,
+                "should_retry": should_retry,
             },
         )
 
@@ -376,15 +374,16 @@ class TestTIUpdateState:
         session.expire_all()
 
         ti = session.get(TaskInstance, ti.id)
-        # assert ti.state == expected_state
-        # assert ti.next_method is None
-        # assert ti.next_kwargs is None
+        assert ti.state == expected_state
+        assert ti.next_method is None
+        assert ti.next_kwargs is None
 
-    def test_ti_update_state_to_retry_when_restarting(self, client, session, create_task_instance):
+    def test_ti_update_state_to_failed_table_check(self, client, session, create_task_instance):
         ti = create_task_instance(
-            task_id="test_ti_update_state_to_retry_when_restarting",
-            state=State.RESTARTING,
+            task_id="test_ti_update_state_to_failed_table_check",
+            state=State.RUNNING,
         )
+        ti.start_date = DEFAULT_START_DATE
         session.commit()
 
         response = client.patch(
@@ -401,9 +400,10 @@ class TestTIUpdateState:
         session.expire_all()
 
         ti = session.get(TaskInstance, ti.id)
-        assert ti.state == State.UP_FOR_RETRY
+        assert ti.state == State.FAILED
         assert ti.next_method is None
         assert ti.next_kwargs is None
+        assert ti.duration == 3600.00
 
 
 class TestTIHealthEndpoint:
@@ -573,33 +573,6 @@ class TestTIHealthEndpoint:
         # If successful, ensure last_heartbeat_at is updated
         session.refresh(ti)
         assert ti.last_heartbeat_at == time_now.add(minutes=10)
-
-    def test_ti_update_state_to_failed_table_check(self, client, session, create_task_instance):
-        ti = create_task_instance(
-            task_id="test_ti_update_state_to_failed_table_check",
-            state=State.RUNNING,
-        )
-        ti.start_date = DEFAULT_START_DATE
-        session.commit()
-
-        response = client.patch(
-            f"/execution/task-instances/{ti.id}/state",
-            json={
-                "state": State.FAILED,
-                "end_date": DEFAULT_END_DATE.isoformat(),
-            },
-        )
-
-        assert response.status_code == 204
-        assert response.text == ""
-
-        session.expire_all()
-
-        ti = session.get(TaskInstance, ti.id)
-        assert ti.state == State.FAILED
-        assert ti.next_method is None
-        assert ti.next_kwargs is None
-        assert ti.duration == 3600.00
 
 
 class TestTIPutRTIF:

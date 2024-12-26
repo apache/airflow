@@ -21,6 +21,7 @@ import os
 from collections.abc import Generator
 from contextlib import contextmanager
 from functools import cache
+from os.path import isabs
 from typing import TYPE_CHECKING
 
 from flask import Flask
@@ -28,7 +29,7 @@ from flask import Flask
 import airflow
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
-from airflow.www.app import isabs, make_url
+from airflow.www.app import make_url
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 from airflow.www.extensions.init_session import init_airflow_session_interface
 from airflow.www.extensions.init_views import init_plugins

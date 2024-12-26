@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, VStack } from "@chakra-ui/react";
+import { Box, HStack, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -31,6 +31,8 @@ import {
   SearchParamsKeys,
   type SearchParamsKeysType,
 } from "src/constants/searchParams";
+
+import AddVariableModal from "./AddVariableModal";
 
 const columns: Array<ColumnDef<VariableResponse>> = [
   {
@@ -53,6 +55,10 @@ const columns: Array<ColumnDef<VariableResponse>> = [
     meta: {
       skeletonWidth: 50,
     },
+  },
+  {
+    accessorKey: "is_encrypted",
+    header: "Is Encrypted",
   },
 ];
 
@@ -104,6 +110,9 @@ export const Variables = () => {
           onChange={handleSearchChange}
           placeHolder="Search Keys"
         />
+        <HStack mt={4}>
+          <AddVariableModal />
+        </HStack>
       </VStack>
       <Box>
         <DataTable
