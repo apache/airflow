@@ -199,7 +199,7 @@ def ti_update_state(
         )
 
     # We exclude_unset to avoid updating fields that are not set in the payload
-    # We do not need to deserialize "task_retries" -- it is used for dynamic decision making within failed state
+    # We do not need to deserialize "should_retry" -- it is used for dynamic decision-making within failed state
     data = ti_patch_payload.model_dump(exclude_unset=True, exclude={"should_retry"})
 
     query = update(TI).where(TI.id == ti_id_str).values(data)
