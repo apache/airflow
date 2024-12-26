@@ -227,9 +227,9 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                         borderRadius: "8px",
                         outline: "none",
                         padding: "2px",
+                        width: "100%",
                       }}
                       theme={colorMode === "dark" ? githubDark : githubLight}
-                      width="765px"
                     />
                     {Boolean(errors.conf) ? (
                       <Field.ErrorText>{errors.conf}</Field.ErrorText>
