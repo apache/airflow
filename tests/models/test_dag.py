@@ -2215,11 +2215,13 @@ class TestDagModel:
         assert dag_models == [dag_model]
 
     @pytest.mark.parametrize("ref", [Asset.ref(name="1"), Asset.ref(uri="s3://bucket/assets/1")])
+    @pytest.mark.want_activate_assets
+    @pytest.mark.need_serialized_dag
     def test_dags_needing_dagruns_asset_refs(self, dag_maker, session, ref):
         asset = Asset(name="1", uri="s3://bucket/assets/1")
 
         with dag_maker(dag_id="producer", schedule=None, session=session):
-            EmptyOperator(task_id="op", outlets=asset)
+            op = EmptyOperator(task_id="op", outlets=asset)
 
         dr: DagRun = dag_maker.create_dagrun()
 
@@ -2232,7 +2234,10 @@ class TestDagModel:
         assert query.all() == []
 
         # Upstream triggered, now we need a run.
-        dr.get_task_instance("op").run()
+        ti = dr.get_task_instance("op")
+        ti.refresh_from_task(op)
+        ti.run()
+
         assert session.scalars(select(AssetDagRunQueue.target_dag_id)).all() == ["consumer"]
         query, _ = DagModel.dags_needing_dagruns(session)
         assert [dm.dag_id for dm in query] == ["consumer"]
