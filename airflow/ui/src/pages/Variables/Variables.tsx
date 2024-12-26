@@ -60,6 +60,10 @@ const columns: Array<ColumnDef<VariableResponse>> = [
     enableSorting: false,
     header: "",
   },
+  {
+    accessorKey: "is_encrypted",
+    header: "Is Encrypted",
+  },
 ];
 
 export const Variables = () => {

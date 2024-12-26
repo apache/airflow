@@ -5562,9 +5562,13 @@ export const $VariableResponse = {
       ],
       title: "Description",
     },
+    is_encrypted: {
+      type: "boolean",
+      title: "Is Encrypted",
+    },
   },
   type: "object",
-  required: ["key", "value", "description"],
+  required: ["key", "value", "description", "is_encrypted"],
   title: "VariableResponse",
   description: "Variable serializer for responses.",
 } as const;
