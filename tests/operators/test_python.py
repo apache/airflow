@@ -289,6 +289,7 @@ class TestPythonOperator(BasePythonTest):
 
         self.run_as_task(func, op_kwargs={"custom": 1})
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode, fails in context serialization
     def test_context_with_kwargs(self):
         def func(**context):
             # check if context is being set

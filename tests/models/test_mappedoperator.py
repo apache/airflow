@@ -21,7 +21,7 @@ from collections import defaultdict
 from datetime import timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pendulum
 import pytest
@@ -1786,6 +1786,7 @@ class TestMappedSetupTeardown:
         assert states == expected
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_mapped_tasks_in_mapped_task_group_waits_for_upstreams_to_complete(dag_maker, session):
     """Test that one failed trigger rule works well in mapped task group"""
     with dag_maker() as dag:
@@ -1817,6 +1818,7 @@ def test_mapped_tasks_in_mapped_task_group_waits_for_upstreams_to_complete(dag_m
     assert not ti3.state
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_mapped_tasks_in_mapped_task_group_waits_for_upstreams_to_complete__mapped_skip_with_all_success(
     dag_maker, session
 ):
@@ -1868,3 +1870,58 @@ def test_mapped_tasks_in_mapped_task_group_waits_for_upstreams_to_complete__mapp
     assert tis["group.last", 0].state == State.SUCCESS
     assert dr.get_task_instance("group.last", map_index=1, session=session).state == State.SKIPPED
     assert tis["group.last", 2].state == State.SUCCESS
+
+
+class TestMappedOperator:
+    @pytest.fixture
+    def mock_operator_class(self):
+        return MagicMock(spec=type(BaseOperator))
+
+    @pytest.fixture
+    @patch("airflow.serialization.serialized_objects.SerializedBaseOperator")
+    def mapped_operator(self, _, mock_operator_class):
+        return MappedOperator(
+            operator_class=mock_operator_class,
+            expand_input=MagicMock(),
+            partial_kwargs={"task_id": "test_task"},
+            task_id="test_task",
+            params={},
+            deps=frozenset(),
+            operator_extra_links=[],
+            template_ext=[],
+            template_fields=[],
+            template_fields_renderers={},
+            ui_color="",
+            ui_fgcolor="",
+            start_trigger_args=None,
+            start_from_trigger=False,
+            dag=None,
+            task_group=None,
+            start_date=None,
+            end_date=None,
+            is_empty=False,
+            task_module=MagicMock(),
+            task_type="taske_type",
+            operator_name="operator_name",
+            disallow_kwargs_override=False,
+            expand_input_attr="expand_input",
+        )
+
+    def test_unmap_with_resolved_kwargs(self, mapped_operator, mock_operator_class):
+        mapped_operator.upstream_task_ids = ["a"]
+        mapped_operator.downstream_task_ids = ["b"]
+        resolve = {"param1": "value1"}
+        result = mapped_operator.unmap(resolve)
+        assert result == mock_operator_class.return_value
+        assert result.task_id == "test_task"
+        assert result.is_setup is False
+        assert result.is_teardown is False
+        assert result.on_failure_fail_dagrun is False
+        assert result.upstream_task_ids == ["a"]
+        assert result.downstream_task_ids == ["b"]
+
+    def test_unmap_runtime_error(self, mapped_operator):
+        mapped_operator.upstream_task_ids = ["a"]
+        mapped_operator.downstream_task_ids = ["b"]
+        with pytest.raises(RuntimeError):
+            mapped_operator.unmap(None)

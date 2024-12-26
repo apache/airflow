@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pendulum
 import pytest
@@ -26,6 +26,7 @@ import pytest
 from airflow import settings
 from airflow.decorators import task, task_group
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.models import DagRun, MappedOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.empty import EmptyOperator
@@ -52,6 +53,10 @@ class TestSkipMixin:
 
     def teardown_method(self):
         self.clean_db()
+
+    @pytest.fixture
+    def mock_session(self):
+        return Mock(spec=settings.Session)
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @patch("airflow.utils.timezone.utcnow")
@@ -104,9 +109,41 @@ class TestSkipMixin:
 
     def test_skip_none_tasks(self):
         session = Mock()
-        SkipMixin().skip(dag_run=None, execution_date=None, tasks=[])
+        assert (
+            SkipMixin()._skip(dag_run=None, task_id=None, execution_date=None, tasks=[], session=session)
+            is None
+        )
         assert not session.query.called
         assert not session.commit.called
+
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
+    def test_skip_mapped_task(self, mock_session):
+        SkipMixin()._skip(
+            dag_run=MagicMock(spec=DagRun),
+            task_id=None,
+            execution_date=None,
+            tasks=[MagicMock(spec=MappedOperator)],
+            session=mock_session,
+            map_index=2,
+        )
+        mock_session.execute.assert_not_called()
+        mock_session.commit.assert_not_called()
+
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
+    @patch("airflow.models.skipmixin.update")
+    def test_skip_none_mapped_task(self, mock_update, mock_session):
+        SkipMixin()._skip(
+            dag_run=MagicMock(spec=DagRun),
+            task_id=None,
+            execution_date=None,
+            tasks=[MagicMock(spec=MappedOperator)],
+            session=mock_session,
+            map_index=-1,
+        )
+        mock_session.execute.assert_called_once_with(
+            mock_update.return_value.where.return_value.values.return_value.execution_options.return_value
+        )
+        mock_session.commit.assert_called_once()
 
     @pytest.mark.parametrize(
         "branch_task_ids, expected_states",
