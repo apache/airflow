@@ -32,6 +32,9 @@ export const useTrigger = (onClose: () => void) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
 
+  const [dateValidationError, setDateValidationError] =
+    useState<unknown>(undefined);
+
   const onSuccess = async () => {
     const queryKeys = [
       useDagServiceGetDagsKey,
@@ -79,7 +82,7 @@ export const useTrigger = (onClose: () => void) => {
       : undefined;
 
     if (Boolean(DataIntervalStart) !== Boolean(DataIntervalEnd)) {
-      setError({
+      setDateValidationError({
         body: {
           detail:
             "Either both Data Interval Start Date and End Date must be provided, or both must be empty.",
@@ -91,7 +94,7 @@ export const useTrigger = (onClose: () => void) => {
 
     if (DataIntervalStart && DataIntervalEnd) {
       if (DataIntervalStart > DataIntervalEnd) {
-        setError({
+        setDateValidationError({
           body: {
             detail:
               "Data Interval Start Date must be less than or equal to Data Interval End Date.",
@@ -126,5 +129,5 @@ export const useTrigger = (onClose: () => void) => {
     });
   };
 
-  return { error, isPending, triggerDagRun };
+  return { dateValidationError, error, isPending, triggerDagRun };
 };

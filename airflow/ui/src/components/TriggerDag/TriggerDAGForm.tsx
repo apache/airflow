@@ -48,7 +48,12 @@ export type DagRunTriggerParams = {
 const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const conf = useDagParams(dagId, open);
-  const { error: errorTrigger, isPending, triggerDagRun } = useTrigger(onClose);
+  const {
+    dateValidationError,
+    error: errorTrigger,
+    isPending,
+    triggerDagRun,
+  } = useTrigger(onClose);
 
   const {
     control,
@@ -72,6 +77,12 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
       reset({ conf });
     }
   }, [conf, reset]);
+
+  useEffect(() => {
+    if (Boolean(dateValidationError)) {
+      setErrors((prev) => ({ ...prev, date: dateValidationError }));
+    }
+  }, [dateValidationError]);
 
   const dataIntervalStart = watch("dataIntervalStart");
   const dataIntervalEnd = watch("dataIntervalEnd");
