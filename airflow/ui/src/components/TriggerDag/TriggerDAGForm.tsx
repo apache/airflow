@@ -55,7 +55,6 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
     formState: { isDirty },
     handleSubmit,
     reset,
-    setValue,
     watch,
   } = useForm<DagRunTriggerParams>({
     defaultValues: {
@@ -83,19 +82,6 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
   };
 
   const onSubmit = (data: DagRunTriggerParams) => {
-    if (Boolean(data.dataIntervalStart) !== Boolean(data.dataIntervalEnd)) {
-      setErrors((prev) => ({
-        ...prev,
-        date: {
-          body: {
-            detail:
-              "Either both Data Interval Start and End must be provided, or both must be empty.",
-          },
-        },
-      }));
-
-      return;
-    }
     triggerDagRun(dagId, data);
   };
 
@@ -119,23 +105,8 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
     }
   };
 
-  const validateDates = (
-    fieldName: "dataIntervalEnd" | "dataIntervalStart",
-  ) => {
-    const startDate = dataIntervalStart
-      ? new Date(dataIntervalStart)
-      : undefined;
-    const endDate = dataIntervalEnd ? new Date(dataIntervalEnd) : undefined;
-
+  const resetDateError = () => {
     setErrors((prev) => ({ ...prev, date: undefined }));
-
-    if (startDate && endDate) {
-      if (fieldName === "dataIntervalStart" && startDate > endDate) {
-        setValue("dataIntervalStart", dataIntervalEnd);
-      } else if (fieldName === "dataIntervalEnd" && endDate < startDate) {
-        setValue("dataIntervalEnd", dataIntervalStart);
-      }
-    }
   };
 
   const { colorMode } = useColorMode();
@@ -160,7 +131,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
                     <Input
                       {...field}
                       max={dataIntervalEnd || undefined}
-                      onBlur={() => validateDates("dataIntervalStart")}
+                      onBlur={resetDateError}
                       placeholder="yyyy-mm-ddThh:mm"
                       size="sm"
                       type="datetime-local"
@@ -180,7 +151,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
                     <Input
                       {...field}
                       min={dataIntervalStart || undefined}
-                      onBlur={() => validateDates("dataIntervalEnd")}
+                      onBlur={resetDateError}
                       placeholder="yyyy-mm-ddThh:mm"
                       size="sm"
                       type="datetime-local"

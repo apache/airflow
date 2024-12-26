@@ -71,12 +71,41 @@ export const useTrigger = (onClose: () => void) => {
       unknown
     >;
 
-    const formattedDataIntervalStart = dagRunRequestBody.dataIntervalStart
-      ? new Date(dagRunRequestBody.dataIntervalStart).toISOString()
+    const DataIntervalStart = dagRunRequestBody.dataIntervalStart
+      ? new Date(dagRunRequestBody.dataIntervalStart)
       : undefined;
-    const formattedDataIntervalEnd = dagRunRequestBody.dataIntervalEnd
-      ? new Date(dagRunRequestBody.dataIntervalEnd).toISOString()
+    const DataIntervalEnd = dagRunRequestBody.dataIntervalEnd
+      ? new Date(dagRunRequestBody.dataIntervalEnd)
       : undefined;
+
+    if (Boolean(DataIntervalStart) !== Boolean(DataIntervalEnd)) {
+      setError({
+        body: {
+          detail:
+            "Either both Data Interval Start Date and End Date must be provided, or both must be empty.",
+        },
+      });
+
+      return;
+    }
+
+    if (DataIntervalStart && DataIntervalEnd) {
+      if (DataIntervalStart > DataIntervalEnd) {
+        setError({
+          body: {
+            detail:
+              "Data Interval Start Date must be less than or equal to Data Interval End Date.",
+          },
+        });
+
+        return;
+      }
+    }
+
+    const formattedDataIntervalStart =
+      DataIntervalStart?.toISOString() ?? undefined;
+    const formattedDataIntervalEnd =
+      DataIntervalEnd?.toISOString() ?? undefined;
 
     const checkDagRunId =
       dagRunRequestBody.dagRunId === ""
