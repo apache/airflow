@@ -16,15 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Input,
-  Button,
-  Box,
-  Text,
-  Spacer,
-  HStack,
-  Field,
-} from "@chakra-ui/react";
+import { Input, Button, Box, Spacer, HStack, Field } from "@chakra-ui/react";
 import { json } from "@codemirror/lang-json";
 import { githubLight, githubDark } from "@uiw/codemirror-themes-all";
 import CodeMirror from "@uiw/react-codemirror";
@@ -154,7 +146,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                 control={control}
                 name="dataIntervalStart"
                 render={({ field }) => (
-                  <Field.Root>
+                  <Field.Root invalid={Boolean(errors.date)}>
                     <Field.Label fontSize="md">
                       Data Interval Start Date
                     </Field.Label>
@@ -174,7 +166,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                 control={control}
                 name="dataIntervalEnd"
                 render={({ field }) => (
-                  <Field.Root mt={6}>
+                  <Field.Root invalid={Boolean(errors.date)} mt={6}>
                     <Field.Label fontSize="md">
                       Data Interval End Date
                     </Field.Label>
@@ -186,6 +178,9 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                       size="sm"
                       type="datetime-local"
                     />
+                    {Boolean(errors.date) ? (
+                      <Field.ErrorText>{errors.date}</Field.ErrorText>
+                    ) : undefined}
                   </Field.Root>
                 )}
               />
@@ -258,11 +253,6 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
           </Accordion.ItemContent>
         </Accordion.Item>
       </Accordion.Root>
-      {Boolean(errors.date) && (
-        <Text color="red.500" fontSize="sm" mt={2}>
-          {errors.date}
-        </Text>
-      )}
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         <HStack w="full">
           {isDirty ? (
