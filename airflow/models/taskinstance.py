@@ -55,12 +55,14 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     and_,
+    case,
     delete,
     extract,
     false,
     func,
     inspect,
     or_,
+    select,
     text,
     tuple_,
     update,
@@ -71,7 +73,6 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import lazyload, reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
-from sqlalchemy.sql.expression import case, select
 from sqlalchemy_utils import UUIDType
 
 from airflow import settings
@@ -131,12 +132,7 @@ from airflow.utils.operator_helpers import ExecutionCallableRunner, context_to_a
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import (
-    ExecutorConfigType,
-    ExtendedJSON,
-    UtcDateTime,
-    tuple_in_condition,
-)
+from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.task_instance_session import set_current_task_instance_session
@@ -3497,7 +3493,7 @@ class TaskInstance(Base, LoggingMixin):
         if task_id_only:
             filters.append(cls.task_id.in_(task_id_only))
         if with_map_index:
-            filters.append(tuple_in_condition((cls.task_id, cls.map_index), with_map_index))
+            filters.append(tuple_(cls.task_id, cls.map_index).in_(with_map_index))
 
         if not filters:
             return false()
@@ -3675,8 +3671,8 @@ class TaskInstance(Base, LoggingMixin):
             AssetUniqueKey(name, uri)
             for name, uri in session.execute(
                 select(AssetActive.name, AssetActive.uri).where(
-                    tuple_in_condition(
-                        (AssetActive.name, AssetActive.uri), [attrs.astuple(key) for key in asset_unique_keys]
+                    tuple_(AssetActive.name, AssetActive.uri).in_(
+                        attrs.astuple(key) for key in asset_unique_keys
                     )
                 )
             )
