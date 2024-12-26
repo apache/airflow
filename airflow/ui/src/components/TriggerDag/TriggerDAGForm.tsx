@@ -16,7 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Input, Button, Box, Text, Spacer, HStack } from "@chakra-ui/react";
+import {
+  Input,
+  Button,
+  Box,
+  Text,
+  Spacer,
+  HStack,
+  Field,
+} from "@chakra-ui/react";
 import { json } from "@codemirror/lang-json";
 import { githubLight, githubDark } from "@uiw/codemirror-themes-all";
 import CodeMirror from "@uiw/react-codemirror";
@@ -142,65 +150,67 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
           </Accordion.ItemTrigger>
           <Accordion.ItemContent>
             <Box p={5}>
-              <Text fontSize="md" mb={2}>
-                Data Interval Start Date
-              </Text>
               <Controller
                 control={control}
                 name="dataIntervalStart"
                 render={({ field }) => (
-                  <Input
-                    {...field}
-                    max={dataIntervalEnd || undefined}
-                    onBlur={() => validateDates("dataIntervalStart")}
-                    placeholder="yyyy-mm-ddThh:mm"
-                    size="sm"
-                    type="datetime-local"
-                  />
+                  <Field.Root>
+                    <Field.Label fontSize="md">
+                      Data Interval Start Date
+                    </Field.Label>
+                    <Input
+                      {...field}
+                      max={dataIntervalEnd || undefined}
+                      onBlur={() => validateDates("dataIntervalStart")}
+                      placeholder="yyyy-mm-ddThh:mm"
+                      size="sm"
+                      type="datetime-local"
+                    />
+                  </Field.Root>
                 )}
               />
 
-              <Text fontSize="md" mb={2} mt={6}>
-                Data Interval End Date
-              </Text>
               <Controller
                 control={control}
                 name="dataIntervalEnd"
                 render={({ field }) => (
-                  <Input
-                    {...field}
-                    min={dataIntervalStart || undefined}
-                    onBlur={() => validateDates("dataIntervalEnd")}
-                    placeholder="yyyy-mm-ddThh:mm"
-                    size="sm"
-                    type="datetime-local"
-                  />
+                  <Field.Root mt={6}>
+                    <Field.Label fontSize="md">
+                      Data Interval End Date
+                    </Field.Label>
+                    <Input
+                      {...field}
+                      min={dataIntervalStart || undefined}
+                      onBlur={() => validateDates("dataIntervalEnd")}
+                      placeholder="yyyy-mm-ddThh:mm"
+                      size="sm"
+                      type="datetime-local"
+                    />
+                  </Field.Root>
                 )}
               />
 
-              <Text fontSize="md" mb={2} mt={6}>
-                Run ID
-              </Text>
               <Controller
                 control={control}
                 name="dagRunId"
                 render={({ field }) => (
-                  <Input
-                    {...field}
-                    placeholder="Run Id, optional - will be generated if not provided"
-                    size="sm"
-                  />
+                  <Field.Root mt={6}>
+                    <Field.Label fontSize="md">Run ID</Field.Label>
+                    <Input
+                      {...field}
+                      placeholder="Run Id, optional - will be generated if not provided"
+                      size="sm"
+                    />
+                  </Field.Root>
                 )}
               />
 
-              <Text fontSize="md" mb={2} mt={6}>
-                Configuration JSON
-              </Text>
               <Controller
                 control={control}
                 name="conf"
                 render={({ field }) => (
-                  <Box mb={4}>
+                  <Field.Root invalid={Boolean(errors.conf)} mt={6}>
+                    <Field.Label fontSize="md">Configuration JSON</Field.Label>
                     <CodeMirror
                       {...field}
                       basicSetup={{
@@ -225,24 +235,23 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                         padding: "2px",
                       }}
                       theme={colorMode === "dark" ? githubDark : githubLight}
+                      width="765px"
                     />
-                    {Boolean(errors.conf) && (
-                      <Text color="red.500" fontSize="sm" mt={2}>
-                        {errors.conf}
-                      </Text>
-                    )}
-                  </Box>
+                    {Boolean(errors.conf) ? (
+                      <Field.ErrorText>{errors.conf}</Field.ErrorText>
+                    ) : undefined}
+                  </Field.Root>
                 )}
               />
 
-              <Text fontSize="md" mb={2} mt={6}>
-                Dag Run Notes
-              </Text>
               <Controller
                 control={control}
                 name="note"
                 render={({ field }) => (
-                  <Input {...field} placeholder="Optional" size="sm" />
+                  <Field.Root mt={6}>
+                    <Field.Label fontSize="md">Dag Run Notes</Field.Label>
+                    <Input {...field} placeholder="Optional" size="sm" />
+                  </Field.Root>
                 )}
               />
             </Box>
