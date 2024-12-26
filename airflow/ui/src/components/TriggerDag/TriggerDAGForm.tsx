@@ -134,8 +134,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
 
   return (
     <>
-      <ErrorAlert error={errorTrigger} />
-      <Accordion.Root collapsible mt={4} size="lg" variant="enclosed">
+      <Accordion.Root collapsible mb={4} mt={4} size="lg" variant="enclosed">
         <Accordion.Item key="advancedOptions" value="advancedOptions">
           <Accordion.ItemTrigger cursor="button">
             Advanced Options
@@ -253,6 +252,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
           </Accordion.ItemContent>
         </Accordion.Item>
       </Accordion.Root>
+      <ErrorAlert error={errorTrigger} />
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         <HStack w="full">
           {isDirty ? (
