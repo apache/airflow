@@ -32,6 +32,10 @@ from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.file_task_handler import (
+    mark_test_for_old_read_log_method,
+    mark_test_for_stream_based_read_log_method,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -104,8 +108,26 @@ class TestWasbTaskHandler:
             self.container_name, self.remote_log_location
         )
 
+    @mark_test_for_old_read_log_method
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
     def test_wasb_read(self, mock_hook_cls, ti):
+        mock_hook = mock_hook_cls.return_value
+        mock_hook.get_blobs_list.return_value = ["abc/hello.log"]
+        mock_hook.read_file.return_value = "Log line"
+        assert self.wasb_task_handler.wasb_read(self.remote_log_location) == "Log line"
+        ti = copy.copy(ti)
+        ti.state = TaskInstanceState.SUCCESS
+        assert self.wasb_task_handler.read(ti)[0][0][0][0] == "localhost"
+        assert (
+            "*** Found remote logs:\n***   * https://wasb-container.blob.core.windows.net/abc/hello.log\n"
+            in self.wasb_task_handler.read(ti)[0][0][0][1]
+        )
+        assert "Log line" in self.wasb_task_handler.read(ti)[0][0][0][1]
+        assert self.wasb_task_handler.read(ti)[1][0] == {"end_of_log": True, "log_pos": 8}
+
+    @mark_test_for_stream_based_read_log_method
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
+    def test_stream_based_wasb_read(self, mock_hook_cls, ti):
         mock_hook = mock_hook_cls.return_value
         mock_hook.get_blobs_list.return_value = ["abc/hello.log"]
         mock_hook.read_file.return_value = "Log line"
