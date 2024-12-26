@@ -209,7 +209,11 @@ export const TaskInstances = () => {
           onValueChange={handleStateChange}
           value={[filteredState ?? "all"]}
         >
-          <Select.Trigger colorPalette="blue" isActive={Boolean(filteredState)}>
+          <Select.Trigger
+            clearable
+            colorPalette="blue"
+            isActive={Boolean(filteredState)}
+          >
             <Select.ValueText>
               {() =>
                 filteredState === null ? (
