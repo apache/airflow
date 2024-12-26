@@ -20,12 +20,12 @@ import {
   Box,
   Link,
   createListCollection,
-  Flex,
+  HStack,
   type SelectValueChangeDetails,
 } from "@chakra-ui/react";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import {
   Link as RouterLink,
   useParams,
@@ -41,8 +41,13 @@ import type {
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
 import { Select, Status } from "src/components/ui";
+import {
+  SearchParamsKeys,
+  type SearchParamsKeysType,
+} from "src/constants/searchParams";
 import { capitalize, getDuration } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
@@ -139,6 +144,12 @@ export const TaskInstances = () => {
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-start_date";
   const filteredState = searchParams.get(STATE_PARAM);
+  const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType =
+    SearchParamsKeys;
+
+  const [taskDisplayNamePattern, setTaskDisplayNamePattern] = useState(
+    searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
+  );
 
   const handleStateChange = useCallback(
     ({ value }: SelectValueChangeDetails<string>) => {
@@ -158,6 +169,20 @@ export const TaskInstances = () => {
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
 
+  const handleSearchChange = (value: string) => {
+    if (value) {
+      searchParams.set(NAME_PATTERN_PARAM, value);
+    } else {
+      searchParams.delete(NAME_PATTERN_PARAM);
+    }
+    setSearchParams(searchParams);
+    setTableURLState({
+      pagination: { ...pagination, pageIndex: 0 },
+      sorting,
+    });
+    setTaskDisplayNamePattern(value);
+  };
+
   const { data, error, isFetching, isLoading } =
     useTaskInstanceServiceGetTaskInstances(
       {
@@ -167,6 +192,9 @@ export const TaskInstances = () => {
         offset: pagination.pageIndex * pagination.pageSize,
         orderBy,
         state: filteredState === null ? undefined : [filteredState],
+        taskDisplayNamePattern: Boolean(taskDisplayNamePattern)
+          ? taskDisplayNamePattern
+          : undefined,
       },
       undefined,
       { enabled: !isNaN(pagination.pageSize) },
@@ -174,7 +202,7 @@ export const TaskInstances = () => {
 
   return (
     <Box pt={4}>
-      <Flex>
+      <HStack>
         <Select.Root
           collection={stateOptions}
           maxW="250px"
@@ -208,7 +236,14 @@ export const TaskInstances = () => {
             ))}
           </Select.Content>
         </Select.Root>
-      </Flex>
+        <SearchBar
+          buttonProps={{ disabled: true }}
+          defaultValue={taskDisplayNamePattern ?? ""}
+          hideAdvanced
+          onChange={handleSearchChange}
+          placeHolder="Search Tasks"
+        />
+      </HStack>
       <DataTable
         columns={columns}
         data={data?.task_instances ?? []}
