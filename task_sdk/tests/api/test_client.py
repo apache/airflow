@@ -159,7 +159,8 @@ class TestTaskInstanceOperations:
     response parsing.
     """
 
-    def test_task_instance_start(self, make_ti_context):
+    @mock.patch("time.sleep", return_value=None)  # To have retries not slowing down tests
+    def test_task_instance_start(self, mock_sleep, make_ti_context):
         # Simulate a successful response from the server that starts a task
         ti_id = uuid6.uuid7()
         start_date = "2024-10-31T12:00:00Z"
@@ -169,7 +170,14 @@ class TestTaskInstanceOperations:
             run_type="manual",
         )
 
+        # ...including a validation that retry really works
+        call_count = 0
+
         def handle_request(request: httpx.Request) -> httpx.Response:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 4:
+                return httpx.Response(status_code=500, json={"detail": "Internal Server Error"})
             if request.url.path == f"/task-instances/{ti_id}/run":
                 actual_body = json.loads(request.read())
                 assert actual_body["pid"] == 100
@@ -184,6 +192,7 @@ class TestTaskInstanceOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         resp = client.task_instances.start(ti_id, 100, start_date)
         assert resp == ti_context
+        assert call_count == 4
 
     @pytest.mark.parametrize("state", [state for state in TerminalTIState])
     def test_task_instance_finish(self, state):
@@ -309,9 +318,17 @@ class TestVariableOperations:
     response parsing.
     """
 
-    def test_variable_get_success(self):
+    @mock.patch("time.sleep", return_value=None)  # To have retries not slowing down tests
+    def test_variable_get_success(self, mock_sleep):
         # Simulate a successful response from the server with a variable
+        # ...including a validation that retry really works
+        call_count = 0
+
         def handle_request(request: httpx.Request) -> httpx.Response:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                return httpx.Response(status_code=500, json={"detail": "Internal Server Error"})
             if request.url.path == "/variables/test_key":
                 return httpx.Response(
                     status_code=200,
@@ -325,6 +342,7 @@ class TestVariableOperations:
         assert isinstance(result, VariableResponse)
         assert result.key == "test_key"
         assert result.value == "test_value"
+        assert call_count == 2
 
     def test_variable_not_found(self):
         # Simulate a 404 response from the server
@@ -387,9 +405,17 @@ class TestXCOMOperations:
             pytest.param({"key": "test_key", "value": {"key2": "value2"}}, id="nested-dict-value"),
         ],
     )
-    def test_xcom_get_success(self, value):
+    @mock.patch("time.sleep", return_value=None)  # To have retries not slowing down tests
+    def test_xcom_get_success(self, mock_sleep, value):
         # Simulate a successful response from the server when getting an xcom
+        # ...including a validation that retry really works
+        call_count = 0
+
         def handle_request(request: httpx.Request) -> httpx.Response:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                return httpx.Response(status_code=500, json={"detail": "Internal Server Error"})
             if request.url.path == "/xcoms/dag_id/run_id/task_id/key":
                 return httpx.Response(
                     status_code=201,
@@ -407,6 +433,7 @@ class TestXCOMOperations:
         assert isinstance(result, XComResponse)
         assert result.key == "test_key"
         assert result.value == value
+        assert call_count == 3
 
     def test_xcom_get_success_with_map_index(self):
         # Simulate a successful response from the server when getting an xcom with map_index passed
