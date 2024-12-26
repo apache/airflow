@@ -190,6 +190,8 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("core", "max_db_retries"),
         renamed_to=ConfigParameter("database", "max_db_retries"),
     ),
+    ConfigChange(config=ConfigParameter("core", "task_runner")),
+    ConfigChange(config=ConfigParameter("core", "enable_xcom_pickling")),
     # api
     ConfigChange(
         config=ConfigParameter("api", "access_control_allow_origin"),
