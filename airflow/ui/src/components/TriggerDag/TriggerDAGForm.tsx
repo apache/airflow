@@ -50,7 +50,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
   onClose,
   open,
 }) => {
-  const [errors, setErrors] = useState<{ conf?: string; date?: string }>({});
+  const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const conf = useDagParams(dagId, open);
   const { error: errorTrigger, isPending, triggerDagRun } = useTrigger(onClose);
 
@@ -103,7 +103,12 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
     if (Boolean(data.dataIntervalStart) !== Boolean(data.dataIntervalEnd)) {
       setErrors((prev) => ({
         ...prev,
-        date: "Either both Data Interval Start and End must be provided, or both must be empty.",
+        date: {
+          body: {
+            detail:
+              "Either both Data Interval Start and End must be provided, or both must be empty.",
+          },
+        },
       }));
 
       return;
@@ -177,9 +182,6 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                       size="sm"
                       type="datetime-local"
                     />
-                    {Boolean(errors.date) ? (
-                      <Field.ErrorText>{errors.date}</Field.ErrorText>
-                    ) : undefined}
                   </Field.Root>
                 )}
               />
@@ -252,7 +254,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
           </Accordion.ItemContent>
         </Accordion.Item>
       </Accordion.Root>
-      <ErrorAlert error={errorTrigger} />
+      <ErrorAlert error={errors.date ?? errorTrigger} />
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         <HStack w="full">
           {isDirty ? (
