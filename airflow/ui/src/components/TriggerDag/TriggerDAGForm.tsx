@@ -89,7 +89,13 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
 
   const handleReset = () => {
     setErrors({ conf: undefined, date: undefined });
-    reset();
+    reset({
+      conf,
+      dagRunId: "",
+      dataIntervalEnd: "",
+      dataIntervalStart: "",
+      note: "",
+    });
   };
 
   const onSubmit = (data: DagRunTriggerParams) => {
