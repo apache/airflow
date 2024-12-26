@@ -232,7 +232,7 @@ def create_asset_event(
     timestamp = timezone.utcnow()
 
     assets_event = asset_manager.register_asset_change(
-        asset=asset_model.to_public(),
+        asset=asset_model,
         timestamp=timestamp,
         extra=body.extra,
         session=session,
