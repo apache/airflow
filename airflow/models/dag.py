@@ -91,7 +91,7 @@ from airflow.models.taskinstance import (
     clear_task_instances,
 )
 from airflow.models.tasklog import LogTemplate
-from airflow.sdk.definitions.asset import Asset, AssetAlias, BaseAsset
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, BaseAsset
 from airflow.sdk.definitions.dag import DAG as TaskSDKDag, dag as task_sdk_dag_decorator
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
 from airflow.security import permissions
@@ -1861,6 +1861,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         orm_dags = dag_op.find_orm_dags(session=session)  # Refetch so relationship is up to date.
         asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
         asset_op.add_dag_asset_alias_references(orm_dags, orm_asset_aliases, session=session)
+        asset_op.add_dag_asset_name_uri_references(session=session)
         asset_op.add_task_asset_references(orm_dags, orm_assets, session=session)
         asset_op.add_asset_trigger_references(orm_assets, session=session)
         session.flush()
@@ -2100,6 +2101,16 @@ class DagModel(Base):
         back_populates="dag",
         cascade="all, delete, delete-orphan",
     )
+    schedule_asset_name_references = relationship(
+        "DagScheduleAssetNameReference",
+        back_populates="dag",
+        cascade="all, delete, delete-orphan",
+    )
+    schedule_asset_uri_references = relationship(
+        "DagScheduleAssetUriReference",
+        back_populates="dag",
+        cascade="all, delete, delete-orphan",
+    )
     schedule_assets = association_proxy("schedule_asset_references", "asset")
     task_outlet_asset_references = relationship(
         "TaskOutletAssetReference",
@@ -2289,7 +2300,7 @@ class DagModel(Base):
         """
         from airflow.models.serialized_dag import SerializedDagModel
 
-        def dag_ready(dag_id: str, cond: BaseAsset, statuses: dict) -> bool | None:
+        def dag_ready(dag_id: str, cond: BaseAsset, statuses: dict[AssetUniqueKey, bool]) -> bool | None:
             # if dag was serialized before 2.9 and we *just* upgraded,
             # we may be dealing with old version.  In that case,
             # just wait for the dag to be reserialized.
@@ -2300,22 +2311,17 @@ class DagModel(Base):
                 return None
 
         # this loads all the ADRQ records.... may need to limit num dags
-        all_records = session.scalars(select(AssetDagRunQueue)).all()
-        by_dag = defaultdict(list)
-        for r in all_records:
+        by_dag: dict[str, list[AssetDagRunQueue]] = defaultdict(list)
+        for r in session.scalars(select(AssetDagRunQueue)):
             by_dag[r.target_dag_id].append(r)
-        del all_records
-        dag_statuses = {}
+        dag_statuses: dict[str, dict[AssetUniqueKey, bool]] = {}
         for dag_id, records in by_dag.items():
-            dag_statuses[dag_id] = {x.asset.uri: True for x in records}
-        ser_dags = SerializedDagModel.get_latest_serialized_dags(
-            dag_ids=list(dag_statuses.keys()), session=session
-        )
+            dag_statuses[dag_id] = {AssetUniqueKey.from_asset(x.asset): True for x in records}
+        ser_dags = SerializedDagModel.get_latest_serialized_dags(dag_ids=list(dag_statuses), session=session)
 
         for ser_dag in ser_dags:
             dag_id = ser_dag.dag_id
             statuses = dag_statuses[dag_id]
-
             if not dag_ready(dag_id, cond=ser_dag.dag.timetable.asset_condition, statuses=statuses):
                 del by_dag[dag_id]
                 del dag_statuses[dag_id]
