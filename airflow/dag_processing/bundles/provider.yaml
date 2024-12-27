@@ -16,10 +16,10 @@
 # under the License.
 
 ---
-package-name: apache-airflow-providers-git
+package-name: apache-airflow-providers-bundles
 name: GIT
 description: |
-    `GIT`__
+    `GIT <https://git-scm.com/>`__
 
 state: not-ready
 source-date-epoch: 1726861127
@@ -30,7 +30,6 @@ versions:
 dependencies:
   - apache-airflow-providers-ssh
   - paramiko>=2.9.0
-  - asyncssh>=2.12.0
 
 integrations:
   - integration-name: GIT (Git)
