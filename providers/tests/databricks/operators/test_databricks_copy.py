@@ -135,6 +135,23 @@ FILEFORMAT = CSV
     )
 
 
+def test_copy_with_encryption_and_credential():
+    op = DatabricksCopyIntoOperator(
+        file_location=COPY_FILE_LOCATION,
+        file_format="CSV",
+        table_name="test",
+        task_id=TASK_ID,
+        encryption={"TYPE": "AWS_SSE_C", "MASTER_KEY": "abc"},
+        credential={"AZURE_SAS_TOKEN": "abc"},
+    )
+    assert (
+        op._create_sql_query()
+        == f"""COPY INTO test
+FROM '{COPY_FILE_LOCATION}' WITH (CREDENTIAL (AZURE_SAS_TOKEN = 'abc') ENCRYPTION (TYPE = 'AWS_SSE_C', MASTER_KEY = 'abc'))
+FILEFORMAT = CSV""".strip()
+    )
+
+
 def test_copy_with_validate_all():
     op = DatabricksCopyIntoOperator(
         file_location=COPY_FILE_LOCATION,
