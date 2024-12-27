@@ -35,14 +35,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.7.0
+.....
+
+Latest change: 2024-12-16
+
+=================================================================================================  ===========  ============================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================================================================
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`258ef9d1e1 <https://github.com/apache/airflow/commit/258ef9d1e10db32aa5eabf1147464d08904cdd4b>`_  2024-12-06   ``Added the ArangoDBCollectionOperator that executes collection operations in a ArangoDB database (#44676)``
+`0334901451 <https://github.com/apache/airflow/commit/03349014513114f1eaa413a9831b0027e4fbfa67>`_  2024-11-29   ``Fix yoda-conditions (#44466)``
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+`82abd79913 <https://github.com/apache/airflow/commit/82abd7991353ca4fb611129f76ba3f6095d7deb1>`_  2024-08-27   ``Fix some non-critical pre-commit issues (#41749)``
+=================================================================================================  ===========  ============================================================================================================
+
 2.6.0
 .....
 
-Latest change: 2024-08-12
+Latest change: 2024-08-19
 
 =================================================================================================  ===========  =======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================
+`75fb7acbac <https://github.com/apache/airflow/commit/75fb7acbaca09a040067f0a5a37637ff44eb9e14>`_  2024-08-19   ``Prepare docs for Aug 2nd wave of providers (#41559)``
 `fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
 =================================================================================================  ===========  =======================================================================
 
@@ -108,6 +126,8 @@ Commit                                                                          
 `99534e47f3 <https://github.com/apache/airflow/commit/99534e47f330ce0efb96402629dda5b2a4f16e8f>`_  2023-11-19   ``Use reproducible builds for provider packages (#35693)``
 `99df205f42 <https://github.com/apache/airflow/commit/99df205f42a754aa67f80b5983e1d228ff23267f>`_  2023-11-16   ``Fix and reapply templates for provider documentation (#35686)``
 `1b059c57d6 <https://github.com/apache/airflow/commit/1b059c57d6d57d198463e5388138bee8a08591b1>`_  2023-11-08   ``Prepare docs 1st wave of Providers November 2023 (#35537)``
+`706878ec35 <https://github.com/apache/airflow/commit/706878ec354cf867440c367a95c85753c19e54de>`_  2023-11-04   ``Remove empty lines in generated changelog (#35436)``
+`052e26ad47 <https://github.com/apache/airflow/commit/052e26ad473a9d50f0b96456ed094f2087ee4434>`_  2023-11-04   ``Change security.rst to use includes in providers (#35435)``
 `d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
 `3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
 `dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
@@ -138,6 +158,7 @@ Commit                                                                          
 `85acbb4ae9 <https://github.com/apache/airflow/commit/85acbb4ae9bc26248ca624fa4d289feccba00836>`_  2023-08-24   ``Refactor: Remove useless str() calls (#33629)``
 `c645d8e40c <https://github.com/apache/airflow/commit/c645d8e40c167ea1f6c332cdc3ea0ca5a9363205>`_  2023-08-12   ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
 `b5a4d36383 <https://github.com/apache/airflow/commit/b5a4d36383c4143f46e168b8b7a4ba2dc7c54076>`_  2023-08-11   ``Prepare docs for Aug 2023 2nd wave of Providers (#33291)``
+`73b90c48b1 <https://github.com/apache/airflow/commit/73b90c48b1933b49086d34176527947bd727ec85>`_  2023-07-21   ``Allow configuration to be contributed by providers (#32604)``
 `225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
 `3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
 `cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
@@ -170,6 +191,7 @@ Commit                                                                          
 `45548b9451 <https://github.com/apache/airflow/commit/45548b9451fba4e48c6f0c0ba6050482c2ea2956>`_  2023-05-19   ``Prepare RC2 docs for May 2023 wave of Providers (#31416)``
 `abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
 `f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`7ebda3898d <https://github.com/apache/airflow/commit/7ebda3898db2eee72d043a9565a674dea72cd8fa>`_  2023-05-17   ``Fix missing line in index.rst for provider documentation (#31343)``
 `d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
 `eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
 `a7eb32a5b2 <https://github.com/apache/airflow/commit/a7eb32a5b222e236454d3e474eec478ded7c368d>`_  2023-04-30   ``Bump minimum Airflow version in providers (#30917)``
@@ -181,12 +203,14 @@ Commit                                                                          
 
 Latest change: 2023-02-08
 
-=================================================================================================  ===========  ========================================================
+=================================================================================================  ===========  =====================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ========================================================
+=================================================================================================  ===========  =====================================================================
 `ce6ae2457e <https://github.com/apache/airflow/commit/ce6ae2457ef3d9f44f0086b58026909170bbf22a>`_  2023-02-08   ``Prepare docs for Feb 2023 wave of Providers (#29379)``
 `1e9c8e52fd <https://github.com/apache/airflow/commit/1e9c8e52fda95a0a30b3ae298d5d3adc1971ed45>`_  2023-01-10   ``Fix ArangoDB static checks (#28820)``
-=================================================================================================  ===========  ========================================================
+`2b92c3c74d <https://github.com/apache/airflow/commit/2b92c3c74d3259ebac714f157c525836f0af50f0>`_  2023-01-05   ``Fix providers documentation formatting (#28754)``
+`c8e348dcb0 <https://github.com/apache/airflow/commit/c8e348dcb0bae27e98d68545b59388c9f91fc382>`_  2022-12-05   ``Add automated version replacement in example dag indexes (#28090)``
+=================================================================================================  ===========  =====================================================================
 
 2.1.0
 .....
@@ -225,10 +249,11 @@ Commit                                                                          
 1.0.0
 .....
 
-Latest change: 2022-04-03
+Latest change: 2022-04-07
 
-=================================================================================================  ===========  =====================================
+=================================================================================================  ===========  ======================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  =====================================
+=================================================================================================  ===========  ======================================================
+`56ab82ed7a <https://github.com/apache/airflow/commit/56ab82ed7a5c179d024722ccc697b740b2b93b6a>`_  2022-04-07   ``Prepare mid-April provider documentation. (#22819)``
 `c758c76ac3 <https://github.com/apache/airflow/commit/c758c76ac336c054fd17d4b878378aa893b7a979>`_  2022-04-03   ``Adding ArangoDB Provider (#22548)``
-=================================================================================================  ===========  =====================================
+=================================================================================================  ===========  ======================================================

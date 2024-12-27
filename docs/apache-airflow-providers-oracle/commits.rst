@@ -35,14 +35,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.0.0
+.....
+
+Latest change: 2024-12-16
+
+=================================================================================================  ===========  ====================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`1ff9fe8010 <https://github.com/apache/airflow/commit/1ff9fe80103c454e5ba94402aceaf9a1727e345b>`_  2024-12-06   ``Remove Provider Deprecations in Oracle (#44704)``
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+=================================================================================================  ===========  ====================================================================
+
 3.12.1
 ......
 
-Latest change: 2024-11-13
+Latest change: 2024-11-14
 
 =================================================================================================  ===========  ========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
 `e7194dff6a <https://github.com/apache/airflow/commit/e7194dff6a816bf3a721cbf579ceac19c11cd111>`_  2024-11-13   ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
 `d8c7d28411 <https://github.com/apache/airflow/commit/d8c7d28411bea04ae5771fc1e2973d92eb0a144e>`_  2024-10-30   ``Start porting DAG definition code to the Task SDK (#43076)``
 `1badaec151 <https://github.com/apache/airflow/commit/1badaec1515b19bfff4a34c329db22efecf2e282>`_  2024-10-29   ``Fix oracle bulk insert issue when leftover chunk is empty (#43467)``

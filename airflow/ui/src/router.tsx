@@ -16,8 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { queryOptions } from "@tanstack/react-query";
 import { createBrowserRouter } from "react-router-dom";
 
+import { UseConfigServiceGetConfigsKeyFn } from "openapi/queries";
+import { ConfigService } from "openapi/requests/services.gen";
 import { BaseLayout } from "src/layouts/BaseLayout";
 import { Dag } from "src/pages/Dag";
 import { Code } from "src/pages/Dag/Code";
@@ -35,6 +38,7 @@ import { TaskInstance, Logs } from "src/pages/TaskInstance";
 import { XCom } from "src/pages/XCom";
 
 import { Variables } from "./pages/Variables";
+import { queryClient } from "./queryClient";
 
 export const router = createBrowserRouter(
   [
@@ -106,6 +110,17 @@ export const router = createBrowserRouter(
           <ErrorPage />
         </BaseLayout>
       ),
+      // Use react router loader to ensure we have the config before any other requests are made
+      loader: async () => {
+        const data = await queryClient.ensureQueryData(
+          queryOptions({
+            queryFn: ConfigService.getConfigs,
+            queryKey: UseConfigServiceGetConfigsKeyFn(),
+          }),
+        );
+
+        return data;
+      },
       path: "/",
     },
   ],

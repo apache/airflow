@@ -35,14 +35,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.0.0
+.....
+
+Latest change: 2024-12-19
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`35b927fe17 <https://github.com/apache/airflow/commit/35b927fe177065dad0e00c49d72b494e58b27ca8>`_  2024-12-19   ``Update path of example dags in docs (#45069)``
+`33a809c5f2 <https://github.com/apache/airflow/commit/33a809c5f2c329afba91428d97055c0cf88b8574>`_  2024-12-16   ``Removed deprecated code from Alibaba provider package (#44576)``
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`4dfae23532 <https://github.com/apache/airflow/commit/4dfae23532d26ed838069c49d48f28c185e954c6>`_  2024-11-15   ``Update DAG example links in multiple providers documents (#44034)``
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  ========================================================================================
+
 2.9.1
 .....
 
-Latest change: 2024-08-25
+Latest change: 2024-09-21
 
 =================================================================================================  ===========  =====================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =====================================================================
+`7628d47d04 <https://github.com/apache/airflow/commit/7628d47d0481966d9a9b25dfd4870b7a6797ebbf>`_  2024-09-21   ``Prepare docs for Sep 1st wave of providers (#42387)``
 `1613e9ec1c <https://github.com/apache/airflow/commit/1613e9ec1c4e5523953e045c8adcef1b9d4ce95d>`_  2024-08-25   ``remove soft_fail (#41710)``
 `716c4300a6 <https://github.com/apache/airflow/commit/716c4300a6507609ae64148b9726272fd5071492>`_  2024-08-20   ``Remove deprecated log handler argument filename_template (#41552)``
 =================================================================================================  ===========  =====================================================================
@@ -145,6 +163,8 @@ Commit                                                                          
 `99534e47f3 <https://github.com/apache/airflow/commit/99534e47f330ce0efb96402629dda5b2a4f16e8f>`_  2023-11-19   ``Use reproducible builds for provider packages (#35693)``
 `99df205f42 <https://github.com/apache/airflow/commit/99df205f42a754aa67f80b5983e1d228ff23267f>`_  2023-11-16   ``Fix and reapply templates for provider documentation (#35686)``
 `1b059c57d6 <https://github.com/apache/airflow/commit/1b059c57d6d57d198463e5388138bee8a08591b1>`_  2023-11-08   ``Prepare docs 1st wave of Providers November 2023 (#35537)``
+`706878ec35 <https://github.com/apache/airflow/commit/706878ec354cf867440c367a95c85753c19e54de>`_  2023-11-04   ``Remove empty lines in generated changelog (#35436)``
+`052e26ad47 <https://github.com/apache/airflow/commit/052e26ad473a9d50f0b96456ed094f2087ee4434>`_  2023-11-04   ``Change security.rst to use includes in providers (#35435)``
 `d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
 `3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
 `dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
@@ -198,12 +218,13 @@ Commit                                                                          
 
 Latest change: 2023-08-11
 
-=================================================================================================  ===========  ============================================================
+=================================================================================================  ===========  ===============================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ============================================================
+=================================================================================================  ===========  ===============================================================
 `b5a4d36383 <https://github.com/apache/airflow/commit/b5a4d36383c4143f46e168b8b7a4ba2dc7c54076>`_  2023-08-11   ``Prepare docs for Aug 2023 2nd wave of Providers (#33291)``
 `4e83660f4c <https://github.com/apache/airflow/commit/4e83660f4c713d5a00ad9a583ba3a56c374d7e92>`_  2023-08-08   ``Refactor: Simplify code in providers/alibaba (#33225)``
-=================================================================================================  ===========  ============================================================
+`73b90c48b1 <https://github.com/apache/airflow/commit/73b90c48b1933b49086d34176527947bd727ec85>`_  2023-07-21   ``Allow configuration to be contributed by providers (#32604)``
+=================================================================================================  ===========  ===============================================================
 
 2.5.0
 .....
@@ -246,6 +267,7 @@ Commit                                                                          
 `45548b9451 <https://github.com/apache/airflow/commit/45548b9451fba4e48c6f0c0ba6050482c2ea2956>`_  2023-05-19   ``Prepare RC2 docs for May 2023 wave of Providers (#31416)``
 `abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
 `f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`7ebda3898d <https://github.com/apache/airflow/commit/7ebda3898db2eee72d043a9565a674dea72cd8fa>`_  2023-05-17   ``Fix missing line in index.rst for provider documentation (#31343)``
 `d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
 `eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
 `a7eb32a5b2 <https://github.com/apache/airflow/commit/a7eb32a5b222e236454d3e474eec478ded7c368d>`_  2023-04-30   ``Bump minimum Airflow version in providers (#30917)``
@@ -262,6 +284,7 @@ Commit                                                                          
 =================================================================================================  ===========  ===========================================================================
 `55dbf1ff1f <https://github.com/apache/airflow/commit/55dbf1ff1fb0b22714f695a66f6108b3249d1199>`_  2023-04-02   ``Prepare docs for April 2023 wave of Providers (#30378)``
 `b6392ae5fd <https://github.com/apache/airflow/commit/b6392ae5fd466fa06ca92c061a0f93272e27a26b>`_  2023-03-07   ``Support deleting the local log files when using remote logging (#29772)``
+`c8e348dcb0 <https://github.com/apache/airflow/commit/c8e348dcb0bae27e98d68545b59388c9f91fc382>`_  2022-12-05   ``Add automated version replacement in example dag indexes (#28090)``
 =================================================================================================  ===========  ===========================================================================
 
 2.2.0
@@ -305,6 +328,7 @@ Commit                                                                          
 `0de31bd73a <https://github.com/apache/airflow/commit/0de31bd73a8f41dded2907f0dee59dfa6c1ed7a1>`_  2022-06-29   ``Move provider dependencies to inside provider folders (#24672)``
 `510a6bab45 <https://github.com/apache/airflow/commit/510a6bab4595cce8bd5b1447db957309d70f35d9>`_  2022-06-28   ``Remove 'hook-class-names' from provider.yaml (#24702)``
 `9c59831ee7 <https://github.com/apache/airflow/commit/9c59831ee78f14de96421c74986933c494407afa>`_  2022-06-21   ``Update providers to use functools compat for ''cached_property'' (#24582)``
+`08b675cf66 <https://github.com/apache/airflow/commit/08b675cf6642171cb1c5ddfb09607b541db70b29>`_  2022-06-13   ``Fix links to sources for examples (#24386)``
 =================================================================================================  ===========  =============================================================================
 
 2.0.0
@@ -370,22 +394,26 @@ Commit                                                                          
 `b5d520cf73 <https://github.com/apache/airflow/commit/b5d520cf73100df714c71ac9898a97bc0df29a31>`_  2021-12-29   ``Reinstate 'region' to 'default_args' for Alibaba example DAGs (#20423)``
 `73ab0edce5 <https://github.com/apache/airflow/commit/73ab0edce58d996e2854d478f054b25c4bb627c4>`_  2021-12-18   ``Fix MyPy Errors for Alibaba provider. (#20393)``
 `2fb5e1d0ec <https://github.com/apache/airflow/commit/2fb5e1d0ec306839a3ff21d0bddbde1d022ee8c7>`_  2021-12-15   ``Fix cached_property MyPy declaration and related MyPy errors (#20226)``
+`43de625d42 <https://github.com/apache/airflow/commit/43de625d4246af7014f64941f8effb09997731cb>`_  2021-12-01   ``Correctly capitalize names and abbreviations in docs (#19908)``
 `853576d901 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
 `d9567eb106 <https://github.com/apache/airflow/commit/d9567eb106929b21329c01171fd398fbef2dc6c6>`_  2021-10-29   ``Prepare documentation for October Provider's release (#19321)``
 `f5ad26dcdd <https://github.com/apache/airflow/commit/f5ad26dcdd7bcb724992528dce71056965b94d26>`_  2021-10-21   ``Fixup string concatenations (#19099)``
+`af4a5e006e <https://github.com/apache/airflow/commit/af4a5e006e4f5c9f203afeac039b22c6adee317f>`_  2021-10-01   ``Remove cargo-culted local in-page ToCs (#18668)``
 `840ea3efb9 <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
 `ef037e7021 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+`1cb456cba1 <https://github.com/apache/airflow/commit/1cb456cba1099198bbdba50c2d1ad79664be8ce6>`_  2021-09-12   ``Add official download page for providers (#18187)``
 `0fe0b06bb0 <https://github.com/apache/airflow/commit/0fe0b06bb0bf468f46195946f938f9e6e3d46216>`_  2021-09-03   ``Adding missing init file in example_dags directory (#18019)``
 =================================================================================================  ===========  ======================================================================================
 
 1.0.0
 .....
 
-Latest change: 2021-08-23
+Latest change: 2021-08-30
 
 =================================================================================================  ===========  ============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================================
+`0a68588479 <https://github.com/apache/airflow/commit/0a68588479e34cf175d744ea77b283d9d78ea71a>`_  2021-08-30   ``Add August 2021 Provider's documentation (#17890)``
 `be75dcd39c <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
 `76ed2a49c6 <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``
 `75ca6543da <https://github.com/apache/airflow/commit/75ca6543da3754f0dfb53d059588ad66a2f8235a>`_  2021-08-07   ``[AIRFLOW-17200] Add Alibaba Cloud OSS support (#17201)``

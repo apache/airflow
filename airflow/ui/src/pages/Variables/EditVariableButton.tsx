@@ -16,37 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button } from "@chakra-ui/react";
-import { useDisclosure } from "@chakra-ui/react";
-import { FiPlay } from "react-icons/fi";
+import { Box } from "@chakra-ui/react";
+import { FiEdit } from "react-icons/fi";
 
-import type { DAGResponse } from "openapi/requests/types.gen";
-
-import TriggerDAGModal from "./TriggerDAGModal";
+import ActionButton from "src/components/ui/ActionButton";
 
 type Props = {
-  readonly dag: DAGResponse;
+  readonly editKey: string;
 };
 
-const TriggerDAGIconButton: React.FC<Props> = ({ dag }) => {
-  const { onClose, onOpen, open } = useDisclosure();
+const EditVariableButton = ({ editKey }: Props) => (
+  <Box>
+    <ActionButton
+      actionName="Edit Variable"
+      icon={<FiEdit />}
+      onClick={() =>
+        // TODO: Will be removed once implemented
+        // eslint-disable-next-line no-alert
+        alert(`To be implemented: Selected key is ${editKey}`)
+      }
+      text="Edit Variable"
+      withText={false}
+    />
+  </Box>
+);
 
-  return (
-    <Box>
-      <Button colorPalette="blue" onClick={onOpen}>
-        <FiPlay />
-        Trigger
-      </Button>
-
-      <TriggerDAGModal
-        dagDisplayName={dag.dag_display_name}
-        dagId={dag.dag_id}
-        isPaused={dag.is_paused}
-        onClose={onClose}
-        open={open}
-      />
-    </Box>
-  );
-};
-
-export default TriggerDAGIconButton;
+export default EditVariableButton;

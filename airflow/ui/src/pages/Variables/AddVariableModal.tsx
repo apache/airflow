@@ -16,42 +16,37 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, IconButton } from "@chakra-ui/react";
-import { useDisclosure } from "@chakra-ui/react";
-import { FiPlay } from "react-icons/fi";
+import { Heading, useDisclosure } from "@chakra-ui/react";
+import { FiPlusCircle } from "react-icons/fi";
 
-import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import { Button, Dialog, Toaster } from "src/components/ui";
 
-import TriggerDAGModal from "./TriggerDAGModal";
+import AddVariableForm from "./AddVariableForm";
 
-type Props = {
-  readonly dag: DAGWithLatestDagRunsResponse;
-};
-
-const TriggerDAGIconButton: React.FC<Props> = ({ dag }) => {
+const AddVariableModal: React.FC = () => {
   const { onClose, onOpen, open } = useDisclosure();
 
   return (
-    <Box>
-      <IconButton
-        aria-label={`Trigger ${dag.dag_display_name}`}
-        colorPalette="blue"
-        onClick={onOpen}
-        size="xs"
-        variant="ghost"
-      >
-        <FiPlay />
-      </IconButton>
+    <>
+      <Toaster />
+      <Button colorPalette="blue" onClick={onOpen}>
+        <FiPlusCircle /> Add Variable
+      </Button>
+      <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+        <Dialog.Content backdrop>
+          <Dialog.Header>
+            <Heading size="xl">Add Variable</Heading>
+          </Dialog.Header>
 
-      <TriggerDAGModal
-        dagDisplayName={dag.dag_display_name}
-        dagId={dag.dag_id}
-        isPaused={dag.is_paused}
-        onClose={onClose}
-        open={open}
-      />
-    </Box>
+          <Dialog.CloseTrigger />
+
+          <Dialog.Body>
+            <AddVariableForm onClose={onClose} />
+          </Dialog.Body>
+        </Dialog.Content>
+      </Dialog.Root>
+    </>
   );
 };
 
-export default TriggerDAGIconButton;
+export default AddVariableModal;

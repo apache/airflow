@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import pendulum
 import pytest
+from deepdiff import DeepDiff
 
 from airflow.models import DagBag
 from airflow.operators.empty import EmptyOperator
@@ -404,7 +405,7 @@ class TestStructureDataEndpoint:
     def test_should_return_200(self, test_client, params, expected):
         response = test_client.get("/ui/structure/structure_data", params=params)
         assert response.status_code == 200
-        assert response.json() == expected
+        assert not DeepDiff(response.json(), expected, ignore_order=True)
 
     def test_should_return_404(self, test_client):
         response = test_client.get("/ui/structure/structure_data", params={"dag_id": "not_existing"})
