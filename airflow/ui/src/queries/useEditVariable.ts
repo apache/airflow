@@ -56,7 +56,7 @@ export const useEditVariable = (
     onSuccess,
   });
 
-  const addVariable = (addVariableRequestBody: VariableBody) => {
+  const editVariable = (addVariableRequestBody: VariableBody) => {
     const updateMask: Array<string> = [];
 
     if (addVariableRequestBody.key !== initialVariable.key) {
@@ -85,5 +85,5 @@ export const useEditVariable = (
     });
   };
 
-  return { addVariable, error, isPending };
+  return { editVariable, error, isPending };
 };

@@ -16,18 +16,42 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import { Heading, useDisclosure } from "@chakra-ui/react";
-
+import { FiEdit } from "react-icons/fi";
 import { Dialog } from "src/components/ui";
 
+import ActionButton from "src/components/ui/ActionButton";
+import type { VariableResponse } from "openapi/requests/types.gen";
+import type { VariableBody } from "./VariableForm";
 import VariableForm from "./VariableForm";
+import { useEditVariable } from "src/queries/useEditVariable";
 
-const EditVariableDialog = () => {
+type Props = {
+  readonly variable: VariableResponse;
+};
+
+const EditVariableModal = ({ variable }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
-
-  return (
-      <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+  const initialVariableValue: VariableBody = {
+    description: variable.description ?? "",
+    key: variable.key,
+    value: variable.value ?? "",
+  };
+  const { editVariable, error, isPending } = useEditVariable(initialVariableValue, onClose);
+  
+  return(
+  <>
+    <ActionButton
+      actionName="Edit Variable"
+      icon={<FiEdit />}
+      onClick={() => {
+        onOpen();
+      }}
+      text="Edit Variable"
+      withText={false}
+    />
+    
+    <Dialog.Root onOpenChange={onClose} open={open} size="xl">
         <Dialog.Content backdrop>
           <Dialog.Header>
             <Heading size="xl">Edit Variable</Heading>
@@ -36,11 +60,17 @@ const EditVariableDialog = () => {
           <Dialog.CloseTrigger />
 
           <Dialog.Body>
-            {/* <VariableForm onClose={onClose} /> */}
+            <VariableForm 
+              error={error}
+              initialVariable={initialVariableValue}
+              isPending={isPending} 
+              manageMutate={editVariable}
+            />
           </Dialog.Body>
         </Dialog.Content>
       </Dialog.Root>
-  );
+  </>
+);
 };
 
-export default EditVariableDialog;
+export default EditVariableModal;

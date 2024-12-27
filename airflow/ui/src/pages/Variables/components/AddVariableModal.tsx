@@ -16,47 +16,51 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, useDisclosure } from "@chakra-ui/react";
-import { FiEdit } from "react-icons/fi";
-import { Dialog } from "src/components/ui";
+import { Heading, useDisclosure } from "@chakra-ui/react";
+import { FiPlusCircle } from "react-icons/fi";
 
-import ActionButton from "src/components/ui/ActionButton";
-import VariableForm from "./VariableForm";
-import type { VariableResponse } from "openapi/requests/types.gen";
+import { Button, Dialog, Toaster } from "src/components/ui";
 
-type Props = {
-  readonly variable: VariableResponse;
-};
+import VariableForm, { type VariableBody } from "./VariableForm";
+import { useAddVariable } from "src/queries/useAddVariable";
 
-const EditVariableButton = ({ variable: initialVariable }: Props) => {
+const AddVariableModal = () => {
   const { onClose, onOpen, open } = useDisclosure();
-  
-  return(
-  <Box>
-    <ActionButton
-      actionName="Edit Variable"
-      icon={<FiEdit />}
-      onClick={() => {
-        onOpen();
-      }}
-      text="Edit Variable"
-      withText={false}
-    />
-    <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+  const { addVariable, error, isPending } = useAddVariable(onClose);
+
+  const initialVariableValue: VariableBody = {
+    description: "",
+    key: "",
+    value: "",
+  };
+
+  return (
+    <>
+      <Toaster />
+      <Button colorPalette="blue" onClick={onOpen}>
+        <FiPlusCircle /> Add Variable
+      </Button>
+      
+      <Dialog.Root onOpenChange={onClose} open={open} size="xl">
         <Dialog.Content backdrop>
           <Dialog.Header>
-            <Heading size="xl">Edit Variable</Heading>
+            <Heading size="xl">Add Variable</Heading>
           </Dialog.Header>
 
           <Dialog.CloseTrigger />
 
           <Dialog.Body>
-            {/* <VariableForm onClose={onClose} /> */}
+            <VariableForm 
+              error={error}
+              initialVariable={initialVariableValue}
+              isPending={isPending} 
+              manageMutate={addVariable}
+            />
           </Dialog.Body>
         </Dialog.Content>
       </Dialog.Root>
-  </Box>
-);
+    </>
+  );
 };
 
-export default EditVariableButton;
+export default AddVariableModal;
