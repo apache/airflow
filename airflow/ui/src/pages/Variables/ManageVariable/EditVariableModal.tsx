@@ -38,10 +38,15 @@ const EditVariableModal = ({ variable }: Props) => {
     key: variable.key,
     value: variable.value ?? "",
   };
-  const { editVariable, error, isPending } = useEditVariable(
+  const { editVariable, error, isPending, setError } = useEditVariable(
     initialVariableValue,
-    onClose,
+    { onSuccessConfirm: onClose },
   );
+
+  const handleClose = () => {
+    setError(undefined);
+    onClose();
+  };
 
   return (
     <>
@@ -55,7 +60,7 @@ const EditVariableModal = ({ variable }: Props) => {
         withText={false}
       />
 
-      <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+      <Dialog.Root onOpenChange={handleClose} open={open} size="xl">
         <Dialog.Content backdrop>
           <Dialog.Header>
             <Heading size="xl">Edit Variable</Heading>

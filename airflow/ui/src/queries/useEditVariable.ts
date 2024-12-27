@@ -28,7 +28,11 @@ import type { VariableBody } from "src/pages/Variables/ManageVariable/VariableFo
 
 export const useEditVariable = (
   initialVariable: VariableBody,
-  onClose: () => void,
+  {
+    onSuccessConfirm,
+  }: {
+    onSuccessConfirm: () => void;
+  },
 ) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
@@ -44,7 +48,7 @@ export const useEditVariable = (
       type: "success",
     });
 
-    onClose();
+    onSuccessConfirm();
   };
 
   const onError = (_error: unknown) => {
@@ -85,5 +89,5 @@ export const useEditVariable = (
     });
   };
 
-  return { editVariable, error, isPending };
+  return { editVariable, error, isPending, setError };
 };

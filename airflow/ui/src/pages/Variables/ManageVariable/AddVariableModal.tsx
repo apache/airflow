@@ -26,12 +26,19 @@ import VariableForm, { type VariableBody } from "./VariableForm";
 
 const AddVariableModal = () => {
   const { onClose, onOpen, open } = useDisclosure();
-  const { addVariable, error, isPending } = useAddVariable(onClose);
+  const { addVariable, error, isPending, setError } = useAddVariable({
+    onSuccessConfirm: onClose,
+  });
 
   const initialVariableValue: VariableBody = {
     description: "",
     key: "",
     value: "",
+  };
+
+  const handleClose = () => {
+    setError(undefined);
+    onClose();
   };
 
   return (
@@ -41,7 +48,7 @@ const AddVariableModal = () => {
         <FiPlusCircle /> Add Variable
       </Button>
 
-      <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+      <Dialog.Root onOpenChange={handleClose} open={open} size="xl">
         <Dialog.Content backdrop>
           <Dialog.Header>
             <Heading size="xl">Add Variable</Heading>

@@ -17,7 +17,6 @@
  * under the License.
  */
 import { Box, Field, HStack, Input, Spacer, Textarea } from "@chakra-ui/react";
-import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { FiSave } from "react-icons/fi";
 
@@ -52,10 +51,6 @@ const VariableForm = ({
     defaultValues: initialVariable,
     mode: "onChange",
   });
-
-  useEffect(() => {
-    reset(initialVariable);
-  }, [reset, initialVariable]);
 
   const onSubmit = (data: VariableBody) => {
     manageMutate(data);

@@ -26,7 +26,11 @@ import {
 import { toaster } from "src/components/ui";
 import type { VariableBody } from "src/pages/Variables/ManageVariable/VariableForm";
 
-export const useAddVariable = (onClose: () => void) => {
+export const useAddVariable = ({
+  onSuccessConfirm,
+}: {
+  onSuccessConfirm: () => void;
+}) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
 
@@ -41,7 +45,7 @@ export const useAddVariable = (onClose: () => void) => {
       type: "success",
     });
 
-    onClose();
+    onSuccessConfirm();
   };
 
   const onError = (_error: unknown) => {
@@ -68,5 +72,5 @@ export const useAddVariable = (onClose: () => void) => {
     });
   };
 
-  return { addVariable, error, isPending };
+  return { addVariable, error, isPending, setError };
 };
