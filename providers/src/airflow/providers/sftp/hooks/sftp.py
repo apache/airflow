@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING, Any, Callable
 import asyncssh
 from asgiref.sync import sync_to_async
 from paramiko.sftp_attr import SFTPAttributes
+from paramiko.sftp_client import SFTPClient
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
@@ -105,7 +106,7 @@ class SFTPHook(SSHHook):
         super().__init__(*args, **kwargs)
 
     @contextmanager
-    def get_sftp_conn(self):
+    def get_sftp_conn(self) -> SFTPClient:
         """Context manager that closes the connection after use."""
         with closing(self.get_conn().open_sftp()) as conn:
             yield conn
