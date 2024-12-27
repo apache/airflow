@@ -24,15 +24,11 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 
 
 def get_db_command():
-    try:
-        if AIRFLOW_V_3_0_PLUS:
-            import airflow.cli.commands.local_commands.db_command as db_command
-        else:
-            import airflow.cli.commands.db_command as db_command
-    except ImportError:
-        from airflow.exceptions import AirflowOptionalProviderFeatureException
-
-        raise AirflowOptionalProviderFeatureException("Failed to import db_command from Airflow CLI.")
+    """Import the correct db_command module based on the Airflow version."""
+    if AIRFLOW_V_3_0_PLUS:
+        import airflow.cli.commands.local_commands.db_command as db_command
+    else:
+        import airflow.cli.commands.db_command as db_command
 
     return db_command
 

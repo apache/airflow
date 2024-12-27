@@ -160,15 +160,12 @@ ARG_WITHOUT_GOSSIP = Arg(
     action="store_true",
 )
 
-CELERY_CLI_COMMAND_PATH = (
-    "airflow.providers.celery.cli.celery_command"
-    if AIRFLOW_V_2_8_PLUS
-    else (
-        "airflow.cli.commands.local_commands.celery_command"
-        if AIRFLOW_V_3_0_PLUS
-        else "airflow.cli.commands.celery_command"
-    )
-)
+if AIRFLOW_V_2_8_PLUS:
+    CELERY_CLI_COMMAND_PATH = "airflow.providers.celery.cli.celery_command"
+elif AIRFLOW_V_3_0_PLUS:
+    CELERY_CLI_COMMAND_PATH = "airflow.cli.commands.local_commands.celery_command"
+else:
+    CELERY_CLI_COMMAND_PATH = "airflow.cli.commands.celery_command"
 
 CELERY_COMMANDS = (
     ActionCommand(
