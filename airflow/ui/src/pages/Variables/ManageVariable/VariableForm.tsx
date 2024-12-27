@@ -34,6 +34,7 @@ type VariableFormProps = {
   readonly initialVariable: VariableBody;
   readonly isPending: boolean;
   readonly manageMutate: (variableRequestBody: VariableBody) => void;
+  readonly setError: (error: unknown) => void;
 };
 
 const VariableForm = ({
@@ -41,6 +42,7 @@ const VariableForm = ({
   initialVariable,
   isPending,
   manageMutate,
+  setError,
 }: VariableFormProps) => {
   const {
     control,
@@ -54,6 +56,11 @@ const VariableForm = ({
 
   const onSubmit = (data: VariableBody) => {
     manageMutate(data);
+  };
+
+  const handleReset = () => {
+    setError(undefined);
+    reset();
   };
 
   return (
@@ -115,7 +122,7 @@ const VariableForm = ({
       <Box as="footer" display="flex" justifyContent="flex-end" mt={8}>
         <HStack w="full">
           {isDirty ? (
-            <Button onClick={() => reset()} variant="outline">
+            <Button onClick={handleReset} variant="outline">
               Reset
             </Button>
           ) : undefined}

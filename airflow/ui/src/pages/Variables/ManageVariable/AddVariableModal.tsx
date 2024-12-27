@@ -62,6 +62,7 @@ const AddVariableModal = () => {
               initialVariable={initialVariableValue}
               isPending={isPending}
               manageMutate={addVariable}
+              setError={setError}
             />
           </Dialog.Body>
         </Dialog.Content>

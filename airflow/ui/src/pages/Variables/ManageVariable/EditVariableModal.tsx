@@ -74,6 +74,7 @@ const EditVariableModal = ({ variable }: Props) => {
               initialVariable={initialVariableValue}
               isPending={isPending}
               manageMutate={editVariable}
+              setError={setError}
             />
           </Dialog.Body>
         </Dialog.Content>
