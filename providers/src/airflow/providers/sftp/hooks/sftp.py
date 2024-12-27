@@ -35,6 +35,7 @@ from asgiref.sync import sync_to_async
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
+from paramiko.sftp_attr import SFTPAttributes
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
@@ -139,7 +140,7 @@ class SFTPHook(SSHHook):
         with self.get_sftp_conn() as conn:
             return sorted(conn.listdir(path))
 
-    def list_directory_with_attr(self, path: str) -> list[paramiko.SFTPAttributes]:
+    def list_directory_with_attr(self, path: str) -> list[SFTPAttributes]:
         """
         List files in a directory on the remote system including their SFTPAttributes.
 
@@ -328,22 +329,21 @@ class SFTPHook(SSHHook):
             (form: ``func(str)``)
         :param bool recurse: *Default: True* - should it recurse
         """
-        with self.get_sftp_conn() as conn:
-            for entry in self.list_directory_with_attr(path):
-                pathname = os.path.join(path, entry.filename)
-                mode = entry.st_mode
-                if stat.S_ISDIR(mode):  # type: ignore
-                    # It's a directory, call the dcallback function
-                    dcallback(pathname)
-                    if recurse:
-                        # now, recurse into it
-                        self.walktree(pathname, fcallback, dcallback, ucallback)
-                elif stat.S_ISREG(mode):  # type: ignore
-                    # It's a file, call the fcallback function
-                    fcallback(pathname)
-                else:
-                    # Unknown file type
-                    ucallback(pathname)
+        for entry in self.list_directory_with_attr(path):
+            pathname = os.path.join(path, entry.filename)
+            mode = entry.st_mode
+            if stat.S_ISDIR(mode):  # type: ignore
+                # It's a directory, call the dcallback function
+                dcallback(pathname)
+                if recurse:
+                    # now, recurse into it
+                    self.walktree(pathname, fcallback, dcallback, ucallback)
+            elif stat.S_ISREG(mode):  # type: ignore
+                # It's a file, call the fcallback function
+                fcallback(pathname)
+            else:
+                # Unknown file type
+                ucallback(pathname)
 
     def get_tree_map(
         self, path: str, prefix: str | None = None, delimiter: str | None = None
