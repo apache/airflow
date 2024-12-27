@@ -22,9 +22,9 @@ from typing import TYPE_CHECKING, cast
 from airflow.exceptions import AirflowException
 
 if TYPE_CHECKING:
-    from airflow.models.abstractoperator import AbstractOperator
     from airflow.models.taskmixin import DependencyMixin
     from airflow.models.xcom_arg import PlainXComArg
+    from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 
 
 class BaseSetupTeardownContext:

@@ -4055,7 +4055,6 @@ class TestTaskInstance:
         deserialized_op = SerializedBaseOperator.deserialize_operator(serialized_op)
         assert deserialized_op.task_type == "EmptyOperator"
         # Verify that ti.operator field renders correctly "with" Serialization
-        deserialized_op.dag = ti.task.dag
         ser_ti = TI(task=deserialized_op, run_id=None)
         assert ser_ti.operator == "EmptyOperator"
         assert ser_ti.task.operator_name == "EmptyOperator"
@@ -4904,7 +4903,7 @@ class TestMappedTaskInstanceReceiveValue:
         emit_ti.run()
 
         show_task = dag.get_task("show")
-        mapped_tis, max_map_index = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
         assert max_map_index + 1 == len(mapped_tis) == len(upstream_return)
 
         for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
@@ -4938,7 +4937,7 @@ class TestMappedTaskInstanceReceiveValue:
             ti.run()
 
         show_task = dag.get_task("show")
-        mapped_tis, max_map_index = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
         assert max_map_index + 1 == len(mapped_tis) == 6
 
         for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
@@ -4978,7 +4977,7 @@ class TestMappedTaskInstanceReceiveValue:
         show_task = dag.get_task("show")
         with pytest.raises(NotFullyPopulated):
             assert show_task.get_parse_time_mapped_ti_count()
-        mapped_tis, max_map_index = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
         assert max_map_index + 1 == len(mapped_tis) == 4
 
         for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
@@ -5002,7 +5001,7 @@ class TestMappedTaskInstanceReceiveValue:
 
         show_task = dag.get_task("show")
         assert show_task.get_parse_time_mapped_ti_count() == 6
-        mapped_tis, max_map_index = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
         assert len(mapped_tis) == 0  # Expanded at parse!
         assert max_map_index == 5
 
@@ -5050,7 +5049,9 @@ class TestMappedTaskInstanceReceiveValue:
             ti.run()
 
         bash_task = dag.get_task("dynamic.bash")
-        mapped_bash_tis, max_map_index = bash_task.expand_mapped_task(dag_run.run_id, session=session)
+        mapped_bash_tis, max_map_index = TaskMap.expand_mapped_task(
+            bash_task, dag_run.run_id, session=session
+        )
         assert max_map_index == 3  # 2 * 2 mapped tasks.
         for ti in sorted(mapped_bash_tis, key=operator.attrgetter("map_index")):
             ti.refresh_from_task(bash_task)
@@ -5170,7 +5171,7 @@ def test_ti_mapped_depends_on_mapped_xcom_arg(dag_maker, session):
         ti.run()
 
     task_345 = dag.get_task("add_one__1")
-    for ti in task_345.expand_mapped_task(dagrun.run_id, session=session)[0]:
+    for ti in TaskMap.expand_mapped_task(task_345, dagrun.run_id, session=session)[0]:
         ti.refresh_from_task(task_345)
         ti.run()
 
