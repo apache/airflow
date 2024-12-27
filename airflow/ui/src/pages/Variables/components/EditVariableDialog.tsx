@@ -36,7 +36,7 @@ const EditVariableDialog = () => {
           <Dialog.CloseTrigger />
 
           <Dialog.Body>
-            <VariableForm onClose={onClose} />
+            {/* <VariableForm onClose={onClose} /> */}
           </Dialog.Body>
         </Dialog.Content>
       </Dialog.Root>

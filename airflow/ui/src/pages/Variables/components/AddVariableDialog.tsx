@@ -21,10 +21,18 @@ import { FiPlusCircle } from "react-icons/fi";
 
 import { Button, Dialog, Toaster } from "src/components/ui";
 
-import VariableForm from "./VariableForm";
+import VariableForm, { type VariableBody } from "./VariableForm";
+import { useAddVariable } from "src/queries/useAddVariable";
 
 const AddVariableDialog = () => {
   const { onClose, onOpen, open } = useDisclosure();
+  const { addVariable, error, isPending } = useAddVariable(onClose);
+
+  const initialVariableValue: VariableBody = {
+    description: "",
+    key: "",
+    value: "",
+  };
 
   return (
     <>
@@ -41,7 +49,12 @@ const AddVariableDialog = () => {
           <Dialog.CloseTrigger />
 
           <Dialog.Body>
-            <VariableForm onClose={onClose} />
+            <VariableForm 
+              error={error}
+              initialVariable={initialVariableValue}
+              isPending={isPending} 
+              manageMutate={addVariable}
+            />
           </Dialog.Body>
         </Dialog.Content>
       </Dialog.Root>

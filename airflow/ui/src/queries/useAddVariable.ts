@@ -53,17 +53,17 @@ export const useAddVariable = (onClose: () => void) => {
     onSuccess,
   });
 
-  const addVariable = (addVariableRequestBody: VariableBody) => {
+  const addVariable = (variableRequestBody: VariableBody) => {
     const parsedDescription =
-      addVariableRequestBody.description === ""
+    variableRequestBody.description === ""
         ? undefined
-        : addVariableRequestBody.description;
+        : variableRequestBody.description;
 
     mutate({
       requestBody: {
         description: parsedDescription,
-        key: addVariableRequestBody.key,
-        value: addVariableRequestBody.value,
+        key: variableRequestBody.key,
+        value: variableRequestBody.value,
       },
     });
   };

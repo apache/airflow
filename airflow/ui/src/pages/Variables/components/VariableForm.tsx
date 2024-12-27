@@ -23,7 +23,6 @@ import { FiSave } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { Button } from "src/components/ui";
-import { useAddVariable } from "src/queries/useAddVariable";
 
 export type VariableBody = {
   description: string | undefined;
@@ -32,11 +31,18 @@ export type VariableBody = {
 };
 
 type VariableFormProps = {
-  readonly onClose: () => void;
+  readonly error: unknown;
+  readonly initialVariable: VariableBody;
+  readonly isPending: boolean;
+  readonly manageMutate: ( variableRequestBody :  VariableBody ) => void;
 };
 
-const VariableForm = ({ onClose }: VariableFormProps) => {
-  const { addVariable, error, isPending } = useAddVariable(onClose);
+const VariableForm = ({ 
+  error,
+  initialVariable,
+  isPending,
+  manageMutate
+}: VariableFormProps) => {
 
   const {
     control,
@@ -44,24 +50,16 @@ const VariableForm = ({ onClose }: VariableFormProps) => {
     handleSubmit,
     reset,
   } = useForm<VariableBody>({
-    defaultValues: {
-      description: "",
-      key: "",
-      value: "",
-    },
+    defaultValues: initialVariable,
     mode: "onChange",
   });
 
   useEffect(() => {
-    reset({
-      description: "",
-      key: "",
-      value: "",
-    });
-  }, [reset]);
+    reset(initialVariable);
+  }, [reset, initialVariable]);
 
   const onSubmit = (data: VariableBody) => {
-    addVariable(data);
+    manageMutate(data);
   };
 
   return (
