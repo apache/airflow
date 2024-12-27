@@ -24,7 +24,7 @@ import {
   useVariableServicePostVariable,
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
-import type { AddVariableBody } from "src/pages/Variables/AddVariableForm";
+import type { AddVariableBody } from "src/pages/Variables/components/VariableForm";
 
 export const useAddVariable = (onClose: () => void) => {
   const queryClient = useQueryClient();

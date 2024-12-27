@@ -32,9 +32,9 @@ import {
   type SearchParamsKeysType,
 } from "src/constants/searchParams";
 
-import AddVariableModal from "./AddVariableModal";
-import DeleteVariableButton from "./DeleteVariableButton";
-import EditVariableButton from "./EditVariableButton";
+import AddVariableModal from "./components/AddVariableDialog";
+import DeleteVariableButton from "./components/DeleteVariableButton";
+import EditVariableButton from "./components/EditVariableButton";
 
 const columns: Array<ColumnDef<VariableResponse>> = [
   {

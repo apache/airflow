@@ -21,7 +21,7 @@ import { FiPlusCircle } from "react-icons/fi";
 
 import { Button, Dialog, Toaster } from "src/components/ui";
 
-import AddVariableForm from "./AddVariableForm";
+import AddVariableForm from "./VariableForm";
 
 const AddVariableModal: React.FC = () => {
   const { onClose, onOpen, open } = useDisclosure();
