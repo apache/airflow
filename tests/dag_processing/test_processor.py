@@ -19,36 +19,31 @@ from __future__ import annotations
 
 import pathlib
 import sys
-from unittest import mock
-from unittest.mock import MagicMock, patch
-from zipfile import ZipFile
+from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import pytest
+import structlog
 
-from airflow.callbacks.callback_requests import TaskCallbackRequest
-from airflow.configuration import TEST_DAGS_FOLDER, conf
-from airflow.dag_processing.processor import DagFileProcessor, DagFileProcessorProcess
+from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest, TaskCallbackRequest
+from airflow.configuration import conf
+from airflow.dag_processing.processor import (
+    DagFileParseRequest,
+    DagFileParsingResult,
+    _parse_file,
+)
 from airflow.models import DagBag, TaskInstance
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.utils import timezone
 from airflow.utils.session import create_session
-from airflow.utils.state import State
-from airflow.utils.types import DagRunType
+from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars, env_vars
-from tests_common.test_utils.db import (
-    clear_db_dags,
-    clear_db_jobs,
-    clear_db_runs,
-    clear_db_serialized_dags,
-)
-from tests_common.test_utils.mock_executor import MockExecutor
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
+if TYPE_CHECKING:
+    from kgb import SpyAgency
 
 pytestmark = pytest.mark.db_test
 
@@ -75,63 +70,15 @@ def disable_load_example():
 
 @pytest.mark.usefixtures("disable_load_example")
 class TestDagFileProcessor:
-    @staticmethod
-    def clean_db():
-        clear_db_runs()
-        clear_db_dags()
-        clear_db_jobs()
-        clear_db_serialized_dags()
-
-    def setup_class(self):
-        self.clean_db()
-
-    def setup_method(self):
-        # Speed up some tests by not running the tasks, just look at what we
-        # enqueue!
-        self.null_exec = MockExecutor()
-        self.scheduler_job = None
-
-    def teardown_method(self) -> None:
-        if self.scheduler_job and self.scheduler_job.job_runner.processor_agent:
-            self.scheduler_job.job_runner.processor_agent.end()
-            self.scheduler_job = None
-        self.clean_db()
-
-    def _process_file(self, file_path, dag_directory, session):
-        dag_file_processor = DagFileProcessor(dag_directory=str(dag_directory), log=mock.MagicMock())
-
-        dag_file_processor.process_file(file_path, [])
-
-    @patch.object(TaskInstance, "handle_failure")
-    def test_execute_on_failure_callbacks(self, mock_ti_handle_failure):
-        dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
-        dag_file_processor = DagFileProcessor(dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock())
-        with create_session() as session:
-            session.query(TaskInstance).delete()
-            dag = dagbag.get_dag("example_branch_operator")
-            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-            dagrun = dag.create_dagrun(
-                state=State.RUNNING,
-                logical_date=DEFAULT_DATE,
-                run_type=DagRunType.SCHEDULED,
-                data_interval=dag.infer_automated_data_interval(DEFAULT_DATE),
-                session=session,
-                **triggered_by_kwargs,
-            )
-            task = dag.get_task(task_id="run_this_first")
-            ti = TaskInstance(task, run_id=dagrun.run_id, state=State.RUNNING)
-            session.add(ti)
-
-        requests = [
-            TaskCallbackRequest(
-                full_filepath="A", simple_task_instance=SimpleTaskInstance.from_ti(ti), msg="Message"
-            )
-        ]
-        dag_file_processor.execute_callbacks(dagbag, requests, dag_file_processor.UNIT_TEST_MODE, session)
-        mock_ti_handle_failure.assert_called_once_with(
-            error="Message", test_mode=conf.getboolean("core", "unit_test_mode"), session=session
+    def _process_file(
+        self, file_path, callback_requests: list[CallbackRequest] | None = None
+    ) -> DagFileParsingResult:
+        return _parse_file(
+            DagFileParseRequest(file=file_path, requests_fd=1, callback_requests=callback_requests or []),
+            log=structlog.get_logger(),
         )
 
+    @pytest.mark.xfail(reason="TODO: AIP-72")
     @pytest.mark.parametrize(
         ["has_serialized_dag"],
         [pytest.param(True, id="dag_in_db"), pytest.param(False, id="no_dag_found")],
@@ -139,179 +86,142 @@ class TestDagFileProcessor:
     @patch.object(TaskInstance, "handle_failure")
     def test_execute_on_failure_callbacks_without_dag(self, mock_ti_handle_failure, has_serialized_dag):
         dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
-        dag_file_processor = DagFileProcessor(dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock())
         with create_session() as session:
             session.query(TaskInstance).delete()
             dag = dagbag.get_dag("example_branch_operator")
+            assert dag is not None
             dag.sync_to_db()
-            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dagrun = dag.create_dagrun(
-                state=State.RUNNING,
+                state=DagRunState.RUNNING,
                 logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
                 data_interval=dag.infer_automated_data_interval(DEFAULT_DATE),
+                triggered_by=DagRunTriggeredByType.TEST,
                 session=session,
-                **triggered_by_kwargs,
             )
             task = dag.get_task(task_id="run_this_first")
-            ti = TaskInstance(task, run_id=dagrun.run_id, state=State.QUEUED)
+            ti = TaskInstance(task, run_id=dagrun.run_id, state=TaskInstanceState.QUEUED)
             session.add(ti)
 
             if has_serialized_dag:
                 assert SerializedDagModel.write_dag(dag, session=session) is True
                 session.flush()
 
-        requests = [
-            TaskCallbackRequest(
-                full_filepath="A", simple_task_instance=SimpleTaskInstance.from_ti(ti), msg="Message"
-            )
-        ]
-        dag_file_processor.execute_callbacks_without_dag(requests, True, session)
+        requests = [TaskCallbackRequest(full_filepath="A", ti=ti, msg="Message")]
+        self._process_file(dag.fileloc, requests)
         mock_ti_handle_failure.assert_called_once_with(
             error="Message", test_mode=conf.getboolean("core", "unit_test_mode"), session=session
         )
 
-    def test_failure_callbacks_should_not_drop_hostname(self):
-        dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
-        dag_file_processor = DagFileProcessor(dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock())
-        dag_file_processor.UNIT_TEST_MODE = False
+    def test_dagbag_import_errors_captured(self, spy_agency: SpyAgency):
+        @spy_agency.spy_for(DagBag.collect_dags, owner=DagBag)
+        def fake_collect_dags(dagbag: DagBag, *args, **kwargs):
+            dagbag.import_errors["a.py"] = "Import error"
 
-        with create_session() as session:
-            dag = dagbag.get_dag("example_branch_operator")
-            task = dag.get_task(task_id="run_this_first")
-            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-            dagrun = dag.create_dagrun(
-                state=State.RUNNING,
-                logical_date=DEFAULT_DATE,
-                run_type=DagRunType.SCHEDULED,
-                data_interval=dag.infer_automated_data_interval(DEFAULT_DATE),
-                session=session,
-                **triggered_by_kwargs,
-            )
-            ti = TaskInstance(task, run_id=dagrun.run_id, state=State.RUNNING)
-            ti.hostname = "test_hostname"
-            session.add(ti)
+        resp = self._process_file("a.py")
 
-        requests = [
-            TaskCallbackRequest(
-                full_filepath="A", simple_task_instance=SimpleTaskInstance.from_ti(ti), msg="Message"
-            )
-        ]
-        dag_file_processor.execute_callbacks(dagbag, requests, False)
+        assert not resp.serialized_dags
+        assert resp.import_errors is not None
+        assert "a.py" in resp.import_errors
 
-        with create_session() as session:
-            tis = session.query(TaskInstance)
-            assert tis[0].hostname == "test_hostname"
 
-    def test_process_file_should_failure_callback(self, monkeypatch, tmp_path, get_test_dag):
-        callback_file = tmp_path.joinpath("callback.txt")
-        callback_file.touch()
-        monkeypatch.setenv("AIRFLOW_CALLBACK_FILE", str(callback_file))
-        dag_file_processor = DagFileProcessor(dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock())
+#     @conf_vars({("logging", "dag_processor_log_target"): "stdout"})
+#     @mock.patch("airflow.dag_processing.processor.settings.dispose_orm", MagicMock)
+#     @mock.patch("airflow.dag_processing.processor.redirect_stdout")
+#     def test_dag_parser_output_when_logging_to_stdout(self, mock_redirect_stdout_for_file):
+#         processor = DagFileProcessorProcess(
+#             file_path="abc.txt",
+#             dag_directory=[],
+#             callback_requests=[],
+#         )
+#         processor._run_file_processor(
+#             result_channel=MagicMock(),
+#             parent_channel=MagicMock(),
+#             file_path="fake_file_path",
+#             thread_name="fake_thread_name",
+#             callback_requests=[],
+#             dag_directory=[],
+#         )
+#         mock_redirect_stdout_for_file.assert_not_called()
+#
+#     @conf_vars({("logging", "dag_processor_log_target"): "file"})
+#     @mock.patch("airflow.dag_processing.processor.settings.dispose_orm", MagicMock)
+#     @mock.patch("airflow.dag_processing.processor.redirect_stdout")
+#     def test_dag_parser_output_when_logging_to_file(self, mock_redirect_stdout_for_file):
+#         processor = DagFileProcessorProcess(
+#             file_path="abc.txt",
+#             dag_directory=[],
+#             callback_requests=[],
+#         )
+#         processor._run_file_processor(
+#             result_channel=MagicMock(),
+#             parent_channel=MagicMock(),
+#             file_path="fake_file_path",
+#             thread_name="fake_thread_name",
+#             callback_requests=[],
+#             dag_directory=[],
+#         )
+#         mock_redirect_stdout_for_file.assert_called_once()
 
-        dag = get_test_dag("test_on_failure_callback")
-        task = dag.get_task(task_id="test_on_failure_callback_task")
-        with create_session() as session:
-            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-            dagrun = dag.create_dagrun(
-                state=State.RUNNING,
-                logical_date=DEFAULT_DATE,
-                run_type=DagRunType.SCHEDULED,
-                data_interval=dag.infer_automated_data_interval(DEFAULT_DATE),
-                session=session,
-                **triggered_by_kwargs,
-            )
-            ti = dagrun.get_task_instance(task.task_id)
-            ti.refresh_from_task(task)
 
-            requests = [
-                TaskCallbackRequest(
-                    full_filepath=dag.fileloc,
-                    simple_task_instance=SimpleTaskInstance.from_ti(ti),
-                    msg="Message",
-                )
-            ]
-            dag_file_processor.process_file(dag.fileloc, requests)
+def test_parse_file_with_dag_callbacks(spy_agency):
+    from airflow import DAG
 
-        ti.refresh_from_db()
-        msg = " ".join([str(k) for k in ti.key.primary]) + " fired callback"
-        assert msg in callback_file.read_text()
+    called = False
 
-    @conf_vars({("logging", "dag_processor_log_target"): "stdout"})
-    @mock.patch("airflow.dag_processing.processor.settings.dispose_orm", MagicMock)
-    @mock.patch("airflow.dag_processing.processor.redirect_stdout")
-    def test_dag_parser_output_when_logging_to_stdout(self, mock_redirect_stdout_for_file):
-        processor = DagFileProcessorProcess(
-            file_path="abc.txt",
-            dag_directory=[],
-            callback_requests=[],
+    def on_failure(context):
+        nonlocal called
+        called = True
+
+    dag = DAG(dag_id="a", on_failure_callback=on_failure)
+
+    def fake_collect_dags(self, *args, **kwargs):
+        self.dags[dag.dag_id] = dag
+
+    spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
+
+    requests = [
+        DagCallbackRequest(
+            full_filepath="A",
+            msg="Message",
+            dag_id="a",
+            run_id="b",
         )
-        processor._run_file_processor(
-            result_channel=MagicMock(),
-            parent_channel=MagicMock(),
-            file_path="fake_file_path",
-            thread_name="fake_thread_name",
-            callback_requests=[],
-            dag_directory=[],
+    ]
+    _parse_file(
+        DagFileParseRequest(file="A", requests_fd=1, callback_requests=requests), log=structlog.get_logger()
+    )
+
+    assert called is True
+
+
+@pytest.mark.xfail(reason="TODO: AIP-72: Task level callbacks not yet supported")
+def test_parse_file_with_task_callbacks(spy_agency):
+    from airflow import DAG
+
+    called = False
+
+    def on_failure(context):
+        nonlocal called
+        called = True
+
+    with DAG(dag_id="a", on_failure_callback=on_failure) as dag:
+        BaseOperator(task_id="b", on_failure_callback=on_failure)
+
+    def fake_collect_dags(self, *args, **kwargs):
+        self.dags[dag.dag_id] = dag
+
+    spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
+
+    requests = [
+        TaskCallbackRequest.model_construct(
+            full_filepath="A",
+            msg="Message",
+            ti=None,
         )
-        mock_redirect_stdout_for_file.assert_not_called()
+    ]
+    _parse_file(
+        DagFileParseRequest(file="A", requests_fd=1, callback_requests=requests), log=structlog.get_logger()
+    )
 
-    @conf_vars({("logging", "dag_processor_log_target"): "file"})
-    @mock.patch("airflow.dag_processing.processor.settings.dispose_orm", MagicMock)
-    @mock.patch("airflow.dag_processing.processor.redirect_stdout")
-    def test_dag_parser_output_when_logging_to_file(self, mock_redirect_stdout_for_file):
-        processor = DagFileProcessorProcess(
-            file_path="abc.txt",
-            dag_directory=[],
-            callback_requests=[],
-        )
-        processor._run_file_processor(
-            result_channel=MagicMock(),
-            parent_channel=MagicMock(),
-            file_path="fake_file_path",
-            thread_name="fake_thread_name",
-            callback_requests=[],
-            dag_directory=[],
-        )
-        mock_redirect_stdout_for_file.assert_called_once()
-
-    @mock.patch("airflow.dag_processing.processor.settings.dispose_orm", MagicMock)
-    @mock.patch.object(DagFileProcessorProcess, "_get_multiprocessing_context")
-    def test_no_valueerror_with_parseable_dag_in_zip(self, mock_context, tmp_path):
-        mock_context.return_value.Pipe.return_value = (MagicMock(), MagicMock())
-        zip_filename = (tmp_path / "test_zip.zip").as_posix()
-        with ZipFile(zip_filename, "w") as zip_file:
-            zip_file.writestr(TEMP_DAG_FILENAME, PARSEABLE_DAG_FILE_CONTENTS)
-
-        processor = DagFileProcessorProcess(
-            file_path=zip_filename,
-            dag_directory=[],
-            callback_requests=[],
-        )
-        processor.start()
-
-    @mock.patch("airflow.dag_processing.processor.settings.dispose_orm", MagicMock)
-    @mock.patch.object(DagFileProcessorProcess, "_get_multiprocessing_context")
-    def test_nullbyte_exception_handling_when_preimporting_airflow(self, mock_context, tmp_path):
-        mock_context.return_value.Pipe.return_value = (MagicMock(), MagicMock())
-        dag_filename = (tmp_path / "test_dag.py").as_posix()
-        with open(dag_filename, "wb") as file:
-            file.write(b"hello\x00world")
-
-        processor = DagFileProcessorProcess(
-            file_path=dag_filename,
-            dag_directory=[],
-            callback_requests=[],
-        )
-        processor.start()
-
-    def test_counter_for_last_num_of_db_queries(self):
-        dag_filepath = TEST_DAG_FOLDER / "test_dag_for_db_queries_counter.py"
-
-        with create_session() as session:
-            with assert_queries_count(
-                expected_count=154,
-                margin=10,
-                session=session,
-            ):
-                self._process_file(dag_filepath, TEST_DAG_FOLDER, session)
+    assert called is True

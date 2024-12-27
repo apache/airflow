@@ -23,6 +23,7 @@ import { Link } from "react-router-dom";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
+import { getTaskInstanceLink } from "src/utils/links";
 import { stateColor } from "src/utils/stateColor";
 
 dayjs.extend(duration);
@@ -42,7 +43,9 @@ export const TaskRecentRuns = ({
     ...taskInstance,
     duration:
       dayjs
-        .duration(dayjs(taskInstance.end_date).diff(taskInstance.start_date))
+        .duration(
+          dayjs(taskInstance.end_date ?? dayjs()).diff(taskInstance.start_date),
+        )
         .asSeconds() || 0,
   }));
 
@@ -59,9 +62,7 @@ export const TaskRecentRuns = ({
             key={taskInstance.dag_run_id}
             taskInstance={taskInstance}
           >
-            <Link
-              to={`/dags/${taskInstance.dag_id}/runs/${taskInstance.dag_run_id}/tasks/${taskInstance.task_id}?map_index=${taskInstance.map_index}`}
-            >
+            <Link to={getTaskInstanceLink(taskInstance)}>
               <Box p={1}>
                 <Box
                   bg={stateColor[taskInstance.state]}

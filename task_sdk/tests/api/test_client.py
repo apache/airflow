@@ -313,13 +313,23 @@ class TestXCOMOperations:
     response parsing.
     """
 
-    def test_xcom_get_success(self):
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param("value1", id="string-value"),
+            pytest.param({"key1": "value1"}, id="dict-value"),
+            pytest.param('{"key1": "value1"}', id="dict-str-value"),
+            pytest.param(["value1", "value2"], id="list-value"),
+            pytest.param({"key": "test_key", "value": {"key2": "value2"}}, id="nested-dict-value"),
+        ],
+    )
+    def test_xcom_get_success(self, value):
         # Simulate a successful response from the server when getting an xcom
         def handle_request(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/xcoms/dag_id/run_id/task_id/key":
                 return httpx.Response(
                     status_code=201,
-                    json={"key": "test_key", "value": "test_value"},
+                    json={"key": "test_key", "value": value},
                 )
             return httpx.Response(status_code=400, json={"detail": "Bad Request"})
 
@@ -332,7 +342,7 @@ class TestXCOMOperations:
         )
         assert isinstance(result, XComResponse)
         assert result.key == "test_key"
-        assert result.value == "test_value"
+        assert result.value == value
 
     def test_xcom_get_success_with_map_index(self):
         # Simulate a successful response from the server when getting an xcom with map_index passed

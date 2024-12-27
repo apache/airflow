@@ -22,6 +22,7 @@ import pytest
 from flask import session, url_for
 
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.www import app as application
 
 from tests_common.test_utils.config import conf_vars
@@ -69,6 +70,9 @@ def aws_app():
             return application.create_app(testing=True, config={"WTF_CSRF_ENABLED": False})
 
 
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_0_PLUS, reason="AWS auth manager is only compatible with Airflow >= 3.0.0"
+)
 @pytest.mark.db_test
 class TestAwsAuthManagerAuthenticationViews:
     def test_login_redirect_to_identity_center(self, aws_app):

@@ -29,7 +29,7 @@ import DocumentationModal from "src/components/DocumentationModal";
 import ParseDag from "src/components/ParseDag";
 import { Stat } from "src/components/Stat";
 import { TogglePause } from "src/components/TogglePause";
-import TriggerDAGTextButton from "src/components/TriggerDag/TriggerDAGTextButton";
+import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
 import { Tooltip } from "src/components/ui";
 
 import { DagTags } from "../DagsList/DagTags";
@@ -64,7 +64,7 @@ export const Header = ({
                 <DocumentationModal docMd={dag.doc_md} docType="Dag" />
               )}
               <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />
-              <TriggerDAGTextButton dag={dag} />
+              <TriggerDAGButton dag={dag} />
             </HStack>
           ) : undefined}
         </Flex>

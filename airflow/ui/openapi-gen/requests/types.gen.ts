@@ -402,7 +402,7 @@ export type DAGRunPatchStates = "queued" | "success" | "failed";
  * DAG Run serializer for responses.
  */
 export type DAGRunResponse = {
-  dag_run_id: string | null;
+  dag_run_id: string;
   dag_id: string;
   logical_date: string | null;
   queued_at: string | null;
@@ -687,6 +687,47 @@ export type FastAPIAppResponse = {
   url_prefix: string;
   name: string;
   [key: string]: unknown | string;
+};
+
+/**
+ * DAG Run model for the Grid UI.
+ */
+export type GridDAGRunwithTIs = {
+  dag_run_id: string;
+  queued_at: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  state: DagRunState;
+  run_type: DagRunType;
+  data_interval_start: string | null;
+  data_interval_end: string | null;
+  version_number: string | null;
+  note: string | null;
+  task_instances: Array<GridTaskInstanceSummary>;
+};
+
+/**
+ * Response model for the Grid UI.
+ */
+export type GridResponse = {
+  dag_runs: Array<GridDAGRunwithTIs>;
+};
+
+/**
+ * Task Instance Summary model for the Grid UI.
+ */
+export type GridTaskInstanceSummary = {
+  task_id: string;
+  try_number: number;
+  start_date: string | null;
+  end_date: string | null;
+  queued_dttm: string | null;
+  child_states: {
+    [key: string]: number;
+  } | null;
+  task_count: number;
+  state: TaskInstanceState | null;
+  note: string | null;
 };
 
 /**
@@ -1261,6 +1302,7 @@ export type VariableResponse = {
   key: string;
   value: string | null;
   description: string | null;
+  is_encrypted: boolean;
 };
 
 /**
@@ -1523,6 +1565,22 @@ export type CancelBackfillData = {
 };
 
 export type CancelBackfillResponse = BackfillResponse;
+
+export type GridDataData = {
+  dagId: string;
+  includeDownstream?: boolean;
+  includeUpstream?: boolean;
+  limit?: number;
+  logicalDateGte?: string | null;
+  logicalDateLte?: string | null;
+  offset?: number;
+  orderBy?: string;
+  root?: string | null;
+  runType?: Array<string>;
+  state?: Array<string>;
+};
+
+export type GridDataResponse = GridResponse;
 
 export type DeleteConnectionData = {
   connectionId: string;
@@ -2767,6 +2825,29 @@ export type $OpenApiTs = {
          * Conflict
          */
         409: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/ui/grid/{dag_id}": {
+    get: {
+      req: GridDataData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: GridResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
         /**
          * Validation Error
          */
@@ -4482,6 +4563,10 @@ export type $OpenApiTs = {
          * Forbidden
          */
         403: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
         /**
          * Validation Error
          */

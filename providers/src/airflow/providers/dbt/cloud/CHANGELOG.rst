@@ -28,8 +28,15 @@
 Changelog
 ---------
 
-main
+4.0.0
 .....
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
 
 .. warning::
    All deprecated classes, parameters and features have been removed from the DBT provider package.
@@ -38,6 +45,22 @@ main
    * Sensors
       * Remove ``airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunAsyncSensor``. Use ``airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunSensor`` with ``deferrable`` set to ``True`` instead.
       * Removed ``polling_interval`` parameter from ``DbtCloudJobRunSensor``. Use ``poke_interval`` instead.
+
+* ``Remove Provider Deprecations in DBT (#44638)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+* ``Fix yoda-conditions (#44466)``
+* ``utilize more information to deterministically generate OpenLineage run_id (#43936)``
+* ``Remove commented breakpoint in dbt provider (#44163)``
+* ``Rename execution_date to logical_date across codebase (#43902)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
 
 3.11.2
 ......

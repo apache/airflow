@@ -60,7 +60,7 @@ class TestAlloyDbHook:
 
     @mock.patch(HOOK_PATH.format("AlloyDbHook.get_credentials"))
     @mock.patch(HOOK_PATH.format("alloydb_v1.AlloyDBAdminClient"))
-    def test_gget_alloy_db_admin_client(self, mock_client, mock_get_credentials):
+    def test_get_alloy_db_admin_client(self, mock_client, mock_get_credentials):
         mock_credentials = mock_get_credentials.return_value
         expected_client = mock_client.return_value
 
