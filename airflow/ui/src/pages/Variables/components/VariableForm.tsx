@@ -35,7 +35,7 @@ type VariableFormProps = {
   readonly onClose: () => void;
 };
 
-const AddVariableForm = ({ onClose }: VariableFormProps) => {
+const VariableForm = ({ onClose }: VariableFormProps) => {
   const { addVariable, error, isPending } = useAddVariable(onClose);
 
   const {
@@ -141,4 +141,4 @@ const AddVariableForm = ({ onClose }: VariableFormProps) => {
   );
 };
 
-export default AddVariableForm;
+export default VariableForm;

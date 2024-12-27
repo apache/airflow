@@ -57,7 +57,7 @@ const columns: Array<ColumnDef<VariableResponse>> = [
     accessorKey: "actions",
     cell: ({ row: { original } }) => (
       <Flex justifyContent="end">
-        <EditVariableButton editKey={original.key} />
+        <EditVariableButton variable={original} />
         <DeleteVariableButton deleteKey={original.key} />
       </Flex>
     ),

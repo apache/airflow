@@ -16,29 +16,47 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
+import { Box, Heading, useDisclosure } from "@chakra-ui/react";
 import { FiEdit } from "react-icons/fi";
+import { Dialog } from "src/components/ui";
 
 import ActionButton from "src/components/ui/ActionButton";
+import VariableForm from "./VariableForm";
+import type { VariableResponse } from "openapi/requests/types.gen";
 
 type Props = {
-  readonly editKey: string;
+  readonly variable: VariableResponse;
 };
 
-const EditVariableButton = ({ editKey }: Props) => (
+const EditVariableButton = ({ variable: initialVariable }: Props) => {
+  const { onClose, onOpen, open } = useDisclosure();
+  
+  return(
   <Box>
     <ActionButton
       actionName="Edit Variable"
       icon={<FiEdit />}
-      onClick={() =>
-        // TODO: Will be removed once implemented
-        // eslint-disable-next-line no-alert
-        alert(`To be implemented: Selected key is ${editKey}`)
-      }
+      onClick={() => {
+        onOpen();
+      }}
       text="Edit Variable"
       withText={false}
     />
+    <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+        <Dialog.Content backdrop>
+          <Dialog.Header>
+            <Heading size="xl">Edit Variable</Heading>
+          </Dialog.Header>
+
+          <Dialog.CloseTrigger />
+
+          <Dialog.Body>
+            <VariableForm onClose={onClose} />
+          </Dialog.Body>
+        </Dialog.Content>
+      </Dialog.Root>
   </Box>
 );
+};
 
 export default EditVariableButton;

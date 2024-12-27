@@ -16,3 +16,31 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+import { Heading, useDisclosure } from "@chakra-ui/react";
+
+import { Dialog } from "src/components/ui";
+
+import VariableForm from "./VariableForm";
+
+const EditVariableDialog = () => {
+  const { onClose, onOpen, open } = useDisclosure();
+
+  return (
+      <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+        <Dialog.Content backdrop>
+          <Dialog.Header>
+            <Heading size="xl">Edit Variable</Heading>
+          </Dialog.Header>
+
+          <Dialog.CloseTrigger />
+
+          <Dialog.Body>
+            <VariableForm onClose={onClose} />
+          </Dialog.Body>
+        </Dialog.Content>
+      </Dialog.Root>
+  );
+};
+
+export default EditVariableDialog;

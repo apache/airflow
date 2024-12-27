@@ -21,9 +21,9 @@ import { FiPlusCircle } from "react-icons/fi";
 
 import { Button, Dialog, Toaster } from "src/components/ui";
 
-import AddVariableForm from "./VariableForm";
+import VariableForm from "./VariableForm";
 
-const AddVariableModal: React.FC = () => {
+const AddVariableDialog = () => {
   const { onClose, onOpen, open } = useDisclosure();
 
   return (
@@ -41,7 +41,7 @@ const AddVariableModal: React.FC = () => {
           <Dialog.CloseTrigger />
 
           <Dialog.Body>
-            <AddVariableForm onClose={onClose} />
+            <VariableForm onClose={onClose} />
           </Dialog.Body>
         </Dialog.Content>
       </Dialog.Root>
@@ -49,4 +49,4 @@ const AddVariableModal: React.FC = () => {
   );
 };
 
-export default AddVariableModal;
+export default AddVariableDialog;
