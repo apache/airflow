@@ -31,11 +31,11 @@ from typing import TYPE_CHECKING, Any, Callable
 
 import asyncssh
 from asgiref.sync import sync_to_async
+from paramiko.sftp_attr import SFTPAttributes
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
-from paramiko.sftp_attr import SFTPAttributes
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
