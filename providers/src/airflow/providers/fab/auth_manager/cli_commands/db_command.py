@@ -17,20 +17,10 @@
 from __future__ import annotations
 
 from airflow import settings
+from airflow.cli.commands.local_commands.db_command import run_db_downgrade_command, run_db_migrate_command
 from airflow.providers.fab.auth_manager.models.db import _REVISION_HEADS_MAP, FABDBManager
-from airflow.providers.fab.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import cli as cli_utils
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
-
-
-def get_db_command():
-    """Import the correct db_command module based on the Airflow version."""
-    if AIRFLOW_V_3_0_PLUS:
-        import airflow.cli.commands.local_commands.db_command as db_command
-    else:
-        import airflow.cli.commands.db_command as db_command
-
-    return db_command
 
 
 @providers_configuration_loaded
@@ -48,7 +38,7 @@ def migratedb(args):
     """Migrates the metadata database."""
     session = settings.Session()
     upgrade_command = FABDBManager(session).upgradedb
-    get_db_command().run_db_migrate_command(
+    run_db_migrate_command(
         args, upgrade_command, revision_heads_map=_REVISION_HEADS_MAP, reserialize_dags=False
     )
 
@@ -59,4 +49,4 @@ def downgrade(args):
     """Downgrades the metadata database."""
     session = settings.Session()
     dwongrade_command = FABDBManager(session).downgrade
-    get_db_command().run_db_downgrade_command(args, dwongrade_command, revision_heads_map=_REVISION_HEADS_MAP)
+    run_db_downgrade_command(args, dwongrade_command, revision_heads_map=_REVISION_HEADS_MAP)
