@@ -40,7 +40,7 @@ from airflow.dag_processing.collection import (
 )
 from airflow.exceptions import SerializationError
 from airflow.listeners.listener import get_listener_manager
-from airflow.models import DagModel, Trigger
+from airflow.models import DagModel, DagRun, Trigger
 from airflow.models.asset import (
     AssetActive,
     asset_trigger_association_table,
@@ -449,6 +449,27 @@ class TestUpdateDagParsingResults:
                 {"owners": ["airflow"]},
                 id="default-owner",
             ),
+            pytest.param(
+                {
+                    "_tasks_": [
+                        EmptyOperator(task_id="task", owner="owner1"),
+                        EmptyOperator(task_id="task2", owner="owner2"),
+                        EmptyOperator(task_id="task3"),
+                        EmptyOperator(task_id="task4", owner="owner2"),
+                    ],
+                    "schedule": "0 0 * * *",
+                    "catchup": False,
+                },
+                {
+                    "default_view": conf.get("webserver", "dag_default_view").lower(),
+                    "owners": ["owner1", "owner2"],
+                    "next_dagrun": tz.datetime(2020, 1, 5, 0, 0, 0),
+                    "next_dagrun_data_interval_start": tz.datetime(2020, 1, 5, 0, 0, 0),
+                    "next_dagrun_data_interval_end": tz.datetime(2020, 1, 6, 0, 0, 0),
+                    "next_dagrun_create_after": tz.datetime(2020, 1, 6, 0, 0, 0),
+                },
+                id="with-scheduled-dagruns",
+            ),
         ],
     )
     @pytest.mark.usefixtures("clean_db")
@@ -461,6 +482,16 @@ class TestUpdateDagParsingResults:
         dag = DAG("dag", **attrs)
         if tasks:
             dag.add_tasks(tasks)
+
+        if attrs.pop("schedule", None):
+            dr_kwargs = {
+                "dag_id": "dag",
+                "run_type": "scheduled",
+                "data_interval": (dt, dt + timedelta(minutes=5)),
+            }
+            dr1 = DagRun(logical_date=dt, run_id="test_run_id_1", **dr_kwargs, start_date=dt)
+            session.add(dr1)
+            session.commit()
 
         update_dag_parsing_results_in_db([self.dag_to_lazy_serdag(dag)], {}, set(), session)
 
