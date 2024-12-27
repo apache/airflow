@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
 from git import Repo
 from git.exc import BadName
@@ -141,10 +142,13 @@ class GitDagBundle(BaseDagBundle):
         url = self.repo_url
         if url.startswith("git@"):
             url = self._convert_git_ssh_url_to_https()
-        if url.startswith("https://github.com"):
+        host = urlparse(url).hostname
+        if not host:
+            return None
+        if host.endswith("github.com"):
             return f"{url}/tree/{version}"
-        if url.startswith("https://gitlab.com"):
+        if host.endswith("gitlab.com"):
             return f"{url}/-/tree/{version}"
-        if url.startswith("https://bitbucket.org"):
+        if host.endswith("bitbucket.org"):
             return f"{url}/src/{version}"
         return None
