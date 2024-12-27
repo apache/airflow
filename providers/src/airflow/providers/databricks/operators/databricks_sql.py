@@ -278,7 +278,7 @@ class DatabricksCopyIntoOperator(BaseOperator):
         self._result: list[Any] = []
 
     def _get_hook(self) -> DatabricksSqlHook:
-        """Returns a DatabricksSqlHook properly configured for this operator."""
+        """Get a DatabricksSqlHook properly configured for this operator."""
         return DatabricksSqlHook(
             self.databricks_conn_id,
             http_path=self._http_path,
@@ -299,7 +299,8 @@ class DatabricksCopyIntoOperator(BaseOperator):
         escape_key: bool = True,
     ) -> str:
         """
-        Generates the bracketed options clause for the COPY INTO command.
+        Generate the bracketed options clause for the COPY INTO command.
+
         Example: FORMAT_OPTIONS (header = 'true', inferSchema = 'true').
         """
         formatted_opts = ""
@@ -313,9 +314,7 @@ class DatabricksCopyIntoOperator(BaseOperator):
         return formatted_opts
 
     def _create_sql_query(self) -> str:
-        """
-        Constructs the COPY INTO statement from the provided options.
-        """
+        """Create the COPY INTO statement from the provided options."""
         escaper = ParamEscaper()
         maybe_with = ""
         if self._encryption is not None or self._credential is not None:
@@ -361,26 +360,30 @@ FILEFORMAT = {self._file_format}
         return sql.strip()
 
     def execute(self, context: Context) -> Any:
-        """Executes the COPY INTO command and stores the result for lineage reporting."""
+        """Execute the COPY INTO command and store the result for lineage reporting."""
         self._sql = self._create_sql_query()
         self.log.info("Executing SQL: %s", self._sql)
 
         hook = self._get_hook()
-        # Run the query and store the result
-        self._result = hook.run(self._sql, handler=lambda cur: cur.fetchall())
+        result = hook.run(self._sql, handler=lambda cur: cur.fetchall())
+        # Convert to list, handling the case where result might be None
+        self._result = list(result) if result is not None else []
 
     def on_kill(self) -> None:
         # NB: on_kill isn't required for this operator since query cancelling gets
         # handled in `DatabricksSqlHook.run()` method which is called in `execute()`
         ...
 
-
     def get_openlineage_facets_on_complete(self, task_instance):
         """
         Compute OpenLineage facets for the COPY INTO command.
+
         Attempts to parse input files (from S3, GCS, Azure Blob, etc.) and build an
         input dataset list and an output dataset (the Delta table).
         """
+        import re
+        from urllib.parse import urlparse
+
         from airflow.providers.common.compat.openlineage.facet import (
             Dataset,
             Error,
@@ -390,8 +393,6 @@ FILEFORMAT = {self._file_format}
         )
         from airflow.providers.openlineage.extractors import OperatorLineage
         from airflow.providers.openlineage.sqlparser import SQLParser
-        from urllib.parse import urlparse
-        import re
 
         if not self._sql:
             self.log.warning("No SQL query found, returning empty OperatorLineage.")
@@ -407,9 +408,9 @@ FILEFORMAT = {self._file_format}
             try:
                 parsed_uri = urlparse(self.file_location)
                 # Only process known schemes
-                if parsed_uri.scheme not in ('s3', 's3a', 's3n', 'gs', 'azure', 'abfss', 'wasbs'):
+                if parsed_uri.scheme not in ("s3", "s3a", "s3n", "gs", "azure", "abfss", "wasbs"):
                     raise ValueError(f"Unsupported scheme: {parsed_uri.scheme}")
-                
+
                 # Keep original scheme for s3/s3a/s3n
                 scheme = parsed_uri.scheme
                 namespace = f"{scheme}://{parsed_uri.netloc}"
@@ -477,7 +478,12 @@ FILEFORMAT = {self._file_format}
             except Exception as e:
                 self.log.error("Failed to construct output dataset: %s", str(e))
                 extraction_errors.append(
-                    Error(errorMessage=str(e), stackTrace=None, task="output_dataset_construction", taskNumber=None)
+                    Error(
+                        errorMessage=str(e),
+                        stackTrace=None,
+                        task="output_dataset_construction",
+                        taskNumber=None,
+                    )
                 )
 
         # Add external query facet if we have run results
@@ -499,6 +505,8 @@ FILEFORMAT = {self._file_format}
         query_result: list[dict[str, Any]],
     ) -> tuple[list[tuple[str, str]], list[str]]:
         """
+        Extract unique (namespace, name) pairs from query results.
+
         Extract unique (namespace, name) pairs from a query result that includes a
         'file' field in each row. This method is used internally for extended lineage
         if needed (for example, if multiple distinct files lead to a single table).

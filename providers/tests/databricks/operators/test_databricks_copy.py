@@ -17,16 +17,17 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
 from unittest import mock
 
+import pytest
+
 from airflow.exceptions import AirflowException
-from airflow.providers.databricks.operators.databricks_sql import DatabricksCopyIntoOperator
 from airflow.providers.common.compat.openlineage.facet import (
     Dataset,
     ExternalQueryRunFacet,
     SQLJobFacet,
 )
+from airflow.providers.databricks.operators.databricks_sql import DatabricksCopyIntoOperator
 from airflow.providers.openlineage.extractors import OperatorLineage
 
 DATE = "2017-04-20"
@@ -292,11 +293,7 @@ def test_extract_openlineage_unique_dataset_paths():
     ]
 
     # Invalid URIs should be captured in errors
-    assert errors == [
-        "azure://account.invalid.net/container/file.csv",
-        "invalid://uri",
-        "s3://bucket"
-    ]
+    assert errors == ["azure://account.invalid.net/container/file.csv", "invalid://uri", "s3://bucket"]
 
 
 @mock.patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook")
@@ -323,10 +320,11 @@ def test_get_openlineage_facets_on_complete_s3(mock_hook):
         inputs=[Dataset(namespace="s3://bucket", name="dir1")],
         outputs=[Dataset(namespace="databricks://databricks.com", name="schema.table")],
         job_facets={"sql": SQLJobFacet(query="COPY INTO schema.table FROM 's3://bucket/dir1'")},
-        run_facets={"externalQuery": ExternalQueryRunFacet(
-            externalQueryId=str(id(op._result)),
-            source="databricks://databricks.com"
-        )}
+        run_facets={
+            "externalQuery": ExternalQueryRunFacet(
+                externalQueryId=str(id(op._result)), source="databricks://databricks.com"
+            )
+        },
     )
 
 
