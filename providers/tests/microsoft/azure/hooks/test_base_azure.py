@@ -16,7 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import Mock, patch
+import os
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
@@ -24,6 +25,10 @@ from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
 
 pytestmark = pytest.mark.db_test
+
+if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
+    # Handle collection of the test by non-db case
+    Connection = MagicMock()  # type: ignore[misc]
 
 MODULE = "airflow.providers.microsoft.azure.hooks.base_azure"
 
