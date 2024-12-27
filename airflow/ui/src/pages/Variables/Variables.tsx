@@ -58,7 +58,7 @@ const columns: Array<ColumnDef<VariableResponse>> = [
     cell: ({ row: { original } }) => (
       <Flex justifyContent="end">
         <EditVariableButton editKey={original.key} />
-        <DeleteVariableButton deleteKey={original.key} />
+        <DeleteVariableButton variableKey={original.key} />
       </Flex>
     ),
     enableSorting: false,

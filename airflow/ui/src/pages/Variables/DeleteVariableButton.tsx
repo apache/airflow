@@ -16,29 +16,45 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
+import { Box, useDisclosure } from "@chakra-ui/react";
 import { FiTrash } from "react-icons/fi";
 
 import ActionButton from "src/components/ui/ActionButton";
+import { useDeleteVariable } from "src/queries/useDeleteVariable";
+
+import DeleteVariableDialog from "./DeleteVariableDialog";
 
 type Props = {
-  readonly deleteKey: string;
+  readonly variableKey: string;
 };
 
-const DeleteVariableButton = ({ deleteKey }: Props) => (
-  <Box>
-    <ActionButton
-      actionName="Delete Variable"
-      icon={<FiTrash />}
-      onClick={() =>
-        // TODO: Will be removed once implemented
-        // eslint-disable-next-line no-alert
-        alert(`To be implemented: Selected key is ${deleteKey}`)
-      }
-      text="Delete Variable"
-      withText={false}
-    />
-  </Box>
-);
+const DeleteVariableButton = ({ variableKey }: Props) => {
+  const { onClose, onOpen, open } = useDisclosure();
+  const { isPending, mutate } = useDeleteVariable({
+    onSuccessConfirm: onClose,
+  });
+
+  return (
+    <Box>
+      <ActionButton
+        actionName="Delete Variable"
+        icon={<FiTrash />}
+        onClick={() => {
+          onOpen();
+        }}
+        text="Delete Variable"
+        withText={false}
+      />
+
+      <DeleteVariableDialog
+        isPending={isPending}
+        mutate={mutate}
+        onClose={onClose}
+        open={open}
+        variableKey={variableKey}
+      />
+    </Box>
+  );
+};
 
 export default DeleteVariableButton;
