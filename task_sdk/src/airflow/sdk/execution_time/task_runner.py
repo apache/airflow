@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import os
 import sys
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from datetime import datetime, timezone
 from io import FileIO
 from typing import TYPE_CHECKING, Annotated, Any, Generic, TextIO, TypeVar
@@ -195,9 +195,12 @@ class RuntimeTaskInstance(TaskInstance):
         if TYPE_CHECKING:
             assert isinstance(msg, XComResult)
 
-        value = msg.value
-        if value is not None:
-            return value
+        if msg.value is not None:
+            from airflow.models.xcom import XCom
+
+            # TODO: Move XCom serialization & deserialization to Task SDK
+            #   https://github.com/apache/airflow/issues/45231
+            return XCom.deserialize_value(msg)  # type: ignore[arg-type]
         return default
 
     def xcom_push(self, key: str, value: Any):
@@ -207,6 +210,12 @@ class RuntimeTaskInstance(TaskInstance):
         :param key: Key to store the value under.
         :param value: Value to store. Only be JSON-serializable may be used otherwise.
         """
+        from airflow.models.xcom import XCom
+
+        # TODO: Move XCom serialization & deserialization to Task SDK
+        #   https://github.com/apache/airflow/issues/45231
+        value = XCom.serialize_value(value)
+
         log = structlog.get_logger(logger_name="task")
         SUPERVISOR_COMMS.send_request(
             log=log,
@@ -381,7 +390,9 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         #   - Update RTIF
         #   - Pre Execute
         #   etc
-        ti.task.execute(context)  # type: ignore[attr-defined]
+        result = ti.task.execute(context)  # type: ignore[attr-defined]
+        _push_xcom_if_needed(result, ti)
+
         msg = TaskState(state=TerminalTIState.SUCCESS, end_date=datetime.now(tz=timezone.utc))
     except TaskDeferred as defer:
         classpath, trigger_kwargs = defer.trigger.serialize()
@@ -434,6 +445,36 @@ def run(ti: RuntimeTaskInstance, log: Logger):
 
     if msg:
         SUPERVISOR_COMMS.send_request(msg=msg, log=log)
+
+
+def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance):
+    """Push XCom values when task has ``do_xcom_push`` set to ``True`` and the task returns a result."""
+    if ti.task.do_xcom_push:
+        xcom_value = result
+    else:
+        xcom_value = None
+
+    # If the task returns a result, push an XCom containing it.
+    if xcom_value is None:
+        return
+
+    # If the task has multiple outputs, push each output as a separate XCom.
+    if ti.task.multiple_outputs:
+        if not isinstance(xcom_value, Mapping):
+            raise TypeError(
+                f"Returned output was type {type(xcom_value)} expected dictionary for multiple_outputs"
+            )
+        for key in xcom_value.keys():
+            if not isinstance(key, str):
+                raise TypeError(
+                    "Returned dictionary keys must be strings when using "
+                    f"multiple_outputs, found {key} ({type(key)}) instead"
+                )
+        for k, v in result.items():
+            ti.xcom_push(k, v)
+
+    # TODO: Use constant for XCom return key & use serialize_value from Task SDK
+    ti.xcom_push("return_value", result)
 
 
 def finalize(log: Logger): ...
