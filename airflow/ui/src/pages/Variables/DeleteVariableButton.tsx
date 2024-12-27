@@ -16,13 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, useDisclosure } from "@chakra-ui/react";
+import { Flex, useDisclosure, Text, VStack, Heading } from "@chakra-ui/react";
 import { FiTrash } from "react-icons/fi";
 
+import { Button, Dialog } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
 import { useDeleteVariable } from "src/queries/useDeleteVariable";
-
-import DeleteVariableDialog from "./DeleteVariableDialog";
 
 type Props = {
   readonly deleteKey: string;
@@ -34,8 +33,22 @@ const DeleteVariableButton = ({ deleteKey: variableKey }: Props) => {
     onSuccessConfirm: onClose,
   });
 
+  const renderDeleteButton = () => (
+    <Button
+      colorPalette="red"
+      loading={isPending}
+      onClick={() => {
+        mutate({
+          variableKey,
+        });
+      }}
+    >
+      <FiTrash /> Delete
+    </Button>
+  );
+
   return (
-    <Box>
+    <>
       <ActionButton
         actionName="Delete Variable"
         icon={<FiTrash />}
@@ -46,14 +59,27 @@ const DeleteVariableButton = ({ deleteKey: variableKey }: Props) => {
         withText={false}
       />
 
-      <DeleteVariableDialog
-        isPending={isPending}
-        mutate={mutate}
-        onClose={onClose}
-        open={open}
-        variableKey={variableKey}
-      />
-    </Box>
+      <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+        <Dialog.Content backdrop>
+          <Dialog.Header>
+            <VStack align="start" gap={4}>
+              <Heading size="xl">Delete Variable - {variableKey} </Heading>
+            </VStack>
+          </Dialog.Header>
+
+          <Dialog.CloseTrigger />
+
+          <Dialog.Body width="full">
+            <Text>
+              Are you sure you want to delete the variable key: `{variableKey}`?
+            </Text>
+            <Flex justifyContent="end" mt={3}>
+              {renderDeleteButton()}
+            </Flex>
+          </Dialog.Body>
+        </Dialog.Content>
+      </Dialog.Root>
+    </>
   );
 };
 
