@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import aiohttp
 import contextlib
 import functools
 import json
@@ -540,7 +541,8 @@ class TestHttpAsyncHook:
             "os.environ",
             AIRFLOW_CONN_HTTP_DEFAULT="http://httpbin.org/",
         ):
-            await hook.run(endpoint="non_existent_endpoint")
+            async with aiohttp.ClientSession() as session:
+                await hook.run(session=session, endpoint="non_existent_endpoint")
 
     @pytest.mark.asyncio
     async def test_do_api_call_async_retryable_error(self, caplog, aioresponse):
@@ -553,7 +555,8 @@ class TestHttpAsyncHook:
             "os.environ",
             AIRFLOW_CONN_HTTP_DEFAULT="http://httpbin.org/",
         ):
-            await hook.run(endpoint="non_existent_endpoint")
+            async with aiohttp.ClientSession() as session:
+                await hook.run(session=session, endpoint="non_existent_endpoint")
 
         assert "[Try 3 of 3] Request to http://httpbin.org/non_existent_endpoint failed" in caplog.text
 
@@ -565,7 +568,8 @@ class TestHttpAsyncHook:
         json = {"existing_cluster_id": "xxxx-xxxxxx-xxxxxx"}
 
         with pytest.raises(AirflowException, match="Unexpected HTTP Method: NOPE"):
-            await hook.run(endpoint="non_existent_endpoint", data=json)
+            async with aiohttp.ClientSession() as session:
+                await hook.run(session=session, endpoint="non_existent_endpoint", data=json)
 
     @pytest.mark.asyncio
     async def test_async_post_request(self, aioresponse):
