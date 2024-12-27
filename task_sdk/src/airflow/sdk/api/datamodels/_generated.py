@@ -126,9 +126,12 @@ class TerminalTIState(str, Enum):
     """
 
     SUCCESS = "success"
-    FAILED = "failed"
+    FAILED = "failed"  # This state indicates that we attempt to retry.
     SKIPPED = "skipped"
     REMOVED = "removed"
+    FAIL_WITHOUT_RETRY = (
+        "fail_without_retry"  # This state is useful for when we want to terminate a task, without retrying.
+    )
 
 
 class ValidationError(BaseModel):
@@ -217,4 +220,3 @@ class TITerminalStatePayload(BaseModel):
 
     state: TerminalTIState
     end_date: Annotated[datetime, Field(title="End Date")]
-    should_retry: Annotated[bool | None, Field(title="Should Retry")] = False

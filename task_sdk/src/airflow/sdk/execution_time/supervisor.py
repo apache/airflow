@@ -62,7 +62,6 @@ from airflow.sdk.api.datamodels._generated import (
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeferTask,
-    FailState,
     GetConnection,
     GetVariable,
     GetXCom,
@@ -294,9 +293,6 @@ class WatchedSubprocess:
     _exit_code: int | None = attrs.field(default=None, init=False)
     _terminal_state: str | None = attrs.field(default=None, init=False)
     _final_state: str | None = attrs.field(default=None, init=False)
-    # denotes if a request to `fail` has been sent from the _handle_requests or not, or it will be handled in wait()
-    # useful to synchronise the API requests for `fail` between handle_requests and wait
-    _fail_request_sent: bool = attrs.field(default=False, init=False)
 
     _last_successful_heartbeat: float = attrs.field(default=0, init=False)
     _last_heartbeat_attempt: float = attrs.field(default=0, init=False)
@@ -525,7 +521,7 @@ class WatchedSubprocess:
         # to reflect the final state of the process.
         # For states like `deferred`, the process will exit with 0, but the state will be updated
         # by the subprocess in the `handle_requests` method.
-        if (not self._fail_request_sent) and self.final_state in TerminalTIState:
+        if self.final_state in TerminalTIState:
             self.client.task_instances.finish(
                 id=self.id, state=self.final_state, when=datetime.now(tz=timezone.utc)
             )
@@ -714,14 +710,7 @@ class WatchedSubprocess:
     def _handle_request(self, msg: ToSupervisor, log: FilteringBoundLogger):
         log.debug("Received message from task runner", msg=msg)
         resp = None
-        if isinstance(msg, FailState):
-            self._terminal_state = TerminalTIState.FAILED
-            self._task_end_time_monotonic = time.monotonic()
-            self._fail_request_sent = True
-            log.debug("IN SIDE FAILSTATE.")
-            self.client.task_instances.fail(self.id, datetime.now(tz=timezone.utc), msg.should_retry)
-        elif isinstance(msg, TaskState):
-            log.debug("IN SIDE TaskState.")
+        if isinstance(msg, TaskState):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
         elif isinstance(msg, GetConnection):

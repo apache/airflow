@@ -34,7 +34,6 @@ from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState,
 from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.execution_time.comms import (
     DeferTask,
-    FailState,
     GetXCom,
     RescheduleTask,
     SetRenderedFields,
@@ -409,10 +408,9 @@ def run(ti: RuntimeTaskInstance, log: Logger):
 
         # TODO: Handle fail_stop here: https://github.com/apache/airflow/issues/44951
         # TODO: Handle addition to Log table: https://github.com/apache/airflow/issues/44952
-        msg = FailState(
-            state=TerminalTIState.FAILED,
+        msg = TaskState(
+            state=TerminalTIState.FAIL_WITHOUT_RETRY,
             end_date=datetime.now(tz=timezone.utc),
-            should_retry=False,
         )
 
         # TODO: Run task failure callbacks here
@@ -423,16 +421,16 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         # External state updates are already handled with `ti_heartbeat` and will be
         # updated already be another UI API. So, these exceptions should ideally never be thrown.
         # If these are thrown, we should mark the TI state as failed.
-        msg = FailState(
-            state=TerminalTIState.FAILED,
+        msg = TaskState(
+            state=TerminalTIState.FAIL_WITHOUT_RETRY,
             end_date=datetime.now(tz=timezone.utc),
-            should_retry=False,
         )
         # TODO: Run task failure callbacks here
     except SystemExit:
         ...
     except BaseException:
-        msg = FailState(should_retry=True, end_date=datetime.now(tz=timezone.utc))
+        # TODO: Run task failure callbacks here
+        msg = TaskState(state=TerminalTIState.FAILED, end_date=datetime.now(tz=timezone.utc))
     if msg:
         SUPERVISOR_COMMS.send_request(msg=msg, log=log)
 

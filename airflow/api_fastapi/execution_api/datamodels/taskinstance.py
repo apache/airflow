@@ -59,9 +59,6 @@ class TITerminalStatePayload(BaseModel):
     end_date: UtcDateTime
     """When the task completed executing"""
 
-    """Indicates if the task should retry before failing or not."""
-    should_retry: bool = False
-
 
 class TITargetStatePayload(BaseModel):
     """Schema for updating TaskInstance to a target state, excluding terminal and running states."""

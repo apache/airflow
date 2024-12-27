@@ -44,7 +44,7 @@ from airflow.models.taskinstance import TaskInstance as TI, _update_rtif
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.utils import timezone
-from airflow.utils.state import State
+from airflow.utils.state import State, TerminalTIState
 
 # TODO: Add dependency on JWT token
 router = AirflowRouter()
@@ -185,9 +185,13 @@ def ti_update_state(
     # We only use UUID above for validation purposes
     ti_id_str = str(task_instance_id)
 
-    old = select(TI.state).where(TI.id == ti_id_str).with_for_update()
+    old = select(TI.state, TI.try_number, TI.max_tries).where(TI.id == ti_id_str).with_for_update()
     try:
-        (previous_state,) = session.execute(old).one()
+        (
+            previous_state,
+            try_number,
+            max_tries,
+        ) = session.execute(old).one()
     except NoResultFound:
         log.error("Task Instance %s not found", ti_id_str)
         raise HTTPException(
@@ -199,22 +203,23 @@ def ti_update_state(
         )
 
     # We exclude_unset to avoid updating fields that are not set in the payload
-    # We do not need to deserialize "should_retry" -- it is used for dynamic decision-making within failed state
-    data = ti_patch_payload.model_dump(exclude_unset=True, exclude={"should_retry"})
+    data = ti_patch_payload.model_dump(exclude_unset=True)
 
     query = update(TI).where(TI.id == ti_id_str).values(data)
 
     if isinstance(ti_patch_payload, TITerminalStatePayload):
         query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
-        query = query.values(state=ti_patch_payload.state)
         updated_state = ti_patch_payload.state
-        if ti_patch_payload.state == State.FAILED:
-            # clear the next_method and next_kwargs
-            query = query.values(next_method=None, next_kwargs=None)
-            task_instance = session.get(TI, ti_id_str)
-            if _is_eligible_to_retry(task_instance, ti_patch_payload.should_retry):
-                query = query.values(state=State.UP_FOR_RETRY)
+        # if we get failed, we should attempt to retry, as it is a more
+        # normal state. Tasks with retries are more frequent than without retries.
+        if ti_patch_payload.state == TerminalTIState.FAIL_WITHOUT_RETRY:
+            updated_state = State.FAILED
+        elif ti_patch_payload.state == State.FAILED:
+            if _is_eligible_to_retry(previous_state, try_number, max_tries):
                 updated_state = State.UP_FOR_RETRY
+            else:
+                updated_state = State.FAILED
+        query = query.values(state=updated_state)
     elif isinstance(ti_patch_payload, TIDeferredStatePayload):
         # Calculate timeout if it was passed
         timeout = None
@@ -366,22 +371,13 @@ def ti_put_rtif(
     return {"message": "Rendered task instance fields successfully set"}
 
 
-def _is_eligible_to_retry(task_instance: TI, should_retry: bool) -> bool:
-    """
-    Is task instance is eligible for retry.
-
-    :param task_instance: the task instance
-
-    :meta private:
-    """
-    if not should_retry:
-        return False
-
-    if task_instance.state == State.RESTARTING:
+def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:
+    """Is task instance is eligible for retry."""
+    if state == State.RESTARTING:
         # If a task is cleared when running, it goes into RESTARTING state and is always
         # eligible for retry
         return True
 
     # max_tries is initialised with the retries defined at task level, we do not need to explicitly ask for
     # retries from the task SDK now, we can handle using max_tries
-    return task_instance.max_tries and task_instance.try_number <= task_instance.max_tries
+    return max_tries != 0 and try_number <= max_tries

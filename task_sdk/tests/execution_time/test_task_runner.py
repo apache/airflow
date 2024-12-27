@@ -37,7 +37,6 @@ from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeferTask,
-    FailState,
     GetConnection,
     SetRenderedFields,
     StartupDetails,
@@ -257,20 +256,14 @@ def test_run_basic_skipped(time_machine, mocked_parse, make_ti_context):
         )
 
 
-@pytest.mark.parametrize(
-    "retries",
-    [None, 0, 3],
-)
-def test_run_raises_base_exception(time_machine, mocked_parse, make_ti_context, retries):
-    """Test running a basic task that raises a base exception."""
+def test_run_raises_base_exception(time_machine, mocked_parse, make_ti_context):
+    """Test running a basic task that raises a base exception which should send fail_with_retry state."""
     from airflow.providers.standard.operators.python import PythonOperator
 
     task = PythonOperator(
         task_id="zero_division_error",
         python_callable=lambda: 1 / 0,
     )
-    if retries is not None:
-        task.retries = retries
 
     what = StartupDetails(
         ti=TaskInstance(
@@ -296,8 +289,7 @@ def test_run_raises_base_exception(time_machine, mocked_parse, make_ti_context, 
         run(ti, log=mock.MagicMock())
 
         mock_supervisor_comms.send_request.assert_called_once_with(
-            msg=FailState(
-                should_retry=True,
+            msg=TaskState(
                 state=TerminalTIState.FAILED,
                 end_date=instant,
             ),
@@ -469,7 +461,7 @@ def test_run_basic_failed_without_retries(
         run(ti, log=mock.MagicMock())
 
         mock_supervisor_comms.send_request.assert_called_once_with(
-            msg=FailState(state=TerminalTIState.FAILED, end_date=instant, should_retry=False), log=mock.ANY
+            msg=TaskState(state=TerminalTIState.FAIL_WITHOUT_RETRY, end_date=instant), log=mock.ANY
         )
 
 

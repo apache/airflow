@@ -130,11 +130,6 @@ class TaskInstanceOperations:
         body = TITerminalStatePayload(end_date=when, state=TerminalTIState(state))
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
-    def fail(self, id: uuid.UUID, when: datetime, should_retry: bool):
-        """Tell the API server that this TI has to fail, with or without retries."""
-        body = TITerminalStatePayload(end_date=when, state=TerminalTIState.FAILED, should_retry=should_retry)
-        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
-
     def heartbeat(self, id: uuid.UUID, pid: int):
         body = TIHeartbeatInfo(pid=pid, hostname=get_hostname())
         self.client.put(f"task-instances/{id}/heartbeat", content=body.model_dump_json())

@@ -41,7 +41,6 @@ from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeferTask,
-    FailState,
     GetConnection,
     GetVariable,
     GetXCom,
@@ -885,18 +884,17 @@ class TestHandleRequest:
                 "",
                 id="patch_task_instance_to_skipped",
             ),
-            # testing to see if supervisor can handle FailState message
+            # testing to see if supervisor can handle TaskState message with state as fail_with_retry
             pytest.param(
-                FailState(
-                    state=TerminalTIState.FAILED,
+                TaskState(
+                    state=TerminalTIState.FAIL_WITHOUT_RETRY,
                     end_date=timezone.parse("2024-10-31T12:00:00Z"),
-                    should_retry=False,
                 ),
                 b"",
-                "task_instances.fail",
-                (TI_ID, timezone.parse("2024-11-7T12:00:00Z"), False),
                 "",
-                id="patch_task_instance_to_failed",
+                (),
+                "",
+                id="patch_task_instance_to_failed_with_retries",
             ),
             pytest.param(
                 SetRenderedFields(rendered_fields={"field1": "rendered_value1", "field2": "rendered_value2"}),
