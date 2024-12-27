@@ -32,7 +32,7 @@ import {
   type SearchParamsKeysType,
 } from "src/constants/searchParams";
 
-import AddVariableModal from "./ManageVariable/AddVariableButton";
+import AddVariableButton from "./ManageVariable/AddVariableButton";
 import DeleteVariableButton from "./ManageVariable/DeleteVariableButton";
 import EditVariableButton from "./ManageVariable/EditVariableButton";
 
@@ -115,7 +115,7 @@ export const Variables = () => {
           placeHolder="Search Keys"
         />
         <HStack mt={4}>
-          <AddVariableModal />
+          <AddVariableButton />
         </HStack>
       </VStack>
       <Box>
