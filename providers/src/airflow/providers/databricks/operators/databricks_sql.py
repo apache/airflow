@@ -381,9 +381,6 @@ FILEFORMAT = {self._file_format}
         Attempts to parse input files (from S3, GCS, Azure Blob, etc.) and build an
         input dataset list and an output dataset (the Delta table).
         """
-        import re
-        from urllib.parse import urlparse
-
         from airflow.providers.common.compat.openlineage.facet import (
             Dataset,
             Error,
@@ -393,8 +390,8 @@ FILEFORMAT = {self._file_format}
         )
         from airflow.providers.openlineage.extractors import OperatorLineage
         from airflow.providers.openlineage.sqlparser import SQLParser
-
-        self.log.info("Starting OpenLineage facets extraction...")
+        from urllib.parse import urlparse
+        import re
 
         if not self._sql:
             self.log.warning("No SQL query found, returning empty OperatorLineage.")
@@ -402,85 +399,97 @@ FILEFORMAT = {self._file_format}
 
         input_datasets = []
         extraction_errors = []
+        job_facets = {}
+        run_facets = {}
 
         # Parse file_location to build the input dataset (if possible).
-        try:
-            parsed_uri = urlparse(self.file_location)
-            namespace = f"{parsed_uri.scheme}://{parsed_uri.netloc}"
-            path = parsed_uri.path.lstrip("/") or "/"
-            input_datasets.append(Dataset(namespace=namespace, name=path))
-        except Exception as e:
-            self.log.error("Failed to parse file_location: %s, error: %s", self.file_location, str(e))
-            extraction_errors.append(
-                Error(errorMessage=str(e), stackTrace=None, task=self.file_location, taskNumber=None)
-            )
-
-        # Build the output dataset from the table_name
-        output_dataset = None
-        try:
-            table_parts = self.table_name.split(".")
-            if len(table_parts) == 3:  # catalog.schema.table
-                catalog, schema, table = table_parts
-            elif len(table_parts) == 2:  # schema.table
-                catalog = None
-                schema, table = table_parts
-            else:
-                catalog = None
-                schema = None
-                table = self.table_name
-
-            hook = self._get_hook()
-            conn = hook.get_connection(hook.databricks_conn_id)
-            output_namespace = f"databricks://{conn.host}"
-
-            # Combine schema/table with optional catalog for final dataset name
-            fq_name = table
-            if schema:
-                fq_name = f"{schema}.{fq_name}"
-            if catalog:
-                fq_name = f"{catalog}.{fq_name}"
-
-            output_dataset = Dataset(namespace=output_namespace, name=fq_name)
-        except Exception as e:
-            self.log.error("Failed to construct output dataset: %s", str(e))
-            # If we fail to build the output dataset, we still return partial lineage
-            pass
+        if self.file_location:
+            try:
+                parsed_uri = urlparse(self.file_location)
+                # Only process known schemes
+                if parsed_uri.scheme not in ('s3', 's3a', 's3n', 'gs', 'azure', 'abfss', 'wasbs'):
+                    raise ValueError(f"Unsupported scheme: {parsed_uri.scheme}")
+                
+                # Keep original scheme for s3/s3a/s3n
+                scheme = parsed_uri.scheme
+                namespace = f"{scheme}://{parsed_uri.netloc}"
+                path = parsed_uri.path.lstrip("/") or "/"
+                input_datasets.append(Dataset(namespace=namespace, name=path))
+            except Exception as e:
+                self.log.error("Failed to parse file_location: %s, error: %s", self.file_location, str(e))
+                extraction_errors.append(
+                    Error(errorMessage=str(e), stackTrace=None, task=self.file_location, taskNumber=None)
+                )
 
         # Build SQLJobFacet
-        job_facets = {}
         try:
             normalized_sql = SQLParser.normalize_sql(self._sql)
             normalized_sql = re.sub(r"\n+", "\n", re.sub(r" +", " ", normalized_sql))
             job_facets["sql"] = SQLJobFacet(query=normalized_sql)
         except Exception as e:
             self.log.error("Failed creating SQL job facet: %s", str(e))
+            extraction_errors.append(
+                Error(errorMessage=str(e), stackTrace=None, task="sql_facet_creation", taskNumber=None)
+            )
 
-        # Handle any extraction errors
-        run_facets = {}
+        # Add extraction error facet if there are any errors
         if extraction_errors:
             run_facets["extractionError"] = ExtractionErrorRunFacet(
                 totalTasks=1,
                 failedTasks=len(extraction_errors),
                 errors=extraction_errors,
             )
+            # Return only error facets for invalid URIs
+            return OperatorLineage(
+                inputs=[],
+                outputs=[],
+                job_facets=job_facets,
+                run_facets=run_facets,
+            )
+
+        # Only proceed with output dataset if input was valid
+        output_dataset = None
+        if self.table_name:
+            try:
+                table_parts = self.table_name.split(".")
+                if len(table_parts) == 3:  # catalog.schema.table
+                    catalog, schema, table = table_parts
+                elif len(table_parts) == 2:  # schema.table
+                    catalog = None
+                    schema, table = table_parts
+                else:
+                    catalog = None
+                    schema = None
+                    table = self.table_name
+
+                hook = self._get_hook()
+                conn = hook.get_connection(hook.databricks_conn_id)
+                output_namespace = f"databricks://{conn.host}"
+
+                # Combine schema/table with optional catalog for final dataset name
+                fq_name = table
+                if schema:
+                    fq_name = f"{schema}.{fq_name}"
+                if catalog:
+                    fq_name = f"{catalog}.{fq_name}"
+
+                output_dataset = Dataset(namespace=output_namespace, name=fq_name)
+            except Exception as e:
+                self.log.error("Failed to construct output dataset: %s", str(e))
+                extraction_errors.append(
+                    Error(errorMessage=str(e), stackTrace=None, task="output_dataset_construction", taskNumber=None)
+                )
 
         # Add external query facet if we have run results
-        try:
-            if hasattr(self, "_result") and self._result:
-                run_facets["externalQuery"] = ExternalQueryRunFacet(
-                    externalQueryId=str(id(self._result)),
-                    source=output_dataset.namespace if output_dataset else "databricks",
-                )
-        except Exception as e:
-            self.log.error("Failed to create external query facet: %s", str(e))
-
-        if output_dataset is None:
-            # If no output dataset was built, return partial lineage with only the inputs
-            return OperatorLineage(inputs=input_datasets, outputs=[], job_facets=job_facets, run_facets=run_facets)
+        if hasattr(self, "_result") and self._result:
+            run_facets["externalQuery"] = ExternalQueryRunFacet(
+                externalQueryId=str(id(self._result)),
+                source=output_dataset.namespace if output_dataset else "databricks",
+            )
 
         return OperatorLineage(
             inputs=input_datasets,
-            outputs=[output_dataset],
+            outputs=[output_dataset] if output_dataset else [],
             job_facets=job_facets,
             run_facets=run_facets,
         )
@@ -498,8 +507,9 @@ FILEFORMAT = {self._file_format}
         - azure:// (converted to wasbs://)
         - abfss://
         - wasbs://
-        - dbfs://
         - s3://
+        - s3a://
+        - s3n://
         - gs://
         Others will be flagged as extraction errors.
         """
@@ -522,6 +532,11 @@ FILEFORMAT = {self._file_format}
 
             uri = urlparse(file_uri)
             try:
+                # First validate that we have a valid URI with both scheme and netloc
+                if not uri.scheme or not uri.netloc:
+                    extraction_error_files.append(file_uri)
+                    continue
+
                 if uri.scheme == "azure":
                     match = re.fullmatch(azure_regex, file_uri)
                     if not match:
@@ -543,14 +558,18 @@ FILEFORMAT = {self._file_format}
                         continue
                     container_name, account_name, path = match.groups()
                     namespace = f"wasbs://{container_name}@{account_name}"
-                elif uri.scheme == "dbfs":
-                    namespace = "dbfs://"
-                    path = uri.path.lstrip("/")
-                elif uri.scheme in ("s3", "gs"):
-                    namespace = f"{uri.scheme}://{uri.netloc}"
+                elif uri.scheme in ("s3", "s3a", "s3n", "gs"):
+                    # Normalize s3a and s3n to s3
+                    scheme = "s3" if uri.scheme.startswith("s3") else uri.scheme
+                    namespace = f"{scheme}://{uri.netloc}"
                     path = uri.path.lstrip("/")
                 else:
                     # unknown scheme
+                    extraction_error_files.append(file_uri)
+                    continue
+
+                # Validate path
+                if not path and uri.scheme != "gs":  # GCS allows empty paths
                     extraction_error_files.append(file_uri)
                     continue
 
