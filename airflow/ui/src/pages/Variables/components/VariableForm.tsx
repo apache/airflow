@@ -25,17 +25,17 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { Button } from "src/components/ui";
 import { useAddVariable } from "src/queries/useAddVariable";
 
-export type AddVariableBody = {
+export type VariableBody = {
   description: string | undefined;
   key: string;
   value: string;
 };
 
-type AddVariableFormProps = {
+type VariableFormProps = {
   readonly onClose: () => void;
 };
 
-const AddVariableForm = ({ onClose }: AddVariableFormProps) => {
+const AddVariableForm = ({ onClose }: VariableFormProps) => {
   const { addVariable, error, isPending } = useAddVariable(onClose);
 
   const {
@@ -43,7 +43,7 @@ const AddVariableForm = ({ onClose }: AddVariableFormProps) => {
     formState: { isDirty, isValid },
     handleSubmit,
     reset,
-  } = useForm<AddVariableBody>({
+  } = useForm<VariableBody>({
     defaultValues: {
       description: "",
       key: "",
@@ -60,7 +60,7 @@ const AddVariableForm = ({ onClose }: AddVariableFormProps) => {
     });
   }, [reset]);
 
-  const onSubmit = (data: AddVariableBody) => {
+  const onSubmit = (data: VariableBody) => {
     addVariable(data);
   };
 

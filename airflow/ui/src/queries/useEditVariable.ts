@@ -21,12 +21,15 @@ import { useState } from "react";
 
 import {
   useVariableServiceGetVariablesKey,
-  useVariableServicePostVariable,
+  useVariableServicePatchVariable,
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
 import type { VariableBody } from "src/pages/Variables/components/VariableForm";
 
-export const useAddVariable = (onClose: () => void) => {
+export const useEditVariable = (
+  initialVariable: VariableBody,
+  onClose: () => void,
+) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
 
@@ -36,8 +39,8 @@ export const useAddVariable = (onClose: () => void) => {
     });
 
     toaster.create({
-      description: "Variable has been added successfully",
-      title: "Variable Add Request Submitted",
+      description: "Variable has been edited successfully",
+      title: "Variable Edit Request Submitted",
       type: "success",
     });
 
@@ -48,12 +51,24 @@ export const useAddVariable = (onClose: () => void) => {
     setError(_error);
   };
 
-  const { isPending, mutate } = useVariableServicePostVariable({
+  const { isPending, mutate } = useVariableServicePatchVariable({
     onError,
     onSuccess,
   });
 
   const addVariable = (addVariableRequestBody: VariableBody) => {
+    const updateMask: Array<string> = [];
+
+    if (addVariableRequestBody.key !== initialVariable.key) {
+      updateMask.push("key");
+    }
+    if (addVariableRequestBody.value !== initialVariable.value) {
+      updateMask.push("value");
+    }
+    if (addVariableRequestBody.description !== initialVariable.description) {
+      updateMask.push("description");
+    }
+
     const parsedDescription =
       addVariableRequestBody.description === ""
         ? undefined
@@ -65,6 +80,8 @@ export const useAddVariable = (onClose: () => void) => {
         key: addVariableRequestBody.key,
         value: addVariableRequestBody.value,
       },
+      updateMask,
+      variableKey: initialVariable.key,
     });
   };
 
