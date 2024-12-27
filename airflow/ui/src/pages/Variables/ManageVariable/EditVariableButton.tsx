@@ -17,24 +17,31 @@
  * under the License.
  */
 import { Heading, useDisclosure } from "@chakra-ui/react";
-import { FiPlusCircle } from "react-icons/fi";
+import { FiEdit } from "react-icons/fi";
 
-import { Button, Dialog, Toaster } from "src/components/ui";
-import { useAddVariable } from "src/queries/useAddVariable";
+import type { VariableResponse } from "openapi/requests/types.gen";
+import { Dialog } from "src/components/ui";
+import ActionButton from "src/components/ui/ActionButton";
+import { useEditVariable } from "src/queries/useEditVariable";
 
-import VariableForm, { type VariableBody } from "./VariableForm";
+import type { VariableBody } from "./VariableForm";
+import VariableForm from "./VariableForm";
 
-const AddVariableModal = () => {
+type Props = {
+  readonly variable: VariableResponse;
+};
+
+const EditVariableButton = ({ variable }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
-  const { addVariable, error, isPending, setError } = useAddVariable({
-    onSuccessConfirm: onClose,
-  });
-
   const initialVariableValue: VariableBody = {
-    description: "",
-    key: "",
-    value: "",
+    description: variable.description ?? "",
+    key: variable.key,
+    value: variable.value ?? "",
   };
+  const { editVariable, error, isPending, setError } = useEditVariable(
+    initialVariableValue,
+    { onSuccessConfirm: onClose },
+  );
 
   const handleClose = () => {
     setError(undefined);
@@ -43,15 +50,20 @@ const AddVariableModal = () => {
 
   return (
     <>
-      <Toaster />
-      <Button colorPalette="blue" onClick={onOpen}>
-        <FiPlusCircle /> Add Variable
-      </Button>
+      <ActionButton
+        actionName="Edit Variable"
+        icon={<FiEdit />}
+        onClick={() => {
+          onOpen();
+        }}
+        text="Edit Variable"
+        withText={false}
+      />
 
       <Dialog.Root onOpenChange={handleClose} open={open} size="xl">
         <Dialog.Content backdrop>
           <Dialog.Header>
-            <Heading size="xl">Add Variable</Heading>
+            <Heading size="xl">Edit Variable</Heading>
           </Dialog.Header>
 
           <Dialog.CloseTrigger />
@@ -61,7 +73,7 @@ const AddVariableModal = () => {
               error={error}
               initialVariable={initialVariableValue}
               isPending={isPending}
-              manageMutate={addVariable}
+              manageMutate={editVariable}
               setError={setError}
             />
           </Dialog.Body>
@@ -71,4 +83,4 @@ const AddVariableModal = () => {
   );
 };
 
-export default AddVariableModal;
+export default EditVariableButton;
