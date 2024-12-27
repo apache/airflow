@@ -35,6 +35,8 @@ from airflow.utils import db
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_connections
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(autouse=True)
 def bundle_temp_dir(tmp_path):
