@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Heading, VStack } from "@chakra-ui/react";
+import { Flex, Heading, VStack, Text } from "@chakra-ui/react";
 import { FiTrash } from "react-icons/fi";
 
 import { Button, Dialog } from "src/components/ui";
@@ -47,12 +47,12 @@ const DeleteVariableDialog = ({
       <Dialog.CloseTrigger />
 
       <Dialog.Body width="full">
-        <span>
+        <Text>
           Are you sure you want to delete the variable key: `{variableKey}`?
-        </span>
+        </Text>
         <Flex justifyContent="end" mt={3}>
           <Button
-            colorPalette="blue"
+            colorPalette="red"
             loading={isPending}
             onClick={() => {
               mutate({
