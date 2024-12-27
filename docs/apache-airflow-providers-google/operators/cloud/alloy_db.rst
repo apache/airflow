@@ -71,3 +71,45 @@ To delete an AlloyDB cluster you can use
     :dedent: 4
     :start-after: [START howto_operator_alloy_db_delete_cluster]
     :end-before: [END howto_operator_alloy_db_delete_cluster]
+
+.. _howto/operator:AlloyDBCreateInstanceOperator:
+
+Create instance
+"""""""""""""""
+
+To create an AlloyDB instance (primary end secondary) you can use
+:class:`~airflow.providers.google.cloud.operators.alloy_db.AlloyDBCreateInstanceOperator`.
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/alloy_db/example_alloy_db.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_alloy_db_create_instance]
+    :end-before: [END howto_operator_alloy_db_create_instance]
+
+.. _howto/operator:AlloyDBUpdateInstanceOperator:
+
+Update instance
+"""""""""""""""
+
+To update an AlloyDB instance you can use
+:class:`~airflow.providers.google.cloud.operators.alloy_db.AlloyDBUpdateInstanceOperator`.
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/alloy_db/example_alloy_db.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_alloy_db_update_instance]
+    :end-before: [END howto_operator_alloy_db_update_instance]
+
+.. _howto/operator:AlloyDBDeleteInstanceOperator:
+
+Delete instance
+"""""""""""""""
+
+To delete an AlloyDB instance you can use
+:class:`~airflow.providers.google.cloud.operators.alloy_db.AlloyDBDeleteInstanceOperator`.
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/alloy_db/example_alloy_db.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_alloy_db_delete_instance]
+    :end-before: [END howto_operator_alloy_db_delete_instance]
