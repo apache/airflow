@@ -106,7 +106,10 @@ def _orig_start_date(
             TaskReschedule.task_id == task_id,
             TaskReschedule.run_id == run_id,
             TaskReschedule.map_index == map_index,
-            TaskReschedule.try_number == try_number,
+            # If the first try's record was not saved due to the Exception occurred and the following
+            # transaction rollback, the next available attempt should be taken
+            # to prevent falling in the endless rescheduling
+            TaskReschedule.try_number >= try_number,
         )
         .order_by(TaskReschedule.id.asc())
         .with_only_columns(TaskReschedule.start_date)
@@ -253,7 +256,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             max_tries: int = ti.max_tries or 0
             retries: int = self.retries or 0
             # If reschedule, use the start date of the first try (first try can be either the very
-            # first execution of the task, or the first execution after the task was cleared.)
+            # first execution of the task, or the first execution after the task was cleared).
             first_try_number = max_tries - retries + 1
             start_date = _orig_start_date(
                 dag_id=ti.dag_id,
