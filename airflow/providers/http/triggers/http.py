@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import aiohttp
 import asyncio
 import base64
 import pickle
@@ -93,13 +94,15 @@ class HttpTrigger(BaseTrigger):
             auth_type=self.auth_type,
         )
         try:
-            client_response = await hook.run(
-                endpoint=self.endpoint,
-                data=self.data,
-                headers=self.headers,
-                extra_options=self.extra_options,
-            )
-            response = await self._convert_response(client_response)
+            async with aiohttp.ClientSession() as session:
+                client_response = await hook.run(
+                    session=session,
+                    endpoint=self.endpoint,
+                    data=self.data,
+                    headers=self.headers,
+                    extra_options=self.extra_options,
+                )
+                response = await self._convert_response(client_response)
             yield TriggerEvent(
                 {
                     "status": "success",
@@ -179,12 +182,14 @@ class HttpSensorTrigger(BaseTrigger):
         hook = self._get_async_hook()
         while True:
             try:
-                await hook.run(
-                    endpoint=self.endpoint,
-                    data=self.data,
-                    headers=self.headers,
-                    extra_options=self.extra_options,
-                )
+                async with aiohttp.ClientSession() as session:
+                    await hook.run(
+                        session=session,
+                        endpoint=self.endpoint,
+                        data=self.data,
+                        headers=self.headers,
+                        extra_options=self.extra_options,
+                    )
                 yield TriggerEvent(True)
                 return
             except AirflowException as exc:
