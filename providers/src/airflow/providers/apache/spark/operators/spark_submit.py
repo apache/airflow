@@ -44,7 +44,7 @@ class SparkSubmitOperator(BaseOperator):
                   comma. Files will be placed in the working directory of each executor.
                   For example, serialized objects. (templated)
     :param py_files: Additional python files used by the job, can be .zip, .egg or .py. (templated)
-    :param jars: Submit additional jars to upload and place them in executor classpath. (templated)
+    :param jars: Submit additional jars to upload and place them in driver and executor classpaths. (templated)
     :param driver_class_path: Additional, driver-specific, classpath settings. (templated)
     :param java_class: the main class of the Java application
     :param packages: Comma-separated list of maven coordinates of jars to include on the

@@ -271,6 +271,8 @@ def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
             "__type": DAT.ASSET_ANY,
             "objects": [encode_asset_condition(x) for x in var.objects],
         }
+    if isinstance(var, AssetRef):
+        return {"__type": DAT.ASSET_REF, **attrs.asdict(var)}
     raise ValueError(f"serialization not implemented for {type(var).__name__!r}")
 
 
@@ -289,6 +291,8 @@ def decode_asset_condition(var: dict[str, Any]) -> BaseAsset:
         return AssetAny(*(decode_asset_condition(x) for x in var["objects"]))
     if dat == DAT.ASSET_ALIAS:
         return AssetAlias(name=var["name"], group=var["group"])
+    if dat == DAT.ASSET_REF:
+        return Asset.ref(**{k: v for k, v in var.items() if k != "__type"})
     raise ValueError(f"deserialization not implemented for DAT {dat!r}")
 
 
@@ -762,7 +766,7 @@ class BaseSerialization:
             serialized_asset = encode_asset_condition(var)
             return cls._encode(serialized_asset, type_=serialized_asset.pop("__type"))
         elif isinstance(var, AssetRef):
-            return cls._encode({"name": var.name}, type_=DAT.ASSET_REF)
+            return cls._encode(attrs.asdict(var), type_=DAT.ASSET_REF)
         elif isinstance(var, SimpleTaskInstance):
             return cls._encode(
                 cls.serialize(var.__dict__, strict=strict),
@@ -879,7 +883,7 @@ class BaseSerialization:
         elif type_ == DAT.ASSET_ALL:
             return AssetAll(*(decode_asset_condition(x) for x in var["objects"]))
         elif type_ == DAT.ASSET_REF:
-            return AssetRef(name=var["name"])
+            return Asset.ref(**var)
         elif type_ == DAT.SIMPLE_TASK_INSTANCE:
             return SimpleTaskInstance(**cls.deserialize(var))
         elif type_ == DAT.CONNECTION:
