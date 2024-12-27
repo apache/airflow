@@ -34,16 +34,15 @@ type VariableFormProps = {
   readonly error: unknown;
   readonly initialVariable: VariableBody;
   readonly isPending: boolean;
-  readonly manageMutate: ( variableRequestBody :  VariableBody ) => void;
+  readonly manageMutate: (variableRequestBody: VariableBody) => void;
 };
 
-const VariableForm = ({ 
+const VariableForm = ({
   error,
   initialVariable,
   isPending,
-  manageMutate
+  manageMutate,
 }: VariableFormProps) => {
-
   const {
     control,
     formState: { isDirty, isValid },

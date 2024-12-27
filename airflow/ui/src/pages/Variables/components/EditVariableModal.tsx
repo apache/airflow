@@ -18,13 +18,14 @@
  */
 import { Heading, useDisclosure } from "@chakra-ui/react";
 import { FiEdit } from "react-icons/fi";
-import { Dialog } from "src/components/ui";
 
-import ActionButton from "src/components/ui/ActionButton";
 import type { VariableResponse } from "openapi/requests/types.gen";
+import { Dialog } from "src/components/ui";
+import ActionButton from "src/components/ui/ActionButton";
+import { useEditVariable } from "src/queries/useEditVariable";
+
 import type { VariableBody } from "./VariableForm";
 import VariableForm from "./VariableForm";
-import { useEditVariable } from "src/queries/useEditVariable";
 
 type Props = {
   readonly variable: VariableResponse;
@@ -37,21 +38,24 @@ const EditVariableModal = ({ variable }: Props) => {
     key: variable.key,
     value: variable.value ?? "",
   };
-  const { editVariable, error, isPending } = useEditVariable(initialVariableValue, onClose);
-  
-  return(
-  <>
-    <ActionButton
-      actionName="Edit Variable"
-      icon={<FiEdit />}
-      onClick={() => {
-        onOpen();
-      }}
-      text="Edit Variable"
-      withText={false}
-    />
-    
-    <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+  const { editVariable, error, isPending } = useEditVariable(
+    initialVariableValue,
+    onClose,
+  );
+
+  return (
+    <>
+      <ActionButton
+        actionName="Edit Variable"
+        icon={<FiEdit />}
+        onClick={() => {
+          onOpen();
+        }}
+        text="Edit Variable"
+        withText={false}
+      />
+
+      <Dialog.Root onOpenChange={onClose} open={open} size="xl">
         <Dialog.Content backdrop>
           <Dialog.Header>
             <Heading size="xl">Edit Variable</Heading>
@@ -60,17 +64,17 @@ const EditVariableModal = ({ variable }: Props) => {
           <Dialog.CloseTrigger />
 
           <Dialog.Body>
-            <VariableForm 
+            <VariableForm
               error={error}
               initialVariable={initialVariableValue}
-              isPending={isPending} 
+              isPending={isPending}
               manageMutate={editVariable}
             />
           </Dialog.Body>
         </Dialog.Content>
       </Dialog.Root>
-  </>
-);
+    </>
+  );
 };
 
 export default EditVariableModal;

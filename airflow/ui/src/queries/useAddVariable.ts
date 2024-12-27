@@ -55,7 +55,7 @@ export const useAddVariable = (onClose: () => void) => {
 
   const addVariable = (variableRequestBody: VariableBody) => {
     const parsedDescription =
-    variableRequestBody.description === ""
+      variableRequestBody.description === ""
         ? undefined
         : variableRequestBody.description;
 

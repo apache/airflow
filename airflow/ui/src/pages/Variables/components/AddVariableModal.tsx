@@ -20,9 +20,9 @@ import { Heading, useDisclosure } from "@chakra-ui/react";
 import { FiPlusCircle } from "react-icons/fi";
 
 import { Button, Dialog, Toaster } from "src/components/ui";
+import { useAddVariable } from "src/queries/useAddVariable";
 
 import VariableForm, { type VariableBody } from "./VariableForm";
-import { useAddVariable } from "src/queries/useAddVariable";
 
 const AddVariableModal = () => {
   const { onClose, onOpen, open } = useDisclosure();
@@ -40,7 +40,7 @@ const AddVariableModal = () => {
       <Button colorPalette="blue" onClick={onOpen}>
         <FiPlusCircle /> Add Variable
       </Button>
-      
+
       <Dialog.Root onOpenChange={onClose} open={open} size="xl">
         <Dialog.Content backdrop>
           <Dialog.Header>
@@ -50,10 +50,10 @@ const AddVariableModal = () => {
           <Dialog.CloseTrigger />
 
           <Dialog.Body>
-            <VariableForm 
+            <VariableForm
               error={error}
               initialVariable={initialVariableValue}
-              isPending={isPending} 
+              isPending={isPending}
               manageMutate={addVariable}
             />
           </Dialog.Body>
