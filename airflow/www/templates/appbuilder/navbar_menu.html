@@ -58,3 +58,11 @@
     {% endif %}
   {% endif %}
 {% endfor %}
+{% if auth_manager.is_logged_in() %}
+<li>
+      <a href="javascript:{}" onclick="document.getElementById('logout-form').submit();" data-original-title="" title="">Logout</a>
+      </form>
+</li>
+<form method="POST" action="{{ auth_manager.get_url_logout() }}" id="logout-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+{% endif %}

@@ -1136,6 +1136,8 @@ class Airflow(AirflowBaseView):
             auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
             asset_triggered_next_run_info=asset_triggered_next_run_info,
             file_tokens=file_tokens,
+            logout_url=get_auth_manager().get_url_logout(),
+            is_logged_in=get_auth_manager().is_logged_in()
         )
 
     @expose("/assets")
