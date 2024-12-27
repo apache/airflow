@@ -27,7 +27,7 @@ type Props = {
   readonly deleteKey: string;
 };
 
-const DeleteVariableModal = ({ deleteKey: variableKey }: Props) => {
+const DeleteVariableButton = ({ deleteKey: variableKey }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { isPending, mutate } = useDeleteVariable({
     onSuccessConfirm: onClose,
@@ -83,4 +83,4 @@ const DeleteVariableModal = ({ deleteKey: variableKey }: Props) => {
   );
 };
 
-export default DeleteVariableModal;
+export default DeleteVariableButton;

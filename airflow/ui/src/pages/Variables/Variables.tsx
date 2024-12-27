@@ -33,7 +33,7 @@ import {
 } from "src/constants/searchParams";
 
 import AddVariableModal from "./AddVariableModal";
-import DeleteVariableModal from "./DeleteVariableModal";
+import DeleteVariableButton from "./DeleteVariableButton";
 import EditVariableButton from "./EditVariableButton";
 
 const columns: Array<ColumnDef<VariableResponse>> = [
@@ -58,7 +58,7 @@ const columns: Array<ColumnDef<VariableResponse>> = [
     cell: ({ row: { original } }) => (
       <Flex justifyContent="end">
         <EditVariableButton editKey={original.key} />
-        <DeleteVariableModal deleteKey={original.key} />
+        <DeleteVariableButton deleteKey={original.key} />
       </Flex>
     ),
     enableSorting: false,
