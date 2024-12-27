@@ -195,13 +195,12 @@ class RuntimeTaskInstance(TaskInstance):
         if TYPE_CHECKING:
             assert isinstance(msg, XComResult)
 
-        value = msg.value
-        if value is not None:
+        if msg.value is not None:
             from airflow.models.xcom import XCom
 
             # TODO: Move XCom serialization & deserialization to Task SDK
             #   https://github.com/apache/airflow/issues/45231
-            return XCom.deserialize_value(value)
+            return XCom.deserialize_value(msg)  # type: ignore[arg-type]
         return default
 
     def xcom_push(self, key: str, value: Any):
