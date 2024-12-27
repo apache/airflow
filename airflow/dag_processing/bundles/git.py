@@ -142,13 +142,16 @@ class GitDagBundle(BaseDagBundle):
         url = self.repo_url
         if url.startswith("git@"):
             url = self._convert_git_ssh_url_to_https()
-        host = urlparse(url).hostname
+        parsed_url = urlparse(url)
+        host = parsed_url.hostname
         if not host:
             return None
-        if host.endswith("github.com"):
-            return f"{url}/tree/{version}"
-        if host.endswith("gitlab.com"):
-            return f"{url}/-/tree/{version}"
-        if host.endswith("bitbucket.org"):
-            return f"{url}/src/{version}"
+        host_patterns = {
+            "github.com": f"{url}/tree/{version}",
+            "gitlab.com": f"{url}/-/tree/{version}",
+            "bitbucket.org": f"{url}/src/{version}",
+        }
+        for allowed_host, template in host_patterns.items():
+            if host == allowed_host or host.endswith(f".{allowed_host}"):
+                return template
         return None
