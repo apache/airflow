@@ -44,6 +44,12 @@ export const useDeleteVariable = ({
       queryKey: [useVariableServiceGetVariablesKey],
     });
 
+    toaster.create({
+      description: "The variable key deletion request was successful.",
+      title: "Variable Deleted Successfully",
+      type: "success",
+    });
+
     onSuccessConfirm();
   };
 
