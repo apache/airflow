@@ -24,7 +24,7 @@ import {
   useVariableServicePatchVariable,
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
-import type { VariableBody } from "src/pages/Variables/components/VariableForm";
+import type { VariableBody } from "src/pages/Variables/ManageVariable/VariableForm";
 
 export const useEditVariable = (
   initialVariable: VariableBody,
