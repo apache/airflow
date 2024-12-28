@@ -1744,3 +1744,32 @@ def test_task_group_with_invalid_arg_type_raises_error():
     with DAG(dag_id="dag_with_tg_invalid_arg_type", schedule=None):
         with pytest.raises(TypeError, match=error_msg):
             _ = TaskGroup("group_1", ui_color=123)
+
+
+def test_task_group_display_name_used_as_label():
+    """Test that the group_display_name for TaskGroup is used as the label for display on the UI."""
+
+    with DAG(dag_id="display_name", schedule=None, start_date=pendulum.datetime(2022, 1, 1)) as dag:
+        with TaskGroup(group_id="tg", group_display_name="my_custom_name") as tg:
+            task1 = BaseOperator(task_id="task1")
+            task2 = BaseOperator(task_id="task2")
+            task1 >> task2
+
+    assert tg.group_id == "tg"
+    assert tg.label == "my_custom_name"
+    expected_node_id = {
+        "id": None,
+        "label": None,
+        "children": [
+            {
+                "id": "tg",
+                "label": "my_custom_name",
+                "children": [
+                    {"id": "tg.task1", "label": "task1"},
+                    {"id": "tg.task2", "label": "task2"},
+                ],
+            },
+        ],
+    }
+
+    assert extract_node_id(task_group_to_dict(dag.task_group), include_label=True) == expected_node_id
