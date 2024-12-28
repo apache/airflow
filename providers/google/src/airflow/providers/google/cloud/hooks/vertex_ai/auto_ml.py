@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.operation_helpers import OperationHelper
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform import (
@@ -46,7 +47,7 @@ if TYPE_CHECKING:
     from google.cloud.aiplatform_v1.types import TrainingPipeline
 
 
-class AutoMLHook(GoogleBaseHook):
+class AutoMLHook(GoogleBaseHook, OperationHelper):
     """Hook for Google Cloud Vertex AI Auto ML APIs."""
 
     def __init__(
@@ -251,14 +252,6 @@ class AutoMLHook(GoogleBaseHook):
     def extract_training_id(resource_name: str) -> str:
         """Return unique id of the Training pipeline."""
         return resource_name.rpartition("/")[-1]
-
-    def wait_for_operation(self, operation: Operation, timeout: float | None = None):
-        """Wait for long-lasting operation to complete."""
-        try:
-            return operation.result(timeout=timeout)
-        except Exception:
-            error = operation.exception(timeout=timeout)
-            raise AirflowException(error)
 
     def cancel_auto_ml_job(self) -> None:
         """Cancel Auto ML Job for training pipeline."""
