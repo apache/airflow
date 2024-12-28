@@ -333,3 +333,19 @@ def test_override_dag_default_args_nested_tg():
     assert test_task.retries == 1
     assert test_task.owner == "y"
     assert test_task.execution_timeout == timedelta(seconds=10)
+
+
+def test_task_group_display_name_used_as_label():
+    """Test that the group_display_name for TaskGroup is used as the label for display on the UI."""
+
+    @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
+    def pipeline():
+        @task_group(group_display_name="my_custom_name")
+        def tg():
+            pass
+
+        tg()
+
+    p = pipeline()
+
+    assert p.task_group_dict["tg"].label == "my_custom_name"
