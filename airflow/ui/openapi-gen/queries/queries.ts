@@ -37,6 +37,7 @@ import {
 } from "../requests/services.gen";
 import {
   BackfillPostBody,
+  Body_import_variables,
   ClearTaskInstancesBody,
   ConnectionBody,
   ConnectionBulkBody,
@@ -3351,6 +3352,49 @@ export const useVariableServicePostVariable = <
     mutationFn: ({ requestBody }) =>
       VariableService.postVariable({
         requestBody,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Import Variables
+ * Import variables from a JSON file.
+ * @param data The data for the request.
+ * @param data.behavior
+ * @param data.formData
+ * @returns VariablesImportResponse Successful Response
+ * @throws ApiError
+ */
+export const useVariableServiceImportVariables = <
+  TData = Common.VariableServiceImportVariablesMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        behavior: "overwrite" | "fail" | "skip";
+        formData: Body_import_variables;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      behavior: "overwrite" | "fail" | "skip";
+      formData: Body_import_variables;
+    },
+    TContext
+  >({
+    mutationFn: ({ behavior, formData }) =>
+      VariableService.importVariables({
+        behavior,
+        formData,
       }) as unknown as Promise<TData>,
     ...options,
   });

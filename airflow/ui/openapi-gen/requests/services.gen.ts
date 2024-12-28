@@ -182,6 +182,8 @@ import type {
   GetVariablesResponse,
   PostVariableData,
   PostVariableResponse,
+  ImportVariablesData,
+  ImportVariablesResponse,
   ReparseDagFileData,
   ReparseDagFileResponse,
   GetHealthResponse,
@@ -3147,6 +3149,36 @@ export class VariableService {
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        409: "Conflict",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Import Variables
+   * Import variables from a JSON file.
+   * @param data The data for the request.
+   * @param data.behavior
+   * @param data.formData
+   * @returns VariablesImportResponse Successful Response
+   * @throws ApiError
+   */
+  public static importVariables(
+    data: ImportVariablesData,
+  ): CancelablePromise<ImportVariablesResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/variables/import",
+      query: {
+        behavior: data.behavior,
+      },
+      formData: data.formData,
+      mediaType: "multipart/form-data",
+      errors: {
+        400: "Bad Request",
         401: "Unauthorized",
         403: "Forbidden",
         409: "Conflict",
