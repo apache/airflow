@@ -141,11 +141,14 @@ class ContinuousTimetable(_TrivialTimetable):
         current_time = timezone.coerce_datetime(timezone.utcnow())
 
         if last_automated_data_interval is not None:  # has already run once
-            start = last_automated_data_interval.end
-            end = current_time
+            if last_automated_data_interval.end > current_time:  # start date is future
+                start = restriction.earliest
+                elapsed = last_automated_data_interval.end - last_automated_data_interval.start
 
-            if start > end:  # Skip scheduling if the last run ended in the future
-                return None
+                end = start + elapsed.as_timedelta()
+            else:
+                start = last_automated_data_interval.end
+                end = current_time
         else:  # first run
             start = restriction.earliest
             end = max(restriction.earliest, current_time)
