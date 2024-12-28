@@ -187,7 +187,9 @@ def post_variable(
 @variables_router.post(
     "/import",
     status_code=status.HTTP_200_OK,
-    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT, status.HTTP_422_UNPROCESSABLE_ENTITY]
+    ),
 )
 def import_variables(
     file: UploadFile,
@@ -204,7 +206,13 @@ def import_variables(
     except (json.JSONDecodeError, ValueError) as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid JSON format: {e}")
 
-    existing_keys = {variable.key for variable in session.execute(select(Variable.key)).scalars()}
+    if not variables:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="No variables found in the provided JSON.",
+        )
+
+    existing_keys = {variable for variable in session.execute(select(Variable.key)).scalars()}
     import_keys = set(variables.keys())
 
     matched_keys = existing_keys & import_keys
@@ -212,7 +220,7 @@ def import_variables(
     if behavior == "fail" and matched_keys:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"The variables with these keys: {matched_keys} already exist.",
+            detail=f"The variables with these keys: {matched_keys} already exists.",
         )
     elif behavior == "skip":
         create_keys = import_keys - matched_keys
