@@ -41,7 +41,7 @@ from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallback
 from airflow.exceptions import AirflowException, SerializationError, TaskDeferred
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
-from airflow.models.dag import DAG
+from airflow.models.dag import DAG, _get_model_data_interval
 from airflow.models.expandinput import (
     EXPAND_INPUT_EMPTY,
     create_expand_input,
@@ -95,13 +95,14 @@ from airflow.utils.types import NOTSET, ArgNotSet, AttributeRemoved
 if TYPE_CHECKING:
     from inspect import Parameter
 
+    from airflow.models import DagRun
     from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.expandinput import ExpandInput
     from airflow.models.operator import Operator
     from airflow.sdk.definitions.node import DAGNode
     from airflow.serialization.json_schema import Validator
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-    from airflow.timetables.base import DagRunInfo, Timetable
+    from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 
     HAS_KUBERNETES: bool
     try:
@@ -1959,6 +1960,19 @@ class LazyDeserializedDAG(pydantic.BaseModel):
                     obj = BaseSerialization.deserialize(port)
                     if isinstance(obj, of_type):
                         yield task["task_id"], obj
+
+    def get_run_data_interval(self, run: DagRun) -> DataInterval:
+        """Get the data interval of this run."""
+        if run.dag_id is not None and run.dag_id != self.dag_id:
+            raise ValueError(f"Arguments refer to different DAGs: {self.dag_id} != {run.dag_id}")
+
+        data_interval = _get_model_data_interval(run, "data_interval_start", "data_interval_end")
+        # the older implementation has call to infer_automated_data_interval if data_interval is None, do we want to keep that or raise
+        # an exception?
+        if data_interval is None:
+            raise ValueError(f"Cannot calculate data interval for run {run}")
+
+        return data_interval
 
     if TYPE_CHECKING:
         access_control: Mapping[str, Mapping[str, Collection[str]] | Collection[str]] | None = pydantic.Field(
