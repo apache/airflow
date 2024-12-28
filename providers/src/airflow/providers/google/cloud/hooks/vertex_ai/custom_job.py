@@ -46,6 +46,7 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
+from airflow.providers.google.common.hooks.operation_helpers import OperationHelper
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
@@ -59,7 +60,7 @@ if TYPE_CHECKING:
     from google.cloud.aiplatform_v1.types import CustomJob, PipelineJob, TrainingPipeline
 
 
-class CustomJobHook(GoogleBaseHook):
+class CustomJobHook(GoogleBaseHook, OperationHelper):
     """Hook for Google Cloud Vertex AI Custom Job APIs."""
 
     def __init__(
@@ -276,14 +277,6 @@ class CustomJobHook(GoogleBaseHook):
     def extract_custom_job_id_from_training_pipeline(training_pipeline: dict[str, Any]) -> str:
         """Return a unique Custom Job id from a serialized TrainingPipeline proto."""
         return training_pipeline["training_task_metadata"]["backingCustomJob"].rpartition("/")[-1]
-
-    def wait_for_operation(self, operation: Operation, timeout: float | None = None):
-        """Wait for long-lasting operation to complete."""
-        try:
-            return operation.result(timeout=timeout)
-        except Exception:
-            error = operation.exception(timeout=timeout)
-            raise AirflowException(error)
 
     def cancel_job(self) -> None:
         """Cancel Job for training pipeline."""
