@@ -16,29 +16,71 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
+import { Flex, useDisclosure, Text, VStack, Heading } from "@chakra-ui/react";
 import { FiTrash } from "react-icons/fi";
 
+import { Button, Dialog } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
+import { useDeleteVariable } from "src/queries/useDeleteVariable";
 
 type Props = {
   readonly deleteKey: string;
 };
 
-const DeleteVariableButton = ({ deleteKey }: Props) => (
-  <Box>
-    <ActionButton
-      actionName="Delete Variable"
-      icon={<FiTrash />}
-      onClick={() =>
-        // TODO: Will be removed once implemented
-        // eslint-disable-next-line no-alert
-        alert(`To be implemented: Selected key is ${deleteKey}`)
-      }
-      text="Delete Variable"
-      withText={false}
-    />
-  </Box>
-);
+const DeleteVariableButton = ({ deleteKey: variableKey }: Props) => {
+  const { onClose, onOpen, open } = useDisclosure();
+  const { isPending, mutate } = useDeleteVariable({
+    onSuccessConfirm: onClose,
+  });
+
+  const renderDeleteButton = () => (
+    <Button
+      colorPalette="red"
+      loading={isPending}
+      onClick={() => {
+        mutate({
+          variableKey,
+        });
+      }}
+    >
+      <FiTrash /> Delete
+    </Button>
+  );
+
+  return (
+    <>
+      <ActionButton
+        actionName="Delete Variable"
+        icon={<FiTrash />}
+        onClick={() => {
+          onOpen();
+        }}
+        text="Delete Variable"
+        withText={false}
+      />
+
+      <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+        <Dialog.Content backdrop>
+          <Dialog.Header>
+            <VStack align="start" gap={4}>
+              <Heading size="xl">Delete Variable - {variableKey} </Heading>
+            </VStack>
+          </Dialog.Header>
+
+          <Dialog.CloseTrigger />
+
+          <Dialog.Body width="full">
+            <Text>
+              Are you sure you want to delete the variable key: `{variableKey}`?
+            </Text>
+            <Flex justifyContent="end" mt={3}>
+              {renderDeleteButton()}
+            </Flex>
+          </Dialog.Body>
+        </Dialog.Content>
+      </Dialog.Root>
+    </>
+  );
+};
 
 export default DeleteVariableButton;
