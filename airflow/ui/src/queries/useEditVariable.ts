@@ -63,9 +63,6 @@ export const useEditVariable = (
   const editVariable = (addVariableRequestBody: VariableBody) => {
     const updateMask: Array<string> = [];
 
-    if (addVariableRequestBody.key !== initialVariable.key) {
-      updateMask.push("key");
-    }
     if (addVariableRequestBody.value !== initialVariable.value) {
       updateMask.push("value");
     }

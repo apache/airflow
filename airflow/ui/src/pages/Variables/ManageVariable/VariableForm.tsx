@@ -73,7 +73,12 @@ const VariableForm = ({
             <Field.Label fontSize="md">
               Key <Field.RequiredIndicator />
             </Field.Label>
-            <Input {...field} required size="sm" />
+            <Input
+              {...field}
+              disabled={Boolean(initialVariable.key)}
+              required
+              size="sm"
+            />
             {fieldState.error ? (
               <Field.ErrorText>{fieldState.error.message}</Field.ErrorText>
             ) : undefined}
