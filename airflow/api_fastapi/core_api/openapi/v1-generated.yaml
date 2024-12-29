@@ -5867,20 +5867,21 @@ paths:
       parameters:
       - name: action_if_exists
         in: query
-        required: true
+        required: false
         schema:
           enum:
           - overwrite
           - fail
           - skip
           type: string
+          default: fail
           title: Action If Exists
       requestBody:
         required: true
         content:
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/ImportVariableBody'
+              $ref: '#/components/schemas/Body_import_variables'
       responses:
         '200':
           description: Successful Response
@@ -6496,7 +6497,7 @@ components:
       - status
       title: BaseInfoResponse
       description: Base info serializer for responses.
-    ImportVariableBody:
+    Body_import_variables:
       properties:
         file:
           type: string
@@ -6505,8 +6506,7 @@ components:
       type: object
       required:
       - file
-      title: ImportVariableBody
-      description: Request body for Import Variables endpoint.
+      title: Body_import_variables
     ClearTaskInstancesBody:
       properties:
         dry_run:

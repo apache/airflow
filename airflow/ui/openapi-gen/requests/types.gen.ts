@@ -138,10 +138,7 @@ export type BaseInfoResponse = {
   status: string | null;
 };
 
-/**
- * Request body for Import Variables endpoint.
- */
-export type ImportVariableBody = {
+export type Body_import_variables = {
   file: Blob | File;
 };
 
@@ -2177,8 +2174,8 @@ export type PostVariableData = {
 export type PostVariableResponse = VariableResponse;
 
 export type ImportVariablesData = {
-  actionIfExists: "overwrite" | "fail" | "skip";
-  formData: ImportVariableBody;
+  actionIfExists?: "overwrite" | "fail" | "skip";
+  formData: Body_import_variables;
 };
 
 export type ImportVariablesResponse = VariablesImportResponse;

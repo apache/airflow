@@ -193,8 +193,8 @@ def post_variable(
 )
 def import_variables(
     file: UploadFile,
-    action_if_exists: Literal["overwrite", "fail", "skip"],
     session: SessionDep,
+    action_if_exists: Literal["overwrite", "fail", "skip"] = "fail",
 ) -> VariablesImportResponse:
     """Import variables from a JSON file."""
     try:
