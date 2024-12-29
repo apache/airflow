@@ -20,16 +20,17 @@ from __future__ import annotations
 import logging
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import cohere
+from cohere.types import UserChatMessageV2
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
     from cohere.core.request_options import RequestOptions
-    from cohere.types import ChatMessages, EmbedByTypeResponseEmbeddings, UserChatMessageV2
+    from cohere.types import ChatMessages, EmbedByTypeResponseEmbeddings
 
 
 logger = logging.getLogger(__name__)
