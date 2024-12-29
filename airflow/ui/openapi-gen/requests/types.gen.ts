@@ -138,7 +138,7 @@ export type BaseInfoResponse = {
   status: string | null;
 };
 
-export type Body_import_variables = {
+export type ImportVariablesBody = {
   file: Blob | File;
 };
 
@@ -2175,7 +2175,7 @@ export type PostVariableResponse = VariableResponse;
 
 export type ImportVariablesData = {
   behavior: "overwrite" | "fail" | "skip";
-  formData: Body_import_variables;
+  formData: ImportVariablesBody;
 };
 
 export type ImportVariablesResponse = VariablesImportResponse;
