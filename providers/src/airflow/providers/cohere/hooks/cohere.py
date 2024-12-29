@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import cohere
 
@@ -29,7 +29,7 @@ from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
     from cohere.core.request_options import RequestOptions
-    from cohere.types import ChatMessages, EmbedByTypeResponseEmbeddings
+    from cohere.types import ChatMessages, EmbedByTypeResponseEmbeddings, UserChatMessageV2
 
 
 logger = logging.getLogger(__name__)
@@ -111,9 +111,13 @@ class CohereHook(BaseHook):
     def test_connection(
         self,
         model: str = "command-r-plus-08-2024",
+        messages: list[UserChatMessageV2] | None = None,
     ) -> tuple[bool, str]:
         try:
-            messages: ChatMessages = [{"role": "user", "content": "hello world!"}]
+            if messages is None:
+                messages = [{"role": "user", "content": "hello world!"}]
+            else:
+                messages = cast(ChatMessages, messages)
             self.get_conn.chat(model=model, messages=messages)
             return True, "Connection successfully established."
         except Exception as e:
