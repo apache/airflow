@@ -90,7 +90,9 @@ def mocked_parse(spy_agency):
     def set_dag(what: StartupDetails, dag_id: str, task: BaseOperator) -> RuntimeTaskInstance:
         dag = get_inline_dag(dag_id, task)
         t = dag.task_dict[task.task_id]
-        ti = RuntimeTaskInstance.model_construct(**what.ti.model_dump(exclude_unset=True), task=t)
+        ti = RuntimeTaskInstance.model_construct(
+            **what.ti.model_dump(exclude_unset=True), task=t, _ti_context_from_server=what.ti_context
+        )
         spy_agency.spy_on(parse, call_fake=lambda _: ti)
         return ti
 
@@ -114,7 +116,8 @@ class TestCommsDecoder:
 
         w.makefile("wb").write(
             b'{"type":"StartupDetails", "ti": {'
-            b'"id": "4d828a62-a417-4936-a7a6-2b3fabacecab", "task_id": "a", "try_number": 1, "run_id": "b", "dag_id": "c" }, '
+            b'"id": "4d828a62-a417-4936-a7a6-2b3fabacecab", "task_id": "a", "try_number": 1, "run_id": "b", '
+            b'"dag_id": "c", "start_date": "2024-12-01T01:00:00Z" }, '
             b'"ti_context":{"dag_run":{"dag_id":"c","run_id":"b","logical_date":"2024-12-01T01:00:00Z",'
             b'"data_interval_start":"2024-12-01T00:00:00Z","data_interval_end":"2024-12-01T01:00:00Z",'
             b'"start_date":"2024-12-01T01:00:00Z","end_date":null,"run_type":"manual","conf":null},'
@@ -130,6 +133,7 @@ class TestCommsDecoder:
         assert msg.ti.id == uuid.UUID("4d828a62-a417-4936-a7a6-2b3fabacecab")
         assert msg.ti.task_id == "a"
         assert msg.ti.dag_id == "c"
+        assert msg.ti.start_date == timezone.datetime(2024, 12, 1, 1, 0)
         assert msg.file == "/dev/null"
 
         # Since this was a StartupDetails message, the decoder should open the other socket
@@ -141,7 +145,14 @@ class TestCommsDecoder:
 def test_parse(test_dags_dir: Path, make_ti_context):
     """Test that checks parsing of a basic dag with an un-mocked parse."""
     what = StartupDetails(
-        ti=TaskInstance(id=uuid7(), task_id="a", dag_id="super_basic", run_id="c", try_number=1),
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="a",
+            dag_id="super_basic",
+            run_id="c",
+            try_number=1,
+            start_date=timezone.utcnow(),
+        ),
         file=str(test_dags_dir / "super_basic.py"),
         requests_fd=0,
         ti_context=make_ti_context(),
@@ -157,14 +168,22 @@ def test_parse(test_dags_dir: Path, make_ti_context):
 
 def test_run_basic(time_machine, mocked_parse, make_ti_context, spy_agency, mock_supervisor_comms):
     """Test running a basic task."""
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+
     what = StartupDetails(
-        ti=TaskInstance(id=uuid7(), task_id="hello", dag_id="super_basic_run", run_id="c", try_number=1),
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="hello",
+            dag_id="super_basic_run",
+            run_id="c",
+            try_number=1,
+            start_date=instant,
+        ),
         file="",
         requests_fd=0,
         ti_context=make_ti_context(),
     )
 
-    instant = timezone.datetime(2024, 12, 3, 10, 0)
     time_machine.move_to(instant, tick=False)
 
     ti = mocked_parse(what, "super_basic_run", CustomOperator(task_id="hello"))
@@ -199,7 +218,14 @@ def test_run_deferred_basic(time_machine, mocked_parse, make_ti_context, mock_su
     )
     time_machine.move_to(instant, tick=False)
     what = StartupDetails(
-        ti=TaskInstance(id=uuid7(), task_id="async", dag_id="basic_deferred_run", run_id="c", try_number=1),
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="async",
+            dag_id="basic_deferred_run",
+            run_id="c",
+            try_number=1,
+            start_date=instant,
+        ),
         file="",
         requests_fd=0,
         ti_context=make_ti_context(),
@@ -229,6 +255,8 @@ def test_run_basic_skipped(time_machine, mocked_parse, make_ti_context, mock_sup
     """Test running a basic task that marks itself skipped."""
     from airflow.providers.standard.operators.python import PythonOperator
 
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+
     task = PythonOperator(
         task_id="skip",
         python_callable=lambda: (_ for _ in ()).throw(
@@ -237,7 +265,9 @@ def test_run_basic_skipped(time_machine, mocked_parse, make_ti_context, mock_sup
     )
 
     what = StartupDetails(
-        ti=TaskInstance(id=uuid7(), task_id="skip", dag_id="basic_skipped", run_id="c", try_number=1),
+        ti=TaskInstance(
+            id=uuid7(), task_id="skip", dag_id="basic_skipped", run_id="c", try_number=1, start_date=instant
+        ),
         file="",
         requests_fd=0,
         ti_context=make_ti_context(),
@@ -245,7 +275,6 @@ def test_run_basic_skipped(time_machine, mocked_parse, make_ti_context, mock_sup
 
     ti = mocked_parse(what, "basic_skipped", task)
 
-    instant = timezone.datetime(2024, 12, 3, 10, 0)
     time_machine.move_to(instant, tick=False)
 
     run(ti, log=mock.MagicMock())
@@ -259,6 +288,8 @@ def test_run_raises_base_exception(time_machine, mocked_parse, make_ti_context, 
     """Test running a basic task that raises a base exception which should send fail_with_retry state."""
     from airflow.providers.standard.operators.python import PythonOperator
 
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+
     task = PythonOperator(
         task_id="zero_division_error",
         python_callable=lambda: 1 / 0,
@@ -271,6 +302,7 @@ def test_run_raises_base_exception(time_machine, mocked_parse, make_ti_context, 
             dag_id="basic_dag_base_exception",
             run_id="c",
             try_number=1,
+            start_date=instant,
         ),
         file="",
         requests_fd=0,
@@ -279,7 +311,6 @@ def test_run_raises_base_exception(time_machine, mocked_parse, make_ti_context, 
 
     ti = mocked_parse(what, "basic_dag_base_exception", task)
 
-    instant = timezone.datetime(2024, 12, 3, 10, 0)
     time_machine.move_to(instant, tick=False)
 
     run(ti, log=mock.MagicMock())
@@ -297,6 +328,8 @@ def test_run_raises_system_exit(time_machine, mocked_parse, make_ti_context, moc
     """Test running a basic task that exits with SystemExit exception."""
     from airflow.providers.standard.operators.python import PythonOperator
 
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+
     task = PythonOperator(
         task_id="system_exit_task",
         python_callable=lambda: exit(10),
@@ -309,6 +342,7 @@ def test_run_raises_system_exit(time_machine, mocked_parse, make_ti_context, moc
             dag_id="basic_dag_system_exit",
             run_id="c",
             try_number=1,
+            start_date=instant,
         ),
         file="",
         requests_fd=0,
@@ -317,7 +351,6 @@ def test_run_raises_system_exit(time_machine, mocked_parse, make_ti_context, moc
 
     ti = mocked_parse(what, "basic_dag_system_exit", task)
 
-    instant = timezone.datetime(2024, 12, 3, 10, 0)
     time_machine.move_to(instant, tick=False)
 
     run(ti, log=mock.MagicMock())
@@ -335,6 +368,8 @@ def test_run_raises_airflow_exception(time_machine, mocked_parse, make_ti_contex
     """Test running a basic task that exits with AirflowException."""
     from airflow.providers.standard.operators.python import PythonOperator
 
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+
     task = PythonOperator(
         task_id="af_exception_task",
         python_callable=lambda: (_ for _ in ()).throw(
@@ -349,6 +384,7 @@ def test_run_raises_airflow_exception(time_machine, mocked_parse, make_ti_contex
             dag_id="basic_dag_af_exception",
             run_id="c",
             try_number=1,
+            start_date=instant,
         ),
         file="",
         requests_fd=0,
@@ -357,7 +393,6 @@ def test_run_raises_airflow_exception(time_machine, mocked_parse, make_ti_contex
 
     ti = mocked_parse(what, "basic_dag_af_exception", task)
 
-    instant = timezone.datetime(2024, 12, 3, 10, 0)
     time_machine.move_to(instant, tick=False)
 
     run(ti, log=mock.MagicMock())
@@ -377,6 +412,8 @@ def test_run_task_timeout(time_machine, mocked_parse, make_ti_context, mock_supe
 
     from airflow.providers.standard.operators.python import PythonOperator
 
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+
     task = PythonOperator(
         task_id="sleep",
         execution_timeout=timedelta(milliseconds=10),
@@ -390,6 +427,7 @@ def test_run_task_timeout(time_machine, mocked_parse, make_ti_context, mock_supe
             dag_id="basic_dag_time_out",
             run_id="c",
             try_number=1,
+            start_date=instant,
         ),
         file="",
         requests_fd=0,
@@ -398,7 +436,6 @@ def test_run_task_timeout(time_machine, mocked_parse, make_ti_context, mock_supe
 
     ti = mocked_parse(what, "basic_dag_time_out", task)
 
-    instant = timezone.datetime(2024, 12, 3, 10, 0)
     time_machine.move_to(instant, tick=False)
 
     run(ti, log=mock.MagicMock())
@@ -424,7 +461,12 @@ def test_startup_basic_templated_dag(mocked_parse, make_ti_context, mock_supervi
 
     what = StartupDetails(
         ti=TaskInstance(
-            id=uuid7(), task_id="templated_task", dag_id="basic_templated_dag", run_id="c", try_number=1
+            id=uuid7(),
+            task_id="templated_task",
+            dag_id="basic_templated_dag",
+            run_id="c",
+            try_number=1,
+            start_date=timezone.datetime(2024, 12, 3, 10, 0),
         ),
         file="",
         requests_fd=0,
@@ -491,16 +533,23 @@ def test_startup_and_run_dag_with_templated_fields(
                 print(key, getattr(self, key))
 
     task = CustomOperator(task_id="templated_task")
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
 
     what = StartupDetails(
-        ti=TaskInstance(id=uuid7(), task_id="templated_task", dag_id="basic_dag", run_id="c", try_number=1),
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="templated_task",
+            dag_id="basic_dag",
+            run_id="c",
+            try_number=1,
+            start_date=instant,
+        ),
         file="",
         requests_fd=0,
         ti_context=make_ti_context(),
     )
     ti = mocked_parse(what, "basic_dag", task)
 
-    instant = timezone.datetime(2024, 12, 3, 10, 0)
     time_machine.move_to(instant, tick=False)
 
     mock_supervisor_comms.get_message.return_value = what
@@ -553,9 +602,12 @@ def test_run_basic_failed(
             raise self.e
 
     task = CustomOperator(task_id=task_id, e=fail_with_exception)
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
 
     what = StartupDetails(
-        ti=TaskInstance(id=uuid7(), task_id=task_id, dag_id=dag_id, run_id="c", try_number=1),
+        ti=TaskInstance(
+            id=uuid7(), task_id=task_id, dag_id=dag_id, run_id="c", try_number=1, start_date=instant
+        ),
         file="",
         requests_fd=0,
         ti_context=make_ti_context(),
@@ -563,7 +615,6 @@ def test_run_basic_failed(
 
     ti = mocked_parse(what, dag_id, task)
 
-    instant = timezone.datetime(2024, 12, 3, 10, 0)
     time_machine.move_to(instant, tick=False)
 
     run(ti, log=mock.MagicMock())
@@ -581,11 +632,17 @@ class TestRuntimeTaskInstance:
 
         ti_id = uuid7()
         ti = TaskInstance(
-            id=ti_id, task_id=task.task_id, dag_id="basic_task", run_id="test_run", try_number=1
+            id=ti_id,
+            task_id=task.task_id,
+            dag_id="basic_task",
+            run_id="test_run",
+            try_number=1,
+            start_date=timezone.datetime(2024, 12, 1, 1, 0, 0),
         )
 
         what = StartupDetails(ti=ti, file="", requests_fd=0, ti_context=make_ti_context())
         runtime_ti = mocked_parse(what, ti.dag_id, task)
+        runtime_ti._ti_context_from_server = None
         context = runtime_ti.get_template_context()
 
         # Verify the context keys and values
@@ -605,7 +662,14 @@ class TestRuntimeTaskInstance:
         """Test the context keys are added when sent from API server (mocked)"""
         from airflow.utils import timezone
 
-        ti = TaskInstance(id=uuid7(), task_id="hello", dag_id="basic_task", run_id="test_run", try_number=1)
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id="hello",
+            dag_id="basic_task",
+            run_id="test_run",
+            try_number=1,
+            start_date=timezone.datetime(2024, 12, 1, 1, 0, 0),
+        )
 
         task = BaseOperator(task_id=ti.task_id)
 
@@ -636,6 +700,7 @@ class TestRuntimeTaskInstance:
             "data_interval_end": timezone.datetime(2024, 12, 1, 1, 0, 0),
             "data_interval_start": timezone.datetime(2024, 12, 1, 0, 0, 0),
             "logical_date": timezone.datetime(2024, 12, 1, 1, 0, 0),
+            "task_reschedule_count": 0,
             "ds": "2024-12-01",
             "ds_nodash": "20241201",
             "task_instance_key_str": "basic_task__hello__20241201",
@@ -651,7 +716,12 @@ class TestRuntimeTaskInstance:
 
         ti_id = uuid7()
         ti = TaskInstance(
-            id=ti_id, task_id=task.task_id, dag_id="basic_task", run_id="test_run", try_number=1
+            id=ti_id,
+            task_id=task.task_id,
+            dag_id="basic_task",
+            run_id="test_run",
+            try_number=1,
+            start_date=timezone.datetime(2024, 12, 1, 1, 0, 0),
         )
         conn = ConnectionResult(
             conn_id="test_conn",
@@ -723,7 +793,12 @@ class TestXComAfterTaskExecution:
         task = CustomOperator(task_id="hello", do_xcom_push=do_xcom_push)
 
         ti = TaskInstance(
-            id=uuid7(), task_id=task.task_id, dag_id="xcom_push_flag", run_id="test_run", try_number=1
+            id=uuid7(),
+            task_id=task.task_id,
+            dag_id="xcom_push_flag",
+            run_id="test_run",
+            try_number=1,
+            start_date=timezone.utcnow(),
         )
 
         what = StartupDetails(ti=ti, file="", requests_fd=0, ti_context=make_ti_context())
@@ -754,7 +829,12 @@ class TestXComAfterTaskExecution:
         )
         dag = get_inline_dag(dag_id="test_dag", task=task)
         ti = TaskInstance(
-            id=uuid7(), task_id=task.task_id, dag_id=dag.dag_id, run_id="test_run", try_number=1
+            id=uuid7(),
+            task_id=task.task_id,
+            dag_id=dag.dag_id,
+            run_id="test_run",
+            try_number=1,
+            start_date=timezone.utcnow(),
         )
 
         runtime_ti = RuntimeTaskInstance.model_construct(**ti.model_dump(exclude_unset=True), task=task)
@@ -784,7 +864,12 @@ class TestXComAfterTaskExecution:
         )
         dag = get_inline_dag(dag_id="test_dag", task=task)
         ti = TaskInstance(
-            id=uuid7(), task_id=task.task_id, dag_id=dag.dag_id, run_id="test_run", try_number=1
+            id=uuid7(),
+            task_id=task.task_id,
+            dag_id=dag.dag_id,
+            run_id="test_run",
+            try_number=1,
+            start_date=timezone.utcnow(),
         )
 
         runtime_ti = RuntimeTaskInstance.model_construct(**ti.model_dump(exclude_unset=True), task=task)
@@ -809,7 +894,12 @@ class TestXComAfterTaskExecution:
         )
         dag = get_inline_dag(dag_id="test_dag", task=task)
         ti = TaskInstance(
-            id=uuid7(), task_id=task.task_id, dag_id=dag.dag_id, run_id="test_run", try_number=1
+            id=uuid7(),
+            task_id=task.task_id,
+            dag_id=dag.dag_id,
+            run_id="test_run",
+            try_number=1,
+            start_date=timezone.utcnow(),
         )
 
         runtime_ti = RuntimeTaskInstance.model_construct(**ti.model_dump(exclude_unset=True), task=task)

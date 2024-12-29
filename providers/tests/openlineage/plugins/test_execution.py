@@ -116,6 +116,7 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             self.setup_job(task_name, run_id)
 
             events = get_sorted_events(tmp_dir)
+            log.error(events)
             assert has_value_in_events(events, ["inputs", "name"], "on-start")
             assert has_value_in_events(events, ["inputs", "name"], "on-complete")
 

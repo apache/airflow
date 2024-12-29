@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,15 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# This model is not used in the API, but it is included in generated OpenAPI schema
+# for use in the client SDKs.
 from __future__ import annotations
 
-from airflow.listeners import hookimpl
+from airflow.api_fastapi.common.types import UtcDateTime
+from airflow.api_fastapi.core_api.base import BaseModel
 
 
-@hookimpl
-def on_task_instance_running(previous_state, task_instance):
-    pass
+class DagRun(BaseModel):
+    """Schema for TaskInstance model with minimal required fields needed for OL for now."""
 
-
-def clear():
-    pass
+    id: int
+    dag_id: str
+    run_id: str
+    logical_date: UtcDateTime
+    data_interval_start: UtcDateTime
+    data_interval_end: UtcDateTime
+    clear_number: int

@@ -34,17 +34,15 @@ class FileWriteListener:
             f.write(line + "\n")
 
     @hookimpl
-    def on_task_instance_running(self, previous_state, task_instance, session):
+    def on_task_instance_running(self, previous_state, task_instance):
         self.write("on_task_instance_running")
 
     @hookimpl
-    def on_task_instance_success(self, previous_state, task_instance, session):
+    def on_task_instance_success(self, previous_state, task_instance):
         self.write("on_task_instance_success")
 
     @hookimpl
-    def on_task_instance_failed(
-        self, previous_state, task_instance, error: None | str | BaseException, session
-    ):
+    def on_task_instance_failed(self, previous_state, task_instance, error: None | str | BaseException):
         self.write("on_task_instance_failed")
 
     @hookimpl

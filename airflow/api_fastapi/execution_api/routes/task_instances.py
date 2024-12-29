@@ -23,7 +23,7 @@ from uuid import UUID
 
 from fastapi import Body, HTTPException, status
 from pydantic import JsonValue
-from sqlalchemy import update
+from sqlalchemy import func, update
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.sql import select
 
@@ -73,9 +73,9 @@ def ti_run(
     # We only use UUID above for validation purposes
     ti_id_str = str(task_instance_id)
 
-    old = select(TI.state, TI.dag_id, TI.run_id).where(TI.id == ti_id_str).with_for_update()
+    old = select(TI.state, TI.dag_id, TI.run_id, TI.try_number).where(TI.id == ti_id_str).with_for_update()
     try:
-        (previous_state, dag_id, run_id) = session.execute(old).one()
+        (previous_state, dag_id, run_id, try_number) = session.execute(old).one()
     except NoResultFound:
         log.error("Task Instance %s not found", ti_id_str)
         raise HTTPException(
@@ -135,6 +135,7 @@ def ti_run(
                 DR.data_interval_end,
                 DR.start_date,
                 DR.end_date,
+                DR.clear_number,
                 DR.run_type,
                 DR.conf,
                 DR.logical_date,
@@ -144,8 +145,24 @@ def ti_run(
         if not dr:
             raise ValueError(f"DagRun with dag_id={dag_id} and run_id={run_id} not found.")
 
+        task_reschedule_count = (
+            session.query(
+                func.count(TaskReschedule.id)  # or any other primary key column
+            )
+            .filter(
+                TaskReschedule.dag_id == dag_id,
+                TaskReschedule.task_id == ti_id_str,
+                TaskReschedule.run_id == run_id,
+                #    TaskReschedule.map_index == ti.map_index,  # TODO: Handle mapped tasks
+                TaskReschedule.try_number == try_number,
+            )
+            .scalar()
+            or 0
+        )
+
         return TIRunContext(
             dag_run=DagRun.model_validate(dr, from_attributes=True),
+            task_reschedule_count=task_reschedule_count,
             # TODO: Add variables and connections that are needed (and has perms) for the task
             variables=[],
             connections=[],

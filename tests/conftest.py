@@ -40,6 +40,14 @@ collect_ignore = [
 ]
 
 
+@pytest.fixture(autouse=True)
+def load_examples():
+    from tests_common.test_utils.config import conf_vars
+
+    with conf_vars({("core", "load_examples"): "False"}):
+        yield
+
+
 @pytest.hookimpl(tryfirst=True)
 def pytest_configure(config: pytest.Config) -> None:
     dep_path = [config.rootpath.joinpath("tests", "deprecations_ignore.yml")]

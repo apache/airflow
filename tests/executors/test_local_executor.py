@@ -27,6 +27,7 @@ from uuid6 import uuid7
 
 from airflow.executors import workloads
 from airflow.executors.local_executor import LocalExecutor
+from airflow.utils import timezone
 from airflow.utils.state import State
 
 pytestmark = pytest.mark.db_test
@@ -60,6 +61,8 @@ class TestLocalExecutor:
                 run_id="run1",
                 try_number=1,
                 state="queued",
+                map_index=-1,
+                start_date=timezone.utcnow(),
             )
             for i in range(self.TEST_SUCCESS_COMMANDS)
         ]

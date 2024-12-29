@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 from airflow.models import DAG, Operator, Param
 from airflow.models.xcom_arg import XComArg
@@ -27,6 +27,10 @@ ENABLE_OL_PARAM_NAME = "_selective_enable_ol"
 ENABLE_OL_PARAM = Param(True, const=True)
 DISABLE_OL_PARAM = Param(False, const=False)
 T = TypeVar("T", bound="DAG | Operator")
+
+if TYPE_CHECKING:
+    from airflow.sdk.definitions.baseoperator import BaseOperator as SdkBaseOperator
+
 
 log = logging.getLogger(__name__)
 
@@ -65,7 +69,7 @@ def disable_lineage(obj: T) -> T:
     return obj
 
 
-def is_task_lineage_enabled(task: Operator) -> bool:
+def is_task_lineage_enabled(task: Operator | SdkBaseOperator) -> bool:
     """Check if selective enable OpenLineage parameter is set to True on task level."""
     if task.params.get(ENABLE_OL_PARAM_NAME) is False:
         log.debug(
