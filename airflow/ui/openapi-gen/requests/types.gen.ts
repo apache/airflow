@@ -138,6 +138,9 @@ export type BaseInfoResponse = {
   status: string | null;
 };
 
+/**
+ * Request body for Import Variables endpoint.
+ */
 export type ImportVariableBody = {
   file: Blob | File;
 };

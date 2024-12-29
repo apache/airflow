@@ -499,6 +499,7 @@ export const $ImportVariableBody = {
   type: "object",
   required: ["file"],
   title: "ImportVariableBody",
+  description: "Request body for Import Variables endpoint.",
 } as const;
 
 export const $ClearTaskInstancesBody = {

@@ -6506,6 +6506,7 @@ components:
       required:
       - file
       title: ImportVariableBody
+      description: Request body for Import Variables endpoint.
     ClearTaskInstancesBody:
       properties:
         dry_run:
