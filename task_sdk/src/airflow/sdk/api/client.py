@@ -17,14 +17,19 @@
 
 from __future__ import annotations
 
+import logging
+import os
 import sys
 import uuid
+from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import httpx
 import msgspec
 import structlog
 from pydantic import BaseModel
+from retryhttp import retry, wait_retry_after
+from tenacity import before_log, wait_random_exponential
 from uuid6 import uuid7
 
 from airflow.sdk import __version__
@@ -35,6 +40,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
+    TIRescheduleStatePayload,
     TIRunContext,
     TITerminalStatePayload,
     ValidationError as RemoteValidationError,
@@ -42,12 +48,15 @@ from airflow.sdk.api.datamodels._generated import (
     VariableResponse,
     XComResponse,
 )
+from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time.comms import ErrorResponse
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from airflow.sdk.execution_time.comms import RescheduleTask
     from airflow.typing_compat import ParamSpec
 
     P = ParamSpec("P")
@@ -137,6 +146,13 @@ class TaskInstanceOperations:
         # Create a deferred state payload from msg
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
+    def reschedule(self, id: uuid.UUID, msg: RescheduleTask):
+        """Tell the API server that this TI has been reschduled."""
+        body = TIRescheduleStatePayload(**msg.model_dump(exclude_unset=True))
+
+        # Create a reschedule state payload from msg
+        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
+
     def set_rtif(self, id: uuid.UUID, body: dict[str, str]) -> dict[str, bool]:
         """Set Rendered Task Instance Fields via the API server."""
         self.client.put(f"task-instances/{id}/rtif", json=body)
@@ -152,9 +168,19 @@ class ConnectionOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def get(self, conn_id: str) -> ConnectionResponse:
+    def get(self, conn_id: str) -> ConnectionResponse | ErrorResponse:
         """Get a connection from the API server."""
-        resp = self.client.get(f"connections/{conn_id}")
+        try:
+            resp = self.client.get(f"connections/{conn_id}")
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.error(
+                    "Connection not found",
+                    conn_id=conn_id,
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                return ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND, detail={"conn_id": conn_id})
         return ConnectionResponse.model_validate_json(resp.read())
 
 
@@ -185,11 +211,16 @@ class XComOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def get(self, dag_id: str, run_id: str, task_id: str, key: str, map_index: int = -1) -> XComResponse:
+    def get(
+        self, dag_id: str, run_id: str, task_id: str, key: str, map_index: int | None = None
+    ) -> XComResponse:
         """Get a XCom value from the API server."""
         # TODO: check if we need to use map_index as params in the uri
         # ref: https://github.com/apache/airflow/blob/v2-10-stable/airflow/api_connexion/openapi/v1.yaml#L1785C1-L1785C81
-        resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params={"map_index": map_index})
+        params = {}
+        if map_index is not None:
+            params.update({"map_index": map_index})
+        resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
         return XComResponse.model_validate_json(resp.read())
 
     def set(
@@ -241,6 +272,15 @@ def noop_handler(request: httpx.Request) -> httpx.Response:
     return httpx.Response(200, json={"text": "Hello, world!"})
 
 
+# Config options for SDK how retries on HTTP requests should be handled
+# Note: Given defaults make attempts after 1, 3, 7, 15, 31seconds, 1:03, 2:07, 3:37 and fails after 5:07min
+# So far there is no other config facility in SDK we use ENV for the moment
+# TODO: Consider these env variables while handling airflow confs in task sdk
+API_RETRIES = int(os.getenv("AIRFLOW__WORKERS__API_RETRIES", 10))
+API_RETRY_WAIT_MIN = float(os.getenv("AIRFLOW__WORKERS__API_RETRY_WAIT_MIN", 1.0))
+API_RETRY_WAIT_MAX = float(os.getenv("AIRFLOW__WORKERS__API_RETRY_WAIT_MAX", 90.0))
+
+
 class Client(httpx.Client):
     def __init__(self, *, base_url: str | None, dry_run: bool = False, token: str, **kwargs: Any):
         if (not base_url) ^ dry_run:
@@ -261,6 +301,21 @@ class Client(httpx.Client):
             event_hooks={"response": [raise_on_4xx_5xx], "request": [add_correlation_id]},
             **kwargs,
         )
+
+    _default_wait = wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX)
+
+    @retry(
+        reraise=True,
+        max_attempt_number=API_RETRIES,
+        wait_server_errors=_default_wait,
+        wait_network_errors=_default_wait,
+        wait_timeouts=_default_wait,
+        wait_rate_limited=wait_retry_after(fallback=_default_wait),  # No infinite timeout on HTTP 429
+        before_sleep=before_log(log, logging.WARNING),
+    )
+    def request(self, *args, **kwargs):
+        """Implement a convenience for httpx.Client.request with a retry layer."""
+        return super().request(*args, **kwargs)
 
     # We "group" or "namespace" operations by what they operate on, rather than a flat namespace with all
     # methods on one object prefixed with the object type (`.task_instances.update` rather than
