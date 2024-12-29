@@ -20,6 +20,19 @@
 Changelog
 ---------
 
+1.5.2
+.....
+
+Misc
+~~~~
+
+* ``Correctly import isabs from os.path (#45178)``
+* ``[providers-fab/v1-5] Invalidate user session on password reset (#45139)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.5.1
 .....
 
