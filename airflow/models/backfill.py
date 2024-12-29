@@ -27,15 +27,7 @@ import logging
 from enum import Enum
 from typing import TYPE_CHECKING, overload
 
-from sqlalchemy import (
-    Boolean,
-    Column,
-    ForeignKeyConstraint,
-    Integer,
-    UniqueConstraint,
-    func,
-    select,
-)
+from sqlalchemy import Boolean, Column, ForeignKeyConstraint, Integer, UniqueConstraint, case, func, select
 from sqlalchemy.orm import relationship, validates
 from sqlalchemy_jsonfield import JSONField
 
@@ -185,7 +177,7 @@ def _create_backfill_dag_run(
             func.row_number()
             .over(
                 partition_by=DagRun.logical_date,
-                order_by=(DagRun.start_date.desc().nullsfirst()),
+                order_by=(case([(DagRun.start_date.is_(None), 0)], else_=1), DagRun.start_date.desc()),
             )
             .label("row_number"),
         )
