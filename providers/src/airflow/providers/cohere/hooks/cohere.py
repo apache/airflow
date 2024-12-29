@@ -111,13 +111,11 @@ class CohereHook(BaseHook):
     def test_connection(
         self,
         model: str = "command-r-plus-08-2024",
-        messages: list[UserChatMessageV2] | None = None,
+        messages: ChatMessages | None = None,
     ) -> tuple[bool, str]:
         try:
             if messages is None:
-                messages = [{"role": "user", "content": "hello world!"}]
-            else:
-                messages = cast(ChatMessages, messages)
+                messages = [UserChatMessageV2(role="user", content="hello world!")]
             self.get_conn.chat(model=model, messages=messages)
             return True, "Connection successfully established."
         except Exception as e:
