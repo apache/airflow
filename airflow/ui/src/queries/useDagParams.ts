@@ -19,10 +19,26 @@
 import { useDagServiceGetDagDetails } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
+export type DagParamsSpec = Record<string, ParamSpec>;
+
+export type ParamSpec = {
+  description: string | null;
+  schema: {
+    const: string | null;
+    description_md: string | null;
+    enum: Array<string> | null;
+    format: string | null;
+    title: string | null;
+    type: Array<string> | string | null;
+    values_display: Record<string, string> | null;
+  };
+  value: unknown;
+};
 export const useDagParams = (dagId: string, open: boolean) => {
-  const { data, error } = useDagServiceGetDagDetails({ dagId }, undefined, {
-    enabled: open,
-  });
+  const { data, error }: { data?: Record<string, DagParamsSpec>; error?: unknown } =
+    useDagServiceGetDagDetails({ dagId }, undefined, {
+      enabled: open,
+    });
 
   if (Boolean(error)) {
     const errorDescription =
@@ -38,12 +54,12 @@ export const useDagParams = (dagId: string, open: boolean) => {
   }
 
   const transformedParams = data?.params
-    ? Object.fromEntries(
-        Object.entries(data.params).map(([key, param]) => [key, (param as { value: unknown }).value]),
-      )
+    ? Object.fromEntries(Object.entries(data.params).map(([key, param]) => [key, param.value]))
     : {};
 
   const initialConf = JSON.stringify(transformedParams, undefined, 2);
 
-  return initialConf;
+  const paramsDict: DagParamsSpec = data?.params ?? ({} as DagParamsSpec);
+
+  return { initialConf, paramsDict };
 };
