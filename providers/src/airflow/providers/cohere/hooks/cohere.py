@@ -29,7 +29,7 @@ from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
     from cohere.core.request_options import RequestOptions
-    from cohere.types import EmbedByTypeResponseEmbeddings
+    from cohere.types import EmbedByTypeResponseEmbeddings, UserChatMessageV2
 
 
 logger = logging.getLogger(__name__)
@@ -65,16 +65,13 @@ class CohereHook(BaseHook):
         self.max_retries = max_retries
         self.request_options = request_options
 
-        if self.max_retries is not None:
+        if self.max_retries:
             warnings.warn(
                 "The 'max_retries' parameter is deprecated. Use 'request_options' with {'max_retries': value} instead.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            if self.request_options is None:
-                self.request_options = {"max_retries": self.max_retries}
-            else:
-                self.request_options["max_retries"] = self.max_retries
+            self.request_options['max_retries'] = self.max_retries
 
     @cached_property
     def get_conn(self) -> cohere.ClientV2:  # type: ignore[override]
@@ -109,9 +106,9 @@ class CohereHook(BaseHook):
             },
         }
 
-    def test_connection(self, model: str = "command-r-plus-08-2024") -> tuple[bool, str]:
+    def test_connection(self, model: str = "command-r-plus-08-2024", messages: UserChatMessageV2 = [{"role": "user", "content": "hello world!"}]) -> tuple[bool, str]:
         try:
-            self.get_conn.chat(model=model, messages=[{"role": "user", "content": "hello world!"}])
+            self.get_conn.chat(model=model, messages=messages)
             return True, "Connection successfully established."
         except Exception as e:
             return False, f"Unexpected error: {str(e)}"
