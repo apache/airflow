@@ -33,7 +33,6 @@ class TestCohereHook:
         api_key = "test"
         base_url = "http://some_host.com"
         timeout = 150
-        max_retries = 5
         with (
             patch.object(
                 CohereHook,
@@ -42,8 +41,6 @@ class TestCohereHook:
             ),
             patch("cohere.ClientV2") as client,
         ):
-            hook = CohereHook(timeout=timeout, max_retries=max_retries)
+            hook = CohereHook(timeout=timeout)
             _ = hook.get_conn
-            client.assert_called_once_with(
-                api_key=api_key, timeout=timeout, max_retries=max_retries, api_url=base_url
-            )
+            client.assert_called_once_with(api_key=api_key, timeout=timeout, base_url=base_url)
