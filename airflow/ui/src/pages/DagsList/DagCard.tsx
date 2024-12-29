@@ -23,7 +23,7 @@ import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import DagRunInfo from "src/components/DagRunInfo";
 import { Stat } from "src/components/Stat";
 import { TogglePause } from "src/components/TogglePause";
-import TriggerDAGIconButton from "src/components/TriggerDag/TriggerDAGIconButton";
+import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
 import { Tooltip } from "src/components/ui";
 
 import { DagTags } from "./DagTags";
@@ -71,7 +71,7 @@ export const DagCard = ({ dag }: Props) => {
             dagId={dag.dag_id}
             isPaused={dag.is_paused}
           />
-          <TriggerDAGIconButton dag={dag} />
+          <TriggerDAGButton dag={dag} withText={false} />
         </HStack>
       </Flex>
       <SimpleGrid columns={4} gap={4} height={20} px={3} py={2}>

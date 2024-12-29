@@ -154,6 +154,7 @@ class ClassifiedChanges:
         self.misc: list[Change] = []
         self.features: list[Change] = []
         self.breaking_changes: list[Change] = []
+        self.docs: list[Change] = []
         self.other: list[Change] = []
 
 
@@ -936,6 +937,8 @@ def _get_changes_classified(
             classified_changes.features.append(change)
         elif type_of_change == TypeOfChange.BREAKING_CHANGE and with_breaking_changes:
             classified_changes.breaking_changes.append(change)
+        elif type_of_change == TypeOfChange.DOCUMENTATION:
+            classified_changes.docs.append(change)
         else:
             classified_changes.other.append(change)
     return classified_changes

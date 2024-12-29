@@ -155,6 +155,9 @@ class KubernetesPodOperator(BaseOperator):
     :param startup_timeout_seconds: timeout in seconds to startup the pod.
     :param startup_check_interval_seconds: interval in seconds to check if the pod has already started
     :param get_logs: get the stdout of the base container as logs of the tasks.
+    :param init_container_logs: list of init containers whose logs will be published to stdout
+        Takes a sequence of containers, a single container name or True. If True,
+        all the containers logs are published.
     :param container_logs: list of containers whose logs will be published to stdout
         Takes a sequence of containers, a single container name or True. If True,
         all the containers logs are published. Works in conjunction with get_logs param.
@@ -278,6 +281,7 @@ class KubernetesPodOperator(BaseOperator):
         startup_check_interval_seconds: int = 5,
         get_logs: bool = True,
         base_container_name: str | None = None,
+        init_container_logs: Iterable[str] | str | Literal[True] | None = None,
         container_logs: Iterable[str] | str | Literal[True] | None = None,
         image_pull_policy: str | None = None,
         annotations: dict | None = None,
@@ -352,6 +356,7 @@ class KubernetesPodOperator(BaseOperator):
         # Fallback to the class variable BASE_CONTAINER_NAME here instead of via default argument value
         # in the init method signature, to be compatible with subclasses overloading the class variable value.
         self.base_container_name = base_container_name or self.BASE_CONTAINER_NAME
+        self.init_container_logs = init_container_logs
         self.container_logs = container_logs or self.base_container_name
         self.image_pull_policy = image_pull_policy
         self.node_selector = node_selector or {}
@@ -600,6 +605,9 @@ class KubernetesPodOperator(BaseOperator):
                 self.callbacks.on_pod_creation(
                     pod=self.remote_pod, client=self.client, mode=ExecutionMode.SYNC
                 )
+
+            self.await_init_containers_completion(pod=self.pod)
+
             self.await_pod_start(pod=self.pod)
             if self.callbacks:
                 self.callbacks.on_pod_starting(
@@ -640,6 +648,22 @@ class KubernetesPodOperator(BaseOperator):
         retry=tenacity.retry_if_exception_type(PodCredentialsExpiredFailure),
         reraise=True,
     )
+    def await_init_containers_completion(self, pod: k8s.V1Pod):
+        try:
+            if self.init_container_logs:
+                self.pod_manager.fetch_requested_init_container_logs(
+                    pod=pod,
+                    init_containers=self.init_container_logs,
+                    follow_logs=True,
+                )
+        except kubernetes.client.exceptions.ApiException as exc:
+            self._handle_api_exception(exc, pod)
+
+    @tenacity.retry(
+        wait=tenacity.wait_exponential(max=15),
+        retry=tenacity.retry_if_exception_type(PodCredentialsExpiredFailure),
+        reraise=True,
+    )
     def await_pod_completion(self, pod: k8s.V1Pod):
         try:
             if self.get_logs:
@@ -653,16 +677,21 @@ class KubernetesPodOperator(BaseOperator):
             ):
                 self.pod_manager.await_container_completion(pod=pod, container_name=self.base_container_name)
         except kubernetes.client.exceptions.ApiException as exc:
-            if exc.status and str(exc.status) == "401":
-                self.log.warning(
-                    "Failed to check container status due to permission error. Refreshing credentials and retrying."
-                )
-                self._refresh_cached_properties()
-                self.pod_manager.read_pod(
-                    pod=pod
-                )  # attempt using refreshed credentials, raises if still invalid
-                raise PodCredentialsExpiredFailure("Kubernetes credentials expired, retrying after refresh.")
-            raise exc
+            self._handle_api_exception(exc, pod)
+
+    def _handle_api_exception(
+        self,
+        exc: kubernetes.client.exceptions.ApiException,
+        pod: k8s.V1Pod,
+    ):
+        if exc.status and str(exc.status) == "401":
+            self.log.warning(
+                "Failed to check container status due to permission error. Refreshing credentials and retrying."
+            )
+            self._refresh_cached_properties()
+            self.pod_manager.read_pod(pod=pod)  # attempt using refreshed credentials, raises if still invalid
+            raise PodCredentialsExpiredFailure("Kubernetes credentials expired, retrying after refresh.")
+        raise exc
 
     def _refresh_cached_properties(self):
         del self.hook

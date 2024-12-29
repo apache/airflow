@@ -35,14 +35,36 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+12.0.0
+......
+
+Latest change: 2024-12-19
+
+=================================================================================================  ===========  =====================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================================================================================
+`2947bf00f9 <https://github.com/apache/airflow/commit/2947bf00f97603299a5c1e133375120fbd18da93>`_  2024-12-19   ``PowerBIDatasetRefreshOperator should fail when refresh fails (#44696)``
+`35b927fe17 <https://github.com/apache/airflow/commit/35b927fe177065dad0e00c49d72b494e58b27ca8>`_  2024-12-19   ``Update path of example dags in docs (#45069)``
+`3310b8628e <https://github.com/apache/airflow/commit/3310b8628e34578d16d2afbea3809ae422cd6d76>`_  2024-12-18   ``Avoid 1.1.8 version of msgraph-core (#45044)``
+`01e0bc3152 <https://github.com/apache/airflow/commit/01e0bc315244d43bc317ddb82b2339801ce150b5>`_  2024-12-18   ``refactor: Added MS Graph connection type (#45006)``
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`088e796e93 <https://github.com/apache/airflow/commit/088e796e93b1f573a84bd965666913bdc56a291c>`_  2024-12-07   ``Remove Provider Deprecations in Microsoft-AZURE (#44763)``
+`c5832d9fb8 <https://github.com/apache/airflow/commit/c5832d9fb8c223afd9b5b1a3fc9339ab549b4591>`_  2024-11-28   ``Added test-case for callable values in path and query parameters of MSGraphAsyncOperator (#43799)``
+`4404e64247 <https://github.com/apache/airflow/commit/4404e64247daf37b350bc7cd835d397256507ad1>`_  2024-11-25   ``Move triggers to standard provider (#43608)``
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`6faa720cd8 <https://github.com/apache/airflow/commit/6faa720cd8f206a5af718752d27c1dd5d38c96d1>`_  2024-11-18   ``Remove XCom pickling (#43905)``
+`4dfae23532 <https://github.com/apache/airflow/commit/4dfae23532d26ed838069c49d48f28c185e954c6>`_  2024-11-15   ``Update DAG example links in multiple providers documents (#44034)``
+=================================================================================================  ===========  =====================================================================================================
+
 11.1.0
 ......
 
-Latest change: 2024-11-09
+Latest change: 2024-11-14
 
 =================================================================================================  ===========  ============================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
 `b9513cc9b9 <https://github.com/apache/airflow/commit/b9513cc9b94a70e721a439088ddd9e93f8c6c429>`_  2024-11-09   ``Fix Power BI trigger testcase (#43494)``
 `59ea748f74 <https://github.com/apache/airflow/commit/59ea748f740a89ec17ece00ca874e5ac56b7e28f>`_  2024-11-02   ``Add min version to ipykernel,scrapbook, pywinrm (#43603)``
 `1f7a58a517 <https://github.com/apache/airflow/commit/1f7a58a5172bfd6dacf09d446f48e2cd5edca3d5>`_  2024-11-01   ``Add copy_object functionality for wasbhook (#43037)``

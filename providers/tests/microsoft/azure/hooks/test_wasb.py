@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import re
 from unittest import mock
 
@@ -31,6 +32,9 @@ from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 
 pytestmark = pytest.mark.db_test
 
+if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
+    # Handle collection of the test by non-db case
+    Connection = mock.MagicMock()  # type: ignore[misc]
 
 # connection_string has a format
 CONN_STRING = (

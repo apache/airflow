@@ -35,14 +35,33 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.0.0
+.....
+
+Latest change: 2024-12-19
+
+=================================================================================================  ===========  ==========================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================================================================
+`35b927fe17 <https://github.com/apache/airflow/commit/35b927fe177065dad0e00c49d72b494e58b27ca8>`_  2024-12-19   ``Update path of example dags in docs (#45069)``
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`ee6167e150 <https://github.com/apache/airflow/commit/ee6167e1505d69f392fb20cce8c32ec3bd2a0f1a>`_  2024-12-07   ``remove deprecations (#44756)``
+`e1f0f1f2cc <https://github.com/apache/airflow/commit/e1f0f1f2cc5a14599180575656a4a2bcd11d1a5b>`_  2024-11-30   ``enable client_store_temporary_credential for snowflake provider (#44431)``
+`518d394119 <https://github.com/apache/airflow/commit/518d394119af0afe302a2b5b4f406af330e5078f>`_  2024-11-28   ``Allow 'json_result_force_utf8_encoding' specification in 'providers.snowflake.hooks.SnowflakeHook' extra dict (#44264)``
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`d8bff0094e <https://github.com/apache/airflow/commit/d8bff0094ee453f4b01266b7d0cc662ff48a7f59>`_  2024-11-16   ``make host/port configurable for Snowflake connections (#44079)``
+`4dfae23532 <https://github.com/apache/airflow/commit/4dfae23532d26ed838069c49d48f28c185e954c6>`_  2024-11-15   ``Update DAG example links in multiple providers documents (#44034)``
+=================================================================================================  ===========  ==========================================================================================================================
+
 5.8.1
 .....
 
-Latest change: 2024-11-13
+Latest change: 2024-11-14
 
 =================================================================================================  ===========  ========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
 `e7194dff6a <https://github.com/apache/airflow/commit/e7194dff6a816bf3a721cbf579ceac19c11cd111>`_  2024-11-13   ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
 `06088a3abc <https://github.com/apache/airflow/commit/06088a3abcbb46533e74de360746db766d50cf66>`_  2024-10-31   ``Standard provider python operator (#42081)``
 `d8c7d28411 <https://github.com/apache/airflow/commit/d8c7d28411bea04ae5771fc1e2973d92eb0a144e>`_  2024-10-30   ``Start porting DAG definition code to the Task SDK (#43076)``

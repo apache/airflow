@@ -150,9 +150,7 @@ DOC_EXTRAS: dict[str, list[str]] = {
     "doc": [
         "astroid>=2.12.3,<3.0",
         "checksumdir>=1.2.0",
-        # click 8.1.4 and 8.1.5 generate mypy errors due to typing issue in the upstream package:
-        # https://github.com/pallets/click/issues/2558
-        "click>=8.0,!=8.1.4,!=8.1.5",
+        "click>=8.1.8",
         # Docutils 0.17.0 converts generated <div class="section"> into <section> and breaks our doc formatting
         # By adding a lot of whitespace separation. This limit can be lifted when we update our doc to handle
         # <section> tags for sections
@@ -257,6 +255,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "beautifulsoup4>=4.7.1",
         # Coverage 7.4.0 added experimental support for Python 3.12 PEP669 which we use in Airflow
         "coverage>=7.4.0",
+        "deepdiff>=8.1.1",
         "jmespath>=0.7.0",
         "kgb>=7.0.0",
         "pytest-asyncio>=0.23.6",

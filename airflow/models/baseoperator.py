@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import collections.abc
 import contextlib
-import copy
 import functools
 import logging
 from collections.abc import Collection, Iterable, Sequence
@@ -702,12 +701,6 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
     context dependencies in that they are specific to tasks and can be
     extended/overridden by subclasses.
     """
-
-    def prepare_for_execution(self) -> BaseOperator:
-        """Lock task for execution to disable custom action in ``__setattr__`` and return a copy."""
-        other = copy.copy(self)
-        other._lock_for_execution = True
-        return other
 
     @prepare_lineage
     def pre_execute(self, context: Any):

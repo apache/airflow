@@ -28,9 +28,16 @@ import {
 import type { DagRunTriggerParams } from "src/components/TriggerDag/TriggerDAGForm";
 import { toaster } from "src/components/ui";
 
-export const useTrigger = (onClose: () => void) => {
+export const useTrigger = ({
+  onSuccessConfirm,
+}: {
+  onSuccessConfirm: () => void;
+}) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
+
+  const [dateValidationError, setDateValidationError] =
+    useState<unknown>(undefined);
 
   const onSuccess = async () => {
     const queryKeys = [
@@ -44,14 +51,12 @@ export const useTrigger = (onClose: () => void) => {
         queryClient.invalidateQueries({ queryKey: [key] }),
       ),
     );
-
     toaster.create({
       description: "DAG run has been successfully triggered.",
       title: "DAG Run Request Submitted",
       type: "success",
     });
-
-    onClose();
+    onSuccessConfirm();
   };
 
   const onError = (_error: unknown) => {
@@ -72,12 +77,41 @@ export const useTrigger = (onClose: () => void) => {
       unknown
     >;
 
-    const formattedDataIntervalStart = dagRunRequestBody.dataIntervalStart
-      ? new Date(dagRunRequestBody.dataIntervalStart).toISOString()
+    const DataIntervalStart = dagRunRequestBody.dataIntervalStart
+      ? new Date(dagRunRequestBody.dataIntervalStart)
       : undefined;
-    const formattedDataIntervalEnd = dagRunRequestBody.dataIntervalEnd
-      ? new Date(dagRunRequestBody.dataIntervalEnd).toISOString()
+    const DataIntervalEnd = dagRunRequestBody.dataIntervalEnd
+      ? new Date(dagRunRequestBody.dataIntervalEnd)
       : undefined;
+
+    if (Boolean(DataIntervalStart) !== Boolean(DataIntervalEnd)) {
+      setDateValidationError({
+        body: {
+          detail:
+            "Either both Data Interval Start Date and End Date must be provided, or both must be empty.",
+        },
+      });
+
+      return;
+    }
+
+    if (DataIntervalStart && DataIntervalEnd) {
+      if (DataIntervalStart > DataIntervalEnd) {
+        setDateValidationError({
+          body: {
+            detail:
+              "Data Interval Start Date must be less than or equal to Data Interval End Date.",
+          },
+        });
+
+        return;
+      }
+    }
+
+    const formattedDataIntervalStart =
+      DataIntervalStart?.toISOString() ?? undefined;
+    const formattedDataIntervalEnd =
+      DataIntervalEnd?.toISOString() ?? undefined;
 
     const checkDagRunId =
       dagRunRequestBody.dagRunId === ""
@@ -98,5 +132,5 @@ export const useTrigger = (onClose: () => void) => {
     });
   };
 
-  return { error, isPending, triggerDagRun };
+  return { dateValidationError, error, isPending, triggerDagRun };
 };

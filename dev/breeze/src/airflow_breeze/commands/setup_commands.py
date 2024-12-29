@@ -296,10 +296,36 @@ def dedent_help(dictionary: dict[str, Any]) -> None:
             dictionary[key] = textwrap.dedent(value)
 
 
-def dict_hash(dictionary: dict[str, Any], dedent_help_strings: bool = True) -> str:
-    """MD5 hash of a dictionary. Sorted and dumped via json to account for random sequence)"""
+def recursively_sort_opts(object: dict[str, Any] | list[Any]) -> None:
+    if isinstance(object, dict):
+        for key in object:
+            if key == "opts" and isinstance(object[key], list):
+                object[key] = sorted(object[key])
+            elif isinstance(object[key], dict):
+                recursively_sort_opts(object[key])
+            elif isinstance(object[key], list):
+                recursively_sort_opts(object[key])
+    elif isinstance(object, list):
+        for element in object:
+            recursively_sort_opts(element)
+
+
+def dict_hash(dictionary: dict[str, Any], dedent_help_strings: bool = True, sort_opts: bool = True) -> str:
+    """
+    MD5 hash of a dictionary of configuration for click.
+
+    Sorted and dumped via json to account for random sequence of keys in the dictionary. Also it
+    implements a few corrections to the dict because click does not always keep the same sorting order in
+    options or produced differently indented help strings.
+
+    :param dictionary: dictionary to hash
+    :param dedent_help_strings: whether to dedent help strings before hashing
+    :param sort_opts: whether to sort options before hashing
+    """
     if dedent_help_strings:
         dedent_help(dictionary)
+    if sort_opts:
+        recursively_sort_opts(dictionary)
     # noinspection InsecureHash
     dhash = hashlib.md5()
     try:

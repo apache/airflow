@@ -35,6 +35,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.0.0
+.....
+
+Latest change: 2024-12-19
+
+=================================================================================================  ===========  ===========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================================================
+`04ccef9b3a <https://github.com/apache/airflow/commit/04ccef9b3a4073eaf313db3905803e7ef3f910fb>`_  2024-12-19   ``feat: automatically inject OL info into spark job in DataprocSubmitJobOperator (#44477)``
+`2a33da0246 <https://github.com/apache/airflow/commit/2a33da0246c811a98d5cdaf0af2bcca0dee8556a>`_  2024-12-18   ``Remove references to AIRFLOW_V_2_9_PLUS (#44987)``
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`490b5e816b <https://github.com/apache/airflow/commit/490b5e816b804f338b0eb97f240ae874d4e15810>`_  2024-12-10   ``Consistent way of checking Airflow version in providers (#44686)``
+`e26909df6a <https://github.com/apache/airflow/commit/e26909df6af86cc18a272d993ad45ab17dfa333a>`_  2024-12-07   ``add clear_number to OpenLineage's dagrun-level event run id generation (#44617)``
+`37236b6983 <https://github.com/apache/airflow/commit/37236b6983384a1ee4e56c789d3f7e25be395c4f>`_  2024-12-06   ``Remove Provider Deprecations in OpenLineage (#44636)``
+`7cc36104ab <https://github.com/apache/airflow/commit/7cc36104ab9c68e2246795612fdd9713ad7aa977>`_  2024-11-27   ``add basic system tests for OpenLineage (#43643)``
+`05f935d2a6 <https://github.com/apache/airflow/commit/05f935d2a6c6f4bcd34f0f3d0e7c7f715b55b250>`_  2024-11-25   ``utilize more information to deterministically generate OpenLineage run_id (#43936)``
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`a0f3353c47 <https://github.com/apache/airflow/commit/a0f3353c471e4d9a2cd4b23f0c358d0ae908580a>`_  2024-11-20   ``Move Asset user facing components to task_sdk (#43773)``
+`123dadda0e <https://github.com/apache/airflow/commit/123dadda0e0648ef1412053d1743128333eecb63>`_  2024-11-15   ``Rename execution_date to logical_date across codebase (#43902)``
+=================================================================================================  ===========  ===========================================================================================
+
 1.14.0
 ......
 
@@ -43,6 +64,7 @@ Latest change: 2024-11-14
 =================================================================================================  ===========  ================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================================
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
 `f60886cf36 <https://github.com/apache/airflow/commit/f60886cf368b943120af20889b83704ccdbb8c91>`_  2024-11-14   ``add ProcessingEngineRunFacet to OL DAG Start event (#43213)``
 `e7194dff6a <https://github.com/apache/airflow/commit/e7194dff6a816bf3a721cbf579ceac19c11cd111>`_  2024-11-13   ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
 `c7c6547481 <https://github.com/apache/airflow/commit/c7c65474810a1d4a22320b9064fa1374e38129c9>`_  2024-11-06   ``OpenLineage: accept whole config when instantiating OpenLineageClient. (#43740)``

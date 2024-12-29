@@ -43,7 +43,11 @@ from airflow.providers.common.sql.operators.sql import (  # type: ignore[attr-de
 )
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
-from airflow.providers.google.cloud.links.bigquery import BigQueryDatasetLink, BigQueryTableLink
+from airflow.providers.google.cloud.links.bigquery import (
+    BigQueryDatasetLink,
+    BigQueryJobDetailLink,
+    BigQueryTableLink,
+)
 from airflow.providers.google.cloud.openlineage.mixins import _BigQueryOpenLineageMixin
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.bigquery import (
@@ -2554,7 +2558,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
     )
     template_fields_renderers = {"configuration": "json", "configuration.query.query": "sql"}
     ui_color = BigQueryUIColors.QUERY.value
-    operator_extra_links = (BigQueryTableLink(),)
+    operator_extra_links = (BigQueryTableLink(), BigQueryJobDetailLink())
 
     def __init__(
         self,
@@ -2725,6 +2729,15 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
                 location=self.location,
             )
             context["ti"].xcom_push(key="job_id_path", value=job_id_path)
+
+        persist_kwargs = {
+            "context": context,
+            "task_instance": self,
+            "project_id": self.project_id,
+            "location": self.location,
+            "job_id": self.job_id,
+        }
+        BigQueryJobDetailLink.persist(**persist_kwargs)
 
         # Wait for the job to complete
         if not self.deferrable:

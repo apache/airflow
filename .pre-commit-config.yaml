@@ -364,8 +364,9 @@ repos:
         entry: ./scripts/ci/pre_commit/update_providers_init.py
         language: python
         pass_filenames: true
-        files: ^providers/.*/__init__.py$|^providers/.*/provider.yaml$|^airflow_breeze/templates/PROVIDER__INIT__PY_TEMPLATE.py.jinja2^
+        files: ^providers/[^\/]*/__init__.py$|^providers/[^\/]*/[^\/]*/__init__.py$|^providers/.*/provider.yaml$|^airflow_breeze/templates/PROVIDER__INIT__PY_TEMPLATE.py.jinja2^
         additional_dependencies: ['rich>=12.4.4','requests']
+        require_serial: true
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"

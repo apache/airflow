@@ -33,6 +33,7 @@ from airflow.providers.fab.www.extensions.init_jinja_globals import init_jinja_g
 from airflow.providers.fab.www.extensions.init_manifest_files import configure_manifest_files
 from airflow.providers.fab.www.extensions.init_security import init_xframe_protection
 from airflow.providers.fab.www.extensions.init_views import init_error_handlers, init_plugins
+from airflow.www.extensions.init_security import init_api_auth
 
 app: Flask | None = None
 
@@ -41,7 +42,7 @@ app: Flask | None = None
 csrf = CSRFProtect()
 
 
-def create_app(config=None, testing=False):
+def create_app():
     """Create a new instance of Airflow WWW app."""
     flask_app = Flask(__name__)
     flask_app.secret_key = conf.get("webserver", "SECRET_KEY")
@@ -63,6 +64,7 @@ def create_app(config=None, testing=False):
 
     configure_logging()
     configure_manifest_files(flask_app)
+    init_api_auth(flask_app)
 
     with flask_app.app_context():
         init_appbuilder(flask_app)
@@ -73,11 +75,11 @@ def create_app(config=None, testing=False):
     return flask_app
 
 
-def cached_app(config=None, testing=False):
+def cached_app():
     """Return cached instance of Airflow WWW app."""
     global app
     if not app:
-        app = create_app(config=config, testing=testing)
+        app = create_app()
     return app
 
 

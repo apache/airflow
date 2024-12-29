@@ -33,6 +33,8 @@ from pathlib import Path
 AIRFLOW_SOURCES_PATH = Path(__file__).parents[3].resolve()
 UI_HASH_FILE = AIRFLOW_SOURCES_PATH / ".build" / "ui" / "hash.txt"
 
+INTERNAL_SERVER_ERROR = "500 Internal Server Error"
+
 
 def get_directory_hash(directory: Path, skip_path_regexp: str | None = None) -> str:
     files = sorted(directory.rglob("*"))
@@ -68,10 +70,20 @@ if __name__ == "__main__":
         shutil.rmtree(dist_directory, ignore_errors=True)
     env = os.environ.copy()
     env["FORCE_COLOR"] = "true"
-    subprocess.check_call(
-        ["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"],
-        cwd=os.fspath(ui_directory),
-    )
+    for try_num in range(3):
+        print(f"### Trying to install yarn dependencies: attempt: {try_num + 1} ###")
+        result = subprocess.run(
+            ["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"],
+            cwd=os.fspath(ui_directory),
+            text=True,
+            check=False,
+            capture_output=True,
+        )
+        if result.returncode == 0:
+            break
+        if try_num == 2 or INTERNAL_SERVER_ERROR not in result.stderr + result.stdout:
+            print(result.stdout + "\n" + result.stderr)
+            sys.exit(result.returncode)
     subprocess.check_call(["pnpm", "run", "build"], cwd=os.fspath(ui_directory), env=env)
     new_hash = get_directory_hash(ui_directory, skip_path_regexp=r".*node_modules.*")
     UI_HASH_FILE.write_text(new_hash)

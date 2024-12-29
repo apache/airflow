@@ -26,8 +26,15 @@
 Changelog
 ---------
 
-main
+2.0.0
 .....
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
 
 .. warning::
    All deprecated classes, parameters and features have been removed from the OpenLineage provider package.
@@ -37,6 +44,29 @@ main
 
       * Removed ``normalize_sql`` function from ``openlineage.utils`` module.
 
+* ``Remove Provider Deprecations in OpenLineage (#44636)``
+
+Features
+~~~~~~~~
+
+* ``add clear_number to OpenLineage's dagrun-level event run id generation (#44617)``
+* ``utilize more information to deterministically generate OpenLineage run_id (#43936)``
+* ``feat: automatically inject OL info into spark job in DataprocSubmitJobOperator (#44477)``
+
+Misc
+~~~~
+
+* ``Remove references to AIRFLOW_V_2_9_PLUS (#44987)``
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+* ``Consistent way of checking Airflow version in providers (#44686)``
+* ``add basic system tests for OpenLineage (#43643)``
+* ``Move Asset user facing components to task_sdk (#43773)``
+* ``Rename execution_date to logical_date across codebase (#43902)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
 
 1.14.0
 ......

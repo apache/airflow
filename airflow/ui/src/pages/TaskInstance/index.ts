@@ -18,3 +18,4 @@
  */
 
 export * from "./TaskInstance";
+export * from "./Logs";

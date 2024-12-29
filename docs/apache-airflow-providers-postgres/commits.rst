@@ -35,14 +35,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.0.0
+.....
+
+Latest change: 2024-12-19
+
+=================================================================================================  ===========  ===========================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================================================================
+`35b927fe17 <https://github.com/apache/airflow/commit/35b927fe177065dad0e00c49d72b494e58b27ca8>`_  2024-12-19   ``Update path of example dags in docs (#45069)``
+`a10b3fccb0 <https://github.com/apache/airflow/commit/a10b3fccb09805397e607df4cd3ded6194d20170>`_  2024-12-18   ``Allow configuration of sqlalchemy query parameter for JdbcHook and PostgresHook through extras (#44910)``
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`163042fd3a <https://github.com/apache/airflow/commit/163042fd3a73b8290f2402c632fa98b1a8ab36ae>`_  2024-12-06   ``Remove Provider Deprecations in Postgres (#44705)``
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`4dfae23532 <https://github.com/apache/airflow/commit/4dfae23532d26ed838069c49d48f28c185e954c6>`_  2024-11-15   ``Update DAG example links in multiple providers documents (#44034)``
+`0393c1ffc8 <https://github.com/apache/airflow/commit/0393c1ffc8bb6b9513865e5b2c73a3b8eef29915>`_  2024-11-14   ``Add basic asyncio support (#43944)``
+=================================================================================================  ===========  ===========================================================================================================
+
 5.14.0
 ......
 
-Latest change: 2024-11-13
+Latest change: 2024-11-14
 
 =================================================================================================  ===========  ========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
 `e7194dff6a <https://github.com/apache/airflow/commit/e7194dff6a816bf3a721cbf579ceac19c11cd111>`_  2024-11-13   ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
 `1363cc5f8c <https://github.com/apache/airflow/commit/1363cc5f8c11a3fbcd41e2da3ed6fbb7f257a14f>`_  2024-11-08   ``Fix PostgresHook bug when getting AWS Redshift Serverless credentials (#43807)``
 `43f3c31d28 <https://github.com/apache/airflow/commit/43f3c31d28dd8ebd8dcc8a42bd17f642e94313b3>`_  2024-11-06   ``Add AWS Redshift Serverless support to PostgresHook (#43669)``

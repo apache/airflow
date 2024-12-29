@@ -69,6 +69,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.serialization.enums import DagAttributeTypes
+    from airflow.typing_compat import Self
     from airflow.utils.operator_resources import Resources
 
 # TODO: Task-SDK
@@ -974,7 +975,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def __getstate__(self):
         state = dict(self.__dict__)
-        if self._log:
+        if "_log" in state:
             del state["_log"]
 
         return state
@@ -1218,6 +1219,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             DagContext.pop()
 
         return cls.__serialized_fields
+
+    def prepare_for_execution(self) -> Self:
+        """Lock task for execution to disable custom action in ``__setattr__`` and return a copy."""
+        other = copy.copy(self)
+        other._lock_for_execution = True
+        return other
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
         """Serialize; required by DAGNode."""

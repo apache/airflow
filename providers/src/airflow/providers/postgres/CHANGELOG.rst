@@ -27,8 +27,12 @@
 Changelog
 ---------
 
-main
-....
+6.0.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
@@ -41,6 +45,24 @@ Breaking changes
      * The ``schema`` arg has been renamed to ``database`` as it contained the database name. Deprecated parameters, getters and setters have been removed. Please use ``database`` to set the database name.
   * Operators
      * Remove ``airflow.providers.postgres.operators.postgres.PostgresOperator``. Please use ``airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`` instead.
+
+* ``Remove Provider Deprecations in Postgres (#44705)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+* ``Update DAG example links in multiple providers documents (#44034)``
+* ``Add basic asyncio support (#43944)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Update path of example dags in docs (#45069)``
+   * ``Allow configuration of sqlalchemy query parameter for JdbcHook and PostgresHook through extras (#44910)``
 
 5.14.0
 ......

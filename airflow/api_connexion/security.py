@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Callable, TypeVar, cast
 from flask import Response, g
 
 from airflow.api_connexion.exceptions import PermissionDenied, Unauthenticated
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.auth.managers.models.resource_details import (
     AccessView,
     AssetDetails,
@@ -33,7 +34,6 @@ from airflow.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.utils.airflow_flask_app import get_airflow_app
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod

@@ -35,14 +35,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.0.0
+.....
+
+Latest change: 2024-12-06
+
+=================================================================================================  ===========  ====================================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================================================================
+`662f6e2d94 <https://github.com/apache/airflow/commit/662f6e2d9473eef3384fb55990e7a58daabbd212>`_  2024-12-06   ``AIP-79 Support Airflow 2.x plugins in fast api. Embed a minimal version of the Flask application in fastapi application (#44464)``
+`bcc8a4abd1 <https://github.com/apache/airflow/commit/bcc8a4abd148455042d4d56408ff0565cc901bf3>`_  2024-12-06   ``Prevent __init__.py in providers from being modified (#44713)``
+`2b7015e5ff <https://github.com/apache/airflow/commit/2b7015e5ffea79b139b8811db3fa03b93cd6da4d>`_  2024-12-03   ``AIP-81 Move CLI Commands to directories according to Hybrid, Local and Remote (#44538)``
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`48eb4301ea <https://github.com/apache/airflow/commit/48eb4301eabb4f6b1981a754a9a4bec5194b7adc>`_  2024-11-21   ``Remove deprecations from fab provider (#44198)``
+`d5bd1344b6 <https://github.com/apache/airflow/commit/d5bd1344b626b0a407e651380c061c363e9cab5a>`_  2024-11-19   ``Set up JWT token authentication in Fast APIs (#42634)``
+`c8c5756530 <https://github.com/apache/airflow/commit/c8c5756530b95de7f53b1f4cfc296d04627c7b25>`_  2024-11-19   ``Prepare FAB provider to set next version as major version (#43939)``
+=================================================================================================  ===========  ====================================================================================================================================
+
 1.5.1
 .....
 
-Latest change: 2024-11-12
+Latest change: 2024-11-14
 
 =================================================================================================  ===========  ==================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================================
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
 `c047c87aed <https://github.com/apache/airflow/commit/c047c87aed0ba191ada035c47ed9f6de9756b4e3>`_  2024-11-12   ``Expand and improve the kerberos api authentication documentation (#43682)``
 `d536ec4bd1 <https://github.com/apache/airflow/commit/d536ec4bd1da958d2f2e5822a6fec647baa12ba9>`_  2024-11-05   ``fab_auth_manager: allow get_user method to return the user authenticated via Kerberos (#43662)``
 =================================================================================================  ===========  ==================================================================================================

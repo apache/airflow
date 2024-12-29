@@ -69,6 +69,8 @@ else:
     log.debug("Value for celery result_backend not found. Using sql_alchemy_conn with db+ prefix.")
     result_backend = f'db+{conf.get("database", "SQL_ALCHEMY_CONN")}'
 
+extra_celery_config = conf.getjson("celery", "extra_celery_config", fallback={})
+
 DEFAULT_CELERY_CONFIG = {
     "accept_content": ["json"],
     "event_serializer": "json",
@@ -85,6 +87,7 @@ DEFAULT_CELERY_CONFIG = {
     ),
     "worker_concurrency": conf.getint("celery", "WORKER_CONCURRENCY", fallback=16),
     "worker_enable_remote_control": conf.getboolean("celery", "worker_enable_remote_control", fallback=True),
+    **(extra_celery_config if isinstance(extra_celery_config, dict) else {}),
 }
 
 

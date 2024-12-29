@@ -18,7 +18,6 @@
  */
 import { Box, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import dayjs from "dayjs";
 import { Link as RouterLink, useParams } from "react-router-dom";
 
 import {
@@ -31,6 +30,8 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 import { Status } from "src/components/ui";
+import { getDuration } from "src/utils";
+import { getTaskInstanceLink } from "src/utils/links";
 
 const columns = (
   isMapped?: boolean,
@@ -39,9 +40,7 @@ const columns = (
     accessorKey: "dag_run_id",
     cell: ({ row: { original } }) => (
       <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink
-          to={`/dags/${original.dag_id}/runs/${original.dag_run_id}/tasks/${original.task_id}`}
-        >
+        <RouterLink to={getTaskInstanceLink(original)}>
           {original.dag_run_id}
         </RouterLink>
       </Link>
@@ -71,7 +70,8 @@ const columns = (
   ...(isMapped
     ? [
         {
-          accessorKey: "map_index",
+          accessorFn: (row: TaskInstanceResponse) =>
+            row.rendered_map_index ?? row.map_index,
           header: "Map Index",
         },
       ]
@@ -83,7 +83,7 @@ const columns = (
   },
   {
     cell: ({ row: { original } }) =>
-      `${dayjs.duration(dayjs(original.end_date).diff(original.start_date)).asSeconds().toFixed(2)}s`,
+      `${getDuration(original.start_date, original.end_date)}s`,
     header: "Duration",
   },
 ];

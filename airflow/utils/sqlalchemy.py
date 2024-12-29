@@ -23,7 +23,7 @@ import datetime
 import logging
 from collections.abc import Generator, Iterable
 from importlib import metadata
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any
 
 from packaging import version
 from sqlalchemy import TIMESTAMP, PickleType, event, nullsfirst, tuple_
@@ -109,6 +109,8 @@ class ExtendedJSON(TypeDecorator):
     impl = Text
 
     cache_ok = True
+
+    should_evaluate_none = True
 
     def load_dialect_impl(self, dialect) -> TypeEngine:
         return dialect.type_descriptor(JSON)
@@ -436,22 +438,6 @@ def is_lock_not_available_error(error: OperationalError):
     return False
 
 
-@overload
-def tuple_in_condition(
-    columns: tuple[ColumnElement, ...],
-    collection: Iterable[Any],
-) -> ColumnOperators: ...
-
-
-@overload
-def tuple_in_condition(
-    columns: tuple[ColumnElement, ...],
-    collection: Select,
-    *,
-    session: Session,
-) -> ColumnOperators: ...
-
-
 def tuple_in_condition(
     columns: tuple[ColumnElement, ...],
     collection: Iterable[Any] | Select,
@@ -461,44 +447,12 @@ def tuple_in_condition(
     """
     Generate a tuple-in-collection operator to use in ``.where()``.
 
-    For most SQL backends, this generates a simple ``([col, ...]) IN [condition]``
-    clause.
+    Kept for backward compatibility. Remove when providers drop support for
+    apache-airflow<3.0.
 
     :meta private:
     """
     return tuple_(*columns).in_(collection)
-
-
-@overload
-def tuple_not_in_condition(
-    columns: tuple[ColumnElement, ...],
-    collection: Iterable[Any],
-) -> ColumnOperators: ...
-
-
-@overload
-def tuple_not_in_condition(
-    columns: tuple[ColumnElement, ...],
-    collection: Select,
-    *,
-    session: Session,
-) -> ColumnOperators: ...
-
-
-def tuple_not_in_condition(
-    columns: tuple[ColumnElement, ...],
-    collection: Iterable[Any] | Select,
-    *,
-    session: Session | None = None,
-) -> ColumnOperators:
-    """
-    Generate a tuple-not-in-collection operator to use in ``.where()``.
-
-    This is similar to ``tuple_in_condition`` except generating ``NOT IN``.
-
-    :meta private:
-    """
-    return tuple_(*columns).not_in(collection)
 
 
 def get_orm_mapper():

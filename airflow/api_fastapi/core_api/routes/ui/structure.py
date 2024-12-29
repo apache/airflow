@@ -19,6 +19,7 @@ from __future__ import annotations
 from fastapi import HTTPException, Request, status
 
 from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.parameters import QueryIncludeDownstream, QueryIncludeUpstream
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.structure import StructureDataResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
@@ -38,9 +39,9 @@ def structure_data(
     session: SessionDep,
     dag_id: str,
     request: Request,
+    include_upstream: QueryIncludeUpstream = False,
+    include_downstream: QueryIncludeDownstream = False,
     root: str | None = None,
-    include_upstream: bool = False,
-    include_downstream: bool = False,
     external_dependencies: bool = False,
 ) -> StructureDataResponse:
     """Get Structure Data."""

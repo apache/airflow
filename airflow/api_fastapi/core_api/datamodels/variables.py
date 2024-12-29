@@ -22,6 +22,7 @@ import json
 from pydantic import ConfigDict, Field, model_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.models.base import ID_LEN
 from airflow.typing_compat import Self
 from airflow.utils.log.secrets_masker import redact
 
@@ -34,6 +35,7 @@ class VariableResponse(BaseModel):
     key: str
     val: str | None = Field(alias="value")
     description: str | None
+    is_encrypted: bool
 
     @model_validator(mode="after")
     def redact_val(self) -> Self:
@@ -53,7 +55,7 @@ class VariableResponse(BaseModel):
 class VariableBody(BaseModel):
     """Variable serializer for bodies."""
 
-    key: str
+    key: str = Field(max_length=ID_LEN)
     value: str | None = Field(serialization_alias="val")
     description: str | None = Field(default=None)
 

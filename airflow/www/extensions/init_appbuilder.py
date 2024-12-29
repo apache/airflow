@@ -39,8 +39,8 @@ from flask_appbuilder.menu import Menu
 from flask_appbuilder.views import IndexView, UtilView
 
 from airflow import settings
+from airflow.api_fastapi.app import create_auth_manager, get_auth_manager
 from airflow.configuration import conf
-from airflow.www.extensions.init_auth_manager import get_auth_manager, init_auth_manager
 
 if TYPE_CHECKING:
     from flask import Flask
@@ -208,7 +208,9 @@ class AirflowAppBuilder:
 
         self._addon_managers = app.config["ADDON_MANAGERS"]
         self.session = session
-        auth_manager = init_auth_manager(self)
+        auth_manager = create_auth_manager()
+        auth_manager.appbuilder = self
+        auth_manager.init()
         self.sm = auth_manager.security_manager
         self.bm = BabelManager(self)
         self._add_global_static()

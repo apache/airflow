@@ -29,10 +29,10 @@ import pendulum
 from flask import after_this_request, request
 from pendulum.parsing.exceptions import ParserError
 
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.models import Log
 from airflow.utils.log import secrets_masker
 from airflow.utils.session import create_session
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 T = TypeVar("T", bound=Callable)
 

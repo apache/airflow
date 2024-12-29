@@ -1,0 +1,1 @@
+The ``airflow config lint`` command has been introduced to help users migrate from Airflow 2.x to 3.0 by identifying removed or renamed configuration parameters in airflow.cfg.

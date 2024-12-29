@@ -35,17 +35,40 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.5.0
+.....
+
+Latest change: 2024-12-19
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`35b927fe17 <https://github.com/apache/airflow/commit/35b927fe177065dad0e00c49d72b494e58b27ca8>`_  2024-12-19   ``Update path of example dags in docs (#45069)``
+`2a33da0246 <https://github.com/apache/airflow/commit/2a33da0246c811a98d5cdaf0af2bcca0dee8556a>`_  2024-12-18   ``Remove references to AIRFLOW_V_2_9_PLUS (#44987)``
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`490b5e816b <https://github.com/apache/airflow/commit/490b5e816b804f338b0eb97f240ae874d4e15810>`_  2024-12-10   ``Consistent way of checking Airflow version in providers (#44686)``
+`1de5a96592 <https://github.com/apache/airflow/commit/1de5a965921e75162fa23f2fcd8514beea428429>`_  2024-11-27   ``feat: add OpenLineage support for transfer operators between gcs and local (#44417)``
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`a0f3353c47 <https://github.com/apache/airflow/commit/a0f3353c471e4d9a2cd4b23f0c358d0ae908580a>`_  2024-11-20   ``Move Asset user facing components to task_sdk (#43773)``
+`86c4c6fa9d <https://github.com/apache/airflow/commit/86c4c6fa9decd626cdea14aaf79d76252d4d7145>`_  2024-11-19   ``Migrate pickled data & change XCom value type to JSON (#44166)``
+`4dfae23532 <https://github.com/apache/airflow/commit/4dfae23532d26ed838069c49d48f28c185e954c6>`_  2024-11-15   ``Update DAG example links in multiple providers documents (#44034)``
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  ========================================================================================
+
 1.4.2
 .....
 
-Latest change: 2024-10-08
+Latest change: 2024-10-09
 
-=================================================================================================  ===========  ==================================================================
+=================================================================================================  ===========  ========================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ==================================================================
+=================================================================================================  ===========  ========================================================================
+`2bb8628463 <https://github.com/apache/airflow/commit/2bb862846358d1c5a59b354adb39bc68d5aeae5e>`_  2024-10-09   ``Prepare docs for Oct 1st adhoc wave of providers (#42862)``
 `63ff22f403 <https://github.com/apache/airflow/commit/63ff22f4038f34354dc5807036d1bf10653c2ecd>`_  2024-10-08   ``Drop python3.8 support core and providers (#42766)``
 `ede7cb27fd <https://github.com/apache/airflow/commit/ede7cb27fd39e233889d127490a2255df8c5d27d>`_  2024-09-30   ``Rename dataset related python variable names to asset (#41348)``
-=================================================================================================  ===========  ==================================================================
+`ecb414168b <https://github.com/apache/airflow/commit/ecb414168b33ccc2753a57536abbcd3c349f5b9f>`_  2024-09-27   ``Fix incorrect operator name in FileTransferOperator example (#42543)``
+=================================================================================================  ===========  ========================================================================
 
 1.4.1
 .....
@@ -168,6 +191,8 @@ Commit                                                                          
 `1b059c57d6 <https://github.com/apache/airflow/commit/1b059c57d6d57d198463e5388138bee8a08591b1>`_  2023-11-08   ``Prepare docs 1st wave of Providers November 2023 (#35537)``
 `865b3a5646 <https://github.com/apache/airflow/commit/865b3a56462adf6ec0715d3cde166f7e506dc227>`_  2023-11-07   ``Improvements to airflow.io (#35478)``
 `17c6a7e640 <https://github.com/apache/airflow/commit/17c6a7e64076977a10afc44c0102884af9f3ca23>`_  2023-11-05   ``fix changelog of common-io (#35241)``
+`706878ec35 <https://github.com/apache/airflow/commit/706878ec354cf867440c367a95c85753c19e54de>`_  2023-11-04   ``Remove empty lines in generated changelog (#35436)``
+`052e26ad47 <https://github.com/apache/airflow/commit/052e26ad473a9d50f0b96456ed094f2087ee4434>`_  2023-11-04   ``Change security.rst to use includes in providers (#35435)``
 =================================================================================================  ===========  =============================================================
 
 1.0.0

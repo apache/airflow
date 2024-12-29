@@ -486,7 +486,10 @@ class TestBeamAsyncHook:
         )
 
         mock_runner.assert_called_once_with(
-            cmd=expected_cmd, working_directory=WORKING_DIRECTORY, log=hook.log
+            cmd=expected_cmd,
+            working_directory=WORKING_DIRECTORY,
+            log=hook.log,
+            process_line_callback=None,
         )
 
     @pytest.mark.asyncio
@@ -516,6 +519,7 @@ class TestBeamAsyncHook:
             cmd=expected_cmd,
             working_directory=None,
             log=ANY,
+            process_line_callback=None,
         )
 
     @pytest.mark.asyncio
@@ -580,6 +584,7 @@ class TestBeamAsyncHook:
             cmd=expected_cmd,
             working_directory=None,
             log=ANY,
+            process_line_callback=None,
         )
 
     @pytest.mark.asyncio
@@ -630,6 +635,7 @@ class TestBeamAsyncHook:
             cmd=expected_cmd,
             working_directory=None,
             log=ANY,
+            process_line_callback=None,
         )
         mock_virtualenv.assert_called_once_with(
             venv_directory=mock.ANY,
@@ -671,5 +677,7 @@ class TestBeamAsyncHook:
         await hook.start_java_pipeline_async(variables=variables, jar=JAR_FILE, job_class=job_class)
 
         mock_start_pipeline.assert_called_once_with(
-            variables=BEAM_VARIABLES_JAVA_STRING_LABELS, command_prefix=command_prefix
+            variables=BEAM_VARIABLES_JAVA_STRING_LABELS,
+            command_prefix=command_prefix,
+            process_line_callback=None,
         )

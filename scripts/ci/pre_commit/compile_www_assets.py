@@ -52,6 +52,8 @@ if __name__ not in ("__main__", "__mp_main__"):
         f"To run this script, run the ./{__file__} command"
     )
 
+INTERNAL_SERVER_ERROR = "500 Internal Server Error"
+
 if __name__ == "__main__":
     www_directory = AIRFLOW_SOURCES_PATH / "airflow" / "www"
     node_modules_directory = www_directory / "node_modules"
@@ -68,7 +70,20 @@ if __name__ == "__main__":
         shutil.rmtree(dist_directory, ignore_errors=True)
     env = os.environ.copy()
     env["FORCE_COLOR"] = "true"
-    subprocess.check_call(["yarn", "install", "--frozen-lockfile"], cwd=os.fspath(www_directory))
+    for try_num in range(3):
+        print(f"### Trying to install yarn dependencies: attempt: {try_num + 1} ###")
+        result = subprocess.run(
+            ["yarn", "install", "--frozen-lockfile"],
+            cwd=os.fspath(www_directory),
+            text=True,
+            check=False,
+            capture_output=True,
+        )
+        if result.returncode == 0:
+            break
+        if try_num == 2 or INTERNAL_SERVER_ERROR not in result.stderr + result.stdout:
+            print(result.stdout + "\n" + result.stderr)
+            sys.exit(result.returncode)
     subprocess.check_call(["yarn", "run", "build"], cwd=os.fspath(www_directory), env=env)
     new_hash = get_directory_hash(www_directory, skip_path_regexp=r".*node_modules.*")
     WWW_HASH_FILE.write_text(new_hash)

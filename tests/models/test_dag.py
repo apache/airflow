@@ -995,54 +995,6 @@ class TestDag:
         assert asset_alias_3_orm.name == "asset_alias_3"
         assert len(stored_asset_alias_models) == 3
 
-    def test_sync_to_db(self):
-        dag = DAG("dag", start_date=DEFAULT_DATE, schedule=None)
-        with dag:
-            EmptyOperator(task_id="task", owner="owner1")
-            EmptyOperator(task_id="task2", owner="owner2")
-        session = settings.Session()
-        dag.sync_to_db(session=session)
-
-        orm_dag = session.query(DagModel).filter(DagModel.dag_id == "dag").one()
-        assert set(orm_dag.owners.split(", ")) == {"owner1", "owner2"}
-        assert orm_dag.is_active
-        assert orm_dag.default_view is not None
-        assert orm_dag.default_view == conf.get("webserver", "dag_default_view").lower()
-        assert orm_dag.safe_dag_id == "dag"
-        session.close()
-
-    def test_sync_to_db_default_view(self):
-        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_view="graph")
-        with dag:
-            EmptyOperator(task_id="task", owner="owner1")
-        session = settings.Session()
-        dag.sync_to_db(session=session)
-
-        orm_dag = session.query(DagModel).filter(DagModel.dag_id == "dag").one()
-        assert orm_dag.default_view is not None
-        assert orm_dag.default_view == "graph"
-        session.close()
-
-    def test_existing_dag_is_paused_upon_creation(self):
-        dag = DAG("dag_paused", schedule=None)
-        dag.sync_to_db()
-        assert not dag.get_is_paused()
-
-        dag = DAG("dag_paused", schedule=None, is_paused_upon_creation=True)
-        dag.sync_to_db()
-        # Since the dag existed before, it should not follow the pause flag upon creation
-        assert not dag.get_is_paused()
-
-    def test_new_dag_is_paused_upon_creation(self):
-        dag = DAG("new_nonexisting_dag", schedule=None, is_paused_upon_creation=True)
-        session = settings.Session()
-        dag.sync_to_db(session=session)
-
-        orm_dag = session.query(DagModel).filter(DagModel.dag_id == "new_nonexisting_dag").one()
-        # Since the dag didn't exist before, it should follow the pause flag upon creation
-        assert orm_dag.is_paused
-        session.close()
-
     @mock.patch.dict(
         os.environ,
         {
@@ -1096,31 +1048,20 @@ class TestDag:
         dag.clear()
         self._clean_up(dag_id)
 
-    def test_existing_dag_default_view(self):
-        with create_session() as session:
-            session.add(DagModel(dag_id="dag_default_view_old", default_view=None))
-            session.commit()
-            orm_dag = session.query(DagModel).filter(DagModel.dag_id == "dag_default_view_old").one()
-        assert orm_dag.default_view is None
-        assert orm_dag.get_default_view() == conf.get("webserver", "dag_default_view").lower()
-
     def test_dag_is_deactivated_upon_dagfile_deletion(self):
         dag_id = "old_existing_dag"
         dag_fileloc = "/usr/local/airflow/dags/non_existing_path.py"
         dag = DAG(dag_id, schedule=None, is_paused_upon_creation=True)
         dag.fileloc = dag_fileloc
         session = settings.Session()
-        dag.sync_to_db(session=session, processor_subdir="/usr/local/airflow/dags/")
+        dag.sync_to_db(session=session)
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
 
         assert orm_dag.is_active
         assert orm_dag.fileloc == dag_fileloc
 
-        DagModel.deactivate_deleted_dags(
-            list_py_file_paths(settings.DAGS_FOLDER),
-            processor_subdir="/usr/local/airflow/dags/",
-        )
+        DagModel.deactivate_deleted_dags(list_py_file_paths(settings.DAGS_FOLDER))
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
         assert not orm_dag.is_active
@@ -2272,6 +2213,34 @@ class TestDagModel:
         query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
         assert dag_models == [dag_model]
+
+    @pytest.mark.parametrize("ref", [Asset.ref(name="1"), Asset.ref(uri="s3://bucket/assets/1")])
+    @pytest.mark.want_activate_assets
+    @pytest.mark.need_serialized_dag
+    def test_dags_needing_dagruns_asset_refs(self, dag_maker, session, ref):
+        asset = Asset(name="1", uri="s3://bucket/assets/1")
+
+        with dag_maker(dag_id="producer", schedule=None, session=session):
+            op = EmptyOperator(task_id="op", outlets=asset)
+
+        dr: DagRun = dag_maker.create_dagrun()
+
+        with dag_maker(dag_id="consumer", schedule=ref, max_active_runs=1):
+            pass
+
+        # Nothing from the upstream yet, no runs needed.
+        assert session.scalars(select(AssetDagRunQueue.target_dag_id)).all() == []
+        query, _ = DagModel.dags_needing_dagruns(session)
+        assert query.all() == []
+
+        # Upstream triggered, now we need a run.
+        ti = dr.get_task_instance("op")
+        ti.refresh_from_task(op)
+        ti.run()
+
+        assert session.scalars(select(AssetDagRunQueue.target_dag_id)).all() == ["consumer"]
+        query, _ = DagModel.dags_needing_dagruns(session)
+        assert [dm.dag_id for dm in query] == ["consumer"]
 
     def test_max_active_runs_not_none(self):
         dag = DAG(

@@ -43,6 +43,7 @@ from airflow.api_connexion.schemas.asset_schema import (
     queued_event_collection_schema,
     queued_event_schema,
 )
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.assets.manager import asset_manager
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.utils import timezone
@@ -50,7 +51,6 @@ from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.decorators import action_logging
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -349,7 +349,7 @@ def create_asset_event(session: Session = NEW_SESSION) -> APIResponse:
     extra = json_body.get("extra", {})
     extra["from_rest_api"] = True
     asset_event = asset_manager.register_asset_change(
-        asset=asset_model.to_public(),
+        asset=asset_model,
         timestamp=timestamp,
         extra=extra,
         session=session,

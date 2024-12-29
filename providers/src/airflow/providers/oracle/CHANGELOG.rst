@@ -27,8 +27,12 @@
 Changelog
 ---------
 
-main
-....
+4.0.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
@@ -41,6 +45,17 @@ Breaking changes
      * Remove deprecated support setting the Oracle Service Name using ``conn.schema``. Please use ``conn.extra.service_name`` instead.
   * Operators
      * Remove ``airflow.providers.oracle.operators.oracle.OracleOperator``. Please use ``airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`` instead.
+
+* ``Remove Provider Deprecations in Oracle (#44704)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
 
 3.12.1
 ......

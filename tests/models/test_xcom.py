@@ -324,18 +324,30 @@ class TestXComGet:
 
 
 class TestXComSet:
-    def test_xcom_set(self, session, task_instance):
+    @pytest.mark.parametrize(
+        ("key", "value", "expected_value"),
+        [
+            pytest.param("xcom_dict", {"key": "value"}, {"key": "value"}, id="dict"),
+            pytest.param("xcom_int", 123, 123, id="int"),
+            pytest.param("xcom_float", 45.67, 45.67, id="float"),
+            pytest.param("xcom_str", "hello", "hello", id="str"),
+            pytest.param("xcom_bool", True, True, id="bool"),
+            pytest.param("xcom_list", [1, 2, 3], [1, 2, 3], id="list"),
+        ],
+    )
+    def test_xcom_set(self, session, task_instance, key, value, expected_value):
         XCom.set(
-            key="xcom_1",
-            value={"key": "value"},
+            key=key,
+            value=value,
             dag_id=task_instance.dag_id,
             task_id=task_instance.task_id,
             run_id=task_instance.run_id,
             session=session,
         )
         stored_xcoms = session.query(XCom).all()
-        assert stored_xcoms[0].key == "xcom_1"
-        assert stored_xcoms[0].value == {"key": "value"}
+        assert stored_xcoms[0].key == key
+        assert isinstance(stored_xcoms[0].value, type(expected_value))
+        assert stored_xcoms[0].value == expected_value
         assert stored_xcoms[0].dag_id == "dag"
         assert stored_xcoms[0].task_id == "task_1"
         assert stored_xcoms[0].logical_date == task_instance.logical_date

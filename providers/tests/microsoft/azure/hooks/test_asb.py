@@ -119,6 +119,51 @@ class TestAdminClientHook:
         with pytest.raises(TypeError):
             hook.delete_queue(None)
 
+    # Test creating subscription with topic name and subscription name using hook method `create_subscription`
+    @mock.patch("azure.servicebus.management.SubscriptionProperties")
+    @mock.patch(f"{MODULE}.AdminClientHook.get_conn")
+    def test_create_subscription(self, mock_sb_admin_client, mock_subscription_properties):
+        """
+        Test `create_subscription` hook function with mocking connection, subscription properties value and
+        the azure service bus `create_subscription` function
+        """
+        topic_name = "test_topic_name"
+        subscription_name = "test_subscription_name"
+        mock_subscription_properties.name = subscription_name
+        mock_sb_admin_client.return_value.__enter__.return_value.create_subscription.return_value = (
+            mock_subscription_properties
+        )
+        hook = AdminClientHook(azure_service_bus_conn_id=self.conn_id)
+        hook.create_subscription(topic_name, subscription_name)
+        assert mock_subscription_properties.name == subscription_name
+
+    # Test creating subscription with topic name, subscription name, correlation rule and rule naame
+    # using hook method `create_subscription`
+    @mock.patch("azure.servicebus.management.RuleProperties")
+    @mock.patch("azure.servicebus.management.SubscriptionProperties")
+    @mock.patch(f"{MODULE}.AdminClientHook.get_conn")
+    def test_create_subscription_with_rule(
+        self, mock_sb_admin_client, mock_subscription_properties, mock_rule_properties
+    ):
+        """
+        Test `create_subscription` hook function with mocking connection, subscription properties value and
+        the azure service bus `create_subscription` function
+        """
+        subscription_name = "test_subscription_name"
+        mock_rule_name = "test_rule_name"
+        mock_subscription_properties.name = subscription_name
+        mock_rule_properties.name = mock_rule_name
+        mock_sb_admin_client.return_value.__enter__.return_value.create_subscription.return_value = (
+            mock_subscription_properties
+        )
+        mock_sb_admin_client.return_value.__enter__.return_value.create_rule.return_value = (
+            mock_rule_properties
+        )
+        hook = AdminClientHook(azure_service_bus_conn_id=self.conn_id)
+        hook.create_subscription("test_topic_name", subscription_name)
+        assert mock_subscription_properties.name == subscription_name
+        assert mock_rule_properties.name == mock_rule_name
+
     @mock.patch(f"{MODULE}.AdminClientHook.get_conn")
     def test_delete_subscription(self, mock_sb_admin_client):
         """

@@ -35,14 +35,42 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+9.2.0
+.....
+
+Latest change: 2024-12-19
+
+=================================================================================================  ===========  ===================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================
+`b6e3d1c864 <https://github.com/apache/airflow/commit/b6e3d1c86478aca4df54f00e272e13dad2d96b34>`_  2024-12-19   ``Fix deferrable RedshiftClusterSensor (#45098)``
+`35b927fe17 <https://github.com/apache/airflow/commit/35b927fe177065dad0e00c49d72b494e58b27ca8>`_  2024-12-19   ``Update path of example dags in docs (#45069)``
+`2a33da0246 <https://github.com/apache/airflow/commit/2a33da0246c811a98d5cdaf0af2bcca0dee8556a>`_  2024-12-18   ``Remove references to AIRFLOW_V_2_9_PLUS (#44987)``
+`ce4236f365 <https://github.com/apache/airflow/commit/ce4236f365c3e8e45262b04ef0ce596907043702>`_  2024-12-17   ``Add DMS Serverless Operators (#43988)``
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`490b5e816b <https://github.com/apache/airflow/commit/490b5e816b804f338b0eb97f240ae874d4e15810>`_  2024-12-10   ``Consistent way of checking Airflow version in providers (#44686)``
+`450132bc85 <https://github.com/apache/airflow/commit/450132bc859ad4ec1686d4e521efc1efe79a47b8>`_  2024-12-06   ``Remove unnecessary compatibility code in S3 asset import (#44714)``
+`62bac46822 <https://github.com/apache/airflow/commit/62bac46822551383d0ab3cd24e351ffae7a90147>`_  2024-12-01   ``Remove AIP-44 from taskinstance (#44540)``
+`933e3cee7d <https://github.com/apache/airflow/commit/933e3cee7d2ad6ad5eb4b5d808dc9752ff1924c3>`_  2024-11-28   ``Add do_xcom_push documentation in EcsRunTaskOperator (#44440)``
+`e81c3bab80 <https://github.com/apache/airflow/commit/e81c3bab80f4ec82c75c320465630d8b5bd93533>`_  2024-11-27   ``Add fail_on_file_not_exist option to SFTPToS3Operator (#44320)``
+`b4c4806278 <https://github.com/apache/airflow/commit/b4c480627881c9a3e7267f2a0bc7a2319fa2135d>`_  2024-11-25   ``Add 'wait_policy' option to 'EmrCreateJobFlowOperator' (#44055)``
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`a0f3353c47 <https://github.com/apache/airflow/commit/a0f3353c471e4d9a2cd4b23f0c358d0ae908580a>`_  2024-11-20   ``Move Asset user facing components to task_sdk (#43773)``
+`d5bd1344b6 <https://github.com/apache/airflow/commit/d5bd1344b626b0a407e651380c061c363e9cab5a>`_  2024-11-19   ``Set up JWT token authentication in Fast APIs (#42634)``
+`a60d105c10 <https://github.com/apache/airflow/commit/a60d105c103516a169d190ee066b9fd982e70853>`_  2024-11-19   ``Use 'S3CopyObjectOperator' in 'example_comprehend_document_classifier' (#44160)``
+`eb1153e36d <https://github.com/apache/airflow/commit/eb1153e36dc35f1f77deeb4904d5d1c4c3323bfc>`_  2024-11-18   ``Bump to mypy-boto3-appflow and pass without '# type: ignore[arg-type]' (#44115)``
+`4dfae23532 <https://github.com/apache/airflow/commit/4dfae23532d26ed838069c49d48f28c185e954c6>`_  2024-11-15   ``Update DAG example links in multiple providers documents (#44034)``
+=================================================================================================  ===========  ===================================================================================
+
 9.1.0
 .....
 
-Latest change: 2024-11-13
+Latest change: 2024-11-14
 
 =================================================================================================  ===========  ==============================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================================================================
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
 `e7194dff6a <https://github.com/apache/airflow/commit/e7194dff6a816bf3a721cbf579ceac19c11cd111>`_  2024-11-13   ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
 `6d85a0466d <https://github.com/apache/airflow/commit/6d85a0466d91d501af87c8904b902ea92cee466d>`_  2024-11-09   ``Remove deprecations cncf.kubernetes (#43689)``
 `9a5f6d6155 <https://github.com/apache/airflow/commit/9a5f6d615590dbc3d40dcf5a2e584cf6d4f79938>`_  2024-11-09   ``fix: replace \s with space (#43849)``

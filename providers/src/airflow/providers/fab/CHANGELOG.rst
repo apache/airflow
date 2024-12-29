@@ -45,6 +45,15 @@ Breaking changes
   * Removed ``prefixed_dag_id`` method from the security manager override
   * Removed ``init_role`` method from the security manager override
 
+.. Review and move the new changes to one of the sections above:
+   * ``AIP-79 Support Airflow 2.x plugins in fast api. Embed a minimal version of the Flask application in fastapi application (#44464)``
+   * ``Prevent __init__.py in providers from being modified (#44713)``
+   * ``AIP-81 Move CLI Commands to directories according to Hybrid, Local and Remote (#44538)``
+   * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+   * ``Remove deprecations from fab provider (#44198)``
+   * ``Set up JWT token authentication in Fast APIs (#42634)``
+   * ``Prepare FAB provider to set next version as major version (#43939)``
+
 1.5.1
 .....
 

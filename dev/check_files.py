@@ -204,7 +204,7 @@ def providers(ctx, path: str):
     files = os.listdir(os.path.join(path, "providers"))
     pips = [f"{name}=={version}" for name, version in get_packages()]
     missing_files = check_providers(files)
-    create_docker(PROVIDERS_DOCKER.format("\n".join(f"RUN pip install '{p}'" for p in pips)))
+    create_docker(PROVIDERS_DOCKER.format("RUN uv pip install --system " + " ".join(f"'{p}'" for p in pips)))
     if missing_files:
         warn_of_missing_files(missing_files)
 

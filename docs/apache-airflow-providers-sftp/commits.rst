@@ -35,16 +35,34 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.0.0
+.....
+
+Latest change: 2024-12-16
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`ad7a3dd5e1 <https://github.com/apache/airflow/commit/ad7a3dd5e11830e8acb4e05d93553d9ae4a5213f>`_  2024-12-07   ``Remove deprecations from SFTP Provider (#44740)``
+`e625e7fb64 <https://github.com/apache/airflow/commit/e625e7fb6422cd7762d4e76d012606275a45f7cc>`_  2024-12-06   ``feat: retrieve sftp file attrs onces instead multiple time (#44625)``
+`a3a596906c <https://github.com/apache/airflow/commit/a3a596906cb28fd7b303b15411801b733b9b49b4>`_  2024-12-03   ``Add host_proxy_cmd parameter to SSHHook and SFTPHook (#44565)``
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  ========================================================================================
+
 4.11.1
 ......
 
-Latest change: 2024-08-25
+Latest change: 2024-09-21
 
-=================================================================================================  ===========  =============================
+=================================================================================================  ===========  =======================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  =============================
+=================================================================================================  ===========  =======================================================
+`7628d47d04 <https://github.com/apache/airflow/commit/7628d47d0481966d9a9b25dfd4870b7a6797ebbf>`_  2024-09-21   ``Prepare docs for Sep 1st wave of providers (#42387)``
 `1613e9ec1c <https://github.com/apache/airflow/commit/1613e9ec1c4e5523953e045c8adcef1b9d4ce95d>`_  2024-08-25   ``remove soft_fail (#41710)``
-=================================================================================================  ===========  =============================
+=================================================================================================  ===========  =======================================================
 
 4.11.0
 ......
@@ -140,6 +158,7 @@ Latest change: 2024-02-12
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================================
 `bfb054e9e8 <https://github.com/apache/airflow/commit/bfb054e9e867b8b9a6a449e43bfba97f645e025e>`_  2024-02-12   ``Prepare docs 1st wave of Providers February 2024 (#37326)``
+`f61ffe58d3 <https://github.com/apache/airflow/commit/f61ffe58d3cd0bcb51f6f9036a3acbfa4443d977>`_  2024-02-11   ``Remove extra package headers in provider indexes (#37324)``
 `bb414f0122 <https://github.com/apache/airflow/commit/bb414f012246aa9874e7c5e84388a1487bbd5bd3>`_  2024-02-10   ``Added D401 support to http, smtp and sftp provider (#37303)``
 `f24a03709e <https://github.com/apache/airflow/commit/f24a03709eecbda87ed794cee567806e51c3a21f>`_  2024-02-04   ``Add deferrable param in SFTPSensor (#37117)``
 `cead3da4a6 <https://github.com/apache/airflow/commit/cead3da4a6f483fa626b81efd27a24dcb5a36ab0>`_  2024-01-26   ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
@@ -177,6 +196,8 @@ Commit                                                                          
 `99534e47f3 <https://github.com/apache/airflow/commit/99534e47f330ce0efb96402629dda5b2a4f16e8f>`_  2023-11-19   ``Use reproducible builds for provider packages (#35693)``
 `99df205f42 <https://github.com/apache/airflow/commit/99df205f42a754aa67f80b5983e1d228ff23267f>`_  2023-11-16   ``Fix and reapply templates for provider documentation (#35686)``
 `1b059c57d6 <https://github.com/apache/airflow/commit/1b059c57d6d57d198463e5388138bee8a08591b1>`_  2023-11-08   ``Prepare docs 1st wave of Providers November 2023 (#35537)``
+`706878ec35 <https://github.com/apache/airflow/commit/706878ec354cf867440c367a95c85753c19e54de>`_  2023-11-04   ``Remove empty lines in generated changelog (#35436)``
+`052e26ad47 <https://github.com/apache/airflow/commit/052e26ad473a9d50f0b96456ed094f2087ee4434>`_  2023-11-04   ``Change security.rst to use includes in providers (#35435)``
 `63cc915cd3 <https://github.com/apache/airflow/commit/63cc915cd38a5034df6bf9c618e12f8690eeade0>`_  2023-10-31   ``Switch from Black to Ruff formatter (#35287)``
 `d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
 `3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
@@ -233,6 +254,7 @@ Commit                                                                          
 =================================================================================================  ===========  =========================================================================
 `d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
 `6b880844ad <https://github.com/apache/airflow/commit/6b880844ade6036954d5343f6a74a241b3865153>`_  2023-07-25   ``openlineage, sftp: add OpenLineage support for sftp provider (#31360)``
+`73b90c48b1 <https://github.com/apache/airflow/commit/73b90c48b1933b49086d34176527947bd727ec85>`_  2023-07-21   ``Allow configuration to be contributed by providers (#32604)``
 =================================================================================================  ===========  =========================================================================
 
 4.4.0
@@ -278,6 +300,7 @@ Commit                                                                          
 `45548b9451 <https://github.com/apache/airflow/commit/45548b9451fba4e48c6f0c0ba6050482c2ea2956>`_  2023-05-19   ``Prepare RC2 docs for May 2023 wave of Providers (#31416)``
 `abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
 `f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`7ebda3898d <https://github.com/apache/airflow/commit/7ebda3898db2eee72d043a9565a674dea72cd8fa>`_  2023-05-17   ``Fix missing line in index.rst for provider documentation (#31343)``
 `d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
 `0a30706aa7 <https://github.com/apache/airflow/commit/0a30706aa7c581905ca99a8b6e2f05960d480729>`_  2023-05-03   ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
 `eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
@@ -374,6 +397,7 @@ Commit                                                                          
 `abb0341135 <https://github.com/apache/airflow/commit/abb034113540b708e87379665a1b5caadb8748bc>`_  2022-07-17   ``Add documentation for follow-up release for june providers (#25111)``
 `d2459a241b <https://github.com/apache/airflow/commit/d2459a241b54d596ebdb9d81637400279fff4f2d>`_  2022-07-13   ``Add documentation for July 2022 Provider's release (#25030)``
 `acaa0635c8 <https://github.com/apache/airflow/commit/acaa0635c8477c98ab78da9f6d86e6f1bad2737d>`_  2022-07-08   ``Automatically detect if non-lazy logging interpolation is used (#24910)``
+`96b01a8012 <https://github.com/apache/airflow/commit/96b01a8012d164df7c24c460149d3b79ecad3901>`_  2022-07-05   ``Remove "bad characters" from our codebase (#24841)``
 `0de31bd73a <https://github.com/apache/airflow/commit/0de31bd73a8f41dded2907f0dee59dfa6c1ed7a1>`_  2022-06-29   ``Move provider dependencies to inside provider folders (#24672)``
 `510a6bab45 <https://github.com/apache/airflow/commit/510a6bab4595cce8bd5b1447db957309d70f35d9>`_  2022-06-28   ``Remove 'hook-class-names' from provider.yaml (#24702)``
 `f3aacebe50 <https://github.com/apache/airflow/commit/f3aacebe502c4ea5dc2b7d29373539296fa037eb>`_  2022-06-20   ``Convert sftp hook to use paramiko instead of pysftp (#24512)``
@@ -423,11 +447,12 @@ Commit                                                                          
 
 Latest change: 2022-03-14
 
-=================================================================================================  ===========  ====================================================================
+=================================================================================================  ===========  ======================================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ====================================================================
+=================================================================================================  ===========  ======================================================================================================
 `16adc035b1 <https://github.com/apache/airflow/commit/16adc035b1ecdf533f44fbb3e32bea972127bb71>`_  2022-03-14   ``Add documentation for Classifier release for March 2022 (#22226)``
-=================================================================================================  ===========  ====================================================================
+`69f5ab1987 <https://github.com/apache/airflow/commit/69f5ab19872871a34179551a53fe302efe884e62>`_  2022-03-13   ``SFTP docs add example "extras" field using ''key_file'', ''private_key'' and ''host_key'' (#20757)``
+=================================================================================================  ===========  ======================================================================================================
 
 2.5.0
 .....
@@ -472,6 +497,7 @@ Commit                                                                          
 `a0821235fb <https://github.com/apache/airflow/commit/a0821235fb6877a471973295fe42283ef452abf6>`_  2021-12-30   ``Use typed Context EVERYWHERE (#20565)``
 `f35ad27080 <https://github.com/apache/airflow/commit/f35ad27080a2e1f29efc20a9bd0613af0f6ff2ec>`_  2021-12-14   ``Making SFTPHook's constructor consistent with its superclass SSHHook (#20164)``
 `756b1207a9 <https://github.com/apache/airflow/commit/756b1207a96ff65f7e0f83864a7ad0386df9fa9d>`_  2021-12-13   ``Fix MyPy Errors for SFTP provider (#20242)``
+`43de625d42 <https://github.com/apache/airflow/commit/43de625d4246af7014f64941f8effb09997731cb>`_  2021-12-01   ``Correctly capitalize names and abbreviations in docs (#19908)``
 =================================================================================================  ===========  =================================================================================
 
 2.3.0
@@ -497,6 +523,8 @@ Commit                                                                          
 `d9567eb106 <https://github.com/apache/airflow/commit/d9567eb106929b21329c01171fd398fbef2dc6c6>`_  2021-10-29   ``Prepare documentation for October Provider's release (#19321)``
 `83eb80d4ec <https://github.com/apache/airflow/commit/83eb80d4eccb881775dd44bab19818e50e42270b>`_  2021-10-27   ``SFTP hook to prefer the SSH paramiko key over the key file path (#18988)``
 `86a2a19ad2 <https://github.com/apache/airflow/commit/86a2a19ad2bdc87a9ad14bb7fde9313b2d7489bb>`_  2021-10-17   ``More f-strings (#18855)``
+`1cb456cba1 <https://github.com/apache/airflow/commit/1cb456cba1099198bbdba50c2d1ad79664be8ce6>`_  2021-09-12   ``Add official download page for providers (#18187)``
+`046f02e5a7 <https://github.com/apache/airflow/commit/046f02e5a7097a6e6c928c28196b38b37e776916>`_  2021-09-09   ``fix misspelling (#18121)``
 =================================================================================================  ===========  ============================================================================
 
 2.1.1
@@ -587,6 +615,7 @@ Commit                                                                          
 `52339a55c0 <https://github.com/apache/airflow/commit/52339a55c054bddd1d46253575274a3d5d141ebe>`_  2021-01-08   ``[AIRFLOW-7044] Host key can be specified via SSH connection extras. (#12944)``
 `295d66f914 <https://github.com/apache/airflow/commit/295d66f91446a69610576d040ba687b38f1c5d0a>`_  2020-12-30   ``Fix Grammar in PIP warning (#13380)``
 `6cf76d7ac0 <https://github.com/apache/airflow/commit/6cf76d7ac01270930de7f105fb26428763ee1d4e>`_  2020-12-18   ``Fix typo in pip upgrade command :( (#13148)``
+`f6448b4e48 <https://github.com/apache/airflow/commit/f6448b4e482fd96339ae65c26d08e6a2bdb51aaf>`_  2020-12-15   ``Add link to PyPI Repository to provider docs (#13064)``
 =================================================================================================  ===========  ================================================================================
 
 1.0.0

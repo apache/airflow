@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING
 import lazy_object_proxy
 from rich_argparse import RawTextRichHelpFormatter, RichHelpFormatter
 
+from airflow.api_fastapi.app import get_auth_manager_cls
 from airflow.cli.cli_config import (
     DAG_CLI_DICT,
     ActionCommand,
@@ -47,7 +48,6 @@ from airflow.cli.utils import CliConflictError
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.helpers import partition
-from airflow.www.extensions.init_auth_manager import get_auth_manager_cls
 
 if TYPE_CHECKING:
     from airflow.cli.cli_config import (

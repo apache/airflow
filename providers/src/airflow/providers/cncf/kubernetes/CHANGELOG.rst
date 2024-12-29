@@ -28,6 +28,41 @@ Changelog
 ---------
 
 
+10.1.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Add logging support for init containers in KubernetesPodOperator (#42498) (#43853)``
+* ``Implement KubernetesInstallKueueOperator + (#44568)``
+* ``support grouping of log lines for KubernetesPodOperator (#44428)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Compare k8s executor against alias, not full ExecutorName repr (#44967)``
+* ``Fix failing KubernetesExecutor (#44931)``
+
+Misc
+~~~~
+
+* ``Remove references to AIRFLOW_V_2_9_PLUS (#44987)``
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+* ``Consistent way of checking Airflow version in providers (#44686)``
+* ``Fix yoda-conditions (#44466)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+.. Review and move the new changes to one of the sections above:
+   * ``fix: Get the pid of xcom command dynamically (#45053)``
+
 10.0.1
 ......
 

@@ -58,7 +58,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :param archives: Archives that spark should unzip (and possibly tag with #ALIAS) into
         the application working directory.
     :param driver_class_path: Additional, driver-specific, classpath settings.
-    :param jars: Submit additional jars to upload and place them in executor classpath.
+    :param jars: Submit additional jars to upload and place them in driver and executor classpaths.
     :param java_class: the main class of the Java application
     :param packages: Comma-separated list of maven coordinates of jars to include on the
         driver and executor classpaths

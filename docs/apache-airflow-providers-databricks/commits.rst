@@ -35,14 +35,36 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+7.0.0
+.....
+
+Latest change: 2024-12-19
+
+=================================================================================================  ===========  ============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================================================
+`35b927fe17 <https://github.com/apache/airflow/commit/35b927fe177065dad0e00c49d72b494e58b27ca8>`_  2024-12-19   ``Update path of example dags in docs (#45069)``
+`09d8a803ca <https://github.com/apache/airflow/commit/09d8a803ca3f76d8598e7eeeb86397cf1cd4076d>`_  2024-12-18   ``Revert "Added job_clusters as a templated parameter to CreateDatabricksWorkfl…" (#45035)``
+`9c4d711e1d <https://github.com/apache/airflow/commit/9c4d711e1de68da9faa6ebbcded4eed08d7b9c61>`_  2024-12-18   ``Added job_clusters as a templated parameter to CreateDatabricksWorkflowOperator (#45022)``
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`419d8c62b1 <https://github.com/apache/airflow/commit/419d8c62b1491a85a9c80c29e6d7173ffd3ca1ce>`_  2024-12-11   ``[FIX] Fixed databricks repair run deferrable (#44213)``
+`32c01766f1 <https://github.com/apache/airflow/commit/32c01766f141e8ef9f7e45a944c211daee2a8694>`_  2024-12-04   ``Remove deprecations from Databricks Provider (#44566)``
+`0470bd9541 <https://github.com/apache/airflow/commit/0470bd95411ed599a946fe795d9c1fc241a0b70a>`_  2024-11-26   ``Bump minimum version of databricks SDK to 3.0.0 (#43272)``
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`f5abe506fc <https://github.com/apache/airflow/commit/f5abe506fc6ba22a8b8efb0d4784dd85eaa90af4>`_  2024-11-19   ``fix(providers/databricks): remove additional argument passed to repair_run (#44140)``
+`4dfae23532 <https://github.com/apache/airflow/commit/4dfae23532d26ed838069c49d48f28c185e954c6>`_  2024-11-15   ``Update DAG example links in multiple providers documents (#44034)``
+`123dadda0e <https://github.com/apache/airflow/commit/123dadda0e0648ef1412053d1743128333eecb63>`_  2024-11-15   ``Rename execution_date to logical_date across codebase (#43902)``
+=================================================================================================  ===========  ============================================================================================
+
 6.13.0
 ......
 
-Latest change: 2024-11-13
+Latest change: 2024-11-14
 
 =================================================================================================  ===========  ==========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================================
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
 `e7194dff6a <https://github.com/apache/airflow/commit/e7194dff6a816bf3a721cbf579ceac19c11cd111>`_  2024-11-13   ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
 `aa2a937e5c <https://github.com/apache/airflow/commit/aa2a937e5c51d430cedcc1dfcbf516f0bb8115c1>`_  2024-11-13   ``Allow Databricks SQL hook to cancel timed out queries (#42668)``
 `e7b493712d <https://github.com/apache/airflow/commit/e7b493712d4356a40a56f0fd76c9ade600328746>`_  2024-11-12   ``Added support for job_parameters and dbt_commands in DatabricksRunNowOperator (#43895)``

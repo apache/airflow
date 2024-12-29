@@ -717,7 +717,6 @@ class DagMaker(Protocol):
         serialized: bool = ...,
         activate_assets: bool = ...,
         fileloc: str | None = None,
-        processor_subdir: str | None = None,
         session: Session | None = None,
         **kwargs,
     ) -> Self: ...
@@ -833,7 +832,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 return
 
             dag.clear(session=self.session)
-            dag.sync_to_db(processor_subdir=self.processor_subdir, session=self.session)
+            dag.sync_to_db(session=self.session)
 
             if dag.access_control:
                 from airflow.www.security_appless import ApplessAirflowSecurityManager
@@ -843,9 +842,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             self.dag_model = self.session.get(DagModel, dag.dag_id)
 
             if self.want_serialized:
-                self.serialized_model = SerializedDagModel(
-                    dag, processor_subdir=self.dag_model.processor_subdir
-                )
+                self.serialized_model = SerializedDagModel(dag)
                 sdm = SerializedDagModel.get(dag.dag_id, session=self.session)
 
                 if AIRFLOW_V_3_0_PLUS and not sdm:
@@ -945,7 +942,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             serialized=want_serialized,
             activate_assets=want_activate_assets,
             fileloc=None,
-            processor_subdir=None,
             session=None,
             **kwargs,
         ):
@@ -977,7 +973,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             self.dag.fileloc = fileloc or request.module.__file__
             self.want_serialized = serialized
             self.want_activate_assets = activate_assets
-            self.processor_subdir = processor_subdir
 
             return self
 
@@ -1108,10 +1103,7 @@ def create_dummy_dag(dag_maker: DagMaker) -> CreateDummyDAG:
         **kwargs,
     ):
         op_kwargs = {}
-        from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS
-
-        if AIRFLOW_V_2_9_PLUS:
-            op_kwargs["task_display_name"] = task_display_name
+        op_kwargs["task_display_name"] = task_display_name
         with dag_maker(dag_id, **kwargs) as dag:
             op = EmptyOperator(
                 task_id=task_id,
@@ -1174,8 +1166,6 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
     """
     from airflow.operators.empty import EmptyOperator
 
-    from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS
-
     def maker(
         logical_date=None,
         dagrun_state=None,
@@ -1209,8 +1199,7 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
             logical_date = timezone.utcnow()
         with dag_maker(dag_id, **kwargs):
             op_kwargs = {}
-            if AIRFLOW_V_2_9_PLUS:
-                op_kwargs["task_display_name"] = task_display_name
+            op_kwargs["task_display_name"] = task_display_name
             task = EmptyOperator(
                 task_id=task_id,
                 max_active_tis_per_dag=max_active_tis_per_dag,
@@ -1390,17 +1379,11 @@ def reset_logging_config():
 def suppress_info_logs_for_dag_and_fab():
     import logging
 
-    from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS
-
     dag_logger = logging.getLogger("airflow.models.dag")
     dag_logger.setLevel(logging.WARNING)
 
-    if AIRFLOW_V_2_9_PLUS:
-        fab_logger = logging.getLogger("airflow.providers.fab.auth_manager.security_manager.override")
-        fab_logger.setLevel(logging.WARNING)
-    else:
-        fab_logger = logging.getLogger("airflow.www.fab_security")
-        fab_logger.setLevel(logging.WARNING)
+    fab_logger = logging.getLogger("airflow.providers.fab.auth_manager.security_manager.override")
+    fab_logger.setLevel(logging.WARNING)
 
 
 @pytest.fixture(scope="module", autouse=True)
