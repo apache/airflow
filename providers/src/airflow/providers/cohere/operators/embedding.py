@@ -17,8 +17,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from airflow.models import BaseOperator
 from airflow.providers.cohere.hooks.cohere import CohereHook
@@ -30,7 +31,8 @@ if TYPE_CHECKING:
 
 
 class CohereEmbeddingOperator(BaseOperator):
-    """Creates the embedding base by interacting with cohere hosted services.
+    """
+    Creates the embedding base by interacting with cohere hosted services.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

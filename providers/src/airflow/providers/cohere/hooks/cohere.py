@@ -16,10 +16,11 @@
 # under the License.
 
 from __future__ import annotations
-import warnings
+
 import logging
+import warnings
 from functools import cached_property
-from typing import Any, List
+from typing import Any
 
 import cohere
 
@@ -27,6 +28,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 logger = logging.getLogger(__name__)
+
 
 class CohereHook(BaseHook):
     """
@@ -57,33 +59,31 @@ class CohereHook(BaseHook):
         self.timeout = timeout
         self.max_retries = max_retries
         self.request_options = request_options
-        
+
         if self.max_retries is not None:
             warnings.warn(
                 "The 'max_retries' parameter is deprecated. Use 'request_options' with {'max_retries': value} instead.",
                 AirflowProviderDeprecationWarning,
-                stacklevel=2
+                stacklevel=2,
             )
             if self.request_options is None:
-                self.request_options = {'max_retries': self.max_retries}
+                self.request_options = {"max_retries": self.max_retries}
             else:
-                self.request_options['max_retries'] = self.max_retries
+                self.request_options["max_retries"] = self.max_retries
 
     @cached_property
     def get_conn(self) -> cohere.ClientV2:
-        """
-        :return: Cohere V2 client for API interaction.
-        """
+        ":return: Cohere V2 client for API interaction."
         conn = self.get_connection(self.conn_id)
         return cohere.ClientV2(
             api_key=conn.password,
             timeout=self.timeout,
             base_url=conn.host or None,
-            request_options=self.request_options
+            request_options=self.request_options,
         )
 
     def create_embeddings(
-        self, texts: List[str], model: str = "embed-multilingual-v3.0"
+        self, texts: list[str], model: str = "embed-multilingual-v3.0"
     ) -> list[list[float]]:
         """
         Create embeddings for the given texts using the specified model.
@@ -92,16 +92,14 @@ class CohereHook(BaseHook):
         :param model: The model to use for creating embeddings. Default is 'embed-multilingual-v3.0'.
         :return: List of embedding vectors, where each inner list represents an embedding.
         """
-        logger.info(f"Creating embeddings with model: {model}")
+        logger.info("Creating embeddings with model: embed-multilingual-v3.0")
         response = self.get_conn.embed(texts=texts, model=model, request_options=self.request_options)
         embeddings = response.embeddings
         return embeddings
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """
-        :return: Dictionary defining the UI behavior for connection configuration in Airflow.
-        """
+        ":return: Dictionary defining the UI behavior for connection configuration in Airflow."
         return {
             "hidden_fields": ["schema", "login", "port", "extra"],
             "relabeling": {
