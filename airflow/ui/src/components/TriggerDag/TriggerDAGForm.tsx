@@ -29,6 +29,7 @@ import { useDagParams } from "src/queries/useDagParams";
 import { useTrigger } from "src/queries/useTrigger";
 
 import { ErrorAlert } from "../ErrorAlert";
+import FlexibleForm from "../FlexibleForm";
 import { Accordion } from "../ui";
 
 type TriggerDAGFormProps = {
@@ -47,13 +48,14 @@ export type DagRunTriggerParams = {
 
 const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
-  const conf = useDagParams(dagId, open);
+  const { initialConf, paramsDict } = useDagParams(dagId, open);
   const {
     dateValidationError,
     error: errorTrigger,
     isPending,
     triggerDagRun,
   } = useTrigger({ onSuccessConfirm: onClose });
+  const conf = initialConf;
 
   const {
     control,
@@ -129,6 +131,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
 
   return (
     <>
+      <FlexibleForm params={paramsDict} />
       <Accordion.Root collapsible mb={4} mt={4} size="lg" variant="enclosed">
         <Accordion.Item key="advancedOptions" value="advancedOptions">
           <Accordion.ItemTrigger cursor="button">Advanced Options</Accordion.ItemTrigger>
