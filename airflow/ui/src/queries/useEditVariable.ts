@@ -21,16 +21,19 @@ import { useState } from "react";
 
 import {
   useVariableServiceGetVariablesKey,
-  useVariableServicePostVariable,
+  useVariableServicePatchVariable,
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
 import type { VariableBody } from "src/pages/Variables/ManageVariable/VariableForm";
 
-export const useAddVariable = ({
-  onSuccessConfirm,
-}: {
-  onSuccessConfirm: () => void;
-}) => {
+export const useEditVariable = (
+  initialVariable: VariableBody,
+  {
+    onSuccessConfirm,
+  }: {
+    onSuccessConfirm: () => void;
+  },
+) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
 
@@ -40,8 +43,8 @@ export const useAddVariable = ({
     });
 
     toaster.create({
-      description: "Variable has been added successfully",
-      title: "Variable Add Request Submitted",
+      description: "Variable has been edited successfully",
+      title: "Variable Edit Request Submitted",
       type: "success",
     });
 
@@ -52,25 +55,36 @@ export const useAddVariable = ({
     setError(_error);
   };
 
-  const { isPending, mutate } = useVariableServicePostVariable({
+  const { isPending, mutate } = useVariableServicePatchVariable({
     onError,
     onSuccess,
   });
 
-  const addVariable = (variableRequestBody: VariableBody) => {
+  const editVariable = (addVariableRequestBody: VariableBody) => {
+    const updateMask: Array<string> = [];
+
+    if (addVariableRequestBody.value !== initialVariable.value) {
+      updateMask.push("value");
+    }
+    if (addVariableRequestBody.description !== initialVariable.description) {
+      updateMask.push("description");
+    }
+
     const parsedDescription =
-      variableRequestBody.description === ""
+      addVariableRequestBody.description === ""
         ? undefined
-        : variableRequestBody.description;
+        : addVariableRequestBody.description;
 
     mutate({
       requestBody: {
         description: parsedDescription,
-        key: variableRequestBody.key,
-        value: variableRequestBody.value,
+        key: addVariableRequestBody.key,
+        value: addVariableRequestBody.value,
       },
+      updateMask,
+      variableKey: initialVariable.key,
     });
   };
 
-  return { addVariable, error, isPending, setError };
+  return { editVariable, error, isPending, setError };
 };
