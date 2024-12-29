@@ -483,8 +483,6 @@ class TestImportVariables(TestVariableEndpoint):
                 f"The variables with these keys: {expected_conflict_keys} already exists." == body["detail"]
             )
 
-        self.teardown_method()
-
     def test_import_invalid_json(self, test_client):
         """Test invalid JSON import."""
         file = BytesIO(b"import variable test")
