@@ -36,7 +36,7 @@ const labelLookup = (key: string, valuesDisplay: Record<string, string> | null):
   return key;
 };
 
-export const FlexibleFormFieldDropdown = ({ key, param }: FlexibleFormElementProps) => {
+export const FlexibleFormFieldDropdown = ({ name, param }: FlexibleFormElementProps) => {
   const selectOptions = createListCollection({
     items:
       param.schema.enum?.map((value) => ({
@@ -50,8 +50,8 @@ export const FlexibleFormFieldDropdown = ({ key, param }: FlexibleFormElementPro
     <Select.Root
       collection={selectOptions}
       defaultValue={[param.value as string]}
-      id={`element_${key}`}
-      name={`element_${key}`}
+      id={`element_${name}`}
+      name={`element_${name}`}
       size="sm"
     >
       <Select.Trigger>

@@ -21,11 +21,11 @@ import { Switch } from "../ui";
 
 export const isFieldBool = (fieldType: string) => fieldType === "boolean";
 
-export const FlexibleFormFieldBool = ({ key, param }: FlexibleFormElementProps) => (
+export const FlexibleFormFieldBool = ({ name, param }: FlexibleFormElementProps) => (
   <Switch
     colorPalette="blue"
     defaultChecked={param.value as boolean}
-    id={`element_${key}`}
-    name={`element_${key}`}
+    id={`element_${name}`}
+    name={`element_${name}`}
   />
 );

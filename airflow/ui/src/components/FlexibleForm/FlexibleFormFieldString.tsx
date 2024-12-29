@@ -20,11 +20,11 @@ import { Input } from "@chakra-ui/react";
 
 import type { FlexibleFormElementProps } from ".";
 
-export const FlexibleFormFieldString = ({ key, param }: FlexibleFormElementProps) => (
+export const FlexibleFormFieldString = ({ name, param }: FlexibleFormElementProps) => (
   <Input
     defaultValue={param.value as string}
-    id={`element_${key}`}
-    name={`element_${key}`}
+    id={`element_${name}`}
+    name={`element_${name}`}
     placeholder={JSON.stringify(param.value)}
     size="sm"
   />

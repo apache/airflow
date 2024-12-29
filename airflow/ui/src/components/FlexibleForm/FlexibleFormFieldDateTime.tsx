@@ -23,11 +23,11 @@ import type { FlexibleFormElementProps } from ".";
 export const isFieldDateTime = (fieldType: string, fieldFormat: string | null) =>
   fieldType === "string" && fieldFormat === "date-time";
 
-export const FlexibleFormFieldDateTime = ({ key, param }: FlexibleFormElementProps) => (
+export const FlexibleFormFieldDateTime = ({ name, param }: FlexibleFormElementProps) => (
   <Input
     defaultValue={param.value as string}
-    id={`element_${key}`}
-    name={`element_${key}`}
+    id={`element_${name}`}
+    name={`element_${name}`}
     placeholder="yyyy-mm-ddThh:mm"
     size="sm"
     type="datetime-local"
