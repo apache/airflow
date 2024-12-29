@@ -967,7 +967,7 @@ export class BackfillService {
    * Create Backfill Dry Run
    * @param data The data for the request.
    * @param data.requestBody
-   * @returns BackfillDryRunResponse Successful Response
+   * @returns DryRunBackfillCollectionResponse Successful Response
    * @throws ApiError
    */
   public static createBackfillDryRun(

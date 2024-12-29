@@ -301,7 +301,7 @@ class TestCreateBackfillDryRun(TestBackfillEndpoint):
 
         assert response.status_code == 200
         response_json = response.json()
-        assert response_json["run_info_list"] == expected_dates
+        assert response_json["backfills"] == expected_dates
 
 
 class TestCancelBackfill(TestBackfillEndpoint):

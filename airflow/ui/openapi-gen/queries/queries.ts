@@ -2817,7 +2817,7 @@ export const useBackfillServiceCreateBackfill = <
  * Create Backfill Dry Run
  * @param data The data for the request.
  * @param data.requestBody
- * @returns BackfillDryRunResponse Successful Response
+ * @returns DryRunBackfillCollectionResponse Successful Response
  * @throws ApiError
  */
 export const useBackfillServiceCreateBackfillDryRun = <

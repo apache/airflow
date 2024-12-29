@@ -350,23 +350,6 @@ export const $BackfillCollectionResponse = {
   description: "Backfill Collection serializer for responses.",
 } as const;
 
-export const $BackfillDryRunResponse = {
-  properties: {
-    run_info_list: {
-      items: {
-        $ref: "#/components/schemas/BackfillRunInfo",
-      },
-      type: "array",
-      title: "Run Info List",
-    },
-  },
-  type: "object",
-  required: ["run_info_list"],
-  title: "BackfillDryRunResponse",
-  description:
-    "Serializer for responses in dry-run mode for backfill operations.",
-} as const;
-
 export const $BackfillPostBody = {
   properties: {
     dag_id: {
@@ -401,11 +384,6 @@ export const $BackfillPostBody = {
       type: "integer",
       title: "Max Active Runs",
       default: 10,
-    },
-    dry_run: {
-      type: "boolean",
-      title: "Dry Run",
-      default: false,
     },
   },
   type: "object",
@@ -488,20 +466,6 @@ export const $BackfillResponse = {
   ],
   title: "BackfillResponse",
   description: "Base serializer for Backfill.",
-} as const;
-
-export const $BackfillRunInfo = {
-  properties: {
-    logical_date: {
-      type: "string",
-      format: "date-time",
-      title: "Logical Date",
-    },
-  },
-  type: "object",
-  required: ["logical_date"],
-  title: "BackfillRunInfo",
-  description: "Data model for run information during a backfill operation.",
 } as const;
 
 export const $BaseInfoResponse = {
@@ -2664,6 +2628,41 @@ export const $DagWarningType = {
 
 This is the set of allowable values for the \`\`warning_type\`\` field
 in the DagWarning model.`,
+} as const;
+
+export const $DryRunBackfillCollectionResponse = {
+  properties: {
+    backfills: {
+      items: {
+        $ref: "#/components/schemas/DryRunBackfillResponse",
+      },
+      type: "array",
+      title: "Backfills",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["backfills", "total_entries"],
+  title: "DryRunBackfillCollectionResponse",
+  description:
+    "Serializer for responses in dry-run mode for backfill operations.",
+} as const;
+
+export const $DryRunBackfillResponse = {
+  properties: {
+    logical_date: {
+      type: "string",
+      format: "date-time",
+      title: "Logical Date",
+    },
+  },
+  type: "object",
+  required: ["logical_date"],
+  title: "DryRunBackfillResponse",
+  description: "Data model for run information during a backfill operation.",
 } as const;
 
 export const $EdgeResponse = {

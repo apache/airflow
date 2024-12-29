@@ -98,13 +98,6 @@ export type BackfillCollectionResponse = {
 };
 
 /**
- * Serializer for responses in dry-run mode for backfill operations.
- */
-export type BackfillDryRunResponse = {
-  run_info_list: Array<BackfillRunInfo>;
-};
-
-/**
  * Object used for create backfill request.
  */
 export type BackfillPostBody = {
@@ -117,7 +110,6 @@ export type BackfillPostBody = {
   };
   reprocess_behavior?: ReprocessBehavior;
   max_active_runs?: number;
-  dry_run?: boolean;
 };
 
 /**
@@ -137,13 +129,6 @@ export type BackfillResponse = {
   created_at: string;
   completed_at: string | null;
   updated_at: string;
-};
-
-/**
- * Data model for run information during a backfill operation.
- */
-export type BackfillRunInfo = {
-  logical_date: string;
 };
 
 /**
@@ -650,6 +635,21 @@ export type DagTagResponse = {
  * in the DagWarning model.
  */
 export type DagWarningType = "asset conflict" | "non-existent pool";
+
+/**
+ * Serializer for responses in dry-run mode for backfill operations.
+ */
+export type DryRunBackfillCollectionResponse = {
+  backfills: Array<DryRunBackfillResponse>;
+  total_entries: number;
+};
+
+/**
+ * Data model for run information during a backfill operation.
+ */
+export type DryRunBackfillResponse = {
+  logical_date: string;
+};
 
 /**
  * Edge serializer for responses.
@@ -1543,7 +1543,7 @@ export type CreateBackfillDryRunData = {
   requestBody: BackfillPostBody;
 };
 
-export type CreateBackfillDryRunResponse = BackfillDryRunResponse;
+export type CreateBackfillDryRunResponse = DryRunBackfillCollectionResponse;
 
 export type DeleteConnectionData = {
   connectionId: string;
@@ -2802,7 +2802,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: BackfillDryRunResponse;
+        200: DryRunBackfillCollectionResponse;
         /**
          * Unauthorized
          */
