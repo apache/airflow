@@ -3161,7 +3161,7 @@ export class VariableService {
    * Import Variables
    * Import variables from a JSON file.
    * @param data The data for the request.
-   * @param data.behavior
+   * @param data.actionIfExists
    * @param data.formData
    * @returns VariablesImportResponse Successful Response
    * @throws ApiError
@@ -3173,7 +3173,7 @@ export class VariableService {
       method: "POST",
       url: "/public/variables/import",
       query: {
-        behavior: data.behavior,
+        action_if_exists: data.actionIfExists,
       },
       formData: data.formData,
       mediaType: "multipart/form-data",

@@ -37,6 +37,7 @@ import {
 } from "../requests/services.gen";
 import {
   BackfillPostBody,
+  Body_import_variables,
   ClearTaskInstancesBody,
   ConnectionBody,
   ConnectionBulkBody,
@@ -47,7 +48,6 @@ import {
   DAGRunsBatchBody,
   DagRunState,
   DagWarningType,
-  ImportVariablesBody,
   PatchTaskInstanceBody,
   PoolPatchBody,
   PoolPostBody,
@@ -3359,7 +3359,7 @@ export const useVariableServicePostVariable = <
  * Import Variables
  * Import variables from a JSON file.
  * @param data The data for the request.
- * @param data.behavior
+ * @param data.actionIfExists
  * @param data.formData
  * @returns VariablesImportResponse Successful Response
  * @throws ApiError
@@ -3374,8 +3374,8 @@ export const useVariableServiceImportVariables = <
       TData,
       TError,
       {
-        behavior: "overwrite" | "fail" | "skip";
-        formData: ImportVariablesBody;
+        actionIfExists: "overwrite" | "fail" | "skip";
+        formData: Body_import_variables;
       },
       TContext
     >,
@@ -3386,14 +3386,14 @@ export const useVariableServiceImportVariables = <
     TData,
     TError,
     {
-      behavior: "overwrite" | "fail" | "skip";
-      formData: ImportVariablesBody;
+      actionIfExists: "overwrite" | "fail" | "skip";
+      formData: Body_import_variables;
     },
     TContext
   >({
-    mutationFn: ({ behavior, formData }) =>
+    mutationFn: ({ actionIfExists, formData }) =>
       VariableService.importVariables({
-        behavior,
+        actionIfExists,
         formData,
       }) as unknown as Promise<TData>,
     ...options,

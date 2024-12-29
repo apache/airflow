@@ -488,7 +488,7 @@ export const $BaseInfoResponse = {
   description: "Base info serializer for responses.",
 } as const;
 
-export const $ImportVariablesBody = {
+export const $Body_import_variables = {
   properties: {
     file: {
       type: "string",
@@ -498,7 +498,7 @@ export const $ImportVariablesBody = {
   },
   type: "object",
   required: ["file"],
-  title: "ImportVariablesBody",
+  title: "Body_import_variables",
 } as const;
 
 export const $ClearTaskInstancesBody = {

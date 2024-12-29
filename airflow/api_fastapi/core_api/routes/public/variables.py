@@ -193,7 +193,7 @@ def post_variable(
 )
 def import_variables(
     file: UploadFile,
-    behavior: Literal["overwrite", "fail", "skip"],
+    action_if_exists: Literal["overwrite", "fail", "skip"],
     session: SessionDep,
 ) -> VariablesImportResponse:
     """Import variables from a JSON file."""
@@ -217,12 +217,12 @@ def import_variables(
 
     matched_keys = existing_keys & import_keys
 
-    if behavior == "fail" and matched_keys:
+    if action_if_exists == "fail" and matched_keys:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"The variables with these keys: {matched_keys} already exists.",
         )
-    elif behavior == "skip":
+    elif action_if_exists == "skip":
         create_keys = import_keys - matched_keys
     else:
         create_keys = import_keys

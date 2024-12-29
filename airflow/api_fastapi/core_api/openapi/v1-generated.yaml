@@ -5865,7 +5865,7 @@ paths:
       description: Import variables from a JSON file.
       operationId: import_variables
       parameters:
-      - name: behavior
+      - name: action_if_exists
         in: query
         required: true
         schema:
@@ -5874,13 +5874,13 @@ paths:
           - fail
           - skip
           type: string
-          title: Behavior
+          title: Action If Exists
       requestBody:
         required: true
         content:
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/ImportVariablesBody'
+              $ref: '#/components/schemas/Body_import_variables'
       responses:
         '200':
           description: Successful Response
@@ -6496,7 +6496,7 @@ components:
       - status
       title: BaseInfoResponse
       description: Base info serializer for responses.
-    ImportVariablesBody:
+    Body_import_variables:
       properties:
         file:
           type: string
@@ -6505,7 +6505,7 @@ components:
       type: object
       required:
       - file
-      title: ImportVariablesBody
+      title: Body_import_variables
     ClearTaskInstancesBody:
       properties:
         dry_run:

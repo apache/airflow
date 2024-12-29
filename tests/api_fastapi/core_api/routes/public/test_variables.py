@@ -467,7 +467,7 @@ class TestImportVariables(TestVariableEndpoint):
         response = test_client.post(
             "/public/variables/import",
             files={"file": ("variables.json", file, "application/json")},
-            params={"behavior": behavior},
+            params={"action_if_exists": behavior},
         )
 
         assert response.status_code == expected_status_code
@@ -491,7 +491,7 @@ class TestImportVariables(TestVariableEndpoint):
         response = test_client.post(
             "/public/variables/import",
             files={"file": ("variables.json", file, "application/json")},
-            params={"behavior": "overwrite"},
+            params={"action_if_exists": "overwrite"},
         )
 
         assert response.status_code == 400
@@ -503,7 +503,7 @@ class TestImportVariables(TestVariableEndpoint):
         response = test_client.post(
             "/public/variables/import",
             files={"file": ("empty_variables.json", file, "application/json")},
-            params={"behavior": "overwrite"},
+            params={"action_if_exists": "overwrite"},
         )
 
         assert response.status_code == 422
