@@ -32,7 +32,6 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
     WorkflowJobRepairSingleTaskLink,
     WorkflowJobRunLink,
     _get_dagrun,
-    _get_databricks_task_id,
     _get_launch_task_key,
     _repair_task,
     get_databricks_task_ids,
@@ -50,30 +49,17 @@ TASK_INSTANCE_KEY = TaskInstanceKey(dag_id=DAG_ID, task_id=TASK_ID, run_id=RUN_I
 DATABRICKS_CONN_ID = "databricks_default"
 DATABRICKS_RUN_ID = 12345
 GROUP_ID = "test_group"
-TASK_MAP = {
-    "task1": MagicMock(dag_id=DAG_ID, task_id="task1"),
-    "task2": MagicMock(dag_id=DAG_ID, task_id="task2"),
-}
 LOG = MagicMock()
-
-
-@pytest.mark.parametrize(
-    "task, expected_id",
-    [
-        (MagicMock(dag_id="dag1", task_id="task.1"), "dag1__task__1"),
-        (MagicMock(dag_id="dag2", task_id="task_1"), "dag2__task_1"),
-    ],
-)
-def test_get_databricks_task_id(task, expected_id):
-    result = _get_databricks_task_id(task)
-
-    assert result == expected_id
+TASK_MAP = {
+    "task1": MagicMock(dag_id=DAG_ID, task_id="task1", databricks_task_key="task_key1"),
+    "task2": MagicMock(dag_id=DAG_ID, task_id="task2", databricks_task_key="task_key2"),
+}
 
 
 def test_get_databricks_task_ids():
     result = get_databricks_task_ids(GROUP_ID, TASK_MAP, LOG)
 
-    expected_ids = ["test_dag__task1", "test_dag__task2"]
+    expected_ids = ["task_key1", "task_key2"]
     assert result == expected_ids
 
 

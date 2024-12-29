@@ -817,7 +817,7 @@ class TestHandleRequest:
                 GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
                 b'{"key":"test_key","value":"test_value","type":"XComResult"}\n',
                 "xcoms.get",
-                ("test_dag", "test_run", "test_task", "test_key", -1),
+                ("test_dag", "test_run", "test_task", "test_key", None),
                 XComResult(key="test_key", value="test_value"),
                 id="get_xcom",
             ),

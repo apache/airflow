@@ -83,7 +83,7 @@ export const Logs = () => {
       <HStack justifyContent="space-between" mb={2}>
         {taskInstance === undefined ||
         tryNumber === undefined ||
-        tryNumber <= 1 ? (
+        taskInstance.try_number <= 1 ? (
           <div />
         ) : (
           <TaskTrySelect

@@ -330,6 +330,17 @@ config:
         type: string
         example: ~
         default: "False"
+      extra_celery_config:
+        description: |
+          Extra celery configs to include in the celery worker.
+          Any of the celery config can be added to this config and it
+          will be applied while starting the celery worker. e.g. {"worker_max_tasks_per_child": 10}
+          See also:
+          https://docs.celeryq.dev/en/stable/userguide/configuration.html#configuration-and-defaults
+        version_added: ~
+        type: string
+        example: ~
+        default: "{{}}"
   celery_broker_transport_options:
     description: |
       This section is for specifying options which can be passed to the
