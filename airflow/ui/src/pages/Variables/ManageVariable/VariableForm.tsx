@@ -17,51 +17,50 @@
  * under the License.
  */
 import { Box, Field, HStack, Input, Spacer, Textarea } from "@chakra-ui/react";
-import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { FiSave } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { Button } from "src/components/ui";
-import { useAddVariable } from "src/queries/useAddVariable";
 
-export type AddVariableBody = {
+export type VariableBody = {
   description: string | undefined;
   key: string;
   value: string;
 };
 
-type AddVariableFormProps = {
-  readonly onClose: () => void;
+type VariableFormProps = {
+  readonly error: unknown;
+  readonly initialVariable: VariableBody;
+  readonly isPending: boolean;
+  readonly manageMutate: (variableRequestBody: VariableBody) => void;
+  readonly setError: (error: unknown) => void;
 };
 
-const AddVariableForm = ({ onClose }: AddVariableFormProps) => {
-  const { addVariable, error, isPending } = useAddVariable(onClose);
-
+const VariableForm = ({
+  error,
+  initialVariable,
+  isPending,
+  manageMutate,
+  setError,
+}: VariableFormProps) => {
   const {
     control,
     formState: { isDirty, isValid },
     handleSubmit,
     reset,
-  } = useForm<AddVariableBody>({
-    defaultValues: {
-      description: "",
-      key: "",
-      value: "",
-    },
+  } = useForm<VariableBody>({
+    defaultValues: initialVariable,
     mode: "onChange",
   });
 
-  useEffect(() => {
-    reset({
-      description: "",
-      key: "",
-      value: "",
-    });
-  }, [reset]);
+  const onSubmit = (data: VariableBody) => {
+    manageMutate(data);
+  };
 
-  const onSubmit = (data: AddVariableBody) => {
-    addVariable(data);
+  const handleReset = () => {
+    setError(undefined);
+    reset();
   };
 
   return (
@@ -74,7 +73,12 @@ const AddVariableForm = ({ onClose }: AddVariableFormProps) => {
             <Field.Label fontSize="md">
               Key <Field.RequiredIndicator />
             </Field.Label>
-            <Input {...field} required size="sm" />
+            <Input
+              {...field}
+              disabled={Boolean(initialVariable.key)}
+              required
+              size="sm"
+            />
             {fieldState.error ? (
               <Field.ErrorText>{fieldState.error.message}</Field.ErrorText>
             ) : undefined}
@@ -123,7 +127,7 @@ const AddVariableForm = ({ onClose }: AddVariableFormProps) => {
       <Box as="footer" display="flex" justifyContent="flex-end" mt={8}>
         <HStack w="full">
           {isDirty ? (
-            <Button onClick={() => reset()} variant="outline">
+            <Button onClick={handleReset} variant="outline">
               Reset
             </Button>
           ) : undefined}
@@ -141,4 +145,4 @@ const AddVariableForm = ({ onClose }: AddVariableFormProps) => {
   );
 };
 
-export default AddVariableForm;
+export default VariableForm;

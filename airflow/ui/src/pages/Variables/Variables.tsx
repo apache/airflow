@@ -32,9 +32,9 @@ import {
   type SearchParamsKeysType,
 } from "src/constants/searchParams";
 
-import AddVariableModal from "./AddVariableModal";
-import DeleteVariableButton from "./DeleteVariableButton";
-import EditVariableButton from "./EditVariableButton";
+import AddVariableButton from "./ManageVariable/AddVariableButton";
+import DeleteVariableButton from "./ManageVariable/DeleteVariableButton";
+import EditVariableButton from "./ManageVariable/EditVariableButton";
 
 const columns: Array<ColumnDef<VariableResponse>> = [
   {
@@ -57,7 +57,7 @@ const columns: Array<ColumnDef<VariableResponse>> = [
     accessorKey: "actions",
     cell: ({ row: { original } }) => (
       <Flex justifyContent="end">
-        <EditVariableButton editKey={original.key} />
+        <EditVariableButton variable={original} />
         <DeleteVariableButton deleteKey={original.key} />
       </Flex>
     ),
@@ -115,7 +115,7 @@ export const Variables = () => {
           placeHolder="Search Keys"
         />
         <HStack mt={4}>
-          <AddVariableModal />
+          <AddVariableButton />
         </HStack>
       </VStack>
       <Box>
