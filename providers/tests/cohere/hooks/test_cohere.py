@@ -33,15 +33,14 @@ class TestCohereHook:
         api_key = "test"
         base_url = "http://some_host.com"
         timeout = 150
-        request_options = None
         with (
             patch.object(
                 CohereHook,
                 "get_connection",
-                return_value=Connection(conn_type="cohere", password=api_key, host=base_url, request_options=request_options),
+                return_value=Connection(conn_type="cohere", password=api_key, host=base_url),
             ),
             patch("cohere.ClientV2") as client,
         ):
             hook = CohereHook(timeout=timeout)
             _ = hook.get_conn
-            client.assert_called_once_with(api_key=api_key, timeout=timeout, base_url=base_url, request_options=request_options)
+            client.assert_called_once_with(api_key=api_key, timeout=timeout, base_url=base_url)

@@ -45,8 +45,14 @@ def test_cohere_embedding_operator(cohere_client, get_connection):
     cohere_client.return_value = client_obj
     client_obj.embed.return_value = resp
 
-    op = CohereEmbeddingOperator(task_id="embed", conn_id="some_conn", input_text=texts, timeout=timeout, request_options=request_options)
+    op = CohereEmbeddingOperator(
+        task_id="embed",
+        conn_id="some_conn",
+        input_text=texts,
+        timeout=timeout,
+        request_options=request_options,
+    )
 
     val = op.execute(context={})
-    cohere_client.assert_called_once_with(api_key=api_key, base_url=base_url, timeout=timeout, request_options=request_options)
+    cohere_client.assert_called_once_with(api_key=api_key, base_url=base_url, timeout=timeout)
     assert val == embedded_obj
