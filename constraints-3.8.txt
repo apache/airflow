@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-27T23:08:18.098843
+# This constraints file was automatically generated on 2024-12-29T21:15:37.220033
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -30,7 +30,7 @@
 #
 # pip install "apache-airflow==X.Y.Z" "snowflake-connector-python[pandas]=N.M.O"
 #
-Authlib==1.3.2
+Authlib==1.3.1
 ConfigUpdater==3.2
 Deprecated==1.2.15
 Events==0.5
@@ -733,14 +733,14 @@ universal_pathlib==0.2.6
 uritemplate==4.1.1
 urllib3==1.26.20
 userpath==1.9.2
-uv==0.4.29
-validators==0.33.0
+uv==0.5.11
+validators==0.34.0
 vertica-python==1.4.0
 vine==5.1.0
 virtualenv==20.28.0
 watchtower==3.3.1
 wcwidth==0.2.13
-weaviate-client==4.8.0
+weaviate-client==4.8.1
 websocket-client==1.8.0
 wirerope==0.4.8
 wrapt==1.17.0
