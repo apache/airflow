@@ -290,7 +290,6 @@ class TestCreateBackfillDryRun(TestBackfillEndpoint):
             "max_active_runs": 5,
             "run_backwards": False,
             "dag_run_conf": {"param1": "val1", "param2": True},
-            "dry_run": True,
             "reprocess_behavior": reprocess_behavior,
         }
 

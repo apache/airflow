@@ -177,14 +177,38 @@ def _create_backfill_dag_run(
     if dag_run_conf is None:
         dag_run_conf = {}
 
+    dag_run_ranked = (
+        select(
+            DagRun.logical_date,
+            DagRun.start_date,
+            DagRun.run_id,
+            DagRun.dag_id,
+            func.row_number()
+            .over(
+                partition_by=DagRun.logical_date,
+                order_by=(DagRun.start_date.desc().nullsfirst()),
+            )
+            .label("row_number"),
+        )
+        .where(DagRun.dag_id == dag.dag_id)
+        .where(DagRun.logical_date.in_([info.logical_date for info in dagrun_infos]))
+        .subquery()
+    )
+
     existing_dag_runs = {
         dr.logical_date: dr
         for dr in session.scalars(
             select(DagRun)
-            .where(DagRun.dag_id == dag.dag_id)
-            .where(DagRun.logical_date.in_([info.logical_date for info in dagrun_infos]))
+            .join(
+                dag_run_ranked,
+                (DagRun.logical_date == dag_run_ranked.c.logical_date)
+                & (DagRun.dag_id == dag_run_ranked.c.dag_id),
+            )
+            .where(dag_run_ranked.c.row_number == 1)
         ).all()
     }
+
+    print(existing_dag_runs)
 
     for info in dagrun_infos:
         backfill_sort_ordinal += 1
