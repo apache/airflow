@@ -52,7 +52,6 @@ from airflow_breeze.commands.common_options import (
     option_dry_run,
     option_github_repository,
     option_historical_python_version,
-    option_image_tag_for_running,
     option_include_not_ready_providers,
     option_include_removed_providers,
     option_include_success_outputs,
@@ -1180,7 +1179,6 @@ def tag_providers(
 @option_skip_cleanup
 @option_debug_resources
 @option_python_versions
-@option_image_tag_for_running
 @option_airflow_constraints_mode_ci
 @option_chicken_egg_providers
 @option_github_repository
@@ -1193,7 +1191,6 @@ def generate_constraints(
     chicken_egg_providers: str,
     debug_resources: bool,
     github_repository: str,
-    image_tag: str | None,
     parallelism: int,
     python: str,
     python_versions: str,
@@ -1222,7 +1219,6 @@ def generate_constraints(
             )
         else:
             shell_params = ShellParams(
-                image_tag=image_tag,
                 python=python,
                 github_repository=github_repository,
             )
@@ -1239,7 +1235,6 @@ def generate_constraints(
                 airflow_constraints_mode=airflow_constraints_mode,
                 chicken_egg_providers=chicken_egg_providers,
                 github_repository=github_repository,
-                image_tag=image_tag,
                 python=python,
                 use_uv=use_uv,
             )
@@ -1259,7 +1254,6 @@ def generate_constraints(
             airflow_constraints_mode=airflow_constraints_mode,
             chicken_egg_providers=chicken_egg_providers,
             github_repository=github_repository,
-            image_tag=image_tag,
             python=python,
             use_uv=use_uv,
         )
