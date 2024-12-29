@@ -181,7 +181,6 @@ def _create_backfill_dag_run(
         select(
             DagRun.logical_date,
             DagRun.start_date,
-            DagRun.run_id,
             DagRun.dag_id,
             func.row_number()
             .over(
@@ -202,6 +201,10 @@ def _create_backfill_dag_run(
             .join(
                 dag_run_ranked,
                 (DagRun.logical_date == dag_run_ranked.c.logical_date)
+                & (
+                    (DagRun.start_date == dag_run_ranked.c.start_date)
+                    | ((DagRun.start_date.is_(None)) & (dag_run_ranked.c.start_date.is_(None)))
+                )
                 & (DagRun.dag_id == dag_run_ranked.c.dag_id),
             )
             .where(dag_run_ranked.c.row_number == 1)
