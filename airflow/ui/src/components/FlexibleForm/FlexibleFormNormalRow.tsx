@@ -54,20 +54,20 @@ const inferType = (param: ParamSpec) => {
   return typeof param.value;
 };
 
-export const FlexibleFormSelectElement = ({ key, param }: FlexibleFormElementProps) => {
+export const FlexibleFormSelectElement = ({ key, name, param }: FlexibleFormElementProps) => {
   // FUTURE: Add support for other types as described in AIP-68 via Plugins
   const fieldType = inferType(param);
 
   if (isFieldBool(fieldType)) {
-    return <FlexibleFormFieldBool key={key} param={param} />;
+    return <FlexibleFormFieldBool key={key} name={name} param={param} />;
   } else if (isFieldDateTime(fieldType, param.schema.format)) {
-    return <FlexibleFormFieldDateTime key={key} param={param} />;
+    return <FlexibleFormFieldDateTime key={key} name={name} param={param} />;
   } else if (isFieldDate(fieldType, param.schema.format)) {
-    return <FlexibleFormFieldDate key={key} param={param} />;
+    return <FlexibleFormFieldDate key={key} name={name} param={param} />;
   } else if (isFieldTime(fieldType, param.schema.format)) {
-    return <FlexibleFormFieldTime key={key} param={param} />;
+    return <FlexibleFormFieldTime key={key} name={name} param={param} />;
   } else if (isFieldDropdown(fieldType, param.schema.enum)) {
-    return <FlexibleFormFieldDropdown key={key} param={param} />;
+    return <FlexibleFormFieldDropdown key={key} name={name} param={param} />;
   } else {
     // TODO other elements like number, integer, select etc.
     // Missing:
@@ -78,20 +78,20 @@ export const FlexibleFormSelectElement = ({ key, param }: FlexibleFormElementPro
     // - Number (Into or generic number input)
     // - Multiline Text
     // see airflow/www/templates/airflow/trigger.html for logic in Airflow 2
-    return <FlexibleFormFieldString key={key} param={param} />;
+    return <FlexibleFormFieldString key={key} name={name} param={param} />;
   }
 };
 
 /** Render a normal form row with a field that is auto-selected */
-export const FlexibleFormNormalRow = ({ key, param }: FlexibleFormElementProps) => (
+export const FlexibleFormNormalRow = ({ key, name, param }: FlexibleFormElementProps) => (
   <Field.Root orientation="horizontal" required={isRequired(param)}>
     <Stack css={{ "flex-basis": "30%" }}>
       <Field.Label css={{ "flex-basis": "0" }} fontSize="md">
-        {param.schema.title ?? key} <Field.RequiredIndicator />
+        {param.schema.title ?? name} <Field.RequiredIndicator />
       </Field.Label>
     </Stack>
     <Stack css={{ "flex-basis": "70%" }}>
-      <FlexibleFormSelectElement key={key} param={param} />
+      <FlexibleFormSelectElement key={key} name={name} param={param} />
       <Field.HelperText>
         {param.description ?? <Markdown>{param.schema.description_md}</Markdown>}
       </Field.HelperText>

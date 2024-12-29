@@ -21,9 +21,9 @@ import { FlexibleFormHidden, isHidden } from "./FlexibleFormHidden";
 import { FlexibleFormNormalRow } from "./FlexibleFormNormalRow";
 
 /** Generates a form row */
-export const FlexibleFormRow = ({ key, param }: FlexibleFormElementProps) =>
+export const FlexibleFormRow = ({ key, name, param }: FlexibleFormElementProps) =>
   isHidden(param) ? (
-    <FlexibleFormHidden key={key} param={param} />
+    <FlexibleFormHidden key={key} name={name} param={param} />
   ) : (
-    <FlexibleFormNormalRow key={key} param={param} />
+    <FlexibleFormNormalRow key={key} name={name} param={param} />
   );

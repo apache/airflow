@@ -28,6 +28,7 @@ type FlexibleFormProps = {
 
 export type FlexibleFormElementProps = {
   readonly key: string;
+  readonly name: string;
   readonly param: ParamSpec;
 };
 
@@ -35,7 +36,7 @@ const FlexibleForm = ({ params }: FlexibleFormProps) => (
   // TODO: Support multiple sections - at the moment all is rendered flat
   <Stack separator={<StackSeparator />}>
     {Object.entries(params).map(([name, param]) => (
-      <FlexibleFormRow key={name} param={param} />
+      <FlexibleFormRow key={name} name={name} param={param} />
     ))}
   </Stack>
 );
