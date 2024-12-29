@@ -5880,7 +5880,7 @@ paths:
         content:
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/Body_import_variables'
+              $ref: '#/components/schemas/ImportVariableBody'
       responses:
         '200':
           description: Successful Response
@@ -6496,7 +6496,7 @@ components:
       - status
       title: BaseInfoResponse
       description: Base info serializer for responses.
-    Body_import_variables:
+    ImportVariableBody:
       properties:
         file:
           type: string
@@ -6505,7 +6505,7 @@ components:
       type: object
       required:
       - file
-      title: Body_import_variables
+      title: ImportVariableBody
     ClearTaskInstancesBody:
       properties:
         dry_run:

@@ -37,7 +37,6 @@ import {
 } from "../requests/services.gen";
 import {
   BackfillPostBody,
-  Body_import_variables,
   ClearTaskInstancesBody,
   ConnectionBody,
   ConnectionBulkBody,
@@ -48,6 +47,7 @@ import {
   DAGRunsBatchBody,
   DagRunState,
   DagWarningType,
+  ImportVariableBody,
   PatchTaskInstanceBody,
   PoolPatchBody,
   PoolPostBody,
@@ -3375,7 +3375,7 @@ export const useVariableServiceImportVariables = <
       TError,
       {
         actionIfExists: "overwrite" | "fail" | "skip";
-        formData: Body_import_variables;
+        formData: ImportVariableBody;
       },
       TContext
     >,
@@ -3387,7 +3387,7 @@ export const useVariableServiceImportVariables = <
     TError,
     {
       actionIfExists: "overwrite" | "fail" | "skip";
-      formData: Body_import_variables;
+      formData: ImportVariableBody;
     },
     TContext
   >({
