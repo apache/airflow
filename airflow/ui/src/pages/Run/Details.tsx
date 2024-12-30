@@ -16,20 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Flex, Heading, HStack } from "@chakra-ui/react";
-import dayjs from "dayjs";
-import { useEffect, useState } from "react";
+import { Box, Button, Flex, HStack, Table } from "@chakra-ui/react";
+import { useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import {
   useTaskInstanceServiceGetMappedTaskInstance,
-  useTaskInstanceServiceGetTaskInstance,
   useTaskInstanceServiceGetTaskInstanceTries,
 } from "openapi/queries";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
 import Time from "src/components/Time";
-import { Status } from "src/components/ui";
+import { ClipboardRoot, ClipboardIconButton, Status } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig";
+import { getDuration } from "src/utils";
 
 export const Details = () => {
   const { dagId = "", runId = "", taskId = "" } = useParams();
@@ -105,6 +104,125 @@ export const Details = () => {
           {wrap ? "Unwrap" : "Wrap"}
         </Button>
       </HStack>
+      <Table.Root striped>
+        <Table.Body>
+          <Table.Row>
+            <Table.Cell>Status</Table.Cell>
+            <Table.Cell>
+              <Flex gap={1}>
+                <Status state={tryInstance?.state ?? undefined} />
+                {tryInstance?.state ?? "no status"}
+              </Flex>
+            </Table.Cell>
+          </Table.Row>
+          <Table.Row>
+            <Table.Cell>Task ID</Table.Cell>
+            <Table.Cell>
+              <HStack>
+                {tryInstance?.task_id}
+                <ClipboardRoot value={tryInstance?.task_id}>
+                  <ClipboardIconButton />
+                </ClipboardRoot>
+              </HStack>
+            </Table.Cell>
+          </Table.Row>
+          <Table.Row>
+            <Table.Cell>Run ID</Table.Cell>
+            <Table.Cell>
+              <HStack>
+                {tryInstance?.dag_run_id}
+                <ClipboardRoot value={tryInstance?.dag_run_id}>
+                  <ClipboardIconButton />
+                </ClipboardRoot>
+              </HStack>
+            </Table.Cell>
+          </Table.Row>
+          <Table.Row>
+            <Table.Cell>Map Index</Table.Cell>
+            <Table.Cell>{tryInstance?.map_index}</Table.Cell>
+          </Table.Row>
+          <Table.Row>
+            <Table.Cell>Operator</Table.Cell>
+            <Table.Cell>{tryInstance?.operator}</Table.Cell>
+          </Table.Row>
+          <Table.Row>
+            <Table.Cell>Duration</Table.Cell>
+            <Table.Cell>
+              {getDuration(
+                tryInstance?.start_date ?? null,
+                tryInstance?.end_date ?? null,
+              )}
+              s
+            </Table.Cell>
+          </Table.Row>
+          <Table.Row>
+            <Table.Cell>Started</Table.Cell>
+            <Table.Cell>
+              <Time datetime={tryInstance?.start_date} />
+            </Table.Cell>
+          </Table.Row>
+          <Table.Row>
+            <Table.Cell>Ended</Table.Cell>
+            <Table.Cell>
+              <Time datetime={tryInstance?.end_date} />
+            </Table.Cell>
+          </Table.Row>
+          <Table.Row>
+            <Table.Cell>Process ID (PID)</Table.Cell>
+            <Table.Cell>
+              <HStack>
+                {tryInstance?.pid}
+                <ClipboardRoot value={tryInstance?.pid}>
+                  <ClipboardIconButton />
+                </ClipboardRoot>
+              </HStack>
+            </Table.Cell>
+          </Table.Row>
+          <Table.Row>
+            <Table.Cell>Hostname</Table.Cell>
+            <Table.Cell>
+              <HStack>
+                {tryInstance?.hostname}
+                <ClipboardRoot value={tryInstance?.hostname}>
+                  <ClipboardIconButton />
+                </ClipboardRoot>
+              </HStack>
+            </Table.Cell>
+          </Table.Row>
+          <Table.Row>
+            <Table.Cell>Pool</Table.Cell>
+            <Table.Cell>{tryInstance?.pool}</Table.Cell>
+          </Table.Row>
+          <Table.Row>
+            <Table.Cell>Pool Slots</Table.Cell>
+            <Table.Cell>{tryInstance?.pool_slots}</Table.Cell>
+          </Table.Row>
+          <Table.Row>
+            <Table.Cell>Executor</Table.Cell>
+            <Table.Cell>{tryInstance?.executor}</Table.Cell>
+          </Table.Row>
+          <Table.Row>
+            <Table.Cell>Executor Config</Table.Cell>
+            <Table.Cell>{tryInstance?.executor_config}</Table.Cell>
+          </Table.Row>
+          <Table.Row>
+            <Table.Cell>Unix Name</Table.Cell>
+            <Table.Cell>{tryInstance?.unixname}</Table.Cell>
+          </Table.Row>
+          <Table.Row>
+            <Table.Cell>Max Tries</Table.Cell>
+            <Table.Cell>{tryInstance?.max_tries}</Table.Cell>
+          </Table.Row>
+          <Table.Row>
+            <Table.Cell>Queue</Table.Cell>
+            <Table.Cell>{tryInstance?.queue}</Table.Cell>
+          </Table.Row>
+          <Table.Row>
+            <Table.Cell>Priority Weight</Table.Cell>
+            <Table.Cell>{tryInstance?.priority_weight}</Table.Cell>
+          </Table.Row>
+        </Table.Body>
+      </Table.Root>
     </Box>
   );
 };
