@@ -21,13 +21,25 @@ import { Input } from "@chakra-ui/react";
 import type { FlexibleFormElementProps } from ".";
 
 export const FlexibleFormFieldString = ({ name, param }: FlexibleFormElementProps) => (
-  <Input
-    defaultValue={param.value as string}
-    id={`element_${name}`}
-    name={`element_${name}`}
-    size="sm"
-  />
-  // TODO: Add features missing from the current implementation
-  // - Maximum Length / Minimum Length
-  // - Examples as proposal
+  <>
+    <Input
+      defaultValue={param.value as string}
+      id={`element_${name}`}
+      list={`list_${name}`}
+      maxLength={param.schema.maxLength ?? undefined}
+      minLength={param.schema.minLength ?? undefined}
+      name={`element_${name}`}
+      placeholder={param.schema.examples ? "Start typing to see proposal values." : undefined}
+      size="sm"
+    />
+    {param.schema.examples ? (
+      <datalist id={`list_${name}`}>
+        {param.schema.examples.map((example) => (
+          <option key={example} value={example}>
+            {example}
+          </option>
+        ))}
+      </datalist>
+    ) : undefined}
+  </>
 );
