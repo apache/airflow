@@ -680,6 +680,7 @@ ARG_ENV_VARS = Arg(
 
 # connections
 ARG_CONN_ID = Arg(("conn_id",), help="Connection id, required to get/add/delete/test a connection", type=str)
+ARG_CONN_TYPE_POSITIONAL = Arg(("conn_type",), help="Connection type, required to add a connection", type=str)
 ARG_CONN_ID_FILTER = Arg(
     ("--conn-id",), help="If passed, only items with the specified connection ID will be displayed", type=str
 )
@@ -862,6 +863,21 @@ ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_PORT,
 ]
 
+ARG_AUTH_URL = Arg(
+    flags=("--api-url",),
+    type=str,
+    default="http://localhost:9091",
+    dest="api_url",
+    help="The URL of the metadata database API",
+)
+ARG_AUTH_TOKEN = Arg(
+    flags=("--api-token",),
+    type=str,
+    dest="api_token",
+    default="NO_TOKEN",
+    help="The token to use for authentication",
+)
+
 
 class ActionCommand(NamedTuple):
     """Single CLI command."""
@@ -905,6 +921,22 @@ ASSETS_COMMANDS = (
         help="Materialize an asset",
         func=lazy_load_command("airflow.cli.commands.asset_command.asset_materialize"),
         args=(ARG_ASSET_NAME, ARG_ASSET_URI, ARG_OUTPUT, ARG_VERBOSE),
+    ),
+)
+AUTH_COMMANDS = (
+    ActionCommand(
+        name="login",
+        help="Login to the metadata database for personal usage",
+        description="Login to the metadata database",
+        func=lazy_load_command("airflow.cli.commands.remote_commands.auth_command.login"),
+        args=(ARG_AUTH_URL,),
+    ),
+    ActionCommand(
+        name="configure",
+        help="Configure the metadata database with token for automated usage",
+        description="Configure the metadata database",
+        func=lazy_load_command("airflow.cli.commands.remote_commands.auth_command.configure"),
+        args=(ARG_AUTH_URL, ARG_AUTH_TOKEN),
     ),
 )
 BACKFILL_COMMANDS = (
@@ -1487,7 +1519,7 @@ CONNECTIONS_COMMANDS = (
         name="test",
         help="Test a connection",
         func=lazy_load_command("airflow.cli.commands.remote_commands.connection_command.connections_test"),
-        args=(ARG_CONN_ID, ARG_VERBOSE),
+        args=(ARG_CONN_ID, ARG_CONN_TYPE_POSITIONAL, ARG_VERBOSE),
     ),
     ActionCommand(
         name="create-default-connections",
@@ -1495,7 +1527,6 @@ CONNECTIONS_COMMANDS = (
         func=lazy_load_command(
             "airflow.cli.commands.remote_commands.connection_command.create_default_connections"
         ),
-        # func=lazy_load_command("airflow.utils.db.create_default_connections"),
         args=(ARG_VERBOSE,),
     ),
 )
@@ -1702,6 +1733,11 @@ core_commands: list[CLICommand] = [
         name="db",
         help="Database operations",
         subcommands=DB_COMMANDS,
+    ),
+    GroupCommand(
+        name="auth",
+        help="Manage authentication for CLI",
+        subcommands=AUTH_COMMANDS,
     ),
     ActionCommand(
         name="kerberos",

@@ -317,6 +317,9 @@ testing = ["dev", "providers.tests", "tests_common", "tests"]
 "providers/cncf/*/src/airflow/providers/cncf/__init__.py" = ["I002"]
 "providers/dbt/*/src/airflow/providers/dbt/__init__.py" = ["I002"]
 "providers/microsoft/*/src/airflow/providers/microsoft/__init__.py" = ["I002"]
+"providers/tests/__init__.py" = ["I002"]
+"providers/__init__.py" = ["I002"]
+"airflow/cli/api/datamodels/_generated.py" = ["UP007", "D101", "D200"]
 
 # The test_python.py is needed because adding __future__.annotations breaks runtime checks that are
 # needed for the test to work
@@ -605,6 +608,11 @@ module=[
     # and we should remove this exclusion when it is fixed.
     "apache_beam.*"
 ]
+ignore_errors = true
+
+# TODO check
+[[tool.mypy.overrides]]
+module="airflow.cli.api.datamodels.*"
 ignore_errors = true
 
 [dependency-groups]
@@ -913,3 +921,34 @@ members = [
     "task-sdk",
     "devel-common",
 ]
+
+
+# To use:
+#
+# TODO: Automate this in CI to validate the unit tests with newly generated API endpoint datamodels for compatibility
+# uv run --group codegen --project apache-airflow --directory airflow/  datamodel-codegen
+[dependency-groups]
+codegen = [
+    "datamodel-code-generator[http]>=0.26.4",
+]
+
+[tool.datamodel-codegen]
+capitalise-enum-members=true # `State.RUNNING` not `State.running`
+disable-timestamp=true
+enable-version-header=true
+enum-field-as-literal='one' # When a single enum member, make it output a `Literal["..."]`
+input-file-type='openapi'
+output-model-type='pydantic_v2.BaseModel'
+output-datetime-class='datetime'
+target-python-version='3.9'
+no-alias=false
+use-annotated=true
+use-default=true
+use-double-quotes=true
+use-schema-description=true  # Desc becomes class doc comment
+use-standard-collections=true # list[] not List[]
+use-subclass-enum=true # enum, not union of Literals
+use-union-operator=false # 3.9+annotations
+
+url = "http://0.0.0.0:9091/openapi.json"
+output = "cli/api/datamodels/_generated.py"
