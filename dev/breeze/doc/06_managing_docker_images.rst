@@ -116,6 +116,18 @@ You will find the artifacts for each image in the summary of the CI run. The art
 contain the ".tar" image that should be used with ``--image-file`` flag of the load method. Make sure to
 use the same ``--python`` version as the image was built with.
 
+To load the image from specific PR, you can use the following command:
+
+.. code-block:: bash
+
+     breeze ci-image load --from-pr 12345 --python 3.9 --platform linux/amd64
+
+To load the image from specific job run (for example 12538475388), you can use the following command, find the run id from github action runs.
+
+.. code-block:: bash
+
+     breeze ci-image load --from-job 12538475388 --python 3.9 --platform linux/amd64
+
 .. image:: ./images/image_artifacts.png
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci-image_load.svg
   :width: 100%

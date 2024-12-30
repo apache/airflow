@@ -92,6 +92,7 @@ from airflow_breeze.utils.docker_command_utils import (
     prepare_docker_build_command,
     warm_up_docker_builder,
 )
+from airflow_breeze.utils.github import download_artifact_from_pr, download_artifact_from_run_id
 from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel
 from airflow_breeze.utils.mark_image_as_refreshed import mark_image_as_refreshed
 from airflow_breeze.utils.md5_build_check import md5sum_check_if_build_is_needed
@@ -115,6 +116,22 @@ from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
 if TYPE_CHECKING:
     from airflow_breeze.params.shell_params import ShellParams
+
+option_from_job = click.option(
+    "--from-job",
+    required=False,
+    default="",
+    envvar="FROM_JOB",
+    help="Optional run id of the github action job to load the image from.",
+)
+
+option_from_pr = click.option(
+    "--from-pr",
+    default="",
+    required=False,
+    envvar="FROM_PR",
+    help="Optional pr number of the github action job to load the image from. loads the image from the latest job.",
+)
 
 
 @click.group(
@@ -633,6 +650,8 @@ def save(
 @option_skip_image_file_deletion
 @option_verbose
 @option_ci_image_file_to_load
+@option_from_job
+@option_from_pr
 @option_dry_run
 def load(
     python: str,
@@ -640,6 +659,8 @@ def load(
     github_repository: str,
     image_file: Path | None,
     skip_image_file_deletion: bool,
+    from_job: str | None,
+    from_pr: str | None,
 ):
     """Load CI image from a file."""
     perform_environment_checks()
@@ -648,8 +669,15 @@ def load(
         github_repository=github_repository,
     )
     escaped_platform = platform.replace("/", "_")
+    path = f"/tmp/ci-image-save-{escaped_platform}-{python}.tar"
+
+    if from_job:
+        download_artifact_from_run_id(from_job, path)
+    elif from_pr:
+        download_artifact_from_pr(from_pr, path)
+
     if not image_file:
-        image_file = Path(f"/tmp/ci-image-save-{escaped_platform}-{python}.tar")
+        image_file = Path(path)
     if not image_file.exists():
         get_console().print(f"[error]The image {image_file} does not exist.[/]")
         sys.exit(1)
