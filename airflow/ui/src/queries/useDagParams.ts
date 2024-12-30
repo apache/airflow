@@ -23,21 +23,24 @@ export type DagParamsSpec = Record<string, ParamSpec>;
 
 export type ParamSpec = {
   description: string | null;
-  schema: {
-    const: string | null;
-    description_md: string | null;
-    enum: Array<string> | null;
-    examples: Array<string> | null;
-    format: string | null;
-    items: Record<string, unknown> | null;
-    maxLength: number | null;
-    minLength: number | null;
-    title: string | null;
-    type: Array<string> | string | null;
-    values_display: Record<string, string> | null;
-  };
+  schema: ParamSchema;
   value: unknown;
 };
+
+export type ParamSchema = {
+  const: string | null;
+  description_md: string | null;
+  enum: Array<string> | null;
+  examples: Array<string> | null;
+  format: string | null;
+  items: Record<string, unknown> | null;
+  maxLength: number | null;
+  minLength: number | null;
+  title: string | null;
+  type: Array<string> | string | null;
+  values_display: Record<string, string> | null;
+};
+
 export const useDagParams = (dagId: string, open: boolean) => {
   const { data, error }: { data?: Record<string, DagParamsSpec>; error?: unknown } =
     useDagServiceGetDagDetails({ dagId }, undefined, {

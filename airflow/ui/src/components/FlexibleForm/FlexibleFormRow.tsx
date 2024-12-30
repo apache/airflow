@@ -22,7 +22,7 @@ import { FlexibleFormNormalRow } from "./FlexibleFormNormalRow";
 
 /** Generates a form row */
 export const FlexibleFormRow = ({ key, name, param }: FlexibleFormElementProps) =>
-  isHidden(param) ? (
+  isHidden(param.schema) ? (
     <FlexibleFormHidden key={key} name={name} param={param} />
   ) : (
     <FlexibleFormNormalRow key={key} name={name} param={param} />
