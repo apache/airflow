@@ -23,6 +23,7 @@ import remarkGfm from "remark-gfm";
 import type { ParamSpec } from "src/queries/useDagParams";
 
 import type { FlexibleFormElementProps } from ".";
+import { FlexibleFormFieldAdvancedArray, isFieldAdvancedArray } from "./FlexibleFormFieldAdvancedArray";
 import { FlexibleFormFieldBool, isFieldBool } from "./FlexibleFormFieldBool";
 import { FlexibleFormFieldDate, isFieldDate } from "./FlexibleFormFieldDate";
 import { FlexibleFormFieldDateTime, isFieldDateTime } from "./FlexibleFormFieldDateTime";
@@ -72,10 +73,11 @@ export const FlexibleFormSelectElement = ({ key, name, param }: FlexibleFormElem
     return <FlexibleFormFieldDropdown key={key} name={name} param={param} />;
   } else if (isFieldStringArray(fieldType, param.schema.items)) {
     return <FlexibleFormFieldStringArray key={key} name={name} param={param} />;
+  } else if (isFieldAdvancedArray(fieldType, param.schema.items)) {
+    return <FlexibleFormFieldAdvancedArray key={key} name={name} param={param} />;
   } else {
     // TODO other elements like number, integer, select etc.
     // Missing:
-    // - Advancedarray (as JSON via CodeMirror)
     // - Multiple Select
     // - Object (as JSON via CodeMirror)
     // - Number (Into or generic number input)
