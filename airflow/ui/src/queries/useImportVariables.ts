@@ -44,7 +44,7 @@ export const useImportVariables = ({
 
     toaster.create({
       description: `${responseData.created_count} of ${responseData.import_count} variables imported successfully. Keys imported are ${responseData.created_variable_keys.join(", ")}`,
-      title: "Import Variables Request Sucessful",
+      title: "Import Variables Request Successful",
       type: "success",
     });
 
