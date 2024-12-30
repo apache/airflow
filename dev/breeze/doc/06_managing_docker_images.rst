@@ -76,7 +76,7 @@ These are all available flags of ``pull`` command:
 Verifying CI image
 ..................
 
-Finally, you can verify CI image by running tests - either with the pulled/built images or
+You can verify CI image by running tests - either with the pulled/built images or
 with an arbitrary image.
 
 These are all available flags of ``verify`` command:
@@ -85,6 +85,41 @@ These are all available flags of ``verify`` command:
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci-image_verify.svg
   :width: 100%
   :alt: Breeze ci-image verify
+
+Loading and saving CI image
+...........................
+
+You can load and save PROD image - for example to transfer it to another machine or to load an image
+that has been built in our CI.
+
+These are all available flags of ``save`` command:
+
+.. image:: ./images/output_ci-image_save.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci-image_save.svg
+  :width: 100%
+  :alt: Breeze ci-image save
+
+These are all available flags of ``load`` command:
+
+.. image:: ./images/output_ci-image_load.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci-image_load.svg
+  :width: 100%
+  :alt: Breeze ci-image load
+
+Images for every build from our CI are uploaded as artifacts to the
+GitHub Action run (in summary) and can be downloaded from there for 2 days in order to reproduce the complete
+environment used during the tests and loaded to the local Docker registry (note that you have
+to use the same platform as the CI run).
+
+You will find the artifacts for each image in the summary of the CI run. The artifacts are named
+``ci-image-docker-export-<platform>-<python_version>-<PR>_merge``. Those are compressed zip files that
+contain the ".tar" image that should be used with ``--image-file`` flag of the load method. Make sure to
+use the same ``--python`` version as the image was built with.
+
+.. image:: ./images/image_artifacts.png
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci-image_load.svg
+  :width: 100%
+  :alt: Breeze image artifacts
 
 PROD Image tasks
 ----------------
@@ -170,7 +205,7 @@ These are all available flags of ``pull-prod-image`` command:
 Verifying PROD image
 ....................
 
-Finally, you can verify PROD image by running tests - either with the pulled/built images or
+You can verify PROD image by running tests - either with the pulled/built images or
 with an arbitrary image.
 
 These are all available flags of ``verify-prod-image`` command:
@@ -179,6 +214,31 @@ These are all available flags of ``verify-prod-image`` command:
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_prod-image_verify.svg
   :width: 100%
   :alt: Breeze prod-image verify
+
+Loading and saving PROD image
+.............................
+
+You can load and save PROD image - for example to transfer it to another machine or to load an image
+that has been built in our CI.
+
+These are all available flags of ``save`` command:
+
+.. image:: ./images/output_prod-image_save.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_prod-image_save.svg
+  :width: 100%
+  :alt: Breeze prod-image save
+
+These are all available flags of ``load`` command:
+
+.. image:: ./images/output-prod-image_load.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_prod-image_load.svg
+  :width: 100%
+  :alt: Breeze prod-image load
+
+Similarly as in case of CI images, Images for every build from our CI are uploaded as artifacts to the
+GitHub Action run (in summary) and can be downloaded from there for 2 days in order to reproduce the complete
+environment used during the tests and loaded to the local Docker registry (note that you have
+to use the same platform as the CI run).
 
 ------
 

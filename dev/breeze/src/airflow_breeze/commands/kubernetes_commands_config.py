@@ -71,7 +71,6 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Build image flags",
             "options": [
                 "--python",
-                "--image-tag",
                 "--rebuild-base-image",
                 "--copy-local-sources",
                 "--use-uv",
@@ -232,7 +231,6 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Build image flags",
             "options": [
-                "--image-tag",
                 "--rebuild-base-image",
                 "--copy-local-sources",
                 "--use-uv",
