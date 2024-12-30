@@ -30,6 +30,7 @@ import attrs
 import structlog
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState, TIRunContext
 from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.execution_time.comms import (
@@ -235,8 +236,13 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
 
     from airflow.models.dagbag import DagBag
 
+    bundle_info = what.ti.bundle
+    if TYPE_CHECKING:
+        assert bundle_info
+    bundle_instance = DagBundlesManager().get_bundle(name=bundle_info.name, version=bundle_info.version)
+
     bag = DagBag(
-        dag_folder=what.file,
+        dag_folder=bundle_instance.path,
         include_examples=False,
         safe_mode=False,
         load_op_links=False,

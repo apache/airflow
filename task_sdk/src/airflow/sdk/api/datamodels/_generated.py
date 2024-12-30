@@ -170,8 +170,6 @@ class XComResponse(BaseModel):
 
 class DagBundle(BaseModel):
     name: str
-    classpath: str
-    kwargs: dict
     version: str
 
 

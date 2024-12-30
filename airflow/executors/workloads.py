@@ -41,8 +41,6 @@ class BaseActivity(BaseModel):
 
 class DagBundle(BaseModel):
     name: str
-    classpath: str
-    kwargs: dict
     version: str
 
 
@@ -95,8 +93,6 @@ class ExecuteTask(BaseActivity):
         bundle = ti.dag_model.dag_bundle
         ser_ti.bundle = DagBundle.model_construct(
             name=bundle.name,
-            classpath=bundle.classpath,
-            kwargs=bundle.kwargs,
             version=ti.dag_run.bundle_version,
         )
         dag_path = dag_path or Path(ti.dag_run.dag_model.relative_fileloc)

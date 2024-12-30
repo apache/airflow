@@ -16,14 +16,19 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Boolean, Column, String
 
-from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.models.base import Base, StringID
-from airflow.settings import Session
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.dag_processing.bundles.base import BaseDagBundle
 
 
 class DagBundleModel(Base):
@@ -43,8 +48,10 @@ class DagBundleModel(Base):
     latest_version = Column(String(200), nullable=True)
     last_refreshed = Column(UtcDateTime, nullable=True)
 
-    def __init__(self, *, name: str):
+    def __init__(self, *, name: str, latest_version=None, last_refreshed=None):
         self.name = name
+        self.latest_version = latest_version
+        self.last_refreshed = last_refreshed
 
     @classmethod
     @provide_session
