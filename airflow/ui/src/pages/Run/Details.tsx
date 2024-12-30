@@ -16,67 +16,95 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Heading } from "@chakra-ui/react";
+import { Box, Button, Flex, Heading, HStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import {
+  useTaskInstanceServiceGetMappedTaskInstance,
   useTaskInstanceServiceGetTaskInstance,
   useTaskInstanceServiceGetTaskInstanceTries,
 } from "openapi/queries";
+import { TaskTrySelect } from "src/components/TaskTrySelect";
 import Time from "src/components/Time";
-import { TrySelector } from "src/components/TrySelector";
 import { Status } from "src/components/ui";
+import { useConfig } from "src/queries/useConfig";
 
 export const Details = () => {
   const { dagId = "", runId = "", taskId = "" } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const { data: taskInstance } = useTaskInstanceServiceGetTaskInstance({
+  const mapIndexParam = searchParams.get("map_index");
+  const tryNumberParam = searchParams.get("try_number");
+  const mapIndex = parseInt(mapIndexParam ?? "-1", 10);
+
+  const {
+    data: taskInstance,
+    error,
+    isLoading,
+  } = useTaskInstanceServiceGetMappedTaskInstance({
     dagId,
     dagRunId: runId,
+    mapIndex,
     taskId,
   });
 
-  const finalTryNumber = taskInstance?.try_number ?? 1;
+  const onSelectTryNumber = (newTryNumber: number) => {
+    if (newTryNumber === taskInstance?.try_number) {
+      searchParams.delete("try_number");
+    } else {
+      searchParams.set("try_number", newTryNumber.toString());
+    }
+    setSearchParams(searchParams);
+  };
+
+  const tryNumber =
+    tryNumberParam === null
+      ? taskInstance?.try_number
+      : parseInt(tryNumberParam, 10);
+
+  const defaultWrap = Boolean(useConfig("default_wrap"));
+
+  const [wrap, setWrap] = useState(defaultWrap);
+
+  const toggleWrap = () => setWrap(!wrap);
 
   const { data: taskInstanceTries } =
     useTaskInstanceServiceGetTaskInstanceTries({
       dagId,
       dagRunId: runId,
-      mapIndex: taskInstance?.map_index ?? -1,
+      mapIndex,
       taskId,
     });
 
-  const [selectedTryNumber, setSelectedTryNumber] = useState(
-    finalTryNumber || 1,
-  );
-
-  // update state if the final try number changes
-  useEffect(() => {
-    if (finalTryNumber) {
-      setSelectedTryNumber(finalTryNumber);
-    }
-  }, [finalTryNumber]);
-
   const tryInstance = taskInstanceTries?.task_instances.find(
-    (ti) => ti.try_number === selectedTryNumber,
+    (ti) => ti.try_number === tryNumber,
   );
-
-  const instance =
-    selectedTryNumber !== finalTryNumber && finalTryNumber && finalTryNumber > 1
-      ? tryInstance
-      : taskInstance;
 
   return (
-    <Box flexGrow={1} mt={3}>
-      {Boolean(taskInstance) && (
-        <TrySelector
-          onSelectTryNumber={setSelectedTryNumber}
-          selectedTryNumber={selectedTryNumber || finalTryNumber}
-          taskInstance={taskInstance}
-        />
-      )}
+    <Box p={2}>
+      <HStack justifyContent="space-between" mb={2}>
+        {taskInstance === undefined ||
+        tryNumber === undefined ||
+        taskInstance.try_number <= 1 ? (
+          <div />
+        ) : (
+          <TaskTrySelect
+            onSelectTryNumber={onSelectTryNumber}
+            selectedTryNumber={tryNumber}
+            taskInstance={taskInstance}
+          />
+        )}
+        <Button
+          aria-label={wrap ? "Unwrap" : "Wrap"}
+          bg="bg.panel"
+          onClick={toggleWrap}
+          variant="outline"
+        >
+          {wrap ? "Unwrap" : "Wrap"}
+        </Button>
+      </HStack>
     </Box>
   );
 };
