@@ -49,10 +49,10 @@ def get_client():
 
 def provide_cli_api_client(func: Callable[PS, RT]) -> Callable[PS, RT]:
     """
-    Provide a session if it isn't provided.
+    Provide a CLI API Client to the decorated function.
 
-    If you want to reuse a session or run the function as part of a
-    database transaction, you pass it to the function, if not this wrapper
+    If you want to reuse a CLI API Client or run the function as part of
+    API call, you pass it to the function, if not this wrapper
     will create one and close it for you.
     """
 
