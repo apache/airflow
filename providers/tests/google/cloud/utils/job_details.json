@@ -225,11 +225,18 @@
             "billingTier": 1,
             "totalSlotMs": "825",
             "cacheHit": false,
-            "referencedTables": [{
-                "projectId": "airflow-openlineage",
-                "datasetId": "new_dataset",
-                "tableId": "test_table"
-            }],
+            "referencedTables": [
+                {
+                    "projectId": "airflow-openlineage",
+                    "datasetId": "new_dataset",
+                    "tableId": "test_table"
+                },
+                {
+                    "projectId": "airflow-openlineage",
+                    "datasetId": "new_dataset",
+                    "tableId": "output_table"
+                }
+            ],
             "statementType": "SELECT"
         },
         "totalSlotMs": "825"

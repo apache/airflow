@@ -22,6 +22,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from google.cloud.bigquery.table import Table
+from google.cloud.dataproc_v1 import Batch, RuntimeConfig
+from openlineage.client.facet_v2 import column_lineage_dataset
 
 from airflow.providers.common.compat.openlineage.facet import (
     ColumnLineageDatasetFacet,
@@ -35,13 +37,18 @@ from airflow.providers.common.compat.openlineage.facet import (
     SymlinksDatasetFacet,
 )
 from airflow.providers.google.cloud.openlineage.utils import (
+    _extract_dataproc_batch_properties,
     _extract_supported_job_type_from_dataproc_job,
+    _is_dataproc_batch_of_supported_type,
     _is_openlineage_provider_accessible,
+    _replace_dataproc_batch_properties,
     _replace_dataproc_job_properties,
     extract_ds_name_from_gcs_path,
     get_facets_from_bq_table,
     get_identity_column_lineage_facet,
+    inject_openlineage_properties_into_dataproc_batch,
     inject_openlineage_properties_into_dataproc_job,
+    merge_column_lineage_facets,
 )
 
 TEST_DATASET = "test-dataset"
@@ -84,6 +91,135 @@ class TableMock(MagicMock):
     @property
     def _properties(self):
         return self.inputs.pop()
+
+
+def test_merge_column_lineage_facets():
+    result = merge_column_lineage_facets(
+        [
+            ColumnLineageDatasetFacet(
+                fields={
+                    "c": Fields(
+                        inputFields=[
+                            InputField(
+                                "bigquery",
+                                "a.b.1",
+                                "c",
+                                [
+                                    column_lineage_dataset.Transformation(
+                                        "type", "some_subtype", "desc", False
+                                    )
+                                ],
+                            )
+                        ],
+                        transformationType="IDENTITY",
+                        transformationDescription="IDENTICAL",
+                    ),
+                    "d": Fields(
+                        inputFields=[
+                            InputField(
+                                "bigquery",
+                                "a.b.2",
+                                "d",
+                                [column_lineage_dataset.Transformation("t", "s", "d", False)],
+                            )
+                        ],
+                        transformationType="",
+                        transformationDescription="",
+                    ),
+                }
+            ),
+            ColumnLineageDatasetFacet(
+                fields={
+                    "c": Fields(
+                        inputFields=[
+                            InputField(
+                                "bigquery",
+                                "a.b.3",
+                                "x",
+                                [
+                                    column_lineage_dataset.Transformation(
+                                        "another_type", "different_subtype", "example", True
+                                    )
+                                ],
+                            ),
+                            InputField(
+                                "bigquery",
+                                "a.b.1",
+                                "c",
+                                [
+                                    column_lineage_dataset.Transformation(
+                                        "diff_type", "diff_subtype", "diff", True
+                                    )
+                                ],
+                            ),
+                        ],
+                        transformationType="",
+                        transformationDescription="",
+                    ),
+                    "e": Fields(
+                        inputFields=[InputField("bigquery", "a.b.1", "e")],
+                        transformationType="IDENTITY",
+                        transformationDescription="IDENTICAL",
+                    ),
+                }
+            ),
+            ColumnLineageDatasetFacet(
+                fields={
+                    "c": Fields(
+                        inputFields=[InputField("bigquery", "a.b.3", "x")],
+                        transformationType="",
+                        transformationDescription="",
+                    )
+                }
+            ),
+        ]
+    )
+    assert result == ColumnLineageDatasetFacet(
+        fields={
+            "c": Fields(
+                inputFields=[
+                    InputField(
+                        "bigquery",
+                        "a.b.1",
+                        "c",
+                        [
+                            column_lineage_dataset.Transformation("type", "some_subtype", "desc", False),
+                            column_lineage_dataset.Transformation("diff_type", "diff_subtype", "diff", True),
+                        ],
+                    ),
+                    InputField(
+                        "bigquery",
+                        "a.b.3",
+                        "x",
+                        [
+                            column_lineage_dataset.Transformation(
+                                "another_type", "different_subtype", "example", True
+                            )
+                        ],
+                    ),
+                ],
+                transformationType="",
+                transformationDescription="",
+            ),
+            "d": Fields(
+                inputFields=[
+                    InputField(
+                        "bigquery",
+                        "a.b.2",
+                        "d",
+                        [column_lineage_dataset.Transformation("t", "s", "d", False)],
+                    )
+                ],
+                transformationType="",
+                transformationDescription="",
+            ),
+            "e": Fields(
+                inputFields=[InputField("bigquery", "a.b.1", "e")],
+                transformationType="",
+                transformationDescription="",
+            ),
+        }
+    )
 
 
 def test_get_facets_from_bq_table():
@@ -419,3 +555,277 @@ def test_inject_openlineage_properties_into_dataproc_job(mock_is_ol_accessible):
     job = {"sparkJob": {"properties": {"existingProperty": "value"}}}
     result = inject_openlineage_properties_into_dataproc_job(job, context, True)
     assert result == {"sparkJob": {"properties": expected_properties}}
+
+
+@pytest.mark.parametrize(
+    "batch, expected",
+    [
+        ({"spark_batch": {}}, True),
+        ({"pyspark_batch": {}}, True),
+        ({"unsupported_batch": {}}, False),
+        ({}, False),
+        (Batch(spark_batch={"jar_file_uris": ["uri"]}), True),
+        (Batch(pyspark_batch={"main_python_file_uri": "uri"}), True),
+        (Batch(pyspark_batch={}), False),
+        (Batch(spark_sql_batch={}), False),
+        (Batch(), False),
+    ],
+)
+def test_is_dataproc_batch_of_supported_type(batch, expected):
+    assert _is_dataproc_batch_of_supported_type(batch) == expected
+
+
+def test__extract_dataproc_batch_properties_batch_object_with_runtime_object():
+    properties = {"key1": "value1", "key2": "value2"}
+    mock_runtime_config = RuntimeConfig(properties=properties)
+    mock_batch = Batch(runtime_config=mock_runtime_config)
+    result = _extract_dataproc_batch_properties(mock_batch)
+    assert result == properties
+
+
+def test_extract_dataproc_batch_properties_batch_object_with_runtime_dict():
+    properties = {"key1": "value1", "key2": "value2"}
+    mock_batch = Batch(runtime_config={"properties": properties})
+    result = _extract_dataproc_batch_properties(mock_batch)
+    assert result == {"key1": "value1", "key2": "value2"}
+
+
+def test_extract_dataproc_batch_properties_batch_object_with_runtime_object_empty():
+    mock_batch = Batch(runtime_config=RuntimeConfig())
+    result = _extract_dataproc_batch_properties(mock_batch)
+    assert result == {}
+
+
+def test_extract_dataproc_batch_properties_dict_with_runtime_config_object():
+    properties = {"key1": "value1", "key2": "value2"}
+    mock_runtime_config = RuntimeConfig(properties=properties)
+    mock_batch_dict = {"runtime_config": mock_runtime_config}
+
+    result = _extract_dataproc_batch_properties(mock_batch_dict)
+    assert result == properties
+
+
+def test_extract_dataproc_batch_properties_dict_with_properties_dict():
+    properties = {"key1": "value1", "key2": "value2"}
+    mock_batch_dict = {"runtime_config": {"properties": properties}}
+    result = _extract_dataproc_batch_properties(mock_batch_dict)
+    assert result == properties
+
+
+def test_extract_dataproc_batch_properties_empty_runtime_config():
+    mock_batch_dict = {"runtime_config": {}}
+    result = _extract_dataproc_batch_properties(mock_batch_dict)
+    assert result == {}
+
+
+def test_extract_dataproc_batch_properties_empty_dict():
+    assert _extract_dataproc_batch_properties({}) == {}
+
+
+def test_extract_dataproc_batch_properties_empty_batch():
+    assert _extract_dataproc_batch_properties(Batch()) == {}
+
+
+def test_replace_dataproc_batch_properties_with_batch_object():
+    original_batch = Batch(
+        spark_batch={
+            "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
+            "main_class": "org.apache.spark.examples.SparkPi",
+        },
+        runtime_config=RuntimeConfig(properties={"existingProperty": "value"}),
+    )
+    new_properties = {"newProperty": "newValue"}
+    expected_batch = Batch(
+        spark_batch={
+            "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
+            "main_class": "org.apache.spark.examples.SparkPi",
+        },
+        runtime_config=RuntimeConfig(properties={"newProperty": "newValue"}),
+    )
+
+    updated_batch = _replace_dataproc_batch_properties(original_batch, new_properties)
+
+    assert updated_batch == expected_batch
+    assert original_batch.runtime_config.properties == {"existingProperty": "value"}
+    assert original_batch.spark_batch.main_class == "org.apache.spark.examples.SparkPi"
+
+
+def test_replace_dataproc_batch_properties_with_batch_object_and_run_time_config_dict():
+    original_batch = Batch(
+        spark_batch={
+            "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
+            "main_class": "org.apache.spark.examples.SparkPi",
+        },
+        runtime_config={"properties": {"existingProperty": "value"}},
+    )
+    new_properties = {"newProperty": "newValue"}
+    expected_batch = Batch(
+        spark_batch={
+            "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
+            "main_class": "org.apache.spark.examples.SparkPi",
+        },
+        runtime_config={"properties": {"newProperty": "newValue"}},
+    )
+
+    updated_batch = _replace_dataproc_batch_properties(original_batch, new_properties)
+
+    assert updated_batch == expected_batch
+    assert original_batch.runtime_config.properties == {"existingProperty": "value"}
+    assert original_batch.spark_batch.main_class == "org.apache.spark.examples.SparkPi"
+
+
+def test_replace_dataproc_batch_properties_with_empty_batch_object():
+    original_batch = Batch()
+    new_properties = {"newProperty": "newValue"}
+    expected_batch = Batch(runtime_config=RuntimeConfig(properties={"newProperty": "newValue"}))
+
+    updated_batch = _replace_dataproc_batch_properties(original_batch, new_properties)
+
+    assert updated_batch == expected_batch
+    assert original_batch == Batch()
+
+
+def test_replace_dataproc_batch_properties_with_dict():
+    original_batch = {
+        "spark_batch": {
+            "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
+            "main_class": "org.apache.spark.examples.SparkPi",
+        },
+        "runtime_config": {"properties": {"existingProperty": "value"}},
+    }
+    new_properties = {"newProperty": "newValue"}
+    expected_batch = {
+        "spark_batch": {
+            "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
+            "main_class": "org.apache.spark.examples.SparkPi",
+        },
+        "runtime_config": {"properties": {"newProperty": "newValue"}},
+    }
+
+    updated_batch = _replace_dataproc_batch_properties(original_batch, new_properties)
+
+    assert updated_batch == expected_batch
+    assert original_batch["runtime_config"]["properties"] == {"existingProperty": "value"}
+    assert original_batch["spark_batch"]["main_class"] == "org.apache.spark.examples.SparkPi"
+
+
+def test_replace_dataproc_batch_properties_with_dict_and_run_time_config_object():
+    original_batch = {
+        "spark_batch": {
+            "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
+            "main_class": "org.apache.spark.examples.SparkPi",
+        },
+        "runtime_config": RuntimeConfig(properties={"existingProperty": "value"}),
+    }
+    new_properties = {"newProperty": "newValue"}
+    expected_batch = {
+        "spark_batch": {
+            "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
+            "main_class": "org.apache.spark.examples.SparkPi",
+        },
+        "runtime_config": RuntimeConfig(properties={"newProperty": "newValue"}),
+    }
+
+    updated_batch = _replace_dataproc_batch_properties(original_batch, new_properties)
+
+    assert updated_batch == expected_batch
+    assert original_batch["runtime_config"].properties == {"existingProperty": "value"}
+    assert original_batch["spark_batch"]["main_class"] == "org.apache.spark.examples.SparkPi"
+
+
+def test_replace_dataproc_batch_properties_with_empty_dict():
+    original_batch = {}
+    new_properties = {"newProperty": "newValue"}
+    expected_batch = {"runtime_config": {"properties": {"newProperty": "newValue"}}}
+
+    updated_batch = _replace_dataproc_batch_properties(original_batch, new_properties)
+
+    assert updated_batch == expected_batch
+    assert original_batch == {}
+
+
+@patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
+def test_inject_openlineage_properties_into_dataproc_batch_provider_not_accessible(mock_is_accessible):
+    mock_is_accessible.return_value = False
+    batch = {
+        "spark_batch": {
+            "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
+            "main_class": "org.apache.spark.examples.SparkPi",
+        },
+        "runtime_config": {"properties": {"existingProperty": "value"}},
+    }
+    result = inject_openlineage_properties_into_dataproc_batch(batch, None, True)
+    assert result == batch
+
+
+@patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
+@patch("airflow.providers.google.cloud.openlineage.utils._is_dataproc_batch_of_supported_type")
+def test_inject_openlineage_properties_into_dataproc_batch_unsupported_batch_type(
+    mock_valid_job_type, mock_is_accessible
+):
+    mock_is_accessible.return_value = True
+    mock_valid_job_type.return_value = False
+    batch = {
+        "unsupported_batch": {
+            "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
+            "main_class": "org.apache.spark.examples.SparkPi",
+        },
+        "runtime_config": {"properties": {"existingProperty": "value"}},
+    }
+    result = inject_openlineage_properties_into_dataproc_batch(batch, None, True)
+    assert result == batch
+
+
+@patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
+@patch("airflow.providers.google.cloud.openlineage.utils._is_dataproc_batch_of_supported_type")
+def test_inject_openlineage_properties_into_dataproc_batch_no_inject_parent_job_info(
+    mock_valid_job_type, mock_is_accessible
+):
+    mock_is_accessible.return_value = True
+    mock_valid_job_type.return_value = True
+    inject_parent_job_info = False
+    batch = {
+        "spark_batch": {
+            "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
+            "main_class": "org.apache.spark.examples.SparkPi",
+        },
+        "runtime_config": {"properties": {"existingProperty": "value"}},
+    }
+    result = inject_openlineage_properties_into_dataproc_batch(batch, None, inject_parent_job_info)
+    assert result == batch
+
+
+@patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
+def test_inject_openlineage_properties_into_dataproc_batch(mock_is_ol_accessible):
+    mock_is_ol_accessible.return_value = True
+    context = {
+        "ti": MagicMock(
+            dag_id="dag_id",
+            task_id="task_id",
+            try_number=1,
+            map_index=1,
+            logical_date=dt.datetime(2024, 11, 11),
+        )
+    }
+    batch = {
+        "spark_batch": {
+            "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
+            "main_class": "org.apache.spark.examples.SparkPi",
+        },
+        "runtime_config": {"properties": {"existingProperty": "value"}},
+    }
+    expected_properties = {
+        "existingProperty": "value",
+        "spark.openlineage.parentJobName": "dag_id.task_id",
+        "spark.openlineage.parentJobNamespace": "default",
+        "spark.openlineage.parentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+    }
+    expected_batch = {
+        "spark_batch": {
+            "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
+            "main_class": "org.apache.spark.examples.SparkPi",
+        },
+        "runtime_config": {"properties": expected_properties},
+    }
+    result = inject_openlineage_properties_into_dataproc_batch(batch, context, True)
+    assert result == expected_batch

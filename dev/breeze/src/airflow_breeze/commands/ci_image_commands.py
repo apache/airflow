@@ -43,6 +43,9 @@ from airflow_breeze.commands.common_image_options import (
     option_dev_apt_deps,
     option_disable_airflow_repo_cache,
     option_docker_cache,
+    option_from_job,
+    option_from_pr,
+    option_github_token_for_images,
     option_install_mysql_client_type,
     option_platform_multiple,
     option_prepare_buildx_cache,
@@ -92,6 +95,7 @@ from airflow_breeze.utils.docker_command_utils import (
     prepare_docker_build_command,
     warm_up_docker_builder,
 )
+from airflow_breeze.utils.github import download_artifact_from_pr, download_artifact_from_run_id
 from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel
 from airflow_breeze.utils.mark_image_as_refreshed import mark_image_as_refreshed
 from airflow_breeze.utils.md5_build_check import md5sum_check_if_build_is_needed
@@ -289,7 +293,8 @@ option_ci_image_file_to_load = click.option(
     type=click.Path(exists=True, dir_okay=False, readable=True, path_type=Path, resolve_path=True),
     envvar="IMAGE_FILE",
     help="Optional file name to load the image from - name must follow the convention:"
-    "`ci-image-save-{escaped_platform}-*-{python_version}.tar`.",
+    "`ci-image-save-{escaped_platform}-*-{python_version}.tar`. where escaped_platform is one of "
+    "linux_amd64 or linux_arm64.",
 )
 
 
@@ -627,18 +632,24 @@ def save(
 
 
 @ci_image.command(name="load")
-@option_python
-@option_platform_single
-@option_github_repository
-@option_skip_image_file_deletion
-@option_verbose
 @option_ci_image_file_to_load
 @option_dry_run
+@option_from_job
+@option_from_pr
+@option_github_repository
+@option_github_token_for_images
+@option_platform_single
+@option_python
+@option_skip_image_file_deletion
+@option_verbose
 def load(
-    python: str,
-    platform: str,
+    from_job: str | None,
+    from_pr: str | None,
     github_repository: str,
+    github_token: str,
     image_file: Path | None,
+    platform: str,
+    python: str,
     skip_image_file_deletion: bool,
 ):
     """Load CI image from a file."""
@@ -648,8 +659,15 @@ def load(
         github_repository=github_repository,
     )
     escaped_platform = platform.replace("/", "_")
+    path = f"/tmp/ci-image-save-{escaped_platform}-{python}.tar"
+
+    if from_job:
+        download_artifact_from_run_id(from_job, path, github_repository, github_token)
+    elif from_pr:
+        download_artifact_from_pr(from_pr, path, github_repository, github_token)
+
     if not image_file:
-        image_file = Path(f"/tmp/ci-image-save-{escaped_platform}-{python}.tar")
+        image_file = Path(path)
     if not image_file.exists():
         get_console().print(f"[error]The image {image_file} does not exist.[/]")
         sys.exit(1)
