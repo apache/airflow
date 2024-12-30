@@ -438,7 +438,12 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         )
         # TODO: Run task failure callbacks here
     except SystemExit:
-        ...
+        # SystemExit needs to be retried if they are eligible.
+        msg = TaskState(
+            state=TerminalTIState.FAILED,
+            end_date=datetime.now(tz=timezone.utc),
+        )
+        # TODO: Run task failure callbacks here
     except BaseException:
         # TODO: Run task failure callbacks here
         msg = TaskState(state=TerminalTIState.FAILED, end_date=datetime.now(tz=timezone.utc))

@@ -184,6 +184,8 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-file",
                 "--github-repository",
                 "--skip-image-file-deletion",
+                "--from-job",
+                "--from-pr",
             ],
         },
     ],
