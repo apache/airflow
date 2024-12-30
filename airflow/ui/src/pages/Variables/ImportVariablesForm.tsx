@@ -19,10 +19,12 @@
 import { Box, HStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { FiUploadCloud } from "react-icons/fi";
+import { LuFileUp } from "react-icons/lu";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { Button } from "src/components/ui";
+import { Button, CloseButton, InputGroup } from "src/components/ui";
 import { FileUpload } from "src/components/ui/FileUpload";
+import { FileInput } from "src/components/ui/FileUpload/FileInput";
 import { RadioCardItem, RadioCardRoot } from "src/components/ui/RadioCard";
 import { useImportVariables } from "src/queries/useImportVariables";
 
@@ -56,26 +58,71 @@ const ImportVariablesForm = ({ onClose }: ImportVariableFormProps) => {
   const [selectedFile, setSelectedFile] = useState<Blob | File | undefined>(
     undefined,
   );
+  const [actionIfExists, setActionIfExists] = useState<
+    "fail" | "overwrite" | "skip" | undefined
+  >("fail");
+
+  const onSubmit = () => {
+    setError(undefined);
+    if (selectedFile) {
+      const formData = new FormData();
+
+      formData.append("file", selectedFile);
+      mutate({
+        actionIfExists,
+        formData: {
+          file: selectedFile,
+        },
+      });
+    }
+  };
 
   return (
     <>
       <FileUpload.Root
         accept={["application/json"]}
-        alignItems="stretch"
+        gap="1"
         maxFiles={1}
         onFileChange={(files) => {
           if (files.acceptedFiles.length > 0) {
             setSelectedFile(files.acceptedFiles[0]);
           }
         }}
+        required
       >
-        <FileUpload.Dropzone
-          description="JSON Files accepted"
-          label="Drag and drop here to upload"
-        />
-        <FileUpload.List />
+        <InputGroup
+          endElement={
+            <FileUpload.ClearTrigger asChild>
+              <CloseButton
+                color="fg.subtle"
+                focusRingWidth="2px"
+                focusVisibleRing="inside"
+                me="-1"
+                onClick={() => {
+                  setSelectedFile(undefined);
+                }}
+                pointerEvents="auto"
+                size="xs"
+                variant="plain"
+              />
+            </FileUpload.ClearTrigger>
+          }
+          startElement={<LuFileUp />}
+          w="full"
+        >
+          <FileInput placeholder="Click to upload a JSON file" />
+        </InputGroup>
       </FileUpload.Root>
-      <RadioCardRoot defaultValue="fail" mb={4} mt={4}>
+      <RadioCardRoot
+        defaultValue="fail"
+        mb={4}
+        mt={4}
+        onChange={(event) => {
+          const target = event.target as HTMLInputElement;
+
+          setActionIfExists(target.value as "fail" | "overwrite" | "skip");
+        }}
+      >
         <HStack align="stretch">
           {actionIfExistsOptions.map((item) => (
             <RadioCardItem
@@ -91,22 +138,9 @@ const ImportVariablesForm = ({ onClose }: ImportVariableFormProps) => {
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         <Button
           colorPalette="blue"
-          disabled={!Boolean(selectedFile)}
+          disabled={Boolean(selectedFile === undefined)}
           loading={isPending}
-          onClick={() => {
-            setError(undefined);
-            if (selectedFile) {
-              const formData = new FormData();
-
-              formData.append("file", selectedFile);
-              mutate({
-                actionIfExists: undefined,
-                formData: {
-                  file: selectedFile,
-                },
-              });
-            }
-          }}
+          onClick={onSubmit}
         >
           <FiUploadCloud /> Import
         </Button>
