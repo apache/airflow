@@ -252,7 +252,8 @@ def download_artifact_from_run_id(run_id: str, output_file: str):
 def download_artifact_from_pr(pr: str, output_file: str):
     import requests
 
-    pr_url = f"https://api.github.com/repos/apache/airflow/pulls/{pr}"
+    pr_number = pr.lstrip("#")
+    pr_url = f"https://api.github.com/repos/apache/airflow/pulls/{pr_number}"
     workflow_run_url = "https://api.github.com/repos/apache/airflow/actions/runs"
 
     headers = {"Accept": "application/vnd.github.v3+json"}
