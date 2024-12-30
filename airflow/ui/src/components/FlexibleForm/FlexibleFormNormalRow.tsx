@@ -28,6 +28,7 @@ import { FlexibleFormFieldBool, isFieldBool } from "./FlexibleFormFieldBool";
 import { FlexibleFormFieldDate, isFieldDate } from "./FlexibleFormFieldDate";
 import { FlexibleFormFieldDateTime, isFieldDateTime } from "./FlexibleFormFieldDateTime";
 import { FlexibleFormFieldDropdown, isFieldDropdown } from "./FlexibleFormFieldDropdown";
+import { FlexibleFormFieldMultiSelect, isFieldMultiSelect } from "./FlexibleFormFieldMultiSelect";
 import { FlexibleFormFieldString } from "./FlexibleFormFieldString";
 import { FlexibleFormFieldStringArray, isFieldStringArray } from "./FlexibleFormFieldStringArray";
 import { FlexibleFormFieldTime, isFieldTime } from "./FlexibleFormFieldTime";
@@ -63,22 +64,23 @@ export const FlexibleFormSelectElement = ({ key, name, param }: FlexibleFormElem
 
   if (isFieldBool(fieldType)) {
     return <FlexibleFormFieldBool key={key} name={name} param={param} />;
-  } else if (isFieldDateTime(fieldType, param.schema.format)) {
+  } else if (isFieldDateTime(fieldType, param.schema)) {
     return <FlexibleFormFieldDateTime key={key} name={name} param={param} />;
-  } else if (isFieldDate(fieldType, param.schema.format)) {
+  } else if (isFieldDate(fieldType, param.schema)) {
     return <FlexibleFormFieldDate key={key} name={name} param={param} />;
-  } else if (isFieldTime(fieldType, param.schema.format)) {
+  } else if (isFieldTime(fieldType, param.schema)) {
     return <FlexibleFormFieldTime key={key} name={name} param={param} />;
-  } else if (isFieldDropdown(fieldType, param.schema.enum)) {
+  } else if (isFieldDropdown(fieldType, param.schema)) {
     return <FlexibleFormFieldDropdown key={key} name={name} param={param} />;
-  } else if (isFieldStringArray(fieldType, param.schema.items)) {
+  } else if (isFieldMultiSelect(fieldType, param.schema)) {
+    return <FlexibleFormFieldMultiSelect key={key} name={name} param={param} />;
+  } else if (isFieldStringArray(fieldType, param.schema)) {
     return <FlexibleFormFieldStringArray key={key} name={name} param={param} />;
-  } else if (isFieldAdvancedArray(fieldType, param.schema.items)) {
+  } else if (isFieldAdvancedArray(fieldType, param.schema)) {
     return <FlexibleFormFieldAdvancedArray key={key} name={name} param={param} />;
   } else {
     // TODO other elements like number, integer, select etc.
     // Missing:
-    // - Multiple Select
     // - Object (as JSON via CodeMirror)
     // - Number (Into or generic number input)
     // - Multiline Text

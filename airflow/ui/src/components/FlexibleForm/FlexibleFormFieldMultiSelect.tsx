@@ -24,11 +24,8 @@ import type { ParamSchema } from "src/queries/useDagParams";
 
 import type { FlexibleFormElementProps } from ".";
 
-export const isFieldDropdown = (fieldType: string, fieldSchema: ParamSchema) => {
-  const enumTypes = ["string", "number", "integer"];
-
-  return enumTypes.includes(fieldType) && Array.isArray(fieldSchema.enum);
-};
+export const isFieldMultiSelect = (fieldType: string, fieldSchema: ParamSchema) =>
+  fieldType === "array" && Array.isArray(fieldSchema.examples);
 
 const labelLookup = (key: string, valuesDisplay: Record<string, string> | null): string => {
   if (valuesDisplay && typeof valuesDisplay === "object") {
@@ -38,10 +35,10 @@ const labelLookup = (key: string, valuesDisplay: Record<string, string> | null):
   return key;
 };
 
-export const FlexibleFormFieldDropdown = ({ name, param }: FlexibleFormElementProps) => {
+export const FlexibleFormFieldMultiSelect = ({ name, param }: FlexibleFormElementProps) => {
   const selectOptions = createListCollection({
     items:
-      param.schema.enum?.map((value) => ({
+      param.schema.examples?.map((value) => ({
         label: labelLookup(value, param.schema.values_display),
         value,
       })) ?? [],
@@ -51,8 +48,9 @@ export const FlexibleFormFieldDropdown = ({ name, param }: FlexibleFormElementPr
   return (
     <Select.Root
       collection={selectOptions}
-      defaultValue={[param.value as string]}
+      defaultValue={param.value as Array<string>}
       id={`element_${name}`}
+      multiple
       name={`element_${name}`}
       ref={contentRef}
       size="sm"

@@ -18,11 +18,11 @@
  */
 import { VisuallyHidden } from "@chakra-ui/react";
 
-import type { ParamSpec } from "src/queries/useDagParams";
+import type { ParamSchema } from "src/queries/useDagParams";
 
 import type { FlexibleFormElementProps } from ".";
 
-export const isHidden = (param: ParamSpec) => Boolean(param.schema.const);
+export const isHidden = (fieldSchema: ParamSchema) => Boolean(fieldSchema.const);
 
 /** Render a "const" field where user can not change data as hidden */
 export const FlexibleFormHidden = ({ name, param }: FlexibleFormElementProps) => (

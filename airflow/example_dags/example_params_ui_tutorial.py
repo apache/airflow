@@ -94,7 +94,7 @@ with (
             # If you want to have a list box with proposals but not enforcing a fixed list
             # then you can use the examples feature of JSON schema
             "proposals": Param(
-                "some value",
+                "Alpha",
                 type="string",
                 title="Field with proposals",
                 description="You can use JSON schema examples's to generate drop down selection boxes "
