@@ -3323,7 +3323,6 @@ export const $JobResponse = {
       anyOf: [
         {
           type: "string",
-          format: "date-time",
         },
         {
           type: "null",
