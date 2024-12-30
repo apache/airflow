@@ -273,20 +273,10 @@ modified. This can be overridden by setting `full tests needed` label in the PR.
 
 There is a difference in how the CI jobs are run for committer and non-committer PRs from forks.
 The main reason is security; we do not want to run untrusted code on our infrastructure for self-hosted runners.
-Additionally, we do not want to run unverified code during the `Build imaage` workflow, as that workflow has
-access to the `GITHUB_TOKEN`, which can write to our Github Registry (used to cache
-images between runs). These images are built on self-hosted runners, and we must ensure that
-those runners are not misused, such as for mining cryptocurrencies on behalf of the person who opened the
-pull request from their newly created fork of Airflow.
 
-This is why the `Build Images` workflow checks whether the actor of the PR (`GITHUB_ACTOR`) is one of the committers.
-If not, the workflows and scripts used to run image building come only from the ``target`` branch
-of the repository, where these scripts have been reviewed and approved by committers before being merged. This is controlled by the selective checks that set `is-committer-build` to `true` in
-the build-info job of the workflow to determine if the actor is in the committers'
-list. This setting can be overridden by the `non-committer build` label in the PR.
-
-Also, for most of the jobs, committer builds use "Self-hosted" runners by default, while non-committer
-builds use "Public" runners. For committers, this can be overridden by setting the
+Currently there is no difference because we are not using `self-hosted` runners (until we implement `Action
+Runner Controller` but most of the jobs, committer builds will use "Self-hosted" runners by default,
+while non-committer builds will use "Public" runners. For committers, this can be overridden by setting the
 `use public runners` label in the PR.
 
 ## Changing behaviours of the CI runs by setting labels

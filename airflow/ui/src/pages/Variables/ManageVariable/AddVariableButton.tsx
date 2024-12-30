@@ -20,11 +20,26 @@ import { Heading, useDisclosure } from "@chakra-ui/react";
 import { FiPlusCircle } from "react-icons/fi";
 
 import { Button, Dialog, Toaster } from "src/components/ui";
+import { useAddVariable } from "src/queries/useAddVariable";
 
-import AddVariableForm from "./AddVariableForm";
+import VariableForm, { type VariableBody } from "./VariableForm";
 
-const AddVariableModal: React.FC = () => {
+const AddVariableButton = () => {
   const { onClose, onOpen, open } = useDisclosure();
+  const { addVariable, error, isPending, setError } = useAddVariable({
+    onSuccessConfirm: onClose,
+  });
+
+  const initialVariableValue: VariableBody = {
+    description: "",
+    key: "",
+    value: "",
+  };
+
+  const handleClose = () => {
+    setError(undefined);
+    onClose();
+  };
 
   return (
     <>
@@ -32,7 +47,8 @@ const AddVariableModal: React.FC = () => {
       <Button colorPalette="blue" onClick={onOpen}>
         <FiPlusCircle /> Add Variable
       </Button>
-      <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+
+      <Dialog.Root onOpenChange={handleClose} open={open} size="xl">
         <Dialog.Content backdrop>
           <Dialog.Header>
             <Heading size="xl">Add Variable</Heading>
@@ -41,7 +57,13 @@ const AddVariableModal: React.FC = () => {
           <Dialog.CloseTrigger />
 
           <Dialog.Body>
-            <AddVariableForm onClose={onClose} />
+            <VariableForm
+              error={error}
+              initialVariable={initialVariableValue}
+              isPending={isPending}
+              manageMutate={addVariable}
+              setError={setError}
+            />
           </Dialog.Body>
         </Dialog.Content>
       </Dialog.Root>
@@ -49,4 +71,4 @@ const AddVariableModal: React.FC = () => {
   );
 };
 
-export default AddVariableModal;
+export default AddVariableButton;

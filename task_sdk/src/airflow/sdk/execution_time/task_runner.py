@@ -420,7 +420,7 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         # TODO: Handle fail_stop here: https://github.com/apache/airflow/issues/44951
         # TODO: Handle addition to Log table: https://github.com/apache/airflow/issues/44952
         msg = TaskState(
-            state=TerminalTIState.FAILED,
+            state=TerminalTIState.FAIL_WITHOUT_RETRY,
             end_date=datetime.now(tz=timezone.utc),
         )
 
@@ -433,16 +433,15 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         # updated already be another UI API. So, these exceptions should ideally never be thrown.
         # If these are thrown, we should mark the TI state as failed.
         msg = TaskState(
-            state=TerminalTIState.FAILED,
+            state=TerminalTIState.FAIL_WITHOUT_RETRY,
             end_date=datetime.now(tz=timezone.utc),
         )
         # TODO: Run task failure callbacks here
     except SystemExit:
         ...
     except BaseException:
-        # TODO: Handle TI handle failure
-        raise
-
+        # TODO: Run task failure callbacks here
+        msg = TaskState(state=TerminalTIState.FAILED, end_date=datetime.now(tz=timezone.utc))
     if msg:
         SUPERVISOR_COMMS.send_request(msg=msg, log=log)
 
