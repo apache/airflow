@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, VStack } from "@chakra-ui/react";
+import { Box, Flex, HStack, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -32,33 +32,37 @@ import {
   type SearchParamsKeysType,
 } from "src/constants/searchParams";
 
-import AddVariableModal from "./AddVariableModal";
+import AddVariableButton from "./ManageVariable/AddVariableButton";
+import DeleteVariableButton from "./ManageVariable/DeleteVariableButton";
+import EditVariableButton from "./ManageVariable/EditVariableButton";
 
 const columns: Array<ColumnDef<VariableResponse>> = [
   {
     accessorKey: "key",
     header: "Key",
-    meta: {
-      skeletonWidth: 25,
-    },
   },
   {
     accessorKey: "value",
     header: "Value",
-    meta: {
-      skeletonWidth: 25,
-    },
   },
   {
     accessorKey: "description",
     header: "Description",
-    meta: {
-      skeletonWidth: 50,
-    },
   },
   {
     accessorKey: "is_encrypted",
     header: "Is Encrypted",
+  },
+  {
+    accessorKey: "actions",
+    cell: ({ row: { original } }) => (
+      <Flex justifyContent="end">
+        <EditVariableButton variable={original} />
+        <DeleteVariableButton deleteKey={original.key} />
+      </Flex>
+    ),
+    enableSorting: false,
+    header: "",
   },
 ];
 
@@ -111,7 +115,7 @@ export const Variables = () => {
           placeHolder="Search Keys"
         />
         <HStack mt={4}>
-          <AddVariableModal />
+          <AddVariableButton />
         </HStack>
       </VStack>
       <Box>
