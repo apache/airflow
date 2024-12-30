@@ -33,6 +33,7 @@ from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 
 from airflow import settings
 from airflow.configuration import conf
+from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
 from airflow.utils.serve_logs import serve_logs
@@ -42,8 +43,10 @@ WORKER_PROCESS_NAME = "worker"
 
 def _run_command_with_daemon_option(*args, **kwargs):
     try:
-        from airflow.cli.commands.local_commands.daemon_utils import run_command_with_daemon_option
-
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.cli.commands.local_commands.daemon_utils import run_command_with_daemon_option
+        else:
+            from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
         run_command_with_daemon_option(*args, **kwargs)
     except ImportError:
         from airflow.exceptions import AirflowOptionalProviderFeatureException
