@@ -45,7 +45,7 @@ from tabulate import tabulate
 from uuid6 import uuid7
 
 import airflow.models
-from airflow.callbacks.callback_requests import CallbackRequest
+from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest, TaskCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
@@ -561,7 +561,7 @@ class DagFileProcessorManager:
             sys.exit(os.EX_OK)
 
         self.log.debug("Received %s signal from DagFileProcessorAgent", agent_signal)
-        if isinstance(agent_signal, CallbackRequest):
+        if isinstance(agent_signal, (TaskCallbackRequest, DagCallbackRequest)):
             self._add_callback_to_queue(agent_signal)
         elif agent_signal is None:
             self.terminate()
