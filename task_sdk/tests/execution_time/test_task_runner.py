@@ -295,7 +295,7 @@ def test_run_raises_base_exception(time_machine, mocked_parse, make_ti_context):
         )
 
 
-def test_run_raises_system_exit(time_machine, mocked_parse, make_ti_context):
+def test_run_raises_system_exit(time_machine, mocked_parse, make_ti_context, mock_supervisor_comms):
     """Test running a basic task that exits with SystemExit exception."""
     from airflow.providers.standard.operators.python import PythonOperator
 
@@ -322,18 +322,15 @@ def test_run_raises_system_exit(time_machine, mocked_parse, make_ti_context):
     instant = timezone.datetime(2024, 12, 3, 10, 0)
     time_machine.move_to(instant, tick=False)
 
-    with mock.patch(
-        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
-    ) as mock_supervisor_comms:
-        run(ti, log=mock.MagicMock())
+    run(ti, log=mock.MagicMock())
 
-        mock_supervisor_comms.send_request.assert_called_once_with(
-            msg=TaskState(
-                state=TerminalTIState.FAILED,
-                end_date=instant,
-            ),
-            log=mock.ANY,
-        )
+    mock_supervisor_comms.send_request.assert_called_once_with(
+        msg=TaskState(
+            state=TerminalTIState.FAILED,
+            end_date=instant,
+        ),
+        log=mock.ANY,
+    )
 
 
 def test_startup_basic_templated_dag(mocked_parse, make_ti_context):
