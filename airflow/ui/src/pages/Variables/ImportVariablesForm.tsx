@@ -23,11 +23,30 @@ import { FiUploadCloud } from "react-icons/fi";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { Button } from "src/components/ui";
 import { FileUpload } from "src/components/ui/FileUpload";
+import { RadioCardItem, RadioCardRoot } from "src/components/ui/RadioCard";
 import { useImportVariables } from "src/queries/useImportVariables";
 
 type ImportVariableFormProps = {
   readonly onClose: () => void;
 };
+
+const actionIfExistsOptions = [
+  {
+    description: "Fails the import if any existing variables are detected.",
+    title: "Fail",
+    value: "fail",
+  },
+  {
+    description: "Overwrites the variable in case of a conflict.",
+    title: "Overwrite",
+    value: "overwrite",
+  },
+  {
+    description: "Skips importing variables that already exist.",
+    title: "Skip",
+    value: "skip",
+  },
+];
 
 const ImportVariablesForm = ({ onClose }: ImportVariableFormProps) => {
   const { error, isPending, mutate, setError } = useImportVariables({
@@ -40,24 +59,34 @@ const ImportVariablesForm = ({ onClose }: ImportVariableFormProps) => {
 
   return (
     <>
-      <HStack mb={4}>
-        <FileUpload.Root
-          accept={["application/json"]}
-          alignItems="stretch"
-          maxFiles={1}
-          maxW="xl"
-          onFileChange={(files) => {
-            if (files.acceptedFiles.length > 0) {
-              setSelectedFile(files.acceptedFiles[0]);
-            }
-          }}
-        >
-          <FileUpload.Dropzone
-            description="JSON Files accepted"
-            label="Drag and drop here to upload"
-          />
-        </FileUpload.Root>
-      </HStack>
+      <FileUpload.Root
+        accept={["application/json"]}
+        alignItems="stretch"
+        maxFiles={1}
+        onFileChange={(files) => {
+          if (files.acceptedFiles.length > 0) {
+            setSelectedFile(files.acceptedFiles[0]);
+          }
+        }}
+      >
+        <FileUpload.Dropzone
+          description="JSON Files accepted"
+          label="Drag and drop here to upload"
+        />
+        <FileUpload.List />
+      </FileUpload.Root>
+      <RadioCardRoot defaultValue="fail" mb={4} mt={4}>
+        <HStack align="stretch">
+          {actionIfExistsOptions.map((item) => (
+            <RadioCardItem
+              description={item.description}
+              key={item.value}
+              label={item.title}
+              value={item.value}
+            />
+          ))}
+        </HStack>
+      </RadioCardRoot>
       <ErrorAlert error={error} />
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         <Button
