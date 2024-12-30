@@ -48,7 +48,7 @@ from airflow.providers.google.cloud.links.bigquery import (
     BigQueryJobDetailLink,
     BigQueryTableLink,
 )
-from airflow.providers.google.cloud.openlineage.mixins import _BigQueryOpenLineageMixin
+from airflow.providers.google.cloud.openlineage.mixins import _BigQueryInsertJobOperatorOpenLineageMixin
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryCheckTrigger,
@@ -2491,7 +2491,7 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
         return table
 
 
-class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMixin):
+class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOperatorOpenLineageMixin):
     """
     Execute a BigQuery job.
 

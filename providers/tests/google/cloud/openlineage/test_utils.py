@@ -23,6 +23,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from google.cloud.bigquery.table import Table
 from google.cloud.dataproc_v1 import Batch, RuntimeConfig
+from openlineage.client.facet_v2 import column_lineage_dataset
 
 from airflow.providers.common.compat.openlineage.facet import (
     ColumnLineageDatasetFacet,
@@ -47,6 +48,7 @@ from airflow.providers.google.cloud.openlineage.utils import (
     get_identity_column_lineage_facet,
     inject_openlineage_properties_into_dataproc_batch,
     inject_openlineage_properties_into_dataproc_job,
+    merge_column_lineage_facets,
 )
 
 TEST_DATASET = "test-dataset"
@@ -89,6 +91,135 @@ class TableMock(MagicMock):
     @property
     def _properties(self):
         return self.inputs.pop()
+
+
+def test_merge_column_lineage_facets():
+    result = merge_column_lineage_facets(
+        [
+            ColumnLineageDatasetFacet(
+                fields={
+                    "c": Fields(
+                        inputFields=[
+                            InputField(
+                                "bigquery",
+                                "a.b.1",
+                                "c",
+                                [
+                                    column_lineage_dataset.Transformation(
+                                        "type", "some_subtype", "desc", False
+                                    )
+                                ],
+                            )
+                        ],
+                        transformationType="IDENTITY",
+                        transformationDescription="IDENTICAL",
+                    ),
+                    "d": Fields(
+                        inputFields=[
+                            InputField(
+                                "bigquery",
+                                "a.b.2",
+                                "d",
+                                [column_lineage_dataset.Transformation("t", "s", "d", False)],
+                            )
+                        ],
+                        transformationType="",
+                        transformationDescription="",
+                    ),
+                }
+            ),
+            ColumnLineageDatasetFacet(
+                fields={
+                    "c": Fields(
+                        inputFields=[
+                            InputField(
+                                "bigquery",
+                                "a.b.3",
+                                "x",
+                                [
+                                    column_lineage_dataset.Transformation(
+                                        "another_type", "different_subtype", "example", True
+                                    )
+                                ],
+                            ),
+                            InputField(
+                                "bigquery",
+                                "a.b.1",
+                                "c",
+                                [
+                                    column_lineage_dataset.Transformation(
+                                        "diff_type", "diff_subtype", "diff", True
+                                    )
+                                ],
+                            ),
+                        ],
+                        transformationType="",
+                        transformationDescription="",
+                    ),
+                    "e": Fields(
+                        inputFields=[InputField("bigquery", "a.b.1", "e")],
+                        transformationType="IDENTITY",
+                        transformationDescription="IDENTICAL",
+                    ),
+                }
+            ),
+            ColumnLineageDatasetFacet(
+                fields={
+                    "c": Fields(
+                        inputFields=[InputField("bigquery", "a.b.3", "x")],
+                        transformationType="",
+                        transformationDescription="",
+                    )
+                }
+            ),
+        ]
+    )
+    assert result == ColumnLineageDatasetFacet(
+        fields={
+            "c": Fields(
+                inputFields=[
+                    InputField(
+                        "bigquery",
+                        "a.b.1",
+                        "c",
+                        [
+                            column_lineage_dataset.Transformation("type", "some_subtype", "desc", False),
+                            column_lineage_dataset.Transformation("diff_type", "diff_subtype", "diff", True),
+                        ],
+                    ),
+                    InputField(
+                        "bigquery",
+                        "a.b.3",
+                        "x",
+                        [
+                            column_lineage_dataset.Transformation(
+                                "another_type", "different_subtype", "example", True
+                            )
+                        ],
+                    ),
+                ],
+                transformationType="",
+                transformationDescription="",
+            ),
+            "d": Fields(
+                inputFields=[
+                    InputField(
+                        "bigquery",
+                        "a.b.2",
+                        "d",
+                        [column_lineage_dataset.Transformation("t", "s", "d", False)],
+                    )
+                ],
+                transformationType="",
+                transformationDescription="",
+            ),
+            "e": Fields(
+                inputFields=[InputField("bigquery", "a.b.1", "e")],
+                transformationType="",
+                transformationDescription="",
+            ),
+        }
+    )
 
 
 def test_get_facets_from_bq_table():

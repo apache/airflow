@@ -21,16 +21,10 @@ import copy
 import logging
 import os
 import pathlib
+from collections import defaultdict
 from typing import TYPE_CHECKING, Any
 
 from attr import define, field
-
-if TYPE_CHECKING:
-    from google.cloud.bigquery.table import Table
-
-    from airflow.providers.common.compat.openlineage.facet import Dataset
-    from airflow.utils.context import Context
-
 from google.cloud.dataproc_v1 import Batch, RuntimeConfig
 
 from airflow.providers.common.compat.openlineage.facet import (
@@ -51,11 +45,118 @@ from airflow.providers.common.compat.openlineage.utils.spark import (
 from airflow.providers.google import __version__ as provider_version
 from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
 
+if TYPE_CHECKING:
+    from google.cloud.bigquery.table import Table
+
+    from airflow.providers.common.compat.openlineage.facet import Dataset
+    from airflow.utils.context import Context
+
+
 log = logging.getLogger(__name__)
 
 BIGQUERY_NAMESPACE = "bigquery"
 BIGQUERY_URI = "bigquery"
 WILDCARD = "*"
+
+
+def merge_column_lineage_facets(facets: list[ColumnLineageDatasetFacet]) -> ColumnLineageDatasetFacet:
+    """
+    Merge multiple column lineage facets into a single consolidated facet.
+
+    Specifically, it aggregates input fields and transformations for each field across all provided facets.
+
+    Args:
+        facets: Column Lineage Facets to be merged.
+
+    Returns:
+        A new Column Lineage Facet containing all fields, their respective input fields and transformations.
+
+    Notes:
+        - Input fields are uniquely identified by their `(namespace, name, field)` tuple.
+        - If multiple facets contain the same field with the same input field, those input
+          fields are merged without duplication.
+        - Transformations associated with input fields are also merged. If transformations
+          are not supported by the version of the `InputField` class, they will be omitted.
+        - Transformation merging relies on a composite key of the field name and input field
+          tuple to track and consolidate transformations.
+
+    Examples:
+        Case 1: Two facets with the same input field
+        ```
+        >>> facet1 = ColumnLineageDatasetFacet(
+        ...     fields={"columnA": Fields(inputFields=[InputField("namespace1", "dataset1", "field1")])}
+        ... )
+        >>> facet2 = ColumnLineageDatasetFacet(
+        ...     fields={"columnA": Fields(inputFields=[InputField("namespace1", "dataset1", "field1")])}
+        ... )
+        >>> merged = merge_column_lineage_facets([facet1, facet2])
+        >>> merged.fields["columnA"].inputFields
+        [InputField("namespace1", "dataset1", "field1")]
+        ```
+
+        Case 2: Two facets with different transformations for the same input field
+        ```
+        >>> facet1 = ColumnLineageDatasetFacet(
+        ...     fields={
+        ...         "columnA": Fields(
+        ...             inputFields=[InputField("namespace1", "dataset1", "field1", transformations=["t1"])]
+        ...         )
+        ...     }
+        ... )
+        >>> facet2 = ColumnLineageDatasetFacet(
+        ...     fields={
+        ...         "columnA": Fields(
+        ...             inputFields=[InputField("namespace1", "dataset1", "field1", transformations=["t2"])]
+        ...         )
+        ...     }
+        ... )
+        >>> merged = merge_column_lineage_facets([facet1, facet2])
+        >>> merged.fields["columnA"].inputFields[0].transformations
+        ["t1", "t2"]
+        ```
+    """
+    # Dictionary to collect all unique input fields for each field name
+    fields_sources: dict[str, set[tuple[str, str, str]]] = defaultdict(set)
+    # Dictionary to aggregate transformations for each input field
+    transformations: dict[str, list] = defaultdict(list)
+
+    for facet in facets:
+        for field_name, single_field in facet.fields.items():
+            for input_field in single_field.inputFields:
+                input_key_fields = (input_field.namespace, input_field.name, input_field.field)
+                fields_sources[field_name].add(input_key_fields)
+
+                if single_transformations := getattr(input_field, "transformations", []):
+                    transformation_key = "".join((field_name, *input_key_fields))
+                    transformations[transformation_key].extend(single_transformations)
+
+    # Check if the `InputField` class supports the `transformations` attribute (since OL client 1.17.1)
+    input_field_allows_transformation_info = True
+    try:
+        InputField(namespace="a", name="b", field="c", transformations=[])
+    except TypeError:
+        input_field_allows_transformation_info = False
+
+    return ColumnLineageDatasetFacet(
+        fields={
+            field_name: Fields(
+                inputFields=[
+                    InputField(
+                        namespace,
+                        name,
+                        column,
+                        transformations.get("".join((field_name, namespace, name, column)), []),
+                    )
+                    if input_field_allows_transformation_info
+                    else InputField(namespace, name, column)
+                    for namespace, name, column in sorted(input_fields)
+                ],
+                transformationType="",  # Legacy transformation information
+                transformationDescription="",  # Legacy transformation information
+            )
+            for field_name, input_fields in fields_sources.items()
+        }
+    )
 
 
 def extract_ds_name_from_gcs_path(path: str) -> str:
