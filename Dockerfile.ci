@@ -1285,8 +1285,7 @@ ARG DEPENDENCY_CACHE_EPOCH="0"
 # Install useful command line tools in their own virtualenv so that they do not clash with
 # dependencies installed in Airflow also reinstall PIP and UV to make sure they are installed
 # in the version specified above
-RUN --mount=type=cache,id=ci-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/root/.cache/ \
-    bash /scripts/docker/install_packaging_tools.sh
+RUN bash /scripts/docker/install_packaging_tools.sh
 
 COPY --from=scripts install_airflow.sh /scripts/docker/
 
