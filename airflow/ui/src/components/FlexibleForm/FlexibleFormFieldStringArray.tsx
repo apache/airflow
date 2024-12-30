@@ -21,8 +21,7 @@ import { Textarea } from "@chakra-ui/react";
 import type { FlexibleFormElementProps } from ".";
 
 export const isFieldStringArray = (fieldType: string, schemaItems: Record<string, unknown> | null) =>
-  fieldType === "array" &&
-  (schemaItems === null || schemaItems.type === undefined || schemaItems.type === "string");
+  fieldType === "array" && (!schemaItems || schemaItems.type === undefined || schemaItems.type === "string");
 
 export const FlexibleFormFieldStringArray = ({ name, param }: FlexibleFormElementProps) => (
   <Textarea
