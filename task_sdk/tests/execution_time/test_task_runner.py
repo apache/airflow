@@ -254,6 +254,84 @@ def test_run_basic_skipped(time_machine, mocked_parse, make_ti_context, mock_sup
     )
 
 
+def test_run_raises_base_exception(time_machine, mocked_parse, make_ti_context):
+    """Test running a basic task that raises a base exception which should send fail_with_retry state."""
+    from airflow.providers.standard.operators.python import PythonOperator
+
+    task = PythonOperator(
+        task_id="zero_division_error",
+        python_callable=lambda: 1 / 0,
+    )
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="zero_division_error",
+            dag_id="basic_dag_base_exception",
+            run_id="c",
+            try_number=1,
+        ),
+        file="",
+        requests_fd=0,
+        ti_context=make_ti_context(),
+    )
+
+    ti = mocked_parse(what, "basic_dag_base_exception", task)
+
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
+
+    with mock.patch(
+        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
+    ) as mock_supervisor_comms:
+        run(ti, log=mock.MagicMock())
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            msg=TaskState(
+                state=TerminalTIState.FAILED,
+                end_date=instant,
+            ),
+            log=mock.ANY,
+        )
+
+
+def test_startup_basic_templated_dag(mocked_parse, make_ti_context):
+    """Test running a DAG with templated task."""
+    from airflow.providers.standard.operators.bash import BashOperator
+
+    task = BashOperator(
+        task_id="templated_task",
+        bash_command="echo 'Logical date is {{ logical_date }}'",
+    )
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(), task_id="templated_task", dag_id="basic_templated_dag", run_id="c", try_number=1
+        ),
+        file="",
+        requests_fd=0,
+        ti_context=make_ti_context(),
+    )
+    mocked_parse(what, "basic_templated_dag", task)
+
+    with mock.patch(
+        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
+    ) as mock_supervisor_comms:
+        mock_supervisor_comms.get_message.return_value = what
+        startup()
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            msg=SetRenderedFields(
+                rendered_fields={
+                    "bash_command": "echo 'Logical date is {{ logical_date }}'",
+                    "cwd": None,
+                    "env": None,
+                }
+            ),
+            log=mock.ANY,
+        )
+
+
 @pytest.mark.parametrize(
     ["task_params", "expected_rendered_fields"],
     [
@@ -376,7 +454,7 @@ def test_run_basic_failed(
     run(ti, log=mock.MagicMock())
 
     mock_supervisor_comms.send_request.assert_called_once_with(
-        msg=TaskState(state=TerminalTIState.FAILED, end_date=instant), log=mock.ANY
+        msg=TaskState(state=TerminalTIState.FAIL_WITHOUT_RETRY, end_date=instant), log=mock.ANY
     )
 
 
