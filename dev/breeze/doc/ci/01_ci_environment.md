@@ -33,7 +33,7 @@
 
 Continuous Integration is an important component of making Apache Airflow
 robust and stable. We run a lot of tests for every pull request,
-for `canary` runs (from `main` and `v*-\*-test` branches and
+for `canary` runs from `main` and `v*-\*-test` branches
 regularly as scheduled jobs.
 
 Our execution environment for CI is [GitHub Actions](https://github.com/features/actions). GitHub Actions.
@@ -87,7 +87,7 @@ merging the manifests, and it is not really needed nor used for cache.
 
 Authentication to GitHub Registry in CI uses GITHUB_TOKEN mechanism.
 The Authentication is needed for  pushing the images (WRITE) in the `canary` runs.
-When you are running the CI jobs in GitHub Actions, vGITHUB_TOKEN is set automatically
+When you are running the CI jobs in GitHub Actions, GITHUB_TOKEN is set automatically
 by the actions. This is used only in the `canary` runs that have "write" access
 to the repository.
 
