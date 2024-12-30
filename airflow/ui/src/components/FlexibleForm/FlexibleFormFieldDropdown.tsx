@@ -17,6 +17,7 @@
  * under the License.
  */
 import { createListCollection } from "@chakra-ui/react/collection";
+import { useRef } from "react";
 
 import { Select } from "src/components/ui";
 
@@ -44,20 +45,21 @@ export const FlexibleFormFieldDropdown = ({ name, param }: FlexibleFormElementPr
         value,
       })) ?? [],
   });
+  const contentRef = useRef<HTMLDivElement>(null);
 
-  // TODO - somehow the dropdown is not working, does not give options :-(
   return (
     <Select.Root
       collection={selectOptions}
       defaultValue={[param.value as string]}
       id={`element_${name}`}
       name={`element_${name}`}
+      ref={contentRef}
       size="sm"
     >
       <Select.Trigger>
         <Select.ValueText placeholder="Select Value" />
       </Select.Trigger>
-      <Select.Content>
+      <Select.Content portalRef={contentRef}>
         {selectOptions.items.map((option) => (
           <Select.Item item={option} key={option.value}>
             {option.label}
