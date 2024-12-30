@@ -33,14 +33,18 @@ export const useImportVariables = ({
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
 
-  const onSuccess = async () => {
+  const onSuccess = async (responseData: {
+    created_count: number;
+    created_variable_keys: Array<string>;
+    import_count: number;
+  }) => {
     await queryClient.invalidateQueries({
       queryKey: [useVariableServiceGetVariablesKey],
     });
 
     toaster.create({
-      description: "Variable has been imported successfully",
-      title: "Import Variables Request Submitted",
+      description: `${responseData.created_count} of ${responseData.import_count} variables imported successfully. Keys imported are ${responseData.created_variable_keys.join(", ")}`,
+      title: "Import Variables Request Sucessful",
       type: "success",
     });
 
