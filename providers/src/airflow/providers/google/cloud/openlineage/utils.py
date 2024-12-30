@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 import logging
 import os
 import pathlib
@@ -29,6 +30,8 @@ if TYPE_CHECKING:
 
     from airflow.providers.common.compat.openlineage.facet import Dataset
     from airflow.utils.context import Context
+
+from google.cloud.dataproc_v1 import Batch, RuntimeConfig
 
 from airflow.providers.common.compat.openlineage.facet import (
     BaseFacet,
@@ -386,3 +389,135 @@ def inject_openlineage_properties_into_dataproc_job(
         job=job, job_type=job_type, new_properties=properties
     )
     return job_with_ol_config
+
+
+def _is_dataproc_batch_of_supported_type(batch: dict | Batch) -> bool:
+    """
+    Check if a Dataproc batch is of a supported type for Openlineage automatic injection.
+
+    This function determines if the given batch is of a supported type
+    by checking for specific job type attributes or keys in the batch.
+
+    Args:
+        batch: The Dataproc batch to check.
+
+    Returns:
+        True if the batch is of a supported type (`spark_batch` or
+        `pyspark_batch`), otherwise False.
+    """
+    supported_job_types = ("spark_batch", "pyspark_batch")
+    if isinstance(batch, Batch):
+        if any(getattr(batch, job_type) for job_type in supported_job_types):
+            return True
+        return False
+
+    # For dictionary-based batch
+    if any(job_type in batch for job_type in supported_job_types):
+        return True
+    return False
+
+
+def _extract_dataproc_batch_properties(batch: dict | Batch) -> dict:
+    """
+    Extract Dataproc batch properties from a Batch object or dictionary.
+
+    This function retrieves the `properties` from the `runtime_config` of a
+    Dataproc `Batch` object or a dictionary representation of a batch.
+
+    Args:
+        batch: The Dataproc batch to extract properties from.
+
+    Returns:
+        Extracted `properties` if found, otherwise an empty dictionary.
+    """
+    if isinstance(batch, Batch):
+        return dict(batch.runtime_config.properties)
+
+    # For dictionary-based batch
+    run_time_config = batch.get("runtime_config", {})
+    if isinstance(run_time_config, RuntimeConfig):
+        return dict(run_time_config.properties)
+    return run_time_config.get("properties", {})
+
+
+def _replace_dataproc_batch_properties(batch: dict | Batch, new_properties: dict) -> dict | Batch:
+    """
+    Replace the properties of a Dataproc batch.
+
+    Args:
+        batch: The original Dataproc batch definition.
+        new_properties: The new properties to replace the existing ones.
+
+    Returns:
+        A modified copy of the Dataproc batch definition with updated properties.
+    """
+    batch = copy.deepcopy(batch)
+    if isinstance(batch, Batch):
+        if not batch.runtime_config:
+            batch.runtime_config = RuntimeConfig(properties=new_properties)
+        elif isinstance(batch.runtime_config, dict):
+            batch.runtime_config["properties"] = new_properties
+        else:
+            batch.runtime_config.properties = new_properties
+        return batch
+
+    # For dictionary-based batch
+    run_time_config = batch.get("runtime_config")
+    if not run_time_config:
+        batch["runtime_config"] = {"properties": new_properties}
+    elif isinstance(run_time_config, dict):
+        run_time_config["properties"] = new_properties
+    else:
+        run_time_config.properties = new_properties
+    return batch
+
+
+def inject_openlineage_properties_into_dataproc_batch(
+    batch: dict | Batch, context: Context, inject_parent_job_info: bool
+) -> dict | Batch:
+    """
+    Inject OpenLineage properties into Dataproc batch definition.
+
+    It's not removing any configuration or modifying the batch in any other way.
+    This function add desired OpenLineage properties to Dataproc batch configuration.
+
+    Note:
+        Any modification to job will be skipped if:
+            - OpenLineage provider is not accessible.
+            - The batch type is not supported.
+            - Automatic parent job information injection is disabled.
+            - Any OpenLineage properties with parent job information are already present
+              in the Spark job configuration.
+
+    Args:
+        batch: The original Dataproc batch definition.
+        context: The Airflow context in which the job is running.
+        inject_parent_job_info: Flag indicating whether to inject parent job information.
+
+    Returns:
+        The modified batch definition with OpenLineage properties injected, if applicable.
+    """
+    if not inject_parent_job_info:
+        log.debug("Automatic injection of OpenLineage information is disabled.")
+        return batch
+
+    if not _is_openlineage_provider_accessible():
+        log.warning(
+            "Could not access OpenLineage provider for automatic OpenLineage "
+            "properties injection. No action will be performed."
+        )
+        return batch
+
+    if not _is_dataproc_batch_of_supported_type(batch):
+        log.warning(
+            "Could not find a supported Dataproc batch type for automatic OpenLineage "
+            "properties injection. No action will be performed.",
+        )
+        return batch
+
+    properties = _extract_dataproc_batch_properties(batch)
+
+    properties = inject_parent_job_information_into_spark_properties(properties=properties, context=context)
+
+    batch_with_ol_config = _replace_dataproc_batch_properties(batch=batch, new_properties=properties)
+    return batch_with_ol_config
