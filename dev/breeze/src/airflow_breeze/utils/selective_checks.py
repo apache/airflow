@@ -1205,7 +1205,7 @@ class SelectiveChecks:
     def docker_cache(self) -> str:
         return (
             "disabled"
-            if (self._github_event == GithubEvents.SCHEDULE or DISABLE_IMAGE_CACHE_LABEL in self._pr_labels)
+            if DISABLE_IMAGE_CACHE_LABEL in self._pr_labels
             else "registry"
         )
 
