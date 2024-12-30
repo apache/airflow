@@ -27,8 +27,11 @@ export type ParamSpec = {
     const: string | null;
     description_md: string | null;
     enum: Array<string> | null;
+    examples: Array<string> | null;
     format: string | null;
     items: Record<string, unknown> | null;
+    maxLength: number | null;
+    minLength: number | null;
     title: string | null;
     type: Array<string> | string | null;
     values_display: Record<string, string> | null;
