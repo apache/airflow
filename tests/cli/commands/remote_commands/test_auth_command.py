@@ -22,10 +22,14 @@ import os
 from contextlib import redirect_stdout
 from io import StringIO
 
+import pytest
+
 from airflow.cli import cli_parser
 from airflow.cli.commands.remote_commands import auth_command
 
 
+# TODO: The cli_action_logger.py still use the session. Remove this flag when all CLI integrated with API.
+@pytest.mark.db_test
 class TestCliAuthCommands:
     parser = cli_parser.get_parser()
 
