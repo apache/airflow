@@ -25,7 +25,6 @@ export const FlexibleFormFieldString = ({ name, param }: FlexibleFormElementProp
     defaultValue={param.value as string}
     id={`element_${name}`}
     name={`element_${name}`}
-    placeholder={JSON.stringify(param.value)}
     size="sm"
   />
   // TODO: Add features missing from the current implementation
