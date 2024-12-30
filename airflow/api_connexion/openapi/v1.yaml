@@ -5528,6 +5528,7 @@ components:
       name: xcom_key
       schema:
         type: string
+        format: path
       required: true
       description: The XCom key.
 

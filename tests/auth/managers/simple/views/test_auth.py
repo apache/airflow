@@ -36,23 +36,14 @@ def simple_app():
                 "core",
                 "auth_manager",
             ): "airflow.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
+            ("core", "simple_auth_manager_users"): "test:admin",
         }
     ):
         with open(SimpleAuthManager.get_generated_password_file(), "w") as file:
             user = {"test": "test"}
             file.write(json.dumps(user))
 
-        return application.create_app(
-            testing=True,
-            config={
-                "SIMPLE_AUTH_MANAGER_USERS": [
-                    {
-                        "username": "test",
-                        "role": "admin",
-                    }
-                ]
-            },
-        )
+        return application.create_app(testing=True)
 
 
 @pytest.mark.db_test

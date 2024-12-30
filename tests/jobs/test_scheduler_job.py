@@ -62,7 +62,7 @@ from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.log import Log
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sdk.definitions.asset import Asset
@@ -421,8 +421,7 @@ class TestSchedulerJob:
         assert ti1.state == State.QUEUED
         mock_task_callback.assert_called_once_with(
             full_filepath=dag.fileloc,
-            simple_task_instance=mock.ANY,
-            processor_subdir=None,
+            ti=mock.ANY,
             msg=f"Executor {executor} reported that the task instance "
             "<TaskInstance: test_process_executor_events_with_callback.dummy_task test [queued]> "
             "finished with state failed, but the task instance's state attribute is queued. "
@@ -2628,7 +2627,6 @@ class TestSchedulerJob:
             dag_id="test_scheduler_verify_max_active_runs_and_dagrun_timeout",
             start_date=DEFAULT_DATE,
             max_active_runs=1,
-            processor_subdir=TEST_DAG_FOLDER,
             dagrun_timeout=datetime.timedelta(seconds=60),
         ) as dag:
             EmptyOperator(task_id="dummy")
@@ -2678,7 +2676,6 @@ class TestSchedulerJob:
             dag_id=dr.dag_id,
             is_failure_callback=True,
             run_id=dr.run_id,
-            processor_subdir=TEST_DAG_FOLDER,
             msg="timed_out",
         )
 
@@ -2696,7 +2693,6 @@ class TestSchedulerJob:
         with dag_maker(
             dag_id="test_scheduler_fail_dagrun_timeout",
             dagrun_timeout=datetime.timedelta(seconds=60),
-            processor_subdir=TEST_DAG_FOLDER,
             session=session,
         ):
             EmptyOperator(task_id="dummy")
@@ -2722,7 +2718,6 @@ class TestSchedulerJob:
             dag_id=dr.dag_id,
             is_failure_callback=True,
             run_id=dr.run_id,
-            processor_subdir=TEST_DAG_FOLDER,
             msg="timed_out",
         )
 
@@ -2778,7 +2773,6 @@ class TestSchedulerJob:
             dag_id="test_dagrun_callbacks_are_called",
             on_success_callback=lambda x: print("success"),
             on_failure_callback=lambda x: print("failed"),
-            processor_subdir=TEST_DAG_FOLDER,
         ) as dag:
             EmptyOperator(task_id="dummy")
 
@@ -2802,7 +2796,6 @@ class TestSchedulerJob:
             dag_id=dr.dag_id,
             is_failure_callback=bool(state == State.FAILED),
             run_id=dr.run_id,
-            processor_subdir=TEST_DAG_FOLDER,
             msg=expected_callback_msg,
         )
 
@@ -2822,7 +2815,6 @@ class TestSchedulerJob:
             dag_id="test_dagrun_callbacks_are_called",
             on_success_callback=lambda x: print("success"),
             on_failure_callback=lambda x: print("failed"),
-            processor_subdir=TEST_DAG_FOLDER,
         ):
             EmptyOperator(task_id="dummy")
 
@@ -2856,7 +2848,6 @@ class TestSchedulerJob:
             dag_id="test_dagrun_timeout_callbacks_are_stored_in_database",
             on_failure_callback=lambda x: print("failed"),
             dagrun_timeout=timedelta(hours=1),
-            processor_subdir=TEST_DAG_FOLDER,
         ) as dag:
             EmptyOperator(task_id="empty")
 
@@ -2884,7 +2875,6 @@ class TestSchedulerJob:
             dag_id=dr.dag_id,
             is_failure_callback=True,
             run_id=dr.run_id,
-            processor_subdir=TEST_DAG_FOLDER,
             msg="timed_out",
         )
 
@@ -3011,7 +3001,6 @@ class TestSchedulerJob:
             dag_id="test_dagrun_notify_called",
             on_success_callback=lambda x: print("success"),
             on_failure_callback=lambda x: print("failed"),
-            processor_subdir=TEST_DAG_FOLDER,
         ):
             EmptyOperator(task_id="dummy")
 
@@ -5906,14 +5895,13 @@ class TestSchedulerJob:
         callback_requests = executor.callback_sink.send.call_args.args
         assert len(callback_requests) == 1
         callback_request = callback_requests[0]
-        assert isinstance(callback_request.simple_task_instance, SimpleTaskInstance)
         assert callback_request.full_filepath == dag.fileloc
         assert callback_request.msg == str(self.job_runner._generate_zombie_message_details(ti))
         assert callback_request.is_failure_callback is True
-        assert callback_request.simple_task_instance.dag_id == ti.dag_id
-        assert callback_request.simple_task_instance.task_id == ti.task_id
-        assert callback_request.simple_task_instance.run_id == ti.run_id
-        assert callback_request.simple_task_instance.map_index == ti.map_index
+        assert callback_request.ti.dag_id == ti.dag_id
+        assert callback_request.ti.task_id == ti.task_id
+        assert callback_request.ti.run_id == ti.run_id
+        assert callback_request.ti.map_index == ti.map_index
 
     def test_zombie_message(self, load_examples):
         """
@@ -5990,7 +5978,7 @@ class TestSchedulerJob:
             )
             session.query(Job).delete()
             dag = dagbag.get_dag("test_example_bash_operator")
-            dag.sync_to_db(processor_subdir=TEST_DAG_FOLDER)
+            dag.sync_to_db()
             data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
             triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dag_run = dag.create_dagrun(
@@ -6023,18 +6011,17 @@ class TestSchedulerJob:
         expected_failure_callback_requests = [
             TaskCallbackRequest(
                 full_filepath=dag.fileloc,
-                simple_task_instance=SimpleTaskInstance.from_ti(ti),
-                processor_subdir=TEST_DAG_FOLDER,
+                ti=ti,
                 msg=str(self.job_runner._generate_zombie_message_details(ti)),
             )
         ]
         callback_requests = scheduler_job.executor.callback_sink.send.call_args.args
         assert len(callback_requests) == 1
-        assert {zombie.simple_task_instance.key for zombie in expected_failure_callback_requests} == {
-            result.simple_task_instance.key for result in callback_requests
+        assert {zombie.ti.id for zombie in expected_failure_callback_requests} == {
+            result.ti.id for result in callback_requests
         }
-        expected_failure_callback_requests[0].simple_task_instance = None
-        callback_requests[0].simple_task_instance = None
+        expected_failure_callback_requests[0].ti = None
+        callback_requests[0].ti = None
         assert expected_failure_callback_requests[0] == callback_requests[0]
 
     def test_cleanup_stale_dags(self):

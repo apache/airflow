@@ -35,14 +35,33 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.0.0
+.....
+
+Latest change: 2024-12-19
+
+=================================================================================================  ===========  ===============================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================================================================
+`35b927fe17 <https://github.com/apache/airflow/commit/35b927fe177065dad0e00c49d72b494e58b27ca8>`_  2024-12-19   ``Update path of example dags in docs (#45069)``
+`a10b3fccb0 <https://github.com/apache/airflow/commit/a10b3fccb09805397e607df4cd3ded6194d20170>`_  2024-12-18   ``Allow configuration of sqlalchemy query parameter for JdbcHook and PostgresHook through extras (#44910)``
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`2c0145766a <https://github.com/apache/airflow/commit/2c0145766a12a55a6a5096a7f78a15654b0ea129>`_  2024-12-13   ``Made get_conn in JdbcHook threadsafe to avoid OSError: JVM is already started (#44718)``
+`8d1018e2b7 <https://github.com/apache/airflow/commit/8d1018e2b74bdbf6a46989cabf81c5ac9525e39d>`_  2024-12-05   ``Remove Provider Deprecations in JDBC (#44662)``
+`b32ca97bfc <https://github.com/apache/airflow/commit/b32ca97bfc961d173e06dcec0ac217bf5cc25f52>`_  2024-11-28   ``Suppress JException when get_autocommit and set_autocommit methods aren't supported on JDBC driver (#43786)``
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`4dfae23532 <https://github.com/apache/airflow/commit/4dfae23532d26ed838069c49d48f28c185e954c6>`_  2024-11-15   ``Update DAG example links in multiple providers documents (#44034)``
+=================================================================================================  ===========  ===============================================================================================================
+
 4.5.3
 .....
 
-Latest change: 2024-11-13
+Latest change: 2024-11-14
 
 =================================================================================================  ===========  ========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
 `e7194dff6a <https://github.com/apache/airflow/commit/e7194dff6a816bf3a721cbf579ceac19c11cd111>`_  2024-11-13   ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
 `d8c7d28411 <https://github.com/apache/airflow/commit/d8c7d28411bea04ae5771fc1e2973d92eb0a144e>`_  2024-10-30   ``Start porting DAG definition code to the Task SDK (#43076)``
 `857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``

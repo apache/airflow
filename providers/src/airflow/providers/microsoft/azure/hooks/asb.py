@@ -17,7 +17,9 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable
+from uuid import uuid4
 
+from azure.core.exceptions import ResourceNotFoundError
 from azure.servicebus import (
     ServiceBusClient,
     ServiceBusMessage,
@@ -25,7 +27,13 @@ from azure.servicebus import (
     ServiceBusReceiver,
     ServiceBusSender,
 )
-from azure.servicebus.management import QueueProperties, ServiceBusAdministrationClient
+from azure.servicebus.management import (
+    CorrelationRuleFilter,
+    QueueProperties,
+    ServiceBusAdministrationClient,
+    SqlRuleFilter,
+    SubscriptionProperties,
+)
 
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
@@ -35,6 +43,8 @@ from airflow.providers.microsoft.azure.utils import (
 )
 
 if TYPE_CHECKING:
+    import datetime
+
     from azure.identity import DefaultAzureCredential
 
     from airflow.utils.context import Context
@@ -183,6 +193,106 @@ class AdminClientHook(BaseAzureServiceBusHook):
 
         with self.get_conn() as service_mgmt_conn:
             service_mgmt_conn.delete_queue(queue_name)
+
+    def create_subscription(
+        self,
+        topic_name: str,
+        subscription_name: str,
+        lock_duration: datetime.timedelta | str | None = None,
+        requires_session: bool | None = None,
+        default_message_time_to_live: datetime.timedelta | str | None = None,
+        dead_lettering_on_message_expiration: bool | None = True,
+        dead_lettering_on_filter_evaluation_exceptions: bool | None = None,
+        max_delivery_count: int | None = 10,
+        enable_batched_operations: bool | None = True,
+        forward_to: str | None = None,
+        user_metadata: str | None = None,
+        forward_dead_lettered_messages_to: str | None = None,
+        auto_delete_on_idle: datetime.timedelta | str | None = None,
+        filter_rule: CorrelationRuleFilter | SqlRuleFilter | None = None,
+        filter_rule_name: str | None = None,
+    ) -> SubscriptionProperties:
+        """
+        Create a subscription with specified name on a topic and return the SubscriptionProperties for it.
+
+        An optional filter_rule can be provided to filter messages based on their properties. In particular,
+        the correlation ID filter can be used to pair up replies to requests.
+
+        :param topic_name: The topic that will own the to-be-created subscription.
+        :param subscription_name: Name of the subscription that need to be created
+        :param lock_duration: ISO 8601 time span duration of a peek-lock; that is, the amount of time that
+            the message is locked for other receivers. The maximum value for LockDuration is 5 minutes; the
+            default value is 1 minute. Input value of either type ~datetime.timedelta or string in ISO 8601
+            duration format like "PT300S" is accepted.
+        :param requires_session: A value that indicates whether the queue supports the concept of sessions.
+        :param default_message_time_to_live: ISO 8601 default message time span to live value. This is the
+            duration after which the message expires, starting from when the message is sent to
+            Service Bus. This is the default value used when TimeToLive is not set on a message itself.
+            Input value of either type ~datetime.timedelta or string in ISO 8601 duration
+            format like "PT300S" is accepted.
+        :param dead_lettering_on_message_expiration: A value that indicates whether this subscription has
+            dead letter support when a message expires.
+        :param dead_lettering_on_filter_evaluation_exceptions: A value that indicates whether this
+            subscription has dead letter support when a message expires.
+        :param max_delivery_count: The maximum delivery count. A message is automatically dead lettered
+            after this number of deliveries. Default value is 10.
+        :param enable_batched_operations: Value that indicates whether server-side batched
+            operations are enabled.
+        :param forward_to: The name of the recipient entity to which all the messages sent to the
+            subscription are forwarded to.
+        :param user_metadata: Metadata associated with the subscription. Maximum number of characters is 1024.
+        :param forward_dead_lettered_messages_to: The name of the recipient entity to which all the
+            messages sent to the subscription are forwarded to.
+        :param auto_delete_on_idle: ISO 8601 time Span idle interval after which the subscription is
+            automatically deleted. The minimum duration is 5 minutes. Input value of either
+            type ~datetime.timedelta or string in ISO 8601 duration format like "PT300S" is accepted.
+        :param filter_rule: Optional correlation or SQL rule filter to apply on the messages.
+        :param filter_rule_name: Optional rule name to use applying the rule filter to the subscription
+        :param azure_service_bus_conn_id: Reference to the
+            :ref:`Azure Service Bus connection<howto/connection:azure_service_bus>`.
+        """
+        if subscription_name is None:
+            raise TypeError("Subscription name cannot be None.")
+        if topic_name is None:
+            raise TypeError("Topic name cannot be None.")
+
+        with self.get_conn() as connection:
+            # create subscription with name
+            subscription = connection.create_subscription(
+                topic_name=topic_name,
+                subscription_name=subscription_name,
+                lock_duration=lock_duration,
+                requires_session=requires_session,
+                default_message_time_to_live=default_message_time_to_live,
+                dead_lettering_on_ßmessage_expiration=dead_lettering_on_message_expiration,
+                dead_lettering_on_filter_evaluation_exceptions=dead_lettering_on_filter_evaluation_exceptions,
+                max_delivery_count=max_delivery_count,
+                enable_batched_operations=enable_batched_operations,
+                forward_to=forward_to,
+                user_metadata=user_metadata,
+                forward_dead_lettered_messages_to=forward_dead_lettered_messages_to,
+                auto_delete_on_idle=auto_delete_on_idle,
+            )
+
+            if filter_rule:
+                # remove default rule (which accepts all messages)
+                try:
+                    connection.delete_rule(topic_name, subscription_name, "$Default")
+                except ResourceNotFoundError:
+                    # as long as it is gone :)
+                    self.log.debug("Could not find default rule '$Default' to delete; ignoring error.")
+
+                # add a rule to filter with the filter rule passed in
+                rule_name = filter_rule_name if filter_rule_name else "rule" + str(uuid4())
+                connection.create_rule(topic_name, subscription_name, rule_name, filter=filter_rule)
+                self.log.debug(
+                    "Created rule %s for subscription %s on topic %s",
+                    rule_name,
+                    subscription_name,
+                    topic_name,
+                )
+
+            return subscription
 
     def delete_subscription(self, subscription_name: str, topic_name: str) -> None:
         """

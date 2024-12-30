@@ -16,6 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import json
+from io import BytesIO
+
 import pytest
 
 from airflow.models.variable import Variable
@@ -43,6 +46,11 @@ TEST_VARIABLE_DESCRIPTION3 = "Some description for the variable"
 TEST_VARIABLE_SEARCH_KEY = "test_variable_search_key"
 TEST_VARIABLE_SEARCH_VALUE = "random search value"
 TEST_VARIABLE_SEARCH_DESCRIPTION = "Some description for the variable"
+
+
+# Helper function to simulate file upload
+def create_file_upload(content: dict) -> BytesIO:
+    return BytesIO(json.dumps(content).encode("utf-8"))
 
 
 @provide_session
@@ -116,6 +124,7 @@ class TestGetVariable(TestVariableEndpoint):
                     "key": TEST_VARIABLE_KEY,
                     "value": TEST_VARIABLE_VALUE,
                     "description": TEST_VARIABLE_DESCRIPTION,
+                    "is_encrypted": True,
                 },
             ),
             (
@@ -124,6 +133,7 @@ class TestGetVariable(TestVariableEndpoint):
                     "key": TEST_VARIABLE_KEY2,
                     "value": "***",
                     "description": TEST_VARIABLE_DESCRIPTION2,
+                    "is_encrypted": True,
                 },
             ),
             (
@@ -132,6 +142,7 @@ class TestGetVariable(TestVariableEndpoint):
                     "key": TEST_VARIABLE_KEY3,
                     "value": '{"password": "***"}',
                     "description": TEST_VARIABLE_DESCRIPTION3,
+                    "is_encrypted": True,
                 },
             ),
             (
@@ -140,6 +151,7 @@ class TestGetVariable(TestVariableEndpoint):
                     "key": TEST_VARIABLE_SEARCH_KEY,
                     "value": TEST_VARIABLE_SEARCH_VALUE,
                     "description": TEST_VARIABLE_SEARCH_DESCRIPTION,
+                    "is_encrypted": True,
                 },
             ),
         ],
@@ -225,6 +237,7 @@ class TestPatchVariable(TestVariableEndpoint):
                     "key": TEST_VARIABLE_KEY,
                     "value": "The new value",
                     "description": "The new description",
+                    "is_encrypted": True,
                 },
             ),
             (
@@ -239,6 +252,7 @@ class TestPatchVariable(TestVariableEndpoint):
                     "key": TEST_VARIABLE_KEY,
                     "value": "The new value",
                     "description": TEST_VARIABLE_DESCRIPTION,
+                    "is_encrypted": True,
                 },
             ),
             (
@@ -253,6 +267,7 @@ class TestPatchVariable(TestVariableEndpoint):
                     "key": TEST_VARIABLE_KEY2,
                     "value": "***",
                     "description": TEST_VARIABLE_DESCRIPTION2,
+                    "is_encrypted": True,
                 },
             ),
             (
@@ -267,6 +282,7 @@ class TestPatchVariable(TestVariableEndpoint):
                     "key": TEST_VARIABLE_KEY3,
                     "value": '{"password": "***"}',
                     "description": "new description",
+                    "is_encrypted": True,
                 },
             ),
         ],
@@ -311,6 +327,7 @@ class TestPostVariable(TestVariableEndpoint):
                     "key": "new variable key",
                     "value": "new variable value",
                     "description": "new variable description",
+                    "is_encrypted": True,
                 },
             ),
             (
@@ -323,6 +340,7 @@ class TestPostVariable(TestVariableEndpoint):
                     "key": "another_password",
                     "value": "***",
                     "description": "another password",
+                    "is_encrypted": True,
                 },
             ),
             (
@@ -335,6 +353,7 @@ class TestPostVariable(TestVariableEndpoint):
                     "key": "another value with sensitive information",
                     "value": '{"password": "***"}',
                     "description": "some description",
+                    "is_encrypted": True,
                 },
             ),
         ],
@@ -344,3 +363,146 @@ class TestPostVariable(TestVariableEndpoint):
         response = test_client.post("/public/variables", json=body)
         assert response.status_code == 201
         assert response.json() == expected_response
+
+    def test_post_should_respond_409_when_key_exists(self, test_client, session):
+        self.create_variables()
+        # Attempting to post a variable with an existing key
+        response = test_client.post(
+            "/public/variables",
+            json={
+                "key": TEST_VARIABLE_KEY,
+                "value": "duplicate value",
+                "description": "duplicate description",
+            },
+        )
+        assert response.status_code == 409
+        body = response.json()
+        assert body["detail"] == f"The Variable with key: `{TEST_VARIABLE_KEY}` already exists"
+
+    def test_post_should_respond_422_when_key_too_large(self, test_client):
+        large_key = "a" * 251  # Exceeds the maximum length of 250
+        body = {
+            "key": large_key,
+            "value": "some_value",
+            "description": "key too large",
+        }
+        response = test_client.post("/public/variables", json=body)
+        assert response.status_code == 422
+        assert response.json() == {
+            "detail": [
+                {
+                    "type": "string_too_long",
+                    "loc": ["body", "key"],
+                    "msg": "String should have at most 250 characters",
+                    "input": large_key,
+                    "ctx": {"max_length": 250},
+                }
+            ]
+        }
+
+
+class TestImportVariables(TestVariableEndpoint):
+    @pytest.mark.enable_redact
+    @pytest.mark.parametrize(
+        "variables_data, behavior, expected_status_code, expected_created_count, expected_created_keys, expected_conflict_keys",
+        [
+            (
+                {"new_key1": "new_value1", "new_key2": "new_value2"},
+                "overwrite",
+                200,
+                2,
+                {"new_key1", "new_key2"},
+                set(),
+            ),
+            (
+                {"new_key1": "new_value1", "new_key2": "new_value2"},
+                "skip",
+                200,
+                2,
+                {"new_key1", "new_key2"},
+                set(),
+            ),
+            (
+                {"test_variable_key": "new_value", "new_key": "new_value"},
+                "fail",
+                409,
+                0,
+                set(),
+                {"test_variable_key"},
+            ),
+            (
+                {"test_variable_key": "new_value", "new_key": "new_value"},
+                "skip",
+                200,
+                1,
+                {"new_key"},
+                {"test_variable_key"},
+            ),
+            (
+                {"test_variable_key": "new_value", "new_key": "new_value"},
+                "overwrite",
+                200,
+                2,
+                {"test_variable_key", "new_key"},
+                set(),
+            ),
+        ],
+    )
+    def test_import_variables(
+        self,
+        test_client,
+        variables_data,
+        behavior,
+        expected_status_code,
+        expected_created_count,
+        expected_created_keys,
+        expected_conflict_keys,
+        session,
+    ):
+        """Test variable import with different behaviors (overwrite, fail, skip)."""
+
+        self.create_variables()
+
+        file = create_file_upload(variables_data)
+        response = test_client.post(
+            "/public/variables/import",
+            files={"file": ("variables.json", file, "application/json")},
+            params={"action_if_exists": behavior},
+        )
+
+        assert response.status_code == expected_status_code
+
+        if expected_status_code == 200:
+            body = response.json()
+            assert body["created_count"] == expected_created_count
+            assert set(body["created_variable_keys"]) == expected_created_keys
+
+        elif expected_status_code == 409:
+            body = response.json()
+            assert (
+                f"The variables with these keys: {expected_conflict_keys} already exists." == body["detail"]
+            )
+
+    def test_import_invalid_json(self, test_client):
+        """Test invalid JSON import."""
+        file = BytesIO(b"import variable test")
+        response = test_client.post(
+            "/public/variables/import",
+            files={"file": ("variables.json", file, "application/json")},
+            params={"action_if_exists": "overwrite"},
+        )
+
+        assert response.status_code == 400
+        assert "Invalid JSON format" in response.json()["detail"]
+
+    def test_import_empty_file(self, test_client):
+        """Test empty file import."""
+        file = create_file_upload({})
+        response = test_client.post(
+            "/public/variables/import",
+            files={"file": ("empty_variables.json", file, "application/json")},
+            params={"action_if_exists": "overwrite"},
+        )
+
+        assert response.status_code == 422
+        assert response.json()["detail"] == "No variables found in the provided JSON."

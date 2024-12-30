@@ -35,6 +35,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.1.0
+......
+
+Latest change: 2024-12-18
+
+=================================================================================================  ===========  ======================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================================
+`3c111680a8 <https://github.com/apache/airflow/commit/3c111680a837f22659555c9b6647df40d6ead5f0>`_  2024-12-18   ``fix: Get the pid of xcom command dynamically (#45053)``
+`2a33da0246 <https://github.com/apache/airflow/commit/2a33da0246c811a98d5cdaf0af2bcca0dee8556a>`_  2024-12-18   ``Remove references to AIRFLOW_V_2_9_PLUS (#44987)``
+`60eced9bca <https://github.com/apache/airflow/commit/60eced9bca4c744dfce5e1f723dc2e23940ab64b>`_  2024-12-17   ``Add logging support for init containers in KubernetesPodOperator (#42498) (#43853)``
+`89fdc0326a <https://github.com/apache/airflow/commit/89fdc0326a0cf71d8e95155047092102695d00b2>`_  2024-12-17   ``Compare k8s executor against alias, not full ExecutorName repr (#44967)``
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`8e2e1fa9f0 <https://github.com/apache/airflow/commit/8e2e1fa9f031edf1249e7d030d59536f74a497cd>`_  2024-12-14   ``Fix failing KubernetesExecutor (#44931)``
+`8480460da4 <https://github.com/apache/airflow/commit/8480460da45e1e8fe7069ead1d0a936233b2d73a>`_  2024-12-11   ``Implement KubernetesInstallKueueOperator + (#44568)``
+`490b5e816b <https://github.com/apache/airflow/commit/490b5e816b804f338b0eb97f240ae874d4e15810>`_  2024-12-10   ``Consistent way of checking Airflow version in providers (#44686)``
+`0334901451 <https://github.com/apache/airflow/commit/03349014513114f1eaa413a9831b0027e4fbfa67>`_  2024-11-29   ``Fix yoda-conditions (#44466)``
+`335f64c683 <https://github.com/apache/airflow/commit/335f64c6830b3d67028d38e915f2f69cd99ae3fa>`_  2024-11-28   ``support grouping of log lines for KubernetesPodOperator (#44428)``
+=================================================================================================  ===========  ======================================================================================
+
 10.0.1
 ......
 
@@ -43,6 +63,7 @@ Latest change: 2024-11-24
 =================================================================================================  ===========  ===========================================================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================================================================================================
+`f0da8eeab3 <https://github.com/apache/airflow/commit/f0da8eeab3efba4d4e43439db30a273bfd67c9f1>`_  2024-11-24   ``Prepare docs for Nov 2nd wave of ad hoc providers (#44321)``
 `1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
 `4bce3a353a <https://github.com/apache/airflow/commit/4bce3a353accf8709e69b0e71b72bcf333b2bba6>`_  2024-11-18   ``Bugfix KubernetesJobOperator.on_kill() by removing unexpected 'job' argument from the k8s job client method 'delete_namespaced_job' invocation (#44131)``
 `a41feeb5ae <https://github.com/apache/airflow/commit/a41feeb5aedad842be2b0f954e0be30c767dbc5e>`_  2024-11-15   ``Re-queue tassk when they are stuck in queued (#43520)``

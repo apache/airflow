@@ -34,6 +34,7 @@ from airflow.models.param import Param
 from airflow.models.variable import Variable
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.common.compat.standard.operators import PythonOperator
+from airflow.utils.trigger_rule import TriggerRule
 
 try:
     from airflow.providers.standard.operators.bash import BashOperator
@@ -125,6 +126,25 @@ with DAG(
         branching() >> [bash(), virtualenv(), variable(), connection(), classic_bash, classic_py, empty]
 
     @task
+    def plan_to_fail():
+        print("This task is supposed to fail")
+        raise ValueError("This task is supposed to fail")
+
+    @task(retries=1, retry_delay=5.0)
+    def needs_retry(**context):
+        print("This task is supposed to fail on the first attempt")
+        if context["ti"].try_number == 1:
+            raise ValueError("This task is supposed to fail")
+
+    @task(trigger_rule=TriggerRule.ONE_SUCCESS)
+    def capture_fail():
+        print("all good, we accept the fail and report OK")
+
+    @task_group(prefix_group_id=False)
+    def failure_tests_group():
+        [plan_to_fail(), needs_retry()] >> capture_fail()
+
+    @task
     def long_running():
         print("This task runs for 15 minutes")
         for i in range(15):
@@ -138,6 +158,6 @@ with DAG(
 
     (
         my_setup().as_setup()
-        >> [mapping_task_group(), standard_tasks_group(), long_running()]
+        >> [mapping_task_group(), standard_tasks_group(), failure_tests_group(), long_running()]
         >> my_teardown().as_teardown()
     )
