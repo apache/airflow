@@ -216,6 +216,7 @@ jobs:
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
+    if: needs.build-info.outputs.ci-image-build == 'true'
 
   additional-ci-image-checks:
     name: "Additional CI image checks"
