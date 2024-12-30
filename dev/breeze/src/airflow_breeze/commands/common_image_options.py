@@ -189,3 +189,25 @@ option_skip_image_file_deletion = click.option(
     is_flag=True,
     envvar="SKIP_IMAGE_FILE_DELETION",
 )
+option_from_job = click.option(
+    "--from-job",
+    required=False,
+    default="",
+    envvar="FROM_JOB",
+    help="Optional run id of the github action job to load the image from.",
+)
+
+option_from_pr = click.option(
+    "--from-pr",
+    default="",
+    required=False,
+    envvar="FROM_PR",
+    help="Optional pr number of the github action job to load the image from. loads the image from the latest job.",
+)
+option_github_token_for_images = click.option(
+    "--github-token",
+    help="The token used to authenticate to GitHub. You can generate it with "
+    "https://github.com/settings/tokens/new?description=Read%20repo&scopes=public_repo",
+    envvar="GITHUB_TOKEN",
+    required=True,
+)
