@@ -702,8 +702,10 @@ def patch_task_instance(
                     commit=True,
                     session=session,
                 )
-                if not ti:
-                    raise HTTPException(status.HTTP_404_NOT_FOUND, err_msg_404)
+                if not tis:
+                    raise HTTPException(
+                        status.HTTP_409_CONFLICT, f"task id {task_id} is already in {data['new_state']} state"
+                    )
                 ti = tis[0] if isinstance(tis, list) else tis
         elif key == "note":
             if update_mask or body.note is not None:
