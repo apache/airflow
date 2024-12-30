@@ -16,18 +16,43 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useDisclosure } from "@chakra-ui/react";
+import { Heading, useDisclosure, VStack } from "@chakra-ui/react";
 import { FiUploadCloud } from "react-icons/fi";
 
-import { Button } from "src/components/ui";
+import { Button, Dialog } from "src/components/ui";
+
+import ImportVariablesForm from "./ImportVariablesForm";
+
+export type ImpotRequestBody = {
+  action_if_exist: string;
+  file: File | undefined;
+};
 
 const ImportVariablesButton = () => {
   const { onClose, onOpen, open } = useDisclosure();
 
   return (
-    <Button colorPalette="blue" onClick={onOpen}>
-      <FiUploadCloud /> Import Variables
-    </Button>
+    <>
+      <Button colorPalette="blue" onClick={onOpen}>
+        <FiUploadCloud /> Import Variables
+      </Button>
+
+      <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+        <Dialog.Content backdrop>
+          <Dialog.Header>
+            <VStack align="start" gap={4}>
+              <Heading size="xl"> Import Variables </Heading>
+            </VStack>
+          </Dialog.Header>
+
+          <Dialog.CloseTrigger />
+
+          <Dialog.Body width="full">
+            <ImportVariablesForm />
+          </Dialog.Body>
+        </Dialog.Content>
+      </Dialog.Root>
+    </>
   );
 };
 
