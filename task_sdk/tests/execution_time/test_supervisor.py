@@ -884,18 +884,6 @@ class TestHandleRequest:
                 "",
                 id="patch_task_instance_to_skipped",
             ),
-            # testing to see if supervisor can handle TaskState message with state as fail_with_retry
-            pytest.param(
-                TaskState(
-                    state=TerminalTIState.FAIL_WITHOUT_RETRY,
-                    end_date=timezone.parse("2024-10-31T12:00:00Z"),
-                ),
-                b"",
-                "",
-                (),
-                "",
-                id="patch_task_instance_to_failed_with_retries",
-            ),
             pytest.param(
                 SetRenderedFields(rendered_fields={"field1": "rendered_value1", "field2": "rendered_value2"}),
                 b"",
@@ -928,10 +916,6 @@ class TestHandleRequest:
             3. Checks that the buffer is updated with the expected response.
             4. Verifies that the response is correctly decoded.
         """
-
-        instant = tz.datetime(2024, 11, 7, 12, 0, 0, 0)
-        time_machine.move_to(instant, tick=False)
-
         # Mock the client method. E.g. `client.variables.get` or `client.connections.get`
         mock_client_method = attrgetter(client_attr_path)(watched_subprocess.client)
         mock_client_method.return_value = mock_response

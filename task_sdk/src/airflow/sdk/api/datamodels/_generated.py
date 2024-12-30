@@ -126,12 +126,10 @@ class TerminalTIState(str, Enum):
     """
 
     SUCCESS = "success"
-    FAILED = "failed"  # This state indicates that we attempt to retry.
+    FAILED = "failed"
     SKIPPED = "skipped"
     REMOVED = "removed"
-    FAIL_WITHOUT_RETRY = (
-        "fail_without_retry"  # This state is useful for when we want to terminate a task, without retrying.
-    )
+    FAIL_WITHOUT_RETRY = "fail_without_retry"
 
 
 class ValidationError(BaseModel):

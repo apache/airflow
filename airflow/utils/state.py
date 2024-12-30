@@ -36,12 +36,10 @@ class TerminalTIState(str, Enum):
     """States that a Task Instance can be in that indicate it has reached a terminal state."""
 
     SUCCESS = "success"
-    FAILED = "failed"  # This state indicates that we attempt to retry.
+    FAILED = "failed"
     SKIPPED = "skipped"  # A user can raise a AirflowSkipException from a task & it will be marked as skipped
     REMOVED = "removed"
-    FAIL_WITHOUT_RETRY = (
-        "fail_without_retry"  # This state is useful for when we want to terminate a task, without retrying.
-    )
+    FAIL_WITHOUT_RETRY = "fail_without_retry"
 
     def __str__(self) -> str:
         return self.value
