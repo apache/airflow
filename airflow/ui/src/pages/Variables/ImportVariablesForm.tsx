@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack } from "@chakra-ui/react";
+import { Box, Center, HStack, Spinner, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { FiUploadCloud } from "react-icons/fi";
 import { LuFileUp } from "react-icons/lu";
@@ -25,7 +25,11 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { Button, CloseButton, InputGroup } from "src/components/ui";
 import { FileUpload } from "src/components/ui/FileUpload";
 import { FileInput } from "src/components/ui/FileUpload/FileInput";
-import { RadioCardItem, RadioCardRoot } from "src/components/ui/RadioCard";
+import {
+  RadioCardItem,
+  RadioCardLabel,
+  RadioCardRoot,
+} from "src/components/ui/RadioCard";
 import { useImportVariables } from "src/queries/useImportVariables";
 
 type ImportVariableFormProps = {
@@ -83,6 +87,7 @@ const ImportVariablesForm = ({ onClose }: ImportVariableFormProps) => {
         accept={["application/json"]}
         gap="1"
         maxFiles={1}
+        mb={6}
         onFileChange={(files) => {
           if (files.acceptedFiles.length > 0) {
             setSelectedFile(files.acceptedFiles[0]);
@@ -90,39 +95,46 @@ const ImportVariablesForm = ({ onClose }: ImportVariableFormProps) => {
         }}
         required
       >
-        <InputGroup
-          endElement={
-            <FileUpload.ClearTrigger asChild>
-              <CloseButton
-                color="fg.subtle"
-                focusRingWidth="2px"
-                focusVisibleRing="inside"
-                me="-1"
-                onClick={() => {
-                  setSelectedFile(undefined);
-                }}
-                pointerEvents="auto"
-                size="xs"
-                variant="plain"
-              />
-            </FileUpload.ClearTrigger>
-          }
-          startElement={<LuFileUp />}
-          w="full"
-        >
-          <FileInput placeholder="Click to upload a JSON file" />
-        </InputGroup>
+        <VStack align="flex-start" gap={2} w="full">
+          <FileUpload.Label fontSize="md" mb={2}>
+            Upload a JSON File{" "}
+          </FileUpload.Label>
+          <InputGroup
+            endElement={
+              <FileUpload.ClearTrigger asChild>
+                <CloseButton
+                  color="fg.subtle"
+                  focusRingWidth="2px"
+                  focusVisibleRing="inside"
+                  me="-1"
+                  onClick={() => {
+                    setSelectedFile(undefined);
+                  }}
+                  pointerEvents="auto"
+                  size="xs"
+                  variant="plain"
+                />
+              </FileUpload.ClearTrigger>
+            }
+            startElement={<LuFileUp />}
+            w="full"
+          >
+            <FileInput placeholder='Upload a JSON file containing variables (e.g., {"key": "value", ...})' />
+          </InputGroup>
+        </VStack>
       </FileUpload.Root>
       <RadioCardRoot
         defaultValue="fail"
-        mb={4}
-        mt={4}
+        mb={6}
         onChange={(event) => {
           const target = event.target as HTMLInputElement;
 
           setActionIfExists(target.value as "fail" | "overwrite" | "skip");
         }}
       >
+        <RadioCardLabel fontSize="md" mb={2}>
+          Select Variable Conflict Resolution
+        </RadioCardLabel>
         <HStack align="stretch">
           {actionIfExistsOptions.map((item) => (
             <RadioCardItem
@@ -136,10 +148,16 @@ const ImportVariablesForm = ({ onClose }: ImportVariableFormProps) => {
       </RadioCardRoot>
       <ErrorAlert error={error} />
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
+        {isPending ? (
+          <Box bg="bg/80" inset="0" pos="absolute">
+            <Center h="full">
+              <Spinner borderWidth="4px" color="blue.500" size="xl" />
+            </Center>
+          </Box>
+        ) : undefined}
         <Button
           colorPalette="blue"
-          disabled={Boolean(selectedFile === undefined)}
-          loading={isPending}
+          disabled={!selectedFile || isPending}
           onClick={onSubmit}
         >
           <FiUploadCloud /> Import
