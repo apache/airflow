@@ -28,6 +28,7 @@ export type ParamSpec = {
     description_md: string | null;
     enum: Array<string> | null;
     format: string | null;
+    items: Record<string, unknown> | null;
     title: string | null;
     type: Array<string> | string | null;
     values_display: Record<string, string> | null;

@@ -18,6 +18,7 @@
  */
 import { Field, Stack } from "@chakra-ui/react";
 import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import type { ParamSpec } from "src/queries/useDagParams";
 
@@ -27,6 +28,7 @@ import { FlexibleFormFieldDate, isFieldDate } from "./FlexibleFormFieldDate";
 import { FlexibleFormFieldDateTime, isFieldDateTime } from "./FlexibleFormFieldDateTime";
 import { FlexibleFormFieldDropdown, isFieldDropdown } from "./FlexibleFormFieldDropdown";
 import { FlexibleFormFieldString } from "./FlexibleFormFieldString";
+import { FlexibleFormFieldStringArray, isFieldStringArray } from "./FlexibleFormFieldStringArray";
 import { FlexibleFormFieldTime, isFieldTime } from "./FlexibleFormFieldTime";
 
 const isRequired = (param: ParamSpec) =>
@@ -68,11 +70,12 @@ export const FlexibleFormSelectElement = ({ key, name, param }: FlexibleFormElem
     return <FlexibleFormFieldTime key={key} name={name} param={param} />;
   } else if (isFieldDropdown(fieldType, param.schema.enum)) {
     return <FlexibleFormFieldDropdown key={key} name={name} param={param} />;
+  } else if (isFieldStringArray(fieldType, param.schema.items)) {
+    return <FlexibleFormFieldStringArray key={key} name={name} param={param} />;
   } else {
     // TODO other elements like number, integer, select etc.
     // Missing:
-    // - (Simple) Array as Textarea
-    // - Array (as JSON via CodeMirror)
+    // - Advancedarray (as JSON via CodeMirror)
     // - Multiple Select
     // - Object (as JSON via CodeMirror)
     // - Number (Into or generic number input)
@@ -93,7 +96,7 @@ export const FlexibleFormNormalRow = ({ key, name, param }: FlexibleFormElementP
     <Stack css={{ "flex-basis": "70%" }}>
       <FlexibleFormSelectElement key={key} name={name} param={param} />
       <Field.HelperText>
-        {param.description ?? <Markdown>{param.schema.description_md}</Markdown>}
+        {param.description ?? <Markdown remarkPlugins={[remarkGfm]}>{param.schema.description_md}</Markdown>}
       </Field.HelperText>
     </Stack>
   </Field.Root>
