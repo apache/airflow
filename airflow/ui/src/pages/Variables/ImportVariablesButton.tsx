@@ -48,7 +48,7 @@ const ImportVariablesButton = () => {
           <Dialog.CloseTrigger />
 
           <Dialog.Body width="full">
-            <ImportVariablesForm />
+            <ImportVariablesForm onClose={onClose} />
           </Dialog.Body>
         </Dialog.Content>
       </Dialog.Root>

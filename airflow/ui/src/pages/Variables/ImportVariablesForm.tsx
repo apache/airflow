@@ -16,38 +16,74 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
+import { Box, HStack } from "@chakra-ui/react";
+import { useState } from "react";
 import { FiUploadCloud } from "react-icons/fi";
 
+import { ErrorAlert } from "src/components/ErrorAlert";
 import { Button } from "src/components/ui";
 import { FileUpload } from "src/components/ui/FileUpload";
+import { useImportVariables } from "src/queries/useImportVariables";
 
-export type ImportVariableBody = {
-  action_if_exists: "fail" | "overwrite" | "skip" | undefined;
-  formData: { file: Blob | File };
+type ImportVariableFormProps = {
+  readonly onClose: () => void;
 };
 
-const ImportVariablesForm = () => (
-  <>
-    <FileUpload.Root
-      accept={["json"]}
-      alignItems="stretch"
-      maxFiles={1}
-      maxW="xl"
-    >
-      <FileUpload.Dropzone
-        description="JSON Files accepted"
-        label="Drag and drop here to upload"
-      />
-      <FileUpload.List />
-    </FileUpload.Root>
+const ImportVariablesForm = ({ onClose }: ImportVariableFormProps) => {
+  const { error, isPending, mutate, setError } = useImportVariables({
+    onSuccessConfirm: onClose,
+  });
 
-    <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
-      <Button colorPalette="blue">
-        <FiUploadCloud /> Import
-      </Button>
-    </Box>
-  </>
-);
+  const [selectedFile, setSelectedFile] = useState<Blob | File | undefined>(
+    undefined,
+  );
+
+  return (
+    <>
+      <HStack mb={4}>
+        <FileUpload.Root
+          accept={["application/json"]}
+          alignItems="stretch"
+          maxFiles={1}
+          maxW="xl"
+          onFileChange={(files) => {
+            if (files.acceptedFiles.length > 0) {
+              setSelectedFile(files.acceptedFiles[0]);
+            }
+          }}
+        >
+          <FileUpload.Dropzone
+            description="JSON Files accepted"
+            label="Drag and drop here to upload"
+          />
+        </FileUpload.Root>
+      </HStack>
+      <ErrorAlert error={error} />
+      <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
+        <Button
+          colorPalette="blue"
+          disabled={!Boolean(selectedFile)}
+          loading={isPending}
+          onClick={() => {
+            setError(undefined);
+            if (selectedFile) {
+              const formData = new FormData();
+
+              formData.append("file", selectedFile);
+              mutate({
+                actionIfExists: undefined,
+                formData: {
+                  file: selectedFile,
+                },
+              });
+            }
+          }}
+        >
+          <FiUploadCloud /> Import
+        </Button>
+      </Box>
+    </>
+  );
+};
 
 export default ImportVariablesForm;
