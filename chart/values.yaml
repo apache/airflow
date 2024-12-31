@@ -80,7 +80,7 @@ airflowVersion: "2.8.1"
 images:
   airflow:
     repository: 017820686756.dkr.ecr.us-east-1.amazonaws.com/production-isocrates-madtechai-airflow
-    tag: "latest"
+    tag: "airflow-2.0.0"
     # Specifying digest takes precedence over tag.
     digest: ""
     pullPolicy: IfNotPresent
