@@ -16,46 +16,39 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading } from "@chakra-ui/react";
-import { useState } from "react";
-import { FiBookOpen } from "react-icons/fi";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { Heading, useDisclosure, VStack } from "@chakra-ui/react";
+import { FiUploadCloud } from "react-icons/fi";
 
 import { Button, Dialog } from "src/components/ui";
 
-const DocumentationModal = ({
-  docMd,
-  docType,
-}: {
-  readonly docMd: string;
-  readonly docType: string;
-}) => {
-  const [isDocsOpen, setIsDocsOpen] = useState(false);
+import ImportVariablesForm from "./ImportVariablesForm";
+
+const ImportVariablesButton = () => {
+  const { onClose, onOpen, open } = useDisclosure();
 
   return (
-    <Box>
-      <Button onClick={() => setIsDocsOpen(true)} variant="outline">
-        <FiBookOpen height={5} width={5} />
-        {docType} Docs
+    <>
+      <Button colorPalette="blue" onClick={onOpen}>
+        <FiUploadCloud /> Import Variables
       </Button>
-      <Dialog.Root
-        onOpenChange={() => setIsDocsOpen(false)}
-        open={isDocsOpen}
-        size="md"
-      >
+
+      <Dialog.Root onOpenChange={onClose} open={open} size="xl">
         <Dialog.Content backdrop>
-          <Dialog.Header bg="blue.muted">
-            <Heading size="xl">{docType} Documentation</Heading>
-            <Dialog.CloseTrigger closeButtonProps={{ size: "xl" }} />
+          <Dialog.Header>
+            <VStack align="start" gap={4}>
+              <Heading size="xl"> Import Variables </Heading>
+            </VStack>
           </Dialog.Header>
-          <Dialog.Body display="flex">
-            <Markdown remarkPlugins={[remarkGfm]}>{docMd}</Markdown>
+
+          <Dialog.CloseTrigger />
+
+          <Dialog.Body width="full">
+            <ImportVariablesForm onClose={onClose} />
           </Dialog.Body>
         </Dialog.Content>
       </Dialog.Root>
-    </Box>
+    </>
   );
 };
 
-export default DocumentationModal;
+export default ImportVariablesButton;

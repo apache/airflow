@@ -441,10 +441,9 @@ def run(ti: RuntimeTaskInstance, log: Logger):
             state=TerminalTIState.FAIL_WITHOUT_RETRY,
             end_date=datetime.now(tz=timezone.utc),
         )
-
         # TODO: Run task failure callbacks here
-    except AirflowTaskTimeout:
-        # We should allow retries if the task has defined it
+    except (AirflowTaskTimeout, AirflowException):
+        # We should allow retries if the task has defined it.
         msg = TaskState(
             state=TerminalTIState.FAILED,
             end_date=datetime.now(tz=timezone.utc),
@@ -452,7 +451,10 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         # TODO: Run task failure callbacks here
     except AirflowException:
         # TODO: handle the case of up_for_retry here
-        ...
+        msg = TaskState(
+            state=TerminalTIState.FAILED,
+            end_date=datetime.now(tz=timezone.utc),
+        )
     except AirflowTaskTerminated:
         # External state updates are already handled with `ti_heartbeat` and will be
         # updated already be another UI API. So, these exceptions should ideally never be thrown.
