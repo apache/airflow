@@ -21,14 +21,12 @@ import { githubLight, githubDark } from "@uiw/codemirror-themes-all";
 import CodeMirror from "@uiw/react-codemirror";
 
 import { useColorMode } from "src/context/colorMode";
-import type { ParamSchema } from "src/queries/useDagParams";
 
 import type { FlexibleFormElementProps } from ".";
 
-export const isFieldAdvancedArray = (fieldType: string, fieldSchema: ParamSchema) =>
-  fieldType === "array" && fieldSchema.items?.type !== "string";
+export const isFieldObject = (fieldType: string) => fieldType === "object";
 
-export const FlexibleFormFieldAdvancedArray = ({ name, param }: FlexibleFormElementProps) => {
+export const FlexibleFormFieldObject = ({ name, param }: FlexibleFormElementProps) => {
   const { colorMode } = useColorMode();
 
   return (
