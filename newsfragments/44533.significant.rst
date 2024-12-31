@@ -1,21 +1,5 @@
-Update conf column in dag_run table type from byte ( that store a python pickle ) to JSON. It is important to note that existing dagrun records will lose their conf data if an offline migration is performed
+During offline migration, ``DagRun.conf`` is cleared
 
 .. Provide additional contextual information
 
-Column conf of the table dag_run is using the type byte ( and storing a python pickle ) on the database , since airflow only support postgres 12+ and mysql 8+ , we updated it to  json type .
-
-.. Check the type of change that applies to this change
-
-* Types of change
-
-  * [ ] DAG changes
-  * [ ] Config changes
-  * [ ] API changes
-  * [ ] CLI changes
-  * [x] Behaviour changes
-  * [ ] Plugin changes
-  * [ ] Dependency change
-
-.. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
-
-* Migrations rules needed
+The ``conf`` column is changing from pickle to json, thus, the values in that column cannot be migrated during offline migrations. If you want to retain ``conf`` values for existing DagRuns, you must do a normal, non-offline, migration.

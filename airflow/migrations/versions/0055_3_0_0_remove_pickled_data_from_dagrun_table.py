@@ -78,7 +78,14 @@ def upgrade():
                 try:
                     original_data = pickle.loads(pickle_data)
                     json_data = json.dumps(original_data)
-                    conn.execute(text(f"UPDATE dag_run SET conf_json ='{json_data}' WHERE id = {row_id}"))
+                    conn.execute(
+                        text("""
+                                                UPDATE dag_run
+                                                SET conf_json = :json_data
+                                                WHERE id = :id
+                                            """),
+                        {"json_data": json_data, "id": row_id},
+                    )
                 except Exception as e:
                     print(f"Error converting dagrun conf to json for dagrun ID {row_id}: {e}")
                     continue
@@ -107,7 +114,6 @@ def downgrade():
             """)
         )
 
-        conn.execute(text("UPDATE dag_run set conf=null WHERE conf IS NOT NULL"))
     else:
         BATCH_SIZE = 2
         offset = 0
@@ -133,7 +139,7 @@ def downgrade():
                         {"pickle_data": pickled_data, "id": row_id},
                     )
                 except Exception as e:
-                    print(f"Error processing row ID {row_id}: {e}")
+                    print(f"Error pickling dagrun conf for dagrun ID {row_id}: {e}")
                     continue
             offset += BATCH_SIZE
 
