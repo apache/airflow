@@ -51,7 +51,6 @@ def upgrade():
     op.add_column("dag_run", sa.Column("conf_json", conf_type, nullable=True))
 
     if context.is_offline_mode():
-        # Update the dag_run.conf column value to NULL
         print(
             dedent("""
             ------------
@@ -103,7 +102,6 @@ def downgrade():
     op.add_column("dag_run", sa.Column("conf_pickle", conf_type, nullable=True))
 
     if context.is_offline_mode():
-        # Update the dag_run.conf column value to NULL
         print(
             dedent("""
             ------------
