@@ -34,7 +34,9 @@ export type ParamSchema = {
   examples: Array<string> | null;
   format: string | null;
   items: Record<string, unknown> | null;
+  maximum: number | null;
   maxLength: number | null;
+  minimum: number | null;
   minLength: number | null;
   title: string | null;
   type: Array<string> | string | null;

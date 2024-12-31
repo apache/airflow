@@ -205,7 +205,7 @@ with (
             [schema description (string)](https://json-schema.org/understanding-json-schema/reference/string.html)
             for more details""",
                 minLength=10,
-                maxLength=20,
+                maxLength=30,
                 section="JSON Schema validation options",
             ),
             "checked_number": Param(

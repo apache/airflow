@@ -16,30 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Input } from "@chakra-ui/react";
-
 import type { FlexibleFormElementProps } from ".";
+import { NumberInputField, NumberInputRoot } from "../ui/NumberInput";
 
-export const FlexibleFormFieldString = ({ name, param }: FlexibleFormElementProps) => (
-  <>
-    <Input
-      defaultValue={param.value as string}
-      id={`element_${name}`}
-      list={param.schema.examples ? `list_${name}` : undefined}
-      maxLength={param.schema.maxLength ?? undefined}
-      minLength={param.schema.minLength ?? undefined}
-      name={`element_${name}`}
-      placeholder={param.schema.examples ? "Start typing to see proposal values." : undefined}
-      size="sm"
-    />
-    {param.schema.examples ? (
-      <datalist id={`list_${name}`}>
-        {param.schema.examples.map((example) => (
-          <option key={example} value={example}>
-            {example}
-          </option>
-        ))}
-      </datalist>
-    ) : undefined}
-  </>
+export const isFieldNumber = (fieldType: string) => {
+  const numberTypes = ["integer", "number"];
+
+  return numberTypes.includes(fieldType);
+};
+
+export const FlexibleFormFieldNumber = ({ name, param }: FlexibleFormElementProps) => (
+  <NumberInputRoot
+    allowMouseWheel
+    defaultValue={param.value as string}
+    id={`element_${name}`}
+    max={param.schema.maximum ?? undefined}
+    min={param.schema.minimum ?? undefined}
+    name={`element_${name}`}
+    size="sm"
+  >
+    <NumberInputField />
+  </NumberInputRoot>
 );
