@@ -16,29 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
-import { FiTrash } from "react-icons/fi";
+import { FileUpload as ChakraFileUpload } from "@chakra-ui/react";
 
-import ActionButton from "src/components/ui/ActionButton";
+import { Dropzone } from "./Dropzone";
+import { FileInput } from "./FileInput";
+import { Item } from "./Item";
+import { List } from "./List";
+import { Root } from "./Root";
 
-type Props = {
-  readonly deleteKey: string;
+export const FileUpload = {
+  ...ChakraFileUpload,
+  Dropzone,
+  FileInput,
+  Item,
+  List,
+  Root,
 };
-
-const DeleteVariableButton = ({ deleteKey }: Props) => (
-  <Box>
-    <ActionButton
-      actionName="Delete Variable"
-      icon={<FiTrash />}
-      onClick={() =>
-        // TODO: Will be removed once implemented
-        // eslint-disable-next-line no-alert
-        alert(`To be implemented: Selected key is ${deleteKey}`)
-      }
-      text="Delete Variable"
-      withText={false}
-    />
-  </Box>
-);
-
-export default DeleteVariableButton;

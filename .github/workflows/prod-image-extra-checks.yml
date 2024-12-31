@@ -40,9 +40,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uv to build the image (true/false)"
         required: true
         type: string
-      image-tag:
-        required: true
-        type: string
       build-provider-packages:
         description: "Whether to build provider packages (true/false). If false providers are from PyPI"
         required: true
@@ -73,8 +70,8 @@ jobs:
     with:
       runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
       build-type: "MySQL Client"
+      upload-image-artifact: "false"
       upload-package-artifact: "false"
-      image-tag: mysql-${{ inputs.image-tag }}
       install-mysql-client-type: "mysql"
       python-versions: ${{ inputs.python-versions }}
       default-python-version: ${{ inputs.default-python-version }}
@@ -97,8 +94,8 @@ jobs:
     with:
       runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
       build-type: "pip"
+      upload-image-artifact: "false"
       upload-package-artifact: "false"
-      image-tag: mysql-${{ inputs.image-tag }}
       install-mysql-client-type: "mysql"
       python-versions: ${{ inputs.python-versions }}
       default-python-version: ${{ inputs.default-python-version }}

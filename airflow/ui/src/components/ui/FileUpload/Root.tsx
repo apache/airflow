@@ -16,29 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
-import { FiEdit } from "react-icons/fi";
+import { FileUpload as ChakraFileUpload } from "@chakra-ui/react";
+import { forwardRef } from "react";
 
-import ActionButton from "src/components/ui/ActionButton";
+export type FileUploadRootProps = {
+  inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
+} & ChakraFileUpload.RootProps;
 
-type Props = {
-  readonly editKey: string;
-};
+export const Root = forwardRef<HTMLInputElement, FileUploadRootProps>(
+  (props, ref) => {
+    const { children, inputProps, ...rest } = props;
 
-const EditVariableButton = ({ editKey }: Props) => (
-  <Box>
-    <ActionButton
-      actionName="Edit Variable"
-      icon={<FiEdit />}
-      onClick={() =>
-        // TODO: Will be removed once implemented
-        // eslint-disable-next-line no-alert
-        alert(`To be implemented: Selected key is ${editKey}`)
-      }
-      text="Edit Variable"
-      withText={false}
-    />
-  </Box>
+    return (
+      <ChakraFileUpload.Root {...rest}>
+        <ChakraFileUpload.HiddenInput ref={ref} {...inputProps} />
+        {children}
+      </ChakraFileUpload.Root>
+    );
+  },
 );
-
-export default EditVariableButton;

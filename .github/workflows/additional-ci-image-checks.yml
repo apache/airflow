@@ -32,10 +32,6 @@ on:  # yamllint disable-line rule:truthy
         description: "The array of labels (in json form) determining self-hosted runners."
         required: true
         type: string
-      image-tag:
-        description: "Tag to set for the image"
-        required: true
-        type: string
       python-versions:
         description: "The list of python versions (stringified JSON array) to run the tests on."
         required: true
@@ -103,8 +99,6 @@ jobs:
       contents: read
       # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
-      # For regular build for PRS this "build-prod-images" workflow will be skipped anyway by the
-      # "in-workflow-build" condition
       packages: write
     secrets: inherit
     with:
@@ -159,7 +153,7 @@ jobs:
 #  # There is no point in running this one in "canary" run, because the above step is doing the
 #  # same build anyway.
 #  build-ci-arm-images:
-#    name: Build CI ARM images (in-workflow)
+#    name: Build CI ARM images
 #    uses: ./.github/workflows/ci-image-build.yml
 #    permissions:
 #      contents: read
@@ -169,7 +163,6 @@ jobs:
 #      push-image: "false"
 #      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
 #      runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
-#      image-tag: ${{ inputs.image-tag }}
 #      python-versions: ${{ inputs.python-versions }}
 #      platform: "linux/arm64"
 #      branch: ${{ inputs.branch }}
