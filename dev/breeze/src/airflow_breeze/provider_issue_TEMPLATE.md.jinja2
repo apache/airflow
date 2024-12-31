@@ -5,9 +5,9 @@ The guidelines on how to test providers can be found in
 
 [Verify providers by contributors](https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDER_PACKAGES.md#verify-the-release-candidate-by-contributors)
 
-Let us know in the comment, whether the issue is addressed.
+Let us know in the comments, whether the issue is addressed.
 
-Those are providers that require testing as there were some substantial changes introduced:
+These are providers that require testing as there were some substantial changes introduced:
 
 {% for provider_id, provider_info in providers.items()  %}
 ## Provider [{{ provider_id }}: {{ provider_info.version }}{{ provider_info.suffix }}](https://pypi.org/project/{{ provider_info.pypi_package_name }}/{{ provider_info.version }}{{ provider_info.suffix }})
