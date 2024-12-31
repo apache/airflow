@@ -95,33 +95,31 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
         }}
         required
       >
-        <VStack align="flex-start" gap={2} w="full">
-          <FileUpload.Label fontSize="md" mb={2}>
-            Upload a JSON File{" "}
-          </FileUpload.Label>
-          <InputGroup
-            endElement={
-              <FileUpload.ClearTrigger asChild>
-                <CloseButton
-                  color="fg.subtle"
-                  focusRingWidth="2px"
-                  focusVisibleRing="inside"
-                  me="-1"
-                  onClick={() => {
-                    setSelectedFile(undefined);
-                  }}
-                  pointerEvents="auto"
-                  size="xs"
-                  variant="plain"
-                />
-              </FileUpload.ClearTrigger>
-            }
-            startElement={<LuFileUp />}
-            w="full"
-          >
-            <FileInput placeholder='Upload a JSON file containing variables (e.g., {"key": "value", ...})' />
-          </InputGroup>
-        </VStack>
+        <FileUpload.Label fontSize="md" mb={3}>
+          Upload a JSON File{" "}
+        </FileUpload.Label>
+        <InputGroup
+          endElement={
+            <FileUpload.ClearTrigger asChild>
+              <CloseButton
+                color="fg.subtle"
+                focusRingWidth="2px"
+                focusVisibleRing="inside"
+                me="-1"
+                onClick={() => {
+                  setSelectedFile(undefined);
+                }}
+                pointerEvents="auto"
+                size="xs"
+                variant="plain"
+              />
+            </FileUpload.ClearTrigger>
+          }
+          startElement={<LuFileUp />}
+          w="full"
+        >
+          <FileInput placeholder='Upload a JSON file containing variables (e.g., {"key": "value", ...})' />
+        </InputGroup>
       </FileUpload.Root>
       <RadioCardRoot
         defaultValue="fail"
@@ -132,7 +130,7 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
           setActionIfExists(target.value as "fail" | "overwrite" | "skip");
         }}
       >
-        <RadioCardLabel fontSize="md" mb={2}>
+        <RadioCardLabel fontSize="md" mb={3}>
           Select Variable Conflict Resolution
         </RadioCardLabel>
         <HStack align="stretch">
