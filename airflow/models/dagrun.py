@@ -42,6 +42,7 @@ from sqlalchemy import (
     not_,
     or_,
     text,
+    tuple_,
     update,
 )
 from sqlalchemy.dialects import postgresql
@@ -75,7 +76,7 @@ from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, tuple_in_condition, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, DagRunTriggeredByType, DagRunType
 
@@ -902,15 +903,11 @@ class DagRun(Base, LoggingMixin):
             if execute_callbacks:
                 dag.handle_callback(self, success=False, reason="task_failure", session=session)
             elif dag.has_on_failure_callback:
-                from airflow.models.dag import DagModel
-
-                dag_model = DagModel.get_dagmodel(dag.dag_id, session)
                 callback = DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
                     run_id=self.run_id,
                     is_failure_callback=True,
-                    processor_subdir=None if dag_model is None else dag_model.processor_subdir,
                     msg="task_failure",
                 )
 
@@ -933,15 +930,11 @@ class DagRun(Base, LoggingMixin):
             if execute_callbacks:
                 dag.handle_callback(self, success=True, reason="success", session=session)
             elif dag.has_on_success_callback:
-                from airflow.models.dag import DagModel
-
-                dag_model = DagModel.get_dagmodel(dag.dag_id, session)
                 callback = DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
                     run_id=self.run_id,
                     is_failure_callback=False,
-                    processor_subdir=None if dag_model is None else dag_model.processor_subdir,
                     msg="success",
                 )
 
@@ -954,15 +947,11 @@ class DagRun(Base, LoggingMixin):
             if execute_callbacks:
                 dag.handle_callback(self, success=False, reason="all_tasks_deadlocked", session=session)
             elif dag.has_on_failure_callback:
-                from airflow.models.dag import DagModel
-
-                dag_model = DagModel.get_dagmodel(dag.dag_id, session)
                 callback = DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
                     run_id=self.run_id,
                     is_failure_callback=True,
-                    processor_subdir=None if dag_model is None else dag_model.processor_subdir,
                     msg="all_tasks_deadlocked",
                 )
 
@@ -1657,7 +1646,7 @@ class DagRun(Base, LoggingMixin):
                     .where(
                         TI.dag_id == self.dag_id,
                         TI.run_id == self.run_id,
-                        tuple_in_condition((TI.task_id, TI.map_index), schedulable_ti_ids_chunk),
+                        tuple_(TI.task_id, TI.map_index).in_(schedulable_ti_ids_chunk),
                     )
                     .values(
                         state=TaskInstanceState.SCHEDULED,
@@ -1681,7 +1670,7 @@ class DagRun(Base, LoggingMixin):
                     .where(
                         TI.dag_id == self.dag_id,
                         TI.run_id == self.run_id,
-                        tuple_in_condition((TI.task_id, TI.map_index), dummy_ti_ids_chunk),
+                        tuple_(TI.task_id, TI.map_index).in_(dummy_ti_ids_chunk),
                     )
                     .values(
                         state=TaskInstanceState.SUCCESS,

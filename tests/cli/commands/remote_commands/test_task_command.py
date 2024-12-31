@@ -496,6 +496,8 @@ class TestCliTasks:
                 mock.patch(
                     "airflow.executors.executor_loader.ExecutorLoader.get_default_executor"
                 ) as get_default_mock,
+                mock.patch("airflow.executors.local_executor.SimpleQueue"),  # Prevent a task being queued
+                mock.patch("airflow.executors.local_executor.LocalExecutor.end"),
             ):
                 EmptyOperator(task_id="task1")
                 EmptyOperator(task_id="task2", executor="foo_executor_alias")
