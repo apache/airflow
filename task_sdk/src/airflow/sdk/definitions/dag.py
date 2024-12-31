@@ -347,7 +347,7 @@ class DAG:
         e.g: {"dag_owner": "https://airflow.apache.org/"}
     :param auto_register: Automatically register this DAG when it is used in a ``with`` block
     :param fail_fast: Fails currently running tasks when task in DAG fails.
-        **Warning**: DAG property "fail_stop" is DEPRECATED instead use "fail_fast" & dag can only have tasks with the default trigger rule ("all_success").
+        **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
         An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
     :param dag_display_name: The display name of the DAG which appears on the UI.
     """
@@ -497,8 +497,7 @@ class DAG:
         elif isinstance(schedule, Collection) and not isinstance(schedule, str):
             if not all(isinstance(x, BaseAsset) for x in schedule):
                 raise ValueError(
-                    "All elements in 'schedule' should be either assets, "
-                    "asset references, or asset aliases"
+                    "All elements in 'schedule' should be either assets, asset references, or asset aliases"
                 )
             return AssetTriggeredTimetable(AssetAll(*schedule))
         else:
