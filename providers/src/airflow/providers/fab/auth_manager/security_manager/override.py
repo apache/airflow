@@ -572,6 +572,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     session_details = interface.serializer.loads(want_bytes(s.data))
                     if session_details.get("_user_id") == user.id:
                         session.delete(s)
+                session.commit()
         else:
             self._cli_safe_flash(
                 "Since you are using `securecookie` session backend mechanism, we cannot prevent "

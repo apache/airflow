@@ -30,7 +30,7 @@ from termcolor import colored
 from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
 from airflow.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.auth.managers.simple.views.auth import SimpleAuthManagerAuthenticationViews
-from airflow.configuration import AIRFLOW_HOME
+from airflow.configuration import AIRFLOW_HOME, conf
 
 if TYPE_CHECKING:
     from airflow.auth.managers.models.resource_details import (
@@ -43,6 +43,7 @@ if TYPE_CHECKING:
         PoolDetails,
         VariableDetails,
     )
+    from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 
 
 class SimpleAuthManagerRole(namedtuple("SimpleAuthManagerRole", "name order"), Enum):
@@ -73,12 +74,13 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
     Default auth manager used in Airflow. This auth manager should not be used in production.
     This auth manager is very basic and only intended for development and testing purposes.
-
-    :param appbuilder: the flask app builder
     """
 
     # Cache containing the password associated to a username
     passwords: dict[str, str] = {}
+
+    # TODO: Needs to be deleted when Airflow 2 legacy UI is gone
+    appbuilder: AirflowAppBuilder | None = None
 
     @staticmethod
     def get_generated_password_file() -> str:
@@ -87,9 +89,12 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             "simple_auth_manager_passwords.json.generated",
         )
 
+    @staticmethod
+    def get_users() -> list[dict[str, str]]:
+        users = [u.split(":") for u in conf.getlist("core", "simple_auth_manager_users")]
+        return [{"username": username, "role": role} for username, role in users]
+
     def init(self) -> None:
-        if not self.appbuilder:
-            return
         user_passwords_from_file = {}
 
         # Read passwords from file
@@ -98,7 +103,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
                 passwords_str = file.read().strip()
                 user_passwords_from_file = json.loads(passwords_str)
 
-        users = self.appbuilder.get_app.config.get("SIMPLE_AUTH_MANAGER_USERS", [])
+        users = self.get_users()
         usernames = {user["username"] for user in users}
         self.passwords = {
             username: password
@@ -116,10 +121,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             file.write(json.dumps(self.passwords))
 
     def is_logged_in(self) -> bool:
-        return "user" in session or (
-            self.appbuilder is not None
-            and self.appbuilder.get_app.config.get("SIMPLE_AUTH_MANAGER_ALL_ADMINS", False)
-        )
+        return "user" in session or conf.getboolean("core", "simple_auth_manager_all_admins")
 
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
@@ -131,7 +133,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
     def get_user(self) -> SimpleAuthManagerUser | None:
         if not self.is_logged_in():
             return None
-        if self.appbuilder and self.appbuilder.get_app.config.get("SIMPLE_AUTH_MANAGER_ALL_ADMINS", False):
+        if conf.getboolean("core", "simple_auth_manager_all_admins"):
             return SimpleAuthManagerUser(username="anonymous", role="admin")
         else:
             return session["user"]
@@ -227,7 +229,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             return
         self.appbuilder.add_view_no_menu(
             SimpleAuthManagerAuthenticationViews(
-                users=self.appbuilder.get_app.config.get("SIMPLE_AUTH_MANAGER_USERS", []),
+                users=self.get_users(),
                 passwords=self.passwords,
             )
         )

@@ -24,12 +24,12 @@ on:  # yamllint disable-line rule:truthy
         description: "The array of labels (in json form) determining default runner used for the build."
         required: true
         type: string
-      test-groups:
-        description: "The json representing list of test test groups to run"
+      default-branch:
+        description: "The default branch for the repository"
         required: true
         type: string
-      image-tag:
-        description: "Tag to set for the image"
+      test-groups:
+        description: "The json representing list of test test groups to run"
         required: true
         type: string
       core-test-types-list-as-string:
@@ -92,7 +92,6 @@ jobs:
       test-scope: "DB"
       test-groups: ${{ inputs.test-groups }}
       backend: "postgres"
-      image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
@@ -116,7 +115,6 @@ jobs:
       test-scope: "All"
       test-groups: ${{ inputs.test-groups }}
       backend: "postgres"
-      image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
@@ -141,7 +139,6 @@ jobs:
       test-scope: "All"
       test-groups: ${{ inputs.test-groups }}
       backend: "postgres"
-      image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
@@ -165,7 +162,6 @@ jobs:
       test-scope: "Quarantined"
       test-groups: ${{ inputs.test-groups }}
       backend: "postgres"
-      image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
@@ -189,7 +185,6 @@ jobs:
       test-scope: "ARM collection"
       test-groups: ${{ inputs.test-groups }}
       backend: "postgres"
-      image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
@@ -199,6 +194,7 @@ jobs:
       include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
+    if: ${{ inputs.default-branch == 'main' }}
 
   tests-system:
     name: "System test: ${{ matrix.test-group }}"
@@ -213,7 +209,6 @@ jobs:
       test-scope: "System"
       test-groups: ${{ inputs.test-groups }}
       backend: "postgres"
-      image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
