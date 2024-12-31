@@ -22,13 +22,12 @@ import type { ParamSchema } from "src/queries/useDagParams";
 
 import type { FlexibleFormElementProps } from ".";
 
-export const isFieldStringArray = (fieldType: string, fieldSchema: ParamSchema) =>
-  fieldType === "array" &&
-  (!fieldSchema.items || fieldSchema.items.type === undefined || fieldSchema.items.type === "string");
+export const isFieldMultilineText = (fieldType: string, fieldSchema: ParamSchema) =>
+  fieldType === "string" && fieldSchema.format === "multiline";
 
-export const FlexibleFormFieldStringArray = ({ name, param }: FlexibleFormElementProps) => (
+export const FlexibleFormFieldMultilineText = ({ name, param }: FlexibleFormElementProps) => (
   <Textarea
-    defaultValue={(param.value as Array<string>).join("\n")}
+    defaultValue={param.value as string}
     id={`element_${name}`}
     name={`element_${name}`}
     rows={6}

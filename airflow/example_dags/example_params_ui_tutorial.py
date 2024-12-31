@@ -169,6 +169,7 @@ with (
             "multiline_text": Param(
                 "A multiline text Param\nthat will keep the newline\ncharacters in its value.",
                 description="This field allows for multiline text input. The returned value will be a single with newline (\\n) characters kept intact.",
+                title="Multiline text",
                 type=["string", "null"],
                 format="multiline",
             ),

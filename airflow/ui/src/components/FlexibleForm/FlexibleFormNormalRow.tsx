@@ -29,6 +29,7 @@ import { FlexibleFormFieldDate, isFieldDate } from "./FlexibleFormFieldDate";
 import { FlexibleFormFieldDateTime, isFieldDateTime } from "./FlexibleFormFieldDateTime";
 import { FlexibleFormFieldDropdown, isFieldDropdown } from "./FlexibleFormFieldDropdown";
 import { FlexibleFormFieldMultiSelect, isFieldMultiSelect } from "./FlexibleFormFieldMultiSelect";
+import { FlexibleFormFieldMultilineText, isFieldMultilineText } from "./FlexibleFormFieldMultilineText";
 import { FlexibleFormFieldNumber, isFieldNumber } from "./FlexibleFormFieldNumber";
 import { FlexibleFormFieldObject, isFieldObject } from "./FlexibleFormFieldObject";
 import { FlexibleFormFieldString } from "./FlexibleFormFieldString";
@@ -84,11 +85,9 @@ export const FlexibleFormSelectElement = ({ key, name, param }: FlexibleFormElem
     return <FlexibleFormFieldObject key={key} name={name} param={param} />;
   } else if (isFieldNumber(fieldType)) {
     return <FlexibleFormFieldNumber key={key} name={name} param={param} />;
+  } else if (isFieldMultilineText(fieldType, param.schema)) {
+    return <FlexibleFormFieldMultilineText key={key} name={name} param={param} />;
   } else {
-    // TODO other elements like number, integer, select etc.
-    // Missing:
-    // - Multiline Text
-    // see airflow/www/templates/airflow/trigger.html for logic in Airflow 2
     return <FlexibleFormFieldString key={key} name={name} param={param} />;
   }
 };
