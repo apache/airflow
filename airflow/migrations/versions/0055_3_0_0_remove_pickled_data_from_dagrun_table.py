@@ -61,8 +61,6 @@ def upgrade():
             ------------
             """)
         )
-
-        conn.execute(text("UPDATE dag_run set conf=null WHERE conf IS NOT NULL"))
     else:
         BATCH_SIZE = 2
         offset = 0
@@ -82,7 +80,7 @@ def upgrade():
                     json_data = json.dumps(original_data)
                     conn.execute(text(f"UPDATE dag_run SET conf_json ='{json_data}' WHERE id = {row_id}"))
                 except Exception as e:
-                    print(f"Error processing row ID {row_id}: {e}")
+                    print(f"Error converting dagrun conf to json for dagrun ID {row_id}: {e}")
                     continue
             offset += BATCH_SIZE
 

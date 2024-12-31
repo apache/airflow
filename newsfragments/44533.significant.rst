@@ -1,4 +1,4 @@
-Update conf column in dag_run table type from byte ( that store a python pickle ) to JSON
+Update conf column in dag_run table type from byte ( that store a python pickle ) to JSON. It is important to note that existing dagrun records will lose their conf data if an offline migration is performed
 
 .. Provide additional contextual information
 
