@@ -527,7 +527,7 @@ class TestDagRun:
             schedule=datetime.timedelta(days=1),
             start_date=datetime.datetime(2017, 1, 1),
         )
-        DAG.bulk_write_to_db(dags=[dag], processor_subdir="/tmp/test", session=session)
+        DAG.bulk_write_to_db(dags=[dag], session=session)
 
         dag_task1 = EmptyOperator(task_id="test_task1", dag=dag)
         dag_task2 = EmptyOperator(task_id="test_task2", dag=dag)
@@ -563,7 +563,7 @@ class TestDagRun:
             schedule=datetime.timedelta(days=1),
             start_date=datetime.datetime(2017, 1, 1),
         )
-        DAG.bulk_write_to_db(dags=[dag], processor_subdir="/tmp/test", session=session)
+        DAG.bulk_write_to_db(dags=[dag], session=session)
 
         dag_task1 = EmptyOperator(task_id="test_task1", dag=dag)
         dag_task2 = EmptyOperator(task_id="test_task2", dag=dag)
@@ -608,7 +608,7 @@ class TestDagRun:
             schedule=datetime.timedelta(days=1),
             start_date=datetime.datetime(2017, 1, 1),
         )
-        DAG.bulk_write_to_db(dags=[dag], processor_subdir="/tmp/test", session=session)
+        DAG.bulk_write_to_db(dags=[dag], session=session)
 
         dag_task1 = EmptyOperator(task_id="test_task1", dag=dag)
         dag_task2 = EmptyOperator(task_id="test_task2", dag=dag)
@@ -648,7 +648,7 @@ class TestDagRun:
             schedule=datetime.timedelta(days=1),
             start_date=datetime.datetime(2017, 1, 1),
         )
-        DAG.bulk_write_to_db(dags=[dag], processor_subdir="/tmp/test", session=session)
+        DAG.bulk_write_to_db(dags=[dag], session=session)
 
         dag_task1 = EmptyOperator(task_id="test_task1", dag=dag)
         dag_task2 = EmptyOperator(task_id="test_task2", dag=dag)
