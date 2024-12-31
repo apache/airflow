@@ -52,7 +52,7 @@ def fastapi_api(args):
 
     if args.debug:
         print(f"Starting the FastAPI API server on port {args.port} and host {args.hostname} debug.")
-        log.warning("Running in dev mode, ignoring gunicorn args")
+        log.warning("Running in dev mode, ignoring uvicorn args")
 
         run_args = [
             "fastapi",
