@@ -23,11 +23,6 @@ import { Button, Dialog } from "src/components/ui";
 
 import ImportVariablesForm from "./ImportVariablesForm";
 
-export type ImpotRequestBody = {
-  action_if_exist: string;
-  file: File | undefined;
-};
-
 const ImportVariablesButton = () => {
   const { onClose, onOpen, open } = useDisclosure();
 

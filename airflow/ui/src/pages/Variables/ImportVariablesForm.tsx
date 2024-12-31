@@ -32,7 +32,7 @@ import {
 } from "src/components/ui/RadioCard";
 import { useImportVariables } from "src/queries/useImportVariables";
 
-type ImportVariableFormProps = {
+type ImportVariablesFormProps = {
   readonly onClose: () => void;
 };
 
@@ -54,7 +54,7 @@ const actionIfExistsOptions = [
   },
 ];
 
-const ImportVariablesForm = ({ onClose }: ImportVariableFormProps) => {
+const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
   const { error, isPending, mutate, setError } = useImportVariables({
     onSuccessConfirm: onClose,
   });
