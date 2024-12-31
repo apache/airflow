@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-29T21:08:07.755546
+# This constraints file was automatically generated on 2024-12-31T20:24:31.612757
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -43,7 +43,7 @@ amqp==5.3.1
 annotated-types==0.7.0
 anyio==4.5.2
 apispec==6.6.1
-argcomplete==3.5.2
+argcomplete==3.5.3
 asgiref==3.8.1
 async-timeout==5.0.1
 atlasclient==1.0.0
