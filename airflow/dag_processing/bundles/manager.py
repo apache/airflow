@@ -20,6 +20,7 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException
 from airflow.models.dagbundle import DagBundleModel
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
@@ -47,6 +48,11 @@ class DagBundlesManager(LoggingMixin):
         if not configured_bundles:
             return
 
+        if not isinstance(configured_bundles, list):
+            raise AirflowConfigException(
+                "Bundle config is not a list. Check config value"
+                " for section `dag_bundles` and key `backends`."
+            )
         seen = set()
         for cfg in configured_bundles:
             name = cfg["name"]
@@ -60,7 +66,7 @@ class DagBundlesManager(LoggingMixin):
             _bundle_config[name] = (class_, kwargs)
 
         # remove obsolete bundle configs
-        for name, cfg in _bundle_config.items():
+        for name in list(_bundle_config.keys()):
             if name not in seen:
                 _bundle_config.pop(name)
 
