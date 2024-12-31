@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Center, HStack, Spinner, VStack } from "@chakra-ui/react";
+import { Box, Center, HStack, Spinner } from "@chakra-ui/react";
 import { useState } from "react";
 import { FiUploadCloud } from "react-icons/fi";
 import { LuFileUp } from "react-icons/lu";
