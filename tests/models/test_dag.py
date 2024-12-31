@@ -2214,6 +2214,34 @@ class TestDagModel:
         dag_models = query.all()
         assert dag_models == [dag_model]
 
+    @pytest.mark.parametrize("ref", [Asset.ref(name="1"), Asset.ref(uri="s3://bucket/assets/1")])
+    @pytest.mark.want_activate_assets
+    @pytest.mark.need_serialized_dag
+    def test_dags_needing_dagruns_asset_refs(self, dag_maker, session, ref):
+        asset = Asset(name="1", uri="s3://bucket/assets/1")
+
+        with dag_maker(dag_id="producer", schedule=None, session=session):
+            op = EmptyOperator(task_id="op", outlets=asset)
+
+        dr: DagRun = dag_maker.create_dagrun()
+
+        with dag_maker(dag_id="consumer", schedule=ref, max_active_runs=1):
+            pass
+
+        # Nothing from the upstream yet, no runs needed.
+        assert session.scalars(select(AssetDagRunQueue.target_dag_id)).all() == []
+        query, _ = DagModel.dags_needing_dagruns(session)
+        assert query.all() == []
+
+        # Upstream triggered, now we need a run.
+        ti = dr.get_task_instance("op")
+        ti.refresh_from_task(op)
+        ti.run()
+
+        assert session.scalars(select(AssetDagRunQueue.target_dag_id)).all() == ["consumer"]
+        query, _ = DagModel.dags_needing_dagruns(session)
+        assert [dm.dag_id for dm in query] == ["consumer"]
+
     def test_max_active_runs_not_none(self):
         dag = DAG(
             dag_id="test_max_active_runs_not_none",

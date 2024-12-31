@@ -150,6 +150,13 @@ def test_not_equal_when_different_uri():
     assert asset1 != asset2
 
 
+asset1 = Asset(uri="s3://bucket1/data1", name="asset-1")
+asset2 = Asset(uri="s3://bucket2/data2", name="asset-2")
+asset3 = Asset(uri="s3://bucket3/data3", name="asset-3")
+asset4 = Asset(uri="s3://bucket4/data4", name="asset-4")
+asset5 = Asset(uri="s3://bucket5/data5", name="asset-5")
+
+
 def test_asset_logic_operations():
     result_or = asset1 | asset2
     assert isinstance(result_or, AssetAny)
@@ -178,9 +185,16 @@ def test_asset_iter_asset_aliases():
     ]
 
 
-def test_asset_evaluate():
-    assert asset1.evaluate({"s3://bucket1/data1": True}) is True
-    assert asset1.evaluate({"s3://bucket1/data1": False}) is False
+@pytest.mark.parametrize(
+    "statuses, result",
+    [
+        ({AssetUniqueKey.from_asset(asset1): True}, True),
+        ({AssetUniqueKey.from_asset(asset1): False}, False),
+        ({}, False),
+    ],
+)
+def test_asset_evaluate(statuses, result):
+    assert asset1.evaluate(statuses) is result
 
 
 def test_asset_any_operations():
@@ -198,25 +212,29 @@ def test_asset_all_operations():
     assert isinstance(result_and, AssetAll)
 
 
-def test_assset_boolean_condition_evaluate_iter():
+@pytest.mark.parametrize(
+    "condition, statuses, result",
+    [
+        (
+            AssetAny(asset1, asset2),
+            {AssetUniqueKey.from_asset(asset1): False, AssetUniqueKey.from_asset(asset2): True},
+            True,
+        ),
+        (
+            AssetAll(asset1, asset2),
+            {AssetUniqueKey.from_asset(asset1): True, AssetUniqueKey.from_asset(asset2): False},
+            False,
+        ),
+    ],
+)
+def test_assset_boolean_condition_evaluate_iter(condition, statuses, result):
     """
     Tests _AssetBooleanCondition's evaluate and iter_assets methods through AssetAny and AssetAll.
     Ensures AssetAny evaluate returns True with any true condition, AssetAll evaluate returns False if
     any condition is false, and both classes correctly iterate over assets without duplication.
     """
-    any_condition = AssetAny(asset1, asset2)
-    all_condition = AssetAll(asset1, asset2)
-    assert any_condition.evaluate({"s3://bucket1/data1": False, "s3://bucket2/data2": True}) is True
-    assert all_condition.evaluate({"s3://bucket1/data1": True, "s3://bucket2/data2": False}) is False
-
-    # Testing iter_assets indirectly through the subclasses
-    assets_any = dict(any_condition.iter_assets())
-    assets_all = dict(all_condition.iter_assets())
-    assert assets_any == {
-        AssetUniqueKey("asset-1", "s3://bucket1/data1"): asset1,
-        AssetUniqueKey("asset-2", "s3://bucket2/data2"): asset2,
-    }
-    assert assets_all == {
+    assert condition.evaluate(statuses) is result
+    assert dict(condition.iter_assets()) == {
         AssetUniqueKey("asset-1", "s3://bucket1/data1"): asset1,
         AssetUniqueKey("asset-2", "s3://bucket2/data2"): asset2,
     }
@@ -250,7 +268,7 @@ def test_asset_logical_conditions_evaluation_and_serialization(inputs, scenario,
     assets = [Asset(uri=f"s3://abc/{i}", name=f"asset_{i}") for i in range(123, 126)]
     condition = class_(*assets)
 
-    statuses = {asset.uri: status for asset, status in zip(assets, inputs)}
+    statuses = {AssetUniqueKey.from_asset(asset): status for asset, status in zip(assets, inputs)}
     assert (
         condition.evaluate(statuses) == expected
     ), f"Condition evaluation failed for inputs {inputs} and scenario '{scenario}'"
@@ -289,9 +307,9 @@ def test_nested_asset_conditions_with_serialization(status_values, expected_eval
     nested_condition = AssetAll(asset1, AssetAny(asset2, asset3))
 
     statuses = {
-        asset1.uri: status_values[0],
-        asset2.uri: status_values[1],
-        asset3.uri: status_values[2],
+        AssetUniqueKey.from_asset(asset1): status_values[0],
+        AssetUniqueKey.from_asset(asset2): status_values[1],
+        AssetUniqueKey.from_asset(asset3): status_values[2],
     }
 
     assert nested_condition.evaluate(statuses) == expected_evaluation, "Initial evaluation mismatch"
@@ -353,12 +371,6 @@ def assets_equal(a1: BaseAsset, a2: BaseAsset) -> bool:
 
     return False
 
-
-asset1 = Asset(uri="s3://bucket1/data1", name="asset-1")
-asset2 = Asset(uri="s3://bucket2/data2", name="asset-2")
-asset3 = Asset(uri="s3://bucket3/data3", name="asset-3")
-asset4 = Asset(uri="s3://bucket4/data4", name="asset-4")
-asset5 = Asset(uri="s3://bucket5/data5", name="asset-5")
 
 test_cases = [
     (lambda: asset1, asset1),
@@ -513,11 +525,11 @@ class TestAssetAlias:
         assert alias.as_expression() == {"alias": {"name": alias.name, "group": alias.group}}
 
     def test_evalute_empty(self, asset_alias_1, asset):
-        assert asset_alias_1.evaluate({asset.uri: True}) is False
+        assert asset_alias_1.evaluate({AssetUniqueKey.from_asset(asset): True}) is False
         assert asset_alias_1._resolve_assets.mock_calls == [mock.call(None)]
 
     def test_evalute_resolved(self, resolved_asset_alias_2, asset):
-        assert resolved_asset_alias_2.evaluate({asset.uri: True}) is True
+        assert resolved_asset_alias_2.evaluate({AssetUniqueKey.from_asset(asset): True}) is True
         assert resolved_asset_alias_2._resolve_assets.mock_calls == [mock.call(None)]
 
 

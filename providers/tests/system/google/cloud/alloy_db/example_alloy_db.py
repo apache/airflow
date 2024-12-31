@@ -26,8 +26,11 @@ from datetime import datetime
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.alloy_db import (
     AlloyDBCreateClusterOperator,
+    AlloyDBCreateInstanceOperator,
     AlloyDBDeleteClusterOperator,
+    AlloyDBDeleteInstanceOperator,
     AlloyDBUpdateClusterOperator,
+    AlloyDBUpdateInstanceOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -61,6 +64,16 @@ SECONDARY_CLUSTER = {
         "primary_cluster_name": f"projects/{GCP_PROJECT_ID}/locations/{GCP_LOCATION}/clusters/{CLUSTER_ID}",
     },
 }
+INSTANCE_ID = f"instance-{DAG_ID}-{ENV_ID}".replace("_", "-")
+INSTANCE = {
+    "instance_type": "PRIMARY",
+}
+INSTANCE_UPDATE = {"labels": {"label_test": "test_value"}}
+INSTANCE_UPDATE_MASK = {"paths": ["labels"]}
+SECONDARY_INSTANCE = {
+    "instance_type": "SECONDARY",
+}
+SECONDARY_INSTANCE_ID = f"instance-secondary-{DAG_ID}-{ENV_ID}".replace("_", "-")
 
 with DAG(
     DAG_ID,
@@ -91,6 +104,30 @@ with DAG(
     )
     # [END howto_operator_alloy_db_update_cluster]
 
+    # [START howto_operator_alloy_db_create_instance]
+    create_instance = AlloyDBCreateInstanceOperator(
+        task_id="create_instance",
+        cluster_id=CLUSTER_ID,
+        instance_id=INSTANCE_ID,
+        instance_configuration=INSTANCE,
+        is_secondary=False,
+        project_id=GCP_PROJECT_ID,
+        location=GCP_LOCATION,
+    )
+    # [END howto_operator_alloy_db_create_instance]
+
+    # [START howto_operator_alloy_db_update_instance]
+    update_instance = AlloyDBUpdateInstanceOperator(
+        task_id="update_instance",
+        cluster_id=CLUSTER_ID,
+        instance_id=INSTANCE_ID,
+        instance_configuration=INSTANCE_UPDATE,
+        update_mask=INSTANCE_UPDATE_MASK,
+        location=GCP_LOCATION,
+        project_id=GCP_PROJECT_ID,
+    )
+    # [END howto_operator_alloy_db_update_instance]
+
     create_secondary_cluster = AlloyDBCreateClusterOperator(
         task_id="create_secondary_cluster",
         cluster_id=SECONDARY_CLUSTER_ID,
@@ -100,12 +137,34 @@ with DAG(
         project_id=GCP_PROJECT_ID,
     )
 
+    create_secondary_instance = AlloyDBCreateInstanceOperator(
+        task_id="create_secondary_instance",
+        cluster_id=SECONDARY_CLUSTER_ID,
+        instance_id=SECONDARY_INSTANCE_ID,
+        instance_configuration=SECONDARY_INSTANCE,
+        is_secondary=True,
+        project_id=GCP_PROJECT_ID,
+        location=GCP_LOCATION_SECONDARY,
+    )
+
+    # [START howto_operator_alloy_db_delete_instance]
+    delete_instance = AlloyDBDeleteInstanceOperator(
+        task_id="delete_instance",
+        cluster_id=CLUSTER_ID,
+        instance_id=INSTANCE_ID,
+        project_id=GCP_PROJECT_ID,
+        location=GCP_LOCATION,
+    )
+    # [END howto_operator_alloy_db_delete_instance]
+    delete_instance.trigger_rule = TriggerRule.ALL_DONE
+
     delete_secondary_cluster = AlloyDBDeleteClusterOperator(
         task_id="delete_secondary_cluster",
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION_SECONDARY,
         cluster_id=SECONDARY_CLUSTER_ID,
         trigger_rule=TriggerRule.ALL_DONE,
+        force=True,
     )
 
     # [START howto_operator_alloy_db_delete_cluster]
@@ -116,10 +175,19 @@ with DAG(
         cluster_id=CLUSTER_ID,
     )
     # [END howto_operator_alloy_db_delete_cluster]
-
     delete_cluster.trigger_rule = TriggerRule.ALL_DONE
 
-    create_cluster >> update_cluster >> create_secondary_cluster >> delete_secondary_cluster >> delete_cluster
+    (
+        create_cluster
+        >> update_cluster
+        >> create_instance
+        >> update_instance
+        >> create_secondary_cluster
+        >> create_secondary_instance
+        >> delete_secondary_cluster
+        >> delete_instance
+        >> delete_cluster
+    )
 
     from tests_common.test_utils.watcher import watcher
 

@@ -79,15 +79,9 @@ class TestAirflowTaskDecorator(BasePythonTest):
         "annotation",
         [
             "dict",
-            pytest.param(
-                "dict[str, int]",
-                marks=pytest.mark.skipif(
-                    sys.version_info < (3, 9),
-                    reason="PEP 585 is implemented in Python 3.9",
-                ),
-            ),
-            "typing.Dict",
             "dict[str, int]",
+            "typing.Dict",
+            "typing.Dict[str, int]",
         ],
     )
     def test_infer_multiple_outputs_using_dict_typing(self, resolve, annotation):

@@ -59,6 +59,12 @@ MODULE = "airflow.providers.microsoft.azure.hooks.data_factory"
 # TODO: FIXME: the tests here have tricky issues with typing and need a bit more thought to fix them
 # mypy: disable-error-code="union-attr,call-overload"
 
+pytestmark = pytest.mark.db_test
+
+if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
+    # Handle collection of the test by non-db case
+    Connection = mock.MagicMock()  # type: ignore[misc]
+
 
 @pytest.fixture(autouse=True)
 def setup_connections(create_mock_connections):

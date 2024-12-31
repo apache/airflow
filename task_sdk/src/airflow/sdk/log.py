@@ -109,7 +109,7 @@ class StdBinaryStreamHandler(logging.StreamHandler):
     def emit(self, record: logging.LogRecord):
         try:
             msg = self.format(record)
-            buffer = bytearray(msg, "ascii", "backslashreplace")
+            buffer = bytearray(msg, "utf-8", "backslashreplace")
 
             buffer += b"\n"
 
@@ -202,7 +202,7 @@ def logging_processors(
             return encoder.encode(msg)
 
         def json_processor(logger: Any, method_name: Any, event_dict: EventDict) -> str:
-            return encoder.encode(event_dict).decode("ascii")
+            return encoder.encode(event_dict).decode("utf-8")
 
         json = structlog.processors.JSONRenderer(serializer=json_dumps)
 

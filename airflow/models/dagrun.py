@@ -42,6 +42,7 @@ from sqlalchemy import (
     not_,
     or_,
     text,
+    tuple_,
     update,
 )
 from sqlalchemy.exc import IntegrityError
@@ -74,7 +75,7 @@ from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, tuple_in_condition, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, DagRunTriggeredByType, DagRunType
 
@@ -1644,7 +1645,7 @@ class DagRun(Base, LoggingMixin):
                     .where(
                         TI.dag_id == self.dag_id,
                         TI.run_id == self.run_id,
-                        tuple_in_condition((TI.task_id, TI.map_index), schedulable_ti_ids_chunk),
+                        tuple_(TI.task_id, TI.map_index).in_(schedulable_ti_ids_chunk),
                     )
                     .values(
                         state=TaskInstanceState.SCHEDULED,
@@ -1668,7 +1669,7 @@ class DagRun(Base, LoggingMixin):
                     .where(
                         TI.dag_id == self.dag_id,
                         TI.run_id == self.run_id,
-                        tuple_in_condition((TI.task_id, TI.map_index), dummy_ti_ids_chunk),
+                        tuple_(TI.task_id, TI.map_index).in_(dummy_ti_ids_chunk),
                     )
                     .values(
                         state=TaskInstanceState.SUCCESS,

@@ -35,6 +35,7 @@ class VariableResponse(BaseModel):
     key: str
     val: str | None = Field(alias="value")
     description: str | None
+    is_encrypted: bool
 
     @model_validator(mode="after")
     def redact_val(self) -> Self:
@@ -64,3 +65,11 @@ class VariableCollectionResponse(BaseModel):
 
     variables: list[VariableResponse]
     total_entries: int
+
+
+class VariablesImportResponse(BaseModel):
+    """Import Variables serializer for responses."""
+
+    created_variable_keys: list[str]
+    import_count: int
+    created_count: int

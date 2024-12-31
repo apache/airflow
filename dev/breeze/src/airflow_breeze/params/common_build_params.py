@@ -32,7 +32,7 @@ from airflow_breeze.global_constants import (
     get_airflow_version,
 )
 from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.platforms import get_real_platform
+from airflow_breeze.utils.platforms import get_normalized_platform
 
 
 @dataclass
@@ -62,14 +62,12 @@ class CommonBuildParams:
     github_actions: str = os.environ.get("GITHUB_ACTIONS", "false")
     github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     github_token: str = os.environ.get("GITHUB_TOKEN", "")
-    image_tag: str | None = None
     install_mysql_client_type: str = ALLOWED_INSTALL_MYSQL_CLIENT_TYPES[0]
     platform: str = DOCKER_DEFAULT_PLATFORM
     prepare_buildx_cache: bool = False
     python_image: str | None = None
     push: bool = False
     python: str = "3.9"
-    tag_as_latest: bool = False
     uv_http_timeout: int = DEFAULT_UV_HTTP_TIMEOUT
     dry_run: bool = False
     version_suffix_for_pypi: str | None = None
@@ -88,10 +86,6 @@ class CommonBuildParams:
     @property
     def image_type(self) -> str:
         raise NotImplementedError()
-
-    @property
-    def airflow_pre_cached_pip_packages(self) -> str:
-        return "false" if self.disable_airflow_repo_cache else "true"
 
     @property
     def airflow_base_image_name(self):
@@ -137,15 +131,6 @@ class CommonBuildParams:
     def airflow_image_readme_url(self):
         return "https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
 
-    @property
-    def airflow_image_name_with_tag(self):
-        """Construct image link"""
-        image = (
-            f"{self.airflow_base_image_name}/{self.airflow_branch}/"
-            f"{self.image_type.lower()}/python{self.python}"
-        )
-        return image if self.image_tag is None else image + f":{self.image_tag}"
-
     def get_cache(self, single_platform: str) -> str:
         if "," in single_platform:
             get_console().print(
@@ -153,21 +138,15 @@ class CommonBuildParams:
                 f"tried for {single_platform}[/]"
             )
             sys.exit(1)
-        return f"{self.airflow_image_name}:cache-{get_real_platform(single_platform)}"
+        platform_tag = get_normalized_platform(single_platform).replace("/", "-")
+        return f"{self.airflow_image_name}:cache-{platform_tag}"
 
     def is_multi_platform(self) -> bool:
         return "," in self.platform
 
-    def preparing_latest_image(self) -> bool:
-        return (
-            self.tag_as_latest
-            or self.airflow_image_name == self.airflow_image_name_with_tag
-            or self.airflow_image_name_with_tag.endswith("latest")
-        )
-
     @property
     def platforms(self) -> list[str]:
-        return self.platform.split(",")
+        return [get_normalized_platform(single_platform) for single_platform in self.platform.split(",")]
 
     def _build_arg(self, name: str, value: Any, optional: bool):
         if value is None or "":

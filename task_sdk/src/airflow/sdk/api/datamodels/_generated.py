@@ -129,6 +129,7 @@ class TerminalTIState(str, Enum):
     FAILED = "failed"
     SKIPPED = "skipped"
     REMOVED = "removed"
+    FAIL_WITHOUT_RETRY = "fail_without_retry"
 
 
 class ValidationError(BaseModel):

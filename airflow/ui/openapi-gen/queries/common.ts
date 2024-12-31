@@ -1773,6 +1773,9 @@ export type PoolServicePostPoolsMutationResult = Awaited<
 export type VariableServicePostVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.postVariable>
 >;
+export type VariableServiceImportVariablesMutationResult = Awaited<
+  ReturnType<typeof VariableService.importVariables>
+>;
 export type BackfillServicePauseBackfillMutationResult = Awaited<
   ReturnType<typeof BackfillService.pauseBackfill>
 >;

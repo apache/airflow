@@ -545,7 +545,6 @@ FILES_FOR_REBUILD_CHECK = [
     "scripts/docker/common.sh",
     "scripts/docker/install_additional_dependencies.sh",
     "scripts/docker/install_airflow.sh",
-    "scripts/docker/install_airflow_dependencies_from_branch_tip.sh",
     "scripts/docker/install_from_docker_context_files.sh",
     "scripts/docker/install_mysql.sh",
 ]
@@ -557,7 +556,7 @@ DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
 KIND_VERSION = "v0.26.0"
-HELM_VERSION = "v3.15.3"
+HELM_VERSION = "v3.16.4"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
 USE_AIRFLOW_VERSION = None

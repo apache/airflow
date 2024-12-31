@@ -62,7 +62,6 @@ from airflow.sdk.api.datamodels._generated import (
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeferTask,
-    ErrorResponse,
     GetConnection,
     GetVariable,
     GetXCom,
@@ -719,7 +718,7 @@ class WatchedSubprocess:
             if isinstance(conn, ConnectionResponse):
                 conn_result = ConnectionResult.from_conn_response(conn)
                 resp = conn_result.model_dump_json(exclude_unset=True).encode()
-            elif isinstance(conn, ErrorResponse):
+            else:
                 resp = conn.model_dump_json().encode()
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)

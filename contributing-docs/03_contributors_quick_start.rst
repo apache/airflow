@@ -77,27 +77,33 @@ Docker Community Edition
     "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
     $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-2. Install Docker Engine, containerd, and Docker Compose Plugin
+1. Install Docker Engine, containerd
 
 .. code-block:: bash
 
   sudo apt-get update
-  sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+  sudo apt-get install docker-ce docker-ce-cli containerd.io
 
-3. Creating group for docker and adding current user to it
+3. Manage docker as non-root user
 
 .. code-block:: bash
 
   sudo groupadd docker
   sudo usermod -aG docker $USER
 
-Note : After adding user to docker group Logout and Login again for group membership re-evaluation.
+.. note::
+    This is done so a non-root user can access the ``docker`` command.
+    After adding user to docker group Logout and Login again for group membership re-evaluation.
+    On some Linux distributions, the system automatically creates this group.
 
 4. Test Docker installation
 
 .. code-block:: bash
 
   docker run hello-world
+
+.. note::
+    Read more about `Linux post-installation steps for Docker Engine <https://docs.docker.com/engine/install/linux-postinstall/>`_.
 
 Colima
 ------
@@ -120,7 +126,16 @@ If you use Colima as your container runtimes engine, please follow the next step
 Docker Compose
 --------------
 
-1. Installing latest version of Docker Compose
+1. Installing latest version of the Docker Compose plugin
+
+Install using the repository:
+
+.. code-block:: bash
+
+  sudo apt-get update
+  sudo apt-get install docker-compose-plugin
+
+Install manually:
 
 .. code-block:: bash
 
@@ -134,7 +149,11 @@ Docker Compose
 
   sudo chmod +x /usr/local/bin/docker-compose
 
-2. Verifying installation
+.. note::
+    This option requires you to manage updates manually.
+    It is recommended that you set up Docker's repository for easier maintenance.
+
+1. Verifying installation
 
 .. code-block:: bash
 
@@ -155,7 +174,7 @@ Setting up virtual-env
 
 .. code-block:: bash
 
-  sudo apt install openssl sqlite default-libmysqlclient-dev libmysqlclient-dev postgresql
+  sudo apt install openssl sqlite3 default-libmysqlclient-dev libmysqlclient-dev postgresql
 
 If you want to install all airflow providers, more system dependencies might be needed. For example on Debian/Ubuntu
 like system, this command will install all necessary dependencies that should be installed when you use
@@ -201,16 +220,162 @@ Forking and cloning Project
    to clone the repo locally (you can also do it in your IDE - see the `Using your IDE`_
    chapter below
 
-Note: For windows based machines, on cloning, the Git line endings may be different from unix based systems
-and might lead to unexpected behaviour on running breeze tooling. Manually setting a property will mitigate this issue.
-Set it to true for windows.
+.. note::
+    For windows based machines, on cloning, the Git line endings may be different from unix based systems
+    and might lead to unexpected behaviour on running breeze tooling. Manually setting a property will mitigate this issue.
+    Set it to true for windows.
 
 .. code-block:: bash
 
   git config core.autocrlf true
 
-Typical development tasks
-#########################
+Configuring Pre-commit
+----------------------
+
+Before committing changes to github or raising a pull request, code needs to be checked for certain quality standards
+such as spell check, code syntax, code formatting, compatibility with Apache License requirements etc. This set of
+tests are applied when you commit your code.
+
+.. raw:: html
+
+  <div align="center" style="padding-bottom:20px">
+    <img src="images/quick_start/ci_tests.png"
+         alt="CI tests GitHub">
+  </div>
+
+
+To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be run locally before committing changes.
+
+.. note::
+    We have recently started to recommend ``uv`` for our local development.
+
+.. note::
+    Remember to have global python set to Python >= 3.9 - Python 3.8 is end-of-life already and we've
+    started to use Python 3.9+ features in Airflow and accompanying scripts.
+
+Installing pre-commit is best done with ``uv`` (recommended) or ``pipx``.
+
+1.  Installing required packages
+
+on Debian / Ubuntu, install via
+
+.. code-block:: bash
+
+  sudo apt install libxml2-utils
+
+on macOS, install via
+
+.. code-block:: bash
+
+  brew install libxml2
+
+2. Installing pre-commit:
+
+.. code-block:: bash
+
+  uv tool install pre-commit --with pre-commit-uv
+
+You can add ``uv`` support for ``pre-commit`` even you install it with ``pipx`` using the commands
+(then pre-commit will use ``uv`` to create virtualenvs for the hooks):
+
+.. code-block:: bash
+
+  pipx install pre-commit
+  pipx install inject pre-commit pre-commit-uv # optional, configures pre-commit to use uv to install virtualenvs
+
+3. Go to your project directory
+
+.. code-block:: bash
+
+  cd ~/Projects/airflow
+
+
+4. Running pre-commit hooks
+
+.. code-block:: bash
+
+  pre-commit run --all-files
+    No-tabs checker......................................................Passed
+    Add license for all SQL files........................................Passed
+    Add license for all other files......................................Passed
+    Add license for all rst files........................................Passed
+    Add license for all JS/CSS/PUML files................................Passed
+    Add license for all JINJA template files.............................Passed
+    Add license for all shell files......................................Passed
+    Add license for all python files.....................................Passed
+    Add license for all XML files........................................Passed
+    Add license for all yaml files.......................................Passed
+    Add license for all md files.........................................Passed
+    Add license for all mermaid files....................................Passed
+    Add TOC for md files.................................................Passed
+    Add TOC for upgrade documentation....................................Passed
+    Check hooks apply to the repository..................................Passed
+    black................................................................Passed
+    Check for merge conflicts............................................Passed
+    Debug Statements (Python)............................................Passed
+    Check builtin type constructor use...................................Passed
+    Detect Private Key...................................................Passed
+    Fix End of Files.....................................................Passed
+    ...........................................................................
+
+5. Running pre-commit for selected files
+
+.. code-block:: bash
+
+  pre-commit run  --files airflow/utils/decorators.py tests/utils/test_task_group.py
+
+
+6. Running specific hook for selected files
+
+.. code-block:: bash
+
+  pre-commit run black --files airflow/decorators.py tests/utils/test_task_group.py
+    black...............................................................Passed
+  pre-commit run ruff --files airflow/decorators.py tests/utils/test_task_group.py
+    Run ruff............................................................Passed
+
+
+7. Enabling Pre-commit check before push. It will run pre-commit automatically before committing and stops the commit
+
+.. code-block:: bash
+
+  cd ~/Projects/airflow
+  pre-commit install
+  git commit -m "Added xyz"
+
+8. To disable Pre-commit
+
+.. code-block:: bash
+
+  cd ~/Projects/airflow
+  pre-commit uninstall
+
+- For more information on visit |08_static_code_checks.rst|
+
+.. |08_static_code_checks.rst| raw:: html
+
+   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst" target="_blank">
+   08_static_code_checks.rst</a>
+
+- Following are some of the important links of 08_static_code_checks.rst
+
+  - |Pre-commit Hooks|
+
+  .. |Pre-commit Hooks| raw:: html
+
+   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst#pre-commit-hooks" target="_blank">
+   Pre-commit Hooks</a>
+
+  - |Running Static Code Checks via Breeze|
+
+  .. |Running Static Code Checks via Breeze| raw:: html
+
+   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst#running-static-code-checks-via-breeze"
+   target="_blank">Running Static Code Checks via Breeze</a>
+
+
+Setting up Breeze
+#################
 
 For many of the development tasks you will need ``Breeze`` to be configured. ``Breeze`` is a development
 environment which uses docker and docker-compose and its main purpose is to provide a consistent
@@ -218,9 +383,6 @@ and repeatable environment for all the contributors and CI. When using ``Breeze`
 syndrome - because not only others can reproduce easily what you do, but also the CI of Airflow uses
 the same environment to run all tests - so you should be able to easily reproduce the same failures you
 see in CI in your local environment.
-
-Setting up Breeze
------------------
 
 1. Install ``uv`` or ``pipx``. We recommend to install ``uv`` as general purpose python development
    environment - you can install it via https://docs.astral.sh/uv/getting-started/installation/ or you can
@@ -298,7 +460,6 @@ Setting up Breeze
 
 .. code-block:: bash
 
-  root@b76fcb399bb6:/opt/airflow#
   root@b76fcb399bb6:/opt/airflow# exit
 
 8. You can stop the environment (which means deleting the databases and database servers running in the
@@ -315,7 +476,7 @@ Using Breeze
 1. Starting breeze environment using ``breeze start-airflow`` starts Breeze environment with last configuration run(
    In this case python and backend will be picked up from last execution ``breeze --python 3.9 --backend postgres``)
    It also automatically starts webserver, backend and scheduler. It drops you in tmux with scheduler in bottom left
-   and webserver in bottom right. Use ``[Ctrl + B] and Arrow keys`` to navigate
+   and webserver in bottom right. Use ``[Ctrl + B] and Arrow keys`` to navigate.
 
 .. code-block:: bash
 
@@ -414,13 +575,24 @@ Using Breeze
 
 4. Stopping breeze
 
+If ``breeze`` was started with ``breeze start-airflow``, this command will stop breeze and Airflow:
+
 .. code-block:: bash
 
   root@f3619b74c59a:/opt/airflow# stop_airflow
+  breeze down
+
+If ``breeze`` was started with ``breeze --python 3.9 --backend postgres`` (or similar):
+
+.. code-block:: bash
+
   root@f3619b74c59a:/opt/airflow# exit
   breeze down
 
-5. Knowing more about Breeze
+.. note::
+    ``stop_airflow`` is available only when `breeze` is started with ``breeze start-airflow``.
+
+1. Knowing more about Breeze
 
 .. code-block:: bash
 
@@ -436,174 +608,6 @@ Following are some of important topics of `Breeze documentation <../dev/breeze/d
 * `Troubleshooting Breeze environment <../dev/breeze/doc/04_troubleshooting.rst>`__
 
 
-Configuring Pre-commit
-----------------------
-
-Before committing changes to github or raising a pull request, code needs to be checked for certain quality standards
-such as spell check, code syntax, code formatting, compatibility with Apache License requirements etc. This set of
-tests are applied when you commit your code.
-
-.. raw:: html
-
-  <div align="center" style="padding-bottom:20px">
-    <img src="images/quick_start/ci_tests.png"
-         alt="CI tests GitHub">
-  </div>
-
-
-To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be run locally before committing changes.
-
-.. note::
-
-    We have recently started to recommend ``uv`` for our local development.
-
-.. note::
-
-    Remember to have global python set to Python >= 3.9 - Python 3.8 is end-of-life already and we've
-    started to use Python 3.9+ features in Airflow and accompanying scripts.
-
-
-Installing pre-commit is best done with ``uv`` (recommended) or ``pipx``:
-
-This will install ``pre-commit`` with ``uv``, and it will change it to use ``uv`` to install its own
-virtualenvs.
-
-.. code-block:: bash
-
-    uv tool install pre-commit --with pre-commit-uv
-
-or
-
-.. code-block:: bash
-
-    pipx install pre-commit
-
-You can add ``uv`` support for ``pre-commit`` even you install it with ``pipx`` using the commands
-(then pre-commit will use ``uv`` to create virtualenvs for the hooks):
-
-.. code-block:: bash
-
-    pipx install pre-commit
-    pipx inject pre-commit pre-commit-uv  # optionally if you want to use uv to install virtualenvs
-
-1.  Installing required packages
-
-on Debian / Ubuntu, install via
-
-.. code-block:: bash
-
-  sudo apt install libxml2-utils
-
-on macOS, install via
-
-.. code-block:: bash
-
-  brew install libxml2
-
-2. Installing pre-commit (if you have not done it yet):
-
-.. code-block:: bash
-
-  uv tool install pre-commit --with pre-commit-uv
-
-or
-
-.. code-block:: bash
-
-  pipx install pre-commit
-  pipx install inject pre-commit pre-commit-uv
-
-3. Go to your project directory
-
-.. code-block:: bash
-
-  cd ~/Projects/airflow
-
-
-4. Running pre-commit hooks
-
-.. code-block:: bash
-
-  pre-commit run --all-files
-    No-tabs checker......................................................Passed
-    Add license for all SQL files........................................Passed
-    Add license for all other files......................................Passed
-    Add license for all rst files........................................Passed
-    Add license for all JS/CSS/PUML files................................Passed
-    Add license for all JINJA template files.............................Passed
-    Add license for all shell files......................................Passed
-    Add license for all python files.....................................Passed
-    Add license for all XML files........................................Passed
-    Add license for all yaml files.......................................Passed
-    Add license for all md files.........................................Passed
-    Add license for all mermaid files....................................Passed
-    Add TOC for md files.................................................Passed
-    Add TOC for upgrade documentation....................................Passed
-    Check hooks apply to the repository..................................Passed
-    black................................................................Passed
-    Check for merge conflicts............................................Passed
-    Debug Statements (Python)............................................Passed
-    Check builtin type constructor use...................................Passed
-    Detect Private Key...................................................Passed
-    Fix End of Files.....................................................Passed
-    ...........................................................................
-
-5. Running pre-commit for selected files
-
-.. code-block:: bash
-
-  pre-commit run  --files airflow/utils/decorators.py tests/utils/test_task_group.py
-
-
-6. Running specific hook for selected files
-
-.. code-block:: bash
-
-  pre-commit run black --files airflow/decorators.py tests/utils/test_task_group.py
-    black...............................................................Passed
-  pre-commit run ruff --files airflow/decorators.py tests/utils/test_task_group.py
-    Run ruff............................................................Passed
-
-
-7. Enabling Pre-commit check before push. It will run pre-commit automatically before committing and stops the commit
-
-.. code-block:: bash
-
-  cd ~/Projects/airflow
-  pre-commit install
-  git commit -m "Added xyz"
-
-8. To disable Pre-commit
-
-.. code-block:: bash
-
-  cd ~/Projects/airflow
-  pre-commit uninstall
-
-- For more information on visit |08_static_code_checks.rst|
-
-.. |08_static_code_checks.rst| raw:: html
-
-   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst" target="_blank">
-   08_static_code_checks.rst</a>
-
-- Following are some of the important links of 08_static_code_checks.rst
-
-  - |Pre-commit Hooks|
-
-  .. |Pre-commit Hooks| raw:: html
-
-   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst#pre-commit-hooks" target="_blank">
-   Pre-commit Hooks</a>
-
-  - |Running Static Code Checks via Breeze|
-
-  .. |Running Static Code Checks via Breeze| raw:: html
-
-   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst#running-static-code-checks-via-breeze"
-   target="_blank">Running Static Code Checks via Breeze</a>
-
-
 Installing airflow in the local venv
 ------------------------------------
 
@@ -611,7 +615,7 @@ Installing airflow in the local venv
 
 .. code-block:: bash
 
-  sudo apt-get install sqlite libsqlite3-dev default-libmysqlclient-dev postgresql
+  sudo apt-get install sqlite3 libsqlite3-dev default-libmysqlclient-dev postgresql
   ./scripts/tools/initialize_virtualenv.py
 
 
@@ -662,18 +666,12 @@ All Tests are inside ./tests directory.
 
 - Running specific type of test
 
-  - Types of tests
-
-  - Running specific type of test
-
   .. code-block:: bash
 
     breeze --backend postgres --postgres-version 15 --python 3.9 --db-reset testing tests --test-type Core
 
 
 - Running Integration test for specific test type
-
-  - Running an Integration Test
 
   .. code-block:: bash
 
@@ -685,7 +683,9 @@ All Tests are inside ./tests directory.
 
    <a href="https://github.com/apache/airflow/blob/main/contributing-docs/09_testing.rst" target="_blank">09_testing.rst</a>
 
-  - |Local and Remote Debugging in IDE|
+- Similarly to regular development, you can also debug while testing using your IDE, for more information, you may refer to
+
+  |Local and Remote Debugging in IDE|
 
   .. |Local and Remote Debugging in IDE| raw:: html
 

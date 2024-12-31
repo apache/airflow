@@ -37,9 +37,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from celery import states as celery_states
 from deprecated import deprecated
-from packaging.version import Version
 
-from airflow import __version__ as airflow_version
 from airflow.cli.cli_config import (
     ARG_DAEMON,
     ARG_LOG_FILE,
@@ -56,6 +54,7 @@ from airflow.cli.cli_config import (
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
+from airflow.providers.celery.version_compat import AIRFLOW_V_2_8_PLUS
 from airflow.stats import Stats
 from airflow.utils.state import TaskInstanceState
 
@@ -161,11 +160,10 @@ ARG_WITHOUT_GOSSIP = Arg(
     action="store_true",
 )
 
-CELERY_CLI_COMMAND_PATH = (
-    "airflow.providers.celery.cli.celery_command"
-    if Version(airflow_version) >= Version("2.8.0")
-    else "airflow.cli.commands.local_commands.celery_command"
-)
+if AIRFLOW_V_2_8_PLUS:
+    CELERY_CLI_COMMAND_PATH = "airflow.providers.celery.cli.celery_command"
+else:
+    CELERY_CLI_COMMAND_PATH = "airflow.cli.commands.celery_command"
 
 CELERY_COMMANDS = (
     ActionCommand(

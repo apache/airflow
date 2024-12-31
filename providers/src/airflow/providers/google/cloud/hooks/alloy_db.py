@@ -48,7 +48,8 @@ class AlloyDbHook(GoogleBaseHook):
         """Retrieve AlloyDB client."""
         if not self._client:
             self._client = alloydb_v1.AlloyDBAdminClient(
-                credentials=self.get_credentials(), client_info=CLIENT_INFO
+                credentials=self.get_credentials(),
+                client_info=CLIENT_INFO,
             )
         return self._client
 
@@ -87,7 +88,15 @@ class AlloyDbHook(GoogleBaseHook):
             https://cloud.google.com/python/docs/reference/alloydb/latest/google.cloud.alloydb_v1.types.Cluster
         :param location: Required. The ID of the Google Cloud region where the cluster is located.
         :param project_id: Optional. The ID of the Google Cloud project where the cluster is located.
-        :param request_id: Optional. The ID of an existing request object.
+        :param request_id: Optional. An optional request ID to identify requests. Specify a unique request ID
+            so that if you must retry your request, the server ignores the request if it has already been
+            completed. The server guarantees that for at least 60 minutes since the first request.
+            For example, consider a situation where you make an initial request and the request times out.
+            If you make the request again with the same request ID, the server can check if the original operation
+            with the same request ID was received, and if so, ignores the second request.
+            This prevents clients from accidentally creating duplicate commitments.
+            The request ID must be a valid UUID with the exception that zero UUID is not supported
+            (00000000-0000-0000-0000-000000000000).
         :param validate_only: Optional. If set, performs request validation, but does not actually execute
             the create request.
         :param retry: Optional. Designation of what errors, if any, should be retried.
@@ -133,7 +142,15 @@ class AlloyDbHook(GoogleBaseHook):
             https://cloud.google.com/python/docs/reference/alloydb/latest/google.cloud.alloydb_v1.types.Cluster
         :param location: Required. The ID of the Google Cloud region where the cluster is located.
         :param project_id: Optional. The ID of the Google Cloud project where the cluster is located.
-        :param request_id: Optional. The ID of an existing request object.
+        :param request_id: Optional. An optional request ID to identify requests. Specify a unique request ID
+            so that if you must retry your request, the server ignores the request if it has already been
+            completed. The server guarantees that for at least 60 minutes since the first request.
+            For example, consider a situation where you make an initial request and the request times out.
+            If you make the request again with the same request ID, the server can check if the original operation
+            with the same request ID was received, and if so, ignores the second request.
+            This prevents clients from accidentally creating duplicate commitments.
+            The request ID must be a valid UUID with the exception that zero UUID is not supported
+            (00000000-0000-0000-0000-000000000000).
         :param validate_only: Optional. If set, performs request validation, but does not actually execute
             the create request.
         :param retry: Optional. Designation of what errors, if any, should be retried.
@@ -171,7 +188,7 @@ class AlloyDbHook(GoogleBaseHook):
             For more details see API documentation:
             https://cloud.google.com/python/docs/reference/alloydb/latest/google.cloud.alloydb_v1.types.GetClusterRequest
 
-        :param cluster_id: Required. ID of the cluster to create.
+        :param cluster_id: Required. ID of the cluster.
         :param location: Required. The ID of the Google Cloud region where the cluster is located.
         :param project_id: Optional. The ID of the Google Cloud project where the cluster is located.
         :param retry: Optional. Designation of what errors, if any, should be retried.
@@ -214,7 +231,15 @@ class AlloyDbHook(GoogleBaseHook):
         :param location: Required. The ID of the Google Cloud region where the cluster is located.
         :param update_mask: Optional. Field mask is used to specify the fields to be overwritten in the
             Cluster resource by the update.
-        :param request_id: Optional. The ID of an existing request object.
+        :param request_id: Optional. An optional request ID to identify requests. Specify a unique request ID
+            so that if you must retry your request, the server ignores the request if it has already been
+            completed. The server guarantees that for at least 60 minutes since the first request.
+            For example, consider a situation where you make an initial request and the request times out.
+            If you make the request again with the same request ID, the server can check if the original operation
+            with the same request ID was received, and if so, ignores the second request.
+            This prevents clients from accidentally creating duplicate commitments.
+            The request ID must be a valid UUID with the exception that zero UUID is not supported
+            (00000000-0000-0000-0000-000000000000).
         :param validate_only: Optional. If set, performs request validation, but does not actually execute
             the create request.
         :param project_id: Optional. The ID of the Google Cloud project where the cluster is located.
@@ -264,7 +289,15 @@ class AlloyDbHook(GoogleBaseHook):
         :param cluster_id: Required. ID of the cluster to delete.
         :param location: Required. The ID of the Google Cloud region where the cluster is located.
         :param project_id: Optional. The ID of the Google Cloud project where the cluster is located.
-        :param request_id: Optional. The ID of an existing request object.
+        :param request_id: Optional. An optional request ID to identify requests. Specify a unique request ID
+            so that if you must retry your request, the server ignores the request if it has already been
+            completed. The server guarantees that for at least 60 minutes since the first request.
+            For example, consider a situation where you make an initial request and the request times out.
+            If you make the request again with the same request ID, the server can check if the original operation
+            with the same request ID was received, and if so, ignores the second request.
+            This prevents clients from accidentally creating duplicate commitments.
+            The request ID must be a valid UUID with the exception that zero UUID is not supported
+            (00000000-0000-0000-0000-000000000000).
         :param etag: Optional. The current etag of the Cluster. If an etag is provided and does not match the
             current etag of the Cluster, deletion will be blocked and an ABORTED error will be returned.
         :param validate_only: Optional. If set, performs request validation, but does not actually execute
@@ -282,6 +315,273 @@ class AlloyDbHook(GoogleBaseHook):
                 "etag": etag,
                 "validate_only": validate_only,
                 "force": force,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def create_instance(
+        self,
+        cluster_id: str,
+        instance_id: str,
+        instance: alloydb_v1.Instance | dict,
+        location: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        request_id: str | None = None,
+        validate_only: bool = False,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Operation:
+        """
+        Create an instance in a given Alloy DB cluster.
+
+        .. seealso::
+            For more details see API documentation:
+            https://cloud.google.com/python/docs/reference/alloydb/latest/google.cloud.alloydb_v1.types.CreateInstanceRequest
+
+        :param cluster_id: Required. ID of the cluster for creating an instance in.
+        :param instance_id: Required. ID of the instance to create.
+        :param instance: Required. Instance to create. For more details please see API documentation:
+            https://cloud.google.com/python/docs/reference/alloydb/latest/google.cloud.alloydb_v1.types.Instance
+        :param location: Required. The ID of the Google Cloud region where the cluster is located.
+        :param project_id: Optional. The ID of the Google Cloud project where the cluster is located.
+        :param request_id: Optional. An optional request ID to identify requests. Specify a unique request ID
+            so that if you must retry your request, the server ignores the request if it has already been
+            completed. The server guarantees that for at least 60 minutes since the first request.
+            For example, consider a situation where you make an initial request and the request times out.
+            If you make the request again with the same request ID, the server can check if the original operation
+            with the same request ID was received, and if so, ignores the second request.
+            This prevents clients from accidentally creating duplicate commitments.
+            The request ID must be a valid UUID with the exception that zero UUID is not supported
+            (00000000-0000-0000-0000-000000000000).
+        :param validate_only: Optional. If set, performs request validation, but does not actually execute
+            the create request.
+        :param retry: Optional. Designation of what errors, if any, should be retried.
+        :param timeout: Optional. The timeout for this request.
+        :param metadata: Optional. Strings which should be sent along with the request as metadata.
+        """
+        client = self.get_alloy_db_admin_client()
+        return client.create_instance(
+            request={
+                "parent": client.cluster_path(project_id, location, cluster_id),
+                "instance_id": instance_id,
+                "instance": instance,
+                "request_id": request_id,
+                "validate_only": validate_only,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def create_secondary_instance(
+        self,
+        cluster_id: str,
+        instance_id: str,
+        instance: alloydb_v1.Instance | dict,
+        location: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        request_id: str | None = None,
+        validate_only: bool = False,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Operation:
+        """
+        Create a secondary instance in a given Alloy DB cluster.
+
+        .. seealso::
+            For more details see API documentation:
+            https://cloud.google.com/python/docs/reference/alloydb/latest/google.cloud.alloydb_v1.types.CreateSecondaryInstanceRequest
+
+        :param cluster_id: Required. ID of the cluster for creating an instance in.
+        :param instance_id: Required. ID of the instance to create.
+        :param instance: Required. Instance to create. For more details please see API documentation:
+            https://cloud.google.com/python/docs/reference/alloydb/latest/google.cloud.alloydb_v1.types.Instance
+        :param location: Required. The ID of the Google Cloud region where the cluster is located.
+        :param project_id: Optional. The ID of the Google Cloud project where the cluster is located.
+        :param request_id: Optional. An optional request ID to identify requests. Specify a unique request ID
+            so that if you must retry your request, the server ignores the request if it has already been
+            completed. The server guarantees that for at least 60 minutes since the first request.
+            For example, consider a situation where you make an initial request and the request times out.
+            If you make the request again with the same request ID, the server can check if the original operation
+            with the same request ID was received, and if so, ignores the second request.
+            This prevents clients from accidentally creating duplicate commitments.
+            The request ID must be a valid UUID with the exception that zero UUID is not supported
+            (00000000-0000-0000-0000-000000000000).
+        :param validate_only: Optional. If set, performs request validation, but does not actually execute
+            the create request.
+        :param retry: Optional. Designation of what errors, if any, should be retried.
+        :param timeout: Optional. The timeout for this request.
+        :param metadata: Optional. Strings which should be sent along with the request as metadata.
+        """
+        client = self.get_alloy_db_admin_client()
+        return client.create_secondary_instance(
+            request={
+                "parent": client.cluster_path(project_id, location, cluster_id),
+                "instance_id": instance_id,
+                "instance": instance,
+                "request_id": request_id,
+                "validate_only": validate_only,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_instance(
+        self,
+        cluster_id: str,
+        instance_id: str,
+        location: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> alloydb_v1.Instance:
+        """
+        Retrieve an Alloy DB instance.
+
+        .. seealso::
+            For more details see API documentation:
+            https://cloud.google.com/python/docs/reference/alloydb/latest/google.cloud.alloydb_v1.types.GetInstanceRequest
+
+        :param cluster_id: Required. ID of the cluster.
+        :param instance_id: Required. ID of the instance.
+        :param location: Required. The ID of the Google Cloud region where the cluster is located.
+        :param project_id: Optional. The ID of the Google Cloud project where the cluster is located.
+        :param retry: Optional. Designation of what errors, if any, should be retried.
+        :param timeout: Optional. The timeout for this request.
+        :param metadata: Optional. Strings which should be sent along with the request as metadata.
+        """
+        client = self.get_alloy_db_admin_client()
+        return client.get_instance(
+            request={"name": client.instance_path(project_id, location, cluster_id, instance_id)},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def update_instance(
+        self,
+        cluster_id: str,
+        instance_id: str,
+        instance: alloydb_v1.Instance | dict,
+        location: str,
+        update_mask: FieldMask | dict | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+        allow_missing: bool = False,
+        request_id: str | None = None,
+        validate_only: bool = False,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Operation:
+        """
+        Update an Alloy DB instance.
+
+        .. seealso::
+            For more details see API documentation:
+            https://cloud.google.com/python/docs/reference/alloydb/latest/google.cloud.alloydb_v1.types.UpdateInstanceRequest
+
+        :param cluster_id: Required. ID of the cluster.
+        :param instance_id: Required. ID of the cluster to update.
+        :param instance: Required. Cluster to create. For more details please see API documentation:
+            https://cloud.google.com/python/docs/reference/alloydb/latest/google.cloud.alloydb_v1.types.Instance
+        :param location: Required. The ID of the Google Cloud region where the cluster is located.
+        :param update_mask: Optional. Field mask is used to specify the fields to be overwritten in the
+            Instance resource by the update.
+        :param request_id: Optional. The ID of an existing request object.:param request_id: Optional. An optional request ID to identify requests. Specify a unique request ID
+            so that if you must retry your request, the server ignores the request if it has already been
+            completed. The server guarantees that for at least 60 minutes since the first request.
+            For example, consider a situation where you make an initial request and the request times out.
+            If you make the request again with the same request ID, the server can check if the original operation
+            with the same request ID was received, and if so, ignores the second request.
+            This prevents clients from accidentally creating duplicate commitments.
+            The request ID must be a valid UUID with the exception that zero UUID is not supported
+            (00000000-0000-0000-0000-000000000000).
+        :param validate_only: Optional. If set, performs request validation, but does not actually execute
+            the create request.
+        :param project_id: Optional. The ID of the Google Cloud project where the cluster is located.
+        :param allow_missing: Optional. If set to true, update succeeds even if cluster is not found.
+            In that case, a new cluster is created and update_mask is ignored.
+        :param retry: Optional. Designation of what errors, if any, should be retried.
+        :param timeout: Optional. The timeout for this request.
+        :param metadata: Optional. Strings which should be sent along with the request as metadata.
+        """
+        client = self.get_alloy_db_admin_client()
+        _instance = (
+            deepcopy(instance) if isinstance(instance, dict) else alloydb_v1.Instance.to_dict(instance)
+        )
+        _instance["name"] = client.instance_path(project_id, location, cluster_id, instance_id)
+        return client.update_instance(
+            request={
+                "update_mask": update_mask,
+                "instance": _instance,
+                "request_id": request_id,
+                "validate_only": validate_only,
+                "allow_missing": allow_missing,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_instance(
+        self,
+        instance_id: str,
+        cluster_id: str,
+        location: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        request_id: str | None = None,
+        etag: str | None = None,
+        validate_only: bool = False,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ):
+        """
+        Delete an Alloy DB instance.
+
+        .. seealso::
+            For more details see API documentation:
+            https://cloud.google.com/python/docs/reference/alloydb/latest/google.cloud.alloydb_v1.types.DeleteInstanceRequest
+
+        :param instance_id: Required. ID of the instance to delete.
+        :param cluster_id: Required. ID of the cluster.
+        :param location: Required. The ID of the Google Cloud region where the instance is located.
+        :param project_id: Optional. The ID of the Google Cloud project where the instance is located.
+        :param request_id: Optional. An optional request ID to identify requests. Specify a unique request ID
+            so that if you must retry your request, the server ignores the request if it has already been
+            completed. The server guarantees that for at least 60 minutes since the first request.
+            For example, consider a situation where you make an initial request and the request times out.
+            If you make the request again with the same request ID, the server can check if the original operation
+            with the same request ID was received, and if so, ignores the second request.
+            This prevents clients from accidentally creating duplicate commitments.
+            The request ID must be a valid UUID with the exception that zero UUID is not supported
+            (00000000-0000-0000-0000-000000000000).
+        :param etag: Optional. The current etag of the Instance. If an etag is provided and does not match the
+            current etag of the Instance, deletion will be blocked and an ABORTED error will be returned.
+        :param validate_only: Optional. If set, performs request validation, but does not actually execute
+            the delete request.
+        :param retry: Optional. Designation of what errors, if any, should be retried.
+        :param timeout: Optional. The timeout for this request.
+        :param metadata: Optional. Strings which should be sent along with the request as metadata.
+        """
+        client = self.get_alloy_db_admin_client()
+        return client.delete_instance(
+            request={
+                "name": client.instance_path(project_id, location, cluster_id, instance_id),
+                "request_id": request_id,
+                "etag": etag,
+                "validate_only": validate_only,
             },
             retry=retry,
             timeout=timeout,

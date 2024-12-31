@@ -18,14 +18,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, tuple_
 
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import tuple_in_condition
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Query, Session
+    from sqlalchemy.orm import Session
+    from sqlalchemy.sql import Executable
 
 
 @provide_session
@@ -55,9 +55,7 @@ def _get_count(
     if external_task_ids:
         count = (
             session.scalar(
-                _count_query(TI, states, dttm_filter, external_dag_id, session).filter(
-                    TI.task_id.in_(external_task_ids)
-                )
+                _count_stmt(TI, states, dttm_filter, external_dag_id).where(TI.task_id.in_(external_task_ids))
             )
         ) / len(external_task_ids)
     elif external_task_group_id:
@@ -69,17 +67,17 @@ def _get_count(
         else:
             count = (
                 session.scalar(
-                    _count_query(TI, states, dttm_filter, external_dag_id, session).filter(
-                        tuple_in_condition((TI.task_id, TI.map_index), external_task_group_task_ids)
+                    _count_stmt(TI, states, dttm_filter, external_dag_id).where(
+                        tuple_(TI.task_id, TI.map_index).in_(external_task_group_task_ids)
                     )
                 )
             ) / len(external_task_group_task_ids)
     else:
-        count = session.scalar(_count_query(DR, states, dttm_filter, external_dag_id, session))
+        count = session.scalar(_count_stmt(DR, states, dttm_filter, external_dag_id))
     return cast(int, count)
 
 
-def _count_query(model, states, dttm_filter, external_dag_id, session: Session) -> Query:
+def _count_stmt(model, states, dttm_filter, external_dag_id) -> Executable:
     """
     Get the count of records against dttm filter and states.
 
@@ -87,12 +85,10 @@ def _count_query(model, states, dttm_filter, external_dag_id, session: Session) 
     :param states: task or dag states
     :param dttm_filter: date time filter for logical date
     :param external_dag_id: The ID of the external DAG.
-    :param session: airflow session object
     """
-    query = select(func.count()).filter(
+    return select(func.count()).where(
         model.dag_id == external_dag_id, model.state.in_(states), model.logical_date.in_(dttm_filter)
     )
-    return query
 
 
 def _get_external_task_group_task_ids(dttm_filter, external_task_group_id, external_dag_id, session):

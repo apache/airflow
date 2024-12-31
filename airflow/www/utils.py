@@ -37,7 +37,7 @@ from markdown_it import MarkdownIt
 from markupsafe import Markup
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import delete, func, select, types
+from sqlalchemy import delete, func, select, tuple_, types
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
 from airflow.api_fastapi.app import get_auth_manager
@@ -49,7 +49,6 @@ from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.json import WebEncoder
-from airflow.utils.sqlalchemy import tuple_in_condition
 from airflow.utils.state import State, TaskInstanceState
 from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
@@ -867,12 +866,7 @@ class DagRunCustomSQLAInterface(CustomSQLAInterface):
 
     def delete_all(self, items: list[Model]) -> bool:
         self.session.execute(
-            delete(TI).where(
-                tuple_in_condition(
-                    (TI.dag_id, TI.run_id),
-                    ((x.dag_id, x.run_id) for x in items),
-                )
-            )
+            delete(TI).where(tuple_(TI.dag_id, TI.run_id).in_((x.dag_id, x.run_id) for x in items))
         )
         return super().delete_all(items)
 

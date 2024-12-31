@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from unittest import mock
 
 import pytest
@@ -30,6 +31,10 @@ from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
 ADX_TEST_CONN_ID = "adx_test_connection_id"
 
 pytestmark = pytest.mark.db_test
+
+if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
+    # Handle collection of the test by non-db case
+    Connection = mock.MagicMock()  # type: ignore[misc]
 
 
 class TestAzureDataExplorerHook:
