@@ -2433,7 +2433,6 @@ class TestSchedulerJob:
             dag_id="test_recreate_unhealthy_scheduler_spans_if_needed",
             start_date=DEFAULT_DATE,
             max_active_runs=1,
-            processor_subdir=TEST_DAG_FOLDER,
             dagrun_timeout=datetime.timedelta(seconds=60),
         ):
             EmptyOperator(task_id="dummy")
@@ -2504,7 +2503,6 @@ class TestSchedulerJob:
             dag_id="test_end_spans_of_externally_ended_ops",
             start_date=DEFAULT_DATE,
             max_active_runs=1,
-            processor_subdir=TEST_DAG_FOLDER,
             dagrun_timeout=datetime.timedelta(seconds=60),
         ):
             EmptyOperator(task_id="dummy")
@@ -2563,7 +2561,6 @@ class TestSchedulerJob:
             dag_id="test_end_active_spans",
             start_date=DEFAULT_DATE,
             max_active_runs=1,
-            processor_subdir=TEST_DAG_FOLDER,
             dagrun_timeout=datetime.timedelta(seconds=60),
         ):
             EmptyOperator(task_id="dummy")
