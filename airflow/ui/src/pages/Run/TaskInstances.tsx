@@ -16,18 +16,37 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Link } from "@chakra-ui/react";
+import {
+  Box,
+  Link,
+  createListCollection,
+  HStack,
+  type SelectValueChangeDetails,
+} from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Link as RouterLink, useParams } from "react-router-dom";
+import { useCallback, useState } from "react";
+import {
+  Link as RouterLink,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
-import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import type {
+  TaskInstanceResponse,
+  TaskInstanceState,
+} from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
-import { Status } from "src/components/ui";
-import { getDuration } from "src/utils";
+import { Select, Status } from "src/components/ui";
+import {
+  SearchParamsKeys,
+  type SearchParamsKeysType,
+} from "src/constants/searchParams";
+import { capitalize, getDuration } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 const columns: Array<ColumnDef<TaskInstanceResponse>> = [
@@ -86,12 +105,72 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
   },
 ];
 
+const stateOptions = createListCollection({
+  items: [
+    { label: "All States", value: "all" },
+    { label: "Scheduled", value: "scheduled" },
+    { label: "Queued", value: "queued" },
+    { label: "Running", value: "running" },
+    { label: "Success", value: "success" },
+    { label: "Restarting", value: "restarting" },
+    { label: "Failed", value: "failed" },
+    { label: "Up For Retry", value: "up_for_retry" },
+    { label: "Up For Reschedule", value: "up_for_reschedule" },
+    { label: "Upstream failed", value: "upstream_failed" },
+    { label: "Skipped", value: "skipped" },
+    { label: "Deferred", value: "deferred" },
+    { label: "Removed", value: "removed" },
+  ],
+});
+
+const STATE_PARAM = "state";
+
 export const TaskInstances = () => {
   const { dagId = "", runId = "" } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-start_date";
+  const filteredState = searchParams.get(STATE_PARAM);
+  const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType =
+    SearchParamsKeys;
+
+  const [taskDisplayNamePattern, setTaskDisplayNamePattern] = useState(
+    searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
+  );
+
+  const handleStateChange = useCallback(
+    ({ value }: SelectValueChangeDetails<string>) => {
+      const [val] = value;
+
+      if (val === undefined || val === "all") {
+        searchParams.delete(STATE_PARAM);
+      } else {
+        searchParams.set(STATE_PARAM, val);
+      }
+      setTableURLState({
+        pagination: { ...pagination, pageIndex: 0 },
+        sorting,
+      });
+      setSearchParams(searchParams);
+    },
+    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
+  );
+
+  const handleSearchChange = (value: string) => {
+    if (value) {
+      searchParams.set(NAME_PATTERN_PARAM, value);
+    } else {
+      searchParams.delete(NAME_PATTERN_PARAM);
+    }
+    setSearchParams(searchParams);
+    setTableURLState({
+      pagination: { ...pagination, pageIndex: 0 },
+      sorting,
+    });
+    setTaskDisplayNamePattern(value);
+  };
 
   const { data, error, isFetching, isLoading } =
     useTaskInstanceServiceGetTaskInstances(
@@ -101,13 +180,63 @@ export const TaskInstances = () => {
         limit: pagination.pageSize,
         offset: pagination.pageIndex * pagination.pageSize,
         orderBy,
+        state: filteredState === null ? undefined : [filteredState],
+        taskDisplayNamePattern: Boolean(taskDisplayNamePattern)
+          ? taskDisplayNamePattern
+          : undefined,
       },
       undefined,
       { enabled: !isNaN(pagination.pageSize) },
     );
 
   return (
-    <Box>
+    <Box pt={4}>
+      <HStack>
+        <Select.Root
+          collection={stateOptions}
+          maxW="250px"
+          onValueChange={handleStateChange}
+          value={[filteredState ?? "all"]}
+        >
+          <Select.Trigger
+            clearable
+            colorPalette="blue"
+            isActive={Boolean(filteredState)}
+          >
+            <Select.ValueText>
+              {() =>
+                filteredState === null ? (
+                  "All States"
+                ) : (
+                  <Status state={filteredState as TaskInstanceState}>
+                    {capitalize(filteredState)}
+                  </Status>
+                )
+              }
+            </Select.ValueText>
+          </Select.Trigger>
+          <Select.Content>
+            {stateOptions.items.map((option) => (
+              <Select.Item item={option} key={option.label}>
+                {option.value === "all" ? (
+                  option.label
+                ) : (
+                  <Status state={option.value as TaskInstanceState}>
+                    {option.label}
+                  </Status>
+                )}
+              </Select.Item>
+            ))}
+          </Select.Content>
+        </Select.Root>
+        <SearchBar
+          buttonProps={{ disabled: true }}
+          defaultValue={taskDisplayNamePattern ?? ""}
+          hideAdvanced
+          onChange={handleSearchChange}
+          placeHolder="Search Tasks"
+        />
+      </HStack>
       <DataTable
         columns={columns}
         data={data?.task_instances ?? []}
