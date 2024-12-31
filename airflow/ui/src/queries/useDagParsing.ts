@@ -27,8 +27,7 @@ import { toaster } from "src/components/ui";
 
 const onError = () => {
   toaster.create({
-    description:
-      "Dag parsing request failed. There could be pending parsing requests yet to be processed.",
+    description: "Dag parsing request failed. There could be pending parsing requests yet to be processed.",
     title: "Dag Failed to Reparse",
     type: "error",
   });

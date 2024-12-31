@@ -30,10 +30,7 @@ import { useCallback, useState } from "react";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
-import type {
-  DagRunState,
-  DAGWithLatestDagRunsResponse,
-} from "openapi/requests/types.gen";
+import type { DagRunState, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import DagRunInfo from "src/components/DagRunInfo";
 import { DataTable } from "src/components/DataTable";
 import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay";
@@ -43,10 +40,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import { TogglePause } from "src/components/TogglePause";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
-import {
-  SearchParamsKeys,
-  type SearchParamsKeysType,
-} from "src/constants/searchParams";
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useDags } from "src/queries/useDags";
 import { pluralize } from "src/utils";
@@ -77,9 +71,7 @@ const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
     accessorKey: "dag_id",
     cell: ({ row: { original } }) => (
       <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink to={`/dags/${original.dag_id}`}>
-          {original.dag_display_name}
-        </RouterLink>
+        <RouterLink to={`/dags/${original.dag_id}`}>{original.dag_display_name}</RouterLink>
       </Link>
     ),
     header: "Dag",
@@ -152,21 +144,14 @@ const DAGS_LIST_DISPLAY = "dags_list_display";
 
 export const DagsList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [display, setDisplay] = useLocalStorage<"card" | "table">(
-    DAGS_LIST_DISPLAY,
-    "card",
-  );
+  const [display, setDisplay] = useLocalStorage<"card" | "table">(DAGS_LIST_DISPLAY, "card");
 
-  const hidePausedDagsByDefault = Boolean(
-    useConfig("hide_paused_dags_by_default"),
-  );
+  const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
   const defaultShowPaused = hidePausedDagsByDefault ? false : undefined;
 
   const showPaused = searchParams.get(PAUSED_PARAM);
 
-  const lastDagRunState = searchParams.get(
-    LAST_DAG_RUN_STATE_PARAM,
-  ) as DagRunState;
+  const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE_PARAM) as DagRunState;
   const selectedTags = searchParams.getAll(TAGS_PARAM);
 
   const { setTableURLState, tableURLState } = useTableURLState();
@@ -177,9 +162,7 @@ export const DagsList = () => {
   );
 
   const [sort] = sorting;
-  const orderBy = sort
-    ? `${sort.desc ? "-" : ""}${sort.id}`
-    : "-last_run_start_date";
+  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-last_run_start_date";
 
   const handleSearchChange = (value: string) => {
     if (value) {
@@ -206,9 +189,7 @@ export const DagsList = () => {
   }
 
   const { data, error, isFetching, isLoading } = useDags({
-    dagDisplayNamePattern: Boolean(dagDisplayNamePattern)
-      ? `${dagDisplayNamePattern}`
-      : undefined,
+    dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? `${dagDisplayNamePattern}` : undefined,
     lastDagRunState,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
