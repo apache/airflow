@@ -16,10 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException
 from airflow.models.dagbundle import DagBundleModel
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
@@ -30,56 +30,54 @@ if TYPE_CHECKING:
 
     from airflow.dag_processing.bundles.base import BaseDagBundle
 
+_bundle_config = {}
+
 
 class DagBundlesManager(LoggingMixin):
     """Manager for DAG bundles."""
 
-    @property
-    def bundle_configs(self) -> dict[str, dict]:
-        """Get all DAG bundle configurations."""
-        configured_bundles = conf.getsection("dag_bundles")
+    def parse_config(self) -> None:
+        """
+        Get all DAG bundle configurations and store in module variable.
+
+        If a bundle class for a given name has already been imported, it will not be imported again.
+        """
+        configured_bundles = conf.getjson("dag_bundles", "backends")
 
         if not configured_bundles:
-            return {}
+            return
 
-        # If dags_folder is empty string, we remove it. This allows the default dags_folder bundle to be disabled.
-        if not configured_bundles["dags_folder"]:
-            del configured_bundles["dags_folder"]
+        seen = set()
+        for cfg in configured_bundles:
+            name = cfg["name"]
+            if name in seen:
+                raise ValueError(f"Dag bundle {name} is configured twice.")
+            seen.add(name)
+            if name in _bundle_config:
+                continue
+            class_ = import_string(cfg["classpath"])
+            kwargs = cfg["kwargs"]
+            _bundle_config[name] = (class_, kwargs)
 
-        dict_bundles: dict[str, dict] = {}
-        for key in configured_bundles.keys():
-            config = conf.getjson("dag_bundles", key)
-            if not isinstance(config, dict):
-                raise AirflowConfigException(f"Bundle config for {key} is not a dict: {config}")
-            dict_bundles[key] = config
-
-        return dict_bundles
+        # remove obsolete bundle configs
+        for name, cfg in _bundle_config.items():
+            if name not in seen:
+                _bundle_config.pop(name)
 
     @provide_session
     def sync_bundles_to_db(self, *, session: Session = NEW_SESSION) -> None:
-        known_bundles = {b.name: b for b in session.query(DagBundleModel).all()}
-
-        for name in self.bundle_configs.keys():
-            if bundle := known_bundles.get(name):
+        self.parse_config()
+        stored = {b.name: b for b in session.query(DagBundleModel).all()}
+        for name in _bundle_config.keys():
+            if bundle := stored.pop(name, None):
                 bundle.active = True
             else:
                 session.add(DagBundleModel(name=name))
                 self.log.info("Added new DAG bundle %s to the database", name)
 
-        for name, bundle in known_bundles.items():
-            if name not in self.bundle_configs:
-                bundle.active = False
-                self.log.warning("DAG bundle %s is no longer found in config and has been disabled", name)
-
-    def get_all_dag_bundles(self) -> list[BaseDagBundle]:
-        """
-        Get all DAG bundles.
-
-        :param session: A database session.
-
-        :return: list of DAG bundles.
-        """
-        return [self.get_bundle(name, version=None) for name in self.bundle_configs.keys()]
+        for name, bundle in stored.items():
+            bundle.active = False
+            self.log.warning("DAG bundle %s is no longer found in config and has been disabled", name)
 
     def get_bundle(self, name: str, version: str | None = None) -> BaseDagBundle:
         """
@@ -90,7 +88,22 @@ class DagBundlesManager(LoggingMixin):
 
         :return: The DAG bundle.
         """
-        # TODO: proper validation of the bundle configuration so we have better error messages
-        bundle_config = self.bundle_configs[name]
-        bundle_class = import_string(bundle_config["classpath"])
-        return bundle_class(name=name, version=version, **bundle_config["kwargs"])
+        # todo (AIP-66): proper validation of the bundle configuration so we have better error messages
+        cfg_tuple = _bundle_config.get(name)
+        if not cfg_tuple:
+            self.parse_config()
+            cfg_tuple = _bundle_config.get(name)
+            if not cfg_tuple:
+                raise ValueError(f"Requested bundle '{name}' is not configured.")
+        class_, kwargs = cfg_tuple
+        return class_(name=name, version=version, **kwargs)
+
+    def get_all_dag_bundles(self) -> Iterable[BaseDagBundle]:
+        """
+        Get all DAG bundles.
+
+        :return: list of DAG bundles.
+        """
+        self.parse_config()
+        for name, (class_, kwargs) in _bundle_config.items():
+            yield class_(name=name, version=None, **kwargs)

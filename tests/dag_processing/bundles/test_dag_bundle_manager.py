@@ -37,12 +37,12 @@ from tests_common.test_utils.db import clear_db_dag_bundles
     [
         pytest.param({}, {"dags_folder"}, id="no_config"),
         pytest.param(
-            {"AIRFLOW__DAG_BUNDLES__TESTBUNDLE": "{}"}, {"testbundle", "dags_folder"}, id="add_bundle"
+            {"AIRFLOW__DAG_BUNDLES__BACKENDS": "{}"}, {"my-test-bundle", "dags_folder"}, id="add_bundle"
         ),
         pytest.param({"AIRFLOW__DAG_BUNDLES__DAGS_FOLDER": ""}, set(), id="remove_dags_folder_default"),
         pytest.param(
-            {"AIRFLOW__DAG_BUNDLES__DAGS_FOLDER": "", "AIRFLOW__DAG_BUNDLES__TESTBUNDLE": "{}"},
-            {"testbundle"},
+            {"AIRFLOW__DAG_BUNDLES__DAGS_FOLDER": "", "AIRFLOW__DAG_BUNDLES__BACKENDS": "{}"},
+            {"my-test-bundle"},
             id="remove_dags_folder_default_add_bundle",
         ),
     ],
@@ -58,14 +58,14 @@ def test_bundle_configs_property(envs, expected_names):
 @pytest.mark.parametrize(
     "config,message",
     [
-        pytest.param("1", "Bundle config for testbundle is not a dict: 1", id="int"),
-        pytest.param("[]", r"Bundle config for testbundle is not a dict: \[\]", id="list"),
+        pytest.param("1", "Bundle config for my-test-bundle is not a dict: 1", id="int"),
+        pytest.param("[]", r"Bundle config for my-test-bundle is not a dict: \[\]", id="list"),
         pytest.param("abc", r"Unable to parse .* as valid json", id="not_json"),
     ],
 )
 def test_bundle_configs_property_raises(config, message):
     bundle_manager = DagBundlesManager()
-    with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__TESTBUNDLE": config}):
+    with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__BACKENDS": config}):
         with pytest.raises(AirflowConfigException, match=message):
             bundle_manager.bundle_configs
 
@@ -81,10 +81,13 @@ class BasicBundle(BaseDagBundle):
         pass
 
 
-BASIC_BUNDLE_CONFIG = {
-    "classpath": "tests.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
-    "kwargs": {"refresh_interval": 1},
-}
+BASIC_BUNDLE_CONFIG = [
+    {
+        "name": "my-test-bundle",
+        "classpath": "tests.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
+        "kwargs": {"refresh_interval": 1},
+    }
+]
 
 
 def test_get_bundle():
@@ -92,18 +95,20 @@ def test_get_bundle():
 
     bundle_manager = DagBundlesManager()
 
-    with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__TESTBUNDLE": json.dumps(BASIC_BUNDLE_CONFIG)}):
-        bundle = bundle_manager.get_bundle(name="testbundle", version="hello")
+    with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__BACKENDS": json.dumps(BASIC_BUNDLE_CONFIG)}):
+        with pytest.raises(ValueError, match="'bundle-that-doesn't-exist' is not configured"):
+            bundle = bundle_manager.get_bundle(name="bundle-that-doesn't-exist", version="hello")
+        bundle = bundle_manager.get_bundle(name="my-test-bundle", version="hello")
     assert isinstance(bundle, BasicBundle)
-    assert bundle.name == "testbundle"
+    assert bundle.name == "my-test-bundle"
     assert bundle.version == "hello"
     assert bundle.refresh_interval == 1
 
     # And none for version also works!
-    with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__TESTBUNDLE": json.dumps(BASIC_BUNDLE_CONFIG)}):
-        bundle = bundle_manager.get_bundle(name="testbundle")
+    with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__BACKENDS": json.dumps(BASIC_BUNDLE_CONFIG)}):
+        bundle = bundle_manager.get_bundle(name="my-test-bundle")
     assert isinstance(bundle, BasicBundle)
-    assert bundle.name == "testbundle"
+    assert bundle.name == "my-test-bundle"
     assert bundle.version is None
 
 
@@ -112,13 +117,25 @@ def test_get_all_dag_bundles():
 
     bundle_manager = DagBundlesManager()
 
-    with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__TESTBUNDLE": json.dumps(BASIC_BUNDLE_CONFIG)}):
-        bundles = bundle_manager.get_all_dag_bundles()
-    assert len(bundles) == 2
+    with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__BACKENDS": json.dumps(BASIC_BUNDLE_CONFIG)}):
+        bundles = list(bundle_manager.get_all_dag_bundles())
+    assert len(bundles) == 1
     assert all(isinstance(x, BaseDagBundle) for x in bundles)
 
     bundle_names = {x.name for x in bundles}
-    assert bundle_names == {"testbundle", "dags_folder"}
+    assert bundle_names == {"my-test-bundle"}
+
+
+def test_get_all_dag_bundles_default():
+    """Test that get_all_dag_bundles returns all bundles."""
+
+    bundle_manager = DagBundlesManager()
+    bundles = list(bundle_manager.get_all_dag_bundles())
+    assert len(bundles) == 1
+    assert all(isinstance(x, BaseDagBundle) for x in bundles)
+
+    bundle_names = {x.name for x in bundles}
+    assert bundle_names == {"dags-folder"}
 
 
 @pytest.fixture
@@ -139,15 +156,21 @@ def test_sync_bundles_to_db(clear_db):
             )
 
     # Initial add
-    with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__TESTBUNDLE": json.dumps(BASIC_BUNDLE_CONFIG)}):
+    with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__BACKENDS": json.dumps(BASIC_BUNDLE_CONFIG)}):
         bundle_manager.sync_bundles_to_db()
-    assert _get_bundle_names_and_active() == [("dags_folder", True), ("testbundle", True)]
+    assert _get_bundle_names_and_active() == [("dags_folder", True), ("my-test-bundle", True)]
 
     # Disable ones that disappear from config
     bundle_manager.sync_bundles_to_db()
-    assert _get_bundle_names_and_active() == [("dags_folder", True), ("testbundle", False)]
+    assert _get_bundle_names_and_active() == [("dags_folder", True), ("my-test-bundle", False)]
 
     # Re-enable one that reappears in config
-    with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__TESTBUNDLE": json.dumps(BASIC_BUNDLE_CONFIG)}):
+    with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__BACKENDS": json.dumps(BASIC_BUNDLE_CONFIG)}):
         bundle_manager.sync_bundles_to_db()
-    assert _get_bundle_names_and_active() == [("dags_folder", True), ("testbundle", True)]
+    assert _get_bundle_names_and_active() == [("dags_folder", True), ("my-test-bundle", True)]
+
+
+# import yaml
+# from pathlib import Path
+# d = yaml.safe_load(Path("/Users/dstandish/code/airflow/airflow/config_templates/config.yml").open())
+# d["dag_bundles"]

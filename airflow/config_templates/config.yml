@@ -2692,14 +2692,26 @@ dag_bundles:
         [dag_bundles]
         hello: {classpath: "airflow.some.classpath", kwargs: {"hello": "world"}, refresh_interval: 60}
   options:
-    dags_folder:
+    backends:
       description: |
-        This is the default DAG bundle that loads DAGs from the traditional ``[core] dags_folder``.
+        List of backend configs.  Must supply name, classpath, and kwargs for each backend.
+
         By default, ``refresh_interval`` is set to ``[scheduler] dag_dir_list_interval``, but that can be
         overridden here if desired.
+
         Parsing DAGs from the DAG folder can be disabled by setting this option to an empty string.
-      version_added: ~
-      type: string
-      example: ~
-      default: '{{"classpath": "airflow.dag_processing.bundles.dagfolder.DagsFolderDagBundle",
-               "kwargs": {{}}}}'
+      version_added: 3.0
+      type: object
+      example: >
+        [
+          {
+              "name": "my-git-repo",
+              "classpath": "airflow.dag_processing.bundles.git.GitDagBundle",
+              "kwargs": {
+                  "subdir": "dags",
+                  "repo_url": "git@github.com:example.com/my-dags.git",
+                  "tracking_ref": "main",
+                  "refresh_interval": 0
+          }
+        ]'
+      default: '[{{"name": "dags-folder", "classpath": "airflow.dag_processing.bundles.dagfolder.DagsFolderDagBundle", "kwargs": {{}}}}]'
