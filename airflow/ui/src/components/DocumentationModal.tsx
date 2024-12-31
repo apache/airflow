@@ -20,6 +20,7 @@ import { Box, Heading } from "@chakra-ui/react";
 import { useState } from "react";
 import { FiBookOpen } from "react-icons/fi";
 import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { Button, Dialog } from "src/components/ui";
 
@@ -49,7 +50,7 @@ const DocumentationModal = ({
             <Dialog.CloseTrigger closeButtonProps={{ size: "xl" }} />
           </Dialog.Header>
           <Dialog.Body display="flex">
-            <Markdown>{docMd}</Markdown>
+            <Markdown remarkPlugins={[remarkGfm]}>{docMd}</Markdown>
           </Dialog.Body>
         </Dialog.Content>
       </Dialog.Root>
