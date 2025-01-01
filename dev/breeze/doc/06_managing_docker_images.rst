@@ -126,7 +126,7 @@ To load the image from specific job run (for example 12538475388), you can use t
 
 .. code-block:: bash
 
-     breeze ci-image load --from-job 12538475388 --python 3.9 --github-token <your_github_token>
+     breeze ci-image load --from-run 12538475388 --python 3.9 --github-token <your_github_token>
 
 After you load the image, you can reproduce the very exact environment that was used in the CI run by
 entering breeze container without mounting your local sources:
