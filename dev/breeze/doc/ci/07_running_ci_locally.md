@@ -22,6 +22,7 @@
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
 - [Running the CI Jobs locally](#running-the-ci-jobs-locally)
+- [Getting the CI image from failing job](#getting-the-ci-image-from-failing-job)
   - [Basic variables](#basic-variables)
   - [Host & GIT variables](#host--git-variables)
   - [In-container environment initialization](#in-container-environment-initialization)
@@ -62,18 +63,49 @@ exactly what our CI is doing by running the sequence of corresponding
 In the output of the CI jobs, you will find both - the flags passed and
 environment variables set.
 
+# Getting the CI image from failing job
+
 Every contributor can also pull and run images being result of a specific
 CI run in GitHub Actions. This is a powerful tool that allows to
 reproduce CI failures locally, enter the images and fix them much
-faster. It is enough to download and uncompress the artifact that stores the
-image and run ``breeze ci-image load -i <path-to-image.tar> --python python``
-to load the  image and mark the image as refreshed in the local cache.
+faster.
 
-You can read more about it in [Breeze](../README.rst) and
-[Testing](../../../../contributing-docs/09_testing.rst)
+Note that this currently only works for AMD machines, not for ARM machines, but
+this will change soon.
 
-Depending whether the scripts are run locally via
-[Breeze](../README.rst) or whether they are run in
+To load the image from specific PR, you can use the following command:
+
+```bash
+breeze ci-image load --from-pr 12345 --python 3.9 --github-token <your_github_token>
+```
+
+To load the image from specific job run (for example 12538475388),
+you can use the following command, find the run id from github action runs.
+
+```bash
+breeze ci-image load --from-job 12538475388 --python 3.9 --github-token <your_github_token>
+```
+
+After you load the image, you can reproduce the very exact environment that was used in the CI run by
+entering breeze container without mounting your local sources:
+
+```bash
+breeze shell --mount-sources skip [OTHER OPTIONS]
+```
+
+And you should be able to run any tests and commands interactively in the very exact environment that
+was used in the failing CI run even without checking out sources of the failing PR.
+This is a powerful tool to debug and fix CI issues.
+
+If you check-out the branch of the PR that was used, regular ``breeze`` commands will
+also reproduce the CI environment without having to rebuild the image - for example when dependencies
+changed or when new dependencies were released and used in the CI job - and you will
+be able to edit source files locally as usual.
+
+
+You can read more about it in [Breeze](../README.rst) and [Testing](../../../../contributing-docs/09_testing.rst)
+
+Depending whether the scripts are run locally via [Breeze](../README.rst) or whether they are run in
 `Build Images` or `Tests` workflows they can take different values.
 
 You can use those variables when you try to reproduce the build locally
