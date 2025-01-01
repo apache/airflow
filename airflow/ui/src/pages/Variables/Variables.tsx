@@ -111,7 +111,7 @@ export const Variables = () => {
           <AddVariableButton />
         </HStack>
       </VStack>
-      <Box>
+      <Box overflow="auto">
         <DataTable
           columns={columns}
           data={data ? data.variables : []}
