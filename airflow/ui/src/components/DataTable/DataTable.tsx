@@ -49,9 +49,7 @@ type DataTableProps<TData> = {
   readonly modelName?: string;
   readonly noRowsMessage?: ReactNode;
   readonly onStateChange?: (state: TableState) => void;
-  readonly renderSubComponent?: (props: {
-    row: Row<TData>;
-  }) => React.ReactElement;
+  readonly renderSubComponent?: (props: { row: Row<TData> }) => React.ReactElement;
   readonly skeletonCount?: number;
   readonly total?: number;
 };
@@ -95,9 +93,7 @@ export const DataTable = <TData,>({
     [onStateChange],
   );
 
-  const rest = Boolean(isLoading)
-    ? createSkeletonMock(displayMode, skeletonCount, columns)
-    : {};
+  const rest = Boolean(isLoading) ? createSkeletonMock(displayMode, skeletonCount, columns) : {};
 
   const table = useReactTable({
     columns,
@@ -122,12 +118,7 @@ export const DataTable = <TData,>({
 
   return (
     <>
-      <ProgressBar
-        size="xs"
-        visibility={
-          Boolean(isFetching) && !Boolean(isLoading) ? "visible" : "hidden"
-        }
-      />
+      <ProgressBar size="xs" visibility={Boolean(isFetching) && !Boolean(isLoading) ? "visible" : "hidden"} />
       <Toaster />
       {errorMessage}
       {display === "table" && <TableList table={table} />}

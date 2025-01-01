@@ -141,6 +141,7 @@ jobs:
       test-groups: ${{ steps.selective-checks.outputs.test-groups }}
       testable-core-integrations: ${{ steps.selective-checks.outputs.testable-core-integrations }}
       testable-providers-integrations: ${{ steps.selective-checks.outputs.testable-providers-integrations }}
+      use-uv: ${{ steps.selective-checks.outputs.force-pip == 'true' && 'false' || 'true' }}
       upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
     steps:
       - name: "Cleanup repo"
@@ -160,6 +161,9 @@ jobs:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          use-uv: ${{ inputs.use-uv }}
+        id: breeze
       - name: "Get information about the Workflow"
         id: source-run-info
         run: breeze ci get-workflow-info 2>> ${GITHUB_OUTPUT}
@@ -171,7 +175,6 @@ jobs:
           PR_LABELS: "${{ steps.source-run-info.outputs.pr-labels }}"
           COMMIT_REF: "${{ github.sha }}"
           VERBOSE: "false"
-
         run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
       - name: env
         run: printenv
@@ -193,6 +196,8 @@ jobs:
       skip-pre-commits: ${{needs.build-info.outputs.skip-pre-commits}}
       canary-run: ${{needs.build-info.outputs.canary-run}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
+      use-uv: ${{needs.build-info.outputs.use-uv}}
+
   build-ci-images:
     name: Build CI images
     needs: [build-info]
@@ -208,10 +213,11 @@ jobs:
       runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
       platform: "linux/amd64"
       push-image: "false"
-      upload-image-artifact: "true"
+      upload-image-artifact: ${{ needs.build-info.outputs.canary-run }}
+      upload-mount-cache-artifact: ${{ needs.build-info.outputs.canary-run }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
-      use-uv: ${{ needs.build-info.outputs.force-pip == 'true' && 'false' || 'true' }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
@@ -239,7 +245,7 @@ jobs:
       latest-versions-only: ${{ needs.build-info.outputs.latest-versions-only }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-      use-uv: ${{ needs.build-info.outputs.force-pip == 'true' && 'false' || 'true' }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
 
 
   generate-constraints:
@@ -257,6 +263,7 @@ jobs:
       generate-no-providers-constraints: ${{ needs.build-info.outputs.canary-run }}
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
 
   ci-image-checks:
     name: "CI image checks"
@@ -285,6 +292,7 @@ jobs:
       needs-api-codegen: ${{ needs.build-info.outputs.needs-api-codegen }}
       default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
 
   providers:
     name: "Provider packages tests"
@@ -308,6 +316,7 @@ jobs:
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       providers-test-types-list-as-string: ${{ needs.build-info.outputs.providers-test-types-list-as-string }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
 
   tests-helm:
     name: "Helm tests"
@@ -322,6 +331,7 @@ jobs:
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       helm-test-packages: ${{ needs.build-info.outputs.helm-test-packages }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
     if: >
       needs.build-info.outputs.needs-helm-tests == 'true' &&
       needs.build-info.outputs.default-branch == 'main' &&
@@ -351,6 +361,7 @@ jobs:
       run-migration-tests: "true"
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
     if: needs.build-info.outputs.run-tests == 'true'
 
   tests-mysql:
@@ -377,6 +388,7 @@ jobs:
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       run-migration-tests: "true"
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
     if: needs.build-info.outputs.run-tests == 'true'
 
   tests-sqlite:
@@ -405,6 +417,7 @@ jobs:
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       run-migration-tests: "true"
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
     if: needs.build-info.outputs.run-tests == 'true'
 
   tests-non-db:
@@ -432,6 +445,7 @@ jobs:
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
     if: needs.build-info.outputs.run-tests == 'true'
 
   tests-special:
@@ -462,6 +476,7 @@ jobs:
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
 
   tests-integration-system:
     name: Integration and System Tests
@@ -482,6 +497,7 @@ jobs:
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
     if: needs.build-info.outputs.run-tests == 'true'
 
   tests-with-lowest-direct-resolution:
@@ -512,6 +528,7 @@ jobs:
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       monitor-delay-time-in-seconds: 120
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
 
   build-prod-images:
     name: Build PROD images
@@ -533,7 +550,7 @@ jobs:
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       branch: ${{ needs.build-info.outputs.default-branch }}
-      use-uv: ${{ needs.build-info.outputs.force-pip == 'true' && 'false' || 'true' }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
       build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
@@ -555,6 +572,7 @@ jobs:
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
     if: needs.build-info.outputs.prod-image-build == 'true'
 
   tests-kubernetes:
@@ -570,7 +588,7 @@ jobs:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      use-uv: ${{ needs.build-info.outputs.force-pip == 'true' && 'false' || 'true' }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       kubernetes-combos: ${{ needs.build-info.outputs.kubernetes-combos }}
     if: >
@@ -590,6 +608,7 @@ jobs:
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       run-task-sdk-tests: ${{ needs.build-info.outputs.run-task-sdk-tests }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
     if: >
       ( needs.build-info.outputs.run-task-sdk-tests == 'true' ||
       needs.build-info.outputs.run-tests == 'true' &&
@@ -624,6 +643,7 @@ jobs:
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
 
   notify-slack-failure:
     name: "Notify Slack on Failure"

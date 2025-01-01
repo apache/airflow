@@ -19,18 +19,19 @@
 name: 'Install pre-commit'
 description: 'Installs pre-commit and related packages'
 inputs:
+  # TODO(potiuk): automate update of these versions
   python-version:
     description: 'Python version to use'
-    default: 3.9
+    default: "3.9"
   uv-version:
     description: 'uv version to use'
-    default: 0.5.5
+    default: "0.5.13"
   pre-commit-version:
     description: 'pre-commit version to use'
-    default: 4.0.1
+    default: "4.0.1"
   pre-commit-uv-version:
     description: 'pre-commit-uv version to use'
-    default: 4.1.4
+    default: "4.1.4"
 runs:
   using: "composite"
   steps:
@@ -40,10 +41,35 @@ runs:
         pip install uv==${{inputs.uv-version}} || true
         uv tool install pre-commit==${{inputs.pre-commit-version}} --with uv==${{inputs.uv-version}} \
         --with pre-commit-uv==${{inputs.pre-commit-uv-version}}
-    - name: Cache pre-commit envs
-      uses: actions/cache@v4
+      working-directory: ${{ github.workspace }}
+    # We need to use tar file with archive to restore all the permissions and symlinks
+    - name: "Delete ~.cache"
+      run: |
+        du ~/ --max-depth=2
+        echo
+        echo Deleting ~/.cache
+        echo
+        rm -rf ~/.cache
+        echo
+      shell: bash
+    - name: "Restore pre-commit cache"
+      uses: apache/infrastructure-actions/stash/restore@c94b890bbedc2fc61466d28e6bd9966bc6c6643c
       with:
-        path: ~/.cache/pre-commit
-        key: "pre-commit-${{inputs.python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
-        restore-keys: |
-          pre-commit-${{inputs.python-version}}-
+        key: cache-pre-commit-v4-${{ inputs.python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
+        path: /tmp/
+      id: restore-pre-commit-cache
+    - name: "Restore .cache from the tar file"
+      run: tar -C ~ -xzf /tmp/cache-pre-commit.tar.gz
+      shell: bash
+      if: steps.restore-pre-commit-cache.outputs.stash-hit == 'true'
+    - name: "Show restored files"
+      run: |
+        echo "Restored files"
+        du ~/ --max-depth=2
+        echo
+      shell: bash
+      if: steps.restore-pre-commit-cache.outputs.stash-hit == 'true'
+    - name: Install pre-commit hooks
+      shell: bash
+      run: pre-commit install-hooks || (cat ~/.cache/pre-commit/pre-commit.log && exit 1)
+      working-directory: ${{ github.workspace }}

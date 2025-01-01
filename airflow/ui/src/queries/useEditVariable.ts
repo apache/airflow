@@ -19,10 +19,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import {
-  useVariableServiceGetVariablesKey,
-  useVariableServicePatchVariable,
-} from "openapi/queries";
+import { useVariableServiceGetVariablesKey, useVariableServicePatchVariable } from "openapi/queries";
 import { toaster } from "src/components/ui";
 import type { VariableBody } from "src/pages/Variables/ManageVariable/VariableForm";
 
@@ -71,9 +68,7 @@ export const useEditVariable = (
     }
 
     const parsedDescription =
-      addVariableRequestBody.description === ""
-        ? undefined
-        : addVariableRequestBody.description;
+      addVariableRequestBody.description === "" ? undefined : addVariableRequestBody.description;
 
     mutate({
       requestBody: {
