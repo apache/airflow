@@ -58,6 +58,10 @@ on:  # yamllint disable-line rule:truthy
         description: "JSON-formatted array of Python versions to build images from"
         required: true
         type: string
+      use-uv:
+        description: "Whether to use uv"
+        required: true
+        type: string
 jobs:
   prepare-install-verify-provider-packages:
     timeout-minutes: 80
@@ -87,6 +91,7 @@ jobs:
         with:
           platform: "linux/amd64"
           python: ${{ inputs.default-python-version }}
+          use-uv: ${{ inputs.use-uv }}
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: "Prepare provider documentation"
@@ -175,6 +180,7 @@ jobs:
         with:
           platform: "linux/amd64"
           python: ${{ matrix.python-version }}
+          use-uv: ${{ inputs.use-uv }}
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: "Prepare provider packages: wheel"

@@ -76,6 +76,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to debug resources or not (true/false)"
         required: true
         type: string
+      use-uv:
+        description: "Whether to use uv or not (true/false)"
+        required: true
+        type: string
 
 jobs:
   tests-min-sqlalchemy:
@@ -100,6 +104,7 @@ jobs:
       providers-test-types-list-as-string: ${{ inputs.providers-test-types-list-as-string }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
+      use-uv: ${{ inputs.use-uv }}
 
   tests-boto:
     name: "Latest Boto test"
@@ -124,6 +129,7 @@ jobs:
       include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
+      use-uv: ${{ inputs.use-uv }}
 
   tests-pendulum-2:
     name: "Pendulum2 test"
@@ -148,6 +154,7 @@ jobs:
       include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
+      use-uv: ${{ inputs.use-uv }}
 
   tests-quarantined:
     name: "Quarantined test"
@@ -171,6 +178,7 @@ jobs:
       include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
+      use-uv: ${{ inputs.use-uv }}
 
   tests-arm-collection:
     name: "ARM Collection test"
@@ -194,6 +202,7 @@ jobs:
       include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
+      use-uv: ${{ inputs.use-uv }}
     if: ${{ inputs.default-branch == 'main' }}
 
   tests-system:
@@ -218,3 +227,4 @@ jobs:
       include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
+      use-uv: ${{ inputs.use-uv }}
