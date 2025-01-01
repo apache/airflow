@@ -181,16 +181,16 @@ jobs:
       - name: "Cleanup repo"
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: Free up disk space
-        shell: bash
-        run: ./scripts/tools/free_up_disk_space.sh
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: "Cleanup docker"
         run: ./scripts/ci/cleanup_docker.sh
-      - name: "Download all test warning artifacts from the current build"
+      - name: Free up disk space
+        shell: bash
+        run: ./scripts/tools/free_up_disk_space.sh
+      - name: "Download all artifacts from the current build"
         uses: actions/download-artifact@v4
         with:
           path: ./artifacts
