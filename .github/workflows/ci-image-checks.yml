@@ -104,12 +104,61 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run coverage or not (true/false)"
         required: true
         type: string
+      use-uv:
+        description: "Whether to use uv to build the image (true/false)"
+        required: true
+        type: string
 
 jobs:
+  install-pre-commit:
+    timeout-minutes: 5
+    name: "Install pre-commit for cache (only canary runs)"
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    env:
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+    if: inputs.basic-checks-only == 'false'
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: inputs.canary-run == 'true'
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+        if: inputs.canary-run == 'true'
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        with:
+          use-uv: ${{ inputs.use-uv }}
+        id: breeze
+        if: inputs.canary-run == 'true'
+      - name: "Install pre-commit"
+        uses: ./.github/actions/install-pre-commit
+        id: pre-commit
+        with:
+          python-version: ${{steps.breeze.outputs.host-python-version}}
+        if: inputs.canary-run == 'true'
+      - name: "Prepare .tar file from pre-commit cache"
+        run: |
+          tar -C ~ -czf /tmp/cache-pre-commit.tar.gz .cache/pre-commit .cache/uv
+        shell: bash
+        if: inputs.canary-run == 'true'
+      - name: "Save pre-commit cache"
+        uses: apache/infrastructure-actions/stash/save@c94b890bbedc2fc61466d28e6bd9966bc6c6643c
+        with:
+          # yamllint disable rule:line-length
+          key: cache-pre-commit-v4-${{ steps.breeze.outputs.host-python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
+          path: /tmp/cache-pre-commit.tar.gz
+          if-no-files-found: 'error'
+          retention-days: '2'
+        if: inputs.canary-run == 'true'
+
   static-checks:
     timeout-minutes: 45
     name: "Static checks"
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    needs: install-pre-commit
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       UPGRADE_TO_NEWER_DEPENDENCIES: "${{ inputs.upgrade-to-newer-dependencies }}"
@@ -123,17 +172,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ inputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/pyproject.toml
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
           platform: "linux/amd64"
           python: ${{ inputs.default-python-version }}
+          use-uv: ${{ inputs.use-uv }}
         id: breeze
       - name: "Install pre-commit"
         uses: ./.github/actions/install-pre-commit
@@ -154,6 +198,7 @@ jobs:
     timeout-minutes: 45
     name: "MyPy checks"
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    needs: install-pre-commit
     if: inputs.needs-mypy == 'true'
     strategy:
       fail-fast: false
@@ -175,6 +220,7 @@ jobs:
         with:
           platform: "linux/amd64"
           python: ${{ inputs.default-python-version }}
+          use-uv: ${{ inputs.use-uv }}
         id: breeze
       - name: "Install pre-commit"
         uses: ./.github/actions/install-pre-commit
@@ -221,24 +267,32 @@ jobs:
         with:
           platform: "linux/amd64"
           python: ${{ inputs.default-python-version }}
-      - uses: actions/cache@v4
-        id: cache-doc-inventories
+          use-uv: ${{ inputs.use-uv }}
+      - name: "Restore docs inventory cache"
+        uses: apache/infrastructure-actions/stash/restore@c94b890bbedc2fc61466d28e6bd9966bc6c6643c
         with:
           path: ./docs/_inventory_cache/
-          key: docs-inventory-${{ hashFiles('pyproject.toml;') }}
-          restore-keys: |
-            docs-inventory-${{ hashFiles('pyproject.toml;') }}
-            docs-inventory-
+          # TODO(potiuk): do better with determining the key
+          key: cache-docs-inventory-v1-${{ hashFiles('pyproject.toml') }}
+        id: restore-docs-inventory-cache
       - name: "Building docs with ${{ matrix.flag }} flag"
         run: >
           breeze build-docs ${{ inputs.docs-list-as-string }} ${{ matrix.flag }}
+      - name: "Save docs inventory cache"
+        uses: apache/infrastructure-actions/stash/save@c94b890bbedc2fc61466d28e6bd9966bc6c6643c
+        with:
+          path: ./docs/_inventory_cache/
+          key: cache-docs-inventory-v1-${{ hashFiles('pyproject.toml') }}
+          if-no-files-found: 'error'
+          retention-days: '2'
+        if: steps.restore-docs-inventory-cache != 'true'
       - name: "Upload build docs"
         uses: actions/upload-artifact@v4
         with:
           name: airflow-docs
           path: './docs/_build'
-          retention-days: 7
-          if-no-files-found: error
+          retention-days: '7'
+          if-no-files-found: 'error'
         if: matrix.flag == '--docs-only'
 
   publish-docs:
@@ -283,6 +337,7 @@ jobs:
         with:
           platform: "linux/amd64"
           python: ${{ inputs.default-python-version }}
+          use-uv: ${{ inputs.use-uv }}
       - name: "Publish docs"
         run: >
           breeze release-management publish-docs --override-versioned --run-in-parallel
@@ -355,6 +410,7 @@ jobs:
         with:
           platform: "linux/amd64"
           python: ${{ inputs.default-python-version }}
+          use-uv: ${{ inputs.use-uv }}
       - name: "Generate airflow python client"
         run: >
           breeze release-management prepare-python-client --package-format both

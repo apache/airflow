@@ -68,6 +68,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether this is a canary run (true/false)"
         required: true
         type: string
+      use-uv:
+        description: "Whether to use uv to build the image (true/false)"
+        required: true
+        type: string
 jobs:
   update-constraints:
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
@@ -140,7 +144,7 @@ jobs:
       python-versions: ${{ inputs.python-versions }}
       branch: ${{ inputs.branch }}
       constraints-branch: ${{ inputs.constraints-branch }}
-      use-uv: ${{ needs.build-info.outputs.force-pip == 'true' && 'false' || 'true' }}
+      use-uv: ${{ inputs.use-uv }}
       include-success-outputs: ${{ inputs.include-success-outputs }}
       docker-cache: ${{ inputs.docker-cache }}
       disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
