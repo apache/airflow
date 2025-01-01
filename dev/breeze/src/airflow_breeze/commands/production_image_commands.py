@@ -39,8 +39,8 @@ from airflow_breeze.commands.common_image_options import (
     option_dev_apt_deps,
     option_disable_airflow_repo_cache,
     option_docker_cache,
-    option_from_job,
     option_from_pr,
+    option_from_run,
     option_github_token_for_images,
     option_install_mysql_client_type,
     option_platform_multiple,
@@ -648,7 +648,7 @@ def save(
 
 @prod_image.command(name="load")
 @option_dry_run
-@option_from_job
+@option_from_run
 @option_from_pr
 @option_github_repository
 @option_github_token_for_images
@@ -658,7 +658,7 @@ def save(
 @option_skip_image_file_deletion
 @option_verbose
 def load(
-    from_job: str | None,
+    from_run: str | None,
     from_pr: str | None,
     github_repository: str,
     github_token: str,
@@ -671,8 +671,8 @@ def load(
     perform_environment_checks()
     escaped_platform = platform.replace("/", "_")
     path = f"/tmp/prod-image-save-{escaped_platform}-{python}.tar"
-    if from_job:
-        download_artifact_from_run_id(from_job, path, github_repository, github_token)
+    if from_run:
+        download_artifact_from_run_id(from_run, path, github_repository, github_token)
     elif from_pr:
         download_artifact_from_pr(from_pr, path, github_repository, github_token)
     if not image_file:

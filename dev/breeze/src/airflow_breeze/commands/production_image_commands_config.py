@@ -196,7 +196,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--image-file",
                 "--github-repository",
                 "--github-token",
-                "--from-job",
+                "--from-run",
                 "--from-pr",
                 "--skip-image-file-deletion",
             ],

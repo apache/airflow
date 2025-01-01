@@ -189,12 +189,12 @@ option_skip_image_file_deletion = click.option(
     is_flag=True,
     envvar="SKIP_IMAGE_FILE_DELETION",
 )
-option_from_job = click.option(
-    "--from-job",
+option_from_run = click.option(
+    "--from-run",
     required=False,
     default="",
-    envvar="FROM_JOB",
-    help="Optional run id of the github action job to load the image from.",
+    envvar="FROM_RUN",
+    help="Optional run id of the github action run to load the image from.",
 )
 
 option_from_pr = click.option(
