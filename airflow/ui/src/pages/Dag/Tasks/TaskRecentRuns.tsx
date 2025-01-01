@@ -42,11 +42,7 @@ export const TaskRecentRuns = ({
   const taskInstancesWithDuration = taskInstances.map((taskInstance) => ({
     ...taskInstance,
     duration:
-      dayjs
-        .duration(
-          dayjs(taskInstance.end_date ?? dayjs()).diff(taskInstance.start_date),
-        )
-        .asSeconds() || 0,
+      dayjs.duration(dayjs(taskInstance.end_date ?? dayjs()).diff(taskInstance.start_date)).asSeconds() || 0,
   }));
 
   const max = Math.max.apply(
@@ -58,10 +54,7 @@ export const TaskRecentRuns = ({
     <Flex alignItems="flex-end" flexDirection="row-reverse">
       {taskInstancesWithDuration.map((taskInstance) =>
         taskInstance.state === null ? undefined : (
-          <TaskInstanceTooltip
-            key={taskInstance.dag_run_id}
-            taskInstance={taskInstance}
-          >
+          <TaskInstanceTooltip key={taskInstance.dag_run_id} taskInstance={taskInstance}>
             <Link to={getTaskInstanceLink(taskInstance)}>
               <Box p={1}>
                 <Box

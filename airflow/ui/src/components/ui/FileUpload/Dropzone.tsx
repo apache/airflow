@@ -25,21 +25,19 @@ export type FileUploadDropzoneProps = {
   label: React.ReactNode;
 } & ChakraFileUpload.DropzoneProps;
 
-export const Dropzone = forwardRef<HTMLInputElement, FileUploadDropzoneProps>(
-  (props, ref) => {
-    const { children, description, label, ...rest } = props;
+export const Dropzone = forwardRef<HTMLInputElement, FileUploadDropzoneProps>((props, ref) => {
+  const { children, description, label, ...rest } = props;
 
-    return (
-      <ChakraFileUpload.Dropzone ref={ref} {...rest}>
-        <Icon color="fg.muted" fontSize="xl">
-          <LuUpload />
-        </Icon>
-        <ChakraFileUpload.DropzoneContent>
-          <div>{label}</div>
-          {description ?? <Text color="fg.muted">{description}</Text>}
-        </ChakraFileUpload.DropzoneContent>
-        {children}
-      </ChakraFileUpload.Dropzone>
-    );
-  },
-);
+  return (
+    <ChakraFileUpload.Dropzone ref={ref} {...rest}>
+      <Icon color="fg.muted" fontSize="xl">
+        <LuUpload />
+      </Icon>
+      <ChakraFileUpload.DropzoneContent>
+        <div>{label}</div>
+        {description ?? <Text color="fg.muted">{description}</Text>}
+      </ChakraFileUpload.DropzoneContent>
+      {children}
+    </ChakraFileUpload.Dropzone>
+  );
+});

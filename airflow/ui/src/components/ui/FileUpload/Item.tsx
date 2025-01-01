@@ -16,11 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  FileUpload as ChakraFileUpload,
-  Icon,
-  IconButton,
-} from "@chakra-ui/react";
+import { FileUpload as ChakraFileUpload, Icon, IconButton } from "@chakra-ui/react";
 import { forwardRef } from "react";
 import { LuFile, LuX } from "react-icons/lu";
 
@@ -33,35 +29,33 @@ type FileUploadItemProps = {
   file: File;
 } & VisibilityProps;
 
-export const Item = forwardRef<HTMLLIElement, FileUploadItemProps>(
-  (props, ref) => {
-    const { clearable, file, showSize } = props;
+export const Item = forwardRef<HTMLLIElement, FileUploadItemProps>((props, ref) => {
+  const { clearable, file, showSize } = props;
 
-    return (
-      <ChakraFileUpload.Item file={file} ref={ref}>
-        <ChakraFileUpload.ItemPreview asChild>
-          <Icon color="fg.muted" fontSize="lg">
-            <LuFile />
-          </Icon>
-        </ChakraFileUpload.ItemPreview>
+  return (
+    <ChakraFileUpload.Item file={file} ref={ref}>
+      <ChakraFileUpload.ItemPreview asChild>
+        <Icon color="fg.muted" fontSize="lg">
+          <LuFile />
+        </Icon>
+      </ChakraFileUpload.ItemPreview>
 
-        {showSize ? (
-          <ChakraFileUpload.ItemContent>
-            <ChakraFileUpload.ItemName />
-            <ChakraFileUpload.ItemSizeText />
-          </ChakraFileUpload.ItemContent>
-        ) : (
-          <ChakraFileUpload.ItemName flex="1" />
-        )}
+      {showSize ? (
+        <ChakraFileUpload.ItemContent>
+          <ChakraFileUpload.ItemName />
+          <ChakraFileUpload.ItemSizeText />
+        </ChakraFileUpload.ItemContent>
+      ) : (
+        <ChakraFileUpload.ItemName flex="1" />
+      )}
 
-        {clearable ? (
-          <ChakraFileUpload.ItemDeleteTrigger asChild>
-            <IconButton color="fg.muted" size="xs" variant="ghost">
-              <LuX />
-            </IconButton>
-          </ChakraFileUpload.ItemDeleteTrigger>
-        ) : undefined}
-      </ChakraFileUpload.Item>
-    );
-  },
-);
+      {clearable ? (
+        <ChakraFileUpload.ItemDeleteTrigger asChild>
+          <IconButton color="fg.muted" size="xs" variant="ghost">
+            <LuX />
+          </IconButton>
+        </ChakraFileUpload.ItemDeleteTrigger>
+      ) : undefined}
+    </ChakraFileUpload.Item>
+  );
+});
