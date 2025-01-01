@@ -557,6 +557,7 @@ jobs:
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
+      prod-image-build: ${{ needs.build-info.outputs.prod-image-build }}
 
   additional-prod-image-tests:
     name: "Additional PROD image tests"
