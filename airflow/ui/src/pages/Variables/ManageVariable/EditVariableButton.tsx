@@ -38,10 +38,9 @@ const EditVariableButton = ({ variable }: Props) => {
     key: variable.key,
     value: variable.value ?? "",
   };
-  const { editVariable, error, isPending, setError } = useEditVariable(
-    initialVariableValue,
-    { onSuccessConfirm: onClose },
-  );
+  const { editVariable, error, isPending, setError } = useEditVariable(initialVariableValue, {
+    onSuccessConfirm: onClose,
+  });
 
   const handleClose = () => {
     setError(undefined);

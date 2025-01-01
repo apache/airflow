@@ -21,16 +21,8 @@ import type { PropsWithChildren } from "react";
 
 export const NodeWrapper = ({ children }: PropsWithChildren) => (
   <>
-    <Handle
-      position={Position.Top}
-      style={{ visibility: "hidden" }}
-      type="target"
-    />
+    <Handle position={Position.Top} style={{ visibility: "hidden" }} type="target" />
     {children}
-    <Handle
-      position={Position.Bottom}
-      style={{ visibility: "hidden" }}
-      type="source"
-    />
+    <Handle position={Position.Bottom} style={{ visibility: "hidden" }} type="source" />
   </>
 );

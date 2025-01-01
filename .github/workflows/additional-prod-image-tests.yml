@@ -56,6 +56,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Which version of python should be used by default"
         required: true
         type: string
+      use-uv:
+        description: "Whether to use uv"
+        required: true
+        type: string
 jobs:
   prod-image-extra-checks-main:
     name: PROD image extra checks (main)
@@ -117,6 +121,7 @@ jobs:
           platform: "linux/amd64"
           image-type: "prod"
           python: ${{ inputs.default-python-version }}
+          use-uv: ${{ inputs.use-uv }}
       - name: "Test examples of PROD image building"
         run: "
           cd ./docker_tests && \
@@ -150,6 +155,7 @@ jobs:
           platform: "linux/amd64"
           image-type: "prod"
           python: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          use-uv: ${{ inputs.use-uv }}
         id: breeze
       - name: "Test docker-compose quick start"
         run: breeze testing docker-compose-tests

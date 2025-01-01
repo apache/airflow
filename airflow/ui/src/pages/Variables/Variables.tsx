@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, VStack } from "@chakra-ui/react";
+import { Box, Flex, HStack, Spacer, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -27,11 +27,9 @@ import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
-import {
-  SearchParamsKeys,
-  type SearchParamsKeysType,
-} from "src/constants/searchParams";
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 
+import ImportVariablesButton from "./ImportVariablesButton";
 import AddVariableButton from "./ManageVariable/AddVariableButton";
 import DeleteVariableButton from "./ManageVariable/DeleteVariableButton";
 import EditVariableButton from "./ManageVariable/EditVariableButton";
@@ -69,27 +67,20 @@ const columns: Array<ColumnDef<VariableResponse>> = [
 export const Variables = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType =
-    SearchParamsKeys;
+  const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
   const [variableKeyPattern, setVariableKeyPattern] = useState(
     searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
   );
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort
-    ? `${sort.desc ? "-" : ""}${sort.id === "value" ? "_val" : sort.id}`
-    : "-key";
+  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id === "value" ? "_val" : sort.id}` : "-key";
 
-  const { data, error, isFetching, isLoading } = useVariableServiceGetVariables(
-    {
-      limit: pagination.pageSize,
-      offset: pagination.pageIndex * pagination.pageSize,
-      orderBy,
-      variableKeyPattern: Boolean(variableKeyPattern)
-        ? `${variableKeyPattern}`
-        : undefined,
-    },
-  );
+  const { data, error, isFetching, isLoading } = useVariableServiceGetVariables({
+    limit: pagination.pageSize,
+    offset: pagination.pageIndex * pagination.pageSize,
+    orderBy,
+    variableKeyPattern: Boolean(variableKeyPattern) ? `${variableKeyPattern}` : undefined,
+  });
 
   const handleSearchChange = (value: string) => {
     if (value) {
@@ -114,11 +105,13 @@ export const Variables = () => {
           onChange={handleSearchChange}
           placeHolder="Search Keys"
         />
-        <HStack mt={4}>
+        <HStack gap={4} mt={2}>
+          <ImportVariablesButton />
+          <Spacer />
           <AddVariableButton />
         </HStack>
       </VStack>
-      <Box>
+      <Box overflow="auto">
         <DataTable
           columns={columns}
           data={data ? data.variables : []}

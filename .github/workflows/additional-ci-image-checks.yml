@@ -111,7 +111,7 @@ jobs:
       python-versions: ${{ inputs.python-versions }}
       branch: ${{ inputs.branch }}
       constraints-branch: ${{ inputs.constraints-branch }}
-      use-uv: ${{ inputs.use-uv}}
+      use-uv: ${{ inputs.use-uv }}
       include-success-outputs: ${{ inputs.include-success-outputs }}
       docker-cache: ${{ inputs.docker-cache }}
       disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
@@ -143,6 +143,8 @@ jobs:
         run: ./scripts/ci/cleanup_docker.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          use-uv: ${{ inputs.use-uv }}
       - name: "Login to ghcr.io"
         run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
       - name: "Check that image builds quickly"
@@ -160,14 +162,16 @@ jobs:
 #      packages: write
 #    secrets: inherit
 #    with:
+#      platform: "linux/arm64"
 #      push-image: "false"
+#      upload-image-artifact: "true"
+#      upload-mount-cache-artifact:  ${{ inputs.canary-run }}
 #      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
 #      runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
 #      python-versions: ${{ inputs.python-versions }}
-#      platform: "linux/arm64"
 #      branch: ${{ inputs.branch }}
 #      constraints-branch: ${{ inputs.constraints-branch }}
-#      use-uv: ${{ inputs.use-uv}}
+#      use-uv: ${{ inputs.use-uv }}
 #      upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
 #      docker-cache: ${{ inputs.docker-cache }}
 #      disable-airflow-repo-cache:  ${{ inputs.disable-airflow-repo-cache }}
