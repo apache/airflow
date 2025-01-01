@@ -26,6 +26,7 @@ from collections.abc import Sequence
 from functools import cached_property
 from logging import Logger
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlparse
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -242,7 +243,35 @@ class DatabricksJobRunLink(BaseOperatorLink):
         *,
         ti_key: TaskInstanceKey,
     ) -> str:
-        return XCom.get_value(key=XCOM_RUN_PAGE_URL_KEY, ti_key=ti_key)
+        # Retrieve the value from XCom
+        value = XCom.get_value(key=XCOM_RUN_PAGE_URL_KEY, ti_key=ti_key)
+
+        # Check if the value is an S3 URL
+        if value and value.startswith("s3://"):
+            try:
+                # Parse the S3 URL and extract job information
+                return self.construct_databricks_url(value)
+            except Exception:
+                # Return a placeholder link in case of an error
+                return "#"
+
+        # Return the value directly if it's not an S3 URL
+        return value
+
+    @staticmethod
+    def construct_databricks_url(s3_url: str) -> str:
+        """
+        Convert an S3 URL to a Databricks workspace URL.
+
+        Assumes the S3 URL points to a JSON file that contains job details.
+        """
+        parsed = urlparse(s3_url)
+
+        # Example logic: Extract the job run ID from the path
+        job_details = parsed.path.split("/")[-1].replace(".json", "")
+        databricks_workspace_url = f"https://<your-databricks-workspace-url>/#job/{job_details}/run"
+
+        return databricks_workspace_url
 
 
 class DatabricksCreateJobsOperator(BaseOperator):
