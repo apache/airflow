@@ -19,17 +19,10 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import {
-  useVariableServiceGetVariablesKey,
-  useVariableServiceImportVariables,
-} from "openapi/queries";
+import { useVariableServiceGetVariablesKey, useVariableServiceImportVariables } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
-export const useImportVariables = ({
-  onSuccessConfirm,
-}: {
-  onSuccessConfirm: () => void;
-}) => {
+export const useImportVariables = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
 

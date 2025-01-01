@@ -24,13 +24,7 @@ import remarkGfm from "remark-gfm";
 
 import { Button, Dialog } from "src/components/ui";
 
-const DocumentationModal = ({
-  docMd,
-  docType,
-}: {
-  readonly docMd: string;
-  readonly docType: string;
-}) => {
+const DocumentationModal = ({ docMd, docType }: { readonly docMd: string; readonly docType: string }) => {
   const [isDocsOpen, setIsDocsOpen] = useState(false);
 
   return (
@@ -39,11 +33,7 @@ const DocumentationModal = ({
         <FiBookOpen height={5} width={5} />
         {docType} Docs
       </Button>
-      <Dialog.Root
-        onOpenChange={() => setIsDocsOpen(false)}
-        open={isDocsOpen}
-        size="md"
-      >
+      <Dialog.Root onOpenChange={() => setIsDocsOpen(false)} open={isDocsOpen} size="md">
         <Dialog.Content backdrop>
           <Dialog.Header bg="blue.muted">
             <Heading size="xl">{docType} Documentation</Heading>

@@ -18,10 +18,7 @@
  */
 import { useParams } from "react-router-dom";
 
-import {
-  useDagServiceGetDagDetails,
-  useDagsServiceRecentDagRuns,
-} from "openapi/queries";
+import { useDagServiceGetDagDetails, useDagsServiceRecentDagRuns } from "openapi/queries";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 
 import { Header } from "./Header";
@@ -54,17 +51,10 @@ export const Dag = () => {
     enabled: Boolean(dagId),
   });
 
-  const runs =
-    runsData?.dags.find((dagWithRuns) => dagWithRuns.dag_id === dagId)
-      ?.latest_dag_runs ?? [];
+  const runs = runsData?.dags.find((dagWithRuns) => dagWithRuns.dag_id === dagId)?.latest_dag_runs ?? [];
 
   return (
-    <DetailsLayout
-      dag={dag}
-      error={error ?? runsError}
-      isLoading={isLoading || isLoadingRuns}
-      tabs={tabs}
-    >
+    <DetailsLayout dag={dag} error={error ?? runsError} isLoading={isLoading || isLoadingRuns} tabs={tabs}>
       <Header dag={dag} dagId={dagId} latestRun={runs[0]} />
     </DetailsLayout>
   );

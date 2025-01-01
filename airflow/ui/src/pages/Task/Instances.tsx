@@ -20,10 +20,7 @@ import { Box, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Link as RouterLink, useParams } from "react-router-dom";
 
-import {
-  useTaskInstanceServiceGetTaskInstances,
-  useTaskServiceGetTask,
-} from "openapi/queries";
+import { useTaskInstanceServiceGetTaskInstances, useTaskServiceGetTask } from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
@@ -33,16 +30,12 @@ import { Status } from "src/components/ui";
 import { getDuration } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
-const columns = (
-  isMapped?: boolean,
-): Array<ColumnDef<TaskInstanceResponse>> => [
+const columns = (isMapped?: boolean): Array<ColumnDef<TaskInstanceResponse>> => [
   {
     accessorKey: "dag_run_id",
     cell: ({ row: { original } }) => (
       <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink to={getTaskInstanceLink(original)}>
-          {original.dag_run_id}
-        </RouterLink>
+        <RouterLink to={getTaskInstanceLink(original)}>{original.dag_run_id}</RouterLink>
       </Link>
     ),
     enableSorting: false,
@@ -70,8 +63,7 @@ const columns = (
   ...(isMapped
     ? [
         {
-          accessorFn: (row: TaskInstanceResponse) =>
-            row.rendered_map_index ?? row.map_index,
+          accessorFn: (row: TaskInstanceResponse) => row.rendered_map_index ?? row.map_index,
           header: "Map Index",
         },
       ]
@@ -82,8 +74,7 @@ const columns = (
     header: "Try Number",
   },
   {
-    cell: ({ row: { original } }) =>
-      `${getDuration(original.start_date, original.end_date)}s`,
+    cell: ({ row: { original } }) => `${getDuration(original.start_date, original.end_date)}s`,
     header: "Duration",
   },
 ];
@@ -95,21 +86,16 @@ export const Instances = () => {
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-start_date";
 
-  const {
-    data: task,
-    error: taskError,
-    isLoading: isTaskLoading,
-  } = useTaskServiceGetTask({ dagId, taskId });
+  const { data: task, error: taskError, isLoading: isTaskLoading } = useTaskServiceGetTask({ dagId, taskId });
 
-  const { data, error, isFetching, isLoading } =
-    useTaskInstanceServiceGetTaskInstances({
-      dagId,
-      dagRunId: "~",
-      limit: pagination.pageSize,
-      offset: pagination.pageIndex * pagination.pageSize,
-      orderBy,
-      taskId,
-    });
+  const { data, error, isFetching, isLoading } = useTaskInstanceServiceGetTaskInstances({
+    dagId,
+    dagRunId: "~",
+    limit: pagination.pageSize,
+    offset: pagination.pageIndex * pagination.pageSize,
+    orderBy,
+    taskId,
+  });
 
   return (
     <Box>
