@@ -629,6 +629,7 @@ jobs:
       - tests-postgres
       - tests-non-db
       - tests-integration-system
+      - build-prod-images
     uses: ./.github/workflows/finalize-tests.yml
     with:
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
