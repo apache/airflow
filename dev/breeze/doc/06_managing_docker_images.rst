@@ -120,13 +120,24 @@ To load the image from specific PR, you can use the following command:
 
 .. code-block:: bash
 
-     breeze ci-image load --from-pr 12345 --python 3.9 --platform linux/amd64
+     breeze ci-image load --from-pr 12345 --python 3.9 --github-token <your_github_token>
 
 To load the image from specific job run (for example 12538475388), you can use the following command, find the run id from github action runs.
 
 .. code-block:: bash
 
-     breeze ci-image load --from-job 12538475388 --python 3.9 --platform linux/amd64
+     breeze ci-image load --from-run 12538475388 --python 3.9 --github-token <your_github_token>
+
+After you load the image, you can reproduce the very exact environment that was used in the CI run by
+entering breeze container without mounting your local sources:
+
+.. code-block:: bash
+
+     breeze shell --mount-sources skip [OTHER OPTIONS]
+
+And you should be able to run any tests and commands interactively in the very exact environment that
+was used in the failing CI run. This is a powerful tool to debug and fix CI issues.
+
 
 .. image:: ./images/image_artifacts.png
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci-image_load.svg

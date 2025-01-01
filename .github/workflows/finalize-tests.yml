@@ -187,10 +187,14 @@ jobs:
           persist-credentials: false
       - name: "Cleanup docker"
         run: ./scripts/ci/cleanup_docker.sh
-      - name: "Download all artifacts from the current build"
+      - name: Free up disk space
+        shell: bash
+        run: ./scripts/tools/free_up_disk_space.sh
+      - name: "Download all test warning artifacts from the current build"
         uses: actions/download-artifact@v4
         with:
           path: ./artifacts
+          pattern: test-warnings-*
       - name: "Setup python"
         uses: actions/setup-python@v5
         with:
