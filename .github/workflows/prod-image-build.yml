@@ -112,12 +112,17 @@ on:  # yamllint disable-line rule:truthy
         description: "Disable airflow repo cache read from main."
         required: true
         type: string
+      prod-image-build:
+        description: "Whether this is a prod-image build (true/false)"
+        required: true
+        type: string
 jobs:
 
   build-prod-packages:
     name: "Build Airflow and provider packages"
     timeout-minutes: 10
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    if: inputs.prod-image-build == 'true'
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       VERSION_SUFFIX_FOR_PYPI: ${{ inputs.branch == 'main' && 'dev0' || '' }}
