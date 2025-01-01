@@ -80,12 +80,7 @@ export const TaskNode = ({
           </Box>
           <Box>
             {isGroup ? (
-              <Button
-                colorPalette="blue"
-                onClick={onClick}
-                p={0}
-                variant="plain"
-              >
+              <Button colorPalette="blue" onClick={onClick} p={0} variant="plain">
                 {isOpen ? "- " : "+ "}
                 {pluralize("task", childCount, undefined, false)}
               </Button>

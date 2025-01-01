@@ -18,10 +18,7 @@
  */
 import { useQueryClient } from "@tanstack/react-query";
 
-import {
-  useVariableServiceDeleteVariable,
-  useVariableServiceGetVariablesKey,
-} from "openapi/queries";
+import { useVariableServiceDeleteVariable, useVariableServiceGetVariablesKey } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
 const onError = () => {
@@ -32,11 +29,7 @@ const onError = () => {
   });
 };
 
-export const useDeleteVariable = ({
-  onSuccessConfirm,
-}: {
-  onSuccessConfirm: () => void;
-}) => {
+export const useDeleteVariable = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
 
   const onSuccess = async () => {

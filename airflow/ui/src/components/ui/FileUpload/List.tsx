@@ -16,10 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  FileUpload as ChakraFileUpload,
-  useFileUploadContext,
-} from "@chakra-ui/react";
+import { FileUpload as ChakraFileUpload, useFileUploadContext } from "@chakra-ui/react";
 import { forwardRef } from "react";
 
 import { Item } from "./Item";
@@ -34,28 +31,21 @@ type FileUploadListProps = {
 } & ChakraFileUpload.ItemGroupProps &
   VisibilityProps;
 
-export const List = forwardRef<HTMLUListElement, FileUploadListProps>(
-  (props, ref) => {
-    const { clearable, files, showSize, ...rest } = props;
+export const List = forwardRef<HTMLUListElement, FileUploadListProps>((props, ref) => {
+  const { clearable, files, showSize, ...rest } = props;
 
-    const fileUpload = useFileUploadContext();
-    const acceptedFiles = files ?? fileUpload.acceptedFiles;
+  const fileUpload = useFileUploadContext();
+  const acceptedFiles = files ?? fileUpload.acceptedFiles;
 
-    if (acceptedFiles.length === 0) {
-      return undefined;
-    }
+  if (acceptedFiles.length === 0) {
+    return undefined;
+  }
 
-    return (
-      <ChakraFileUpload.ItemGroup ref={ref} {...rest}>
-        {acceptedFiles.map((file) => (
-          <Item
-            clearable={clearable}
-            file={file}
-            key={file.name}
-            showSize={showSize}
-          />
-        ))}
-      </ChakraFileUpload.ItemGroup>
-    );
-  },
-);
+  return (
+    <ChakraFileUpload.ItemGroup ref={ref} {...rest}>
+      {acceptedFiles.map((file) => (
+        <Item clearable={clearable} file={file} key={file.name} showSize={showSize} />
+      ))}
+    </ChakraFileUpload.ItemGroup>
+  );
+});
