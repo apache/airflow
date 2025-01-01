@@ -17,12 +17,7 @@
  * under the License.
  */
 import type { ButtonProps, RecipeProps } from "@chakra-ui/react";
-import {
-  Button,
-  FileUpload as ChakraFileUpload,
-  Span,
-  useRecipe,
-} from "@chakra-ui/react";
+import { Button, FileUpload as ChakraFileUpload, Span, useRecipe } from "@chakra-ui/react";
 import { forwardRef } from "react";
 
 type Assign<T, U> = Omit<T, keyof U> & U;
@@ -31,35 +26,27 @@ type FileInputProps = {
   placeholder?: React.ReactNode;
 } & Assign<ButtonProps, RecipeProps<"input">>;
 
-export const FileInput = forwardRef<HTMLButtonElement, FileInputProps>(
-  (props, ref) => {
-    const inputRecipe = useRecipe({ key: "input" });
-    const [recipeProps, restProps] = inputRecipe.splitVariantProps(props);
-    const { placeholder = "Select file(s)", ...rest } = restProps;
+export const FileInput = forwardRef<HTMLButtonElement, FileInputProps>((props, ref) => {
+  const inputRecipe = useRecipe({ key: "input" });
+  const [recipeProps, restProps] = inputRecipe.splitVariantProps(props);
+  const { placeholder = "Select file(s)", ...rest } = restProps;
 
-    return (
-      <ChakraFileUpload.Trigger asChild>
-        <Button
-          py="0"
-          ref={ref}
-          unstyled
-          {...rest}
-          css={[inputRecipe(recipeProps), props.css]}
-        >
-          <ChakraFileUpload.Context>
-            {({ acceptedFiles }) => {
-              if (acceptedFiles.length === 1) {
-                return <span>{acceptedFiles[0]?.name}</span>;
-              }
-              if (acceptedFiles.length > 1) {
-                return <span>{acceptedFiles.length} files</span>;
-              }
+  return (
+    <ChakraFileUpload.Trigger asChild>
+      <Button py="0" ref={ref} unstyled {...rest} css={[inputRecipe(recipeProps), props.css]}>
+        <ChakraFileUpload.Context>
+          {({ acceptedFiles }) => {
+            if (acceptedFiles.length === 1) {
+              return <span>{acceptedFiles[0]?.name}</span>;
+            }
+            if (acceptedFiles.length > 1) {
+              return <span>{acceptedFiles.length} files</span>;
+            }
 
-              return <Span color="fg.subtle">{placeholder}</Span>;
-            }}
-          </ChakraFileUpload.Context>
-        </Button>
-      </ChakraFileUpload.Trigger>
-    );
-  },
-);
+            return <Span color="fg.subtle">{placeholder}</Span>;
+          }}
+        </ChakraFileUpload.Context>
+      </Button>
+    </ChakraFileUpload.Trigger>
+  );
+});

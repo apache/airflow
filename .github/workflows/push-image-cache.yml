@@ -111,7 +111,6 @@ jobs:
       INCLUDE_SUCCESS_OUTPUTS: "${{ inputs.include-success-outputs }}"
       INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python }}"
-      USE_UV: ${{ inputs.use-uv }}
       UPGRADE_TO_NEWER_DEPENDENCIES: "false"
       VERBOSE: "true"
       VERSION_SUFFIX_FOR_PYPI: "dev0"
@@ -127,6 +126,8 @@ jobs:
         run: ./scripts/ci/cleanup_docker.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          use-uv: ${{ inputs.use-uv }}
       - name: Login to ghcr.io
         run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
       - name: "Push CI latest images: ${{ env.PYTHON_MAJOR_MINOR_VERSION }} (linux/amd64 only)"
@@ -176,7 +177,6 @@ jobs:
       INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python }}"
       UPGRADE_TO_NEWER_DEPENDENCIES: "false"
-      USE_UV: ${{ inputs.branch == 'main' && inputs.use-uv || 'false' }}
       VERBOSE: "true"
       VERSION_SUFFIX_FOR_PYPI: "dev0"
     if: inputs.include-prod-images == 'true'
@@ -192,6 +192,8 @@ jobs:
         run: ./scripts/ci/cleanup_docker.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          use-uv: ${{ inputs.use-uv }}
       - name: "Cleanup dist and context file"
         run: rm -fv ./dist/* ./docker-context-files/*
       - name: "Download packages prepared as artifacts"

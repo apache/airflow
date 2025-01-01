@@ -22,11 +22,7 @@ type QuickFilterButtonProps = {
   readonly isActive: boolean;
 } & ButtonProps;
 
-export const QuickFilterButton = ({
-  children,
-  isActive,
-  ...rest
-}: QuickFilterButtonProps) => (
+export const QuickFilterButton = ({ children, isActive, ...rest }: QuickFilterButtonProps) => (
   <Button
     _hover={{ bg: "colorPalette.subtle" }}
     bg={isActive ? "colorPalette.muted" : undefined}

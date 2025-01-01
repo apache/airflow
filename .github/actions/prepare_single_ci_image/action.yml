@@ -38,7 +38,7 @@ runs:
     - name: "Restore CI docker images ${{ inputs.platform }}:${{ inputs.python }}"
       uses: apache/infrastructure-actions/stash/restore@c94b890bbedc2fc61466d28e6bd9966bc6c6643c
       with:
-        key: "ci-image-save-${{ inputs.platform }}-${{ inputs.python }}"
+        key: ci-image-save-${{ inputs.platform }}-${{ inputs.python }}
         path: "/tmp/"
       if: contains(inputs.python-versions-list-as-string, inputs.python)
     - name: "Load CI image ${{ inputs.platform }}:${{ inputs.python }}"

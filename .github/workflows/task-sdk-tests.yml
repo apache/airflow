@@ -36,6 +36,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run Task SDK tests or not (true/false)"
         required: true
         type: string
+      use-uv:
+        description: "Whether to use uv to build the image (true/false)"
+        required: true
+        type: string
 jobs:
   task-sdk-tests:
     timeout-minutes: 80
@@ -66,6 +70,7 @@ jobs:
         with:
           platform: "linux/amd64"
           python: ${{ matrix.python-version }}
+          use-uv: ${{ inputs.use-uv }}
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: "Prepare Task SDK packages: wheel"
