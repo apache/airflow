@@ -133,16 +133,14 @@ jobs:
       - name: "Cleanup docker"
         run: ./scripts/ci/cleanup_docker.sh
         if: inputs.upload-package-artifact == 'true'
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "${{ inputs.default-python-version }}"
-        if: inputs.upload-package-artifact == 'true'
       - name: "Cleanup dist and context file"
         shell: bash
         run: rm -fv ./dist/* ./docker-context-files/*
         if: inputs.upload-package-artifact == 'true'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          use-uv: ${{ inputs.use-uv }}
         if: inputs.upload-package-artifact == 'true'
       - name: "Prepare providers packages"
         shell: bash
@@ -206,7 +204,6 @@ jobs:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
-      USE_UV: ${{ inputs.use-uv }}
       VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
@@ -220,6 +217,8 @@ jobs:
         run: ./scripts/ci/cleanup_docker.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          use-uv: ${{ inputs.use-uv }}
       - name: "Cleanup dist and context file"
         shell: bash
         run: rm -fv ./dist/* ./docker-context-files/*
@@ -280,8 +279,8 @@ jobs:
       - name: "Stash PROD docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         uses: apache/infrastructure-actions/stash/save@c94b890bbedc2fc61466d28e6bd9966bc6c6643c
         with:
-          key: "prod-image-save-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+          key: prod-image-save-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}
           path: "/tmp/prod-image-save-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar"
           if-no-files-found: 'error'
-          retention-days: 2
+          retention-days: '2'
         if: inputs.upload-image-artifact == 'true'
