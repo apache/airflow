@@ -162,11 +162,13 @@ jobs:
 #      packages: write
 #    secrets: inherit
 #    with:
+#      platform: "linux/arm64"
 #      push-image: "false"
+#      upload-image-artifact: "true"
+#      upload-mount-cache-artifact:  ${{ inputs.canary-run }}
 #      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
 #      runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
 #      python-versions: ${{ inputs.python-versions }}
-#      platform: "linux/arm64"
 #      branch: ${{ inputs.branch }}
 #      constraints-branch: ${{ inputs.constraints-branch }}
 #      use-uv: ${{ inputs.use-uv }}
