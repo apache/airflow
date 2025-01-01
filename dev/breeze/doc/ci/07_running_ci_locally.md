@@ -106,7 +106,7 @@ breeze ci-image build
 You have to be aware that some of the PRs and canary builds use the `--upgrade-to-newer-dependencies` flag
 (`UPGRADE_TO_NEWER_DEPENDENCIES` environment variable set to `true`) and they are not using constraints
 to build the image so if you want to build it locally, you should pass the `--upgrade-to-newer-dependencies`
-flaag when you are building the image.
+flag when you are building the image.
 
 Note however, that if constraints changed for regulare builds and if someone released a new package in PyPI
 since the build was run (which is very likely - we have many packages released a day), the image you
