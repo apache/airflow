@@ -25,11 +25,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { Button, CloseButton, InputGroup } from "src/components/ui";
 import { FileUpload } from "src/components/ui/FileUpload";
 import { FileInput } from "src/components/ui/FileUpload/FileInput";
-import {
-  RadioCardItem,
-  RadioCardLabel,
-  RadioCardRoot,
-} from "src/components/ui/RadioCard";
+import { RadioCardItem, RadioCardLabel, RadioCardRoot } from "src/components/ui/RadioCard";
 import { useImportVariables } from "src/queries/useImportVariables";
 
 type ImportVariablesFormProps = {
@@ -59,12 +55,8 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
     onSuccessConfirm: onClose,
   });
 
-  const [selectedFile, setSelectedFile] = useState<Blob | File | undefined>(
-    undefined,
-  );
-  const [actionIfExists, setActionIfExists] = useState<
-    "fail" | "overwrite" | "skip" | undefined
-  >("fail");
+  const [selectedFile, setSelectedFile] = useState<Blob | File | undefined>(undefined);
+  const [actionIfExists, setActionIfExists] = useState<"fail" | "overwrite" | "skip" | undefined>("fail");
 
   const onSubmit = () => {
     setError(undefined);
@@ -153,11 +145,7 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
             </Center>
           </Box>
         ) : undefined}
-        <Button
-          colorPalette="blue"
-          disabled={!selectedFile || isPending}
-          onClick={onSubmit}
-        >
+        <Button colorPalette="blue" disabled={!selectedFile || isPending} onClick={onSubmit}>
           <FiUploadCloud /> Import
         </Button>
       </Box>
