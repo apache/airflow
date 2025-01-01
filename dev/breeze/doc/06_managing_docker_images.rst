@@ -133,6 +133,28 @@ To load the image from specific job run (for example 12538475388), you can use t
   :width: 100%
   :alt: Breeze image artifacts
 
+Exporting and importing CI image cache mount
+............................................
+
+During the build, cache of ``uv`` and ``pip`` is stored in a separate "cache mount" volum that is mounted
+during the build. This cache mount volume is preserved between builds and can be exported and imported
+to speed up the build process in CI - where cache is stored as artifact and can be imported in the next
+build.
+
+These are all available flags of ``export-mount-cache`` command:
+
+.. image:: ./images/output_ci-image_export-mount-cache.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci-image_export-mount-cache.svg
+  :width: 100%
+  :alt: Breeze ci-image
+
+These are all available flags of ``import-mount-cache`` command:
+
+.. image:: ./images/output_ci-image_import-mount-cache.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci-image_import-mount-cache.svg
+  :width: 100%
+  :alt: Breeze ci-image import-mount-cache
+
 PROD Image tasks
 ----------------
 
