@@ -129,7 +129,7 @@ You can read more about it in [Breeze](../README.rst) and [Testing](../../../../
 # Options and environment variables used
 
 Depending whether the scripts are run locally via [Breeze](../README.rst) or whether they are run in
-`Build Images` or `Tests` workflows can behave differentlt.
+`Build Images` or `Tests` workflows can behave differently.
 
 You can use those variables when you try to reproduce the build locally - alternatively you can pass
 those via corresponding command line flag passed to `breeze shell` command.
