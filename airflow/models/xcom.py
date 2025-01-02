@@ -119,6 +119,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         passive_deletes="all",
     )
     execution_date = association_proxy("dag_run", "execution_date")
+    logical_date = association_proxy("dag_run", "execution_date")
 
     @reconstructor
     def init_on_load(self):
