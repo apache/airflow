@@ -622,3 +622,67 @@ def inject_openlineage_properties_into_dataproc_batch(
 
     batch_with_ol_config = _replace_dataproc_batch_properties(batch=batch, new_properties=properties)
     return batch_with_ol_config
+
+
+def inject_openlineage_properties_into_dataproc_workflow_template(
+    template: dict, context: Context, inject_parent_job_info: bool
+) -> dict:
+    """
+    Inject OpenLineage properties into Spark jobs in Workflow Template.
+
+    Function is not removing any configuration or modifying the jobs in any other way,
+    apart from adding desired OpenLineage properties to Dataproc job definition if not already present.
+
+    Note:
+        Any modification to job will be skipped if:
+            - OpenLineage provider is not accessible.
+            - The job type is not supported.
+            - Automatic parent job information injection is disabled.
+            - Any OpenLineage properties with parent job information are already present
+              in the Spark job definition.
+
+    Args:
+        template: The original Dataproc Workflow Template definition.
+        context: The Airflow context in which the job is running.
+        inject_parent_job_info: Flag indicating whether to inject parent job information.
+
+    Returns:
+        The modified Workflow Template definition with OpenLineage properties injected, if applicable.
+    """
+    if not inject_parent_job_info:
+        log.debug("Automatic injection of OpenLineage information is disabled.")
+        return template
+
+    if not _is_openlineage_provider_accessible():
+        log.warning(
+            "Could not access OpenLineage provider for automatic OpenLineage "
+            "properties injection. No action will be performed."
+        )
+        return template
+
+    final_jobs = []
+    for single_job_definition in template["jobs"]:
+        step_id = single_job_definition["step_id"]
+        log.debug("Injecting OpenLineage properties into Workflow step: `%s`", step_id)
+
+        if (job_type := _extract_supported_job_type_from_dataproc_job(single_job_definition)) is None:
+            log.debug(
+                "Could not find a supported Dataproc job type for automatic OpenLineage "
+                "properties injection. No action will be performed.",
+            )
+            final_jobs.append(single_job_definition)
+            continue
+
+        properties = single_job_definition[job_type].get("properties", {})
+
+        properties = inject_parent_job_information_into_spark_properties(
+            properties=properties, context=context
+        )
+
+        job_with_ol_config = _replace_dataproc_job_properties(
+            job=single_job_definition, job_type=job_type, new_properties=properties
+        )
+        final_jobs.append(job_with_ol_config)
+
+    template["jobs"] = final_jobs
+    return template
