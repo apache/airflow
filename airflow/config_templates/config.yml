@@ -2699,26 +2699,29 @@ dag_bundles:
         By default, ``refresh_interval`` is set to ``[scheduler] dag_dir_list_interval``, but that can be
         overridden here if desired.
 
+        Note: you can split your json config over multiple lines by indenting.  See configparser documentation
+        for an example: https://docs.python.org/3/library/configparser.html#supported-ini-file-structure.
+
         Parsing DAGs from the DAG folder can be disabled by setting this option to an empty string.
       version_added: 3.0.0
       type: string
       example: >
         [
-          {
-              "name": "my-git-repo",
-              "classpath": "airflow.dag_processing.bundles.git.GitDagBundle",
-              "kwargs": {
-                  "subdir": "dags",
-                  "repo_url": "git@github.com:example.com/my-dags.git",
-                  "tracking_ref": "main",
-                  "refresh_interval": 0
-          }
-        ]'
+            {
+                "name": "my-git-repo",
+                "classpath": "airflow.dag_processing.bundles.git.GitDagBundle",
+                "kwargs": {
+                    "subdir": "dags",
+                    "repo_url": "git@github.com:example.com/my-dags.git",
+                    "tracking_ref": "main",
+                    "refresh_interval": 0
+            }
+          ]
       default: >
         [
-          {{
-            "name": "dags-folder",
-            "classpath": "airflow.dag_processing.bundles.dagfolder.DagsFolderDagBundle",
-            "kwargs": {{}}
-          }}
-        ]
+            {{
+              "name": "dags-folder",
+              "classpath": "airflow.dag_processing.bundles.dagfolder.DagsFolderDagBundle",
+              "kwargs": {{}}
+            }}
+          ]
