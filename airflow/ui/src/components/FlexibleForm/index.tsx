@@ -42,7 +42,7 @@ const FlexibleForm = ({ params }: FlexibleFormProps) => {
     <>
       <Stack separator={<StackSeparator />}>
         {Object.entries(params)
-          .filter(([, param]) => param.schema.section === null)
+          .filter(([, param]) => typeof param.schema.section !== "string")
           .map(([name, param]) => (
             <FlexibleFormRow key={name} name={name} param={param} />
           ))}
