@@ -796,3 +796,10 @@ class TestConnection(TestConnectionEndpoint):
             "detail": "Testing connections is disabled in Airflow configuration. "
             "Contact your deployment admin to enable it."
         }
+
+
+class TestCreateDefaultConnections(TestConnectionEndpoint):
+    def test_should_respond_204(self, test_client):
+        response = test_client.post("/public/connections/defaults")
+        assert response.status_code == 204
+        assert response.content == b""
