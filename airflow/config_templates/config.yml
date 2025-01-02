@@ -2700,8 +2700,8 @@ dag_bundles:
         overridden here if desired.
 
         Parsing DAGs from the DAG folder can be disabled by setting this option to an empty string.
-      version_added: 3.0
-      type: object
+      version_added: 3.0.0
+      type: string
       example: >
         [
           {
@@ -2714,4 +2714,11 @@ dag_bundles:
                   "refresh_interval": 0
           }
         ]'
-      default: '[{{"name": "dags-folder", "classpath": "airflow.dag_processing.bundles.dagfolder.DagsFolderDagBundle", "kwargs": {{}}}}]'
+      default: >
+        [
+          {{
+            "name": "dags-folder",
+            "classpath": "airflow.dag_processing.bundles.dagfolder.DagsFolderDagBundle",
+            "kwargs": {{}}
+          }}
+        ]
