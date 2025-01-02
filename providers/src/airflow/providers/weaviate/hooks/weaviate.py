@@ -749,7 +749,7 @@ class WeaviateHook(BaseHook):
         verbose: bool = False,
     ) -> Sequence[dict[str, UUID | str] | None]:
         """
-        create or replace objects belonging to documents.
+        Create or replace objects belonging to documents.
 
         In real-world scenarios, information sources like Airflow docs, Stack Overflow, or other issues
         are considered 'documents' here. It's crucial to keep the database objects in sync with these sources.

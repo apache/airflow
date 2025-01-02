@@ -18,21 +18,21 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections.abc import Container, Sequence
-from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from sqlalchemy import select
 
 from airflow.auth.managers.models.base_user import BaseUser
-from airflow.auth.managers.models.resource_details import (
-    DagDetails,
-)
+from airflow.auth.managers.models.resource_details import DagDetails
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from collections.abc import Container, Sequence
+    from typing import Literal
+
     from fastapi import FastAPI
     from flask import Blueprint
     from flask_appbuilder.menu import MenuItem
@@ -55,7 +55,7 @@ if TYPE_CHECKING:
     )
     from airflow.cli.cli_config import CLICommand
 
-ResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
+    ResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
 
 T = TypeVar("T", bound=BaseUser)
 
