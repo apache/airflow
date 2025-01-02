@@ -20,7 +20,7 @@ import { Stack, StackSeparator } from "@chakra-ui/react";
 
 import type { DagParamsSpec, ParamSpec } from "src/queries/useDagParams";
 
-import { Accordion } from "../ui";
+import { Accordion, Alert } from "../ui";
 import { FlexibleFormRow } from "./FlexibleFormRow";
 
 type FlexibleFormProps = {
@@ -34,13 +34,17 @@ export type FlexibleFormElementProps = {
 };
 
 const FlexibleForm = ({ params }: FlexibleFormProps) => {
-  // TODO: Add a note that the form is not "working" until onBlur not implemented
-  //       ...or add a note as altert when the form is "used"
   const processedSections = new Map();
 
   return (
     <>
       <Stack separator={<StackSeparator />}>
+        {Object.keys(params).length > 0 && (
+          <Alert
+            status="warning"
+            title="Population of changes in trigger form fields is not implemented yet. Please stay tuned for upcoming updates... and change the run conf in the 'Advanced Options' conf section below meanwhile."
+          />
+        )}
         {Object.entries(params)
           .filter(([, param]) => typeof param.schema.section !== "string")
           .map(([name, param]) => (
