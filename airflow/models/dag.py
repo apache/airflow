@@ -770,15 +770,13 @@ class DAG(TaskSDKDag, LoggingMixin):
         """Return a boolean indicating whether this DAG is paused."""
         return session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == self.dag_id))
 
-    @property
     @provide_session
-    def bundle_name(self, session=NEW_SESSION) -> str:
+    def get_bundle_name(self, session=NEW_SESSION) -> str:
         """Return the name of the bundle this DAG is in."""
         return session.scalar(select(DagModel.bundle_name).where(DagModel.dag_id == self.dag_id))
 
-    @property
     @provide_session
-    def latest_bundle_version(self, session=NEW_SESSION) -> str | None:
+    def get_latest_bundle_version(self, session=NEW_SESSION) -> str | None:
         """Return the latest version of the bundle this DAG is in."""
         return session.scalar(select(DagModel.latest_bundle_version).where(DagModel.dag_id == self.dag_id))
 
