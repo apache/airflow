@@ -489,18 +489,13 @@ class AzureServiceBusUpdateSubscriptionOperator(BaseOperator):
         """Update Subscription properties, by connecting to Service Bus Admin client."""
         hook = AdminClientHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
 
-        with hook.get_conn() as service_mgmt_conn:
-            subscription_prop = service_mgmt_conn.get_subscription(self.topic_name, self.subscription_name)
-            if self.max_delivery_count:
-                subscription_prop.max_delivery_count = self.max_delivery_count
-            if self.dl_on_message_expiration is not None:
-                subscription_prop.dead_lettering_on_message_expiration = self.dl_on_message_expiration
-            if self.enable_batched_operations is not None:
-                subscription_prop.enable_batched_operations = self.enable_batched_operations
-            # update by updating the properties in the model
-            service_mgmt_conn.update_subscription(self.topic_name, subscription_prop)
-            updated_subscription = service_mgmt_conn.get_subscription(self.topic_name, self.subscription_name)
-            self.log.info("Subscription Updated successfully %s", updated_subscription)
+        hook.update_subscription(
+            topic_name=self.topic_name,
+            subscription_name=self.subscription_name,
+            max_delivery_count=self.max_delivery_count,
+            dead_lettering_on_message_expiration=self.dl_on_message_expiration,
+            enable_batched_operations=self.enable_batched_operations,
+        )
 
 
 class ASBReceiveSubscriptionMessageOperator(BaseOperator):

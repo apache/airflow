@@ -426,9 +426,20 @@ class TestAzureServiceBusUpdateSubscriptionOperator:
             subscription_name=SUBSCRIPTION_NAME,
             max_delivery_count=20,
         )
-        with mock.patch.object(asb_update_subscription.log, "info") as mock_log_info:
-            asb_update_subscription.execute(None)
-        mock_log_info.assert_called_with("Subscription Updated successfully %s", mock_subscription_properties)
+
+        asb_update_subscription.execute(None)
+
+        mock_get_conn.return_value.__enter__.return_value.get_subscription.assert_has_calls(
+            [
+                mock.call(TOPIC_NAME, SUBSCRIPTION_NAME),  # before update
+                mock.call(TOPIC_NAME, SUBSCRIPTION_NAME),  # after update
+            ]
+        )
+
+        mock_get_conn.return_value.__enter__.return_value.update_subscription.assert_called_once_with(
+            TOPIC_NAME,
+            mock_subscription_properties,
+        )
 
 
 class TestASBSubscriptionReceiveMessageOperator:
