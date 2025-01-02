@@ -51,6 +51,8 @@ def provide_cli_api_client(func: Callable[PS, RT]) -> Callable[PS, RT]:
     """
     Provide a CLI API Client to the decorated function.
 
+    CLI API Client shouldn't be passed to the function when this wrapper is used
+    if the purpose is not mocking or testing.
     If you want to reuse a CLI API Client or run the function as part of
     API call, you pass it to the function, if not this wrapper
     will create one and close it for you.
@@ -58,10 +60,11 @@ def provide_cli_api_client(func: Callable[PS, RT]) -> Callable[PS, RT]:
 
     @wraps(func)
     def wrapper(*args, **kwargs) -> RT:
-        with get_client() as cli_api_client:
-            if "cli_api_client" not in kwargs:
+        if "cli_api_client" not in kwargs:
+            with get_client() as cli_api_client:
                 return func(*args, cli_api_client=cli_api_client, **kwargs)
-            return func(*args, **kwargs)
+        # The CLI API Client should be only passed for Mocking and Testing
+        return func(*args, **kwargs)
 
     return wrapper
 
