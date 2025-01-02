@@ -436,7 +436,7 @@ class AwsAuthManager(BaseAuthManager):
         if not self.avp_facade.is_policy_store_schema_up_to_date():
             self.log.warning(
                 "The Amazon Verified Permissions policy store schema is different from the latest version "
-                "(https://github.com/apache/airflow/blob/main/airflow/providers/amazon/aws/auth_manager/avp/schema.json). "
+                "(https://github.com/apache/airflow/blob/main/providers/src/airflow/providers/amazon/aws/auth_manager/avp/schema.json). "
                 "Please update it to its latest version. "
                 "See doc: https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/auth-manager/setup/amazon-verified-permissions.html#update-the-policy-store-schema."
             )

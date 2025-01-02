@@ -18,10 +18,7 @@
  */
 import { useContext } from "react";
 
-import {
-  OpenGroupsContext,
-  type OpenGroupsContextType,
-} from "./OpenGroupsProvider";
+import { OpenGroupsContext, type OpenGroupsContextType } from "./OpenGroupsProvider";
 
 export const useOpenGroups = (): OpenGroupsContextType => {
   const context = useContext(OpenGroupsContext);

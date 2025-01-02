@@ -35,13 +35,7 @@ export const DagFilterButton = ({
   readonly link: string;
 }) => (
   <RouterLink to={link}>
-    <Button
-      alignItems="center"
-      borderRadius="md"
-      display="flex"
-      gap={2}
-      variant="outline"
-    >
+    <Button alignItems="center" borderRadius="md" display="flex" gap={2} variant="outline">
       <Box alignItems="center" display="flex" gap={1}>
         <MetricsBadge backgroundColor={badgeColor} />
         <Text fontWeight="bold">{capitalize(filter)} Dags</Text>

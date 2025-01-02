@@ -25,10 +25,7 @@ import {
   UseDagServiceGetDagDetailsKeyFn,
   useTaskInstanceServiceGetTaskInstancesKey,
 } from "openapi/queries";
-import type {
-  DAGRunClearBody,
-  TaskInstanceCollectionResponse,
-} from "openapi/requests/types.gen";
+import type { DAGRunClearBody, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
 
 const onError = () => {
@@ -70,11 +67,7 @@ export const useClearDagRun = ({
         [useDagRunServiceGetDagRunsKey],
       ];
 
-      await Promise.all(
-        queryKeys.map((key) =>
-          queryClient.invalidateQueries({ queryKey: key }),
-        ),
-      );
+      await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
       onSuccessConfirm();
     }

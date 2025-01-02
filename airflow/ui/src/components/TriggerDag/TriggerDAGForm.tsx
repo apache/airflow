@@ -110,8 +110,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
 
       return JSON.stringify(parsedJson, undefined, 2);
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error occurred.";
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred.";
 
       setErrors((prev) => ({
         ...prev,
@@ -132,9 +131,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
     <>
       <Accordion.Root collapsible mb={4} mt={4} size="lg" variant="enclosed">
         <Accordion.Item key="advancedOptions" value="advancedOptions">
-          <Accordion.ItemTrigger cursor="button">
-            Advanced Options
-          </Accordion.ItemTrigger>
+          <Accordion.ItemTrigger cursor="button">Advanced Options</Accordion.ItemTrigger>
           <Accordion.ItemContent>
             <Box p={5}>
               <Controller
@@ -142,9 +139,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
                 name="dataIntervalStart"
                 render={({ field }) => (
                   <Field.Root invalid={Boolean(errors.date)}>
-                    <Field.Label fontSize="md">
-                      Data Interval Start Date
-                    </Field.Label>
+                    <Field.Label fontSize="md">Data Interval Start Date</Field.Label>
                     <Input
                       {...field}
                       max={dataIntervalEnd || undefined}
@@ -162,9 +157,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
                 name="dataIntervalEnd"
                 render={({ field }) => (
                   <Field.Root invalid={Boolean(errors.date)} mt={6}>
-                    <Field.Label fontSize="md">
-                      Data Interval End Date
-                    </Field.Label>
+                    <Field.Label fontSize="md">Data Interval End Date</Field.Label>
                     <Input
                       {...field}
                       min={dataIntervalStart || undefined}
@@ -220,9 +213,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
                       }}
                       theme={colorMode === "dark" ? githubDark : githubLight}
                     />
-                    {Boolean(errors.conf) ? (
-                      <Field.ErrorText>{errors.conf}</Field.ErrorText>
-                    ) : undefined}
+                    {Boolean(errors.conf) ? <Field.ErrorText>{errors.conf}</Field.ErrorText> : undefined}
                   </Field.Root>
                 )}
               />

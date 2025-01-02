@@ -18,23 +18,13 @@
  */
 import type { SortingState } from "@tanstack/react-table";
 
-import {
-  SearchParamsKeys,
-  type SearchParamsKeysType,
-} from "src/constants/searchParams";
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 
 import type { TableState } from "./types";
 
-const {
-  LIMIT: LIMIT_PARAM,
-  OFFSET: OFFSET_PARAM,
-  SORT: SORT_PARAM,
-}: SearchParamsKeysType = SearchParamsKeys;
+const { LIMIT: LIMIT_PARAM, OFFSET: OFFSET_PARAM, SORT: SORT_PARAM }: SearchParamsKeysType = SearchParamsKeys;
 
-export const stateToSearchParams = (
-  state: TableState,
-  defaultTableState?: TableState,
-): URLSearchParams => {
+export const stateToSearchParams = (state: TableState, defaultTableState?: TableState): URLSearchParams => {
   const queryParams = new URLSearchParams(globalThis.location.search);
 
   if (state.pagination.pageSize === defaultTableState?.pagination.pageSize) {
@@ -51,11 +41,7 @@ export const stateToSearchParams = (
 
   if (state.sorting.length) {
     state.sorting.forEach(({ desc, id }) => {
-      if (
-        defaultTableState?.sorting.find(
-          (sort) => sort.id === id && sort.desc === desc,
-        )
-      ) {
+      if (defaultTableState?.sorting.find((sort) => sort.id === id && sort.desc === desc)) {
         queryParams.delete(SORT_PARAM, `${desc ? "-" : ""}${id}`);
       } else {
         queryParams.set(SORT_PARAM, `${desc ? "-" : ""}${id}`);
@@ -68,10 +54,7 @@ export const stateToSearchParams = (
   return queryParams;
 };
 
-export const searchParamsToState = (
-  searchParams: URLSearchParams,
-  defaultState: TableState,
-) => {
+export const searchParamsToState = (searchParams: URLSearchParams, defaultState: TableState) => {
   let urlState: Partial<TableState> = {};
   const pageIndex = searchParams.get(OFFSET_PARAM) ?? "";
   const pageSize = searchParams.get(LIMIT_PARAM) ?? "";
@@ -81,10 +64,7 @@ export const searchParamsToState = (
       ...urlState,
       pagination: {
         pageIndex: parseInt(pageIndex, 10),
-        pageSize:
-          pageSize === ""
-            ? defaultState.pagination.pageSize
-            : parseInt(pageSize, 10),
+        pageSize: pageSize === "" ? defaultState.pagination.pageSize : parseInt(pageSize, 10),
       },
     };
   }

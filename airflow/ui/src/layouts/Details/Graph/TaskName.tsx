@@ -52,9 +52,7 @@ export const TaskName = ({
     <Text data-testid={id} fontSize={isZoomedOut ? 24 : undefined} {...rest}>
       {label}
       {isMapped ? " [ ]" : undefined}
-      {setupTeardownType === "setup" && (
-        <FiArrowUpRight size={isZoomedOut ? 24 : 15} style={iconStyle} />
-      )}
+      {setupTeardownType === "setup" && <FiArrowUpRight size={isZoomedOut ? 24 : 15} style={iconStyle} />}
       {setupTeardownType === "teardown" && (
         <FiArrowDownRight size={isZoomedOut ? 24 : 15} style={iconStyle} />
       )}

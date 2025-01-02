@@ -390,19 +390,37 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         #   - Update RTIF
         #   - Pre Execute
         #   etc
-        result = ti.task.execute(context)  # type: ignore[attr-defined]
-        _push_xcom_if_needed(result, ti)
 
+        result = None
+        if ti.task.execution_timeout:
+            # TODO: handle timeout in case of deferral
+            from airflow.utils.timeout import timeout
+
+            timeout_seconds = ti.task.execution_timeout.total_seconds()
+            try:
+                # It's possible we're already timed out, so fast-fail if true
+                if timeout_seconds <= 0:
+                    raise AirflowTaskTimeout()
+                # Run task in timeout wrapper
+                with timeout(timeout_seconds):
+                    result = ti.task.execute(context)  # type: ignore[attr-defined]
+            except AirflowTaskTimeout:
+                # TODO: handle on kill callback here
+                raise
+        else:
+            result = ti.task.execute(context)  # type: ignore[attr-defined]
+
+        _push_xcom_if_needed(result, ti)
         msg = TaskState(state=TerminalTIState.SUCCESS, end_date=datetime.now(tz=timezone.utc))
     except TaskDeferred as defer:
         classpath, trigger_kwargs = defer.trigger.serialize()
         next_method = defer.method_name
-        timeout = defer.timeout
+        defer_timeout = defer.timeout
         msg = DeferTask(
             classpath=classpath,
             trigger_kwargs=trigger_kwargs,
             next_method=next_method,
-            trigger_timeout=timeout,
+            trigger_timeout=defer_timeout,
         )
     except AirflowSkipException:
         msg = TaskState(
@@ -420,29 +438,42 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         # TODO: Handle fail_stop here: https://github.com/apache/airflow/issues/44951
         # TODO: Handle addition to Log table: https://github.com/apache/airflow/issues/44952
         msg = TaskState(
-            state=TerminalTIState.FAILED,
+            state=TerminalTIState.FAIL_WITHOUT_RETRY,
             end_date=datetime.now(tz=timezone.utc),
         )
-
         # TODO: Run task failure callbacks here
     except (AirflowTaskTimeout, AirflowException):
-        # TODO: handle the case of up_for_retry here
-        ...
-    except AirflowTaskTerminated:
-        # External state updates are already handled with `ti_heartbeat` and will be
-        # updated already be another UI API. So, these exceptions should ideally never be thrown.
-        # If these are thrown, we should mark the TI state as failed.
+        # We should allow retries if the task has defined it.
         msg = TaskState(
             state=TerminalTIState.FAILED,
             end_date=datetime.now(tz=timezone.utc),
         )
         # TODO: Run task failure callbacks here
+    except AirflowException:
+        # TODO: handle the case of up_for_retry here
+        msg = TaskState(
+            state=TerminalTIState.FAILED,
+            end_date=datetime.now(tz=timezone.utc),
+        )
+    except AirflowTaskTerminated:
+        # External state updates are already handled with `ti_heartbeat` and will be
+        # updated already be another UI API. So, these exceptions should ideally never be thrown.
+        # If these are thrown, we should mark the TI state as failed.
+        msg = TaskState(
+            state=TerminalTIState.FAIL_WITHOUT_RETRY,
+            end_date=datetime.now(tz=timezone.utc),
+        )
+        # TODO: Run task failure callbacks here
     except SystemExit:
-        ...
+        # SystemExit needs to be retried if they are eligible.
+        msg = TaskState(
+            state=TerminalTIState.FAILED,
+            end_date=datetime.now(tz=timezone.utc),
+        )
+        # TODO: Run task failure callbacks here
     except BaseException:
-        # TODO: Handle TI handle failure
-        raise
-
+        # TODO: Run task failure callbacks here
+        msg = TaskState(state=TerminalTIState.FAILED, end_date=datetime.now(tz=timezone.utc))
     if msg:
         SUPERVISOR_COMMS.send_request(msg=msg, log=log)
 

@@ -255,19 +255,39 @@ class TestABSTopicCreateOperator:
     @mock.patch("azure.servicebus.management.TopicProperties")
     def test_create_topic(self, mock_topic_properties, mock_get_conn):
         """
-        Test AzureServiceBusTopicCreateOperator passed with the topic name
-        mocking the connection details, hook create_topic function
+        Test AzureServiceBusSubscriptionCreateOperator passed with the subscription name, topic name
+        mocking the connection details, hook create_subscription function
         """
+        print("Wazzup doc")
         asb_create_topic = AzureServiceBusTopicCreateOperator(
             task_id="asb_create_topic",
             topic_name=TOPIC_NAME,
         )
         mock_topic_properties.name = TOPIC_NAME
         mock_get_conn.return_value.__enter__.return_value.create_topic.return_value = mock_topic_properties
-
-        with mock.patch.object(asb_create_topic.log, "info") as mock_log_info:
-            asb_create_topic.execute(None)
-        mock_log_info.assert_called_with("Created Topic %s", TOPIC_NAME)
+        # create the topic
+        created_topic_name = asb_create_topic.execute(None)
+        # ensure the topic name is returned
+        assert created_topic_name == TOPIC_NAME
+        # ensure create_subscription is called with the correct arguments on the connection
+        mock_get_conn.return_value.__enter__.return_value.create_topic.assert_called_once_with(
+            topic_name=TOPIC_NAME,
+            default_message_time_to_live=None,
+            max_size_in_megabytes=None,
+            requires_duplicate_detection=None,
+            duplicate_detection_history_time_window=None,
+            enable_batched_operations=None,
+            size_in_bytes=None,
+            filtering_messages_before_publishing=None,
+            authorization_rules=None,
+            support_ordering=None,
+            auto_delete_on_idle=None,
+            enable_partitioning=None,
+            enable_express=None,
+            user_metadata=None,
+            max_message_size_in_kilobytes=None,
+        )
+        print("Later Gator")
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.asb.AdminClientHook")
     def test_create_subscription_exception(self, mock_sb_admin_client):

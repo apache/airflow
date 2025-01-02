@@ -19,12 +19,7 @@
 import { Box, Button } from "@chakra-ui/react";
 import type { PropsWithChildren } from "react";
 import { FiChevronsLeft } from "react-icons/fi";
-import {
-  Outlet,
-  Link as RouterLink,
-  useParams,
-  useSearchParams,
-} from "react-router-dom";
+import { Outlet, Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import type { DAGResponse } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -42,13 +37,7 @@ type Props = {
   readonly tabs: Array<{ label: string; value: string }>;
 } & PropsWithChildren;
 
-export const DetailsLayout = ({
-  children,
-  dag,
-  error,
-  isLoading,
-  tabs,
-}: Props) => {
+export const DetailsLayout = ({ children, dag, error, isLoading, tabs }: Props) => {
   const { dagId = "" } = useParams();
 
   const [searchParams, setSearchParams] = useSearchParams();

@@ -126,7 +126,7 @@ Here, we are calling the `get_waiter` function defined in `base_aws.py` which ta
 }
 ```
 
-For more information about writing custom waiter, see the [README.md](https://github.com/apache/airflow/blob/main/airflow/providers/amazon/aws/waiters/README.md) for custom waiters.
+For more information about writing custom waiter, see the [README.md](https://github.com/apache/airflow/blob/main/providers/src/airflow/providers/amazon/aws/waiters/README.md) for custom waiters.
 
 In some cases, a built-in or custom waiter may not be able to solve the problem. In such cases, the asynchronous method used to poll the boto3 API would need to be defined in the hook of the service being used. This method is essentially the same as the synchronous version of the method, except that it will use the aiobotocore client, and will be awaited. For the Redshift example, the async `describe_clusters` method would look as follows:
 

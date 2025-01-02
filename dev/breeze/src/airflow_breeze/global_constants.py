@@ -545,7 +545,6 @@ FILES_FOR_REBUILD_CHECK = [
     "scripts/docker/common.sh",
     "scripts/docker/install_additional_dependencies.sh",
     "scripts/docker/install_airflow.sh",
-    "scripts/docker/install_airflow_dependencies_from_branch_tip.sh",
     "scripts/docker/install_from_docker_context_files.sh",
     "scripts/docker/install_mysql.sh",
 ]

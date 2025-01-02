@@ -19,10 +19,7 @@
 import { Flex, Heading, VStack } from "@chakra-ui/react";
 import { FiRefreshCw } from "react-icons/fi";
 
-import type {
-  DAGRunClearBody,
-  TaskInstanceCollectionResponse,
-} from "openapi/requests/types.gen";
+import type { DAGRunClearBody, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
 import { Button, Dialog } from "src/components/ui";
 
 import SegmentedControl from "../ui/SegmentedControl";

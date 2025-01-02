@@ -38,39 +38,18 @@ export const DagCard = ({ dag }: Props) => {
   const [latestRun] = dag.latest_dag_runs;
 
   return (
-    <Box
-      borderColor="border.emphasized"
-      borderRadius={8}
-      borderWidth={1}
-      overflow="hidden"
-    >
-      <Flex
-        alignItems="center"
-        bg="bg.muted"
-        justifyContent="space-between"
-        px={3}
-        py={2}
-      >
+    <Box borderColor="border.emphasized" borderRadius={8} borderWidth={1} overflow="hidden">
+      <Flex alignItems="center" bg="bg.muted" justifyContent="space-between" px={3} py={2}>
         <HStack>
-          <Tooltip
-            content={dag.description}
-            disabled={!Boolean(dag.description)}
-            showArrow
-          >
+          <Tooltip content={dag.description} disabled={!Boolean(dag.description)} showArrow>
             <Link asChild color="fg.info" fontWeight="bold">
-              <RouterLink to={`/dags/${dag.dag_id}`}>
-                {dag.dag_display_name}
-              </RouterLink>
+              <RouterLink to={`/dags/${dag.dag_id}`}>{dag.dag_display_name}</RouterLink>
             </Link>
           </Tooltip>
           <DagTags tags={dag.tags} />
         </HStack>
         <HStack>
-          <TogglePause
-            dagDisplayName={dag.dag_display_name}
-            dagId={dag.dag_id}
-            isPaused={dag.is_paused}
-          />
+          <TogglePause dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} isPaused={dag.is_paused} />
           <TriggerDAGButton dag={dag} withText={false} />
         </HStack>
       </Flex>
@@ -81,9 +60,7 @@ export const DagCard = ({ dag }: Props) => {
         <Stat label="Latest Run">
           {latestRun ? (
             <Link asChild color="fg.info" fontSize="sm">
-              <RouterLink
-                to={`/dags/${latestRun.dag_id}/runs/${latestRun.dag_run_id}`}
-              >
+              <RouterLink to={`/dags/${latestRun.dag_id}/runs/${latestRun.dag_run_id}`}>
                 <DagRunInfo
                   dataIntervalEnd={latestRun.data_interval_end}
                   dataIntervalStart={latestRun.data_interval_start}

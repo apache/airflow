@@ -41,7 +41,6 @@ from airflow_breeze.commands.common_options import (
     option_forward_credentials,
     option_github_repository,
     option_image_name,
-    option_image_tag_for_running,
     option_include_success_outputs,
     option_keep_env_variables,
     option_mount_sources,
@@ -117,7 +116,6 @@ def group_for_testing():
     ),
 )
 @option_python
-@option_image_tag_for_running
 @option_image_name
 @click.option(
     "--skip-docker-compose-deletion",
@@ -132,7 +130,6 @@ def group_for_testing():
 def docker_compose_tests(
     python: str,
     image_name: str,
-    image_tag: str | None,
     skip_docker_compose_deletion: bool,
     github_repository: str,
     extra_pytest_args: tuple,
@@ -140,10 +137,8 @@ def docker_compose_tests(
     """Run docker-compose tests."""
     perform_environment_checks()
     if image_name is None:
-        build_params = BuildProdParams(
-            python=python, image_tag=image_tag, github_repository=github_repository
-        )
-        image_name = build_params.airflow_image_name_with_tag
+        build_params = BuildProdParams(python=python, github_repository=github_repository)
+        image_name = build_params.airflow_image_name
     get_console().print(f"[info]Running docker-compose with PROD image: {image_name}[/]")
     return_code, info = run_docker_compose_tests(
         image_name=image_name,
@@ -565,7 +560,6 @@ option_total_test_timeout = click.option(
 @option_force_lowest_dependencies
 @option_forward_credentials
 @option_github_repository
-@option_image_tag_for_running
 @option_include_success_outputs
 @option_install_airflow_with_constraints
 @option_keep_env_variables
@@ -628,7 +622,6 @@ def core_tests(**kwargs):
 @option_force_lowest_dependencies
 @option_forward_credentials
 @option_github_repository
-@option_image_tag_for_running
 @option_include_success_outputs
 @option_install_airflow_with_constraints
 @option_keep_env_variables
@@ -676,7 +669,6 @@ def providers_tests(**kwargs):
 @option_force_sa_warnings
 @option_forward_credentials
 @option_github_repository
-@option_image_tag_for_running
 @option_keep_env_variables
 @option_mount_sources
 @option_python
@@ -738,7 +730,6 @@ def task_sdk_tests(**kwargs):
 @option_force_sa_warnings
 @option_forward_credentials
 @option_github_repository
-@option_image_tag_for_running
 @option_core_integration
 @option_keep_env_variables
 @option_mount_sources
@@ -759,7 +750,6 @@ def core_integration_tests(
     force_sa_warnings: bool,
     forward_credentials: bool,
     github_repository: str,
-    image_tag: str | None,
     keep_env_variables: bool,
     integration: tuple,
     mount_sources: str,
@@ -778,7 +768,6 @@ def core_integration_tests(
         forward_credentials=forward_credentials,
         forward_ports=False,
         github_repository=github_repository,
-        image_tag=image_tag,
         integration=integration,
         keep_env_variables=keep_env_variables,
         mount_sources=mount_sources,
@@ -822,7 +811,6 @@ def core_integration_tests(
 @option_force_sa_warnings
 @option_forward_credentials
 @option_github_repository
-@option_image_tag_for_running
 @option_providers_integration
 @option_keep_env_variables
 @option_mount_sources
@@ -843,7 +831,6 @@ def integration_providers_tests(
     force_sa_warnings: bool,
     forward_credentials: bool,
     github_repository: str,
-    image_tag: str | None,
     integration: tuple,
     keep_env_variables: bool,
     mount_sources: str,
@@ -862,7 +849,6 @@ def integration_providers_tests(
         forward_credentials=forward_credentials,
         forward_ports=False,
         github_repository=github_repository,
-        image_tag=image_tag,
         integration=integration,
         keep_env_variables=keep_env_variables,
         mount_sources=mount_sources,
@@ -906,7 +892,6 @@ def integration_providers_tests(
 @option_force_sa_warnings
 @option_forward_credentials
 @option_github_repository
-@option_image_tag_for_running
 @option_keep_env_variables
 @option_mount_sources
 @option_mysql_version
@@ -926,7 +911,6 @@ def system_tests(
     force_sa_warnings: bool,
     forward_credentials: bool,
     github_repository: str,
-    image_tag: str | None,
     keep_env_variables: bool,
     mount_sources: str,
     mysql_version: str,
@@ -944,7 +928,6 @@ def system_tests(
         forward_credentials=forward_credentials,
         forward_ports=False,
         github_repository=github_repository,
-        image_tag=image_tag,
         integration=(),
         keep_env_variables=keep_env_variables,
         mount_sources=mount_sources,
@@ -980,7 +963,6 @@ def system_tests(
         allow_extra_args=True,
     ),
 )
-@option_image_tag_for_running
 @option_mount_sources
 @option_github_repository
 @option_test_timeout
@@ -992,7 +974,6 @@ def system_tests(
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
 def helm_tests(
     extra_pytest_args: tuple,
-    image_tag: str | None,
     mount_sources: str,
     github_repository: str,
     test_timeout: int,
@@ -1001,7 +982,6 @@ def helm_tests(
     use_xdist: bool,
 ):
     shell_params = ShellParams(
-        image_tag=image_tag,
         mount_sources=mount_sources,
         github_repository=github_repository,
         run_tests=True,
@@ -1049,7 +1029,6 @@ def helm_tests(
 @option_force_sa_warnings
 @option_forward_credentials
 @option_github_repository
-@option_image_tag_for_running
 @option_keep_env_variables
 @option_mysql_version
 @option_postgres_version
@@ -1068,7 +1047,6 @@ def python_api_client_tests(
     force_sa_warnings: bool,
     forward_credentials: bool,
     github_repository: str,
-    image_tag: str | None,
     keep_env_variables: bool,
     mysql_version: str,
     postgres_version: str,
@@ -1085,7 +1063,6 @@ def python_api_client_tests(
         forward_credentials=forward_credentials,
         forward_ports=False,
         github_repository=github_repository,
-        image_tag=image_tag,
         integration=(),
         keep_env_variables=keep_env_variables,
         mysql_version=mysql_version,
@@ -1159,7 +1136,6 @@ def _run_test_command(
     forward_credentials: bool,
     force_lowest_dependencies: bool,
     github_repository: str,
-    image_tag: str | None,
     include_success_outputs: bool,
     install_airflow_with_constraints: bool,
     integration: tuple[str, ...],
@@ -1210,7 +1186,6 @@ def _run_test_command(
         forward_credentials=forward_credentials,
         forward_ports=False,
         github_repository=github_repository,
-        image_tag=image_tag,
         integration=integration,
         install_airflow_with_constraints=install_airflow_with_constraints,
         keep_env_variables=keep_env_variables,

@@ -32,35 +32,26 @@ export type InputGroupProps = {
   startElementProps?: InputElementProps;
 } & BoxProps;
 
-export const InputGroup = forwardRef<HTMLDivElement, InputGroupProps>(
-  (props, ref) => {
-    const {
-      children,
-      endElement,
-      endElementProps,
-      startElement,
-      startElementProps,
-      ...rest
-    } = props;
+export const InputGroup = forwardRef<HTMLDivElement, InputGroupProps>((props, ref) => {
+  const { children, endElement, endElementProps, startElement, startElementProps, ...rest } = props;
 
-    return (
-      <Group ref={ref} {...rest}>
-        {startElement ? (
-          <InputElement pointerEvents="none" {...startElementProps}>
-            {startElement}
-          </InputElement>
-        ) : undefined}
-        {cloneElement(children, {
-          ...(startElement && { ps: "calc(var(--input-height) - 6px)" }),
-          ...(endElement && { pe: "calc(var(--input-height) - 6px)" }),
-          ...children.props,
-        })}
-        {endElement ? (
-          <InputElement placement="end" {...endElementProps}>
-            {endElement}
-          </InputElement>
-        ) : undefined}
-      </Group>
-    );
-  },
-);
+  return (
+    <Group ref={ref} {...rest}>
+      {startElement ? (
+        <InputElement pointerEvents="none" {...startElementProps}>
+          {startElement}
+        </InputElement>
+      ) : undefined}
+      {cloneElement(children, {
+        ...(startElement && { ps: "calc(var(--input-height) - 6px)" }),
+        ...(endElement && { pe: "calc(var(--input-height) - 6px)" }),
+        ...children.props,
+      })}
+      {endElement ? (
+        <InputElement placement="end" {...endElementProps}>
+          {endElement}
+        </InputElement>
+      ) : undefined}
+    </Group>
+  );
+});

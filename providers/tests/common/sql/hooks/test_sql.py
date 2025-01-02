@@ -18,6 +18,7 @@
 #
 from __future__ import annotations
 
+import inspect
 import logging
 import logging.config
 from unittest.mock import MagicMock
@@ -25,11 +26,14 @@ from unittest.mock import MagicMock
 import pytest
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
-from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
+from airflow.providers.common.sql.dialects.dialect import Dialect
+from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, resolve_dialects
 from airflow.utils.session import provide_session
 
 from providers.tests.common.sql.test_utils import mock_hook
+from tests_common.test_utils.providers import get_provider_min_airflow_version
 
 TASK_ID = "sql-operator"
 HOST = "host"
@@ -258,6 +262,34 @@ class TestDbApiHook:
         for _ in range(10):
             assert dbapi_hook.placeholder == "%s"
         assert dbapi_hook.connection_invocations == 1
+
+    @pytest.mark.db_test
+    def test_dialect_name(self):
+        dbapi_hook = mock_hook(DbApiHook)
+        assert dbapi_hook.dialect_name == "default"
+
+    @pytest.mark.db_test
+    def test_dialect(self):
+        dbapi_hook = mock_hook(DbApiHook)
+        assert isinstance(dbapi_hook.dialect, Dialect)
+
+    @pytest.mark.db_test
+    def test_when_provider_min_airflow_version_is_3_0_or_higher_remove_obsolete_code(self):
+        """
+        Once this test starts failing due to the fact that the minimum Airflow version is now 3.0.0 or higher
+        for this provider, you should remove the obsolete code in the get_dialects method of the DbApiHook
+        and remove this test.  This test was added to make sure to not forget to remove the fallback code
+        for backward compatibility with Airflow 2.8.x which isn't need anymore once this provider depends on
+        Airflow 3.0.0 or higher.
+        """
+        min_airflow_version = get_provider_min_airflow_version("apache-airflow-providers-common-sql")
+
+        # Check if the current Airflow version is 3.0.0 or higher
+        if min_airflow_version[0] >= 3:
+            method_source = inspect.getsource(resolve_dialects)
+            raise AirflowProviderDeprecationWarning(
+                f"Check TODO's to remove obsolete code in resolve_dialects method:\n\r\n\r\t\t\t{method_source}"
+            )
 
     @pytest.mark.db_test
     def test_uri(self):

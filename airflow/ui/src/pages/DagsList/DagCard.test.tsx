@@ -19,10 +19,7 @@
  * under the License.
  */
 import { render, screen } from "@testing-library/react";
-import type {
-  DagTagResponse,
-  DAGWithLatestDagRunsResponse,
-} from "openapi-gen/requests/types.gen";
+import type { DagTagResponse, DAGWithLatestDagRunsResponse } from "openapi-gen/requests/types.gen";
 import { afterEach, describe, it, vi, expect } from "vitest";
 
 import { Wrapper } from "src/utils/Wrapper";
@@ -34,8 +31,7 @@ const mockDag = {
   dag_id: "nested_groups",
   default_view: "grid",
   description: null,
-  file_token:
-    "Ii9maWxlcy9kYWdzL25lc3RlZF90YXNrX2dyb3Vwcy5weSI.G3EkdxmDUDQsVb7AIZww1TSGlFE",
+  file_token: "Ii9maWxlcy9kYWdzL25lc3RlZF90YXNrX2dyb3Vwcy5weSI.G3EkdxmDUDQsVb7AIZww1TSGlFE",
   fileloc: "/files/dags/nested_task_groups.py",
   has_import_errors: false,
   has_task_concurrency_limits: false,

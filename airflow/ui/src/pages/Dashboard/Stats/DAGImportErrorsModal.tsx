@@ -33,11 +33,7 @@ type ImportDAGErrorModalProps = {
 
 const PAGE_LIMIT = 15;
 
-export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({
-  importErrors,
-  onClose,
-  open,
-}) => {
+export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ importErrors, onClose, open }) => {
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredErrors, setFilteredErrors] = useState(importErrors);
@@ -54,21 +50,14 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({
 
   useEffect(() => {
     const query = searchQuery.toLowerCase();
-    const filtered = importErrors.filter((error) =>
-      error.filename.toLowerCase().includes(query),
-    );
+    const filtered = importErrors.filter((error) => error.filename.toLowerCase().includes(query));
 
     setFilteredErrors(filtered);
     setPage(1);
   }, [searchQuery, importErrors]);
 
   return (
-    <Dialog.Root
-      onOpenChange={onOpenChange}
-      open={open}
-      scrollBehavior="inside"
-      size="xl"
-    >
+    <Dialog.Root onOpenChange={onOpenChange} open={open} scrollBehavior="inside" size="xl">
       <Dialog.Content backdrop>
         <Dialog.Header>
           <Heading size="xl">Dag Import Errors</Heading>
@@ -85,10 +74,7 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({
         <Dialog.Body>
           <Accordion.Root collapsible multiple size="md" variant="enclosed">
             {visibleItems.map((importError) => (
-              <Accordion.Item
-                key={importError.import_error_id}
-                value={importError.filename}
-              >
+              <Accordion.Item key={importError.import_error_id} value={importError.filename}>
                 <Accordion.ItemTrigger cursor="pointer">
                   <PiFilePy />
                   {importError.filename}

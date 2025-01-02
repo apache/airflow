@@ -71,8 +71,8 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 | New Airflow 2.0 operators: `airflow.providers.apache.beam` package                                                                                                                 |
 |:---------------------------------------------------------------------------------------------------------------------------------------------|
-| [operators.beam.BeamRunJavaPipelineOperator](https://github.com/apache/airflow/blob/main/airflow/providers/apache/beam/operators/beam.py)    |
-| [operators.beam.BeamRunPythonPipelineOperator](https://github.com/apache/airflow/blob/main/airflow/providers/apache/beam/operators/beam.py)  |
+| [operators.beam.BeamRunJavaPipelineOperator](https://github.com/apache/airflow/blob/main/providers/src/airflow/providers/apache/beam/operators/beam.py)    |
+| [operators.beam.BeamRunPythonPipelineOperator](https://github.com/apache/airflow/blob/main/providers/src/airflow/providers/apache/beam/operators/beam.py)  |
 
 
 ## Hooks
@@ -81,7 +81,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 | New Airflow 2.0 hooks: `airflow.providers.apache.beam` package                                                   |
 |:-----------------------------------------------------------------------------------------------------------------|
-| [hooks.beam.BeamHook](https://github.com/apache/airflow/blob/main/airflow/providers/apache/beam/hooks/beam.py) |
+| [hooks.beam.BeamHook](https://github.com/apache/airflow/blob/main/providers/src/airflow/providers/apache/beam/hooks/beam.py) |
 
 
 ## Releases

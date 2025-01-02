@@ -20,10 +20,7 @@ import { Box } from "@chakra-ui/react";
 import { useDisclosure } from "@chakra-ui/react";
 import { FiPlay } from "react-icons/fi";
 
-import type {
-  DAGResponse,
-  DAGWithLatestDagRunsResponse,
-} from "openapi/requests/types.gen";
+import type { DAGResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 
 import ActionButton from "../ui/ActionButton";
 import TriggerDAGModal from "./TriggerDAGModal";

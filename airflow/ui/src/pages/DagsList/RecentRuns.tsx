@@ -41,9 +41,7 @@ export const RecentRuns = ({
 
   const runsWithDuration = latestRuns.map((run) => ({
     ...run,
-    duration: dayjs
-      .duration(dayjs(run.end_date).diff(run.start_date))
-      .asSeconds(),
+    duration: dayjs.duration(dayjs(run.end_date).diff(run.start_date)).asSeconds(),
   }));
 
   const max = Math.max.apply(

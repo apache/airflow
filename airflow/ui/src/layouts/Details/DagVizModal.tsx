@@ -51,12 +51,7 @@ const visualizationOptions = [
   { component: <Grid />, icon: <FiGrid height={5} width={5} />, value: "grid" },
 ];
 
-export const DagVizModal: React.FC<TriggerDAGModalProps> = ({
-  dagDisplayName,
-  dagId,
-  onClose,
-  open,
-}) => {
+export const DagVizModal: React.FC<TriggerDAGModalProps> = ({ dagDisplayName, dagId, onClose, open }) => {
   const [searchParams] = useSearchParams();
 
   const activeViz = searchParams.get("modal") ?? "graph";
@@ -96,8 +91,7 @@ export const DagVizModal: React.FC<TriggerDAGModalProps> = ({
         <Dialog.Body display="flex">
           {dagId === undefined
             ? undefined
-            : visualizationOptions.find((viz) => viz.value === activeViz)
-                ?.component}
+            : visualizationOptions.find((viz) => viz.value === activeViz)?.component}
         </Dialog.Body>
       </Dialog.Content>
     </Dialog.Root>

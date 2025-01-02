@@ -29,11 +29,16 @@ Spark operators
 ===============
 The OpenLineage integration can automatically inject information into Spark application properties when its being submitted from Airflow.
 The following is a list of supported operators along with the corresponding information that can be injected.
+See :ref:`automatic injection of parent job information <options:spark_inject_parent_job_info>` for more details.
 
 apache-airflow-providers-google
 """""""""""""""""""""""""""""""
 
 - :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocSubmitJobOperator`
+    - Parent Job Information
+- :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateBatchOperator`
+    - Parent Job Information
+- :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator`
     - Parent Job Information
 
 

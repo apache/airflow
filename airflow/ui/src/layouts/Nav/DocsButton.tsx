@@ -52,12 +52,7 @@ export const DocsButton = () => {
           .filter((link) => !(!showAPIDocs && link.href === "/docs"))
           .map((link) => (
             <Menu.Item asChild key={link.title} value={link.title}>
-              <Link
-                aria-label={link.title}
-                href={link.href}
-                rel="noopener noreferrer"
-                target="_blank"
-              >
+              <Link aria-label={link.title} href={link.href} rel="noopener noreferrer" target="_blank">
                 {link.title}
               </Link>
             </Menu.Item>

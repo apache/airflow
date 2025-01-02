@@ -37,11 +37,10 @@ const ClearRunButton = ({ dagId, dagRunId, withText = true }: Props) => {
 
   const [onlyFailed, setOnlyFailed] = useState(false);
 
-  const [affectedTasks, setAffectedTasks] =
-    useState<TaskInstanceCollectionResponse>({
-      task_instances: [],
-      total_entries: 0,
-    });
+  const [affectedTasks, setAffectedTasks] = useState<TaskInstanceCollectionResponse>({
+    task_instances: [],
+    total_entries: 0,
+  });
 
   const { isPending, mutate } = useClearDagRun({
     dagId,

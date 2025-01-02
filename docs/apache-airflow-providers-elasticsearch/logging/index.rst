@@ -64,6 +64,16 @@ cert, etc.) use the ``elasticsearch_configs`` setting in your ``airflow.cfg``
     verify_certs=True
     ca_certs=/path/to/CA_certs
 
+Additionally, in the ``elasticsearch_configs`` section, you can pass any parameters supported by the `Elasticsearch Python client <https://elasticsearch-py.readthedocs.io/en/stable/api/elasticsearch.html>`_. These parameters will be passed directly into the ``elasticsearch.Elasticsearch(**kwargs)`` client. For example:
+
+.. code-block:: ini
+
+    [elasticsearch_configs]
+    http_compress = True
+    ca_certs = /root/ca.pem
+    api_key = "SOMEAPIKEY"
+    verify_certs = True
+
 .. _log-link-elasticsearch:
 
 Elasticsearch External Link

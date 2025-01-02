@@ -129,11 +129,7 @@ export type EdgeData = {
   rest: { isSetupTeardown?: boolean } & ElkExtendedEdge;
 };
 
-export const formatFlowEdges = ({
-  edges,
-}: {
-  edges: Array<Edge>;
-}): Array<FlowEdgeType<EdgeData>> =>
+export const formatFlowEdges = ({ edges }: { edges: Array<Edge> }): Array<FlowEdgeType<EdgeData>> =>
   edges.map((edge) => ({
     data: { rest: edge },
     id: edge.id,

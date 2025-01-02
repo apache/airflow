@@ -46,7 +46,6 @@ from airflow_breeze.commands.common_options import (
     option_excluded_providers,
     option_forward_credentials,
     option_github_repository,
-    option_image_tag_for_running,
     option_include_not_ready_providers,
     option_include_removed_providers,
     option_installation_package_format,
@@ -55,6 +54,7 @@ from airflow_breeze.commands.common_options import (
     option_mount_sources,
     option_mysql_version,
     option_no_db_cleanup,
+    option_platform_single,
     option_postgres_version,
     option_project_name,
     option_python,
@@ -92,8 +92,6 @@ from airflow_breeze.global_constants import (
     DEFAULT_ALLOWED_EXECUTOR,
     DEFAULT_CELERY_BROKER,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-    DOCKER_DEFAULT_PLATFORM,
-    SINGLE_PLATFORMS,
     START_AIRFLOW_ALLOWED_EXECUTORS,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
 )
@@ -117,7 +115,7 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
     cleanup_python_generated_files,
 )
-from airflow_breeze.utils.recording import generating_command_images
+from airflow_breeze.utils.platforms import get_normalized_platform
 from airflow_breeze.utils.run_utils import (
     assert_pre_commit_installed,
     run_command,
@@ -192,13 +190,6 @@ option_include_mypy_volume = click.option(
     help="Whether to include mounting of the mypy volume (useful for debugging mypy).",
     is_flag=True,
     envvar="INCLUDE_MYPY_VOLUME",
-)
-option_platform_single = click.option(
-    "--platform",
-    help="Platform for Airflow image.",
-    default=DOCKER_DEFAULT_PLATFORM if not generating_command_images() else SINGLE_PLATFORMS[0],
-    envvar="PLATFORM",
-    type=BetterChoice(SINGLE_PLATFORMS),
 )
 option_restart = click.option(
     "--restart",
@@ -293,7 +284,6 @@ option_start_webserver_with_examples = click.option(
 @option_force_lowest_dependencies
 @option_forward_credentials
 @option_github_repository
-@option_image_tag_for_running
 @option_include_mypy_volume
 @option_install_airflow_with_constraints_default_true
 @option_install_selected_providers
@@ -347,7 +337,6 @@ def shell(
     force_lowest_dependencies: bool,
     forward_credentials: bool,
     github_repository: str,
-    image_tag: str | None,
     include_mypy_volume: bool,
     install_selected_providers: str,
     install_airflow_with_constraints: bool,
@@ -394,6 +383,7 @@ def shell(
     airflow_constraints_reference = _determine_constraint_branch_used(
         airflow_constraints_reference, use_airflow_version
     )
+    platform = get_normalized_platform(platform)
     shell_params = ShellParams(
         airflow_constraints_location=airflow_constraints_location,
         airflow_constraints_mode=airflow_constraints_mode,
@@ -416,7 +406,6 @@ def shell(
         force_lowest_dependencies=force_lowest_dependencies,
         forward_credentials=forward_credentials,
         github_repository=github_repository,
-        image_tag=image_tag,
         include_mypy_volume=include_mypy_volume,
         install_airflow_with_constraints=install_airflow_with_constraints,
         install_airflow_python_client=install_airflow_python_client,
@@ -514,7 +503,6 @@ option_executor_start_airflow = click.option(
 @option_force_build
 @option_forward_credentials
 @option_github_repository
-@option_image_tag_for_running
 @option_installation_package_format
 @option_install_selected_providers
 @option_all_integration
@@ -556,7 +544,6 @@ def start_airflow(
     force_build: bool,
     forward_credentials: bool,
     github_repository: str,
-    image_tag: str | None,
     integration: tuple[str, ...],
     install_selected_providers: str,
     load_default_connections: bool,
@@ -605,6 +592,7 @@ def start_airflow(
             # Otherwise default to LocalExecutor
             executor = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
 
+    platform = get_normalized_platform(platform)
     shell_params = ShellParams(
         airflow_constraints_location=airflow_constraints_location,
         airflow_constraints_mode=airflow_constraints_mode,
@@ -624,7 +612,6 @@ def start_airflow(
         force_build=force_build,
         forward_credentials=forward_credentials,
         github_repository=github_repository,
-        image_tag=image_tag,
         integration=integration,
         install_selected_providers=install_selected_providers,
         install_airflow_with_constraints=True,
@@ -826,7 +813,6 @@ def build_docs(
 @option_dry_run
 @option_force_build
 @option_github_repository
-@option_image_tag_for_running
 @option_skip_image_upgrade_check
 @option_verbose
 @click.argument("precommit_args", nargs=-1, type=click.UNPROCESSED)
@@ -837,7 +823,6 @@ def static_checks(
     file: Iterable[str],
     force_build: bool,
     github_repository: str,
-    image_tag: str,
     initialize_environment: bool,
     last_commit: bool,
     max_initialization_attempts: int,
@@ -852,7 +837,6 @@ def static_checks(
     build_params = BuildCiParams(
         builder=builder,
         force_build=force_build,
-        image_tag=image_tag,
         github_repository=github_repository,
         # for static checks we do not want to regenerate dependencies before pre-commits are run
         # we want the pre-commit to do it for us (and detect the case the dependencies are updated)

@@ -24,25 +24,23 @@ type PageTextProps = {
   format?: "compact" | "long" | "short";
 } & TextProps;
 
-export const PageText = forwardRef<HTMLParagraphElement, PageTextProps>(
-  (props, ref) => {
-    const { format = "compact", ...rest } = props;
-    const { count, page, pageRange, pages } = usePaginationContext();
-    const content = useMemo(() => {
-      if (format === "short") {
-        return `${page} / ${pages.length}`;
-      }
-      if (format === "compact") {
-        return `${page} of ${pages.length}`;
-      }
+export const PageText = forwardRef<HTMLParagraphElement, PageTextProps>((props, ref) => {
+  const { format = "compact", ...rest } = props;
+  const { count, page, pageRange, pages } = usePaginationContext();
+  const content = useMemo(() => {
+    if (format === "short") {
+      return `${page} / ${pages.length}`;
+    }
+    if (format === "compact") {
+      return `${page} of ${pages.length}`;
+    }
 
-      return `${pageRange.start + 1} - ${pageRange.end} of ${count}`;
-    }, [format, page, pages.length, pageRange, count]);
+    return `${pageRange.start + 1} - ${pageRange.end} of ${count}`;
+  }, [format, page, pages.length, pageRange, count]);
 
-    return (
-      <Text fontWeight="medium" ref={ref} {...rest}>
-        {content}
-      </Text>
-    );
-  },
-);
+  return (
+    <Text fontWeight="medium" ref={ref} {...rest}>
+      {content}
+    </Text>
+  );
+});

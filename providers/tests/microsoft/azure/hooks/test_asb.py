@@ -119,6 +119,26 @@ class TestAdminClientHook:
         with pytest.raises(TypeError):
             hook.delete_queue(None)
 
+    # Test creating a topic using hook method `create_topic`
+    @mock.patch("azure.servicebus.management.TopicProperties")
+    @mock.patch(f"{MODULE}.AdminClientHook.get_conn")
+    def test_create_topic(self, mock_sb_admin_client, mock_topic_properties):
+        """
+        Test `create_topic` hook function with mocking connection, topic properties value and
+        the azure service bus `create_topic` function
+        """
+        topic_name = "test_topic_name"
+        mock_topic_properties.name = topic_name
+        mock_sb_admin_client.return_value.__enter__.return_value.create_topic.return_value = (
+            mock_topic_properties
+        )
+        hook = AdminClientHook(azure_service_bus_conn_id=self.conn_id)
+        with mock.patch.object(hook.log, "info") as mock_log_info:
+            hook.create_topic(topic_name)
+        assert mock_topic_properties.name == topic_name
+
+        mock_log_info.assert_called_with("Created Topic %s", topic_name)
+
     # Test creating subscription with topic name and subscription name using hook method `create_subscription`
     @mock.patch("azure.servicebus.management.SubscriptionProperties")
     @mock.patch(f"{MODULE}.AdminClientHook.get_conn")

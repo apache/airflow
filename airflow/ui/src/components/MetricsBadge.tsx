@@ -24,21 +24,8 @@ type MetricBadgeProps = {
   readonly runs?: number;
 } & BadgeProps;
 
-export const MetricsBadge = ({
-  backgroundColor,
-  color = "fg.inverted",
-  runs,
-}: MetricBadgeProps) => (
-  <Badge
-    bg={backgroundColor}
-    borderRadius={15}
-    color={color}
-    minWidth={10}
-    mr={1}
-    px={4}
-    py={1}
-    size="md"
-  >
+export const MetricsBadge = ({ backgroundColor, color = "fg.inverted", runs }: MetricBadgeProps) => (
+  <Badge bg={backgroundColor} borderRadius={15} color={color} minWidth={10} mr={1} px={4} py={1} size="md">
     {runs}
   </Badge>
 );

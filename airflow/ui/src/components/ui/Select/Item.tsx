@@ -21,16 +21,14 @@
 import { Select as ChakraSelect } from "@chakra-ui/react";
 import { forwardRef } from "react";
 
-export const Item = forwardRef<HTMLDivElement, ChakraSelect.ItemProps>(
-  (props, ref) => {
-    const { children, item, ...rest } = props;
+export const Item = forwardRef<HTMLDivElement, ChakraSelect.ItemProps>((props, ref) => {
+  const { children, item, ...rest } = props;
 
-    return (
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      <ChakraSelect.Item item={item} key={item.value} {...rest} ref={ref}>
-        {children}
-        <ChakraSelect.ItemIndicator />
-      </ChakraSelect.Item>
-    );
-  },
-);
+  return (
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    <ChakraSelect.Item item={item} key={item.value} {...rest} ref={ref}>
+      {children}
+      <ChakraSelect.ItemIndicator />
+    </ChakraSelect.Item>
+  );
+});

@@ -23,8 +23,9 @@
 
 - [CI Environment](#ci-environment)
   - [GitHub Actions workflows](#github-actions-workflows)
-  - [Container Registry used as cache](#container-registry-used-as-cache)
+  - [GitHub Registry used as cache](#github-registry-used-as-cache)
   - [Authentication in GitHub Registry](#authentication-in-github-registry)
+  - [GitHub Artifacts used to store built images](#github-artifacts-used-to-store-built-images)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -32,7 +33,8 @@
 
 Continuous Integration is an important component of making Apache Airflow
 robust and stable. We run a lot of tests for every pull request,
-for main and v2-\*-test branches and regularly as scheduled jobs.
+for `canary` runs from `main` and `v*-\*-test` branches
+regularly as scheduled jobs.
 
 Our execution environment for CI is [GitHub Actions](https://github.com/features/actions). GitHub Actions.
 
@@ -60,57 +62,22 @@ To run the tests, we need to ensure that the images are built using the
 latest sources and that the build process is efficient. A full rebuild
 of such an image from scratch might take approximately 15 minutes.
 Therefore, we've implemented optimization techniques that efficiently
-use the cache from the GitHub Docker registry. In most cases, this
-reduces the time needed to rebuild the image to about 4 minutes.
-However, when dependencies change, it can take around 6-7 minutes, and
-if the base image of Python releases a new patch-level, it can take
-approximately 12 minutes.
+use the cache from Github Actions Artifacts.
 
-## Container Registry used as cache
+## GitHub Registry used as cache
 
-We are using GitHub Container Registry to store the results of the
-`Build Images` workflow which is used in the `Tests` workflow.
+We are using GitHub Registry to store the last image built in canary run
+to build images in CI and local docker container.
+This is done to speed up the build process and to ensure that the
+first - time-consuming-to-build layers of the image are
+reused between the builds. The cache is stored in the GitHub Registry
+by the `canary` runs and then used in the subsequent runs.
 
-Currently in main version of Airflow we run tests in all versions of
-Python supported, which means that we have to build multiple images (one
-CI and one PROD for each Python version). Yet we run many jobs (\>15) -
-for each of the CI images. That is a lot of time to just build the
-environment to run. Therefore we are utilising the `pull_request_target`
-feature of GitHub Actions.
-
-This feature allows us to run a separate, independent workflow, when the
-main workflow is run -this separate workflow is different than the main
-one, because by default it runs using `main` version of the sources but
-also - and most of all - that it has WRITE access to the GitHub
-Container Image registry.
-
-This is especially important in our case where Pull Requests to Airflow
-might come from any repository, and it would be a huge security issue if
-anyone from outside could utilise the WRITE access to the Container
-Image Registry via external Pull Request.
-
-Thanks to the WRITE access and fact that the `pull_request_target` workflow named
-`Build Imaages` which - by default - uses the `main` version of the sources.
-There we can safely run some code there as it has been reviewed and merged.
-The workflow checks-out the incoming Pull Request, builds
-the container image from the sources from the incoming PR (which happens in an
-isolated Docker build step for security) and pushes such image to the
-GitHub Docker Registry - so that this image can be built only once and
-used by all the jobs running tests. The image is tagged with unique
-`COMMIT_SHA` of the incoming Pull Request and the tests run in the `pull` workflow
-can simply pull such image rather than build it from the scratch.
-Pulling such image takes ~ 1 minute, thanks to that we are saving a
-lot of precious time for jobs.
-
-We use [GitHub Container Registry](https://docs.github.com/en/packages/guides/about-github-container-registry).
-A `GITHUB_TOKEN` is needed to push to the registry. We configured
-scopes of the tokens in our jobs to be able to write to the registry,
-but only for the jobs that need it.
-
-The latest cache is kept as `:cache-linux-amd64` and `:cache-linux-arm64`
-tagged cache of our CI images (suitable for `--cache-from` directive of
-buildx). It contains  metadata and cache for all segments in the image,
-and cache is kept separately for different platform.
+The latest GitHub registry cache is kept as `:cache-linux-amd64` and
+`:cache-linux-arm64` tagged cache of our CI images (suitable for
+`--cache-from` directive of buildx). It contains
+metadata and cache for all segments in the image,
+and cache is kept separately for different platforms.
 
 The `latest` images of CI and PROD are `amd64` only images for CI,
 because there is no easy way to push multiplatform images without
@@ -118,11 +85,25 @@ merging the manifests, and it is not really needed nor used for cache.
 
 ## Authentication in GitHub Registry
 
-We are using GitHub Container Registry as cache for our images.
-Authentication uses GITHUB_TOKEN mechanism. Authentication is needed for
-pushing the images (WRITE) only in `push`, `pull_request_target`
-workflows. When you are running the CI jobs in GitHub Actions,
-GITHUB_TOKEN is set automatically by the actions.
+Authentication to GitHub Registry in CI uses GITHUB_TOKEN mechanism.
+The Authentication is needed for  pushing the images (WRITE) in the `canary` runs.
+When you are running the CI jobs in GitHub Actions, GITHUB_TOKEN is set automatically
+by the actions. This is used only in the `canary` runs that have "write" access
+to the repository.
+
+No `write` access is needed (nor possible) by Pull Requests coming from the forks,
+since we are only using "GitHub Artifacts" for cache source in those runs.
+
+## GitHub Artifacts used to store built images
+
+We are running most tests in reproducible CI image for all the jobs and
+instead of build the image multiple times we build image for each python
+version only once (one  CI and one PROD). Those images are then used by
+All jobs that need them in the same build. The images - after building
+are exported to a file and stored in the GitHub Artifacts.
+The export files are then downloaded from artifacts and image is
+loaded from the file in all jobs in the same workflow after they are
+built and uploaded in the build image job.
 
 ----
 
