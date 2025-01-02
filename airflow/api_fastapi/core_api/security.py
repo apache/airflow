@@ -17,18 +17,20 @@
 from __future__ import annotations
 
 from functools import cache
-from typing import Annotated, Any, Callable
+from typing import TYPE_CHECKING, Annotated, Any, Callable
 
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from jwt import InvalidTokenError
 
 from airflow.api_fastapi.app import get_auth_manager
-from airflow.auth.managers.base_auth_manager import ResourceMethod
 from airflow.auth.managers.models.base_user import BaseUser
 from airflow.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.configuration import conf
 from airflow.utils.jwt_signer import JWTSigner
+
+if TYPE_CHECKING:
+    from airflow.auth.managers.base_auth_manager import ResourceMethod
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 

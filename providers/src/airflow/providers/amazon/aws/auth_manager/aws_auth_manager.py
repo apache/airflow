@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, cast
 
 from flask import session, url_for
 
-from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
+from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.auth.managers.models.resource_details import (
     AccessView,
     ConnectionDetails,
@@ -53,6 +53,7 @@ from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 if TYPE_CHECKING:
     from flask_appbuilder.menu import MenuItem
 
+    from airflow.auth.managers.base_auth_manager import ResourceMethod
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.auth.managers.models.batch_apis import (
         IsAuthorizedConnectionRequest,
@@ -326,11 +327,11 @@ class AwsAuthManager(BaseAuthManager):
             for method in ["GET", "PUT"]:
                 if method in methods:
                     request: IsAuthorizedRequest = {
-                        "method": cast(ResourceMethod, method),
+                        "method": cast("ResourceMethod", method),
                         "entity_type": AvpEntities.DAG,
                         "entity_id": dag_id,
                     }
-                    requests[dag_id][cast(ResourceMethod, method)] = request
+                    requests[dag_id][cast("ResourceMethod", method)] = request
                     requests_list.append(request)
 
         batch_is_authorized_results = self.avp_facade.get_batch_is_authorized_results(

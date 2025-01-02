@@ -27,12 +27,13 @@ from typing import TYPE_CHECKING, Any
 from flask import session, url_for
 from termcolor import colored
 
-from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
+from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.auth.managers.simple.views.auth import SimpleAuthManagerAuthenticationViews
 from airflow.configuration import AIRFLOW_HOME, conf
 
 if TYPE_CHECKING:
+    from airflow.auth.managers.base_auth_manager import ResourceMethod
     from airflow.auth.managers.models.resource_details import (
         AccessView,
         AssetDetails,
