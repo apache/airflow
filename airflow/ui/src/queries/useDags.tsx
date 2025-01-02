@@ -16,14 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  useDagServiceGetDags,
-  useDagsServiceRecentDagRuns,
-} from "openapi/queries";
-import type {
-  DagRunState,
-  DAGWithLatestDagRunsResponse,
-} from "openapi/requests/types.gen";
+import { useDagServiceGetDags, useDagsServiceRecentDagRuns } from "openapi/queries";
+import type { DagRunState, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 
 export type DagWithLatest = {
   last_run_start_date: string;
@@ -43,8 +37,7 @@ export const useDags = (
     tags?: Array<string>;
   } = {},
 ) => {
-  const { data, error, isFetching, isLoading } =
-    useDagServiceGetDags(searchParams);
+  const { data, error, isFetching, isLoading } = useDagServiceGetDags(searchParams);
 
   const { orderBy, ...runsParams } = searchParams;
   const {
@@ -58,9 +51,7 @@ export const useDags = (
   });
 
   const dags = (data?.dags ?? []).map((dag) => {
-    const dagWithRuns = runsData?.dags.find(
-      (runsDag) => runsDag.dag_id === dag.dag_id,
-    );
+    const dagWithRuns = runsData?.dags.find((runsDag) => runsDag.dag_id === dag.dag_id);
 
     return {
       latest_dag_runs: [],

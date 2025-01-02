@@ -20,6 +20,7 @@ default_language_version:
   python: python3
   node: 22.2.0
 minimum_pre_commit_version: '3.2.0'
+exclude: ^.*/.*_vendor/
 repos:
   - repo: meta
     hooks:
@@ -35,7 +36,6 @@ repos:
         name: Add TOC for Markdown and RST files
         files:
           ^README\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$|^.github/.*\.md|^tests/system/README.md$
-        exclude: ^.*/.*_vendor/
         args:
           - "--maxlevel"
           - "2"
@@ -47,8 +47,7 @@ repos:
         files: \.sql$
         exclude: |
           (?x)
-          ^\.github/|
-          ^.*/.*_vendor/
+          ^\.github/
         args:
           - --comment-style
           - "/*||*/"
@@ -57,7 +56,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all RST files
-        exclude: ^\.github/.*$|^.*/.*_vendor/|newsfragments/.*\.rst$
+        exclude: ^\.github/.*$|newsfragments/.*\.rst$
         args:
           - --comment-style
           - "||"
@@ -68,7 +67,7 @@ repos:
       - id: insert-license
         name: Add license for CSS/JS/JSX/PUML/TS/TSX
         files: \.(css|jsx?|puml|tsx?)$
-        exclude: ^\.github/.*$|^.*/.*_vendor/|^airflow/www/static/js/types/api-generated.ts$|ui/openapi-gen/
+        exclude: ^\.github/.*$|^airflow/www/static/js/types/api-generated.ts$|ui/openapi-gen/
         args:
           - --comment-style
           - "/*!| *| */"
@@ -78,7 +77,7 @@ repos:
       - id: insert-license
         name: Add license for all JINJA template files
         files: ^airflow/www/templates/.*\.html$
-        exclude: ^\.github/.*$|^.*/.*_vendor/
+        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "{#||#}"
@@ -87,7 +86,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all Shell files
-        exclude: ^\.github/.*$|^.*/.*_vendor/|^dev/breeze/autocomplete/.*$
+        exclude: ^\.github/.*$|^dev/breeze/autocomplete/.*$
         files: \.bash$|\.sh$
         args:
           - --comment-style
@@ -97,7 +96,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all toml files
-        exclude: ^\.github/.*$|^.*/.*_vendor/|^dev/breeze/autocomplete/.*$
+        exclude: ^\.github/.*$|^dev/breeze/autocomplete/.*$
         files: \.toml$
         args:
           - --comment-style
@@ -107,7 +106,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all Python files
-        exclude: ^\.github/.*$|^.*/.*_vendor/
+        exclude: ^\.github/.*$
         files: \.py$|\.pyi$
         args:
           - --comment-style
@@ -117,7 +116,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all XML files
-        exclude: ^\.github/.*$|^.*/.*_vendor/
+        exclude: ^\.github/.*$
         files: \.xml$
         args:
           - --comment-style
@@ -136,7 +135,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all YAML files except Helm templates
-        exclude: ^\.github/.*$|^.*/.*_vendor/|^chart/templates/.*|.*/reproducible_build.yaml$|^airflow/api_fastapi/core_api/openapi/v1-generated.yaml$|^.*/pnpm-lock.yaml$
+        exclude: ^\.github/.*$|^chart/templates/.*|.*/reproducible_build.yaml$|^airflow/api_fastapi/core_api/openapi/v1-generated.yaml$|^.*/pnpm-lock.yaml$
         types: [yaml]
         files: \.ya?ml$
         args:
@@ -148,7 +147,7 @@ repos:
       - id: insert-license
         name: Add license for all Markdown files
         files: \.md$
-        exclude: PROVIDER_CHANGES.*\.md$|^.*/.*_vendor/
+        exclude: PROVIDER_CHANGES.*\.md$
         args:
           - --comment-style
           - "<!--|| -->"
@@ -157,7 +156,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all other files
-        exclude: ^\.github/.*$|^.*/.*_vendor/
+        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "|#|"
@@ -198,15 +197,6 @@ repos:
         additional_dependencies: ['pyyaml']
         pass_filenames: false
         require_serial: true
-      - id: update-build-dependencies
-        name: Update build-dependencies to latest (manual)
-        entry: ./scripts/ci/pre_commit/update_build_dependencies.py
-        stages: ['manual']
-        language: python
-        files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/update_build_dependencies.py$
-        pass_filenames: false
-        require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
       - id: update-installers
         name: Update installers to latest (manual)
         entry: ./scripts/ci/pre_commit/update_installers.py
@@ -262,28 +252,23 @@ repos:
         name: Detect accidentally committed debug statements
       - id: check-builtin-literals
         name: Require literal syntax when initializing builtins
-        exclude: ^.*/.*_vendor/
       - id: detect-private-key
         name: Detect if private key is added to the repository
         exclude: ^docs/apache-airflow-providers-ssh/connections/ssh.rst$
       - id: end-of-file-fixer
         name: Make sure that there is an empty line at the end
-        exclude: ^.*/.*_vendor/|^docs/apache-airflow/img/.*\.dot|^docs/apache-airflow/img/.*\.sha256
+        exclude: ^docs/apache-airflow/img/.*\.dot|^docs/apache-airflow/img/.*\.sha256
       - id: mixed-line-ending
         name: Detect if mixed line ending is used (\r vs. \r\n)
-        exclude: ^.*/.*_vendor/
       - id: check-executables-have-shebangs
         name: Check that executables have shebang
-        exclude: ^.*/.*_vendor/
       - id: check-xml
         name: Check XML files with xmllint
-        exclude: ^.*/.*_vendor/
       - id: trailing-whitespace
         name: Remove trailing whitespace at end of line
-        exclude: ^.*/.*_vendor/|^docs/apache-airflow/img/.*\.dot|^dev/breeze/doc/images/output.*$
+        exclude: ^docs/apache-airflow/img/.*\.dot|^dev/breeze/doc/images/output.*$
       - id: fix-encoding-pragma
         name: Remove encoding header from Python files
-        exclude: ^.*/.*_vendor/
         args:
           - --remove
       - id: pretty-format-json
@@ -300,10 +285,8 @@ repos:
     hooks:
       - id: rst-backticks
         name: Check if RST files use double backticks for code
-        exclude: ^.*/.*_vendor/
       - id: python-no-log-warn
         name: Check if there are no deprecate log warn
-        exclude: ^.*/.*_vendor/
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.35.1
     hooks:
@@ -311,15 +294,12 @@ repos:
         name: Check YAML files with yamllint
         entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
-        exclude: ^.*airflow\.template\.yaml$|^.*init_git_sync\.template\.yaml$|^.*/.*_vendor/|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml$|^\.pre-commit-config\.yaml$|^.*/reproducible_build.yaml$|^.*pnpm-lock\.yaml$
+        exclude: ^.*airflow\.template\.yaml$|^.*init_git_sync\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml$|^\.pre-commit-config\.yaml$|^.*/reproducible_build.yaml$|^.*pnpm-lock\.yaml$
   - repo: https://github.com/ikamensh/flynt
     rev: '1.0.1'
     hooks:
       - id: flynt
         name: Run flynt string format converter for Python
-        exclude: |
-          (?x)
-          ^.*/.*_vendor/
         args:
          # If flynt detects too long text it ignores it. So we set a very large limit to make it easy
          # to split the text by hand. Too long lines are detected by flake8 (below),
@@ -337,7 +317,7 @@ repos:
           The word(s) should be in lowercase." && exec codespell "$@"' --
         language: python
         types: [text]
-        exclude: ^.*/.*_vendor/|material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$|^.*pnpm-lock\.yaml$
+        exclude: material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$|^.*pnpm-lock\.yaml$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=providers/src/airflow/providers/*/*.rst,airflow/www/*.log,docs/*/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
@@ -376,7 +356,7 @@ repos:
         args: [--fix]
         require_serial: true
         additional_dependencies: ["ruff==0.8.1"]
-        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^performance/tests/test_.*.py
+        exclude: ^tests/dags/test_imports.py|^performance/tests/test_.*.py
       - id: ruff-format
         name: Run 'ruff format'
         description: "Run 'ruff format' for extremely fast Python formatting"
@@ -386,13 +366,13 @@ repos:
         args: []
         require_serial: true
         additional_dependencies: ["ruff==0.8.1"]
-        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py$
+        exclude: ^tests/dags/test_imports.py$
       - id: replace-bad-characters
         name: Replace bad characters
         entry: ./scripts/ci/pre_commit/replace_bad_characters.py
         language: python
         types: [file, text]
-        exclude: ^.*/.*_vendor/|^clients/gen/go\.sh$|^\.gitmodules$
+        exclude: ^clients/gen/go\.sh$|^\.gitmodules$
         additional_dependencies: ['rich>=12.4.4']
       - id: lint-openapi
         name: Lint OpenAPI using spectral
@@ -658,7 +638,6 @@ repos:
           ^airflow/www/static/js/types/api-generated.ts$|
           ^airflow/www/templates/appbuilder/flash.html$|
           ^chart/values.schema.json$|
-          ^.*/.*_vendor/|
           ^dev/|
           ^docs/README.rst$|
           ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store.rst$|
@@ -740,7 +719,7 @@ repos:
         files: >
           (?x)
           ^providers/src/airflow/providers/.*\.py$
-        exclude: ^.*/.*_vendor/|providers/src/airflow/providers/standard/operators/bash.py|providers/src/airflow/providers/standard/operators/python.py|providers/src/airflow/providers/standard/sensors/external_task.py
+        exclude: providers/src/airflow/providers/standard/operators/bash.py|providers/src/airflow/providers/standard/operators/python.py|providers/src/airflow/providers/standard/sensors/external_task.py
       - id: check-get-lineage-collector-providers
         language: python
         name: Check providers import hook lineage code from compat
@@ -769,28 +748,24 @@ repos:
         description: NEW_SESSION, provide_session, and create_session should be imported from airflow.utils.session to avoid import cycles.
         entry: "from airflow\\.utils\\.db import.* (NEW_SESSION|provide_session|create_session)"
         files: \.py$
-        exclude: ^.*/.*_vendor/
         pass_filenames: true
       - id: check-incorrect-use-of-LoggingMixin
         language: pygrep
         name: Make sure LoggingMixin is not used alone
         entry: "LoggingMixin\\(\\)"
         files: \.py$
-        exclude: ^.*/.*_vendor/
         pass_filenames: true
       - id: check-daysago-import-from-utils
         language: pygrep
         name: days_ago imported from airflow.utils.dates
         entry: "(airflow\\.){0,1}utils\\.dates\\.days_ago"
         files: \.py$
-        exclude: ^.*/.*_vendor/
         pass_filenames: true
       - id: check-start-date-not-used-in-defaults
         language: pygrep
         name: start_date not in default_args
         entry: "default_args\\s*=\\s*{\\s*(\"|')start_date(\"|')|(\"|')start_date(\"|'):"
         files: \.*example_dags.*\.py$
-        exclude: ^.*/.*_vendor/
         pass_filenames: true
       - id: check-apache-license-rat
         name: Check if licenses are OK for Apache
@@ -995,7 +970,6 @@ repos:
         language: python
         pass_filenames: true
         files: .*\.schema\.json$
-        exclude: ^.*/.*_vendor/
         require_serial: true
         additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==6.0.2', 'requests==2.32.3']
       - id: lint-json-schema
@@ -1080,7 +1054,6 @@ repos:
         language: python
         pass_filenames: true
         files: \.py$
-        exclude: ^.*/.*_vendor/
         additional_dependencies: ['rich>=12.4.4']
       - id: check-code-deprecations
         name: Check deprecations categories in decorators
@@ -1088,7 +1061,6 @@ repos:
         language: python
         pass_filenames: true
         files: ^airflow/.*\.py$
-        exclude: ^.*/.*_vendor/
         additional_dependencies: ["rich>=12.4.4", "python-dateutil"]
       - id: lint-chart-schema
         name: Lint chart/values.schema.json file
@@ -1160,7 +1132,6 @@ repos:
         language: python
         pass_filenames: true
         files: \.py$
-        exclude: ^.*/.*_vendor/
         additional_dependencies: ['rich>=12.4.4', 'astor']
       - id: create-missing-init-py-files-tests
         name: Create missing init.py files in tests
@@ -1321,7 +1292,6 @@ repos:
         files: \.py$
         exclude: |
           (?x)^(
-            .*/.*_vendor/|
             airflow/migrations|
             clients/python/test_.*\.py|
             dev|
@@ -1349,7 +1319,6 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/mypy.py --namespace-packages
         files: ^providers/src/airflow/providers/.*\.py$|^providers/tests//.*\.py$
-        exclude: ^.*/.*_vendor/
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: mypy-providers
@@ -1383,7 +1352,6 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/mypy.py --namespace-packages
         files: ^task_sdk/src/airflow/sdk/.*\.py$|^task_sdk/tests//.*\.py$
-        exclude: ^.*/.*_vendor/
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: mypy-task-sdk

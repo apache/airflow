@@ -75,7 +75,6 @@ TEST_ADVANCED_FLAGS: dict[str, str | list[str]] = {
     "name": "Advanced flag for tests command",
     "options": [
         "--github-repository",
-        "--image-tag",
         "--mount-sources",
         "--skip-docker-compose-down",
         "--keep-env-variables",
@@ -211,7 +210,6 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Advanced flag for helm-test command",
             "options": [
                 "--github-repository",
-                "--image-tag",
                 "--mount-sources",
             ],
         },
@@ -221,7 +219,6 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Docker-compose tests flag",
             "options": [
                 "--image-name",
-                "--image-tag",
                 "--python",
                 "--skip-docker-compose-deletion",
                 "--github-repository",
@@ -233,7 +230,6 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Advanced flag for tests command",
             "options": [
                 "--github-repository",
-                "--image-tag",
                 "--skip-docker-compose-down",
                 "--keep-env-variables",
             ],

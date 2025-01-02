@@ -24,10 +24,6 @@ on:  # yamllint disable-line rule:truthy
         description: "The array of labels (in json form) determining public runners."
         required: true
         type: string
-      image-tag:
-        description: "Tag to set for the image"
-        required: true
-        type: string
       testable-core-integrations:
         description: "The list of testable core integrations as JSON array."
         required: true
@@ -64,6 +60,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Debug resources (true/false)"
         required: true
         type: string
+      use-uv:
+        description: "Whether to use uv"
+        required: true
+        type: string
 jobs:
   tests-core-integration:
     timeout-minutes: 130
@@ -75,7 +75,6 @@ jobs:
       matrix:
         integration: ${{ fromJSON(inputs.testable-core-integrations) }}
     env:
-      IMAGE_TAG: "${{ inputs.image-tag }}"
       BACKEND: "postgres"
       BACKEND_VERSION: ${{ inputs.default-postgres-version }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
@@ -95,10 +94,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}"
+      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: "linux/amd64"
+          python: ${{ inputs.default-python-version }}
+          use-uv: ${{ inputs.use-uv }}
       - name: "Integration: core ${{ matrix.integration }}"
         # yamllint disable rule:line-length
         run: ./scripts/ci/testing/run_integration_tests_with_retry.sh core "${{ matrix.integration }}"
@@ -121,7 +122,6 @@ jobs:
       matrix:
         integration: ${{ fromJSON(inputs.testable-providers-integrations) }}
     env:
-      IMAGE_TAG: "${{ inputs.image-tag }}"
       BACKEND: "postgres"
       BACKEND_VERSION: ${{ inputs.default-postgres-version }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
@@ -141,10 +141,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}"
+      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: "linux/amd64"
+          python: ${{ inputs.default-python-version }}
+          use-uv: ${{ inputs.use-uv }}
       - name: "Integration: providers ${{ matrix.integration }}"
         run: ./scripts/ci/testing/run_integration_tests_with_retry.sh providers "${{ matrix.integration }}"
       - name: "Post Tests success"
@@ -162,7 +164,6 @@ jobs:
     name: "System Tests"
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
     env:
-      IMAGE_TAG: "${{ inputs.image-tag }}"
       BACKEND: "postgres"
       BACKEND_VERSION: ${{ inputs.default-postgres-version }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
@@ -182,10 +183,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}"
+      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: "linux/amd64"
+          python: ${{ inputs.default-python-version }}
+          use-uv: ${{ inputs.use-uv }}
       - name: "System Tests"
         run: >
           ./scripts/ci/testing/run_system_tests.sh

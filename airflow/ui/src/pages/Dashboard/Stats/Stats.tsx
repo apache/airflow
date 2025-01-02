@@ -33,22 +33,14 @@ export const Stats = () => (
       </Heading>
     </Flex>
     <HStack>
-      <DagFilterButton
-        badgeColor={stateColor.failed}
-        filter="failed"
-        link="dags?last_dag_run_state=failed"
-      />
+      <DagFilterButton badgeColor={stateColor.failed} filter="failed" link="dags?last_dag_run_state=failed" />
       <DAGImportErrors />
       <DagFilterButton
         badgeColor={stateColor.running}
         filter="running"
         link="dags?last_dag_run_state=running"
       />
-      <DagFilterButton
-        badgeColor="blue.solid"
-        filter="active"
-        link="dags?paused=false"
-      />
+      <DagFilterButton badgeColor="blue.solid" filter="active" link="dags?paused=false" />
     </HStack>
   </Box>
 );

@@ -37,11 +37,7 @@ export const Health = () => {
       </Flex>
       <ErrorAlert error={error} />
       <HStack alignItems="center" gap={2}>
-        <HealthTag
-          isLoading={isLoading}
-          status={data?.metadatabase.status}
-          title="MetaDatabase"
-        />
+        <HealthTag isLoading={isLoading} status={data?.metadatabase.status} title="MetaDatabase" />
         <HealthTag
           isLoading={isLoading}
           latestHeartbeat={data?.scheduler.latest_scheduler_heartbeat}

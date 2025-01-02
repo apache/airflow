@@ -26,9 +26,6 @@ This update in constraints is automatically committed by the CI 'constraints-pus
 
 The action that build those constraints can be found at https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/
 
-The image tag used for that build was: ${IMAGE_TAG}. You can enter Breeze environment
-with this image by running 'breeze shell --image-tag ${IMAGE_TAG}'
-
 All tests passed in this build so we determined we can push the updated constraints.
 
 See https://github.com/apache/airflow/blob/main/README.md#installing-from-pypi for details.
