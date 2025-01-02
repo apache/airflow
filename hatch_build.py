@@ -258,7 +258,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "deepdiff>=8.1.1",
         "jmespath>=0.7.0",
         "kgb>=7.0.0",
-        "pytest-asyncio>=0.23.6",
+        "pytest-asyncio>=0.23.6,!=0.25.1",
         "pytest-cov>=4.1.0",
         "pytest-custom-exit-code>=0.3.0",
         "pytest-icdiff>=0.9",
