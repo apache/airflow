@@ -19,10 +19,7 @@
 import { Box, Flex, Heading, HStack, SimpleGrid, Text } from "@chakra-ui/react";
 import { FiCalendar } from "react-icons/fi";
 
-import type {
-  DAGDetailsResponse,
-  DAGRunResponse,
-} from "openapi/requests/types.gen";
+import type { DAGDetailsResponse, DAGRunResponse } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
 import DagRunInfo from "src/components/DagRunInfo";
 import DocumentationModal from "src/components/DocumentationModal";
@@ -50,19 +47,13 @@ export const Header = ({
           <DagIcon height={8} width={8} />
           <Heading size="lg">{dag?.dag_display_name ?? dagId}</Heading>
           {dag !== undefined && (
-            <TogglePause
-              dagDisplayName={dag.dag_display_name}
-              dagId={dag.dag_id}
-              isPaused={dag.is_paused}
-            />
+            <TogglePause dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} isPaused={dag.is_paused} />
           )}
         </HStack>
         <Flex>
           {dag ? (
             <HStack>
-              {dag.doc_md === null ? undefined : (
-                <DocumentationModal docMd={dag.doc_md} docType="Dag" />
-              )}
+              {dag.doc_md === null ? undefined : <DocumentationModal docMd={dag.doc_md} docType="Dag" />}
               <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />
               <TriggerDAGButton dag={dag} />
             </HStack>
@@ -74,8 +65,7 @@ export const Header = ({
           {Boolean(dag?.timetable_summary) ? (
             <Tooltip content={dag?.timetable_description} showArrow>
               <Text fontSize="sm">
-                <FiCalendar style={{ display: "inline" }} />{" "}
-                {dag?.timetable_summary}
+                <FiCalendar style={{ display: "inline" }} /> {dag?.timetable_summary}
               </Text>
             </Tooltip>
           ) : undefined}

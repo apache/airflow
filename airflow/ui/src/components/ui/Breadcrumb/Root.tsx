@@ -24,32 +24,26 @@ export type BreadcrumbRootProps = {
   separatorGap?: SystemStyleObject["gap"];
 } & Breadcrumb.RootProps;
 
-export const Root = React.forwardRef<HTMLDivElement, BreadcrumbRootProps>(
-  (props, ref) => {
-    const { children, separator, separatorGap, ...rest } = props;
+export const Root = React.forwardRef<HTMLDivElement, BreadcrumbRootProps>((props, ref) => {
+  const { children, separator, separatorGap, ...rest } = props;
 
-    const validChildren = React.Children.toArray(children).filter(
-      React.isValidElement,
-    );
+  const validChildren = React.Children.toArray(children).filter(React.isValidElement);
 
-    return (
-      <Breadcrumb.Root ref={ref} {...rest}>
-        <Breadcrumb.List gap={separatorGap}>
-          {validChildren.map((child, index) => {
-            const last = index === validChildren.length - 1;
+  return (
+    <Breadcrumb.Root ref={ref} {...rest}>
+      <Breadcrumb.List gap={separatorGap}>
+        {validChildren.map((child, index) => {
+          const last = index === validChildren.length - 1;
 
-            return (
-              // eslint-disable-next-line react/no-array-index-key
-              <React.Fragment key={index}>
-                <Breadcrumb.Item>{child}</Breadcrumb.Item>
-                {!last && (
-                  <Breadcrumb.Separator>{separator}</Breadcrumb.Separator>
-                )}
-              </React.Fragment>
-            );
-          })}
-        </Breadcrumb.List>
-      </Breadcrumb.Root>
-    );
-  },
-);
+          return (
+            // eslint-disable-next-line react/no-array-index-key
+            <React.Fragment key={index}>
+              <Breadcrumb.Item>{child}</Breadcrumb.Item>
+              {!last && <Breadcrumb.Separator>{separator}</Breadcrumb.Separator>}
+            </React.Fragment>
+          );
+        })}
+      </Breadcrumb.List>
+    </Breadcrumb.Root>
+  );
+});

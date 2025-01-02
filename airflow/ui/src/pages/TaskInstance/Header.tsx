@@ -25,19 +25,14 @@ import Time from "src/components/Time";
 import { Status } from "src/components/ui";
 import { getDuration } from "src/utils";
 
-export const Header = ({
-  taskInstance,
-}: {
-  readonly taskInstance: TaskInstanceResponse;
-}) => (
+export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => (
   <Box borderColor="border" borderRadius={8} borderWidth={1} p={2}>
     <Flex alignItems="center" justifyContent="space-between" mb={2}>
       <HStack alignItems="center" gap={2}>
         <MdOutlineTask size="1.75rem" />
         <Heading size="lg">
           <strong>Task Instance: </strong>
-          {taskInstance.task_display_name}{" "}
-          <Time datetime={taskInstance.start_date} />
+          {taskInstance.task_display_name} <Time datetime={taskInstance.start_date} />
         </Heading>
         <Status state={taskInstance.state}>{taskInstance.state}</Status>
         <Flex>
@@ -45,8 +40,7 @@ export const Header = ({
         </Flex>
       </HStack>
     </Flex>
-    {taskInstance.note === null ||
-    taskInstance.note.length === 0 ? undefined : (
+    {taskInstance.note === null || taskInstance.note.length === 0 ? undefined : (
       <Flex alignItems="flex-start" justifyContent="space-between" mr={16}>
         <MdOutlineModeComment size="3rem" />
         <Text fontSize="sm" ml={3}>
@@ -57,22 +51,16 @@ export const Header = ({
     <SimpleGrid columns={6} gap={4} my={2}>
       <Stat label="Operator">{taskInstance.operator}</Stat>
       {taskInstance.map_index > -1 ? (
-        <Stat label="Map Index">
-          {taskInstance.rendered_map_index ?? taskInstance.map_index}
-        </Stat>
+        <Stat label="Map Index">{taskInstance.rendered_map_index ?? taskInstance.map_index}</Stat>
       ) : undefined}
-      {taskInstance.try_number > 1 ? (
-        <Stat label="Try Number">{taskInstance.try_number}</Stat>
-      ) : undefined}
+      {taskInstance.try_number > 1 ? <Stat label="Try Number">{taskInstance.try_number}</Stat> : undefined}
       <Stat label="Start">
         <Time datetime={taskInstance.start_date} />
       </Stat>
       <Stat label="End">
         <Time datetime={taskInstance.end_date} />
       </Stat>
-      <Stat label="Duration">
-        {getDuration(taskInstance.start_date, taskInstance.end_date)}s
-      </Stat>
+      <Stat label="Duration">{getDuration(taskInstance.start_date, taskInstance.end_date)}s</Stat>
     </SimpleGrid>
   </Box>
 );

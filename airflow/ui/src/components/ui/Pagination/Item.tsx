@@ -17,11 +17,7 @@
  * under the License.
  */
 import type { ButtonProps } from "@chakra-ui/react";
-import {
-  Button,
-  Pagination as ChakraPagination,
-  usePaginationContext,
-} from "@chakra-ui/react";
+import { Button, Pagination as ChakraPagination, usePaginationContext } from "@chakra-ui/react";
 import { forwardRef } from "react";
 
 import { paginationContext } from "./context";
@@ -35,20 +31,18 @@ export type PaginationRootProps = {
   variant?: PaginationVariant;
 } & Omit<ChakraPagination.RootProps, "type">;
 
-export const Item = forwardRef<HTMLButtonElement, ChakraPagination.ItemProps>(
-  (props, ref) => {
-    const { page } = usePaginationContext();
-    const { size, variantMap } = useRootProps();
+export const Item = forwardRef<HTMLButtonElement, ChakraPagination.ItemProps>((props, ref) => {
+  const { page } = usePaginationContext();
+  const { size, variantMap } = useRootProps();
 
-    const current = page === props.value;
-    const variant = current ? variantMap.current : variantMap.default;
+  const current = page === props.value;
+  const variant = current ? variantMap.current : variantMap.default;
 
-    return (
-      <ChakraPagination.Item ref={ref} {...props} asChild>
-        <Button size={size} variant={variant}>
-          {props.value}
-        </Button>
-      </ChakraPagination.Item>
-    );
-  },
-);
+  return (
+    <ChakraPagination.Item ref={ref} {...props} asChild>
+      <Button size={size} variant={variant}>
+        {props.value}
+      </Button>
+    </ChakraPagination.Item>
+  );
+});

@@ -32,25 +32,20 @@ describe("searchParams", () => {
         sorting: [{ desc: false, id: "name" }],
       };
 
-      expect(stateToSearchParams(state).toString()).toEqual(
-        "limit=20&offset=1&sort=name",
-      );
+      expect(stateToSearchParams(state).toString()).toEqual("limit=20&offset=1&sort=name");
     });
   });
 
   describe("searchParamsToState", () => {
     it("can parse search params back to table state", () => {
       expect(
-        searchParamsToState(
-          new URLSearchParams("limit=20&offset=0&sort=name&sort=-age"),
-          {
-            pagination: {
-              pageIndex: 1,
-              pageSize: 5,
-            },
-            sorting: [],
+        searchParamsToState(new URLSearchParams("limit=20&offset=0&sort=name&sort=-age"), {
+          pagination: {
+            pageIndex: 1,
+            pageSize: 5,
           },
-        ),
+          sorting: [],
+        }),
       ).toEqual({
         pagination: {
           pageIndex: 0,

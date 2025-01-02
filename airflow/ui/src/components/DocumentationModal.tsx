@@ -20,16 +20,11 @@ import { Box, Heading } from "@chakra-ui/react";
 import { useState } from "react";
 import { FiBookOpen } from "react-icons/fi";
 import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { Button, Dialog } from "src/components/ui";
 
-const DocumentationModal = ({
-  docMd,
-  docType,
-}: {
-  readonly docMd: string;
-  readonly docType: string;
-}) => {
+const DocumentationModal = ({ docMd, docType }: { readonly docMd: string; readonly docType: string }) => {
   const [isDocsOpen, setIsDocsOpen] = useState(false);
 
   return (
@@ -38,18 +33,14 @@ const DocumentationModal = ({
         <FiBookOpen height={5} width={5} />
         {docType} Docs
       </Button>
-      <Dialog.Root
-        onOpenChange={() => setIsDocsOpen(false)}
-        open={isDocsOpen}
-        size="md"
-      >
+      <Dialog.Root onOpenChange={() => setIsDocsOpen(false)} open={isDocsOpen} size="md">
         <Dialog.Content backdrop>
           <Dialog.Header bg="blue.muted">
             <Heading size="xl">{docType} Documentation</Heading>
             <Dialog.CloseTrigger closeButtonProps={{ size: "xl" }} />
           </Dialog.Header>
           <Dialog.Body display="flex">
-            <Markdown>{docMd}</Markdown>
+            <Markdown remarkPlugins={[remarkGfm]}>{docMd}</Markdown>
           </Dialog.Body>
         </Dialog.Content>
       </Dialog.Root>

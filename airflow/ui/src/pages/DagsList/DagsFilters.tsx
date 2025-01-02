@@ -33,10 +33,7 @@ import { useDagServiceGetDagTags } from "openapi/queries";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { QuickFilterButton } from "src/components/QuickFilterButton";
 import { Select, Status } from "src/components/ui";
-import {
-  SearchParamsKeys,
-  type SearchParamsKeysType,
-} from "src/constants/searchParams";
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { pluralize } from "src/utils";
 
@@ -69,9 +66,7 @@ export const DagsFilters = () => {
     orderBy: "name",
   });
 
-  const hidePausedDagsByDefault = Boolean(
-    useConfig("hide_paused_dags_by_default"),
-  );
+  const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
   const defaultShowPaused = hidePausedDagsByDefault ? "false" : "all";
 
   const { setTableURLState, tableURLState } = useTableURLState();
@@ -95,22 +90,21 @@ export const DagsFilters = () => {
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
 
-  const handleStateChange: React.MouseEventHandler<HTMLButtonElement> =
-    useCallback(
-      ({ currentTarget: { value } }) => {
-        if (value === "all") {
-          searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
-        } else {
-          searchParams.set(LAST_DAG_RUN_STATE_PARAM, value);
-        }
-        setSearchParams(searchParams);
-        setTableURLState({
-          pagination: { ...pagination, pageIndex: 0 },
-          sorting,
-        });
-      },
-      [pagination, searchParams, setSearchParams, setTableURLState, sorting],
-    );
+  const handleStateChange: React.MouseEventHandler<HTMLButtonElement> = useCallback(
+    ({ currentTarget: { value } }) => {
+      if (value === "all") {
+        searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
+      } else {
+        searchParams.set(LAST_DAG_RUN_STATE_PARAM, value);
+      }
+      setSearchParams(searchParams);
+      setTableURLState({
+        pagination: { ...pagination, pageIndex: 0 },
+        sorting,
+      });
+    },
+    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
+  );
   const handleSelectTagsChange = useCallback(
     (
       tags: MultiValue<{
@@ -151,32 +145,16 @@ export const DagsFilters = () => {
     <HStack justifyContent="space-between">
       <HStack gap={4}>
         <HStack>
-          <QuickFilterButton
-            isActive={isAll}
-            onClick={handleStateChange}
-            value="all"
-          >
+          <QuickFilterButton isActive={isAll} onClick={handleStateChange} value="all">
             All
           </QuickFilterButton>
-          <QuickFilterButton
-            isActive={isFailed}
-            onClick={handleStateChange}
-            value="failed"
-          >
+          <QuickFilterButton isActive={isFailed} onClick={handleStateChange} value="failed">
             <Status state="failed">Failed</Status>
           </QuickFilterButton>
-          <QuickFilterButton
-            isActive={isRunning}
-            onClick={handleStateChange}
-            value="running"
-          >
+          <QuickFilterButton isActive={isRunning} onClick={handleStateChange} value="running">
             <Status state="running">Running</Status>
           </QuickFilterButton>
-          <QuickFilterButton
-            isActive={isSuccess}
-            onClick={handleStateChange}
-            value="success"
-          >
+          <QuickFilterButton isActive={isSuccess} onClick={handleStateChange} value="success">
             <Status state="success">Success</Status>
           </QuickFilterButton>
         </HStack>

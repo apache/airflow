@@ -213,9 +213,12 @@ function determine_airflow_to_use() {
             echo
             echo "${COLOR_BLUE}Uninstalling all packages first${COLOR_RESET}"
             echo
-            pip freeze | grep -ve "^-e" | grep -ve "^#" | grep -ve "^uv" | xargs pip uninstall -y --root-user-action ignore
+            # shellcheck disable=SC2086
+            ${PACKAGING_TOOL_CMD} freeze | grep -ve "^-e" | grep -ve "^#" | grep -ve "^uv" | \
+                xargs ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS}
             # Now install rich ad click first to use the installation script
-            uv pip install rich rich-click click --python "/usr/local/bin/python" \
+            # shellcheck disable=SC2086
+            ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} rich rich-click click --python "/usr/local/bin/python" \
                 --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
         fi
         python "${IN_CONTAINER_DIR}/install_airflow_and_providers.py"
@@ -225,7 +228,8 @@ function determine_airflow_to_use() {
         python "${IN_CONTAINER_DIR}/install_devel_deps.py" \
            --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
         # Some packages might leave legacy typing module which causes test issues
-        pip uninstall -y typing || true
+        # shellcheck disable=SC2086
+        ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} typing || true
         if [[ ${LINK_PROVIDERS_TO_AIRFLOW_PACKAGE=} == "true" ]]; then
             echo
             echo "${COLOR_BLUE}Linking providers to airflow package as we are using them from mounted sources.${COLOR_RESET}"

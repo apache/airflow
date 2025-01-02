@@ -21,10 +21,7 @@ import dayjs from "dayjs";
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 
-import {
-  useDagRunServiceGetDagRuns,
-  useTaskInstanceServiceGetTaskInstances,
-} from "openapi/queries";
+import { useDagRunServiceGetDagRuns, useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
 import { stateColor } from "src/utils/stateColor";
@@ -35,27 +32,23 @@ export const Overview = () => {
   const { dagId } = useParams();
 
   const now = dayjs();
-  const [startDate, setStartDate] = useState(
-    now.subtract(Number(defaultHour), "hour").toISOString(),
-  );
+  const [startDate, setStartDate] = useState(now.subtract(Number(defaultHour), "hour").toISOString());
   const [endDate, setEndDate] = useState(now.toISOString());
 
-  const { data: failedTasks, isLoading } =
-    useTaskInstanceServiceGetTaskInstances({
-      dagId: dagId ?? "",
-      dagRunId: "~",
-      logicalDateGte: startDate,
-      logicalDateLte: endDate,
-      state: ["failed"],
-    });
+  const { data: failedTasks, isLoading } = useTaskInstanceServiceGetTaskInstances({
+    dagId: dagId ?? "",
+    dagRunId: "~",
+    logicalDateGte: startDate,
+    logicalDateLte: endDate,
+    state: ["failed"],
+  });
 
-  const { data: failedRuns, isLoading: isLoadingRuns } =
-    useDagRunServiceGetDagRuns({
-      dagId: dagId ?? "",
-      logicalDateGte: startDate,
-      logicalDateLte: endDate,
-      state: ["failed"],
-    });
+  const { data: failedRuns, isLoading: isLoadingRuns } = useDagRunServiceGetDagRuns({
+    dagId: dagId ?? "",
+    logicalDateGte: startDate,
+    logicalDateLte: endDate,
+    state: ["failed"],
+  });
 
   // TODO actually link to task instances list
   return (

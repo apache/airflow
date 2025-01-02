@@ -903,6 +903,7 @@ class TestHandleRequest:
         client_attr_path,
         method_arg,
         mock_response,
+        time_machine,
     ):
         """
         Test handling of different messages to the subprocess. For any new message type, add a
@@ -915,7 +916,6 @@ class TestHandleRequest:
             3. Checks that the buffer is updated with the expected response.
             4. Verifies that the response is correctly decoded.
         """
-
         # Mock the client method. E.g. `client.variables.get` or `client.connections.get`
         mock_client_method = attrgetter(client_attr_path)(watched_subprocess.client)
         mock_client_method.return_value = mock_response

@@ -67,7 +67,7 @@ def run_command(
     no_output_dump_on_exception: bool = False,
     env: Mapping[str, str] | None = None,
     cwd: Path | str | None = None,
-    input: str | None = None,
+    input: str | bytes | None = None,
     output: Output | None = None,
     output_outside_the_group: bool = False,
     verbose_override: bool | None = None,
@@ -91,7 +91,7 @@ def run_command(
     :param no_output_dump_on_exception: whether to suppress printing logs from output when command fails
     :param env: mapping of environment variables to set for the run command
     :param cwd: working directory to set for the command
-    :param input: input string to pass to stdin of the process
+    :param input: input string to pass to stdin of the process (bytes if text=False, str, otherwise)
     :param output: redirects stderr/stdout to Output if set to Output class.
     :param output_outside_the_group: if this is set to True, then output of the command will be done
         outside the "CI folded group" in CI - so that it is immediately visible without unfolding.

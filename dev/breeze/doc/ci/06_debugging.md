@@ -34,10 +34,7 @@ either run in our Self-Hosted runners (with 64 GB RAM 8 CPUs) or in the
 GitHub Public runners (6 GB of RAM, 2 CPUs) and the results will vastly
 differ depending on which environment is used. We are utilizing
 parallelism to make use of all the available CPU/Memory but sometimes
-you need to enable debugging and force certain environments. Additional
-difficulty is that `Build Images` workflow is `pull-request-target`
-type, which means that it will always run using the `main` version - no
-matter what is in your Pull Request.
+you need to enable debugging and force certain environments.
 
 There are several ways how you can debug the CI jobs and modify their
 behaviour when you are maintainer.
@@ -64,4 +61,4 @@ the PR to apply the label to the PR.
 
 -----
 
-Read next about [Running CI locally](08_running_ci_locally.md)
+Read next about [Running CI locally](07_running_ci_locally.md)

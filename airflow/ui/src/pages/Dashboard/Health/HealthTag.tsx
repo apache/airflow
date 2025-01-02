@@ -50,11 +50,7 @@ export const HealthTag = ({
       disabled={!Boolean(latestHeartbeat)}
       showArrow
     >
-      <Tag
-        borderRadius="full"
-        colorPalette={status === "healthy" ? "green" : "red"}
-        size="lg"
-      >
+      <Tag borderRadius="full" colorPalette={status === "healthy" ? "green" : "red"} size="lg">
         <TagLabel>{title}</TagLabel>
       </Tag>
     </Tooltip>

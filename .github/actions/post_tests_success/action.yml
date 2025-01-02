@@ -33,7 +33,7 @@ runs:
     - name: "Upload artifact for warnings"
       uses: actions/upload-artifact@v4
       with:
-        name: test-warnings-${{env.JOB_ID}}
+        name: test-warnings-${{ env.JOB_ID }}
         path: ./files/warnings-*.txt
         retention-days: 7
         if-no-files-found: ignore
@@ -50,5 +50,5 @@ runs:
       if: env.ENABLE_COVERAGE == 'true' && env.TEST_TYPES != 'Helm' && inputs.python-version != '3.12'
       with:
         name: coverage-${{env.JOB_ID}}
-        flags: python-${{env.PYTHON_MAJOR_MINOR_VERSION}},${{env.BACKEND}}-${{env.BACKEND_VERSION}}
+        flags: python-${{ env.PYTHON_MAJOR_MINOR_VERSION }},${{ env.BACKEND }}-${{ env.BACKEND_VERSION }}
         directory: "./files/coverage-reports/"

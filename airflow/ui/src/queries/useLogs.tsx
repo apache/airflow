@@ -57,13 +57,7 @@ const parseLogs = ({ data }: ParseLogsProps) => {
   };
 };
 
-export const useLogs = ({
-  dagId,
-  mapIndex = -1,
-  runId,
-  taskId,
-  tryNumber = 1,
-}: Props) => {
+export const useLogs = ({ dagId, mapIndex = -1, runId, taskId, tryNumber = 1 }: Props) => {
   const { data, ...rest } = useTaskInstanceServiceGetLog({
     dagId,
     dagRunId: runId,

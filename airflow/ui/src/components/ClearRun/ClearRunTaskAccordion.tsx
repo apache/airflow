@@ -21,10 +21,7 @@ import { Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Link as RouterLink } from "react-router-dom";
 
-import type {
-  TaskInstanceCollectionResponse,
-  TaskInstanceResponse,
-} from "openapi/requests/types.gen";
+import type { TaskInstanceCollectionResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { Status } from "src/components/ui";
 import { getTaskInstanceLink } from "src/utils/links";
@@ -36,9 +33,7 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
     accessorKey: "task_display_name",
     cell: ({ row: { original } }) => (
       <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink to={getTaskInstanceLink(original)}>
-          {original.task_display_name}
-        </RouterLink>
+        <RouterLink to={getTaskInstanceLink(original)}>{original.task_display_name}</RouterLink>
       </Link>
     ),
     enableSorting: false,
@@ -55,8 +50,7 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
     header: () => "State",
   },
   {
-    accessorFn: (row: TaskInstanceResponse) =>
-      row.rendered_map_index ?? row.map_index,
+    accessorFn: (row: TaskInstanceResponse) => row.rendered_map_index ?? row.map_index,
     enableSorting: false,
     header: "Map Index",
   },
@@ -78,9 +72,7 @@ const ClearRunTasksAccordion = ({ affectedTasks }: Props) => (
   <Accordion.Root collapsible variant="enclosed">
     <Accordion.Item key="tasks" value="tasks">
       <Accordion.ItemTrigger>
-        <Text fontWeight="bold">
-          Affected Tasks: {affectedTasks?.total_entries ?? 0}
-        </Text>
+        <Text fontWeight="bold">Affected Tasks: {affectedTasks?.total_entries ?? 0}</Text>
       </Accordion.ItemTrigger>
       <Accordion.ItemContent>
         <Box maxH="400px" overflowY="scroll">

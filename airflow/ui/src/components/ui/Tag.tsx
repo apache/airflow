@@ -27,24 +27,13 @@ export type TagProps = {
 } & ChakraTag.RootProps;
 
 export const Tag = forwardRef<HTMLSpanElement, TagProps>((props, ref) => {
-  const {
-    children,
-    onClose,
-    closable = Boolean(onClose),
-    endElement,
-    startElement,
-    ...rest
-  } = props;
+  const { children, onClose, closable = Boolean(onClose), endElement, startElement, ...rest } = props;
 
   return (
     <ChakraTag.Root ref={ref} {...rest}>
-      {Boolean(startElement) ? (
-        <ChakraTag.StartElement>{startElement}</ChakraTag.StartElement>
-      ) : undefined}
+      {Boolean(startElement) ? <ChakraTag.StartElement>{startElement}</ChakraTag.StartElement> : undefined}
       <ChakraTag.Label>{children}</ChakraTag.Label>
-      {Boolean(endElement) ? (
-        <ChakraTag.EndElement>{endElement}</ChakraTag.EndElement>
-      ) : undefined}
+      {Boolean(endElement) ? <ChakraTag.EndElement>{endElement}</ChakraTag.EndElement> : undefined}
       {Boolean(closable) ? (
         <ChakraTag.EndElement>
           <ChakraTag.CloseTrigger onClick={onClose} />

@@ -31,11 +31,7 @@ export const NavTabs = ({ tabs }: Props) => {
   const [searchParams] = useSearchParams();
 
   return (
-    <Flex
-      alignItems="center"
-      borderBottomWidth={1}
-      justifyContent="space-between"
-    >
+    <Flex alignItems="center" borderBottomWidth={1} justifyContent="space-between">
       <Flex>
         {tabs.map(({ label, value }) => (
           <NavLink

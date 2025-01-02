@@ -71,14 +71,7 @@ const pluralizeTestCases = [
 describe("pluralize", () => {
   it("case", () => {
     pluralizeTestCases.forEach((testCase) =>
-      expect(
-        pluralize(
-          testCase.in[0],
-          testCase.in[1],
-          testCase.in[2],
-          testCase.in[3],
-        ),
-      ).toEqual(testCase.out),
+      expect(pluralize(testCase.in[0], testCase.in[1], testCase.in[2], testCase.in[3])).toEqual(testCase.out),
     );
   });
 });

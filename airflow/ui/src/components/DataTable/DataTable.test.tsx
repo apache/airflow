@@ -117,17 +117,9 @@ describe("DataTable", () => {
   });
 
   it("displays cards if mode is card and there is cardDef", () => {
-    render(
-      <DataTable
-        cardDef={cardDef}
-        columns={columns}
-        data={data}
-        displayMode="card"
-      />,
-      {
-        wrapper: ChakraWrapper,
-      },
-    );
+    render(<DataTable cardDef={cardDef} columns={columns} data={data} displayMode="card" />, {
+      wrapper: ChakraWrapper,
+    });
 
     expect(screen.getByText("My name is John Doe.")).toBeInTheDocument();
   });

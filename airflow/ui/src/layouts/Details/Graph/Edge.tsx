@@ -61,11 +61,7 @@ const CustomEdge = ({ data }: Props) => {
       })}
       {(rest.sections ?? []).map((section) => (
         <LinePath
-          data={[
-            section.startPoint,
-            ...(section.bendPoints ?? []),
-            section.endPoint,
-          ]}
+          data={[section.startPoint, ...(section.bendPoints ?? []), section.endPoint]}
           key={section.id}
           stroke={colorMode === "dark" ? darkStroke : lightStroke}
           strokeDasharray={rest.isSetupTeardown ? "10,5" : undefined}

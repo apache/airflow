@@ -24,10 +24,7 @@ import { paginationContext } from "./context";
 
 const [, useRootProps] = paginationContext;
 
-export const PrevTrigger = forwardRef<
-  HTMLButtonElement,
-  ChakraPagination.PrevTriggerProps
->((props, ref) => {
+export const PrevTrigger = forwardRef<HTMLButtonElement, ChakraPagination.PrevTriggerProps>((props, ref) => {
   const { size, variantMap } = useRootProps();
 
   return (

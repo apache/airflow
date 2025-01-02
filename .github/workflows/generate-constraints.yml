@@ -32,16 +32,16 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to generate constraints without providers (true/false)"
         required: true
         type: string
-      image-tag:
-        description: "Tag to set for the image"
-        required: true
-        type: string
       chicken-egg-providers:
         description: "Space-separated list of providers that should be installed from context files"
         required: true
         type: string
       debug-resources:
         description: "Whether to run in debug mode (true/false)"
+        required: true
+        type: string
+      use-uv:
+        description: "Whether to use uvloop (true/false)"
         required: true
         type: string
 jobs:
@@ -57,7 +57,6 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
       INCLUDE_SUCCESS_OUTPUTS: "true"
-      IMAGE_TAG: ${{ inputs.image-tag }}
       PYTHON_VERSIONS: ${{ inputs.python-versions-list-as-string }}
       VERBOSE: "true"
       VERSION_SUFFIX_FOR_PYPI: "dev0"
@@ -69,21 +68,17 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-      - name: Login to ghcr.io
-        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-      - name: "\
-            Pull CI images \
-            ${{ inputs.python-versions-list-as-string }}:\
-            ${{ inputs.image-tag }}"
-        run: breeze ci-image pull --run-in-parallel --tag-as-latest
-      - name: "
-            Verify CI images \
-            ${{ inputs.python-versions-list-as-string }}:\
-            ${{ inputs.image-tag }}"
+        with:
+          use-uv: ${{ inputs.use-uv }}
+        id: breeze
+      - name: "Prepare all CI images: ${{ inputs.python-versions-list-as-string}}"
+        uses: ./.github/actions/prepare_all_ci_images
+        with:
+          platform: "linux/amd64"
+          python-versions-list-as-string: ${{ inputs.python-versions-list-as-string }}
+      - name: "Verify all CI images ${{ inputs.python-versions-list-as-string }}"
         run: breeze ci-image verify --run-in-parallel
       - name: "Source constraints"
         shell: bash

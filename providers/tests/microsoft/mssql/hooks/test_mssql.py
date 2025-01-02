@@ -20,8 +20,11 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+import sqlalchemy
 
+from airflow.configuration import conf
 from airflow.models import Connection
+from airflow.providers.microsoft.mssql.dialects.mssql import MsSqlDialect
 
 from providers.tests.microsoft.conftest import load_file
 
@@ -30,9 +33,72 @@ try:
 except ImportError:
     pytest.skip("MSSQL not available", allow_module_level=True)
 
+PYMSSQL_CONN = Connection(
+    conn_type="mssql", host="ip", schema="share", login="username", password="password", port=8081
+)
+PYMSSQL_CONN_ALT = Connection(
+    conn_type="mssql", host="ip", schema="", login="username", password="password", port=8081
+)
+PYMSSQL_CONN_ALT_1 = Connection(
+    conn_type="mssql",
+    host="ip",
+    schema="",
+    login="username",
+    password="password",
+    port=8081,
+    extra={"SQlalchemy_Scheme": "mssql+testdriver"},
+)
+PYMSSQL_CONN_ALT_2 = Connection(
+    conn_type="mssql",
+    host="ip",
+    schema="",
+    login="username",
+    password="password",
+    port=8081,
+    extra={"SQlalchemy_Scheme": "mssql+testdriver", "myparam": "5@-//*"},
+)
 
-@pytest.fixture
-def get_primary_keys():
+
+def get_target_fields(self, table: str) -> list[str] | None:
+    return [
+        "ReportRefreshDate",
+        "UserId",
+        "UserPrincipalName",
+        "LastActivityDate",
+        "IsDeleted",
+        "DeletedDate",
+        "AssignedProducts",
+        "TeamChatMessageCount",
+        "PrivateChatMessageCount",
+        "CallCount",
+        "MeetingCount",
+        "MeetingsOrganizedCount",
+        "MeetingsAttendedCount",
+        "AdHocMeetingsOrganizedCount",
+        "AdHocMeetingsAttendedCount",
+        "ScheduledOne-timeMeetingsOrganizedCount",
+        "ScheduledOne-timeMeetingsAttendedCount",
+        "ScheduledRecurringMeetingsOrganizedCount",
+        "ScheduledRecurringMeetingsAttendedCount",
+        "AudioDuration",
+        "VideoDuration",
+        "ScreenShareDuration",
+        "AudioDurationInSeconds",
+        "VideoDurationInSeconds",
+        "ScreenShareDurationInSeconds",
+        "HasOtherAction",
+        "UrgentMessages",
+        "PostMessages",
+        "TenantDisplayName",
+        "SharedChannelTenantDisplayNames",
+        "ReplyMessages",
+        "IsLicensed",
+        "ReportPeriod",
+        "LoadDate",
+    ]
+
+
+def get_primary_keys(self, table: str) -> list[str] | None:
     return [
         "GroupDisplayName",
         "OwnerPrincipalName",
@@ -80,6 +146,14 @@ URI_TEST_CASES = [
 
 
 class TestMsSqlHook:
+    def setup_method(self):
+        MsSqlHook._resolve_target_fields = True
+
+    def teardown_method(self, method):
+        MsSqlHook._resolve_target_fields = conf.getboolean(
+            "core", "dbapihook_resolve_target_fields", fallback=False
+        )
+
     @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_conn")
     @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.get_connection")
     def test_get_conn_should_return_connection(self, get_connection, mssql_get_conn, mssql_connections):
@@ -161,88 +235,71 @@ class TestMsSqlHook:
         hook.get_sqlalchemy_engine()
 
     @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_connection")
-    def test_generate_insert_sql(self, get_connection, mssql_connections, get_primary_keys):
-        get_connection.return_value = mssql_connections["default"]
+    @mock.patch(
+        "airflow.providers.microsoft.mssql.dialects.mssql.MsSqlDialect.get_target_fields",
+        get_target_fields,
+    )
+    @mock.patch(
+        "airflow.providers.microsoft.mssql.dialects.mssql.MsSqlDialect.get_primary_keys",
+        get_primary_keys,
+    )
+    def test_generate_insert_sql(self, get_connection):
+        get_connection.return_value = PYMSSQL_CONN
 
         hook = MsSqlHook()
-        with mock.patch.object(hook, "get_primary_keys", return_value=get_primary_keys):
-            sql = hook._generate_insert_sql(
-                table="YAMMER_GROUPS_ACTIVITY_DETAIL",
-                values=[
-                    "2024-07-17",
-                    "daa5b44c-80d6-4e22-85b5-a94e04cf7206",
-                    "no-reply@microsoft.com",
-                    "2024-07-17",
-                    0,
-                    0.0,
-                    "MICROSOFT FABRIC (FREE)+MICROSOFT 365 E5",
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    "PT0S",
-                    "PT0S",
-                    "PT0S",
-                    0,
-                    0,
-                    0,
-                    "Yes",
-                    0,
-                    0,
-                    "APACHE",
-                    0.0,
-                    0,
-                    "Yes",
-                    1,
-                    "2024-07-17T00:00:00+00:00",
-                ],
-                target_fields=[
-                    "ReportRefreshDate",
-                    "UserId",
-                    "UserPrincipalName",
-                    "LastActivityDate",
-                    "IsDeleted",
-                    "DeletedDate",
-                    "AssignedProducts",
-                    "TeamChatMessageCount",
-                    "PrivateChatMessageCount",
-                    "CallCount",
-                    "MeetingCount",
-                    "MeetingsOrganizedCount",
-                    "MeetingsAttendedCount",
-                    "AdHocMeetingsOrganizedCount",
-                    "AdHocMeetingsAttendedCount",
-                    "ScheduledOne-timeMeetingsOrganizedCount",
-                    "ScheduledOne-timeMeetingsAttendedCount",
-                    "ScheduledRecurringMeetingsOrganizedCount",
-                    "ScheduledRecurringMeetingsAttendedCount",
-                    "AudioDuration",
-                    "VideoDuration",
-                    "ScreenShareDuration",
-                    "AudioDurationInSeconds",
-                    "VideoDurationInSeconds",
-                    "ScreenShareDurationInSeconds",
-                    "HasOtherAction",
-                    "UrgentMessages",
-                    "PostMessages",
-                    "TenantDisplayName",
-                    "SharedChannelTenantDisplayNames",
-                    "ReplyMessages",
-                    "IsLicensed",
-                    "ReportPeriod",
-                    "LoadDate",
-                ],
-                replace=True,
-            )
-            assert sql == load_file("resources", "replace.sql")
+        sql = hook._generate_insert_sql(
+            table="YAMMER_GROUPS_ACTIVITY_DETAIL",
+            values=[
+                "2024-07-17",
+                "daa5b44c-80d6-4e22-85b5-a94e04cf7206",
+                "no-reply@microsoft.com",
+                "2024-07-17",
+                0,
+                0.0,
+                "MICROSOFT FABRIC (FREE)+MICROSOFT 365 E5",
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                "PT0S",
+                "PT0S",
+                "PT0S",
+                0,
+                0,
+                0,
+                "Yes",
+                0,
+                0,
+                "APACHE",
+                0.0,
+                0,
+                "Yes",
+                1,
+                "2024-07-17T00:00:00+00:00",
+            ],
+            replace=True,
+        )
+        assert sql == load_file("resources", "replace.sql")
+
+    def test_dialect_name(self):
+        hook = MsSqlHook()
+        assert hook.dialect_name == "mssql"
+
+    def test_dialect(self):
+        hook = MsSqlHook()
+        assert isinstance(hook.dialect, MsSqlDialect)
+
+    def test_reserved_words(self):
+        hook = MsSqlHook()
+        assert hook.reserved_words == sqlalchemy.dialects.mssql.base.RESERVED_WORDS
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_connection")

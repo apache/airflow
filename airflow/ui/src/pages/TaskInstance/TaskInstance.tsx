@@ -17,16 +17,9 @@
  * under the License.
  */
 import { LiaSlashSolid } from "react-icons/lia";
-import {
-  useParams,
-  Link as RouterLink,
-  useSearchParams,
-} from "react-router-dom";
+import { useParams, Link as RouterLink, useSearchParams } from "react-router-dom";
 
-import {
-  useDagServiceGetDagDetails,
-  useTaskInstanceServiceGetMappedTaskInstance,
-} from "openapi/queries";
+import { useDagServiceGetDagDetails, useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 import { Breadcrumb } from "src/components/ui";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 
@@ -78,20 +71,11 @@ export const TaskInstance = () => {
   }
 
   return (
-    <DetailsLayout
-      dag={dag}
-      error={error ?? dagError}
-      isLoading={isLoading || isDagLoading}
-      tabs={tabs}
-    >
+    <DetailsLayout dag={dag} error={error ?? dagError} isLoading={isLoading || isDagLoading} tabs={tabs}>
       <Breadcrumb.Root mb={3} separator={<LiaSlashSolid />}>
         {links.map((link, index) => {
           if (index === links.length - 1) {
-            return (
-              <Breadcrumb.CurrentLink key={link.label}>
-                {link.label}
-              </Breadcrumb.CurrentLink>
-            );
+            return <Breadcrumb.CurrentLink key={link.label}>{link.label}</Breadcrumb.CurrentLink>;
           }
 
           return link.value === undefined ? (
@@ -105,9 +89,7 @@ export const TaskInstance = () => {
           );
         })}
       </Breadcrumb.Root>
-      {taskInstance === undefined ? undefined : (
-        <Header taskInstance={taskInstance} />
-      )}
+      {taskInstance === undefined ? undefined : <Header taskInstance={taskInstance} />}
     </DetailsLayout>
   );
 };

@@ -55,10 +55,7 @@ export const Logs = () => {
     setSearchParams(searchParams);
   };
 
-  const tryNumber =
-    tryNumberParam === null
-      ? taskInstance?.try_number
-      : parseInt(tryNumberParam, 10);
+  const tryNumber = tryNumberParam === null ? taskInstance?.try_number : parseInt(tryNumberParam, 10);
 
   const defaultWrap = Boolean(useConfig("default_wrap"));
 
@@ -81,9 +78,7 @@ export const Logs = () => {
   return (
     <Box p={2}>
       <HStack justifyContent="space-between" mb={2}>
-        {taskInstance === undefined ||
-        tryNumber === undefined ||
-        taskInstance.try_number <= 1 ? (
+        {taskInstance === undefined || tryNumber === undefined || taskInstance.try_number <= 1 ? (
           <div />
         ) : (
           <TaskTrySelect
@@ -92,21 +87,13 @@ export const Logs = () => {
             taskInstance={taskInstance}
           />
         )}
-        <Button
-          aria-label={wrap ? "Unwrap" : "Wrap"}
-          bg="bg.panel"
-          onClick={toggleWrap}
-          variant="outline"
-        >
+        <Button aria-label={wrap ? "Unwrap" : "Wrap"} bg="bg.panel" onClick={toggleWrap} variant="outline">
           {wrap ? "Unwrap" : "Wrap"}
         </Button>
       </HStack>
       <ErrorAlert error={error ?? logError} />
       <Skeleton />
-      <ProgressBar
-        size="xs"
-        visibility={isLoading || isLoadingLogs ? "visible" : "hidden"}
-      />
+      <ProgressBar size="xs" visibility={isLoading || isLoadingLogs ? "visible" : "hidden"} />
       <Code overflow="auto" py={3} textWrap={wrap ? "pre" : "nowrap"}>
         <VStack alignItems="flex-start">{data.parsedLogs}</VStack>
       </Code>

@@ -946,7 +946,6 @@ On a separate (air-gaped) system, all the PyPI packages can be copied to ``docke
 where you can build the image using the packages downloaded by passing those build args:
 
 * ``INSTALL_PACKAGES_FROM_CONTEXT="true"``  - to use packages present in ``docker-context-files``
-* ``AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"``  - to not pre-cache packages from PyPI when building image
 * ``AIRFLOW_CONSTRAINTS_LOCATION=/docker-context-files/YOUR_CONSTRAINT_FILE.txt`` - to downloaded constraint files
 * (Optional) ``INSTALL_MYSQL_CLIENT="false"`` if you do not want to install ``MySQL``
   client from the Oracle repositories.
@@ -1027,13 +1026,11 @@ You can read more details about the images - the context, their parameters and i
 `Images documentation <https://github.com/apache/airflow/blob/main/dev/breeze/doc/ci/02_images.md>`_.
 
 
-Pip packages caching
+Dependencies caching
 ....................
 
 To enable faster iteration when building the image locally (especially if you are testing different combination of
 python packages), pip caching has been enabled. The caching id is based on four different parameters:
 
-1. ``PYTHON_BASE_IMAGE``: Avoid sharing same cache based on python version and target os
-2. ``AIRFLOW_PIP_VERSION``
-3. ``TARGETARCH``: Avoid sharing architecture specific cached package
-4. ``PIP_CACHE_EPOCH``: Enable changing cache id by passing ``PIP_CACHE_EPOCH`` as ``--build-arg``
+1. ``TARGETARCH``: Avoid sharing architecture specific cached package
+2. ``DEPENDENCY_CACHE_EPOCH``: Enable invalidating cache by passing ``DEPENDENCY_CACHE_EPOCH`` as ``--build-arg``

@@ -22,59 +22,65 @@ import json
 import traceback
 from typing import TYPE_CHECKING, cast
 
+from airflow.providers.common.compat.openlineage.facet import (
+    ColumnLineageDatasetFacet,
+    ErrorMessageRunFacet,
+    ExternalQueryRunFacet,
+    Fields,
+    InputDataset,
+    InputField,
+    OutputDataset,
+    OutputStatisticsOutputDatasetFacet,
+    SchemaDatasetFacet,
+    SchemaDatasetFacetFields,
+    SQLJobFacet,
+)
+from airflow.providers.google.cloud.openlineage.utils import (
+    BIGQUERY_NAMESPACE,
+    BigQueryJobRunFacet,
+    get_from_nullable_chain,
+    merge_column_lineage_facets,
+)
+
 if TYPE_CHECKING:
-    from airflow.providers.common.compat.openlineage.facet import (
-        Dataset,
-        InputDataset,
-        OutputDataset,
-        OutputStatisticsOutputDatasetFacet,
-        RunFacet,
-        SchemaDatasetFacet,
-    )
-    from airflow.providers.google.cloud.openlineage.utils import BigQueryJobRunFacet
+    from airflow.providers.common.compat.openlineage.facet import Dataset, RunFacet
 
 
-BIGQUERY_NAMESPACE = "bigquery"
+class _BigQueryInsertJobOperatorOpenLineageMixin:
+    """Mixin for BigQueryInsertJobOperator to extract OpenLineage metadata."""
 
-
-class _BigQueryOpenLineageMixin:
     def get_openlineage_facets_on_complete(self, _):
         """
-        Retrieve OpenLineage data for a COMPLETE BigQuery job.
+        Retrieve OpenLineage data for a completed BigQuery job.
 
-        This method retrieves statistics for the specified job_ids using the BigQueryDatasetsProvider.
-        It calls BigQuery API, retrieving input and output dataset info from it, as well as run-level
-        usage statistics.
-
-        Run facets should contain:
-            - ExternalQueryRunFacet
-            - BigQueryJobRunFacet
+        This method calls BigQuery API, retrieving input and output dataset info from it,
+         as well as run-level statistics.
 
         Run facets may contain:
-            - ErrorMessageRunFacet
+            - ExternalQueryRunFacet (for QUERY job type)
+            - BigQueryJobRunFacet
+            - ErrorMessageRunFacet (if an error occurred)
 
         Job facets should contain:
-            - SqlJobFacet if operator has self.sql
+            - SqlJobFacet (for QUERY job type)
 
-        Input datasets should contain facets:
-            - DataSourceDatasetFacet
+        Input datasets should contain:
             - SchemaDatasetFacet
 
-        Output datasets should contain facets:
-            - DataSourceDatasetFacet
+        Output datasets should contain:
             - SchemaDatasetFacet
-            - OutputStatisticsOutputDatasetFacet
+            - OutputStatisticsOutputDatasetFacet (for QUERY job type)
+            - ColumnLineageDatasetFacet (for QUERY job type)
         """
-        from airflow.providers.common.compat.openlineage.facet import ExternalQueryRunFacet, SQLJobFacet
         from airflow.providers.openlineage.extractors import OperatorLineage
         from airflow.providers.openlineage.sqlparser import SQLParser
 
         if not self.job_id:
-            if hasattr(self, "log"):
-                self.log.warning("No BigQuery job_id was found by OpenLineage.")
+            self.log.warning("No BigQuery job_id was found by OpenLineage.")  # type: ignore[attr-defined]
             return OperatorLineage()
 
         if not self.hook:
+            # This can occur when in deferrable mode
             from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 
             self.hook = BigQueryHook(
@@ -82,64 +88,35 @@ class _BigQueryOpenLineageMixin:
                 impersonation_chain=self.impersonation_chain,
             )
 
+        self.log.debug("Extracting data from bigquery job: `%s`", self.job_id)  # type: ignore[attr-defined]
+        inputs, outputs = [], []
         run_facets: dict[str, RunFacet] = {
             "externalQuery": ExternalQueryRunFacet(externalQueryId=self.job_id, source="bigquery")
         }
-
-        job_facets = {"sql": SQLJobFacet(query=SQLParser.normalize_sql(self.sql))}
-
-        self.client = self.hook.get_client(project_id=self.hook.project_id, location=self.location)
-        job_ids = self.job_id
-        if isinstance(self.job_id, str):
-            job_ids = [self.job_id]
-        inputs, outputs = [], []
-        for job_id in job_ids:
-            inner_inputs, inner_outputs, inner_run_facets = self.get_facets(job_id=job_id)
-            inputs.extend(inner_inputs)
-            outputs.extend(inner_outputs)
-            run_facets.update(inner_run_facets)
-
-        return OperatorLineage(
-            inputs=inputs,
-            outputs=outputs,
-            run_facets=run_facets,
-            job_facets=job_facets,
-        )
-
-    def get_facets(self, job_id: str):
-        from airflow.providers.common.compat.openlineage.facet import ErrorMessageRunFacet
-        from airflow.providers.google.cloud.openlineage.utils import get_from_nullable_chain
-
-        inputs = []
-        outputs = []
-        run_facets: dict[str, RunFacet] = {}
-        if hasattr(self, "log"):
-            self.log.debug("Extracting data from bigquery job: `%s`", job_id)
+        self._client = self.hook.get_client(project_id=self.hook.project_id, location=self.location)
         try:
-            job = self.client.get_job(job_id=job_id)  # type: ignore
-            props = job._properties
+            job_properties = self._client.get_job(job_id=self.job_id)._properties  # type: ignore
 
-            if get_from_nullable_chain(props, ["status", "state"]) != "DONE":
-                raise ValueError(f"Trying to extract data from running bigquery job: `{job_id}`")
+            if get_from_nullable_chain(job_properties, ["status", "state"]) != "DONE":
+                raise ValueError(f"Trying to extract data from running bigquery job: `{self.job_id}`")
 
-            run_facets["bigQueryJob"] = self._get_bigquery_job_run_facet(props)
+            run_facets.update(self._get_run_facets(job_properties))
 
-            if get_from_nullable_chain(props, ["statistics", "numChildJobs"]):
-                if hasattr(self, "log"):
-                    self.log.debug("Found SCRIPT job. Extracting lineage from child jobs instead.")
+            if get_from_nullable_chain(job_properties, ["statistics", "numChildJobs"]):
+                self.log.debug("Found SCRIPT job. Extracting lineage from child jobs instead.")  # type: ignore[attr-defined]
                 # SCRIPT job type has no input / output information but spawns child jobs that have one
                 # https://cloud.google.com/bigquery/docs/information-schema-jobs#multi-statement_query_job
-                for child_job_id in self.client.list_jobs(parent_job=job_id):
-                    child_job = self.client.get_job(job_id=child_job_id)  # type: ignore
-                    child_inputs, child_output = self._get_inputs_outputs_from_job(child_job._properties)
+                for child_job_id in self._client.list_jobs(parent_job=self.job_id):
+                    child_job_properties = self._client.get_job(job_id=child_job_id)._properties  # type: ignore
+                    child_inputs, child_output = self._get_inputs_and_output(child_job_properties)
                     inputs.extend(child_inputs)
                     outputs.append(child_output)
             else:
-                inputs, _output = self._get_inputs_outputs_from_job(props)
+                inputs, _output = self._get_inputs_and_output(job_properties)
                 outputs.append(_output)
+
         except Exception as e:
-            if hasattr(self, "log"):
-                self.log.warning("Cannot retrieve job details from BigQuery.Client. %s", e, exc_info=True)
+            self.log.warning("Cannot retrieve job details from BigQuery.Client. %s", e, exc_info=True)  # type: ignore[attr-defined]
             exception_msg = traceback.format_exc()
             run_facets.update(
                 {
@@ -149,16 +126,40 @@ class _BigQueryOpenLineageMixin:
                     )
                 }
             )
-        deduplicated_outputs = self._deduplicate_outputs(outputs)
-        return inputs, deduplicated_outputs, run_facets
+
+        return OperatorLineage(
+            inputs=inputs,
+            outputs=self._deduplicate_outputs(outputs),
+            run_facets=run_facets,
+            job_facets={"sql": SQLJobFacet(query=SQLParser.normalize_sql(self.sql))} if self.sql else {},
+        )
+
+    def _get_run_facets(self, properties: dict) -> dict[str, RunFacet]:
+        job_type = get_from_nullable_chain(properties, ["configuration", "jobType"])
+
+        run_facets: dict[str, RunFacet] = {}
+        if job_type == "QUERY":
+            run_facets["bigQueryJob"] = self._get_bigquery_job_run_facet(properties)
+
+        return run_facets
+
+    def _get_inputs_and_output(self, properties: dict) -> tuple[list[InputDataset], OutputDataset | None]:
+        job_type = get_from_nullable_chain(properties, ["configuration", "jobType"])
+
+        if job_type == "QUERY":
+            inputs, output = self._get_inputs_and_output_for_query_job(properties)
+        else:
+            self.log.debug("Unsupported job type for input/output extraction: `%s`.", job_type)  # type: ignore[attr-defined]
+            inputs, output = [], None
+
+        return inputs, output
 
     def _deduplicate_outputs(self, outputs: list[OutputDataset | None]) -> list[OutputDataset]:
-        # Sources are the same so we can compare only names
         final_outputs = {}
         for single_output in outputs:
             if not single_output:
                 continue
-            key = single_output.name
+            key = f"{single_output.namespace}.{single_output.name}"
             if key not in final_outputs:
                 final_outputs[key] = single_output
                 continue
@@ -167,77 +168,32 @@ class _BigQueryOpenLineageMixin:
             # if the rowCount or size can be summed together.
             if single_output.outputFacets:
                 single_output.outputFacets.pop("outputStatistics", None)
+
+            # If multiple outputs contain Column Level Lineage Facet - merge the facets
+            if (
+                single_output.facets
+                and final_outputs[key].facets
+                and "columnLineage" in single_output.facets  # type: ignore
+                and "columnLineage" in final_outputs[key].facets  # type: ignore
+            ):
+                single_output.facets["columnLineage"] = merge_column_lineage_facets(
+                    [
+                        single_output.facets["columnLineage"],  # type: ignore
+                        final_outputs[key].facets["columnLineage"],  # type: ignore
+                    ]
+                )
+
             final_outputs[key] = single_output
 
         return list(final_outputs.values())
 
-    def _get_inputs_outputs_from_job(
-        self, properties: dict
-    ) -> tuple[list[InputDataset], OutputDataset | None]:
-        from airflow.providers.google.cloud.openlineage.utils import get_from_nullable_chain
-
-        input_tables = get_from_nullable_chain(properties, ["statistics", "query", "referencedTables"]) or []
-        output_table = get_from_nullable_chain(properties, ["configuration", "query", "destinationTable"])
-        inputs = [(self._get_input_dataset(input_table)) for input_table in input_tables]
-        if output_table:
-            output = self._get_output_dataset(output_table)
-            dataset_stat_facet = self._get_statistics_dataset_facet(properties)
-            output.outputFacets = output.outputFacets or {}
-            if dataset_stat_facet:
-                output.outputFacets["outputStatistics"] = dataset_stat_facet
-
-        return inputs, output
-
-    @staticmethod
-    def _get_bigquery_job_run_facet(properties: dict) -> BigQueryJobRunFacet:
-        from airflow.providers.google.cloud.openlineage.utils import (
-            BigQueryJobRunFacet,
-            get_from_nullable_chain,
-        )
-
-        if get_from_nullable_chain(properties, ["configuration", "query", "query"]):
-            # Exclude the query to avoid event size issues and duplicating SqlJobFacet information.
-            properties = copy.deepcopy(properties)
-            properties["configuration"]["query"].pop("query")
-        cache_hit = get_from_nullable_chain(properties, ["statistics", "query", "cacheHit"])
-        billed_bytes = get_from_nullable_chain(properties, ["statistics", "query", "totalBytesBilled"])
-        return BigQueryJobRunFacet(
-            cached=str(cache_hit).lower() == "true",
-            billedBytes=int(billed_bytes) if billed_bytes else None,
-            properties=json.dumps(properties),
-        )
-
-    @staticmethod
-    def _get_statistics_dataset_facet(
-        properties,
-    ) -> OutputStatisticsOutputDatasetFacet | None:
-        from airflow.providers.common.compat.openlineage.facet import OutputStatisticsOutputDatasetFacet
-        from airflow.providers.google.cloud.openlineage.utils import get_from_nullable_chain
-
-        query_plan = get_from_nullable_chain(properties, chain=["statistics", "query", "queryPlan"])
-        if not query_plan:
-            return None
-
-        out_stage = query_plan[-1]
-        out_rows = out_stage.get("recordsWritten", None)
-        out_bytes = out_stage.get("shuffleOutputBytes", None)
-        if out_bytes and out_rows:
-            return OutputStatisticsOutputDatasetFacet(rowCount=int(out_rows), size=int(out_bytes))
-        return None
-
     def _get_input_dataset(self, table: dict) -> InputDataset:
-        from airflow.providers.common.compat.openlineage.facet import InputDataset
-
         return cast(InputDataset, self._get_dataset(table, "input"))
 
     def _get_output_dataset(self, table: dict) -> OutputDataset:
-        from airflow.providers.common.compat.openlineage.facet import OutputDataset
-
         return cast(OutputDataset, self._get_dataset(table, "output"))
 
     def _get_dataset(self, table: dict, dataset_type: str) -> Dataset:
-        from airflow.providers.common.compat.openlineage.facet import InputDataset, OutputDataset
-
         project = table.get("projectId")
         dataset = table.get("datasetId")
         table_name = table.get("tableId")
@@ -273,18 +229,11 @@ class _BigQueryOpenLineageMixin:
         try:
             return self._get_table_schema(table_name)
         except Exception as e:
-            if hasattr(self, "log"):
-                self.log.warning("Could not extract output schema from bigquery. %s", e)
+            self.log.warning("Could not extract output schema from bigquery. %s", e)  # type: ignore[attr-defined]
         return None
 
     def _get_table_schema(self, table: str) -> SchemaDatasetFacet | None:
-        from airflow.providers.common.compat.openlineage.facet import (
-            SchemaDatasetFacet,
-            SchemaDatasetFacetFields,
-        )
-        from airflow.providers.google.cloud.openlineage.utils import get_from_nullable_chain
-
-        bq_table = self.client.get_table(table)
+        bq_table = self._client.get_table(table)
 
         if not bq_table._properties:
             return None
@@ -302,4 +251,263 @@ class _BigQueryOpenLineageMixin:
                 )
                 for field in fields
             ]
+        )
+
+    def _get_inputs_and_output_for_query_job(
+        self, properties: dict
+    ) -> tuple[list[InputDataset], OutputDataset | None]:
+        input_tables = get_from_nullable_chain(properties, ["statistics", "query", "referencedTables"]) or []
+        output_table = get_from_nullable_chain(properties, ["configuration", "query", "destinationTable"])
+
+        inputs = [
+            (self._get_input_dataset(input_table))
+            for input_table in input_tables
+            if input_table != output_table  # Output table is in `referencedTables` and needs to be removed
+        ]
+
+        if not output_table:
+            return inputs, None
+
+        output = self._get_output_dataset(output_table)
+        if dataset_stat_facet := self._get_statistics_dataset_facet(properties):
+            output.outputFacets = output.outputFacets or {}
+            output.outputFacets["outputStatistics"] = dataset_stat_facet
+        if cll_facet := self._get_column_level_lineage_facet(properties, output, inputs):
+            output.facets = output.facets or {}
+            output.facets["columnLineage"] = cll_facet
+        return inputs, output
+
+    @staticmethod
+    def _get_bigquery_job_run_facet(properties: dict) -> BigQueryJobRunFacet:
+        if get_from_nullable_chain(properties, ["configuration", "query", "query"]):
+            # Exclude the query to avoid event size issues and duplicating SqlJobFacet information.
+            properties = copy.deepcopy(properties)
+            properties["configuration"]["query"].pop("query")
+        cache_hit = get_from_nullable_chain(properties, ["statistics", "query", "cacheHit"])
+        billed_bytes = get_from_nullable_chain(properties, ["statistics", "query", "totalBytesBilled"])
+        return BigQueryJobRunFacet(
+            cached=str(cache_hit).lower() == "true",
+            billedBytes=int(billed_bytes) if billed_bytes else None,
+            properties=json.dumps(properties),
+        )
+
+    @staticmethod
+    def _get_statistics_dataset_facet(
+        properties,
+    ) -> OutputStatisticsOutputDatasetFacet | None:
+        query_plan = get_from_nullable_chain(properties, chain=["statistics", "query", "queryPlan"])
+        if not query_plan:
+            return None
+
+        out_stage = query_plan[-1]
+        out_rows = out_stage.get("recordsWritten", None)
+        out_bytes = out_stage.get("shuffleOutputBytes", None)
+        if out_bytes and out_rows:
+            return OutputStatisticsOutputDatasetFacet(rowCount=int(out_rows), size=int(out_bytes))
+        return None
+
+    def _get_column_level_lineage_facet(
+        self, properties: dict, output: OutputDataset, inputs: list[InputDataset]
+    ) -> ColumnLineageDatasetFacet | None:
+        """
+        Extract column-level lineage information from a BigQuery job and return it as a facet.
+
+        The Column Level Lineage Facet will NOT be returned if any of the following condition is met:
+        - The parsed result does not contain column lineage information.
+        - The parsed result does not contain exactly one output table.
+        - The parsed result has a different output table than the output table from the BQ job.
+        - The parsed result has at least one input table not present in the input tables from the BQ job.
+        - The parsed result has a column not present in the schema of given dataset from the BQ job.
+
+        Args:
+            properties: The properties of the BigQuery job.
+            output: The output dataset for which the column lineage is being extracted.
+
+        Returns:
+            The extracted Column Lineage Dataset Facet, or None if conditions are not met.
+        """
+        from airflow.providers.openlineage.sqlparser import SQLParser
+
+        # Extract SQL query and parse it
+        self.log.debug("Extracting column-level lineage facet from BigQuery query.")  # type: ignore[attr-defined]
+        query = get_from_nullable_chain(properties, ["configuration", "query", "query"]) or ""
+        parse_result = SQLParser("bigquery").parse(SQLParser.split_sql_string(SQLParser.normalize_sql(query)))
+
+        if parse_result is None or parse_result.column_lineage == []:
+            self.log.debug("No column-level lineage found in the SQL query. Facet generation skipped.")  # type: ignore[attr-defined]
+            return None
+
+        default_dataset, default_project = self._extract_default_dataset_and_project(
+            properties,
+            self.project_id,  # type: ignore[attr-defined]
+        )
+
+        # Verify if the output table id from the parse result matches the BQ job output table
+        if not self._validate_output_table_id(
+            parse_result,
+            output,
+            default_project,
+            default_dataset,
+        ):
+            return None
+
+        # Verify if all columns from parse results are present in the output dataset schema
+        if not self._validate_output_columns(parse_result, output):
+            return None
+
+        input_tables_from_parse_result = self._extract_parsed_input_tables(
+            parse_result, default_project, default_dataset
+        )
+        input_tables_from_bq = {input_ds.name: self._extract_column_names(input_ds) for input_ds in inputs}
+
+        # Verify if all datasets from parse results are present in bq job input datasets
+        if not self._validate_input_tables(input_tables_from_parse_result, input_tables_from_bq):
+            return None
+
+        # Verify if all columns from parse results are present in their respective bq job input datasets
+        if not self._validate_input_columns(input_tables_from_parse_result, input_tables_from_bq):
+            return None
+
+        return self._generate_column_lineage_facet(parse_result, default_project, default_dataset)
+
+    @staticmethod
+    def _get_qualified_name_from_parse_result(table, default_project: str, default_dataset: str) -> str:
+        """Get the qualified name of a table from the parse result."""
+        return ".".join(
+            (
+                table.database or default_project,
+                table.schema or default_dataset,
+                table.name,
+            )
+        )
+
+    @staticmethod
+    def _extract_default_dataset_and_project(properties: dict, default_project: str) -> tuple[str, str]:
+        """Extract the default dataset and project from the BigQuery job properties."""
+        default_dataset_obj = get_from_nullable_chain(
+            properties, ["configuration", "query", "defaultDataset"]
+        )
+        default_dataset = default_dataset_obj.get("datasetId", "") if default_dataset_obj else ""
+        default_project = (
+            default_dataset_obj.get("projectId", default_project) if default_dataset_obj else default_project
+        )
+        return default_dataset, default_project
+
+    def _validate_output_table_id(
+        self, parse_result, output: OutputDataset, default_project: str, default_dataset: str
+    ) -> bool:
+        """Check if the output table id from the parse result matches the BQ job output table."""
+        if len(parse_result.out_tables) != 1:
+            self.log.debug(  # type: ignore[attr-defined]
+                "Invalid output tables in the parse result: `%s`. Expected exactly one output table.",
+                parse_result.out_tables,
+            )
+            return False
+
+        parsed_output_table = self._get_qualified_name_from_parse_result(
+            parse_result.out_tables[0], default_project, default_dataset
+        )
+        if parsed_output_table != output.name:
+            self.log.debug(  # type: ignore[attr-defined]
+                "Mismatch between parsed output table `%s` and BQ job output table `%s`.",
+                parsed_output_table,
+                output.name,
+            )
+            return False
+        return True
+
+    @staticmethod
+    def _extract_column_names(dataset: Dataset) -> list[str]:
+        """Extract column names from a dataset's schema."""
+        return [
+            f.name
+            for f in dataset.facets.get("schema", SchemaDatasetFacet(fields=[])).fields  # type: ignore[union-attr]
+            if dataset.facets
+        ]
+
+    def _validate_output_columns(self, parse_result, output: OutputDataset) -> bool:
+        """Validate if all descendant columns in parse result exist in output dataset schema."""
+        output_column_names = self._extract_column_names(output)
+        missing_columns = [
+            lineage.descendant.name
+            for lineage in parse_result.column_lineage
+            if lineage.descendant.name not in output_column_names
+        ]
+        if missing_columns:
+            self.log.debug(  # type: ignore[attr-defined]
+                "Output dataset schema is missing columns from the parse result: `%s`.", missing_columns
+            )
+            return False
+        return True
+
+    def _extract_parsed_input_tables(
+        self, parse_result, default_project: str, default_dataset: str
+    ) -> dict[str, list[str]]:
+        """Extract input tables and their columns from the parse result."""
+        input_tables: dict[str, list[str]] = {}
+        for lineage in parse_result.column_lineage:
+            for column_meta in lineage.lineage:
+                if not column_meta.origin:
+                    self.log.debug(  # type: ignore[attr-defined]
+                        "Column `%s` lacks origin information. Skipping facet generation.", column_meta.name
+                    )
+                    return {}
+
+                input_table_id = self._get_qualified_name_from_parse_result(
+                    column_meta.origin, default_project, default_dataset
+                )
+                input_tables.setdefault(input_table_id, []).append(column_meta.name)
+        return input_tables
+
+    def _validate_input_tables(
+        self, parsed_input_tables: dict[str, list[str]], input_tables_from_bq: dict[str, list[str]]
+    ) -> bool:
+        """Validate if all parsed input tables exist in the BQ job's input datasets."""
+        if not parsed_input_tables:
+            self.log.debug("No input tables found in the parse result. Facet generation skipped.")  # type: ignore[attr-defined]
+            return False
+        if missing_tables := set(parsed_input_tables) - set(input_tables_from_bq):
+            self.log.debug(  # type: ignore[attr-defined]
+                "Parsed input tables not found in the BQ job's input datasets: `%s`.", missing_tables
+            )
+            return False
+        return True
+
+    def _validate_input_columns(
+        self, parsed_input_tables: dict[str, list[str]], input_tables_from_bq: dict[str, list[str]]
+    ) -> bool:
+        """Validate if all parsed input columns exist in their respective BQ job input table schemas."""
+        if not parsed_input_tables:
+            self.log.debug("No input tables found in the parse result. Facet generation skipped.")  # type: ignore[attr-defined]
+            return False
+        for table, columns in parsed_input_tables.items():
+            if missing_columns := set(columns) - set(input_tables_from_bq.get(table, [])):
+                self.log.debug(  # type: ignore[attr-defined]
+                    "Input table `%s` is missing columns from the parse result: `%s`.", table, missing_columns
+                )
+                return False
+        return True
+
+    def _generate_column_lineage_facet(
+        self, parse_result, default_project: str, default_dataset: str
+    ) -> ColumnLineageDatasetFacet:
+        """Generate the ColumnLineageDatasetFacet based on the parsed result."""
+        return ColumnLineageDatasetFacet(
+            fields={
+                lineage.descendant.name: Fields(
+                    inputFields=[
+                        InputField(
+                            namespace=BIGQUERY_NAMESPACE,
+                            name=self._get_qualified_name_from_parse_result(
+                                column_meta.origin, default_project, default_dataset
+                            ),
+                            field=column_meta.name,
+                        )
+                        for column_meta in lineage.lineage
+                    ],
+                    transformationType="",
+                    transformationDescription="",
+                )
+                for lineage in parse_result.column_lineage
+            }
         )

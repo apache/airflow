@@ -33,17 +33,8 @@ type Props = {
   readonly placeHolder: string;
 };
 
-export const SearchBar = ({
-  buttonProps,
-  defaultValue,
-  groupProps,
-  onChange,
-  placeHolder,
-}: Props) => {
-  const handleSearchChange = useDebouncedCallback(
-    (val: string) => onChange(val),
-    debounceDelay,
-  );
+export const SearchBar = ({ buttonProps, defaultValue, groupProps, onChange, placeHolder }: Props) => {
+  const handleSearchChange = useDebouncedCallback((val: string) => onChange(val), debounceDelay);
 
   const [value, setValue] = useState(defaultValue);
 
@@ -70,13 +61,7 @@ export const SearchBar = ({
               size="xs"
             />
           ) : undefined}
-          <Button
-            fontWeight="normal"
-            height="1.75rem"
-            variant="ghost"
-            width={140}
-            {...buttonProps}
-          >
+          <Button fontWeight="normal" height="1.75rem" variant="ghost" width={140} {...buttonProps}>
             Advanced Search
           </Button>
         </>

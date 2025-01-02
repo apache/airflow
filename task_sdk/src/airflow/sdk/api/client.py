@@ -132,7 +132,6 @@ class TaskInstanceOperations:
         """Tell the API server that this TI has reached a terminal state."""
         # TODO: handle the naming better. finish sounds wrong as "even" deferred is essentially finishing.
         body = TITerminalStatePayload(end_date=when, state=TerminalTIState(state))
-
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
     def heartbeat(self, id: uuid.UUID, pid: int):

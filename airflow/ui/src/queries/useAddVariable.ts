@@ -19,14 +19,11 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import {
-  useVariableServiceGetVariablesKey,
-  useVariableServicePostVariable,
-} from "openapi/queries";
+import { useVariableServiceGetVariablesKey, useVariableServicePostVariable } from "openapi/queries";
 import { toaster } from "src/components/ui";
-import type { AddVariableBody } from "src/pages/Variables/AddVariableForm";
+import type { VariableBody } from "src/pages/Variables/ManageVariable/VariableForm";
 
-export const useAddVariable = (onClose: () => void) => {
+export const useAddVariable = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
 
@@ -41,7 +38,7 @@ export const useAddVariable = (onClose: () => void) => {
       type: "success",
     });
 
-    onClose();
+    onSuccessConfirm();
   };
 
   const onError = (_error: unknown) => {
@@ -53,20 +50,18 @@ export const useAddVariable = (onClose: () => void) => {
     onSuccess,
   });
 
-  const addVariable = (addVariableRequestBody: AddVariableBody) => {
+  const addVariable = (variableRequestBody: VariableBody) => {
     const parsedDescription =
-      addVariableRequestBody.description === ""
-        ? undefined
-        : addVariableRequestBody.description;
+      variableRequestBody.description === "" ? undefined : variableRequestBody.description;
 
     mutate({
       requestBody: {
         description: parsedDescription,
-        key: addVariableRequestBody.key,
-        value: addVariableRequestBody.value,
+        key: variableRequestBody.key,
+        value: variableRequestBody.value,
       },
     });
   };
 
-  return { addVariable, error, isPending };
+  return { addVariable, error, isPending, setError };
 };

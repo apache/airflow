@@ -19,10 +19,7 @@
 import { Heading, VStack, Box, SimpleGrid, Text, Link } from "@chakra-ui/react";
 import { Link as RouterLink } from "react-router-dom";
 
-import type {
-  TaskResponse,
-  TaskInstanceResponse,
-} from "openapi/requests/types.gen";
+import type { TaskResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import Time from "src/components/Time";
 import { Status } from "src/components/ui";
@@ -37,14 +34,7 @@ type Props = {
 };
 
 export const TaskCard = ({ dagId, task, taskInstances }: Props) => (
-  <Box
-    borderColor="border.emphasized"
-    borderRadius={8}
-    borderWidth={1}
-    overflow="hidden"
-    px={3}
-    py={2}
-  >
+  <Box borderColor="border.emphasized" borderRadius={8} borderWidth={1} overflow="hidden" px={3} py={2}>
     <Link asChild color="fg.info" fontWeight="bold">
       <RouterLink to={`/dags/${dagId}/tasks/${task.task_id}`}>
         {task.task_display_name ?? task.task_id}
@@ -74,9 +64,7 @@ export const TaskCard = ({ dagId, task, taskInstances }: Props) => (
               <RouterLink to={getTaskInstanceLink(taskInstances[0])}>
                 <Time datetime={taskInstances[0].start_date} />
                 {taskInstances[0].state === null ? undefined : (
-                  <Status state={taskInstances[0].state}>
-                    {taskInstances[0].state}
-                  </Status>
+                  <Status state={taskInstances[0].state}>{taskInstances[0].state}</Status>
                 )}
               </RouterLink>
             </Link>

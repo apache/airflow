@@ -49,21 +49,14 @@ export const DAGImportErrors = () => {
           onClick={onOpen}
           variant="outline"
         >
-          <MetricsBadge
-            backgroundColor={stateColor.failed}
-            runs={importErrorsCount}
-          />
+          <MetricsBadge backgroundColor={stateColor.failed} runs={importErrorsCount} />
           <Box alignItems="center" display="flex" gap={1}>
             <Text fontWeight="bold">Dag Import Errors</Text>
             <FiChevronRight />
           </Box>
         </Button>
       )}
-      <DAGImportErrorsModal
-        importErrors={importErrors}
-        onClose={onClose}
-        open={open}
-      />
+      <DAGImportErrorsModal importErrors={importErrors} onClose={onClose} open={open} />
     </Box>
   );
 };

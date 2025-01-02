@@ -59,11 +59,7 @@ export const TrendCountButton = ({
         <Text fontSize="sm" fontWeight="bold">
           {pluralize(label, count, undefined, true)}
         </Text>
-        <TrendCountChart
-          endDate={endDate}
-          events={events}
-          startDate={startDate}
-        />
+        <TrendCountChart endDate={endDate} events={events} startDate={startDate} />
       </HStack>
     </Link>
   );

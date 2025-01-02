@@ -39,10 +39,7 @@ export const useDagParams = (dagId: string, open: boolean) => {
 
   const transformedParams = data?.params
     ? Object.fromEntries(
-        Object.entries(data.params).map(([key, param]) => [
-          key,
-          (param as { value: unknown }).value,
-        ]),
+        Object.entries(data.params).map(([key, param]) => [key, (param as { value: unknown }).value]),
       )
     : {};
 

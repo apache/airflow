@@ -27,8 +27,7 @@ type Props = {
 };
 
 export const Schedule = ({ dag }: Props) =>
-  Boolean(dag.timetable_summary) &&
-  dag.timetable_description !== "Never, external triggers only" ? (
+  Boolean(dag.timetable_summary) && dag.timetable_description !== "Never, external triggers only" ? (
     <Tooltip content={dag.timetable_description} showArrow>
       <Text fontSize="sm">
         <FiCalendar style={{ display: "inline" }} /> {dag.timetable_summary}

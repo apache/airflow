@@ -16,21 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Box,
-  VStack,
-  Heading,
-  Text,
-  Button,
-  Container,
-  HStack,
-  Code,
-} from "@chakra-ui/react";
-import {
-  useNavigate,
-  useRouteError,
-  isRouteErrorResponse,
-} from "react-router-dom";
+import { Box, VStack, Heading, Text, Button, Container, HStack, Code } from "@chakra-ui/react";
+import { useNavigate, useRouteError, isRouteErrorResponse } from "react-router-dom";
 
 import { AirflowPin } from "src/assets/AirflowPin";
 
@@ -44,8 +31,7 @@ export const ErrorPage = () => {
   if (isRouteErrorResponse(error)) {
     statusCode = String(error.status);
     errorMessage =
-      ((error as unknown as Error).message ||
-        (error as { statusText?: string }).statusText) ??
+      ((error as unknown as Error).message || (error as { statusText?: string }).statusText) ??
       "Page Not Found";
   } else if (error instanceof Error) {
     errorMessage = error.message;
@@ -57,13 +43,7 @@ export const ErrorPage = () => {
   const isDev = import.meta.env.DEV;
 
   return (
-    <Box
-      alignItems="center"
-      display="flex"
-      justifyContent="center"
-      pt={36}
-      px={4}
-    >
+    <Box alignItems="center" display="flex" justifyContent="center" pt={36} px={4}>
       <Container maxW="lg">
         <VStack gap={8} textAlign="center">
           <AirflowPin height="50px" width="50px" />
@@ -82,12 +62,7 @@ export const ErrorPage = () => {
             <Button colorPalette="blue" onClick={() => navigate(-1)} size="lg">
               Back
             </Button>
-            <Button
-              colorPalette="blue"
-              onClick={() => navigate("/")}
-              size="lg"
-              variant="outline"
-            >
+            <Button colorPalette="blue" onClick={() => navigate("/")} size="lg" variant="outline">
               Home
             </Button>
           </HStack>

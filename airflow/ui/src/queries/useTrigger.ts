@@ -28,16 +28,11 @@ import {
 import type { DagRunTriggerParams } from "src/components/TriggerDag/TriggerDAGForm";
 import { toaster } from "src/components/ui";
 
-export const useTrigger = ({
-  onSuccessConfirm,
-}: {
-  onSuccessConfirm: () => void;
-}) => {
+export const useTrigger = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
 
-  const [dateValidationError, setDateValidationError] =
-    useState<unknown>(undefined);
+  const [dateValidationError, setDateValidationError] = useState<unknown>(undefined);
 
   const onSuccess = async () => {
     const queryKeys = [
@@ -46,11 +41,7 @@ export const useTrigger = ({
       useDagRunServiceGetDagRunsKey,
     ];
 
-    await Promise.all(
-      queryKeys.map((key) =>
-        queryClient.invalidateQueries({ queryKey: [key] }),
-      ),
-    );
+    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: [key] })));
     toaster.create({
       description: "DAG run has been successfully triggered.",
       title: "DAG Run Request Submitted",
@@ -68,14 +59,8 @@ export const useTrigger = ({
     onSuccess,
   });
 
-  const triggerDagRun = (
-    dagId: string,
-    dagRunRequestBody: DagRunTriggerParams,
-  ) => {
-    const parsedConfig = JSON.parse(dagRunRequestBody.conf) as Record<
-      string,
-      unknown
-    >;
+  const triggerDagRun = (dagId: string, dagRunRequestBody: DagRunTriggerParams) => {
+    const parsedConfig = JSON.parse(dagRunRequestBody.conf) as Record<string, unknown>;
 
     const DataIntervalStart = dagRunRequestBody.dataIntervalStart
       ? new Date(dagRunRequestBody.dataIntervalStart)
@@ -99,8 +84,7 @@ export const useTrigger = ({
       if (DataIntervalStart > DataIntervalEnd) {
         setDateValidationError({
           body: {
-            detail:
-              "Data Interval Start Date must be less than or equal to Data Interval End Date.",
+            detail: "Data Interval Start Date must be less than or equal to Data Interval End Date.",
           },
         });
 
@@ -108,17 +92,11 @@ export const useTrigger = ({
       }
     }
 
-    const formattedDataIntervalStart =
-      DataIntervalStart?.toISOString() ?? undefined;
-    const formattedDataIntervalEnd =
-      DataIntervalEnd?.toISOString() ?? undefined;
+    const formattedDataIntervalStart = DataIntervalStart?.toISOString() ?? undefined;
+    const formattedDataIntervalEnd = DataIntervalEnd?.toISOString() ?? undefined;
 
-    const checkDagRunId =
-      dagRunRequestBody.dagRunId === ""
-        ? undefined
-        : dagRunRequestBody.dagRunId;
-    const checkNote =
-      dagRunRequestBody.note === "" ? undefined : dagRunRequestBody.note;
+    const checkDagRunId = dagRunRequestBody.dagRunId === "" ? undefined : dagRunRequestBody.dagRunId;
+    const checkNote = dagRunRequestBody.note === "" ? undefined : dagRunRequestBody.note;
 
     mutate({
       dagId,

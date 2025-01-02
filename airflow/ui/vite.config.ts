@@ -29,9 +29,7 @@ export default defineConfig({
     {
       name: "transform-url-src",
       transformIndexHtml: (html) =>
-        html
-          .replace(`src="/assets/`, `src="/static/assets/`)
-          .replace(`href="/`, `href="/webapp/`),
+        html.replace(`src="/assets/`, `src="/static/assets/`).replace(`href="/`, `href="/webapp/`),
     },
     cssInjectedByJsPlugin(),
   ],

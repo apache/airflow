@@ -215,10 +215,11 @@ in `docker-context-files` folder.
 
 # Using docker cache during builds
 
-Default mechanism used in Breeze for building CI images uses images
-pulled from GitHub Container Registry. This is done to speed up local
+Default mechanism used in Breeze for building CI images locally uses images
+pulled from GitHub Container Registry combined with locally mounted cache
+folders where `uv` cache is stored. This is done to speed up local
 builds and building images for CI runs - instead of \> 12 minutes for
-rebuild of CI images, it takes usually about 1 minute when cache is
+rebuild of CI images, it takes usually less than a minute when cache is
 used. For CI images this is usually the best strategy - to use default
 "pull" cache. This is default strategy when [Breeze](../README.rst)
 builds are performed.
@@ -227,7 +228,8 @@ For Production Image - which is far smaller and faster to build, it's
 better to use local build cache (the standard mechanism that docker
 uses. This is the default strategy for production images when
 [Breeze](../README.rst) builds are
-performed. The first time you run it, it will take considerably longer
+performed. The local `uv` cache is used from mounted sources.
+The first time you run it, it will take considerably longer
 time than if you use the pull mechanism, but then when you do small,
 incremental changes to local sources, Dockerfile image and scripts,
 further rebuilds with local build cache will be considerably faster.
@@ -293,19 +295,12 @@ See
 
 Naming convention for the GitHub packages.
 
-Images with a commit SHA (built for pull requests and pushes). Those are
-images that are snapshot of the currently run build. They are built once
-per each build and pulled by each test job.
-
 ``` bash
-ghcr.io/apache/airflow/<BRANCH>/ci/python<X.Y>:<COMMIT_SHA>         - for CI images
-ghcr.io/apache/airflow/<BRANCH>/prod/python<X.Y>:<COMMIT_SHA>       - for production images
+ghcr.io/apache/airflow/<BRANCH>/ci/python<X.Y>         - for CI images
+ghcr.io/apache/airflow/<BRANCH>/prod/python<X.Y>       - for production images
 ```
 
-Thoe image contain inlined cache.
-
-You can see all the current GitHub images at
-<https://github.com/apache/airflow/packages>
+You can see all the current GitHub images at <https://github.com/apache/airflow/packages>
 
 Note that you need to be committer and have the right to refresh the
 images in the GitHub Registry with latest sources from main via
@@ -314,10 +309,21 @@ need to login with your Personal Access Token with "packages" write
 scope to be able to push to those repositories or pull from them in case
 of GitHub Packages.
 
-GitHub Container Registry
+You need to login to GitHub Container Registry with your API token
+if you want to interact with the GitHub Registry for writing (only
+committers).
 
 ``` bash
 docker login ghcr.io
+```
+
+Note that when your token is expired and you are still
+logged in, you are not able to interact even with read-only operations
+like pulling images. You need to logout and login again to refresh the
+token.
+
+``` bash
+docker logout ghcr.io
 ```
 
 Since there are different naming conventions used for Airflow images and
@@ -329,22 +335,14 @@ new version of base Python is released. However, occasionally, you might
 need to rebuild images locally and push them directly to the registries
 to refresh them.
 
-Every developer can also pull and run images being result of a specific
+Every contributor can also pull and run images being result of a specific
 CI run in GitHub Actions. This is a powerful tool that allows to
 reproduce CI failures locally, enter the images and fix them much
-faster. It is enough to pass `--image-tag` and the registry and Breeze
-will download and execute commands using the same image that was used
-during the CI tests.
+faster. It is enough to download and uncompress the artifact that stores the
+image and run ``breeze ci-image load -i <path-to-image.tar>`` to load the
+image and mark the image as refreshed in the local cache.
 
-For example this command will run the same Python 3.9 image as was used
-in build identified with 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e commit
-SHA with enabled rabbitmq integration.
-
-``` bash
-breeze --image-tag 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e --python 3.9 --integration rabbitmq
-```
-
-You can see more details and examples in[Breeze](../README.rst)
+You can see more details and examples in[Breeze](../06_managing_docker_images.rst)
 
 # Customizing the CI image
 
@@ -427,8 +425,6 @@ can be used for CI images:
 | `PYTHON_MAJOR_MINOR_VERSION`      | `3.9`                      | major/minor version of Python (should match base image)                                                                                                    |
 | `DEPENDENCIES_EPOCH_NUMBER`       | `2`                        | increasing this number will reinstall all apt dependencies                                                                                                 |
 | `ADDITIONAL_PIP_INSTALL_FLAGS`    |                            | additional `pip` flags passed to the installation commands (except when reinstalling `pip` itself)                                                         |
-| `PIP_NO_CACHE_DIR`                | `true`                     | if true, then no pip cache will be stored                                                                                                                  |
-| `UV_NO_CACHE`                     | `true`                     | if true, then no uv cache will be stored                                                                                                                   |
 | `HOME`                            | `/root`                    | Home directory of the root user (CI image has root user as default)                                                                                        |
 | `AIRFLOW_HOME`                    | `/root/airflow`            | Airflow's HOME (that's where logs and sqlite databases are stored)                                                                                         |
 | `AIRFLOW_SOURCES`                 | `/opt/airflow`             | Mounted sources of Airflow                                                                                                                                 |
@@ -439,7 +435,6 @@ can be used for CI images:
 | `AIRFLOW_CONSTRAINTS_REFERENCE`   |                            | reference (branch or tag) from GitHub repository from which constraints are used. By default it is set to `constraints-main` but can be `constraints-2-X`. |
 | `AIRFLOW_EXTRAS`                  | `all`                      | extras to install                                                                                                                                          |
 | `UPGRADE_INVALIDATION_STRING`     |                            | If set to any random value the dependencies are upgraded to newer versions. In CI it is set to build id.                                                   |
-| `AIRFLOW_PRE_CACHED_PIP_PACKAGES` | `true`                     | Allows to pre-cache airflow PIP packages from the GitHub of Apache Airflow This allows to optimize iterations for Image builds and speeds up CI jobs.      |
 | `ADDITIONAL_AIRFLOW_EXTRAS`       |                            | additional extras to install                                                                                                                               |
 | `ADDITIONAL_PYTHON_DEPS`          |                            | additional Python dependencies to install                                                                                                                  |
 | `DEV_APT_COMMAND`                 |                            | Dev apt command executed before dev deps are installed in the first part of image                                                                          |
@@ -553,10 +548,6 @@ The images produced during the `Build Images` workflow of CI jobs are
 stored in the [GitHub Container
 Registry](https://github.com/orgs/apache/packages?repo_name=airflow)
 
-The images are stored with both "latest" tag (for last main push image
-that passes all the tests as well with the COMMIT_SHA id for images that
-were used in particular build.
-
 The image names follow the patterns (except the Python image, all the
 images are stored in <https://ghcr.io/> in `apache` organization.
 
@@ -567,21 +558,15 @@ percent-encoded when you access them via UI (/ = %2F)
 
 `https://github.com/apache/airflow/pkgs/container/<CONTAINER_NAME>`
 
-| Image                    | Name:tag (both cases latest version and per-build) | Description                                                   |
-|--------------------------|----------------------------------------------------|---------------------------------------------------------------|
-| Python image (DockerHub) | python:\<X.Y\>-slim-bookworm                       | Base Python image used by both production and CI image.       |
-| CI image                 | airflow/\<BRANCH\>/ci/python\<X.Y\>:\<TAG\>        | CI image - this is the image used for most of the tests.      |
-| PROD image               | airflow/\<BRANCH\>/prod/python\<X.Y\>:\<TAG\>      | faster to build or pull. Production image optimized for size. |
+| Image                    | Name                                   | Description                                                   |
+|--------------------------|----------------------------------------|---------------------------------------------------------------|
+| Python image (DockerHub) | python:\<X.Y\>-slim-bookworm           | Base Python image used by both production and CI image.       |
+| CI image                 | airflow/\<BRANCH\>/ci/python\<X.Y\>    | CI image - this is the image used for most of the tests.      |
+| PROD image               | airflow/\<BRANCH\>/prod/python\<X.Y\>  | faster to build or pull. Production image optimized for size. |
 
 - \<BRANCH\> might be either "main" or "v2-\*-test"
 - \<X.Y\> - Python version (Major + Minor).Should be one of \["3.9", "3.10", "3.11", "3.12" \].
-- \<COMMIT_SHA\> - full-length SHA of commit either from the tip of the
-  branch (for pushes/schedule) or commit from the tip of the branch used
-  for the PR.
-- \<TAG\> - tag of the image. It is either "latest" or \<COMMIT_SHA\>
-  (full-length SHA of commit either from the tip of the branch (for
-  pushes/schedule) or commit from the tip of the branch used for the
-  PR).
+
 
 ----
 

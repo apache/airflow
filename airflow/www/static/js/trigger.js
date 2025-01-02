@@ -59,8 +59,6 @@ function updateJSONconf() {
           }
         }
         params[keyName] = values.length === 0 ? null : values;
-      } else if (elements[i].value.length === 0) {
-        params[keyName] = null;
       } else if (
         elements[i].attributes.valuetype &&
         (elements[i].attributes.valuetype.value === "object" ||
@@ -81,6 +79,8 @@ function updateJSONconf() {
           // ignore JSON parsing errors
           // we don't want to bother users during entry, error will be displayed before submit
         }
+      } else if (elements[i].value.length === 0) {
+        params[keyName] = null;
       } else if (Number.isNaN(elements[i].value)) {
         params[keyName] = elements[i].value;
       } else if (

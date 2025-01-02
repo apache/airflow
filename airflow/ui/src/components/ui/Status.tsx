@@ -19,10 +19,7 @@
 import { Status as ChakraStatus } from "@chakra-ui/react";
 import * as React from "react";
 
-import type {
-  DagRunState,
-  TaskInstanceState,
-} from "openapi/requests/types.gen";
+import type { DagRunState, TaskInstanceState } from "openapi/requests/types.gen";
 import { stateColor } from "src/utils/stateColor";
 
 type StatusValue = DagRunState | TaskInstanceState;
@@ -31,16 +28,14 @@ export type StatusProps = {
   state: StatusValue | null;
 } & ChakraStatus.RootProps;
 
-export const Status = React.forwardRef<HTMLDivElement, StatusProps>(
-  ({ children, state, ...rest }, ref) => {
-    // "null" is actually a string on stateColor
-    const colorPalette = stateColor[state ?? "null"];
+export const Status = React.forwardRef<HTMLDivElement, StatusProps>(({ children, state, ...rest }, ref) => {
+  // "null" is actually a string on stateColor
+  const colorPalette = stateColor[state ?? "null"];
 
-    return (
-      <ChakraStatus.Root ref={ref} {...rest}>
-        <ChakraStatus.Indicator bg={colorPalette} />
-        {children}
-      </ChakraStatus.Root>
-    );
-  },
-);
+  return (
+    <ChakraStatus.Root ref={ref} {...rest}>
+      <ChakraStatus.Indicator bg={colorPalette} />
+      {children}
+    </ChakraStatus.Root>
+  );
+});

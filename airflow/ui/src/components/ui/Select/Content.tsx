@@ -24,16 +24,14 @@ type ContentProps = {
   portalRef?: React.RefObject<HTMLElement>;
 } & ChakraSelect.ContentProps;
 
-export const Content = forwardRef<HTMLDivElement, ContentProps>(
-  (props, ref) => {
-    const { portalled = true, portalRef, ...rest } = props;
+export const Content = forwardRef<HTMLDivElement, ContentProps>((props, ref) => {
+  const { portalled = true, portalRef, ...rest } = props;
 
-    return (
-      <Portal container={portalRef} disabled={!portalled}>
-        <ChakraSelect.Positioner>
-          <ChakraSelect.Content {...rest} ref={ref} />
-        </ChakraSelect.Positioner>
-      </Portal>
-    );
-  },
-);
+  return (
+    <Portal container={portalRef} disabled={!portalled}>
+      <ChakraSelect.Positioner>
+        <ChakraSelect.Content {...rest} ref={ref} />
+      </ChakraSelect.Positioner>
+    </Portal>
+  );
+});

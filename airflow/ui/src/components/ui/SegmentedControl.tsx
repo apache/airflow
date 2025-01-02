@@ -30,12 +30,7 @@ type SegmentedControlProps = {
   readonly value: string;
 } & Omit<TabsRootProps, "onValueChange">;
 
-const SegmentedControl = ({
-  onValueChange,
-  options,
-  value,
-  ...rest
-}: SegmentedControlProps) => (
+const SegmentedControl = ({ onValueChange, options, value, ...rest }: SegmentedControlProps) => (
   <Tabs.Root
     defaultValue={value}
     onValueChange={(option) => onValueChange(option.value)}
@@ -45,11 +40,7 @@ const SegmentedControl = ({
     <Tabs.List>
       <For each={options}>
         {(option) => (
-          <Tabs.Trigger
-            disabled={option.disabled}
-            key={option.value}
-            value={option.value}
-          >
+          <Tabs.Trigger disabled={option.disabled} key={option.value} value={option.value}>
             {option.label}
           </Tabs.Trigger>
         )}
