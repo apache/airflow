@@ -20,6 +20,7 @@ import { Stack, StackSeparator } from "@chakra-ui/react";
 
 import type { DagParamsSpec, ParamSpec } from "src/queries/useDagParams";
 
+import { Accordion } from "../ui";
 import { FlexibleFormRow } from "./FlexibleFormRow";
 
 type FlexibleFormProps = {
@@ -32,15 +33,57 @@ export type FlexibleFormElementProps = {
   readonly param: ParamSpec;
 };
 
-const FlexibleForm = ({ params }: FlexibleFormProps) => (
-  // TODO: Support multiple sections - at the moment all is rendered flat
+const FlexibleForm = ({ params }: FlexibleFormProps) => {
   // TODO: Add a note that the form is not "working" until onBlur not implemented
   //       ...or add a note as altert when the form is "used"
-  <Stack separator={<StackSeparator />}>
-    {Object.entries(params).map(([name, param]) => (
-      <FlexibleFormRow key={name} name={name} param={param} />
-    ))}
-  </Stack>
-);
+  const processedSections = new Map();
+
+  return (
+    <>
+      <Stack separator={<StackSeparator />}>
+        {Object.entries(params)
+          .filter(([, param]) => param.schema.section === null)
+          .map(([name, param]) => (
+            <FlexibleFormRow key={name} name={name} param={param} />
+          ))}
+      </Stack>
+      {Object.entries(params)
+        .filter(([, secParam]) => secParam.schema.section)
+        .map(([, secParam]) => {
+          const currentSection = secParam.schema.section;
+
+          if (processedSections.has(currentSection)) {
+            return null;
+          } else {
+            processedSections.set(currentSection, true);
+
+            return (
+              <Accordion.Root
+                collapsible
+                key={secParam.schema.section}
+                mb={4}
+                mt={4}
+                size="lg"
+                variant="enclosed"
+              >
+                <Accordion.Item value={secParam.schema.section ?? ""}>
+                  <Accordion.ItemTrigger cursor="button">{secParam.schema.section}</Accordion.ItemTrigger>
+                  <Accordion.ItemContent>
+                    <Stack separator={<StackSeparator />}>
+                      {Object.entries(params)
+                        .filter(([, param]) => param.schema.section === currentSection)
+                        .map(([name, param]) => (
+                          <FlexibleFormRow key={name} name={name} param={param} />
+                        ))}
+                    </Stack>
+                  </Accordion.ItemContent>
+                </Accordion.Item>
+              </Accordion.Root>
+            );
+          }
+        })}
+    </>
+  );
+};
 
 export default FlexibleForm;
