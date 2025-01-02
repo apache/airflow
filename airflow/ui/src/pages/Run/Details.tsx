@@ -16,18 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Flex, HStack, Table } from "@chakra-ui/react";
-import { useState } from "react";
+import { Box, Flex, HStack, Table } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import {
   useTaskInstanceServiceGetMappedTaskInstance,
-  useTaskInstanceServiceGetTaskInstanceTries,
+  useTaskInstanceServiceGetTaskInstanceTryDetails,
 } from "openapi/queries";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
 import Time from "src/components/Time";
 import { ClipboardRoot, ClipboardIconButton, Status } from "src/components/ui";
-import { useConfig } from "src/queries/useConfig";
 import { getDuration } from "src/utils";
 
 export const Details = () => {
@@ -58,52 +56,27 @@ export const Details = () => {
     setSearchParams(searchParams);
   };
 
-  const tryNumber =
-    tryNumberParam === null
-      ? taskInstance?.try_number
-      : parseInt(tryNumberParam, 10);
+  const tryNumber = tryNumberParam === null ? taskInstance?.try_number : parseInt(tryNumberParam, 10);
 
-  const defaultWrap = Boolean(useConfig("default_wrap"));
-
-  const [wrap, setWrap] = useState(defaultWrap);
-
-  const toggleWrap = () => setWrap(!wrap);
-
-  const { data: taskInstanceTries } =
-    useTaskInstanceServiceGetTaskInstanceTries({
-      dagId,
-      dagRunId: runId,
-      mapIndex,
-      taskId,
-    });
-
-  const tryInstance = taskInstanceTries?.task_instances.find(
-    (ti) => ti.try_number === tryNumber,
-  );
+  const { data: tryInstance } = useTaskInstanceServiceGetTaskInstanceTryDetails({
+    dagId,
+    dagRunId: runId,
+    mapIndex,
+    taskId,
+    taskTryNumber: tryNumber,
+  });
 
   return (
     <Box p={2}>
-      <HStack justifyContent="space-between" mb={2}>
-        {taskInstance === undefined ||
-        tryNumber === undefined ||
-        taskInstance.try_number <= 1 ? (
-          <div />
-        ) : (
-          <TaskTrySelect
-            onSelectTryNumber={onSelectTryNumber}
-            selectedTryNumber={tryNumber}
-            taskInstance={taskInstance}
-          />
-        )}
-        <Button
-          aria-label={wrap ? "Unwrap" : "Wrap"}
-          bg="bg.panel"
-          onClick={toggleWrap}
-          variant="outline"
-        >
-          {wrap ? "Unwrap" : "Wrap"}
-        </Button>
-      </HStack>
+      {taskInstance === undefined || tryNumber === undefined || taskInstance.try_number <= 1 ? (
+        <div />
+      ) : (
+        <TaskTrySelect
+          onSelectTryNumber={onSelectTryNumber}
+          selectedTryNumber={tryNumber}
+          taskInstance={taskInstance}
+        />
+      )}
       <Table.Root striped>
         <Table.Body>
           <Table.Row>
@@ -148,11 +121,7 @@ export const Details = () => {
           <Table.Row>
             <Table.Cell>Duration</Table.Cell>
             <Table.Cell>
-              {getDuration(
-                tryInstance?.start_date ?? null,
-                tryInstance?.end_date ?? null,
-              )}
-              s
+              {getDuration(tryInstance?.start_date ?? null, tryInstance?.end_date ?? null)}s
             </Table.Cell>
           </Table.Row>
           <Table.Row>
