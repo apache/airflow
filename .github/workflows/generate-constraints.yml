@@ -40,6 +40,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run in debug mode (true/false)"
         required: true
         type: string
+      use-uv:
+        description: "Whether to use uvloop (true/false)"
+        required: true
+        type: string
 jobs:
   generate-constraints:
     permissions:
@@ -66,6 +70,8 @@ jobs:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          use-uv: ${{ inputs.use-uv }}
         id: breeze
       - name: "Prepare all CI images: ${{ inputs.python-versions-list-as-string}}"
         uses: ./.github/actions/prepare_all_ci_images

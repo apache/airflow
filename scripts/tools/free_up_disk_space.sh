@@ -1,4 +1,4 @@
-#
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,24 +15,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
 
-import pendulum
+COLOR_BLUE=$'\e[34m'
+COLOR_RESET=$'\e[0m'
 
-from airflow.models.dag import DAG
+echo "${COLOR_BLUE}Disk space before cleanup${COLOR_RESET}"
+df -h
 
-args = {"owner": "airflow", "retries": 3, "start_date": pendulum.datetime(2022, 1, 1)}
-
-tree_dag = DAG(
-    dag_id="test_tree_view",
-    default_args=args,
-    schedule="0 0 * * *",
-    default_view="grid",
-)
-
-graph_dag = DAG(
-    dag_id="test_graph_view",
-    default_args=args,
-    schedule="0 0 * * *",
-    default_view="graph",
-)
+echo "${COLOR_BLUE}Freeing up disk space${COLOR_RESET}"
+sudo rm -rf /usr/share/dotnet/
+sudo rm -rf /usr/local/graalvm/
+sudo rm -rf /usr/local/.ghcup/
+sudo rm -rf /usr/local/share/powershell
+sudo rm -rf /usr/local/share/chromium
+sudo rm -rf /usr/local/share/boost
+sudo rm -rf /usr/local/lib/android
+sudo rm -rf /opt/hostedtoolcache/CodeQL
+sudo rm -rf /opt/hostedtoolcache/Ruby
+sudo rm -rf /opt/hostedtoolcache/go
+sudo rm -rf /opt/ghc
+sudo apt-get clean
+echo "${COLOR_BLUE}Disk space after cleanup${COLOR_RESET}"
+df -h

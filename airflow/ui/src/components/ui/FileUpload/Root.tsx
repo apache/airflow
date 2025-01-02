@@ -23,15 +23,13 @@ export type FileUploadRootProps = {
   inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
 } & ChakraFileUpload.RootProps;
 
-export const Root = forwardRef<HTMLInputElement, FileUploadRootProps>(
-  (props, ref) => {
-    const { children, inputProps, ...rest } = props;
+export const Root = forwardRef<HTMLInputElement, FileUploadRootProps>((props, ref) => {
+  const { children, inputProps, ...rest } = props;
 
-    return (
-      <ChakraFileUpload.Root {...rest}>
-        <ChakraFileUpload.HiddenInput ref={ref} {...inputProps} />
-        {children}
-      </ChakraFileUpload.Root>
-    );
-  },
-);
+  return (
+    <ChakraFileUpload.Root {...rest}>
+      <ChakraFileUpload.HiddenInput ref={ref} {...inputProps} />
+      {children}
+    </ChakraFileUpload.Root>
+  );
+});

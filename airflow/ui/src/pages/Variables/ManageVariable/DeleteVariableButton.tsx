@@ -70,9 +70,7 @@ const DeleteVariableButton = ({ deleteKey: variableKey }: Props) => {
           <Dialog.CloseTrigger />
 
           <Dialog.Body width="full">
-            <Text>
-              Are you sure you want to delete the variable key: `{variableKey}`?
-            </Text>
+            <Text>Are you sure you want to delete the variable key: `{variableKey}`?</Text>
             <Flex justifyContent="end" mt={3}>
               {renderDeleteButton()}
             </Flex>

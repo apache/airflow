@@ -56,6 +56,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to upload docker image artifact"
         required: true
         type: string
+      upload-mount-cache-artifact:
+        description: "Whether to upload mount-cache artifact"
+        required: true
+        type: string
       debian-version:
         description: "Base Debian distribution to use for the build (bookworm)"
         type: string
@@ -114,7 +118,6 @@ jobs:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
-      USE_UV: ${{ inputs.use-uv }}
       VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
@@ -128,15 +131,26 @@ jobs:
         run: ./scripts/ci/cleanup_docker.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          use-uv: ${{ inputs.use-uv }}
+      - name: "Restore ${{ inputs.image-type }} cache mount image ${{ inputs.platform }}:${{ inputs.python }}"
+        uses: apache/infrastructure-actions/stash/restore@c94b890bbedc2fc61466d28e6bd9966bc6c6643c
+        with:
+          key: "ci-cache-mount-save-v2-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+          path: "/tmp/"
+        id: restore-cache-mount
+      - name: "Import mount-cache ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        run: >
+          breeze ci-image import-mount-cache
+          --cache-file /tmp/ci-cache-mount-save-v2-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.gz
+        if: steps.restore-cache-mount.outputs.stash-hit == 'true'
       - name: "Login to ghcr.io"
         run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
       - name: >
           Build ${{ inputs.push-image == 'true' && ' & push ' || '' }}
           ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }} image
         run: >
-          breeze ci-image build
-          --builder airflow_cache
-          --platform "${{ inputs.platform }}"
+          breeze ci-image build --platform "${{ inputs.platform }}"
         env:
           DOCKER_CACHE: ${{ inputs.docker-cache }}
           DISABLE_AIRFLOW_REPO_CACHE: ${{ inputs.disable-airflow-repo-cache }}
@@ -159,8 +173,21 @@ jobs:
       - name: "Stash CI docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         uses: apache/infrastructure-actions/stash/save@c94b890bbedc2fc61466d28e6bd9966bc6c6643c
         with:
-          key: "ci-image-save-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+          key: ci-image-save-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}
           path: "/tmp/ci-image-save-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar"
           if-no-files-found: 'error'
-          retention-days: 2
+          retention-days: '2'
         if: inputs.upload-image-artifact == 'true'
+      - name: "Export mount cache ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        run: >
+          breeze ci-image export-mount-cache
+          --cache-file /tmp/ci-cache-mount-save-v2-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.gz
+        if: inputs.upload-mount-cache-artifact == 'true'
+      - name: "Stash cache mount ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        uses: apache/infrastructure-actions/stash/save@c94b890bbedc2fc61466d28e6bd9966bc6c6643c
+        with:
+          key: "ci-cache-mount-save-v2-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+          path: "/tmp/ci-cache-mount-save-v2-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.gz"
+          if-no-files-found: 'error'
+          retention-days: 2
+        if: inputs.upload-mount-cache-artifact == 'true'

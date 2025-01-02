@@ -390,19 +390,37 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         #   - Update RTIF
         #   - Pre Execute
         #   etc
-        result = ti.task.execute(context)  # type: ignore[attr-defined]
-        _push_xcom_if_needed(result, ti)
 
+        result = None
+        if ti.task.execution_timeout:
+            # TODO: handle timeout in case of deferral
+            from airflow.utils.timeout import timeout
+
+            timeout_seconds = ti.task.execution_timeout.total_seconds()
+            try:
+                # It's possible we're already timed out, so fast-fail if true
+                if timeout_seconds <= 0:
+                    raise AirflowTaskTimeout()
+                # Run task in timeout wrapper
+                with timeout(timeout_seconds):
+                    result = ti.task.execute(context)  # type: ignore[attr-defined]
+            except AirflowTaskTimeout:
+                # TODO: handle on kill callback here
+                raise
+        else:
+            result = ti.task.execute(context)  # type: ignore[attr-defined]
+
+        _push_xcom_if_needed(result, ti)
         msg = TaskState(state=TerminalTIState.SUCCESS, end_date=datetime.now(tz=timezone.utc))
     except TaskDeferred as defer:
         classpath, trigger_kwargs = defer.trigger.serialize()
         next_method = defer.method_name
-        timeout = defer.timeout
+        defer_timeout = defer.timeout
         msg = DeferTask(
             classpath=classpath,
             trigger_kwargs=trigger_kwargs,
             next_method=next_method,
-            trigger_timeout=timeout,
+            trigger_timeout=defer_timeout,
         )
     except AirflowSkipException:
         msg = TaskState(
@@ -423,13 +441,14 @@ def run(ti: RuntimeTaskInstance, log: Logger):
             state=TerminalTIState.FAIL_WITHOUT_RETRY,
             end_date=datetime.now(tz=timezone.utc),
         )
-
         # TODO: Run task failure callbacks here
-    except AirflowTaskTimeout:
-        # TODO: handle the case of up_for_retry here
-        # TODO: coagulate this exception handling with AirflowException
-        # once https://github.com/apache/airflow/issues/45307 is handled
-        ...
+    except (AirflowTaskTimeout, AirflowException):
+        # We should allow retries if the task has defined it.
+        msg = TaskState(
+            state=TerminalTIState.FAILED,
+            end_date=datetime.now(tz=timezone.utc),
+        )
+        # TODO: Run task failure callbacks here
     except AirflowException:
         # TODO: handle the case of up_for_retry here
         msg = TaskState(

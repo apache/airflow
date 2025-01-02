@@ -22,15 +22,8 @@ import type { NodeProps, Node as NodeType } from "@xyflow/react";
 import { NodeWrapper } from "./NodeWrapper";
 import type { CustomNodeProps } from "./reactflowUtils";
 
-export const JoinNode = ({
-  data,
-}: NodeProps<NodeType<CustomNodeProps, "join">>) => (
+export const JoinNode = ({ data }: NodeProps<NodeType<CustomNodeProps, "join">>) => (
   <NodeWrapper>
-    <Box
-      bg="fg"
-      borderRadius={`${data.width}px`}
-      height={`${data.height}px`}
-      width={`${data.width}px`}
-    />
+    <Box bg="fg" borderRadius={`${data.width}px`} height={`${data.height}px`} width={`${data.width}px`} />
   </NodeWrapper>
 );

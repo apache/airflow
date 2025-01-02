@@ -29,65 +29,53 @@ type RadioCardItemProps = {
   label?: React.ReactNode;
 } & RadioCard.ItemProps;
 
-export const RadioCardItem = forwardRef<HTMLInputElement, RadioCardItemProps>(
-  (props, ref) => {
-    const {
-      addon,
-      description,
-      icon,
-      indicator = <RadioCard.ItemIndicator />,
-      indicatorPlacement = "end",
-      inputProps,
-      label,
-      ...rest
-    } = props;
+export const RadioCardItem = forwardRef<HTMLInputElement, RadioCardItemProps>((props, ref) => {
+  const {
+    addon,
+    description,
+    icon,
+    indicator = <RadioCard.ItemIndicator />,
+    indicatorPlacement = "end",
+    inputProps,
+    label,
+    ...rest
+  } = props;
 
-    const hasContent = label ?? description ?? icon;
-    const shouldWrapContent = Boolean(indicator);
+  const hasContent = label ?? description ?? icon;
+  const shouldWrapContent = Boolean(indicator);
 
-    return (
-      <RadioCard.Item {...rest}>
-        <RadioCard.ItemHiddenInput ref={ref} {...inputProps} />
-        <RadioCard.ItemControl>
-          {indicatorPlacement === "start" && indicator}
-          {Boolean(hasContent) ? (
-            shouldWrapContent ? (
-              <RadioCard.ItemContent>
-                {icon}
-                {Boolean(label) ? (
-                  <RadioCard.ItemText>{label}</RadioCard.ItemText>
-                ) : undefined}
-                {Boolean(description) ? (
-                  <RadioCard.ItemDescription>
-                    {description}
-                  </RadioCard.ItemDescription>
-                ) : undefined}
-                {indicatorPlacement === "inside" && indicator}
-              </RadioCard.ItemContent>
-            ) : (
-              <>
-                {icon}
-                {Boolean(label) ? (
-                  <RadioCard.ItemText>{label}</RadioCard.ItemText>
-                ) : undefined}
-                {Boolean(description) ? (
-                  <RadioCard.ItemDescription>
-                    {description}
-                  </RadioCard.ItemDescription>
-                ) : undefined}
-                {indicatorPlacement === "inside" && indicator}
-              </>
-            )
-          ) : undefined}
-          {indicatorPlacement === "end" && indicator}
-        </RadioCard.ItemControl>
-        {Boolean(addon) ? (
-          <RadioCard.ItemAddon>{addon}</RadioCard.ItemAddon>
+  return (
+    <RadioCard.Item {...rest}>
+      <RadioCard.ItemHiddenInput ref={ref} {...inputProps} />
+      <RadioCard.ItemControl>
+        {indicatorPlacement === "start" && indicator}
+        {Boolean(hasContent) ? (
+          shouldWrapContent ? (
+            <RadioCard.ItemContent>
+              {icon}
+              {Boolean(label) ? <RadioCard.ItemText>{label}</RadioCard.ItemText> : undefined}
+              {Boolean(description) ? (
+                <RadioCard.ItemDescription>{description}</RadioCard.ItemDescription>
+              ) : undefined}
+              {indicatorPlacement === "inside" && indicator}
+            </RadioCard.ItemContent>
+          ) : (
+            <>
+              {icon}
+              {Boolean(label) ? <RadioCard.ItemText>{label}</RadioCard.ItemText> : undefined}
+              {Boolean(description) ? (
+                <RadioCard.ItemDescription>{description}</RadioCard.ItemDescription>
+              ) : undefined}
+              {indicatorPlacement === "inside" && indicator}
+            </>
+          )
         ) : undefined}
-      </RadioCard.Item>
-    );
-  },
-);
+        {indicatorPlacement === "end" && indicator}
+      </RadioCard.ItemControl>
+      {Boolean(addon) ? <RadioCard.ItemAddon>{addon}</RadioCard.ItemAddon> : undefined}
+    </RadioCard.Item>
+  );
+});
 
 export const RadioCardRoot = RadioCard.Root;
 export const RadioCardLabel = RadioCard.Label;

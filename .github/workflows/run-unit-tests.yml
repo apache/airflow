@@ -112,6 +112,10 @@ on:  # yamllint disable-line rule:truthy
         required: false
         default: 20
         type: number
+      use-uv:
+        description: "Whether to use uv"
+        required: true
+        type: string
 jobs:
   tests:
     timeout-minutes: 120
@@ -163,6 +167,7 @@ jobs:
         with:
           platform: "linux/amd64"
           python: ${{ matrix.python-version }}
+          use-uv: ${{ inputs.use-uv }}
       - name: >
           Migration Tests: ${{ matrix.python-version }}:${{ env.PARALLEL_TEST_TYPES }}
         uses: ./.github/actions/migration_tests

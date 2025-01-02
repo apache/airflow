@@ -60,6 +60,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Debug resources (true/false)"
         required: true
         type: string
+      use-uv:
+        description: "Whether to use uv"
+        required: true
+        type: string
 jobs:
   tests-core-integration:
     timeout-minutes: 130
@@ -95,6 +99,7 @@ jobs:
         with:
           platform: "linux/amd64"
           python: ${{ inputs.default-python-version }}
+          use-uv: ${{ inputs.use-uv }}
       - name: "Integration: core ${{ matrix.integration }}"
         # yamllint disable rule:line-length
         run: ./scripts/ci/testing/run_integration_tests_with_retry.sh core "${{ matrix.integration }}"
@@ -141,6 +146,7 @@ jobs:
         with:
           platform: "linux/amd64"
           python: ${{ inputs.default-python-version }}
+          use-uv: ${{ inputs.use-uv }}
       - name: "Integration: providers ${{ matrix.integration }}"
         run: ./scripts/ci/testing/run_integration_tests_with_retry.sh providers "${{ matrix.integration }}"
       - name: "Post Tests success"
@@ -182,6 +188,7 @@ jobs:
         with:
           platform: "linux/amd64"
           python: ${{ inputs.default-python-version }}
+          use-uv: ${{ inputs.use-uv }}
       - name: "System Tests"
         run: >
           ./scripts/ci/testing/run_system_tests.sh
