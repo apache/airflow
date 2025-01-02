@@ -555,6 +555,8 @@ class AirflowConfigParser(ConfigParser):
             file.write(f"# {option} = \n")
         else:
             if comment_out_everything:
+                value_lines = value.splitlines()
+                value = "\n# ".join(value_lines)
                 file.write(f"# {option} = {value}\n")
             else:
                 file.write(f"{option} = {value}\n")
