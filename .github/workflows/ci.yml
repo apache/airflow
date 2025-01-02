@@ -682,6 +682,8 @@ jobs:
 
   notify-slack-code-scan:
     name: "Notify Slack on Code Scanning Alert"
+    needs:
+      - basic-tests
     if: 'true'
     runs-on: ["ubuntu-22.04"]
 
