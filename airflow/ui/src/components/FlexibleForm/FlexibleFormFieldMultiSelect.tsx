@@ -16,10 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { createListCollection } from "@chakra-ui/react/collection";
-import { useRef } from "react";
+import { Select as ReactSelect } from "chakra-react-select";
+import { useState } from "react";
 
-import { Select } from "src/components/ui";
 import type { ParamSchema } from "src/queries/useDagParams";
 
 import type { FlexibleFormElementProps } from ".";
@@ -36,35 +35,31 @@ const labelLookup = (key: string, valuesDisplay: Record<string, string> | null):
 };
 
 export const FlexibleFormFieldMultiSelect = ({ name, param }: FlexibleFormElementProps) => {
-  const selectOptions = createListCollection({
-    items:
-      param.schema.examples?.map((value) => ({
-        label: labelLookup(value, param.schema.values_display),
-        value,
-      })) ?? [],
-  });
-  const contentRef = useRef<HTMLDivElement>(null);
+  const [selectedOptions, setSelectedOptions] = useState(
+    Array.isArray(param.value)
+      ? (param.value as Array<string>).map((value) => ({
+          label: labelLookup(value, param.schema.values_display),
+          value,
+        }))
+      : [],
+  );
 
   return (
-    <Select.Root
-      collection={selectOptions}
-      defaultValue={param.value as Array<string>}
+    <ReactSelect
+      aria-label="Select one or multiple Values"
       id={`element_${name}`}
-      multiple
+      isClearable
+      isMulti
       name={`element_${name}`}
-      ref={contentRef}
+      onChange={(newValue) => setSelectedOptions([...newValue])}
+      options={
+        param.schema.examples?.map((value) => ({
+          label: labelLookup(value, param.schema.values_display),
+          value,
+        })) ?? []
+      }
       size="sm"
-    >
-      <Select.Trigger>
-        <Select.ValueText placeholder="Select Value" />
-      </Select.Trigger>
-      <Select.Content portalRef={contentRef}>
-        {selectOptions.items.map((option) => (
-          <Select.Item item={option} key={option.value}>
-            {option.label}
-          </Select.Item>
-        ))}
-      </Select.Content>
-    </Select.Root>
+      value={selectedOptions}
+    />
   );
 };
