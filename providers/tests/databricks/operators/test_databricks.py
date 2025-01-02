@@ -2346,10 +2346,6 @@ class TestDatabricksTaskOperator:
         assert expected_task_key == operator.databricks_task_key
 
 
-from unittest.mock import MagicMock
-from airflow.providers.databricks.links.databricks import DatabricksJobRunLink
-
-
 def test_get_link_with_valid_s3_url():
     """Test the `get_link` method with a valid S3 URL."""
     # Create a mock for XCom.get_value
