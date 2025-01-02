@@ -682,9 +682,6 @@ jobs:
 
   notify-slack-code-scan:
     name: "Notify Slack on Code Scanning Alert"
-    needs:
-      - basic-tests
-      - additional-ci-image-checks
     if: 'true'
     runs-on: ["ubuntu-22.04"]
 
@@ -694,7 +691,7 @@ jobs:
         uses: slackapi/slack-github-action@485a9d42d3a73031f12ec201c457e2162c45d02d  # v2.0.0
         with:
           method: chat.postMessage
-          token: ${{ env.SLACK_BOT_TOKEN }}
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
           # yamllint disable rule:line-length
           payload: |
             channel: "internal-airflow-ci-cd"
