@@ -205,7 +205,7 @@ class HttpSensor(BaseSensorOperator):
         if self.response_check:
             kwargs = determine_kwargs(self.response_check, [response], context)
             if not self.response_check(response, **kwargs):
-                raise AirflowException("Response check returned False.")
+                raise ResponseCheckFailedException("Response check returned False.")
         return make_default_response()
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
