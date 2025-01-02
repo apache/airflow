@@ -187,7 +187,7 @@ jobs:
           persist-credentials: false
       - name: "Cleanup docker"
         run: ./scripts/ci/cleanup_docker.sh
-      - name: Free up disk space
+      - name: "Free up disk space"
         shell: bash
         run: ./scripts/tools/free_up_disk_space.sh
       - name: "Download all test warning artifacts from the current build"
