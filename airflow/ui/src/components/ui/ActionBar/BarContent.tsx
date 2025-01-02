@@ -24,7 +24,7 @@ type ActionBarContentProps = {
   portalRef?: React.RefObject<HTMLElement>;
 } & ActionBar.ContentProps;
 
-export const BarContent = forwardRef<HTMLDivElement, ActionBarContentProps>((props, ref) => {
+export const Content = forwardRef<HTMLDivElement, ActionBarContentProps>((props, ref) => {
   const { children, portalled = true, portalRef, ...rest } = props;
 
   return (

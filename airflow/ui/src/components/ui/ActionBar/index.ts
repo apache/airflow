@@ -18,11 +18,11 @@
  */
 import { ActionBar as ChakraActionBar } from "@chakra-ui/react";
 
-import { BarContent } from "./BarContent";
+import { Content } from "./BarContent";
 import { CloseTrigger } from "./CloseTrigger";
 
 export const ActionBar = {
   ...ChakraActionBar,
-  BarContent,
   CloseTrigger,
+  Content,
 };
