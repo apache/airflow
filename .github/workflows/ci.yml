@@ -692,13 +692,3 @@ jobs:
         with:
           method: chat.postMessage
           token: ${{ secrets.SLACK_BOT_TOKEN }}
-          # yamllint disable rule:line-length
-          payload: |
-            channel: "internal-airflow-ci-cd"
-              text: "🚨 *Code Scanning Alert* 🚨\n\nA new security issue has been identified in the repository.",
-              blocks:
-                - type: "section"
-                  text:
-                    type: "mrkdwn"
-                    text: "🚨 *Code Scanning Alert* 🚨\n\nRepository: ${{ github.repository }}\nAlert: ${{ github.event.alert.rule.id }} - ${{ github.event.alert.rule.description }}\nSeverity: ${{ github.event.alert.rule.severity }}\n\n*Details:* <${{ github.event.alert.html_url }}|View the alert>"
-          # yamllint disable rule:line-length
