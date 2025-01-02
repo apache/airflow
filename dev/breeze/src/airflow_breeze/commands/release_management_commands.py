@@ -389,6 +389,7 @@ def _build_local_build_image():
             ".",
             "-f",
             "airflow-build-dockerfile",
+            "--load",
             "--tag",
             AIRFLOW_BUILD_IMAGE_TAG,
         ],
