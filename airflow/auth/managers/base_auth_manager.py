@@ -26,12 +26,12 @@ from airflow.auth.managers.models.base_user import BaseUser
 from airflow.auth.managers.models.resource_details import DagDetails
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
+from airflow.typing_compat import Literal
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from collections.abc import Container, Sequence
-    from typing import Literal
 
     from fastapi import FastAPI
     from flask import Blueprint
@@ -55,7 +55,9 @@ if TYPE_CHECKING:
     )
     from airflow.cli.cli_config import CLICommand
 
-    ResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
+# This cannot be in the TYPE_CHECKING block since some providers import it globally.
+# TODO: Move this inside once all providers drop Airflow 2.x support.
+ResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
 
 T = TypeVar("T", bound=BaseUser)
 
