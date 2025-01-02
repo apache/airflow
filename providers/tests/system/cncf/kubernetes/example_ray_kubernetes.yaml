@@ -1,0 +1,105 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+apiVersion: ray.io/v1
+kind: RayJob
+metadata:
+  name: ray-example
+spec:
+  entrypoint: python3 example.py
+  shutdownAfterJobFinishes: true
+  # rayClusterSpec specifies the RayCluster instance to be created by the RayJob controller.
+
+  submitterPodTemplate:
+    spec:
+      volumes:
+      - name: xcom
+        emptyDir: {}
+      restartPolicy: OnFailure
+      containers:
+        - name: base
+          image: rayproject/ray
+          volumeMounts:
+            - name: xcom
+              mountPath: /airflow/xcom
+        - name: airflow-xcom-sidecar
+          image: alpine
+          command: ["sh", "-c", 'trap "exit 0" INT; while true; do sleep 1; done;']
+          volumeMounts:
+            - name: xcom
+              mountPath: /airflow/xcom
+          resources:
+            requests:
+              cpu: "1m"
+              memory: "10Mi"
+
+  rayClusterSpec:
+    rayVersion: '2.9.3' # should match the Ray version in the image of the containers
+    # Ray head pod template
+    headGroupSpec:
+      rayStartParams:
+        num-cpus: "0"
+        dashboard-host: '0.0.0.0'
+      template:
+        metadata:
+          annotations: {}
+        spec:
+          containers:
+            - name: ray-head
+              image: rayproject/ray
+              ports:
+                - containerPort: 6379
+                  name: gcs-server
+                - containerPort: 8265 # Ray dashboard
+                  name: dashboard
+                - containerPort: 10001
+                  name: client
+              resources:
+                limits:
+                  cpu: "1"
+                  memory: "8Gi"
+                requests:
+                  cpu: "1"
+                  memory: "8Gi"
+    workerGroupSpecs:
+      # the pod replicas in this group typed worker
+      - replicas: 1
+        minReplicas: 1
+        maxReplicas: 2
+        # logical group name, for this called small-group, also can be functional
+        groupName: small-group
+        rayStartParams: {}
+        #pod template
+        template:
+          metadata:
+            annotations: {}
+          spec:
+            containers:
+              - name: ray-worker
+                image: rayproject/ray
+                lifecycle:
+                  preStop:
+                    exec:
+                      command: [ "/bin/sh","-c","ray stop" ]
+                resources:
+                  limits:
+                    cpu: "2"
+                    memory: "16Gi"
+                  requests:
+                    cpu: "2"
+                    memory: "16Gi"
