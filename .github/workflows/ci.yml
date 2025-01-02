@@ -682,7 +682,7 @@ jobs:
 
   notify-slack-code-scan:
     name: "Notify Slack on Code Scanning Alert"
-    if: github.event_name == 'code_scanning_alert'
+    if: 'true'
     runs-on: ["ubuntu-22.04"]
 
     steps:
