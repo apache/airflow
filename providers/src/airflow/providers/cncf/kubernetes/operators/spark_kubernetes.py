@@ -177,7 +177,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         return self._set_name(updated_name)
 
     @staticmethod
-    def _get_pod_identifying_label_string(labels) -> str:
+    def _build_find_pod_label_selector(labels) -> str:
         filtered_labels = {label_id: label for label_id, label in labels.items() if label_id != "try_number"}
         return ",".join([label_id + "=" + label for label_id, label in sorted(filtered_labels.items())])
 
@@ -238,7 +238,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
 
     def find_spark_job(self, context):
         labels = self._get_ti_pod_labels(context, include_try_number=False)
-        label_selector = self._get_pod_identifying_label_string(labels) + ",spark-role=driver"
+        label_selector = self._build_find_pod_label_selector(labels) + ",spark-role=driver"
         pod_list = self.client.list_namespaced_pod(self.namespace, label_selector=label_selector).items
 
         pod = None
