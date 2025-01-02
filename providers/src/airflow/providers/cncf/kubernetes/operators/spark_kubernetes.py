@@ -181,8 +181,9 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         filtered_labels = {label_id: label for label_id, label in labels.items() if label_id != "try_number"}
         return ",".join([label_id + "=" + label for label_id, label in sorted(filtered_labels.items())])
 
+
     @staticmethod
-    def create_labels_for_pod(context: dict | None = None, include_try_number: bool = True) -> dict:
+    def _get_ti_pod_labels(context: Context | None = None, include_try_number: bool = True) -> dict[str, str]:
         """
         Generate labels for the pod to track the pod in case of Operator crash.
 
@@ -236,7 +237,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         return self.manage_template_specs()
 
     def find_spark_job(self, context):
-        labels = self.create_labels_for_pod(context, include_try_number=False)
+        labels = self._get_ti_pod_labels(context, include_try_number=False)
         label_selector = self._get_pod_identifying_label_string(labels) + ",spark-role=driver"
         pod_list = self.client.list_namespaced_pod(self.namespace, label_selector=label_selector).items
 
