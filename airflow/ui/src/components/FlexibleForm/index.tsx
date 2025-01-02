@@ -34,6 +34,8 @@ export type FlexibleFormElementProps = {
 
 const FlexibleForm = ({ params }: FlexibleFormProps) => (
   // TODO: Support multiple sections - at the moment all is rendered flat
+  // TODO: Add a note that the form is not "working" until onBlur not implemented
+  //       ...or add a note as altert when the form is "used"
   <Stack separator={<StackSeparator />}>
     {Object.entries(params).map(([name, param]) => (
       <FlexibleFormRow key={name} name={name} param={param} />
