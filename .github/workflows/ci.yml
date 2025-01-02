@@ -213,7 +213,7 @@ jobs:
       runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
       platform: "linux/amd64"
       push-image: "false"
-      upload-image-artifact: ${{ needs.build-info.outputs.canary-run }}
+      upload-image-artifact: "true"
       upload-mount-cache-artifact: ${{ needs.build-info.outputs.canary-run }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
