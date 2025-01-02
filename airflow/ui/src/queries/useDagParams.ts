@@ -38,6 +38,7 @@ export type ParamSchema = {
   maxLength: number | null;
   minimum: number | null;
   minLength: number | null;
+  section: string | null;
   title: string | null;
   type: Array<string> | string | null;
   values_display: Record<string, string> | null;
