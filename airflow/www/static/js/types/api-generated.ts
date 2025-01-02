@@ -2076,7 +2076,7 @@ export interface components {
        *
        * *New in version 2.1.0*
        */
-      task_ids?: string[];
+      task_ids?: (string | string[])[];
       /**
        * Format: datetime
        * @description The minimum execution date to clear.

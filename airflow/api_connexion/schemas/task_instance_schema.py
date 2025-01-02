@@ -167,7 +167,12 @@ class ClearTaskInstanceFormSchema(Schema):
     only_failed = fields.Boolean(load_default=True)
     only_running = fields.Boolean(load_default=False)
     reset_dag_runs = fields.Boolean(load_default=False)
-    task_ids = fields.List(fields.String(), validate=validate.Length(min=1))
+    task_ids = fields.List(
+        fields.Raw(
+            validate=lambda x: isinstance(x, str)
+            or (isinstance(x, list) and all(isinstance(i, str) for i in x))
+        )
+    )
     dag_run_id = fields.Str(load_default=None)
     include_upstream = fields.Boolean(load_default=False)
     include_downstream = fields.Boolean(load_default=False)
