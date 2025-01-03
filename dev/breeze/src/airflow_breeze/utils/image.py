@@ -29,7 +29,7 @@ from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import Output, get_console
-from airflow_breeze.utils.mark_image_as_refreshed import mark_image_as_refreshed
+from airflow_breeze.utils.mark_image_as_refreshed import mark_image_as_rebuilt
 from airflow_breeze.utils.parallel import (
     DOCKER_PULL_PROGRESS_REGEXP,
     GenericRegexpProgressMatcher,
@@ -149,7 +149,7 @@ def run_pull_image(
                         f"Image Python {image_params.python}",
                     )
                 if isinstance(image_params, BuildCiParams):
-                    mark_image_as_refreshed(image_params)
+                    mark_image_as_rebuilt(image_params)
             return command_result.returncode, f"Image Python {image_params.python}"
         if wait_for_image:
             if get_verbose() or get_dry_run():

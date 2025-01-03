@@ -97,7 +97,7 @@ from airflow_breeze.utils.docker_command_utils import (
 )
 from airflow_breeze.utils.github import download_artifact_from_pr, download_artifact_from_run_id
 from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel
-from airflow_breeze.utils.mark_image_as_refreshed import mark_image_as_refreshed
+from airflow_breeze.utils.mark_image_as_refreshed import mark_image_as_rebuilt
 from airflow_breeze.utils.md5_build_check import md5sum_check_if_build_is_needed
 from airflow_breeze.utils.parallel import (
     DockerBuildxProgressMatcher,
@@ -692,7 +692,7 @@ def load(
         image_file.unlink()
     if get_verbose():
         run_command(["docker", "images", "-a"])
-    mark_image_as_refreshed(ci_image_params=build_ci_params)
+    mark_image_as_rebuilt(ci_image_params=build_ci_params)
 
 
 @ci_image.command(
@@ -938,6 +938,8 @@ def run_build_ci_image(
                 get_console().print(
                     "[info]Run `breeze ci-image build --upgrade-to-newer-dependencies` to upgrade them.\n"
                 )
+        if build_command_result.returncode == 0:
+            mark_image_as_rebuilt(ci_image_params=ci_image_params)
     return build_command_result.returncode, f"Image build: {param_description}"
 
 
