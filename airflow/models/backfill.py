@@ -54,6 +54,8 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from airflow.models.dag import DAG
+    from airflow.timetables.base import DagRunInfo
 
 log = logging.getLogger(__name__)
 
@@ -157,8 +159,8 @@ class BackfillDagRun(Base):
 
 def _create_backfill_dag_run(
     *,
-    dag,
-    info,
+    dag: DAG,
+    info: DagRunInfo,
     reprocess_behavior: ReprocessBehavior,
     backfill_id,
     dag_run_conf,
@@ -203,18 +205,21 @@ def _create_backfill_dag_run(
                 return
         dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
         dr = dag.create_dagrun(
-            triggered_by=DagRunTriggeredByType.BACKFILL,
+            run_id=dag.timetable.generate_run_id(
+                run_type=DagRunType.BACKFILL_JOB,
+                logical_date=info.logical_date,
+                data_interval=info.data_interval,
+            ),
             logical_date=info.logical_date,
             data_interval=info.data_interval,
-            start_date=timezone.utcnow(),
-            state=DagRunState.QUEUED,
-            external_trigger=False,
             conf=dag_run_conf,
             run_type=DagRunType.BACKFILL_JOB,
-            creating_job_id=None,
-            session=session,
-            backfill_id=backfill_id,
+            triggered_by=DagRunTriggeredByType.BACKFILL,
             dag_version=dag_version,
+            state=DagRunState.QUEUED,
+            start_date=timezone.utcnow(),
+            backfill_id=backfill_id,
+            session=session,
         )
         session.add(
             BackfillDagRun(
