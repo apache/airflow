@@ -16,10 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  createListCollection,
-  type SelectValueChangeDetails,
-} from "@chakra-ui/react";
+import { createListCollection, type SelectValueChangeDetails } from "@chakra-ui/react";
 import { forwardRef, type RefObject } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
@@ -83,10 +80,7 @@ export const DagRunSelect = forwardRef<HTMLDivElement>((_, ref) => {
           )}
         </Select.ValueText>
       </Select.Trigger>
-      <Select.Content
-        portalRef={ref as RefObject<HTMLElement>}
-        zIndex="popover"
-      >
+      <Select.Content portalRef={ref as RefObject<HTMLElement>} zIndex="popover">
         {runOptions.items.map((option) => (
           <Select.Item item={option} key={option.value}>
             <Status state={option.run.state}>{option.value}</Status>

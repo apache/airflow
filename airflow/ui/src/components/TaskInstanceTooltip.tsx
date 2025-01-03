@@ -27,18 +27,10 @@ import Time from "src/components/Time";
 import { Tooltip, type TooltipProps } from "src/components/ui";
 
 type Props = {
-  readonly taskInstance?:
-    | GridTaskInstanceSummary
-    | TaskInstanceHistoryResponse
-    | TaskInstanceResponse;
+  readonly taskInstance?: GridTaskInstanceSummary | TaskInstanceHistoryResponse | TaskInstanceResponse;
 } & Omit<TooltipProps, "content">;
 
-const TaskInstanceTooltip = ({
-  children,
-  positioning,
-  taskInstance,
-  ...rest
-}: Props) =>
+const TaskInstanceTooltip = ({ children, positioning, taskInstance, ...rest }: Props) =>
   taskInstance === undefined ? (
     children
   ) : (
@@ -46,18 +38,14 @@ const TaskInstanceTooltip = ({
       {...rest}
       content={
         <Box>
-          {"dag_run_id" in taskInstance ? (
-            <Text>Run ID: {taskInstance.dag_run_id}</Text>
-          ) : undefined}
+          {"dag_run_id" in taskInstance ? <Text>Run ID: {taskInstance.dag_run_id}</Text> : undefined}
           <Text>
             Start Date: <Time datetime={taskInstance.start_date} />
           </Text>
           <Text>
             End Date: <Time datetime={taskInstance.end_date} />
           </Text>
-          {taskInstance.try_number > 1 && (
-            <Text>Try Number: {taskInstance.try_number}</Text>
-          )}
+          {taskInstance.try_number > 1 && <Text>Try Number: {taskInstance.try_number}</Text>}
           {"duration" in taskInstance ? (
             <Text>Duration: {taskInstance.duration?.toFixed(2) ?? 0}s</Text>
           ) : undefined}
