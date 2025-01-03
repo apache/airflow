@@ -28,7 +28,7 @@ import sys
 import textwrap
 from collections.abc import Generator
 from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppress
-from typing import TYPE_CHECKING, Protocol, Union, cast
+from typing import TYPE_CHECKING, Protocol, cast
 
 import pendulum
 from pendulum.parsing.exceptions import ParserError
@@ -50,7 +50,6 @@ from airflow.models.taskinstance import TaskReturnCode
 from airflow.settings import IS_EXECUTOR_CONTAINER, IS_K8S_EXECUTOR_POD
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
-from airflow.typing_compat import Literal
 from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.cli import (
     get_dag,
@@ -70,13 +69,15 @@ from airflow.utils.task_instance_session import set_current_task_instance_sessio
 from airflow.utils.types import DagRunTriggeredByType
 
 if TYPE_CHECKING:
+    from typing import Literal
+
     from sqlalchemy.orm.session import Session
 
     from airflow.models.operator import Operator
 
-log = logging.getLogger(__name__)
+    CreateIfNecessary = Literal[False, "db", "memory"]
 
-CreateIfNecessary = Union[Literal[False], Literal["db"], Literal["memory"]]
+log = logging.getLogger(__name__)
 
 
 def _generate_temporary_run_id() -> str:

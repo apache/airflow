@@ -20,18 +20,17 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections.abc import Container, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from flask_appbuilder.menu import MenuItem
 from sqlalchemy import select
 
 from airflow.auth.managers.models.base_user import BaseUser
-from airflow.auth.managers.models.resource_details import (
-    DagDetails,
-)
+from airflow.auth.managers.models.resource_details import DagDetails
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.security.permissions import ACTION_CAN_ACCESS_MENU
+from airflow.typing_compat import Literal
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -58,6 +57,8 @@ if TYPE_CHECKING:
     from airflow.cli.cli_config import CLICommand
     from airflow.www.security_manager import AirflowSecurityManagerV2
 
+# This cannot be in the TYPE_CHECKING block since some providers import it globally.
+# TODO: Move this inside once all providers drop Airflow 2.x support.
 ResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
 
 T = TypeVar("T", bound=BaseUser)

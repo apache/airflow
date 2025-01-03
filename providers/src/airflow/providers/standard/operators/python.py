@@ -51,7 +51,6 @@ from airflow.providers.standard.version_compat import (
     AIRFLOW_V_2_10_PLUS,
     AIRFLOW_V_3_0_PLUS,
 )
-from airflow.typing_compat import Literal
 from airflow.utils import hashlib_wrapper
 from airflow.utils.context import context_copy_partial, context_merge
 from airflow.utils.file import get_unique_dag_module_name
@@ -61,9 +60,13 @@ from airflow.utils.process_utils import execute_in_subprocess, execute_in_subpro
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from typing import Literal
+
     from pendulum.datetime import DateTime
 
     from airflow.utils.context import Context
+
+    _SerializerTypeDef = Literal["pickle", "cloudpickle", "dill"]
 
 
 @cache
@@ -343,7 +346,6 @@ def _load_cloudpickle():
     return cloudpickle
 
 
-_SerializerTypeDef = Literal["pickle", "cloudpickle", "dill"]
 _SERIALIZERS: dict[_SerializerTypeDef, Any] = {
     "pickle": lazy_object_proxy.Proxy(_load_pickle),
     "dill": lazy_object_proxy.Proxy(_load_dill),

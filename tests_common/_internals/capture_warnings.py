@@ -28,12 +28,15 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 import pytest
-from typing_extensions import Literal
 
-WhenTypeDef = Literal["config", "collect", "runtest"]
+if TYPE_CHECKING:
+    from typing import Literal
+
+    WhenTypeDef = Literal["config", "collect", "runtest"]
+
 TESTS_DIR = Path(__file__).parents[1].resolve()
 
 
