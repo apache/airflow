@@ -16,10 +16,16 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Boolean, Column, String
 
 from airflow.models.base import Base, StringID
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 class DagBundleModel(Base):
@@ -41,3 +47,8 @@ class DagBundleModel(Base):
 
     def __init__(self, *, name: str):
         self.name = name
+
+    @staticmethod
+    @provide_session
+    def get(name: str, session: Session = NEW_SESSION) -> DagBundleModel:
+        return session.query(DagBundleModel).get(name)
