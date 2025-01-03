@@ -21,15 +21,15 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import os
 import typing
 
 import pytest
 
 from airflow.cli import cli_parser
 from airflow.cli.commands.remote_commands import asset_command
-from airflow.models.dagbag import DagBag
 
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs, parse_and_sync_to_db
 
 if typing.TYPE_CHECKING:
     from argparse import ArgumentParser
@@ -39,7 +39,7 @@ pytestmark = [pytest.mark.db_test]
 
 @pytest.fixture(scope="module", autouse=True)
 def prepare_examples():
-    DagBag(include_examples=True).sync_to_db()
+    parse_and_sync_to_db(os.devnull, include_examples=True)
     yield
     clear_db_runs()
     clear_db_dags()

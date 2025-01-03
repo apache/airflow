@@ -626,11 +626,13 @@ class DagBag(LoggingMixin):
         return report
 
     @provide_session
-    def sync_to_db(self, session: Session = NEW_SESSION):
+    def sync_to_db(self, bundle_name: str, bundle_version: str | None, session: Session = NEW_SESSION):
         """Save attributes about list of DAG to the DB."""
         from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 
         update_dag_parsing_results_in_db(
+            bundle_name,
+            bundle_version,
             self.dags.values(),  # type: ignore[arg-type]  # We should create a proto for DAG|LazySerializedDAG
             self.import_errors,
             self.dag_warnings,

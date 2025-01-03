@@ -59,7 +59,7 @@ def make_dag(dag_maker, session, time_machine):
     ):
         TriggerDagRunOperator(task_id="trigger_dag_run_operator", trigger_dag_id=DAG_ID)
 
-    dag_maker.dagbag.sync_to_db()
+    dag_maker.sync_dagbag_to_db()
 
     with dag_maker(
         dag_id=DAG_ID,
@@ -78,7 +78,7 @@ def make_dag(dag_maker, session, time_machine):
             >> EmptyOperator(task_id="task_2")
         )
 
-    dag_maker.dagbag.sync_to_db()
+    dag_maker.sync_dagbag_to_db()
 
 
 class TestStructureDataEndpoint:

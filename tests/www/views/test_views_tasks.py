@@ -597,7 +597,7 @@ class _ForceHeartbeatCeleryExecutor(CeleryExecutor):
 def test_delete_dag_button_for_dag_on_scheduler_only(admin_client, dag_maker):
     with dag_maker() as dag:
         EmptyOperator(task_id="task")
-    dag.sync_to_db()
+    dag_maker.sync_dagbag_to_db()
     # The delete-dag URL should be generated correctly
     test_dag_id = dag.dag_id
     resp = admin_client.get("/", follow_redirects=True)
@@ -606,12 +606,12 @@ def test_delete_dag_button_for_dag_on_scheduler_only(admin_client, dag_maker):
 
 
 @pytest.fixture
-def new_dag_to_delete():
+def new_dag_to_delete(testing_dag_bundle):
     dag = DAG(
         "new_dag_to_delete", is_paused_upon_creation=True, schedule="0 * * * *", start_date=DEFAULT_DATE
     )
     session = settings.Session()
-    dag.sync_to_db(session=session)
+    DAG.bulk_write_to_db("testing", None, [dag], session=session)
     return dag
 
 

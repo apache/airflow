@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import os
+
 import pytest
 
 from airflow.models import DagBag, Variable
@@ -24,7 +26,7 @@ from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.db import clear_db_runs, clear_db_variables
+from tests_common.test_utils.db import clear_db_runs, clear_db_variables, parse_and_sync_to_db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.www import (
     _check_last_log,
@@ -42,8 +44,8 @@ EXAMPLE_DAG_DEFAULT_DATE = timezone.utcnow().replace(hour=0, minute=0, second=0,
 
 @pytest.fixture(scope="module")
 def dagbag():
-    DagBag(include_examples=True, read_dags_from_db=False).sync_to_db()
-    return DagBag(include_examples=True, read_dags_from_db=True)
+    parse_and_sync_to_db(os.devnull, include_examples=True)
+    return DagBag(read_dags_from_db=True)
 
 
 @pytest.fixture(scope="module")
