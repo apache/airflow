@@ -237,6 +237,7 @@ class XComOperations:
                 # Hence returning with key as `key` and value as `None`, so that the message is sent back to task runner
                 # and the default value of None in xcom_pull is used.
                 return XComResponse(key=key, value=None)
+            raise
         return XComResponse.model_validate_json(resp.read())
 
     def set(
