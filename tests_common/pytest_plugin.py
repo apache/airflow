@@ -884,7 +884,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             dag = self.dag
             kwargs = {
-                "dag_version": None,
                 "run_type": (run_type := DagRunType.MANUAL),
                 "state": DagRunState.RUNNING,
                 "start_date": self.start_date,
@@ -918,6 +917,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             if AIRFLOW_V_3_0_PLUS:
                 kwargs.setdefault("triggered_by", DagRunTriggeredByType.TEST)
                 kwargs["logical_date"] = logical_date
+                kwargs["dag_version"] = None
             else:
                 kwargs.pop("triggered_by", None)
                 kwargs["execution_date"] = logical_date
