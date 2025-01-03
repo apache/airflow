@@ -451,6 +451,33 @@ You can enable this automation by setting ``spark_inject_parent_job_info`` optio
   AIRFLOW__OPENLINEAGE__SPARK_INJECT_PARENT_JOB_INFO=true
 
 
+Passing transport information to Spark jobs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+OpenLineage integration can automatically inject Airflow's transport information into Spark application properties,
+for :ref:`supported Operators <supported_classes:openlineage>`.
+It allows Spark integration to send events to the same backend as Airflow integration without manual configuration.
+See `Scheduling from Airflow <https://openlineage.io/docs/integrations/spark/configuration/airflow>`_.
+
+.. note::
+
+  If any of the ``spark.openlineage.transport*`` properties are manually specified in the Spark job configuration, the integration will refrain from injecting transport properties to ensure that manually provided values are preserved.
+
+You can enable this automation by setting ``spark_inject_transport_info`` option to ``true`` in Airflow configuration.
+
+.. code-block:: ini
+
+    [openlineage]
+    transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
+    spark_inject_transport_info = true
+
+``AIRFLOW__OPENLINEAGE__SPARK_INJECT_TRANSPORT_INFO`` environment variable is an equivalent.
+
+.. code-block:: ini
+
+  AIRFLOW__OPENLINEAGE__SPARK_INJECT_TRANSPORT_INFO=true
+
+
 Troubleshooting
 ===============
 
