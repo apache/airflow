@@ -1483,7 +1483,7 @@
                     "default": "airflow@FOO.COM"
                 },
                 "reinitFrequency": {
-                    "description": "How often (in seconds) airflow kerberos will reinitialize the credentials cache.",
+                    "description": "How often (in minutes) airflow kerberos will reinitialize the credentials cache.",
                     "type": "integer",
                     "default": 3600
                 },
