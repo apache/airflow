@@ -20,8 +20,9 @@ from __future__ import annotations
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
+
+from airflow.exceptions import AirflowException
 
 if TYPE_CHECKING:
     from msgraph_core import APIVersion
@@ -48,6 +49,10 @@ class PowerBIDatasetRefreshStatus:
 
 
 class PowerBIDatasetRefreshException(AirflowException):
+    """An exception that indicates a dataset refresh failed to complete."""
+
+
+class PowerBIDatasetRefreshStatusException(AirflowException):
     """An exception that indicates a dataset refresh failed to complete."""
 
 
@@ -157,7 +162,7 @@ class PowerBIHook(KiotaRequestAdapterHook):
         refresh_histories = await self.get_refresh_history(dataset_id=dataset_id, group_id=group_id)
 
         if len(refresh_histories) == 0:
-            raise PowerBIDatasetRefreshException(
+            raise PowerBIDatasetRefreshStatusException(
                 f"Unable to fetch the details of dataset refresh with Request Id: {refresh_id}"
             )
 
@@ -167,7 +172,7 @@ class PowerBIHook(KiotaRequestAdapterHook):
         ]
 
         if refresh_id not in refresh_ids:
-            raise PowerBIDatasetRefreshException(
+            raise PowerBIDatasetRefreshStatusException(
                 f"Unable to fetch the details of dataset refresh with Request Id: {refresh_id}"
             )
 

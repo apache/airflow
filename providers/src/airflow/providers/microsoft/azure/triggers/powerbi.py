@@ -22,7 +22,12 @@ import time
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
 
-from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIDatasetRefreshStatus, PowerBIHook
+from airflow.providers.microsoft.azure.hooks.powerbi import (
+    PowerBIDatasetRefreshStatus,
+    PowerBIDatasetRefreshStatusException,
+    PowerBIHook,
+)
+
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
@@ -113,7 +118,12 @@ class PowerBITrigger(BaseTrigger):
             return refresh_details["status"], refresh_details["error"]
 
         try:
-            dataset_refresh_status, dataset_refresh_error = await fetch_refresh_status_and_error()
+            try:
+                dataset_refresh_status, dataset_refresh_error = await fetch_refresh_status_and_error()
+            except PowerBIDatasetRefreshStatusException:
+                self.log.warning("PowerBi Refresh status not found... waiting")
+                await asyncio.sleep(self.check_interval)
+                pass
             start_time = time.monotonic()
             while start_time + self.timeout > time.monotonic():
                 dataset_refresh_status, dataset_refresh_error = await fetch_refresh_status_and_error()
