@@ -19,10 +19,7 @@
 import type { Node as FlowNodeType, Edge as FlowEdgeType } from "@xyflow/react";
 import type { ElkExtendedEdge } from "elkjs";
 
-import type {
-  GridTaskInstanceSummary,
-  NodeResponse,
-} from "openapi/requests/types.gen";
+import type { GridTaskInstanceSummary, NodeResponse } from "openapi/requests/types.gen";
 
 import type { LayoutNode } from "./useGraphLayout";
 

@@ -19,11 +19,7 @@
 import { type LinkProps, Link } from "@chakra-ui/react";
 import type { CSSProperties } from "react";
 import { FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
-import {
-  useParams,
-  useSearchParams,
-  Link as RouterLink,
-} from "react-router-dom";
+import { useParams, useSearchParams, Link as RouterLink } from "react-router-dom";
 
 import type { NodeResponse } from "openapi/requests/types.gen";
 
@@ -57,13 +53,7 @@ export const TaskName = ({
   const [searchParams] = useSearchParams();
 
   return (
-    <Link
-      asChild
-      data-testid={id}
-      fontSize={isZoomedOut ? "lg" : "md"}
-      fontWeight="bold"
-      {...rest}
-    >
+    <Link asChild data-testid={id} fontSize={isZoomedOut ? "lg" : "md"} fontWeight="bold" {...rest}>
       <RouterLink
         to={{
           pathname: `/dags/${dagId}/${runId === undefined ? "" : `runs/${runId}/`}tasks/${id}`,
@@ -72,9 +62,7 @@ export const TaskName = ({
       >
         {label}
         {isMapped ? " [ ]" : undefined}
-        {setupTeardownType === "setup" && (
-          <FiArrowUpRight size={isZoomedOut ? 24 : 15} style={iconStyle} />
-        )}
+        {setupTeardownType === "setup" && <FiArrowUpRight size={isZoomedOut ? 24 : 15} style={iconStyle} />}
         {setupTeardownType === "teardown" && (
           <FiArrowDownRight size={isZoomedOut ? 24 : 15} style={iconStyle} />
         )}

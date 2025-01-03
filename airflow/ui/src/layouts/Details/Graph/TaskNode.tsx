@@ -66,15 +66,9 @@ export const TaskNode = ({
         >
           <Flex
             // Alternate background color for nested open groups
-            bg={
-              isOpen && depth !== undefined && depth % 2 === 0
-                ? "bg.muted"
-                : "bg"
-            }
+            bg={isOpen && depth !== undefined && depth % 2 === 0 ? "bg.muted" : "bg"}
             borderColor={
-              taskInstance?.state === undefined
-                ? "border"
-                : stateColor[taskInstance.state ?? "null"]
+              taskInstance?.state === undefined ? "border" : stateColor[taskInstance.state ?? "null"]
             }
             borderRadius={5}
             borderWidth={isSelected ? 6 : 2}
@@ -93,13 +87,7 @@ export const TaskNode = ({
                 label={label}
                 setupTeardownType={setupTeardownType}
               />
-              <Text
-                color="fg.muted"
-                fontSize="xs"
-                mb={-1}
-                mt={2}
-                textTransform="capitalize"
-              >
+              <Text color="fg.muted" fontSize="xs" mb={-1} mt={2} textTransform="capitalize">
                 {isGroup ? "Task Group" : operator}
               </Text>
               {taskInstance === undefined ? undefined : (

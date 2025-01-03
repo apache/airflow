@@ -17,20 +17,11 @@
  * under the License.
  */
 import { Flex, useToken } from "@chakra-ui/react";
-import {
-  ReactFlow,
-  Controls,
-  Background,
-  MiniMap,
-  type Node as ReactFlowNode,
-} from "@xyflow/react";
+import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useParams } from "react-router-dom";
 
-import {
-  useGridServiceGridData,
-  useStructureServiceStructureData,
-} from "openapi/queries";
+import { useGridServiceGridData, useStructureServiceStructureData } from "openapi/queries";
 import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
 import { stateColor } from "src/utils/stateColor";
@@ -42,10 +33,7 @@ import type { CustomNodeProps } from "./reactflowUtils";
 import { useGraphLayout } from "./useGraphLayout";
 
 const nodeColor = (
-  {
-    data: { depth, height, isOpen, taskInstance, width },
-    type,
-  }: ReactFlowNode<CustomNodeProps>,
+  { data: { depth, height, isOpen, taskInstance, width }, type }: ReactFlowNode<CustomNodeProps>,
   evenColor?: string,
   oddColor?: string,
 ) => {
@@ -77,14 +65,7 @@ export const Graph = () => {
   const { dagId = "", runId, taskId } = useParams();
 
   // corresponds to the "bg", "bg.emphasized", "border.inverted" semantic tokens
-  const [
-    oddLight,
-    oddDark,
-    evenLight,
-    evenDark,
-    selectedDarkColor,
-    selectedLightColor,
-  ] = useToken("colors", [
+  const [oddLight, oddDark, evenLight, evenDark, selectedDarkColor, selectedLightColor] = useToken("colors", [
     "white",
     "black",
     "gray.200",
@@ -95,13 +76,11 @@ export const Graph = () => {
 
   const { openGroupIds } = useOpenGroups();
 
-  const selectedColor =
-    colorMode === "dark" ? selectedDarkColor : selectedLightColor;
+  const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
 
-  const { data: graphData = { arrange: "LR", edges: [], nodes: [] } } =
-    useStructureServiceStructureData({
-      dagId,
-    });
+  const { data: graphData = { arrange: "LR", edges: [], nodes: [] } } = useStructureServiceStructureData({
+    dagId,
+  });
 
   const { data } = useGraphLayout({
     ...graphData,
@@ -132,9 +111,7 @@ export const Graph = () => {
     dagRun?.task_instances === undefined
       ? data?.nodes
       : data?.nodes.map((node) => {
-          const taskInstance = dagRun.task_instances.find(
-            (ti) => ti.task_id === node.id,
-          );
+          const taskInstance = dagRun.task_instances.find((ti) => ti.task_id === node.id);
 
           return {
             ...node,
@@ -173,9 +150,7 @@ export const Graph = () => {
             )
           }
           nodeStrokeColor={(node: ReactFlowNode<CustomNodeProps>) =>
-            node.data.isSelected && selectedColor !== undefined
-              ? selectedColor
-              : ""
+            node.data.isSelected && selectedColor !== undefined ? selectedColor : ""
           }
           nodeStrokeWidth={15}
           pannable
