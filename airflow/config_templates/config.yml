@@ -2676,33 +2676,19 @@ dag_bundles:
   description: |
     Configuration for the DAG bundles. This allows Airflow to load DAGs from different sources.
 
-    Airflow will consume all options added to this section. Below you will see only the default,
-    ``dags_folder``. The option name is the bundle name and the value is a json object with the following
-    keys:
-
-    * classpath: The classpath of the bundle class
-    * kwargs: The keyword arguments to pass to the bundle class
-    * refresh_interval: The interval in seconds to refresh the bundle from its source.
-
-    For example, to add a new bundle named ``hello`` to my Airflow instance, add the following to your
-    airflow.cfg (this is just an example, the classpath and kwargs are not real):
-
-    .. code-block:: ini
-
-        [dag_bundles]
-        hello: {classpath: "airflow.some.classpath", kwargs: {"hello": "world"}, refresh_interval: 60}
   options:
     backends:
       description: |
         List of backend configs.  Must supply name, classpath, and kwargs for each backend.
 
-        By default, ``refresh_interval`` is set to ``[scheduler] dag_dir_list_interval``, but that can be
-        overridden here if desired.
+        By default, ``refresh_interval`` is set to ``[scheduler] dag_dir_list_interval``, but that can
+        also be overridden in kwargs if desired.
 
-        Note: you can split your json config over multiple lines by indenting.  See configparser documentation
-        for an example: https://docs.python.org/3/library/configparser.html#supported-ini-file-structure.
+        The default is the dags folder dag bundle.
 
-        Parsing DAGs from the DAG folder can be disabled by setting this option to an empty string.
+        Note: As shown below, you can split your json config over multiple lines by indenting.
+        See configparser documentation for an example:
+        https://docs.python.org/3/library/configparser.html#supported-ini-file-structure.
       version_added: 3.0.0
       type: string
       example: >
@@ -2716,7 +2702,7 @@ dag_bundles:
                     "tracking_ref": "main",
                     "refresh_interval": 0
             }
-          ]
+            ]
       default: >
         [
             {{
@@ -2724,4 +2710,4 @@ dag_bundles:
               "classpath": "airflow.dag_processing.bundles.dagfolder.DagsFolderDagBundle",
               "kwargs": {{}}
             }}
-          ]
+            ]
