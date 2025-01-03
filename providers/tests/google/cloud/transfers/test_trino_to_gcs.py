@@ -17,8 +17,16 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
+import pytest
+
+from airflow.models import Connection
+from airflow.providers.common.compat.openlineage.facet import (
+    OutputDataset,
+    SchemaDatasetFacetFields,
+)
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.cloud.transfers.trino_to_gcs import TrinoToGCSOperator
 
 TASK_ID = "test-trino-to-gcs"
@@ -325,3 +333,62 @@ class TestTrinoToGCSOperator:
 
         # once for the file and once for the schema
         assert mock_gcs_hook.return_value.upload.call_count == 2
+
+    @pytest.mark.parametrize(
+        "connection_port, default_port, expected_port",
+        [(None, 4321, 4321), (1234, None, 1234), (1234, 4321, 1234)],
+    )
+    def test_execute_openlineage_events(self, connection_port, default_port, expected_port):
+        class DBApiHookForTests(DbApiHook):
+            conn_name_attr = "sql_default"
+            get_conn = MagicMock(name="conn")
+            get_connection = MagicMock()
+
+            def get_openlineage_database_info(self, connection):
+                from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+                return DatabaseInfo(
+                    scheme="sqlscheme",
+                    authority=DbApiHook.get_openlineage_authority_part(connection, default_port=default_port),
+                )
+
+        dbapi_hook = DBApiHookForTests()
+
+        class TrinoToGCSOperatorForTest(TrinoToGCSOperator):
+            @property
+            def db_hook(self):
+                return dbapi_hook
+
+        sql = """SELECT a,b,c from my_db.my_table"""
+        op = TrinoToGCSOperatorForTest(task_id=TASK_ID, sql=sql, bucket="bucket", filename="dir/file{}.csv")
+        DB_SCHEMA_NAME = "PUBLIC"
+        rows = [
+            (DB_SCHEMA_NAME, "popular_orders_day_of_week", "order_day_of_week", 1, "varchar"),
+            (DB_SCHEMA_NAME, "popular_orders_day_of_week", "order_placed_on", 2, "timestamp"),
+            (DB_SCHEMA_NAME, "popular_orders_day_of_week", "orders_placed", 3, "int4"),
+        ]
+        dbapi_hook.get_connection.return_value = Connection(
+            conn_id="sql_default", conn_type="trino", host="host", port=connection_port
+        )
+        dbapi_hook.get_conn.return_value.cursor.return_value.fetchall.side_effect = [rows, []]
+
+        lineage = op.get_openlineage_facets_on_start()
+        assert len(lineage.inputs) == 1
+        assert lineage.inputs[0].namespace == f"sqlscheme://host:{expected_port}"
+        assert lineage.inputs[0].name == "PUBLIC.popular_orders_day_of_week"
+        assert len(lineage.inputs[0].facets) == 1
+        assert lineage.inputs[0].facets["schema"].fields == [
+            SchemaDatasetFacetFields(name="order_day_of_week", type="varchar"),
+            SchemaDatasetFacetFields(name="order_placed_on", type="timestamp"),
+            SchemaDatasetFacetFields(name="orders_placed", type="int4"),
+        ]
+        assert lineage.outputs == [
+            OutputDataset(
+                namespace="gs://bucket",
+                name="dir",
+            )
+        ]
+
+        assert len(lineage.job_facets) == 1
+        assert lineage.job_facets["sql"].query == sql
+        assert lineage.run_facets == {}
