@@ -2222,17 +2222,17 @@ class Airflow(AirflowBaseView):
                 )
 
         try:
-            dag_version = DagVersion.get_latest_version(dag.dag_id)
             dag_run = dag.create_dagrun(
-                run_type=DagRunType.MANUAL,
+                run_id=run_id,
                 logical_date=logical_date,
                 data_interval=dag.timetable.infer_manual_data_interval(run_after=logical_date),
-                state=DagRunState.QUEUED,
                 conf=run_conf,
-                external_trigger=True,
-                dag_version=dag_version,
-                run_id=run_id,
+                run_type=DagRunType.MANUAL,
                 triggered_by=DagRunTriggeredByType.UI,
+                external_trigger=True,
+                dag_version=DagVersion.get_latest_version(dag.dag_id),
+                state=DagRunState.QUEUED,
+                session=session,
             )
         except (ValueError, ParamValidationError) as ve:
             flash(f"{ve}", "error")

@@ -1344,15 +1344,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if (dag.dag_id, dag_model.next_dagrun) not in existing_dagruns:
                 try:
                     dag.create_dagrun(
-                        run_type=DagRunType.SCHEDULED,
+                        run_id=dag.timetable.generate_run_id(
+                            run_type=DagRunType.SCHEDULED,
+                            logical_date=dag_model.next_dagrun,
+                            data_interval=data_interval,
+                        ),
                         logical_date=dag_model.next_dagrun,
-                        state=DagRunState.QUEUED,
                         data_interval=data_interval,
-                        external_trigger=False,
-                        session=session,
-                        dag_version=latest_dag_version,
-                        creating_job_id=self.job.id,
+                        run_type=DagRunType.SCHEDULED,
                         triggered_by=DagRunTriggeredByType.TIMETABLE,
+                        dag_version=latest_dag_version,
+                        state=DagRunState.QUEUED,
+                        creating_job_id=self.job.id,
+                        session=session,
                     )
                     active_runs_of_dags[dag.dag_id] += 1
                 # Exceptions like ValueError, ParamValidationError, etc. are raised by
@@ -1448,25 +1452,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ).all()
 
                 data_interval = dag.timetable.data_interval_for_events(logical_date, asset_events)
-                run_id = dag.timetable.generate_run_id(
-                    run_type=DagRunType.ASSET_TRIGGERED,
-                    logical_date=logical_date,
-                    data_interval=data_interval,
-                    session=session,
-                    events=asset_events,
-                )
-
                 dag_run = dag.create_dagrun(
-                    run_id=run_id,
-                    run_type=DagRunType.ASSET_TRIGGERED,
+                    run_id=dag.timetable.generate_run_id(
+                        run_type=DagRunType.ASSET_TRIGGERED,
+                        logical_date=logical_date,
+                        data_interval=data_interval,
+                        session=session,
+                        events=asset_events,
+                    ),
                     logical_date=logical_date,
                     data_interval=data_interval,
-                    state=DagRunState.QUEUED,
-                    external_trigger=False,
-                    session=session,
-                    dag_version=latest_dag_version,
-                    creating_job_id=self.job.id,
+                    run_type=DagRunType.ASSET_TRIGGERED,
                     triggered_by=DagRunTriggeredByType.ASSET,
+                    dag_version=latest_dag_version,
+                    state=DagRunState.QUEUED,
+                    creating_job_id=self.job.id,
+                    session=session,
                 )
                 Stats.incr("asset.triggered_dagruns")
                 dag_run.consumed_asset_events.extend(asset_events)
