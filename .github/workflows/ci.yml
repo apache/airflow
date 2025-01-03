@@ -610,6 +610,7 @@ jobs:
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       run-task-sdk-tests: ${{ needs.build-info.outputs.run-task-sdk-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      canary-run: ${{ needs.build-info.outputs.canary-run }}
     if: >
       ( needs.build-info.outputs.run-task-sdk-tests == 'true' ||
       needs.build-info.outputs.run-tests == 'true' &&
@@ -646,6 +647,7 @@ jobs:
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
 
   notify-slack-failure:
     name: "Notify Slack on Failure"
