@@ -127,7 +127,7 @@ class TestDagEndpoint:
         self._create_deactivated_paused_dag(session)
         self._create_dag_tags(session)
 
-        dag_maker.dagbag.sync_to_db()
+        dag_maker.sync_dagbag_to_db()
         dag_maker.dag_model.has_task_concurrency_limits = True
         session.merge(dag_maker.dag_model)
         session.commit()
@@ -409,7 +409,7 @@ class TestDeleteDAG(TestDagEndpoint):
             ti = dr.get_task_instances()[0]
             ti.set_state(TaskInstanceState.RUNNING)
 
-        dag_maker.dagbag.sync_to_db()
+        dag_maker.sync_dagbag_to_db()
 
     @pytest.mark.parametrize(
         "dag_id, dag_display_name, status_code_delete, status_code_details, has_running_dagruns, is_create_dag",

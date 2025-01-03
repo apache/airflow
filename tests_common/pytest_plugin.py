@@ -935,6 +935,15 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 **kwargs,
             )
 
+        def sync_dagbag_to_db(self):
+            from airflow.models.dagbundle import DagBundleModel
+
+            if self.session.query(DagBundleModel).filter(DagBundleModel.name == "dag_maker").count() == 0:
+                self.session.add(DagBundleModel(name="dag_maker"))
+                self.session.commit()
+
+            self.dagbag.sync_to_db("dag_maker", None)
+
         def __call__(
             self,
             dag_id="test_dag",
