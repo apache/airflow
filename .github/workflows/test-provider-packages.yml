@@ -149,6 +149,7 @@ jobs:
           --run-in-parallel
         if: matrix.package-format == 'sdist'
 
+  # All matrix parameters are passed as JSON string in the input variable providers-compatibility-tests-matrix
   providers-compatibility-tests-matrix:
     timeout-minutes: 80
     name: Compat ${{ matrix.airflow-version }}:P${{ matrix.python-version }} providers test
