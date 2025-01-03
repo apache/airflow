@@ -454,7 +454,7 @@ class HttpAsyncHook(BaseHook):
                     # Don't retry.
                     raise AirflowException(f"{e.status}:{e.message}")
                 else:
-                    await asyncio.sleep(self.retry_delay)
+                await asyncio.sleep(self.retry_delay)
             else:
                 return response
         else:
