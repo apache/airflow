@@ -20,9 +20,8 @@ from __future__ import annotations
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
-
 from airflow.exceptions import AirflowException
+from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 
 if TYPE_CHECKING:
     from msgraph_core import APIVersion

@@ -27,7 +27,6 @@ from airflow.providers.microsoft.azure.hooks.powerbi import (
     PowerBIDatasetRefreshStatusException,
     PowerBIHook,
 )
-
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:

@@ -26,6 +26,7 @@ from airflow.providers.microsoft.azure.hooks.powerbi import (
     PowerBIDatasetRefreshException,
     PowerBIDatasetRefreshFields,
     PowerBIDatasetRefreshStatus,
+    PowerBIDatasetRefreshStatusException,
     PowerBIHook,
 )
 
@@ -140,7 +141,7 @@ class TestPowerBIHook:
 
         # Call the function with an invalid request ID
         invalid_request_id = "invalid_request_id"
-        with pytest.raises(PowerBIDatasetRefreshException):
+        with pytest.raises(PowerBIDatasetRefreshStatusException):
             await powerbi_hook.get_refresh_details_by_refresh_id(
                 dataset_id=DATASET_ID, group_id=GROUP_ID, refresh_id=invalid_request_id
             )
@@ -154,7 +155,7 @@ class TestPowerBIHook:
         # Call the function with a request ID
         refresh_id = "any_request_id"
         with pytest.raises(
-            PowerBIDatasetRefreshException,
+            PowerBIDatasetRefreshStatusException,
             match=f"Unable to fetch the details of dataset refresh with Request Id: {refresh_id}",
         ):
             await powerbi_hook.get_refresh_details_by_refresh_id(
@@ -170,7 +171,7 @@ class TestPowerBIHook:
         # Call the function with an invalid request ID
         invalid_request_id = "invalid_request_id"
         with pytest.raises(
-            PowerBIDatasetRefreshException,
+            PowerBIDatasetRefreshStatusException,
             match=f"Unable to fetch the details of dataset refresh with Request Id: {invalid_request_id}",
         ):
             await powerbi_hook.get_refresh_details_by_refresh_id(
