@@ -457,8 +457,8 @@ class HttpAsyncHook(BaseHook):
                 await asyncio.sleep(self.retry_delay)
             else:
                 return response
-        else:
-            raise NotImplementedError  # should not reach this, but makes mypy happy
+
+        raise NotImplementedError  # should not reach this, but makes mypy happy
 
     @classmethod
     def _process_extra_options_from_connection(cls, conn: Connection, extra_options: dict) -> dict:
