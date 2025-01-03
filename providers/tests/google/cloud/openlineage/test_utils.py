@@ -46,6 +46,7 @@ from airflow.providers.google.cloud.openlineage.utils import (
     extract_ds_name_from_gcs_path,
     get_facets_from_bq_table,
     get_identity_column_lineage_facet,
+    get_namespace_name_from_source_uris,
     inject_openlineage_properties_into_dataproc_batch,
     inject_openlineage_properties_into_dataproc_job,
     inject_openlineage_properties_into_dataproc_workflow_template,
@@ -830,6 +831,34 @@ def test_inject_openlineage_properties_into_dataproc_batch(mock_is_ol_accessible
     }
     result = inject_openlineage_properties_into_dataproc_batch(batch, context, True)
     assert result == expected_batch
+
+
+@pytest.mark.parametrize(
+    "input_uris, expected_output",
+    [
+        (["gs://bucket/blob"], {("gs://bucket", "/")}),
+        (["gs://bucket/blob/*"], {("gs://bucket", "blob")}),
+        (
+            [
+                "https://googleapis.com/bigtable/projects/project/instances/instance/appProfiles/profile/tables/table",
+                "https://googleapis.com/bigtable/projects/project/instances/instance/tables/table",
+            ],
+            {("bigtable://project/instance", "table"), ("bigtable://project/instance", "table")},
+        ),
+        (
+            [
+                "gs://bucket/blob",
+                "https://googleapis.com/bigtable/projects/project/instances/instance/tables/table",
+                "invalid_uri",
+            ],
+            {("gs://bucket", "/"), ("bigtable://project/instance", "table")},
+        ),
+        ([], set()),
+        (["invalid_uri"], set()),
+    ],
+)
+def test_get_namespace_name_from_source_uris(input_uris, expected_output):
+    assert get_namespace_name_from_source_uris(input_uris) == expected_output
 
 
 @patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
