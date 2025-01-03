@@ -51,6 +51,10 @@ class PowerBIDatasetRefreshException(AirflowException):
     """An exception that indicates a dataset refresh failed to complete."""
 
 
+class PowerBIDatasetRefreshStatusException(AirflowException):
+    """An exception that indicates a dataset refresh failed to complete."""
+
+
 class PowerBIHook(KiotaRequestAdapterHook):
     """
     A async hook to interact with Power BI.
@@ -157,7 +161,7 @@ class PowerBIHook(KiotaRequestAdapterHook):
         refresh_histories = await self.get_refresh_history(dataset_id=dataset_id, group_id=group_id)
 
         if len(refresh_histories) == 0:
-            raise PowerBIDatasetRefreshException(
+            raise PowerBIDatasetRefreshStatusException(
                 f"Unable to fetch the details of dataset refresh with Request Id: {refresh_id}"
             )
 
@@ -167,7 +171,7 @@ class PowerBIHook(KiotaRequestAdapterHook):
         ]
 
         if refresh_id not in refresh_ids:
-            raise PowerBIDatasetRefreshException(
+            raise PowerBIDatasetRefreshStatusException(
                 f"Unable to fetch the details of dataset refresh with Request Id: {refresh_id}"
             )
 
