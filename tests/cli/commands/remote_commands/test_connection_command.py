@@ -848,7 +848,10 @@ class TestCliImportConnections(TestCliConnection):
             response_json=self.connections.model_dump(),
             expected_http_status_code=201,
         )
-        with pytest.raises(SystemExit, match=r"Missing connections file."):
+        with pytest.raises(
+            AirflowException,
+            match=r"File (.*) was not found. Check the configuration of your Secrets backend.",
+        ):
             connection_command.connections_import(
                 self.parser.parse_args(["connections", "import", filepath]), cli_api_client=cli_api_client
             )
