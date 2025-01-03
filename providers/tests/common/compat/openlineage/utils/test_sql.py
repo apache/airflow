@@ -14,29 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
----
-package-name: apache-airflow-providers-common-compat
-name: Common Compat
-description: |
-  ``Common Compatibility Provider - providing compatibility code for previous Airflow versions.``
 
-state: ready
-source-date-epoch: 1731569875
-# note that those versions are maintained by release manager - do not update them manually
-versions:
-  - 1.4.0
-  - 1.3.0
-  - 1.2.2
-  - 1.2.1
-  - 1.2.0
-  - 1.1.0
-  - 1.0.0
+def test_import():
+    from airflow.providers.common.compat.openlineage.utils.sql import get_openlineage_facets_with_sql
 
-dependencies:
-  - apache-airflow>=2.9.0
-
-integrations:
-  - integration-name: Common Compat
-    external-doc-url: https://airflow.apache.org/docs/apache-airflow-providers-common-compat/
-    tags: [software]
+    assert get_openlineage_facets_with_sql is not None

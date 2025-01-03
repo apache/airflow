@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Callable
 
 import sqlparse
@@ -30,6 +31,7 @@ from airflow.providers.openlineage.utils.sql import (
     create_information_schema_query,
     get_table_schemas,
 )
+from airflow.providers.openlineage.utils.utils import should_use_external_connection
 from airflow.typing_compat import TypedDict
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -38,6 +40,9 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
 
     from airflow.hooks.base import BaseHook
+    from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+log = logging.getLogger(__name__)
 
 DEFAULT_NAMESPACE = "default"
 DEFAULT_INFORMATION_SCHEMA_COLUMNS = [
@@ -397,3 +402,37 @@ class SQLParser(LoggingMixin):
             tables = schemas.setdefault(normalize_name(table.schema) if table.schema else None, [])
             tables.append(table.name)
         return hierarchy
+
+
+def get_openlineage_facets_with_sql(
+    hook: DbApiHook, sql: str | list[str], conn_id: str, database: str | None
+) -> OperatorLineage | None:
+    connection = hook.get_connection(conn_id)
+    try:
+        database_info = hook.get_openlineage_database_info(connection)
+    except AttributeError:
+        database_info = None
+
+    if database_info is None:
+        log.debug("%s has no database info provided", hook)
+        return None
+
+    try:
+        sql_parser = SQLParser(
+            dialect=hook.get_openlineage_database_dialect(connection),
+            default_schema=hook.get_openlineage_default_schema(),
+        )
+    except AttributeError:
+        log.debug("%s failed to get database dialect", hook)
+        return None
+
+    operator_lineage = sql_parser.generate_openlineage_metadata_from_sql(
+        sql=sql,
+        hook=hook,
+        database_info=database_info,
+        database=database,
+        sqlalchemy_engine=hook.get_sqlalchemy_engine(),
+        use_connection=should_use_external_connection(hook),
+    )
+
+    return operator_lineage
