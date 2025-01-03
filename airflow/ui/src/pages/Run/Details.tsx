@@ -137,7 +137,7 @@ export const Details = () => {
             <Table.Cell>
               <HStack>
                 {tryInstance?.pid}
-                <ClipboardRoot value={tryInstance?.pid ?? ""}>
+                <ClipboardRoot value={String(tryInstance?.pid ?? "")}>
                   <ClipboardIconButton />
                 </ClipboardRoot>
               </HStack>
