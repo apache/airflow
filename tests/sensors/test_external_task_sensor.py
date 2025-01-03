@@ -45,11 +45,12 @@ from airflow.providers.standard.sensors.external_task import (
 from airflow.providers.standard.sensors.time import TimeSensor
 from airflow.providers.standard.triggers.external_task import WorkflowTrigger
 from airflow.serialization.serialized_objects import SerializedBaseOperator
+from airflow.timetables.base import DataInterval
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
-from airflow.utils.timezone import datetime
+from airflow.utils.timezone import coerce_datetime, datetime
 from airflow.utils.types import DagRunType
 
 from tests.models import TEST_DAGS_FOLDER
@@ -1252,19 +1253,24 @@ def run_tasks(
     """
     runs: dict[str, DagRun] = {}
     tis: dict[str, TaskInstance] = {}
-    triggered_by = DagRunTriggeredByType.TEST if AIRFLOW_V_3_0_PLUS else None
 
     for dag in dag_bag.dags.values():
-        dagrun = dag.create_dagrun(
-            state=DagRunState.RUNNING,
+        data_interval = DataInterval(coerce_datetime(logical_date), coerce_datetime(logical_date))
+        runs[dag.dag_id] = dagrun = dag.create_dagrun(
+            run_id=dag.timetable.generate_run_id(
+                run_type=DagRunType.MANUAL,
+                logical_date=logical_date,
+                data_interval=data_interval,
+            ),
             logical_date=logical_date,
-            start_date=logical_date,
+            data_interval=data_interval,
             run_type=DagRunType.MANUAL,
+            triggered_by=DagRunTriggeredByType.TEST,
+            dag_version=None,
+            state=DagRunState.RUNNING,
+            start_date=logical_date,
             session=session,
-            data_interval=(logical_date, logical_date),
-            triggered_by=triggered_by,
         )
-        runs[dag.dag_id] = dagrun
         # we use sorting by task_id here because for the test DAG structure of ours
         # this is equivalent to topological sort. It would not work in general case
         # but it works for our case because we specifically constructed test DAGS
