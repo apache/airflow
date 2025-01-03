@@ -400,6 +400,19 @@ class TestPgbouncer:
         assert "annotations" in jmespath.search("metadata", docs[0])
         assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
 
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+        assert "labels" in jmespath.search("spec.template.metadata", docs[0])
+        assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
+
 
 class TestPgbouncerConfig:
     """Tests PgBouncer config."""
@@ -595,6 +608,21 @@ class TestPgbouncerConfig:
             "image": "test-registry/test-repo:test-tag",
         }
 
+    def test_no_config_secret_mount(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "mountConfigSecret": False,
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        spec = jmespath.search("spec.template.spec", docs[0])
+        assert spec is not None
+        assert "volumes" not in spec
+
 
 class TestPgbouncerExporter:
     """Tests PgBouncer exporter."""
@@ -709,6 +737,32 @@ class TestPgbouncerExporter:
             "name": "test-pgbouncer-stats-pgbouncer-stats",
             "key": "connection",
         }
+
+    def test_extra_volume_mounts(self):
+        extra_volume_mounts = [
+            {
+                "name": "test-volume",
+                "mountPath": "/mnt/test_volume",
+            }
+        ]
+
+        docs = render_chart(
+            "test-pgbouncer-stats",
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "metricsExporterSidecar": {
+                        "statsSecretKey": "unused",
+                        "extraVolumeMounts": extra_volume_mounts,
+                    },
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        assert (
+            jmespath.search("spec.template.spec.containers[1].volumeMounts", docs[0]) == extra_volume_mounts
+        )
 
 
 class TestPgBouncerServiceAccount:
