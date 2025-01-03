@@ -1738,7 +1738,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         run_type: DagRunType,
         triggered_by: DagRunTriggeredByType,
         external_trigger: bool = False,
-        dag_version: DagVersion | None,
+        dag_version: DagVersion | None = None,
         state: DagRunState,
         start_date: datetime | None = None,
         creating_job_id: int | None = None,
