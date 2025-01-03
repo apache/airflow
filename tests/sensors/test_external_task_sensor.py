@@ -80,7 +80,7 @@ def clean_db():
 
 
 @pytest.fixture
-def dag_zip_maker():
+def dag_zip_maker(testing_dag_bundle):
     class DagZipMaker:
         def __call__(self, *dag_files):
             self.__dag_files = [os.sep.join([TEST_DAGS_FOLDER.__str__(), dag_file]) for dag_file in dag_files]
@@ -98,7 +98,7 @@ def dag_zip_maker():
                 for dag_file in self.__dag_files:
                     zf.write(dag_file, os.path.basename(dag_file))
             dagbag = DagBag(dag_folder=self.__tmp_dir, include_examples=False)
-            dagbag.sync_to_db()
+            dagbag.sync_to_db("testing", None)
             return dagbag
 
         def __exit__(self, exc_type, exc_val, exc_tb):

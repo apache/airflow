@@ -16,10 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import os
+
 import pytest
 from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.app import create_app
+
+from tests_common.test_utils.db import parse_and_sync_to_db
 
 
 @pytest.fixture
@@ -42,6 +46,5 @@ def client():
 def dagbag():
     from airflow.models import DagBag
 
-    dagbag_instance = DagBag(include_examples=True, read_dags_from_db=False)
-    dagbag_instance.sync_to_db()
-    return dagbag_instance
+    parse_and_sync_to_db(os.devnull, include_examples=True)
+    return DagBag(read_dags_from_db=True)

@@ -20,6 +20,7 @@ from __future__ import annotations
 import copy
 import logging
 import logging.config
+import os
 import pathlib
 import shutil
 import sys
@@ -127,7 +128,7 @@ def _reset_modules_after_every_test(backup_modules):
 
 
 @pytest.fixture(autouse=True)
-def dags(log_app, create_dummy_dag, session):
+def dags(log_app, create_dummy_dag, testing_dag_bundle, session):
     dag, _ = create_dummy_dag(
         dag_id=DAG_ID,
         task_id=TASK_ID,
@@ -143,10 +144,10 @@ def dags(log_app, create_dummy_dag, session):
         session=session,
     )
 
-    bag = DagBag(include_examples=False)
+    bag = DagBag(os.devnull, include_examples=False)
     bag.bag_dag(dag=dag)
     bag.bag_dag(dag=dag_removed)
-    bag.sync_to_db(session=session)
+    bag.sync_to_db("testing", None, session=session)
     log_app.dag_bag = bag
 
     yield dag, dag_removed
