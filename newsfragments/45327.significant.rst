@@ -1,0 +1,1 @@
+Renamed DAG Property ``fail_stop`` to ``fail_fast`` across the codebase to align with Airflow 3.0.
