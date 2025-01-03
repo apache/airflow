@@ -934,7 +934,7 @@ scheduler:
 
   # Create ServiceAccount
   serviceAccount:
-    # default value is true
+    # only affect CeleryExecutor, default value is true
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
     # Specifies whether a ServiceAccount should be created
