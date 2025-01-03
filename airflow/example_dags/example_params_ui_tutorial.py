@@ -94,7 +94,7 @@ with (
             # If you want to have a list box with proposals but not enforcing a fixed list
             # then you can use the examples feature of JSON schema
             "proposals": Param(
-                "some value",
+                "Alpha",
                 type="string",
                 title="Field with proposals",
                 description="You can use JSON schema examples's to generate drop down selection boxes "
@@ -169,6 +169,7 @@ with (
             "multiline_text": Param(
                 "A multiline text Param\nthat will keep the newline\ncharacters in its value.",
                 description="This field allows for multiline text input. The returned value will be a single with newline (\\n) characters kept intact.",
+                title="Multiline text",
                 type=["string", "null"],
                 format="multiline",
             ),
@@ -205,7 +206,7 @@ with (
             [schema description (string)](https://json-schema.org/understanding-json-schema/reference/string.html)
             for more details""",
                 minLength=10,
-                maxLength=20,
+                maxLength=30,
                 section="JSON Schema validation options",
             ),
             "checked_number": Param(
