@@ -58,17 +58,23 @@ if TYPE_CHECKING:
 
 
 def _bootstrap_dagbag():
-    from airflow.dag_processing.bundles.manager import DagBundlesManager
     from airflow.models.dag import DAG
     from airflow.models.dagbag import DagBag
 
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.dag_processing.bundles.manager import DagBundlesManager
+
     with create_session() as session:
-        DagBundlesManager().sync_bundles_to_db(session=session)
-        session.commit()
+        if AIRFLOW_V_3_0_PLUS:
+            DagBundlesManager().sync_bundles_to_db(session=session)
+            session.commit()
 
         dagbag = DagBag()
         # Save DAGs in the ORM
-        dagbag.sync_to_db(bundle_name="dags_folder", bundle_version=None, session=session)
+        if AIRFLOW_V_3_0_PLUS:
+            dagbag.sync_to_db(bundle_name="dags_folder", bundle_version=None, session=session)
+        else:
+            dagbag.sync_to_db(session=session)
 
         # Deactivate the unknown ones
         DAG.deactivate_unknown_dags(dagbag.dags.keys(), session=session)
@@ -102,15 +108,21 @@ def initial_db_init():
 
 
 def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
-    from airflow.dag_processing.bundles.manager import DagBundlesManager
     from airflow.models.dagbag import DagBag
 
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.dag_processing.bundles.manager import DagBundlesManager
+
     with create_session() as session:
-        DagBundlesManager().sync_bundles_to_db(session=session)
-        session.commit()
+        if AIRFLOW_V_3_0_PLUS:
+            DagBundlesManager().sync_bundles_to_db(session=session)
+            session.commit()
 
         dagbag = DagBag(dag_folder=folder, include_examples=include_examples)
-        dagbag.sync_to_db("dags_folder", None, session)
+        if AIRFLOW_V_3_0_PLUS:
+            dagbag.sync_to_db("dags_folder", None, session)
+        else:
+            dagbag.sync_to_db(session=session)  # type: ignore[call-arg]
         session.commit()
 
 
