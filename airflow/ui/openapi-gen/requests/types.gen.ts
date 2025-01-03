@@ -1511,8 +1511,8 @@ export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
 export type StructureDataData = {
   dagId: string;
   externalDependencies?: boolean;
-  includeDownstream?: boolean | null;
-  includeUpstream?: boolean | null;
+  includeDownstream?: boolean;
+  includeUpstream?: boolean;
   root?: string | null;
 };
 
@@ -1569,8 +1569,8 @@ export type CancelBackfillResponse = BackfillResponse;
 
 export type GridDataData = {
   dagId: string;
-  includeDownstream?: boolean | null;
-  includeUpstream?: boolean | null;
+  includeDownstream?: boolean;
+  includeUpstream?: boolean;
   limit?: number;
   logicalDateGte?: string | null;
   logicalDateLte?: string | null;
@@ -4563,6 +4563,10 @@ export type $OpenApiTs = {
          * Forbidden
          */
         403: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
         /**
          * Validation Error
          */
