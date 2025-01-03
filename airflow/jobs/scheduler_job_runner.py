@@ -30,7 +30,6 @@ from contextlib import ExitStack, suppress
 from datetime import timedelta
 from functools import lru_cache, partial
 from itertools import groupby
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
 from deprecated import deprecated
@@ -922,7 +921,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         processor_timeout = timedelta(seconds=processor_timeout_seconds)
         if not self._standalone_dag_processor and not self.processor_agent:
             self.processor_agent = DagFileProcessorAgent(
-                dag_directory=Path(self.subdir),
                 max_runs=self.num_times_parse_dags,
                 processor_timeout=processor_timeout,
             )
