@@ -102,7 +102,7 @@ class DagFileStat:
 log = logging.getLogger("airflow.processor_manager")
 
 
-class DagFilePath(NamedTuple):
+class DagFileInfo(NamedTuple):
     """Information about a DAG file."""
 
     path: str
@@ -342,16 +342,16 @@ class DagFileProcessorManager:
     heartbeat: Callable[[], None] = attrs.field(default=lambda: None)
     """An overridable heartbeat called once every time around the loop"""
 
-    _file_paths: list[DagFilePath] = attrs.field(factory=list, init=False)
-    _file_path_queue: deque[DagFilePath] = attrs.field(factory=deque, init=False)
-    _file_stats: dict[DagFilePath, DagFileStat] = attrs.field(
+    _file_paths: list[DagFileInfo] = attrs.field(factory=list, init=False)
+    _file_path_queue: deque[DagFileInfo] = attrs.field(factory=deque, init=False)
+    _file_stats: dict[DagFileInfo, DagFileStat] = attrs.field(
         factory=lambda: defaultdict(DagFileStat), init=False
     )
 
     _dag_bundles: list[BaseDagBundle] = attrs.field(factory=list, init=False)
     _bundle_versions: dict[str, str] = attrs.field(factory=dict, init=False)
 
-    _processors: dict[DagFilePath, DagFileProcessorProcess] = attrs.field(factory=dict, init=False)
+    _processors: dict[DagFileInfo, DagFileProcessorProcess] = attrs.field(factory=dict, init=False)
 
     _parsing_start_time: float = attrs.field(init=False)
     _num_run: int = attrs.field(default=0, init=False)
@@ -428,7 +428,7 @@ class DagFileProcessorManager:
     @provide_session
     def deactivate_stale_dags(
         self,
-        last_parsed: dict[DagFilePath, datetime | None],
+        last_parsed: dict[DagFileInfo, datetime | None],
         stale_dag_threshold: int,
         session: Session = NEW_SESSION,
     ):
@@ -445,7 +445,7 @@ class DagFileProcessorManager:
             # last_parsed_time is the processor_timeout. Longer than that indicates that the DAG is
             # no longer present in the file. We have a stale_dag_threshold configured to prevent a
             # significant delay in deactivation of stale dags when a large timeout is configured
-            dag_file_path = DagFilePath(path=dag.fileloc, bundle_name=dag.bundle_name)
+            dag_file_path = DagFileInfo(path=dag.fileloc, bundle_name=dag.bundle_name)
             if (
                 dag_file_path in last_parsed
                 and (dag.last_parsed_time + timedelta(seconds=stale_dag_threshold))
@@ -678,7 +678,7 @@ class DagFileProcessorManager:
             # remove all files from the bundle, then add the new ones
             self._file_paths = [f for f in self._file_paths if f.bundle_name != bundle_model.name]
             self._file_paths.extend(
-                DagFilePath(path=path, bundle_name=bundle_model.name) for path in bundle_file_paths
+                DagFileInfo(path=path, bundle_name=bundle_model.name) for path in bundle_file_paths
             )
 
             try:
@@ -844,7 +844,7 @@ class DagFileProcessorManager:
 
         self.log.info(log_str)
 
-    def set_file_paths(self, new_file_paths: list[DagFilePath]):
+    def set_file_paths(self, new_file_paths: list[DagFileInfo]):
         """
         Update this with a new set of DagFilePaths to DAG definition files.
 
@@ -904,7 +904,7 @@ class DagFileProcessorManager:
         for dag_file in finished:
             self._processors.pop(dag_file)
 
-    def _create_process(self, dag_file: DagFilePath) -> DagFileProcessorProcess:
+    def _create_process(self, dag_file: DagFileInfo) -> DagFileProcessorProcess:
         id = uuid7()
 
         # callback_to_execute_for_file = self._callback_to_execute.pop(file_path, [])
@@ -1060,7 +1060,7 @@ class DagFileProcessorManager:
         for proc in processors_to_remove:
             self._processors.pop(proc)
 
-    def _add_paths_to_queue(self, file_paths_to_enqueue: list[DagFilePath], add_at_front: bool):
+    def _add_paths_to_queue(self, file_paths_to_enqueue: list[DagFileInfo], add_at_front: bool):
         """Add stuff to the back or front of the file queue, unless it's already present."""
         new_file_paths = list(p for p in file_paths_to_enqueue if p not in self._file_path_queue)
         if add_at_front:
