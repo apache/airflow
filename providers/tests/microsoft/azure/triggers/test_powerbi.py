@@ -22,7 +22,10 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIDatasetRefreshStatus
+from airflow.providers.microsoft.azure.hooks.powerbi import (
+    PowerBIDatasetRefreshStatus,
+    PowerBIDatasetRefreshStatusException,
+)
 from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
 from airflow.triggers.base import TriggerEvent
 
@@ -179,6 +182,42 @@ class TestPowerBITrigger:
         assert len(task) == 1
         assert response in task
         mock_cancel_dataset_refresh.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.cancel_dataset_refresh")
+    @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
+    @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.trigger_dataset_refresh")
+    async def test_powerbi_trigger_run_exception_on_first_refresh_check(
+        self,
+        mock_trigger_dataset_refresh,
+        mock_get_refresh_details_by_refresh_id,
+        mock_cancel_dataset_refresh,
+        powerbi_trigger,
+    ):
+        """Assert that run catch exception if Power BI API throw exception on first refresh status check and retries the request after check_interval seconds"""
+        mock_get_refresh_details_by_refresh_id.side_effect = [
+            PowerBIDatasetRefreshStatusException("Test exception"),
+            {"status": PowerBIDatasetRefreshStatus.COMPLETED, "error": None},
+        ]
+        mock_trigger_dataset_refresh.return_value = DATASET_REFRESH_ID
+        expected = TriggerEvent(
+            {
+                "status": "success",
+                "dataset_refresh_status": PowerBIDatasetRefreshStatus.COMPLETED,
+                "message": f"The dataset refresh {DATASET_REFRESH_ID} has "
+                f"{PowerBIDatasetRefreshStatus.COMPLETED}.",
+                "dataset_refresh_id": DATASET_REFRESH_ID,
+            }
+        )
+
+        with mock.patch("asyncio.sleep") as mock_sleep:
+            task = [i async for i in powerbi_trigger.run()]
+
+            assert len(task) == 1
+            assert expected in task
+            assert mock_get_refresh_details_by_refresh_id.call_count == 2
+            mock_cancel_dataset_refresh.assert_not_called()
+            mock_sleep.assert_called_once_with(CHECK_INTERVAL)
 
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.cancel_dataset_refresh")
