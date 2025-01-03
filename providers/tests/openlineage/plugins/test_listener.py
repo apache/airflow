@@ -20,7 +20,7 @@ import datetime as dt
 import uuid
 from concurrent.futures import Future
 from contextlib import suppress
-from typing import Callable
+from typing import Any, Callable
 from unittest import mock
 from unittest.mock import ANY, MagicMock, patch
 
@@ -174,7 +174,7 @@ def _create_test_dag_and_task(python_callable: Callable, scenario_name: str) -> 
     )
     t = PythonOperator(task_id=f"test_task_{scenario_name}", dag=dag, python_callable=python_callable)
     run_id = str(uuid.uuid1())
-    v3_kwargs = (
+    v3_kwargs: dict[str, Any] = (
         {
             "dag_version": None,
             "triggered_by": types.DagRunTriggeredByType.TEST,
@@ -709,14 +709,14 @@ class TestOpenLineageSelectiveEnable:
         v3_kwargs = (
             {
                 "dag_version": None,
+                "logical_date": date,
                 "triggered_by": types.DagRunTriggeredByType.TEST,
             }
             if AIRFLOW_V_3_0_PLUS
-            else {}
+            else {"execution_date": date}
         )
         self.dagrun = self.dag.create_dagrun(
             run_id=run_id,
-            logical_date=date,
             data_interval=(date, date),
             run_type=types.DagRunType.MANUAL,
             state=DagRunState.QUEUED,
