@@ -936,6 +936,10 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             )
 
         def sync_dagbag_to_db(self):
+            if not AIRFLOW_V_3_0_PLUS:
+                self.dagbag.sync_to_db()
+                return
+
             from airflow.models.dagbundle import DagBundleModel
 
             if self.session.query(DagBundleModel).filter(DagBundleModel.name == "dag_maker").count() == 0:
