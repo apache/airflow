@@ -387,8 +387,8 @@ An Operator inside the Airflow DAG can be annotated with inlets and outlets like
     import pendulum
 
     from airflow import DAG
+    from airflow.providers.common.compat.lineage.entities import Table, File, Column, User
     from airflow.providers.standard.operators.bash import BashOperator
-    from airflow.lineage.entities import Table, File, Column, User
 
 
     t1 = Table(
