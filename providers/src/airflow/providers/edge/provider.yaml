@@ -27,11 +27,12 @@ source-date-epoch: 1729683247
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:
-  - 0.9.6pre0
+  - 0.9.7pre0
 
 dependencies:
   - apache-airflow>=2.10.0
   - pydantic>=2.10.2
+  - retryhttp>=1.2.0
 
 plugins:
   - name: edge_executor
