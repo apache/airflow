@@ -107,6 +107,7 @@ class TestWatchedSubprocess:
                 dag_id="c",
                 run_id="d",
                 try_number=1,
+                start_date=instant,
             ),
             client=MagicMock(spec=sdk_client.Client),
             target=subprocess_main,
@@ -174,6 +175,7 @@ class TestWatchedSubprocess:
                 dag_id="c",
                 run_id="d",
                 try_number=1,
+                start_date=tz.utcnow(),
             ),
             client=MagicMock(spec=sdk_client.Client),
             target=subprocess_main,
@@ -192,11 +194,7 @@ class TestWatchedSubprocess:
         proc = WatchedSubprocess.start(
             path=os.devnull,
             what=TaskInstance(
-                id=uuid7(),
-                task_id="b",
-                dag_id="c",
-                run_id="d",
-                try_number=1,
+                id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1, start_date=tz.utcnow()
             ),
             client=MagicMock(spec=sdk_client.Client),
             target=subprocess_main,
@@ -228,11 +226,7 @@ class TestWatchedSubprocess:
         proc = WatchedSubprocess.start(
             path=os.devnull,
             what=TaskInstance(
-                id=ti_id,
-                task_id="b",
-                dag_id="c",
-                run_id="d",
-                try_number=1,
+                id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, start_date=timezone.utcnow()
             ),
             client=sdk_client.Client(base_url="", dry_run=True, token=""),
             target=subprocess_main,
@@ -255,6 +249,7 @@ class TestWatchedSubprocess:
             dag_id="super_basic_run",
             run_id="c",
             try_number=1,
+            start_date=instant,
         )
         # Assert Exit Code is 0
         assert supervise(ti=ti, dag_path=dagfile_path, token="", server="", dry_run=True) == 0, captured_logs
@@ -277,9 +272,15 @@ class TestWatchedSubprocess:
         This includes ensuring the task starts and executes successfully, and that the task is deferred (via
         the API client) with the expected parameters.
         """
+        instant = tz.datetime(2024, 11, 7, 12, 34, 56, 0)
 
         ti = TaskInstance(
-            id=uuid7(), task_id="async", dag_id="super_basic_deferred_run", run_id="d", try_number=1
+            id=uuid7(),
+            task_id="async",
+            dag_id="super_basic_deferred_run",
+            run_id="d",
+            try_number=1,
+            start_date=instant,
         )
         dagfile_path = test_dags_dir / "super_basic_deferred_run.py"
 
@@ -288,7 +289,6 @@ class TestWatchedSubprocess:
         mock_client = mocker.Mock(spec=sdk_client.Client)
         mock_client.task_instances.start.return_value = make_ti_context()
 
-        instant = tz.datetime(2024, 11, 7, 12, 34, 56, 0)
         time_machine.move_to(instant, tick=False)
 
         # Assert supervisor runs the task successfully
@@ -320,7 +320,9 @@ class TestWatchedSubprocess:
 
     def test_supervisor_handles_already_running_task(self):
         """Test that Supervisor prevents starting a Task Instance that is already running."""
-        ti = TaskInstance(id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1)
+        ti = TaskInstance(
+            id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1, start_date=tz.utcnow()
+        )
 
         # Mock API Server response indicating the TI is already running
         # The API Server would return a 409 Conflict status code if the TI is not
@@ -396,7 +398,9 @@ class TestWatchedSubprocess:
 
         proc = WatchedSubprocess.start(
             path=os.devnull,
-            what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
+            what=TaskInstance(
+                id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, start_date=tz.utcnow()
+            ),
             client=make_client(transport=httpx.MockTransport(handle_request)),
             target=subprocess_main,
         )
@@ -664,7 +668,9 @@ class TestWatchedSubprocessKill:
 
         proc = WatchedSubprocess.start(
             path=os.devnull,
-            what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
+            what=TaskInstance(
+                id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, start_date=tz.utcnow()
+            ),
             client=MagicMock(spec=sdk_client.Client),
             target=subprocess_main,
         )

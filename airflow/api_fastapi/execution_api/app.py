@@ -77,8 +77,9 @@ def create_task_execution_api_app(app: FastAPI) -> FastAPI:
 
 def get_extra_schemas() -> dict[str, dict]:
     """Get all the extra schemas that are not part of the main FastAPI app."""
-    from airflow.api_fastapi.execution_api.datamodels import taskinstance
+    from airflow.api_fastapi.execution_api.datamodels import dagrun, taskinstance
 
     return {
         "TaskInstance": taskinstance.TaskInstance.model_json_schema(),
+        "DagRun": dagrun.DagRun.model_json_schema(),
     }

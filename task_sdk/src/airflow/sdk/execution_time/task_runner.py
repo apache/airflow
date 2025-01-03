@@ -30,6 +30,7 @@ import attrs
 import structlog
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
+from airflow.listeners.listener import get_listener_manager
 from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState, TIRunContext
 from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.execution_time.comms import (
@@ -45,6 +46,7 @@ from airflow.sdk.execution_time.comms import (
     XComResult,
 )
 from airflow.sdk.execution_time.context import ConnectionAccessor
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
@@ -113,6 +115,7 @@ class RuntimeTaskInstance(TaskInstance):
                 "ts": ts,
                 "ts_nodash": ts_nodash,
                 "ts_nodash_with_tz": ts_nodash_with_tz,
+                "task_reschedule_count": self._ti_context_from_server.task_reschedule_count,
             }
             context.update(context_from_server)
         # TODO: We should use/move TypeDict from airflow.utils.context.Context
@@ -381,6 +384,9 @@ def run(ti: RuntimeTaskInstance, log: Logger):
     try:
         # TODO: pre execute etc.
         # TODO: Get a real context object
+        get_listener_manager().hook.on_task_instance_running(
+            previous_state=TaskInstanceState.QUEUED, task_instance=ti
+        )
         ti.task = ti.task.prepare_for_execution()
         context = ti.get_template_context()
         # TODO: Get things from _execute_task_with_callbacks
@@ -412,6 +418,9 @@ def run(ti: RuntimeTaskInstance, log: Logger):
 
         _push_xcom_if_needed(result, ti)
         msg = TaskState(state=TerminalTIState.SUCCESS, end_date=datetime.now(tz=timezone.utc))
+        get_listener_manager().hook.on_task_instance_success(
+            previous_state=TaskInstanceState.RUNNING, task_instance=ti
+        )
     except TaskDeferred as defer:
         classpath, trigger_kwargs = defer.trigger.serialize()
         next_method = defer.method_name
@@ -441,6 +450,11 @@ def run(ti: RuntimeTaskInstance, log: Logger):
             state=TerminalTIState.FAIL_WITHOUT_RETRY,
             end_date=datetime.now(tz=timezone.utc),
         )
+
+        get_listener_manager().hook.on_task_instance_failed(
+            previous_state=TaskInstanceState.RUNNING, task_instance=ti
+        )
+
         # TODO: Run task failure callbacks here
     except (AirflowTaskTimeout, AirflowException):
         # We should allow retries if the task has defined it.
@@ -448,12 +462,18 @@ def run(ti: RuntimeTaskInstance, log: Logger):
             state=TerminalTIState.FAILED,
             end_date=datetime.now(tz=timezone.utc),
         )
+        get_listener_manager().hook.on_task_instance_failed(
+            previous_state=TaskInstanceState.RUNNING, task_instance=ti
+        )
         # TODO: Run task failure callbacks here
     except AirflowException:
         # TODO: handle the case of up_for_retry here
         msg = TaskState(
             state=TerminalTIState.FAILED,
             end_date=datetime.now(tz=timezone.utc),
+        )
+        get_listener_manager().hook.on_task_instance_failed(
+            previous_state=TaskInstanceState.RUNNING, task_instance=ti
         )
     except AirflowTaskTerminated:
         # External state updates are already handled with `ti_heartbeat` and will be

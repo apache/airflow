@@ -27,12 +27,11 @@ from typing import TYPE_CHECKING, Any, Callable
 
 import attrs
 from openlineage.client.utils import RedactMixin
-from sqlalchemy import exists
 
 from airflow import __version__ as AIRFLOW_VERSION
 
 # TODO: move this maybe to Airflow's logic?
-from airflow.models import DAG, BaseOperator, DagRun, MappedOperator, TaskReschedule
+from airflow.models import DAG, BaseOperator, DagRun, MappedOperator
 from airflow.providers.openlineage import (
     __version__ as OPENLINEAGE_PROVIDER_VERSION,
     conf,
@@ -52,7 +51,6 @@ from airflow.providers.openlineage.utils.selective_enable import (
     is_task_lineage_enabled,
 )
 from airflow.providers.openlineage.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
-from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.context import AirflowContextDeprecationWarning
 from airflow.utils.log.secrets_masker import (
@@ -62,7 +60,11 @@ from airflow.utils.log.secrets_masker import (
     should_hide_value_for_key,
 )
 from airflow.utils.module_loading import import_string
-from airflow.utils.session import NEW_SESSION, provide_session
+
+try:
+    from airflow.sdk.definitions.baseoperator import BaseOperator as SdkBaseOperator
+except ImportError:
+    SdkBaseOperator = BaseOperator  # type: ignore[misc]
 
 if TYPE_CHECKING:
     from openlineage.client.event_v2 import Dataset as OpenLineageDataset
@@ -90,7 +92,7 @@ def try_import_from_string(string: str) -> Any:
         return import_string(string)
 
 
-def get_operator_class(task: BaseOperator) -> type:
+def get_operator_class(task: BaseOperator | SdkBaseOperator) -> type:
     if task.__class__.__name__ in ("DecoratedMappedOperator", "MappedOperator"):
         return task.operator_class
     return task.__class__
@@ -153,7 +155,7 @@ def get_user_provided_run_facets(ti: TaskInstance, ti_state: TaskInstanceState) 
     return custom_facets
 
 
-def get_fully_qualified_class_name(operator: BaseOperator | MappedOperator) -> str:
+def get_fully_qualified_class_name(operator: BaseOperator | MappedOperator | SdkBaseOperator) -> str:
     if isinstance(operator, (MappedOperator, SerializedBaseOperator)):
         # as in airflow.api_connexion.schemas.common_schema.ClassReferenceSchema
         return operator._task_module + "." + operator._task_type  # type: ignore
@@ -161,42 +163,20 @@ def get_fully_qualified_class_name(operator: BaseOperator | MappedOperator) -> s
     return op_class.__module__ + "." + op_class.__name__
 
 
-def is_operator_disabled(operator: BaseOperator | MappedOperator) -> bool:
+def is_operator_disabled(operator: BaseOperator | MappedOperator | SdkBaseOperator) -> bool:
     return get_fully_qualified_class_name(operator) in conf.disabled_operators()
 
 
-def is_selective_lineage_enabled(obj: DAG | BaseOperator | MappedOperator) -> bool:
+def is_selective_lineage_enabled(obj: DAG | BaseOperator | MappedOperator | SdkBaseOperator) -> bool:
     """If selective enable is active check if DAG or Task is enabled to emit events."""
     if not conf.selective_enable():
         return True
     if isinstance(obj, DAG):
         return is_dag_lineage_enabled(obj)
-    elif isinstance(obj, (BaseOperator, MappedOperator)):
+    elif isinstance(obj, (BaseOperator, MappedOperator, SdkBaseOperator)):
         return is_task_lineage_enabled(obj)
     else:
         raise TypeError("is_selective_lineage_enabled can only be used on DAG or Operator objects")
-
-
-@provide_session
-def is_ti_rescheduled_already(ti: TaskInstance, session=NEW_SESSION):
-    if not isinstance(ti.task, BaseSensorOperator):
-        return False
-
-    if not ti.task.reschedule:
-        return False
-
-    return (
-        session.query(
-            exists().where(
-                TaskReschedule.dag_id == ti.dag_id,
-                TaskReschedule.task_id == ti.task_id,
-                TaskReschedule.run_id == ti.run_id,
-                TaskReschedule.map_index == ti.map_index,
-                TaskReschedule.try_number == ti.try_number,
-            )
-        ).scalar()
-        is True
-    )
 
 
 class InfoJsonEncodable(dict):
