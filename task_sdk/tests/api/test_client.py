@@ -460,6 +460,30 @@ class TestXCOMOperations:
         assert result.key == "test_key"
         assert result.value == "test_value"
 
+    @mock.patch("time.sleep", return_value=None)
+    def test_xcom_get_500_error(self, mock_sleep):
+        # Simulate a successful response from the server returning a 500 error
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/xcoms/dag_id/run_id/task_id/key":
+                return httpx.Response(
+                    status_code=500,
+                    headers=[("content-Type", "application/json")],
+                    json={
+                        "reason": "invalid_format",
+                        "message": "XCom value is not a valid JSON",
+                    },
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        with pytest.raises(ServerResponseError):
+            client.xcoms.get(
+                dag_id="dag_id",
+                run_id="run_id",
+                task_id="task_id",
+                key="key",
+            )
+
     @pytest.mark.parametrize(
         "values",
         [
