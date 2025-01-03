@@ -255,10 +255,9 @@ class TestABSTopicCreateOperator:
     @mock.patch("azure.servicebus.management.TopicProperties")
     def test_create_topic(self, mock_topic_properties, mock_get_conn):
         """
-        Test AzureServiceBusSubscriptionCreateOperator passed with the subscription name, topic name
-        mocking the connection details, hook create_subscription function
+        Test AzureServiceBusTopicCreateOperator passed with the topic name
+        mocking the connection
         """
-        print("Wazzup doc")
         asb_create_topic = AzureServiceBusTopicCreateOperator(
             task_id="asb_create_topic",
             topic_name=TOPIC_NAME,
@@ -269,7 +268,7 @@ class TestABSTopicCreateOperator:
         created_topic_name = asb_create_topic.execute(None)
         # ensure the topic name is returned
         assert created_topic_name == TOPIC_NAME
-        # ensure create_subscription is called with the correct arguments on the connection
+        # ensure create_topic is called with the correct arguments on the connection
         mock_get_conn.return_value.__enter__.return_value.create_topic.assert_called_once_with(
             topic_name=TOPIC_NAME,
             default_message_time_to_live=None,
@@ -287,10 +286,9 @@ class TestABSTopicCreateOperator:
             user_metadata=None,
             max_message_size_in_kilobytes=None,
         )
-        print("Later Gator")
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.asb.AdminClientHook")
-    def test_create_subscription_exception(self, mock_sb_admin_client):
+    def test_create_topic_exception(self, mock_sb_admin_client):
         """
         Test `AzureServiceBusTopicCreateOperator` functionality to raise AirflowException,
          by passing topic name as None and pytest raise Airflow Exception
@@ -428,9 +426,20 @@ class TestAzureServiceBusUpdateSubscriptionOperator:
             subscription_name=SUBSCRIPTION_NAME,
             max_delivery_count=20,
         )
-        with mock.patch.object(asb_update_subscription.log, "info") as mock_log_info:
-            asb_update_subscription.execute(None)
-        mock_log_info.assert_called_with("Subscription Updated successfully %s", mock_subscription_properties)
+
+        asb_update_subscription.execute(None)
+
+        mock_get_conn.return_value.__enter__.return_value.get_subscription.assert_has_calls(
+            [
+                mock.call(TOPIC_NAME, SUBSCRIPTION_NAME),  # before update
+                mock.call(TOPIC_NAME, SUBSCRIPTION_NAME),  # after update
+            ]
+        )
+
+        mock_get_conn.return_value.__enter__.return_value.update_subscription.assert_called_once_with(
+            TOPIC_NAME,
+            mock_subscription_properties,
+        )
 
 
 class TestASBSubscriptionReceiveMessageOperator:
