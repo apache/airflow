@@ -1733,6 +1733,8 @@ my_postgres_conn:
         session.merge(dagrun_1)
 
         task_instance_1 = dagrun_1.get_task_instance(task_id)
+        if TYPE_CHECKING:
+            assert task_instance_1
         task_instance_1.state = ti_state_begin
         task_instance_1.job_id = 123
         session.merge(task_instance_1)
