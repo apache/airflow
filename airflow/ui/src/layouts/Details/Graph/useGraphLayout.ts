@@ -62,10 +62,12 @@ const getTextWidth = (text: string, font: string) => {
     context.font = font;
     const metrics = context.measureText(text);
 
-    return metrics.width;
+    return metrics.width > 200 ? metrics.width : 200;
   }
 
-  return text.length * 9;
+  const length = text.length * 9;
+
+  return length > 200 ? length : 200;
 };
 
 const getDirection = (arrange: string) => {
@@ -183,9 +185,8 @@ const generateElkGraph = ({
       closedGroupIds.push(node.id);
     }
 
-    const label = node.is_mapped ? `${node.label} [100]` : node.label;
-    const labelLength = getTextWidth(label, font);
-    let width = labelLength > 200 ? labelLength : 200;
+    const label = `${node.label}${node.is_mapped ? "[1000]" : ""}${node.children ? ` + ${node.children.length} tasks` : ""}`;
+    let width = getTextWidth(label, font);
     let height = 80;
 
     if (node.type === "join") {
@@ -235,7 +236,7 @@ type LayoutProps = {
 export const useGraphLayout = ({ arrange = "LR", dagId, edges, nodes, openGroupIds = [] }: LayoutProps) =>
   useQuery({
     queryFn: async () => {
-      const font = `bold 16px ${globalThis.getComputedStyle(document.body).fontFamily}`;
+      const font = `bold 18px ${globalThis.getComputedStyle(document.body).fontFamily}`;
       const elk = new ELK();
 
       // 1. Format graph data to pass for elk to process
