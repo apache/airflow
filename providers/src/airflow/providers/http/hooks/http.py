@@ -32,6 +32,7 @@ from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.providers.http.exceptions import HttpMethodException
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
@@ -426,7 +427,7 @@ class HttpAsyncHook(BaseHook):
         elif self.method == "OPTIONS":
             request_func = session.options
         else:
-            raise AirflowException(f"Unexpected HTTP Method: {self.method}")
+            raise HttpMethodException(f"Unexpected HTTP Method: {self.method}")
 
         for attempt in range(1, 1 + self.retry_limit):
             response = await request_func(
