@@ -24,6 +24,7 @@ import pytest
 from google.cloud.bigquery.table import Table
 from google.cloud.dataproc_v1 import Batch, RuntimeConfig
 from openlineage.client.facet_v2 import column_lineage_dataset
+from openlineage.client.transport import HttpConfig, HttpTransport
 
 from airflow.providers.common.compat.openlineage.facet import (
     ColumnLineageDatasetFacet,
@@ -75,6 +76,72 @@ TEST_EMPTY_TABLE_API_REPR = {
     "tableReference": {"projectId": TEST_PROJECT_ID, "datasetId": TEST_DATASET, "tableId": TEST_TABLE_ID}
 }
 TEST_EMPTY_TABLE: Table = Table.from_api_repr(TEST_EMPTY_TABLE_API_REPR)
+EXAMPLE_BATCH = {
+    "spark_batch": {
+        "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
+        "main_class": "org.apache.spark.examples.SparkPi",
+    },
+    "runtime_config": {"properties": {"existingProperty": "value"}},
+}
+EXAMPLE_TEMPLATE = {
+    "id": "test-workflow",
+    "placement": {
+        "cluster_selector": {
+            "zone": "europe-central2-c",
+            "cluster_labels": {"key": "value"},
+        }
+    },
+    "jobs": [
+        {
+            "step_id": "job_1",
+            "pyspark_job": {
+                "main_python_file_uri": "gs://bucket1/spark_job.py",
+                "properties": {
+                    "spark.sql.shuffle.partitions": "1",
+                },
+            },
+        }
+    ],
+}
+EXAMPLE_CONTEXT = {
+    "ti": MagicMock(
+        dag_id="dag_id",
+        task_id="task_id",
+        try_number=1,
+        map_index=1,
+        logical_date=dt.datetime(2024, 11, 11),
+    )
+}
+OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG = {
+    "url": "https://some-custom.url",
+    "endpoint": "/api/custom",
+    "timeout": 123,
+    "compression": "gzip",
+    "custom_headers": {
+        "key1": "val1",
+        "key2": "val2",
+    },
+    "auth": {
+        "type": "api_key",
+        "apiKey": "secret_123",
+    },
+}
+OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_SPARK_PROPERTIES = {
+    "spark.openlineage.transport.type": "http",
+    "spark.openlineage.transport.url": "https://some-custom.url",
+    "spark.openlineage.transport.endpoint": "/api/custom",
+    "spark.openlineage.transport.auth.type": "api_key",
+    "spark.openlineage.transport.auth.apiKey": "Bearer secret_123",
+    "spark.openlineage.transport.compression": "gzip",
+    "spark.openlineage.transport.headers.key1": "val1",
+    "spark.openlineage.transport.headers.key2": "val2",
+    "spark.openlineage.transport.timeoutInMillis": "123000",
+}
+OPENLINEAGE_PARENT_JOB_EXAMPLE_SPARK_PROPERTIES = {
+    "spark.openlineage.parentJobName": "dag_id.task_id",
+    "spark.openlineage.parentJobNamespace": "default",
+    "spark.openlineage.parentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+}
 
 
 def read_file_json(file):
@@ -507,7 +574,7 @@ def test_replace_dataproc_job_properties_key_error():
 def test_inject_openlineage_properties_into_dataproc_job_provider_not_accessible(mock_is_accessible):
     mock_is_accessible.return_value = False
     job = {"sparkJob": {"properties": {"existingProperty": "value"}}}
-    result = inject_openlineage_properties_into_dataproc_job(job, None, True)
+    result = inject_openlineage_properties_into_dataproc_job(job, None, True, True)
     assert result == job
 
 
@@ -519,43 +586,69 @@ def test_inject_openlineage_properties_into_dataproc_job_unsupported_job_type(
     mock_is_accessible.return_value = True
     mock_extract_job_type.return_value = None
     job = {"unsupportedJob": {"properties": {"existingProperty": "value"}}}
-    result = inject_openlineage_properties_into_dataproc_job(job, None, True)
+    result = inject_openlineage_properties_into_dataproc_job(job, None, True, True)
     assert result == job
 
 
 @patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
 @patch("airflow.providers.google.cloud.openlineage.utils._extract_supported_job_type_from_dataproc_job")
-def test_inject_openlineage_properties_into_dataproc_job_no_inject_parent_job_info(
+def test_inject_openlineage_properties_into_dataproc_job_no_injection(
     mock_extract_job_type, mock_is_accessible
 ):
     mock_is_accessible.return_value = True
     mock_extract_job_type.return_value = "sparkJob"
     inject_parent_job_info = False
     job = {"sparkJob": {"properties": {"existingProperty": "value"}}}
-    result = inject_openlineage_properties_into_dataproc_job(job, None, inject_parent_job_info)
+    result = inject_openlineage_properties_into_dataproc_job(job, None, inject_parent_job_info, False)
     assert result == job
 
 
 @patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-def test_inject_openlineage_properties_into_dataproc_job(mock_is_ol_accessible):
+def test_inject_openlineage_properties_into_dataproc_job_parent_info_only(mock_is_ol_accessible):
     mock_is_ol_accessible.return_value = True
-    context = {
-        "ti": MagicMock(
-            dag_id="dag_id",
-            task_id="task_id",
-            try_number=1,
-            map_index=1,
-            logical_date=dt.datetime(2024, 11, 11),
-        )
-    }
     expected_properties = {
         "existingProperty": "value",
-        "spark.openlineage.parentJobName": "dag_id.task_id",
-        "spark.openlineage.parentJobNamespace": "default",
-        "spark.openlineage.parentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+        **OPENLINEAGE_PARENT_JOB_EXAMPLE_SPARK_PROPERTIES,
     }
     job = {"sparkJob": {"properties": {"existingProperty": "value"}}}
-    result = inject_openlineage_properties_into_dataproc_job(job, context, True)
+    result = inject_openlineage_properties_into_dataproc_job(job, EXAMPLE_CONTEXT, True, False)
+    assert result == {"sparkJob": {"properties": expected_properties}}
+
+
+@patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+@patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
+def test_inject_openlineage_properties_into_dataproc_job_transport_info_only(
+    mock_is_ol_accessible, mock_ol_listener
+):
+    mock_is_ol_accessible.return_value = True
+    mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
+    )
+    expected_properties = {
+        "existingProperty": "value",
+        **OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_SPARK_PROPERTIES,
+    }
+    job = {"sparkJob": {"properties": {"existingProperty": "value"}}}
+    result = inject_openlineage_properties_into_dataproc_job(job, EXAMPLE_CONTEXT, False, True)
+    assert result == {"sparkJob": {"properties": expected_properties}}
+
+
+@patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+@patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
+def test_inject_openlineage_properties_into_dataproc_job_all_injections(
+    mock_is_ol_accessible, mock_ol_listener
+):
+    mock_is_ol_accessible.return_value = True
+    mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
+    )
+    expected_properties = {
+        "existingProperty": "value",
+        **OPENLINEAGE_PARENT_JOB_EXAMPLE_SPARK_PROPERTIES,
+        **OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_SPARK_PROPERTIES,
+    }
+    job = {"sparkJob": {"properties": {"existingProperty": "value"}}}
+    result = inject_openlineage_properties_into_dataproc_job(job, EXAMPLE_CONTEXT, True, True)
     assert result == {"sparkJob": {"properties": expected_properties}}
 
 
@@ -577,7 +670,7 @@ def test_is_dataproc_batch_of_supported_type(batch, expected):
     assert _is_dataproc_batch_of_supported_type(batch) == expected
 
 
-def test__extract_dataproc_batch_properties_batch_object_with_runtime_object():
+def test_extract_dataproc_batch_properties_batch_object_with_runtime_object():
     properties = {"key1": "value1", "key2": "value2"}
     mock_runtime_config = RuntimeConfig(properties=properties)
     mock_batch = Batch(runtime_config=mock_runtime_config)
@@ -749,15 +842,8 @@ def test_replace_dataproc_batch_properties_with_empty_dict():
 @patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
 def test_inject_openlineage_properties_into_dataproc_batch_provider_not_accessible(mock_is_accessible):
     mock_is_accessible.return_value = False
-    batch = {
-        "spark_batch": {
-            "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
-            "main_class": "org.apache.spark.examples.SparkPi",
-        },
-        "runtime_config": {"properties": {"existingProperty": "value"}},
-    }
-    result = inject_openlineage_properties_into_dataproc_batch(batch, None, True)
-    assert result == batch
+    result = inject_openlineage_properties_into_dataproc_batch(EXAMPLE_BATCH, None, True, True)
+    assert result == EXAMPLE_BATCH
 
 
 @patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
@@ -774,62 +860,73 @@ def test_inject_openlineage_properties_into_dataproc_batch_unsupported_batch_typ
         },
         "runtime_config": {"properties": {"existingProperty": "value"}},
     }
-    result = inject_openlineage_properties_into_dataproc_batch(batch, None, True)
+    result = inject_openlineage_properties_into_dataproc_batch(batch, None, True, True)
     assert result == batch
 
 
 @patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
 @patch("airflow.providers.google.cloud.openlineage.utils._is_dataproc_batch_of_supported_type")
-def test_inject_openlineage_properties_into_dataproc_batch_no_inject_parent_job_info(
+def test_inject_openlineage_properties_into_dataproc_batch_no_injection(
     mock_valid_job_type, mock_is_accessible
 ):
     mock_is_accessible.return_value = True
     mock_valid_job_type.return_value = True
-    inject_parent_job_info = False
-    batch = {
-        "spark_batch": {
-            "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
-            "main_class": "org.apache.spark.examples.SparkPi",
-        },
-        "runtime_config": {"properties": {"existingProperty": "value"}},
-    }
-    result = inject_openlineage_properties_into_dataproc_batch(batch, None, inject_parent_job_info)
-    assert result == batch
+    result = inject_openlineage_properties_into_dataproc_batch(EXAMPLE_BATCH, None, False, False)
+    assert result == EXAMPLE_BATCH
 
 
 @patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-def test_inject_openlineage_properties_into_dataproc_batch(mock_is_ol_accessible):
+def test_inject_openlineage_properties_into_dataproc_batch_parent_info_only(mock_is_ol_accessible):
     mock_is_ol_accessible.return_value = True
-    context = {
-        "ti": MagicMock(
-            dag_id="dag_id",
-            task_id="task_id",
-            try_number=1,
-            map_index=1,
-            logical_date=dt.datetime(2024, 11, 11),
-        )
-    }
-    batch = {
-        "spark_batch": {
-            "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
-            "main_class": "org.apache.spark.examples.SparkPi",
-        },
-        "runtime_config": {"properties": {"existingProperty": "value"}},
-    }
     expected_properties = {
         "existingProperty": "value",
-        "spark.openlineage.parentJobName": "dag_id.task_id",
-        "spark.openlineage.parentJobNamespace": "default",
-        "spark.openlineage.parentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+        **OPENLINEAGE_PARENT_JOB_EXAMPLE_SPARK_PROPERTIES,
     }
     expected_batch = {
-        "spark_batch": {
-            "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
-            "main_class": "org.apache.spark.examples.SparkPi",
-        },
+        **EXAMPLE_BATCH,
         "runtime_config": {"properties": expected_properties},
     }
-    result = inject_openlineage_properties_into_dataproc_batch(batch, context, True)
+    result = inject_openlineage_properties_into_dataproc_batch(EXAMPLE_BATCH, EXAMPLE_CONTEXT, True, False)
+    assert result == expected_batch
+
+
+@patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+@patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
+def test_inject_openlineage_properties_into_dataproc_batch_transport_info_only(
+    mock_is_ol_accessible, mock_ol_listener
+):
+    mock_is_ol_accessible.return_value = True
+    mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
+    )
+    expected_properties = {"existingProperty": "value", **OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_SPARK_PROPERTIES}
+    expected_batch = {
+        **EXAMPLE_BATCH,
+        "runtime_config": {"properties": expected_properties},
+    }
+    result = inject_openlineage_properties_into_dataproc_batch(EXAMPLE_BATCH, EXAMPLE_CONTEXT, False, True)
+    assert result == expected_batch
+
+
+@patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+@patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
+def test_inject_openlineage_properties_into_dataproc_batch_all_injections(
+    mock_is_ol_accessible, mock_ol_listener
+):
+    mock_is_ol_accessible.return_value = True
+    mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
+    )
+    expected_properties = {
+        "existingProperty": "value",
+        **OPENLINEAGE_PARENT_JOB_EXAMPLE_SPARK_PROPERTIES,
+        **OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_SPARK_PROPERTIES,
+    }
+    expected_batch = {
+        **EXAMPLE_BATCH,
+        "runtime_config": {"properties": expected_properties},
+    }
+    result = inject_openlineage_properties_into_dataproc_batch(EXAMPLE_BATCH, EXAMPLE_CONTEXT, True, True)
     assert result == expected_batch
 
 
@@ -867,45 +964,29 @@ def test_inject_openlineage_properties_into_dataproc_workflow_template_provider_
 ):
     mock_is_accessible.return_value = False
     template = {"workflow": "template"}  # It does not matter what the dict is, we should return it unmodified
-    result = inject_openlineage_properties_into_dataproc_workflow_template(template, None, True)
+    result = inject_openlineage_properties_into_dataproc_workflow_template(template, None, True, True)
     assert result == template
 
 
 @patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
 @patch("airflow.providers.google.cloud.openlineage.utils._extract_supported_job_type_from_dataproc_job")
-def test_inject_openlineage_properties_into_dataproc_workflow_template_no_inject_parent_job_info(
+def test_inject_openlineage_properties_into_dataproc_workflow_template_no_injection(
     mock_extract_job_type, mock_is_accessible
 ):
     mock_is_accessible.return_value = True
     mock_extract_job_type.return_value = "sparkJob"
-    inject_parent_job_info = False
     template = {"workflow": "template"}  # It does not matter what the dict is, we should return it unmodified
-    result = inject_openlineage_properties_into_dataproc_workflow_template(
-        template, None, inject_parent_job_info
-    )
+    result = inject_openlineage_properties_into_dataproc_workflow_template(template, None, False, False)
     assert result == template
 
 
 @patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-def test_inject_openlineage_properties_into_dataproc_workflow_template(mock_is_ol_accessible):
+def test_inject_openlineage_properties_into_dataproc_workflow_template_parent_info_only(
+    mock_is_ol_accessible,
+):
     mock_is_ol_accessible.return_value = True
-    context = {
-        "ti": MagicMock(
-            dag_id="dag_id",
-            task_id="task_id",
-            try_number=1,
-            map_index=1,
-            logical_date=dt.datetime(2024, 11, 11),
-        )
-    }
     template = {
-        "id": "test-workflow",
-        "placement": {
-            "cluster_selector": {
-                "zone": "europe-central2-c",
-                "cluster_labels": {"key": "value"},
-            }
-        },
+        **EXAMPLE_TEMPLATE,
         "jobs": [
             {
                 "step_id": "job_1",
@@ -938,13 +1019,7 @@ def test_inject_openlineage_properties_into_dataproc_workflow_template(mock_is_o
         ],
     }
     expected_template = {
-        "id": "test-workflow",
-        "placement": {
-            "cluster_selector": {
-                "zone": "europe-central2-c",
-                "cluster_labels": {"key": "value"},
-            }
-        },
+        **EXAMPLE_TEMPLATE,
         "jobs": [
             {
                 "step_id": "job_1",
@@ -979,5 +1054,200 @@ def test_inject_openlineage_properties_into_dataproc_workflow_template(mock_is_o
             },
         ],
     }
-    result = inject_openlineage_properties_into_dataproc_workflow_template(template, context, True)
+    result = inject_openlineage_properties_into_dataproc_workflow_template(
+        template, EXAMPLE_CONTEXT, True, False
+    )
+    assert result == expected_template
+
+
+@patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+@patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
+def test_inject_openlineage_properties_into_dataproc_workflow_template_transport_info_only(
+    mock_is_ol_accessible, mock_ol_listener
+):
+    mock_is_ol_accessible.return_value = True
+    mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
+    )
+    template = {
+        **EXAMPLE_TEMPLATE,
+        "jobs": [
+            {
+                "step_id": "job_1",
+                "pyspark_job": {
+                    "main_python_file_uri": "gs://bucket1/spark_job.py",
+                    "properties": {
+                        "spark.sql.shuffle.partitions": "1",
+                    },
+                },
+            },
+            {
+                "step_id": "job_2",
+                "pyspark_job": {
+                    "main_python_file_uri": "gs://bucket2/spark_job.py",
+                    "properties": {
+                        "spark.sql.shuffle.partitions": "1",
+                        "spark.openlineage.transport.type": "console",
+                    },
+                },
+            },
+            {
+                "step_id": "job_3",
+                "hive_job": {
+                    "main_python_file_uri": "gs://bucket3/hive_job.py",
+                    "properties": {
+                        "spark.sql.shuffle.partitions": "1",
+                    },
+                },
+            },
+        ],
+    }
+    expected_template = {
+        **EXAMPLE_TEMPLATE,
+        "jobs": [
+            {
+                "step_id": "job_1",
+                "pyspark_job": {
+                    "main_python_file_uri": "gs://bucket1/spark_job.py",
+                    "properties": {  # Injected properties
+                        "spark.sql.shuffle.partitions": "1",
+                        **OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_SPARK_PROPERTIES,
+                    },
+                },
+            },
+            {
+                "step_id": "job_2",
+                "pyspark_job": {  # Not modified because it's already present
+                    "main_python_file_uri": "gs://bucket2/spark_job.py",
+                    "properties": {
+                        "spark.sql.shuffle.partitions": "1",
+                        "spark.openlineage.transport.type": "console",
+                    },
+                },
+            },
+            {
+                "step_id": "job_3",
+                "hive_job": {  # Not modified because it's unsupported job type
+                    "main_python_file_uri": "gs://bucket3/hive_job.py",
+                    "properties": {
+                        "spark.sql.shuffle.partitions": "1",
+                    },
+                },
+            },
+        ],
+    }
+    result = inject_openlineage_properties_into_dataproc_workflow_template(
+        template, EXAMPLE_CONTEXT, False, True
+    )
+    assert result == expected_template
+
+
+@patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+@patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
+def test_inject_openlineage_properties_into_dataproc_workflow_template_all_injections(
+    mock_is_ol_accessible, mock_ol_listener
+):
+    mock_is_ol_accessible.return_value = True
+    mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
+    )
+    template = {
+        **EXAMPLE_TEMPLATE,
+        "jobs": [
+            {
+                "step_id": "job_1",
+                "pyspark_job": {
+                    "main_python_file_uri": "gs://bucket1/spark_job.py",
+                    "properties": {
+                        "spark.sql.shuffle.partitions": "1",
+                    },
+                },
+            },
+            {
+                "step_id": "job_2",
+                "pyspark_job": {
+                    "main_python_file_uri": "gs://bucket2/spark_job.py",
+                    "properties": {
+                        "spark.sql.shuffle.partitions": "1",
+                        "spark.openlineage.transport.type": "console",
+                    },
+                },
+            },
+            {
+                "step_id": "job_3",
+                "hive_job": {
+                    "main_python_file_uri": "gs://bucket3/hive_job.py",
+                    "properties": {
+                        "spark.sql.shuffle.partitions": "1",
+                    },
+                },
+            },
+            {
+                "step_id": "job_4",
+                "pyspark_job": {
+                    "main_python_file_uri": "gs://bucket2/spark_job.py",
+                    "properties": {
+                        "spark.sql.shuffle.partitions": "1",
+                        "spark.openlineage.parentJobNamespace": "test",
+                    },
+                },
+            },
+        ],
+    }
+    expected_template = {
+        "id": "test-workflow",
+        "placement": {
+            "cluster_selector": {
+                "zone": "europe-central2-c",
+                "cluster_labels": {"key": "value"},
+            }
+        },
+        "jobs": [
+            {
+                "step_id": "job_1",
+                "pyspark_job": {
+                    "main_python_file_uri": "gs://bucket1/spark_job.py",
+                    "properties": {  # Injected properties
+                        "spark.sql.shuffle.partitions": "1",
+                        **OPENLINEAGE_PARENT_JOB_EXAMPLE_SPARK_PROPERTIES,
+                        **OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_SPARK_PROPERTIES,
+                    },
+                },
+            },
+            {
+                "step_id": "job_2",
+                "pyspark_job": {  # Only parent info injected
+                    "main_python_file_uri": "gs://bucket2/spark_job.py",
+                    "properties": {
+                        "spark.sql.shuffle.partitions": "1",
+                        "spark.openlineage.transport.type": "console",
+                        **OPENLINEAGE_PARENT_JOB_EXAMPLE_SPARK_PROPERTIES,
+                    },
+                },
+            },
+            {
+                "step_id": "job_3",
+                "hive_job": {  # Not modified because it's unsupported job type
+                    "main_python_file_uri": "gs://bucket3/hive_job.py",
+                    "properties": {
+                        "spark.sql.shuffle.partitions": "1",
+                    },
+                },
+            },
+            {
+                "step_id": "job_4",
+                "pyspark_job": {
+                    "main_python_file_uri": "gs://bucket2/spark_job.py",
+                    "properties": {  # Only transport info injected
+                        "spark.sql.shuffle.partitions": "1",
+                        "spark.openlineage.parentJobNamespace": "test",
+                        **OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_SPARK_PROPERTIES,
+                    },
+                },
+            },
+        ],
+    }
+    result = inject_openlineage_properties_into_dataproc_workflow_template(
+        template, EXAMPLE_CONTEXT, True, True
+    )
     assert result == expected_template
