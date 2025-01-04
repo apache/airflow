@@ -356,6 +356,19 @@ class TestPostVariable(TestVariableEndpoint):
                     "is_encrypted": True,
                 },
             ),
+            (
+                {
+                    "key": "empty value variable",
+                    "value": "",
+                    "description": "some description",
+                },
+                {
+                    "key": "empty value variable",
+                    "value": "",
+                    "description": "some description",
+                    "is_encrypted": True,
+                },
+            ),
         ],
     )
     def test_post_should_respond_201(self, test_client, session, body, expected_response):
@@ -396,6 +409,25 @@ class TestPostVariable(TestVariableEndpoint):
                     "msg": "String should have at most 250 characters",
                     "input": large_key,
                     "ctx": {"max_length": 250},
+                }
+            ]
+        }
+
+    def test_post_should_respond_422_when_value_is_null(self, test_client):
+        body = {
+            "key": "null value key",
+            "value": None,
+            "description": "key too large",
+        }
+        response = test_client.post("/public/variables", json=body)
+        assert response.status_code == 422
+        assert response.json() == {
+            "detail": [
+                {
+                    "type": "string_type",
+                    "loc": ["body", "value"],
+                    "msg": "Input should be a valid string",
+                    "input": None,
                 }
             ]
         }
