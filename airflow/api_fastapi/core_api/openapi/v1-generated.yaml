@@ -1738,12 +1738,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
   /public/connections/bulk:
-    post:
+    put:
       tags:
       - Connection
-      summary: Post Connections
+      summary: Put Connections
       description: Create connection entry.
-      operationId: post_connections
+      operationId: put_connections
       requestBody:
         content:
           application/json:
@@ -1751,8 +1751,8 @@ paths:
               $ref: '#/components/schemas/ConnectionBulkBody'
         required: true
       responses:
-        '201':
-          description: Successful Response
+        '200':
+          description: Created with overwrite
           content:
             application/json:
               schema:
@@ -1775,6 +1775,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionCollectionResponse'
         '422':
           description: Validation Error
           content:
@@ -6761,6 +6767,12 @@ components:
             $ref: '#/components/schemas/ConnectionBody'
           type: array
           title: Connections
+        overwrite:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Overwrite
+          default: false
       type: object
       required:
       - connections
