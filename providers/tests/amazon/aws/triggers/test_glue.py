@@ -118,6 +118,26 @@ class TestGlueCatalogPartitionSensorTrigger:
 
         assert response is True
 
+    @pytest.mark.asyncio
+    @mock.patch.object(GlueCatalogHook, "async_get_partitions")
+    async def test_poke_with_catalog_id(self, mock_async_get_partitions):
+        catalog_id = "123456789012"
+        trigger = GlueCatalogPartitionTrigger(
+            database_name="my_database",
+            table_name="my_table",
+            expression="my_expression",
+            catalog_id=catalog_id,
+            aws_conn_id="my_conn_id",
+        )
+        await trigger.poke(client=mock.MagicMock())
+        mock_async_get_partitions.assert_called_once_with(
+            client=mock.ANY,
+            database_name="my_database",
+            table_name="my_table",
+            catalog_id=catalog_id,
+            expression="my_expression",
+        )
+
     def test_serialization(self):
         trigger = GlueCatalogPartitionTrigger(
             database_name="test_database",
@@ -133,6 +153,7 @@ class TestGlueCatalogPartitionSensorTrigger:
             "database_name": "test_database",
             "table_name": "test_table",
             "expression": "id=12",
+            "catalog_id": None,
             "waiter_delay": 60,
             "aws_conn_id": "fake_conn_id",
             "region_name": "eu-west-2",
