@@ -23,6 +23,7 @@
 {{- if and .Values.rbac.create .Values.allowPodLaunching }}
 {{- $schedulerLaunchExecutors := list "LocalExecutor" "LocalKubernetesExecutor" "KubernetesExecutor" "CeleryKubernetesExecutor" }}
 {{- $workerLaunchExecutors := list "CeleryExecutor" "LocalKubernetesExecutor" "KubernetesExecutor" "CeleryKubernetesExecutor" }}
+{{- $executors := split "," .Values.executor }}
 apiVersion: rbac.authorization.k8s.io/v1
 {{- if .Values.multiNamespaceMode }}
 kind: ClusterRoleBinding
@@ -57,14 +58,20 @@ roleRef:
   name: {{ include "airflow.fullname" . }}-pod-launcher-role
   {{- end }}
 subjects:
-  {{- if has .Values.executor $schedulerLaunchExecutors }}
+  {{- range $executor := $executors }}
+  {{- if has $executor $schedulerLaunchExecutors }}
   - kind: ServiceAccount
-    name: {{ include "scheduler.serviceAccountName" . }}
-    namespace: "{{ .Release.Namespace }}"
+    name: {{ include "scheduler.serviceAccountName" $ }}
+    namespace: "{{ $.Release.Namespace }}"
+    {{- break -}}
   {{- end }}
-  {{- if has .Values.executor $workerLaunchExecutors }}
+  {{- end }}
+  {{- range $executor := $executors }}
+  {{- if has $executor $workerLaunchExecutors }}
   - kind: ServiceAccount
-    name: {{ include "worker.serviceAccountName" . }}
-    namespace: "{{ .Release.Namespace }}"
+    name: {{ include "worker.serviceAccountName" $ }}
+    namespace: "{{ $.Release.Namespace }}"
+    {{- break -}}
+  {{- end }}
   {{- end }}
 {{- end }}
