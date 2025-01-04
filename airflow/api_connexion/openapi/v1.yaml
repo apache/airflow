@@ -4744,7 +4744,13 @@ components:
             *New in version 2.1.0*
           type: array
           items:
-            type: string
+            oneOf:
+              - type: string
+                description: A task ID as a string.
+              - type: array
+                items:
+                  type: string
+                description: A list of task IDs, each represented as a string.
           minItems: 1
 
         start_date:
