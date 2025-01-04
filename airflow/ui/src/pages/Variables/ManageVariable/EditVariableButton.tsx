@@ -36,7 +36,7 @@ const EditVariableButton = ({ variable }: Props) => {
   const initialVariableValue: VariableBody = {
     description: variable.description ?? "",
     key: variable.key,
-    value: variable.value ?? "",
+    value: variable.value,
   };
   const { editVariable, error, isPending, setError } = useEditVariable(initialVariableValue, {
     onSuccessConfirm: onClose,
