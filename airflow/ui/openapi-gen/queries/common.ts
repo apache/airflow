@@ -7,6 +7,7 @@ import {
   ConfigService,
   ConnectionService,
   DagParsingService,
+  DagReportService,
   DagRunService,
   DagService,
   DagSourceService,
@@ -647,6 +648,22 @@ export const UseDagStatsServiceGetDagStatsKeyFn = (
   } = {},
   queryKey?: Array<unknown>,
 ) => [useDagStatsServiceGetDagStatsKey, ...(queryKey ?? [{ dagIds }])];
+export type DagReportServiceGetDagReportDefaultResponse = Awaited<
+  ReturnType<typeof DagReportService.getDagReport>
+>;
+export type DagReportServiceGetDagReportQueryResult<
+  TData = DagReportServiceGetDagReportDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagReportServiceGetDagReportKey = "DagReportServiceGetDagReport";
+export const UseDagReportServiceGetDagReportKeyFn = (
+  {
+    subdir,
+  }: {
+    subdir: string;
+  },
+  queryKey?: Array<unknown>,
+) => [useDagReportServiceGetDagReportKey, ...(queryKey ?? [{ subdir }])];
 export type DagWarningServiceListDagWarningsDefaultResponse = Awaited<
   ReturnType<typeof DagWarningService.listDagWarnings>
 >;
