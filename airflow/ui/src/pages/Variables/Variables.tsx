@@ -87,6 +87,9 @@ const getColumns = ({
     ),
     enableSorting: false,
     header: "",
+    meta: {
+      skeletonWidth: 10,
+    },
   },
 ];
 
