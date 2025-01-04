@@ -25,7 +25,7 @@ from unittest.mock import call, patch
 
 import pytest
 import time_machine
-from requests import HTTPError
+from requests import HTTPError, Response
 
 from airflow.providers.edge.cli.edge_command import _EdgeWorkerCli, _Job, _write_pid_to_pidfile
 from airflow.providers.edge.models.edge_worker import EdgeWorkerState, EdgeWorkerVersionException
@@ -282,22 +282,20 @@ class TestEdgeWorkerCli:
 
     @patch("airflow.providers.edge.cli.edge_command.worker_register")
     def test_start_missing_apiserver(self, mock_register_worker, worker_with_job: _EdgeWorkerCli):
-        class MockResponse:
-            status_code = 404
-
+        mock_response = Response()
+        mock_response.status_code = 404
         mock_register_worker.side_effect = HTTPError(
-            "Something with 404:NOT FOUND means API is not active", response=MockResponse()
+            "Something with 404:NOT FOUND means API is not active", response=mock_response
         )
         with pytest.raises(SystemExit, match=r"API endpoint is not ready"):
             worker_with_job.start()
 
     @patch("airflow.providers.edge.cli.edge_command.worker_register")
     def test_start_server_error(self, mock_register_worker, worker_with_job: _EdgeWorkerCli):
-        class MockResponse:
-            status_code = 500
-
+        mock_response = Response()
+        mock_response.status_code = 500
         mock_register_worker.side_effect = HTTPError(
-            "Something other error not FourhundretFour", response=MockResponse()
+            "Something other error not FourhundretFour", response=mock_response
         )
         with pytest.raises(SystemExit, match=r"Something other"):
             worker_with_job.start()
