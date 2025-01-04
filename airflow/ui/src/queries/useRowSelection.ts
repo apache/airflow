@@ -53,16 +53,16 @@ export const useRowSelection = <T>({ data = [], getKey }: UseRowSelectionProps<T
 
   const handleSelectAll = useCallback(
     (isChecked: boolean) => {
-      setSelectedRows(() => {
+      setSelectedRows((prev) => {
+        const newMap = new Map(prev);
+
         if (isChecked) {
-          const newMap = new Map();
-
           data.forEach((item) => newMap.set(getKey(item), true));
-
-          return newMap;
+        } else {
+          data.forEach((item) => newMap.delete(getKey(item)));
         }
 
-        return new Map();
+        return newMap;
       });
     },
     [data, getKey],
