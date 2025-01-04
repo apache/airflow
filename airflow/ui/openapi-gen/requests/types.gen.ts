@@ -231,6 +231,7 @@ export type ConnectionBody = {
  */
 export type ConnectionBulkBody = {
   connections: Array<ConnectionBody>;
+  overwrite?: boolean | null;
 };
 
 /**
@@ -1617,11 +1618,11 @@ export type PostConnectionData = {
 
 export type PostConnectionResponse = ConnectionResponse;
 
-export type PostConnectionsData = {
+export type PutConnectionsData = {
   requestBody: ConnectionBulkBody;
 };
 
-export type PostConnectionsResponse = ConnectionCollectionResponse;
+export type PutConnectionsResponse = ConnectionCollectionResponse;
 
 export type TestConnectionData = {
   requestBody: ConnectionBody;
@@ -2989,11 +2990,15 @@ export type $OpenApiTs = {
     };
   };
   "/public/connections/bulk": {
-    post: {
-      req: PostConnectionsData;
+    put: {
+      req: PutConnectionsData;
       res: {
         /**
-         * Successful Response
+         * Created with overwrite
+         */
+        200: ConnectionCollectionResponse;
+        /**
+         * Created
          */
         201: ConnectionCollectionResponse;
         /**

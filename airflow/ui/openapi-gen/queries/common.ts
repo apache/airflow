@@ -1599,9 +1599,6 @@ export type BackfillServiceCreateBackfillMutationResult = Awaited<
 export type ConnectionServicePostConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.postConnection>
 >;
-export type ConnectionServicePostConnectionsMutationResult = Awaited<
-  ReturnType<typeof ConnectionService.postConnections>
->;
 export type ConnectionServiceTestConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.testConnection>
 >;
@@ -1634,6 +1631,9 @@ export type BackfillServiceUnpauseBackfillMutationResult = Awaited<
 >;
 export type BackfillServiceCancelBackfillMutationResult = Awaited<
   ReturnType<typeof BackfillService.cancelBackfill>
+>;
+export type ConnectionServicePutConnectionsMutationResult = Awaited<
+  ReturnType<typeof ConnectionService.putConnections>
 >;
 export type DagParsingServiceReparseDagFileMutationResult = Awaited<
   ReturnType<typeof DagParsingService.reparseDagFile>

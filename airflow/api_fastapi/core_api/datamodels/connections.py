@@ -94,3 +94,4 @@ class ConnectionBulkBody(BaseModel):
     """Connections Serializer for requests body."""
 
     connections: list[ConnectionBody]
+    overwrite: bool | None = Field(default=False)
