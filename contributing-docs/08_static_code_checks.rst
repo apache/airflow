@@ -374,7 +374,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-installed-providers-to-be-sorted                   | Sort and uniquify installed_providers.txt              |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| update-installers                                         | Update installers to latest (manual)                   |         |
+| update-installers-and-pre-commit                          | Update installers and pre-commit to latest (manual)    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-local-yml-file                                     | Update mounts in the local yml file                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
