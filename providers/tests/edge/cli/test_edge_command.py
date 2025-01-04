@@ -21,7 +21,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 from subprocess import Popen
-from unittest.mock import call, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 import time_machine
@@ -34,8 +34,27 @@ from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytest.importorskip("pydantic", minversion="2.0.0")
+
+
+MOCK_COMMAND = (
+    {
+        "token": "dummy",
+        "ti": {
+            "id": "4d828a62-a417-4936-a7a6-2b3fabacecab",
+            "task_id": "dummy",
+            "dag_id": "dummy",
+            "run_id": "dummy",
+            "try_number": 1,
+        },
+        "dag_path": "dummy.py",
+        "log_path": "dummy.log",
+    }
+    if AIRFLOW_V_3_0_PLUS
+    else ["test", "command"]  # Airflow 2.10
+)
 
 
 def test_write_pid_to_pidfile_success(caplog, tmp_path):
@@ -102,7 +121,7 @@ class TestEdgeWorkerCli:
                     map_index=-1,
                     try_number=1,
                     concurrency_slots=1,
-                    command=["test", "command"],
+                    command=MOCK_COMMAND,  # type: ignore[arg-type]
                 ),
                 process=_MockPopen(),
                 logfile=logfile,
@@ -116,6 +135,28 @@ class TestEdgeWorkerCli:
         test_worker.jobs = dummy_joblist
         return test_worker
 
+    @patch("airflow.providers.edge.cli.edge_command.Process")
+    @patch("airflow.providers.edge.cli.edge_command.logs_logfile_path")
+    @patch("airflow.providers.edge.cli.edge_command.Popen")
+    def test_launch_job(self, mock_popen, mock_logfile_path, mock_process, worker_with_job: _EdgeWorkerCli):
+        mock_popen.side_effect = [MagicMock()]
+        mock_process_instance = MagicMock()
+        mock_process.side_effect = [mock_process_instance]
+
+        edge_job = worker_with_job.jobs.pop().edge_job
+        with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
+            worker_with_job._launch_job(edge_job)
+
+        if AIRFLOW_V_3_0_PLUS:
+            assert mock_process.call_count == 1
+            assert mock_process_instance.start.call_count == 1
+        else:
+            assert mock_popen.call_count == 1
+            assert mock_logfile_path.call_count == 1
+
+        assert len(worker_with_job.jobs) == 1
+        assert worker_with_job.jobs[0].edge_job == edge_job
+
     @pytest.mark.parametrize(
         "reserve_result, fetch_result, expected_calls",
         [
@@ -128,7 +169,7 @@ class TestEdgeWorkerCli:
                     map_index=-1,
                     try_number=1,
                     concurrency_slots=1,
-                    command=["test", "command"],
+                    command=MOCK_COMMAND,  # type: ignore[arg-type]
                 ),
                 True,
                 (1, 1),
@@ -158,7 +199,11 @@ class TestEdgeWorkerCli:
             got_job = worker_with_job.fetch_job()
         mock_reserve_task.assert_called_once()
         assert got_job == fetch_result
-        assert mock_logfile_path.call_count == logfile_path_call_count
+        if AIRFLOW_V_3_0_PLUS:
+            # this is only called on Airflow 2.10, AIP-72 includes it
+            assert mock_logfile_path.call_count == 0
+        else:
+            assert mock_logfile_path.call_count == logfile_path_call_count
         assert mock_set_state.call_count == set_state_call_count
 
     def test_check_running_jobs_running(self, worker_with_job: _EdgeWorkerCli):
@@ -174,7 +219,7 @@ class TestEdgeWorkerCli:
     @patch("airflow.providers.edge.cli.edge_command.jobs_set_state")
     def test_check_running_jobs_success(self, mock_set_state, worker_with_job: _EdgeWorkerCli):
         job = worker_with_job.jobs[0]
-        job.process.generated_returncode = 0  # type: ignore[attr-defined]
+        job.process.generated_returncode = 0  # type: ignore[union-attr]
         with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
             worker_with_job.check_running_jobs()
         assert len(worker_with_job.jobs) == 0
@@ -184,7 +229,7 @@ class TestEdgeWorkerCli:
     @patch("airflow.providers.edge.cli.edge_command.jobs_set_state")
     def test_check_running_jobs_failed(self, mock_set_state, worker_with_job: _EdgeWorkerCli):
         job = worker_with_job.jobs[0]
-        job.process.generated_returncode = 42  # type: ignore[attr-defined]
+        job.process.generated_returncode = 42  # type: ignore[union-attr]
         with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
             worker_with_job.check_running_jobs()
         assert len(worker_with_job.jobs) == 0
