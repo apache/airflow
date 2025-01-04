@@ -41,7 +41,7 @@ import time_machine
 from sqlalchemy import func
 from uuid6 import uuid7
 
-from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest
+from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.dag_processing.manager import (
     DagFileProcessorAgent,
@@ -573,8 +573,10 @@ class TestDagFileProcessorManager:
                 if exit_event.is_set():
                     break
 
-                req = CallbackRequest(full_filepath=dag_filepath.as_posix())
-                logger.info("Sending CallbackRequests %d", n)
+                req = DagCallbackRequest(
+                    full_filepath=dag_filepath.as_posix(), dag_id="test_dag", run_id="run_id"
+                )
+                logger.info("Sending DagCallbackRequests %d", n)
                 try:
                     pipe.send(req)
                 except TypeError:
@@ -583,7 +585,7 @@ class TestDagFileProcessorManager:
                     break
                 except OSError:
                     break
-                logger.debug("   Sent %d CallbackRequests", n)
+                logger.debug("   Sent %d DagCallbackRequests", n)
 
         thread = threading.Thread(target=keep_pipe_full, args=(parent_pipe, exit_event))
 
