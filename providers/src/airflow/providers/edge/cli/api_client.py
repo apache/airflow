@@ -30,7 +30,6 @@ from retryhttp import retry, wait_retry_after
 from tenacity import before_log, wait_random_exponential
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.providers.edge.worker_api.auth import jwt_signer
 from airflow.providers.edge.worker_api.datamodels import (
     EdgeJobFetched,
@@ -82,14 +81,9 @@ def _make_generic_request(method: str, rest_path: str, data: str | None = None) 
     }
     api_endpoint = urljoin(api_url, rest_path)
     response = requests.request(method, url=api_endpoint, data=data, headers=headers)
+    response.raise_for_status()
     if response.status_code == HTTPStatus.NO_CONTENT:
         return None
-    if response.status_code != HTTPStatus.OK:
-        raise AirflowException(
-            f"Got {response.status_code}:{response.reason} when sending "
-            f"the internal api request: {response.text}",
-            HTTPStatus(response.status_code),
-        )
     return json.loads(response.content)
 
 
