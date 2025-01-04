@@ -27,8 +27,17 @@ from airflow.models import Connection
 
 class TestConnection:
     @pytest.mark.parametrize(
-        "uri, expected_conn_type, expected_host, expected_login, expected_password,"
-        " expected_port, expected_schema, expected_extra_dict, expected_exception_message",
+        (
+            "uri",
+            "expected_conn_type",
+            "expected_host",
+            "expected_login",
+            "expected_password",
+            "expected_port",
+            "expected_schema",
+            "expected_extra_dict",
+            "expected_exception_message",
+        ),
         [
             (
                 "type://user:pass@host:100/schema",
@@ -146,7 +155,7 @@ class TestConnection:
             assert conn.extra_dejson == expected_extra_dict
 
     @pytest.mark.parametrize(
-        "connection, expected_uri",
+        ("connection", "expected_uri"),
         [
             (
                 Connection(
@@ -188,7 +197,7 @@ class TestConnection:
         assert connection.get_uri() == expected_uri
 
     @pytest.mark.parametrize(
-        "connection, expected_conn_id",
+        ("connection", "expected_conn_id"),
         [
             # a valid example of connection id
             (

@@ -181,7 +181,7 @@ class TestBatchComputeEnvironmentSensor:
         assert "AWS Batch compute environment failed" in str(ctx.value)
 
     @pytest.mark.parametrize(
-        "compute_env, error_message",
+        ("compute_env", "error_message"),
         (
             (
                 [{"status": "unknown_status"}],

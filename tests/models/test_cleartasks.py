@@ -151,7 +151,7 @@ class TestClearTasks:
         assert ti0.next_kwargs is None
 
     @pytest.mark.parametrize(
-        ["state", "last_scheduling"], [(DagRunState.QUEUED, None), (DagRunState.RUNNING, DEFAULT_DATE)]
+        ("state", "last_scheduling"), [(DagRunState.QUEUED, None), (DagRunState.RUNNING, DEFAULT_DATE)]
     )
     def test_clear_task_instances_dr_state(self, state, last_scheduling, dag_maker):
         """Test that DR state is set to None after clear.
@@ -234,7 +234,7 @@ class TestClearTasks:
         assert dr.last_scheduling_decision == DEFAULT_DATE
 
     @pytest.mark.parametrize(
-        ["state", "last_scheduling"],
+        ("state", "last_scheduling"),
         [
             (DagRunState.SUCCESS, None),
             (DagRunState.SUCCESS, DEFAULT_DATE),
@@ -539,7 +539,7 @@ class TestClearTasks:
             assert count_task_reschedule(ti1.task_id) == 1
 
     @pytest.mark.parametrize(
-        ["state", "state_recorded"],
+        ("state", "state_recorded"),
         [
             (TaskInstanceState.SUCCESS, TaskInstanceState.SUCCESS),
             (TaskInstanceState.FAILED, TaskInstanceState.FAILED),

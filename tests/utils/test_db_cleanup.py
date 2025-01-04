@@ -77,7 +77,7 @@ class TestDBCleanup:
         drop_tables_with_prefix("_airflow_")
 
     @pytest.mark.parametrize(
-        "kwargs, called",
+        ("kwargs", "called"),
         [
             pytest.param(dict(confirm=True), True, id="true"),
             pytest.param(dict(), True, id="not supplied"),
@@ -101,7 +101,7 @@ class TestDBCleanup:
             confirm_delete_mock.assert_not_called()
 
     @pytest.mark.parametrize(
-        "kwargs, should_skip",
+        ("kwargs", "should_skip"),
         [
             pytest.param(dict(skip_archive=True), True, id="true"),
             pytest.param(dict(), False, id="not supplied"),
@@ -183,7 +183,7 @@ class TestDBCleanup:
             do_delete.assert_called()
 
     @pytest.mark.parametrize(
-        "table_name, date_add_kwargs, expected_to_delete, external_trigger",
+        ("table_name", "date_add_kwargs", "expected_to_delete", "external_trigger"),
         [
             pytest.param("task_instance", dict(days=0), 0, False, id="beginning"),
             pytest.param("task_instance", dict(days=4), 4, False, id="middle"),
@@ -225,7 +225,7 @@ class TestDBCleanup:
                 assert row[0] == expected_to_delete
 
     @pytest.mark.parametrize(
-        "table_name, date_add_kwargs, expected_to_delete, external_trigger",
+        ("table_name", "date_add_kwargs", "expected_to_delete", "external_trigger"),
         [
             pytest.param("task_instance", dict(days=0), 0, False, id="beginning"),
             pytest.param("task_instance", dict(days=4), 4, False, id="middle"),
@@ -276,7 +276,7 @@ class TestDBCleanup:
                 raise Exception("unexpected")
 
     @pytest.mark.parametrize(
-        "skip_archive, expected_archives",
+        ("skip_archive", "expected_archives"),
         [pytest.param(True, 1, id="skip_archive"), pytest.param(False, 2, id="do_archive")],
     )
     def test__skip_archive(self, skip_archive, expected_archives):

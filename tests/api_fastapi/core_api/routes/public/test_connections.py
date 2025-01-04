@@ -151,7 +151,7 @@ class TestGetConnection(TestConnectionEndpoint):
 
 class TestGetConnections(TestConnectionEndpoint):
     @pytest.mark.parametrize(
-        "query_params, expected_total_entries, expected_ids",
+        ("query_params", "expected_total_entries", "expected_ids"),
         [
             # Filters
             ({}, 2, [TEST_CONN_ID, TEST_CONN_ID_2]),
@@ -252,7 +252,7 @@ class TestPostConnection(TestConnectionEndpoint):
 
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "body, expected_response",
+        ("body", "expected_response"),
         [
             (
                 {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "password": "test-password"},
@@ -402,7 +402,7 @@ class TestPostConnections(TestConnectionEndpoint):
 
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "body, expected_response",
+        ("body", "expected_response"),
         [
             (
                 {
@@ -513,7 +513,7 @@ class TestPatchConnection(TestConnectionEndpoint):
         assert response.status_code == 200
 
     @pytest.mark.parametrize(
-        "body, updated_connection, update_mask",
+        ("body", "updated_connection", "update_mask"),
         [
             (
                 {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "extra": '{"key": "var"}'},
@@ -695,7 +695,7 @@ class TestPatchConnection(TestConnectionEndpoint):
 
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "body, expected_response",
+        ("body", "expected_response"),
         [
             (
                 {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "password": "test-password"},

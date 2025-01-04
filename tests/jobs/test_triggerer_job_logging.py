@@ -152,7 +152,7 @@ not_found_message = ["Could not find log handler suitable for individual trigger
 
 
 @pytest.mark.parametrize(
-    "cfg, cls, msg",
+    ("cfg", "cls", "msg"),
     [
         ("old_file_task_handler", OldFileTaskHandler, not_supported_message),
         ("non_file_task_handler", logging.Handler, not_found_message),

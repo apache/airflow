@@ -151,7 +151,7 @@ def test_should_list_providers_on_page_with_details(admin_client):
 
 
 @pytest.mark.parametrize(
-    "provider_description, expected",
+    ("provider_description", "expected"),
     [
         (
             "`Airbyte <https://airbyte.com/>`__",
@@ -185,7 +185,7 @@ def test__clean_description(admin_client, provider_description, expected):
 
 
 @pytest.mark.parametrize(
-    "provider_name, project_url, expected",
+    ("provider_name", "project_url", "expected"),
     [
         (
             "apache-airflow-providers-airbyte",
@@ -221,7 +221,7 @@ def test_endpoint_should_not_be_unauthenticated(app):
 
 
 @pytest.mark.parametrize(
-    "url, content",
+    ("url", "content"),
     [
         (
             "/taskinstance/list/?_flt_0_logical_date=2018-10-09+22:44:31",
@@ -256,7 +256,7 @@ def test_try_number_filter(admin_client, url):
 
 
 @pytest.mark.parametrize(
-    "url, content",
+    ("url", "content"),
     [
         (
             "/taskinstance/list/?_flt_3_dag_id=test_dag",
@@ -273,7 +273,7 @@ def test_task_dag_id_equals_filter(admin_client, url, content):
 
 
 @pytest.mark.parametrize(
-    "test_url, expected_url",
+    ("test_url", "expected_url"),
     [
         ("", "/home"),
         ("javascript:alert(1)", "/home"),
@@ -517,7 +517,8 @@ TEST_CONTENT_DICT = {"key1": {"key2": "val2", "key3": "val3", "key4": {"key5": "
 
 
 @pytest.mark.parametrize(
-    "test_content_dict, expected_paths", [(TEST_CONTENT_DICT, ("key1.key2", "key1.key3", "key1.key4.key5"))]
+    ("test_content_dict", "expected_paths"),
+    [(TEST_CONTENT_DICT, ("key1.key2", "key1.key3", "key1.key4.key5"))],
 )
 def test_generate_key_paths(test_content_dict, expected_paths):
     for key_path in get_key_paths(test_content_dict):
@@ -525,7 +526,7 @@ def test_generate_key_paths(test_content_dict, expected_paths):
 
 
 @pytest.mark.parametrize(
-    "test_content_dict, test_key_path, expected_value",
+    ("test_content_dict", "test_key_path", "expected_value"),
     [
         (TEST_CONTENT_DICT, "key1.key2", "val2"),
         (TEST_CONTENT_DICT, "key1.key3", "val3"),
@@ -567,7 +568,7 @@ INVALID_DATETIME_RESPONSE = re.compile(r"Invalid datetime: &#x?\d+;invalid&#x?\d
 
 
 @pytest.mark.parametrize(
-    "url, content",
+    ("url", "content"),
     [
         (
             "/rendered-templates?logical_date=invalid",

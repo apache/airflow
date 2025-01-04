@@ -114,8 +114,17 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
 
 
 @pytest.mark.parametrize(
-    "return_last, split_statements, sql, execution_timeout, cursor_calls,"
-    "cursor_descriptions, cursor_results, hook_descriptions, hook_results, ",
+    (
+        "return_last",
+        "split_statements",
+        "sql",
+        "execution_timeout",
+        "cursor_calls",
+        "cursor_descriptions",
+        "cursor_results",
+        "hook_descriptions",
+        "hook_results",
+    ),
     [
         pytest.param(
             True,
@@ -337,7 +346,7 @@ def test_no_query(databricks_hook, empty_statement):
 
 
 @pytest.mark.parametrize(
-    "row_objects, fields_names",
+    ("row_objects", "fields_names"),
     [
         pytest.param(Row("count(1)")(9714), ("_0",)),
         pytest.param(Row("1//@:()")("data"), ("_0",)),

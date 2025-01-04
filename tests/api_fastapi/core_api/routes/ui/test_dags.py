@@ -61,7 +61,7 @@ class TestRecentDagRuns(TestPublicDagEndpoint):
         session.commit()
 
     @pytest.mark.parametrize(
-        "query_params, expected_ids,expected_total_dag_runs",
+        ("query_params", "expected_ids", "expected_total_dag_runs"),
         [
             # Filters
             ({}, [DAG1_ID, DAG2_ID], 11),

@@ -221,7 +221,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
 
 class TestGetTaskInstances(TestTaskInstanceEndpoint):
     @pytest.mark.parametrize(
-        "task_instances, user, expected_ti",
+        ("task_instances", "user", "expected_ti"),
         [
             pytest.param(
                 {
@@ -261,7 +261,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
 
 class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
     @pytest.mark.parametrize(
-        "task_instances, update_extras, payload, expected_ti_count, username",
+        ("task_instances", "update_extras", "payload", "expected_ti_count", "username"),
         [
             pytest.param(
                 [

@@ -302,7 +302,7 @@ def test_dag_autocomplete_success(client_all_dags):
 
 
 @pytest.mark.parametrize(
-    "query, expected",
+    ("query", "expected"),
     [
         (None, []),
         ("", []),
@@ -338,7 +338,7 @@ def _setup_paused_dag():
 
 
 @pytest.mark.parametrize(
-    "status, expected, unexpected",
+    ("status", "expected", "unexpected"),
     [
         ("active", "example_branch_labels", "example_branch_operator"),
         ("paused", "example_branch_operator", "example_branch_labels"),
@@ -429,7 +429,7 @@ def test_task_stats_empty_success(client_all_dags_dagruns_tis):
 
 
 @pytest.mark.parametrize(
-    "dags_to_run, unexpected_dag_ids",
+    ("dags_to_run", "unexpected_dag_ids"),
     [
         (
             ["example_python_operator"],
@@ -614,7 +614,7 @@ LOG_URL = (
 
 
 @pytest.mark.parametrize(
-    "client, url, expected_content",
+    ("client", "url", "expected_content"),
     [
         ("client_all_dags_tis", RENDERED_TEMPLATES_URL, "Rendered Template"),
         ("all_dag_user_client", RENDERED_TEMPLATES_URL, "Rendered Template"),
@@ -650,7 +650,7 @@ def test_success(request, client, url, expected_content):
 
 
 @pytest.mark.parametrize(
-    "url, unexpected_content",
+    ("url", "unexpected_content"),
     [
         (RENDERED_TEMPLATES_URL, "Rendered Template"),
         (TASK_URL, "Task Instance Details"),
@@ -694,7 +694,7 @@ def test_blocked_viewer(viewer_client):
 
 
 @pytest.mark.parametrize(
-    "dags_to_block, unexpected_dag_ids",
+    ("dags_to_block", "unexpected_dag_ids"),
     [
         (
             ["example_python_operator"],
@@ -870,7 +870,7 @@ def client_anonymous(acl_app):
 
 
 @pytest.mark.parametrize(
-    "client, url, status_code, expected_content",
+    ("client", "url", "status_code", "expected_content"),
     [
         ["client_no_roles", "/home", 403, "Your user has no roles and/or permissions!"],
         ["client_no_permissions", "/home", 403, "Your user has no roles and/or permissions!"],

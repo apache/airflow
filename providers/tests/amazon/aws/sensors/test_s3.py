@@ -89,7 +89,7 @@ class TestS3KeySensor:
             op.poke(None)
 
     @pytest.mark.parametrize(
-        "key, bucket, parsed_key, parsed_bucket",
+        ("key", "bucket", "parsed_key", "parsed_bucket"),
         [
             pytest.param("s3://bucket/key", None, "key", "bucket", id="key as s3url"),
             pytest.param("key", "bucket", "key", "bucket", id="separate bucket and key"),
@@ -255,7 +255,7 @@ class TestS3KeySensor:
         assert op.poke(None) is True
 
     @pytest.mark.parametrize(
-        "key, pattern, expected",
+        ("key", "pattern", "expected"),
         [
             ("test.csv", r"[a-z]+\.csv", True),
             ("test.txt", r"test/[a-z]+\.csv", False),
@@ -492,7 +492,7 @@ class TestS3KeysUnchangedSensor:
             self.sensor.is_keys_unchanged({"a"})
 
     @pytest.mark.parametrize(
-        "current_objects, expected_returns, inactivity_periods",
+        ("current_objects", "expected_returns", "inactivity_periods"),
         [
             pytest.param(
                 ({"a"}, {"a", "b"}, {"a", "b", "c"}),

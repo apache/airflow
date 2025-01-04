@@ -80,7 +80,7 @@ class TestDagFileProcessor:
 
     @pytest.mark.xfail(reason="TODO: AIP-72")
     @pytest.mark.parametrize(
-        ["has_serialized_dag"],
+        "has_serialized_dag",
         [pytest.param(True, id="dag_in_db"), pytest.param(False, id="no_dag_found")],
     )
     @patch.object(TaskInstance, "handle_failure")

@@ -23,7 +23,7 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
 
 
 @pytest.mark.parametrize(
-    "test_group, test_type, pytest_args",
+    ("test_group", "test_type", "pytest_args"),
     [
         # Those list needs to be updated every time we add a new directory to tests/ folder
         (
@@ -167,7 +167,7 @@ def test_pytest_args_for_missing_provider():
 
 
 @pytest.mark.parametrize(
-    "test_group, parallel_test_types, folders",
+    ("test_group", "parallel_test_types", "folders"),
     [
         (
             GroupOfTests.CORE,
@@ -280,7 +280,7 @@ def test_folders_for_parallel_test_types(
 
 
 @pytest.mark.parametrize(
-    "test_group, parallel_test_types",
+    ("test_group", "parallel_test_types"),
     [
         (
             GroupOfTests.CORE,

@@ -352,7 +352,7 @@ class TestWasbHook:
         assert conn.credential._authority == self.authority
 
     @pytest.mark.parametrize(
-        "provided_host, expected_host",
+        ("provided_host", "expected_host"),
         [
             (
                 "https://testaccountname.blob.core.windows.net",

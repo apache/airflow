@@ -25,7 +25,7 @@ from airflow.providers.postgres.assets.postgres import sanitize_uri
 
 
 @pytest.mark.parametrize(
-    "original, normalized",
+    ("original", "normalized"),
     [
         pytest.param(
             "postgres://example.com:1234/database/schema/table",

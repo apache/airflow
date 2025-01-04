@@ -77,7 +77,7 @@ def encrypted_temporary_private_key(tmp_path: Path) -> Path:
 
 class TestPytestSnowflakeHook:
     @pytest.mark.parametrize(
-        "connection_kwargs,expected_uri,expected_conn_params",
+        ("connection_kwargs", "expected_uri", "expected_conn_params"),
         [
             (
                 BASE_CONNECTION_KWARGS,
@@ -564,7 +564,7 @@ class TestPytestSnowflakeHook:
             )
 
     @pytest.mark.parametrize(
-        "sql,expected_sql,expected_query_ids",
+        ("sql", "expected_sql", "expected_query_ids"),
         [
             ("select * from table", ["select * from table"], ["uuid"]),
             (

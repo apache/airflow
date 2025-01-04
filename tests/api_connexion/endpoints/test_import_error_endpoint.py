@@ -237,7 +237,7 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
 
 class TestGetImportErrorsEndpointPagination(TestBaseImportError):
     @pytest.mark.parametrize(
-        "url, expected_import_error_ids",
+        ("url", "expected_import_error_ids"),
         [
             # Limit test data
             ("/api/v1/importErrors?limit=1", ["/tmp/file_1.py"]),

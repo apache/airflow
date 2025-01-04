@@ -118,7 +118,14 @@ class TestHttpOperator:
         assert result == "content"
 
     @pytest.mark.parametrize(
-        "data, headers, extra_options, pagination_data, pagination_headers, pagination_extra_options",
+        (
+            "data",
+            "headers",
+            "extra_options",
+            "pagination_data",
+            "pagination_headers",
+            "pagination_extra_options",
+        ),
         [
             ({"data": 1}, {"x-head": "1"}, {"verify": False}, {"data": 2}, {"x-head": "0"}, {"verify": True}),
             ("data foo", {"x-head": "1"}, {"verify": False}, {"data": 2}, {"x-head": "0"}, {"verify": True}),

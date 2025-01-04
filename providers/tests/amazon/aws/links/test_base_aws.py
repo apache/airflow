@@ -47,7 +47,7 @@ class SimpleBaseAwsLink(BaseAwsLink):
 
 class TestBaseAwsLink:
     @pytest.mark.parametrize(
-        "region_name, aws_partition,keywords,expected_value",
+        ("region_name", "aws_partition", "keywords", "expected_value"),
         [
             ("eu-central-1", "aws", {}, {"region_name": "eu-central-1", "aws_domain": "aws.amazon.com"}),
             ("cn-north-1", "aws-cn", {}, {"region_name": "cn-north-1", "aws_domain": "amazonaws.cn"}),

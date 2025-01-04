@@ -167,7 +167,7 @@ class TestGetBackfill(TestBackfillEndpoint):
 
 class TestCreateBackfill(TestBackfillEndpoint):
     @pytest.mark.parametrize(
-        "repro_act, repro_exp",
+        ("repro_act", "repro_exp"),
         [
             (None, ReprocessBehavior.NONE),
             ("none", ReprocessBehavior.NONE),

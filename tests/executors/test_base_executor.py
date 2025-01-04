@@ -127,7 +127,7 @@ def test_gauge_executor_metrics_single_executor(mock_stats_gauge, mock_trigger_t
 
 
 @pytest.mark.parametrize(
-    "executor_class, executor_name",
+    ("executor_class", "executor_name"),
     [(LocalExecutor, "LocalExecutor"), (SequentialExecutor, "SequentialExecutor")],
 )
 @mock.patch("airflow.executors.local_executor.LocalExecutor.sync")
@@ -245,7 +245,7 @@ def test_trigger_queued_tasks(dag_maker, open_slots):
 
 @pytest.mark.db_test
 @pytest.mark.parametrize(
-    "can_try_num, change_state_num, second_exec",
+    ("can_try_num", "change_state_num", "second_exec"),
     [
         (2, 3, False),
         (3, 3, True),
@@ -392,7 +392,7 @@ def test_parser_add_command(mock_add_command, mock_get_cli_command):
     mock_add_command.assert_called_once()
 
 
-@pytest.mark.parametrize("loop_duration, total_tries", [(0.5, 12), (1.0, 7), (1.7, 4), (10, 2)])
+@pytest.mark.parametrize(("loop_duration", "total_tries"), [(0.5, 12), (1.0, 7), (1.7, 4), (10, 2)])
 def test_running_retry_attempt_type(loop_duration, total_tries):
     """
     Verify can_try_again returns True until at least 5 seconds have passed.

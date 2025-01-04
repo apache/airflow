@@ -148,7 +148,7 @@ def test_create_backfill_simple(reverse, existing, dag_maker, session):
 
 
 @pytest.mark.parametrize(
-    "reprocess_behavior, run_counts",
+    ("reprocess_behavior", "run_counts"),
     [
         (
             ReprocessBehavior.NONE,

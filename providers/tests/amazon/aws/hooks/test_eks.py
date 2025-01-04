@@ -731,7 +731,7 @@ class TestEksHooks:
     ]
 
     @pytest.mark.parametrize(
-        "launch_template, instance_types, disk_size, remote_access, expected_result",
+        ("launch_template", "instance_types", "disk_size", "remote_access", "expected_result"),
         test_cases,
     )
     def test_create_nodegroup_handles_launch_template_combinations(
@@ -1154,7 +1154,7 @@ class TestEksHooks:
     ]
 
     @pytest.mark.parametrize(
-        "selectors, expected_message, expected_result",
+        ("selectors", "expected_message", "expected_result"),
         selector_formatting_test_cases,
     )
     @mock_aws
@@ -1198,7 +1198,7 @@ class TestEksHook:
 
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn")
     @pytest.mark.parametrize(
-        "aws_conn_id, region_name, expected_args",
+        ("aws_conn_id", "region_name", "expected_args"),
         [
             [
                 "test-id",

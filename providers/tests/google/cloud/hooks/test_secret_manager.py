@@ -60,7 +60,7 @@ class TestGoogleCloudSecretManagerHook:
         mock_client.assert_called_once()
 
     @pytest.mark.parametrize(
-        "input_secret, expected_secret",
+        ("input_secret", "expected_secret"),
         [
             (None, {"replication": {"automatic": {}}}),
             (mock_secret := MagicMock(), mock_secret),  # type: ignore[name-defined]
@@ -153,7 +153,7 @@ class TestGoogleCloudSecretManagerHook:
         )
 
     @pytest.mark.parametrize(
-        "secret_names, secret_id, secret_exists_expected",
+        ("secret_names", "secret_id", "secret_exists_expected"),
         [
             ([], SECRET_ID, False),
             (["secret/name"], SECRET_ID, False),

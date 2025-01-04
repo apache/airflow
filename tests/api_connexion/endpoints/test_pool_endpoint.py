@@ -147,7 +147,7 @@ class TestGetPools(TestBasePoolEndpoints):
 
 class TestGetPoolsPagination(TestBasePoolEndpoints):
     @pytest.mark.parametrize(
-        "url, expected_pool_ids",
+        ("url", "expected_pool_ids"),
         [
             # Offset test data
             ("/api/v1/pools?offset=1", [f"test_pool{i}" for i in range(1, 101)]),
@@ -330,7 +330,7 @@ class TestPostPool(TestBasePoolEndpoints):
         }
 
     @pytest.mark.parametrize(
-        "request_json, error_detail",
+        ("request_json", "error_detail"),
         [
             pytest.param(
                 {"slots": 3},
@@ -398,7 +398,7 @@ class TestPatchPool(TestBasePoolEndpoints):
         _check_last_log(session, dag_id=None, event="api.patch_pool", logical_date=None)
 
     @pytest.mark.parametrize(
-        "error_detail, request_json",
+        ("error_detail", "request_json"),
         [
             # Missing properties
             ("Missing required property(ies): ['name']", {"slots": 3}),
@@ -466,7 +466,7 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
         }
 
     @pytest.mark.parametrize(
-        "status_code, url, json, expected_response",
+        ("status_code", "url", "json", "expected_response"),
         [
             pytest.param(
                 400,
@@ -597,7 +597,7 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
 
 class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
     @pytest.mark.parametrize(
-        "url, patch_json, expected_name, expected_slots, expected_include_deferred",
+        ("url", "patch_json", "expected_name", "expected_slots", "expected_include_deferred"),
         [
             (
                 "api/v1/pools/test_pool?update_mask=name, slots",
@@ -660,7 +660,7 @@ class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
         _check_last_log(session, dag_id=None, event="api.patch_pool", logical_date=None)
 
     @pytest.mark.parametrize(
-        "error_detail, url, patch_json",
+        ("error_detail", "url", "patch_json"),
         [
             pytest.param(
                 "Property is read-only - 'occupied_slots'",

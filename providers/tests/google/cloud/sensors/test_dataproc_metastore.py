@@ -52,7 +52,7 @@ GCP_CONN_ID = "test-conn"
 
 class TestMetastoreHivePartitionSensor:
     @pytest.mark.parametrize(
-        "requested_partitions, result_files_with_rows, expected_result",
+        ("requested_partitions", "result_files_with_rows", "expected_result"),
         [
             (None, [(RESULT_FILE_NAME_1, [])], False),
             ([None], [(RESULT_FILE_NAME_1, [])], False),

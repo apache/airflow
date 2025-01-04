@@ -27,7 +27,7 @@ class TestTriggerer:
     """Tests triggerer."""
 
     @pytest.mark.parametrize(
-        "airflow_version, num_docs",
+        ("airflow_version", "num_docs"),
         [
             ("2.1.0", 0),
             ("2.2.0", 1),
@@ -56,7 +56,7 @@ class TestTriggerer:
         assert len(docs) == 0
 
     @pytest.mark.parametrize(
-        "revision_history_limit, global_revision_history_limit",
+        ("revision_history_limit", "global_revision_history_limit"),
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
     )
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
@@ -439,7 +439,7 @@ class TestTriggerer:
         ]
 
     @pytest.mark.parametrize(
-        "airflow_version, probe_command",
+        ("airflow_version", "probe_command"),
         [
             ("2.4.9", "airflow jobs check --job-type TriggererJob --hostname $(hostname)"),
             ("2.5.0", "airflow jobs check --job-type TriggererJob --local"),
@@ -456,7 +456,7 @@ class TestTriggerer:
         )
 
     @pytest.mark.parametrize(
-        "log_values, expected_volume",
+        ("log_values", "expected_volume"),
         [
             ({"persistence": {"enabled": False}}, {"emptyDir": {}}),
             (
@@ -526,7 +526,7 @@ class TestTriggerer:
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
 
     @pytest.mark.parametrize(
-        "persistence, update_strategy, expected_update_strategy",
+        ("persistence", "update_strategy", "expected_update_strategy"),
         [
             (False, None, None),
             (True, {"rollingUpdate": {"partition": 0}}, {"rollingUpdate": {"partition": 0}}),
@@ -549,7 +549,7 @@ class TestTriggerer:
         assert expected_update_strategy == jmespath.search("spec.updateStrategy", docs[0])
 
     @pytest.mark.parametrize(
-        "persistence, strategy, expected_strategy",
+        ("persistence", "strategy", "expected_strategy"),
         [
             (True, None, None),
             (
@@ -783,7 +783,7 @@ class TestTriggererKedaAutoScaler:
         assert "replicas" not in jmespath.search("spec", docs[0])
 
     @pytest.mark.parametrize(
-        "query, expected_query",
+        ("query", "expected_query"),
         [
             # default query
             (

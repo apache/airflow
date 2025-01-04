@@ -865,7 +865,7 @@ exit 0
             )
 
     @pytest.mark.parametrize(
-        "kwargs, expected_message",
+        ("kwargs", "expected_message"),
         (
             (
                 {
@@ -890,7 +890,7 @@ exit 0
         ),
     )
     @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
+        ("soft_fail", "expected_exception"),
         (
             (
                 False,
@@ -922,7 +922,7 @@ exit 0
             op.execute(context={})
 
     @pytest.mark.parametrize(
-        "response_get_current, response_exists, kwargs, expected_message",
+        ("response_get_current", "response_exists", "kwargs", "expected_message"),
         (
             (None, None, {}, f"The external DAG {TEST_DAG_ID} does not exist."),
             (
@@ -947,7 +947,7 @@ exit 0
         ),
     )
     @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
+        ("soft_fail", "expected_exception"),
         (
             (
                 False,

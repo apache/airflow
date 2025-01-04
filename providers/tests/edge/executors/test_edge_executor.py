@@ -62,7 +62,7 @@ class TestEdgeExecutor:
             executor._process_tasks([task_tuple])
 
     @pytest.mark.parametrize(
-        "pool_slots, expected_concurrency",
+        ("pool_slots", "expected_concurrency"),
         [
             pytest.param(1, 1, id="default_pool_size"),
             pytest.param(5, 5, id="increased_pool_size"),

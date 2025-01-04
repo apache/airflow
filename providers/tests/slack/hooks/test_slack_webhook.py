@@ -149,7 +149,7 @@ class TestCheckWebhookResponseDecorator:
         assert decorated() is MOCK_WEBHOOK_RESPONSE
 
     @pytest.mark.parametrize(
-        "status_code,body",
+        ("status_code", "body"),
         [
             (400, "invalid_payload"),
             (403, "action_prohibited"),
@@ -235,7 +235,7 @@ class TestSlackWebhookHook:
             hook._get_conn_params()
 
     @pytest.mark.parametrize(
-        "hook_config,conn_extra,expected",
+        ("hook_config", "conn_extra", "expected"),
         [
             (  # Test Case: hook config
                 {

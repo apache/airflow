@@ -82,7 +82,7 @@ class TestSkipMixin:
         assert not session.commit.called
 
     @pytest.mark.parametrize(
-        "branch_task_ids, expected_states",
+        ("branch_task_ids", "expected_states"),
         [
             (["task2"], {"task2": State.NONE, "task3": State.SKIPPED}),
             (("task2",), {"task2": State.NONE, "task3": State.SKIPPED}),

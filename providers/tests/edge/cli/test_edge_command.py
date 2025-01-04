@@ -117,7 +117,7 @@ class TestEdgeWorkerCli:
         return test_worker
 
     @pytest.mark.parametrize(
-        "reserve_result, fetch_result, expected_calls",
+        ("reserve_result", "fetch_result", "expected_calls"),
         [
             pytest.param(None, False, (0, 0), id="no_job"),
             pytest.param(
@@ -253,7 +253,7 @@ class TestEdgeWorkerCli:
         )
 
     @pytest.mark.parametrize(
-        "drain, jobs, expected_state",
+        ("drain", "jobs", "expected_state"),
         [
             pytest.param(False, True, EdgeWorkerState.RUNNING, id="running_jobs"),
             pytest.param(True, True, EdgeWorkerState.TERMINATING, id="shutting_down"),

@@ -151,7 +151,7 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
         mock_sleep.assert_called_once_with(POLL_INTERVAL)
 
     @pytest.mark.parametrize(
-        "latest_operations_names, expected_failed_job",
+        ("latest_operations_names", "expected_failed_job"),
         [
             ([None, LATEST_OPERATION_NAME_1], JOB_0),
             ([LATEST_OPERATION_NAME_0, None], JOB_1),
@@ -183,7 +183,7 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
         assert actual_event == expected_event
 
     @pytest.mark.parametrize(
-        "job_statuses, failed_operation, expected_status",
+        ("job_statuses", "failed_operation", "expected_status"),
         [
             (
                 [TransferOperation.Status.ABORTED, TransferOperation.Status.SUCCESS],

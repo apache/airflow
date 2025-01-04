@@ -325,7 +325,7 @@ class TestSecretsMasker:
         assert caplog.messages == ["redacted: ***"]
 
     @pytest.mark.parametrize(
-        "state, expected",
+        ("state", "expected"),
         [
             (DagRunState.SUCCESS, "success"),
             (TaskInstanceState.FAILED, "failed"),

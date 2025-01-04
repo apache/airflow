@@ -51,7 +51,7 @@ class TestPsrpOperator:
 
     @pytest.mark.parametrize("do_xcom_push", [True, False])
     @pytest.mark.parametrize(
-        "had_errors, rc", [(False, 0), (False, None), (True, None), (False, 1), (True, 1)]
+        ("had_errors", "rc"), [(False, 0), (False, None), (True, None), (False, 1), (True, 1)]
     )
     @pytest.mark.parametrize(
         "parameter",

@@ -471,7 +471,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
 
 class TestGetDagRunsPagination(TestDagRunEndpoint):
     @pytest.mark.parametrize(
-        "url, expected_dag_run_ids",
+        ("url", "expected_dag_run_ids"),
         [
             ("api/v1/dags/TEST_DAG_ID/dagRuns?limit=1", ["TEST_DAG_RUN_ID1"]),
             (
@@ -559,7 +559,7 @@ class TestGetDagRunsPagination(TestDagRunEndpoint):
 
 class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
     @pytest.mark.parametrize(
-        "url, expected_dag_run_ids",
+        ("url", "expected_dag_run_ids"),
         [
             (
                 "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_gte=2020-06-18T18%3A00%3A00%2B00%3A00",
@@ -661,7 +661,7 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
 
 class TestGetDagRunsEndDateFilters(TestDagRunEndpoint):
     @pytest.mark.parametrize(
-        "url, expected_dag_run_ids",
+        ("url", "expected_dag_run_ids"),
         [
             pytest.param(
                 f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_gte="
@@ -826,7 +826,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
         assert response.json["detail"] == msg
 
     @pytest.mark.parametrize(
-        "payload, error",
+        ("payload", "error"),
         [
             (
                 {"dag_ids": ["TEST_DAG_ID"], "page_offset": -1},
@@ -855,7 +855,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
 
 class TestGetDagRunBatchPagination(TestDagRunEndpoint):
     @pytest.mark.parametrize(
-        "payload, expected_dag_run_ids",
+        ("payload", "expected_dag_run_ids"),
         [
             ({"page_limit": 1}, ["TEST_DAG_RUN_ID1"]),
             ({"page_limit": 2}, ["TEST_DAG_RUN_ID1", "TEST_DAG_RUN_ID2"]),
@@ -934,7 +934,7 @@ class TestGetDagRunBatchPagination(TestDagRunEndpoint):
 
 class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
     @pytest.mark.parametrize(
-        "payload, expected_dag_run_ids",
+        ("payload", "expected_dag_run_ids"),
         [
             (
                 {"start_date_gte": "2020-06-18T18:00:00+00:00"},
@@ -1016,7 +1016,7 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
         return dag_runs
 
     @pytest.mark.parametrize(
-        "payload, expected_response",
+        ("payload", "expected_response"),
         [
             (
                 {"execution_date_gte": "2020-11-09T16:25:56.939143"},
@@ -1054,7 +1054,7 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
         assert response.json["detail"] == expected_response
 
     @pytest.mark.parametrize(
-        "payload, expected_dag_run_ids",
+        ("payload", "expected_dag_run_ids"),
         [
             (
                 {"end_date_gte": f"{(timezone.utcnow() + timedelta(days=1)).isoformat()}"},
@@ -1080,7 +1080,7 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
 class TestPostDagRun(TestDagRunEndpoint):
     @time_machine.travel(timezone.utcnow(), tick=False)
     @pytest.mark.parametrize(
-        "dag_run_id, logical_date, note, data_interval_start, data_interval_end",
+        ("dag_run_id", "logical_date", "note", "data_interval_start", "data_interval_end"),
         [
             pytest.param(
                 "TEST_DAG_RUN", "2020-06-11T18:00:00+00:00", "test-note", None, None, id="all-present"
@@ -1277,7 +1277,7 @@ class TestPostDagRun(TestDagRunEndpoint):
         assert response.json == expected_response_json
 
     @pytest.mark.parametrize(
-        "data_interval_start, data_interval_end, expected",
+        ("data_interval_start", "data_interval_end", "expected"),
         [
             (
                 "2020-11-10T08:25:56.939143",
@@ -1318,7 +1318,7 @@ class TestPostDagRun(TestDagRunEndpoint):
         assert response.json["detail"] == expected
 
     @pytest.mark.parametrize(
-        "data, expected",
+        ("data", "expected"),
         [
             (
                 {"logical_date": "2020-11-10T08:25:56.939143"},
@@ -1339,7 +1339,7 @@ class TestPostDagRun(TestDagRunEndpoint):
         assert response.json["detail"] == expected
 
     @pytest.mark.parametrize(
-        "data, expected",
+        ("data", "expected"),
         [
             (
                 {
@@ -1374,7 +1374,7 @@ class TestPostDagRun(TestDagRunEndpoint):
         }
 
     @pytest.mark.parametrize(
-        "url, request_json, expected_response",
+        ("url", "request_json", "expected_response"),
         [
             pytest.param(
                 "api/v1/dags/TEST_DAG_ID/dagRuns",

@@ -728,7 +728,16 @@ class TestCloudSqlQueryValidation:
         get_connection.side_effect = [gcp_connection, cloudsql_connection, cloudsql_connection2]
 
     @pytest.mark.parametrize(
-        "project_id, location, instance_name, database_type, use_proxy, use_ssl, sql, message",
+        (
+            "project_id",
+            "location",
+            "instance_name",
+            "database_type",
+            "use_proxy",
+            "use_ssl",
+            "sql",
+            "message",
+        ),
         [
             (
                 "project_id",

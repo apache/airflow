@@ -493,7 +493,7 @@ class TestWrappedMarkdown:
         assert escape(html) in rendered
 
     @pytest.mark.parametrize(
-        "dag_run,expected_val",
+        ("dag_run", "expected_val"),
         [
             [None, (None, None)],
             [

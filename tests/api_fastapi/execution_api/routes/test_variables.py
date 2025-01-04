@@ -111,7 +111,7 @@ class TestPutVariable:
             assert var_from_db.description == payload["description"]
 
     @pytest.mark.parametrize(
-        "key, status_code, payload",
+        ("key", "status_code", "payload"),
         [
             pytest.param("", 404, {"value": "{}", "description": "description"}, id="missing-key"),
             pytest.param("var_create", 422, {"description": "description"}, id="missing-value"),
@@ -128,7 +128,7 @@ class TestPutVariable:
             assert response.json()["detail"][0]["msg"] == "Field required"
 
     @pytest.mark.parametrize(
-        "key, payload",
+        ("key", "payload"),
         [
             pytest.param("key", {"key": "key", "value": "{}", "description": "description"}, id="adding-key"),
             pytest.param(

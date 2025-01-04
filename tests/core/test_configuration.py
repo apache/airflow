@@ -601,7 +601,7 @@ key3 = value3
         assert content["secret_key"] == "difficult_unpredictable_cat_password"
 
     @pytest.mark.parametrize(
-        "key, type",
+        ("key", "type"),
         [
             ("string_value", int),  # Coercion happens here
             ("only_bool_value", bool),
@@ -657,7 +657,7 @@ notacommand = OK
             # the environment variable's echo command
             assert test_cmdenv_conf.get("testcmdenv", "notacommand") == "OK"
 
-    @pytest.mark.parametrize("display_sensitive, result", [(True, "OK"), (False, "< hidden >")])
+    @pytest.mark.parametrize(("display_sensitive", "result"), [(True, "OK"), (False, "< hidden >")])
     def test_as_dict_display_sensitivewith_command_from_env(self, display_sensitive, result):
         test_cmdenv_conf = AirflowConfigParser()
         test_cmdenv_conf.sensitive_config_values.add(("testcmdenv", "itsacommand"))
@@ -987,7 +987,7 @@ sql_alchemy_conn=sqlite://test
             assert test_conf.get("core", "hostname_callable") == "airflow.utils.net.getfqdn"
 
     @pytest.mark.parametrize(
-        "old, new",
+        ("old", "new"),
         [
             (
                 ("core", "sql_alchemy_conn", "postgres+psycopg2://localhost/postgres"),

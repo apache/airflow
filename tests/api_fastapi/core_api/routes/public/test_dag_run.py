@@ -152,7 +152,7 @@ def setup(request, dag_maker, session=None):
 
 class TestGetDagRun:
     @pytest.mark.parametrize(
-        "dag_id, run_id, state, run_type, triggered_by, dag_run_note",
+        ("dag_id", "run_id", "state", "run_type", "triggered_by", "dag_run_note"),
         [
             (
                 DAG1_ID,
@@ -229,7 +229,7 @@ class TestGetDagRuns:
             "note": run.note,
         }
 
-    @pytest.mark.parametrize("dag_id, total_entries", [(DAG1_ID, 2), (DAG2_ID, 2), ("~", 4)])
+    @pytest.mark.parametrize(("dag_id", "total_entries"), [(DAG1_ID, 2), (DAG2_ID, 2), ("~", 4)])
     def test_get_dag_runs(self, test_client, session, dag_id, total_entries):
         response = test_client.get(f"/public/dags/{dag_id}/dagRuns")
         assert response.status_code == 200
@@ -260,7 +260,7 @@ class TestGetDagRuns:
         )
 
     @pytest.mark.parametrize(
-        "order_by,expected_order",
+        ("order_by", "expected_order"),
         [
             pytest.param("id", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_id"),
             pytest.param("state", [DAG1_RUN2_ID, DAG1_RUN1_ID], id="order_by_state"),
@@ -290,7 +290,7 @@ class TestGetDagRuns:
         assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_order[::-1]
 
     @pytest.mark.parametrize(
-        "query_params, expected_dag_id_order",
+        ("query_params", "expected_dag_id_order"),
         [
             ({}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
             ({"limit": 1}, [DAG1_RUN1_ID]),
@@ -309,7 +309,7 @@ class TestGetDagRuns:
         assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_dag_id_order
 
     @pytest.mark.parametrize(
-        "query_params, expected_detail",
+        ("query_params", "expected_detail"),
         [
             (
                 {"limit": 1, "offset": -1},
@@ -362,7 +362,7 @@ class TestGetDagRuns:
         assert response.json()["detail"] == expected_detail
 
     @pytest.mark.parametrize(
-        "dag_id, query_params, expected_dag_id_list",
+        ("dag_id", "query_params", "expected_dag_id_list"),
         [
             (
                 DAG1_ID,
@@ -544,7 +544,7 @@ class TestListDagRunsBatch:
         ]
 
     @pytest.mark.parametrize(
-        "dag_ids, status_code, expected_dag_id_list",
+        ("dag_ids", "status_code", "expected_dag_id_list"),
         [
             ([], 200, DAG_RUNS_LIST),
             ([DAG1_ID], 200, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
@@ -566,7 +566,7 @@ class TestListDagRunsBatch:
         )
 
     @pytest.mark.parametrize(
-        "order_by,expected_order",
+        ("order_by", "expected_order"),
         [
             pytest.param("id", DAG_RUNS_LIST, id="order_by_id"),
             pytest.param(
@@ -598,7 +598,7 @@ class TestListDagRunsBatch:
         assert [run["dag_run_id"] for run in body["dag_runs"]] == expected_order[::-1]
 
     @pytest.mark.parametrize(
-        "post_body, expected_dag_id_order",
+        ("post_body", "expected_dag_id_order"),
         [
             ({}, DAG_RUNS_LIST),
             ({"page_limit": 1}, DAG_RUNS_LIST[:1]),
@@ -617,7 +617,7 @@ class TestListDagRunsBatch:
         assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_dag_id_order
 
     @pytest.mark.parametrize(
-        "post_body, expected_detail",
+        ("post_body", "expected_detail"),
         [
             (
                 {"page_limit": 1, "page_offset": -1},
@@ -670,7 +670,7 @@ class TestListDagRunsBatch:
         assert response.json()["detail"] == expected_detail
 
     @pytest.mark.parametrize(
-        "post_body, expected_dag_id_list",
+        ("post_body", "expected_dag_id_list"),
         [
             (
                 {"logical_date_gte": LOGICAL_DATE1.isoformat()},
@@ -798,7 +798,7 @@ class TestListDagRunsBatch:
         assert body["detail"] == expected_detail
 
     @pytest.mark.parametrize(
-        "post_body, expected_response",
+        ("post_body", "expected_response"),
         [
             (
                 {"states": ["invalid"]},
@@ -833,7 +833,7 @@ class TestListDagRunsBatch:
 
 class TestPatchDagRun:
     @pytest.mark.parametrize(
-        "dag_id, run_id, patch_body, response_body",
+        ("dag_id", "run_id", "patch_body", "response_body"),
         [
             (
                 DAG1_ID,
@@ -883,7 +883,7 @@ class TestPatchDagRun:
         assert body.get("note") == response_body.get("note")
 
     @pytest.mark.parametrize(
-        "query_params, patch_body, response_body, expected_status_code",
+        ("query_params", "patch_body", "response_body", "expected_status_code"),
         [
             (
                 {"update_mask": ["state"]},
@@ -1040,7 +1040,7 @@ class TestClearDagRun:
         assert body["state"] == "queued"
 
     @pytest.mark.parametrize(
-        "body, dag_run_id, expected_state",
+        ("body", "dag_run_id", "expected_state"),
         [
             [{"dry_run": True}, DAG1_RUN1_ID, ["success", "success"]],
             [{}, DAG1_RUN1_ID, ["success", "success"]],
@@ -1100,7 +1100,7 @@ class TestTriggerDagRun:
 
     @time_machine.travel(timezone.utcnow(), tick=False)
     @pytest.mark.parametrize(
-        "dag_run_id, note, data_interval_start, data_interval_end",
+        ("dag_run_id", "note", "data_interval_start", "data_interval_end"),
         [
             ("dag_run_5", "test-note", None, None),
             (
@@ -1168,7 +1168,7 @@ class TestTriggerDagRun:
         assert response.json() == expected_response_json
 
     @pytest.mark.parametrize(
-        "post_body, expected_detail",
+        ("post_body", "expected_detail"),
         [
             # Uncomment these 2 test cases once https://github.com/apache/airflow/pull/44306 is merged
             # (
@@ -1333,7 +1333,7 @@ class TestTriggerDagRun:
             }
 
     @pytest.mark.parametrize(
-        "data_interval_start, data_interval_end",
+        ("data_interval_start", "data_interval_end"),
         [
             (
                 LOGICAL_DATE1.isoformat(),

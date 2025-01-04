@@ -125,7 +125,7 @@ class TestSqlAlchemyUtils:
         dag.clear()
 
     @pytest.mark.parametrize(
-        "dialect, supports_for_update_of, use_row_level_lock_conf, expected_use_row_level_lock",
+        ("dialect", "supports_for_update_of", "use_row_level_lock_conf", "expected_use_row_level_lock"),
         [
             ("postgresql", True, True, True),
             ("postgresql", True, False, False),
@@ -194,7 +194,7 @@ class TestSqlAlchemyUtils:
 
 class TestExecutorConfigType:
     @pytest.mark.parametrize(
-        "input, expected",
+        ("input", "expected"),
         [
             ("anything", "anything"),
             (
@@ -324,7 +324,7 @@ class TestExecutorConfigType:
 
 
 @pytest.mark.parametrize(
-    "mock_version, expected_result",
+    ("mock_version", "expected_result"),
     [
         ("1.0.0", True),  # Test 1: v1 identified as v1
         ("2.3.4", False),  # Test 2: v2 not identified as v1

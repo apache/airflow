@@ -362,7 +362,7 @@ class TestCli:
         assert (f"airflow command error: argument GROUP_OR_COMMAND: invalid choice: '{command}'") in stderr
 
     @pytest.mark.parametrize(
-        "executor,expected_args",
+        ("executor", "expected_args"),
         [
             ("CeleryExecutor", ["celery"]),
             ("CeleryKubernetesExecutor", ["celery", "kubernetes"]),

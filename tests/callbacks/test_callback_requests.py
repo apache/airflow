@@ -36,7 +36,7 @@ pytestmark = pytest.mark.db_test
 
 class TestCallbackRequest:
     @pytest.mark.parametrize(
-        "input,request_class",
+        ("input", "request_class"),
         [
             (CallbackRequest(full_filepath="filepath", msg="task_failure"), CallbackRequest),
             (

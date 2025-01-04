@@ -254,7 +254,7 @@ class TestKubernetesJobOperator:
             ),
         )
 
-    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    @pytest.mark.parametrize("randomize_name", ([True], [False]))
     def test_full_job_spec(self, randomize_name, job_spec):
         job_spec_name_base = job_spec.metadata.name
 
@@ -278,7 +278,7 @@ class TestKubernetesJobOperator:
         )
         assert job.metadata.labels == {"foo": "bar"}
 
-    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    @pytest.mark.parametrize("randomize_name", ([True], [False]))
     def test_full_job_spec_kwargs(self, randomize_name, job_spec):
         # kwargs take precedence, however
         image = "some.custom.image:andtag"
@@ -355,7 +355,7 @@ class TestKubernetesJobOperator:
 
         return tpl_file
 
-    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    @pytest.mark.parametrize("randomize_name", ([True], [False]))
     def test_job_template_file(self, randomize_name, job_template_file):
         k = KubernetesJobOperator(
             task_id="task",
@@ -405,7 +405,7 @@ class TestKubernetesJobOperator:
 
         assert job.spec.template.spec.affinity.to_dict() == affinity
 
-    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    @pytest.mark.parametrize("randomize_name", ([True], [False]))
     def test_job_template_file_kwargs_override(self, randomize_name, job_template_file):
         # kwargs take precedence, however
         image = "some.custom.image:andtag"
@@ -841,7 +841,7 @@ class TestKubernetesDeleteJobOperator:
         mock_delete_namespaced_job.assert_called_once_with(name=JOB_NAME, namespace=JOB_NAMESPACE)
 
     @pytest.mark.parametrize(
-        "on_status, success, fail, deleted",
+        ("on_status", "success", "fail", "deleted"),
         [
             (None, True, True, True),
             (None, True, False, True),

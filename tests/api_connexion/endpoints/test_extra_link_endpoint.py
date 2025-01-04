@@ -104,7 +104,7 @@ class TestGetExtraLinks:
         return dag
 
     @pytest.mark.parametrize(
-        "url, expected_title, expected_detail",
+        ("url", "expected_title", "expected_detail"),
         [
             pytest.param(
                 "/api/v1/dags/INVALID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_LINK/links",

@@ -896,7 +896,7 @@ class TestSigtermOnRunner:
         "daemon", [pytest.param(True, id="daemon"), pytest.param(False, id="non-daemon")]
     )
     @pytest.mark.parametrize(
-        "mp_method, wait_timeout",
+        ("mp_method", "wait_timeout"),
         [
             pytest.param(
                 "fork",

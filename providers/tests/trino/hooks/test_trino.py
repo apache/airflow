@@ -144,7 +144,7 @@ class TestTrinoHookConn:
         self.assert_connection_called_with(mock_connect, auth=mock_jwt_auth)
 
     @pytest.mark.parametrize(
-        "jwt_file, jwt_token, error_suffix",
+        ("jwt_file", "jwt_token", "error_suffix"),
         [
             pytest.param(True, True, "provided both", id="provided-both-params"),
             pytest.param(False, False, "none of them provided", id="no-jwt-provided"),
@@ -233,7 +233,7 @@ class TestTrinoHookConn:
         self.assert_connection_called_with(mock_connect, client_tags=extras["client_tags"])
 
     @pytest.mark.parametrize(
-        "current_verify, expected_verify",
+        ("current_verify", "expected_verify"),
         [
             ("False", False),
             ("false", False),

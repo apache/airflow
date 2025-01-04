@@ -78,7 +78,7 @@ class TestGoogleDisplayVideo360DownloadReportV2Operator:
             session.query(TI).delete()
 
     @pytest.mark.parametrize(
-        "file_path, should_except", [("https://host/path", False), ("file:/path/to/file", True)]
+        ("file_path", "should_except"), [("https://host/path", False), ("file:/path/to/file", True)]
     )
     @mock.patch("airflow.providers.google.marketing_platform.operators.display_video.shutil")
     @mock.patch("airflow.providers.google.marketing_platform.operators.display_video.urllib.request")

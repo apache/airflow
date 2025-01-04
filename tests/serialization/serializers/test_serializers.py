@@ -135,7 +135,7 @@ class TestSerializers:
         assert deserialize(serialize(d)) == d
 
     @pytest.mark.parametrize(
-        "expr, expected",
+        ("expr", "expected"),
         [("1", "1"), ("52e4", "520000"), ("2e0", "2"), ("12e-2", "0.12"), ("12.34", "12.34")],
     )
     def test_encode_decimal(self, expr, expected):
@@ -238,7 +238,7 @@ class TestSerializers:
 
     @pytest.mark.skipif(not PENDULUM3, reason="Test case for pendulum~=3")
     @pytest.mark.parametrize(
-        "ser_value, expected",
+        ("ser_value", "expected"),
         [
             pytest.param(
                 {
@@ -312,7 +312,7 @@ class TestSerializers:
 
     @pytest.mark.skipif(PENDULUM3, reason="Test case for pendulum~=2")
     @pytest.mark.parametrize(
-        "ser_value, expected",
+        ("ser_value", "expected"),
         [
             pytest.param(
                 {

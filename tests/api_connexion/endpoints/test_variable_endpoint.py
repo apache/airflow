@@ -104,7 +104,7 @@ class TestDeleteVariable(TestVariableEndpoint):
 
 class TestGetVariable(TestVariableEndpoint):
     @pytest.mark.parametrize(
-        "user, expected_status_code",
+        ("user", "expected_status_code"),
         [
             ("test", 200),
             ("test_no_permissions", 403),
@@ -146,7 +146,7 @@ class TestGetVariable(TestVariableEndpoint):
 
 class TestGetVariables(TestVariableEndpoint):
     @pytest.mark.parametrize(
-        "query, expected",
+        ("query", "expected"),
         [
             (
                 "/api/v1/variables?limit=2&offset=0",

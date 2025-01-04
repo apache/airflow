@@ -33,7 +33,7 @@ from tests_common.test_utils.db import clear_db_dag_bundles
 
 
 @pytest.mark.parametrize(
-    "envs,expected_names",
+    ("envs", "expected_names"),
     [
         pytest.param({}, {"dags_folder"}, id="no_config"),
         pytest.param(
@@ -56,7 +56,7 @@ def test_bundle_configs_property(envs, expected_names):
 
 
 @pytest.mark.parametrize(
-    "config,message",
+    ("config", "message"),
     [
         pytest.param("1", "Bundle config for testbundle is not a dict: 1", id="int"),
         pytest.param("[]", r"Bundle config for testbundle is not a dict: \[\]", id="list"),

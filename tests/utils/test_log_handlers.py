@@ -385,7 +385,7 @@ class TestFileTaskLogHandler:
         )
 
     @pytest.mark.parametrize(
-        "remote_logs, local_logs, served_logs_checked",
+        ("remote_logs", "local_logs", "served_logs_checked"),
         [
             (True, True, False),
             (True, False, False),

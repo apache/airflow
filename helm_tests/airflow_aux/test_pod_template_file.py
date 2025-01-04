@@ -140,7 +140,7 @@ class TestPodTemplateFile:
         assert jmespath.search("spec.initContainers", docs[0]) is None
 
     @pytest.mark.parametrize(
-        "dag_values, expected_read_only",
+        ("dag_values", "expected_read_only"),
         [
             ({"gitSync": {"enabled": True}}, True),
             ({"persistence": {"enabled": True}}, False),
@@ -303,7 +303,7 @@ class TestPodTemplateFile:
         )
 
     @pytest.mark.parametrize(
-        "dags_gitsync_values, expected",
+        ("dags_gitsync_values", "expected"),
         [
             ({"enabled": True}, {"emptyDir": {}}),
             ({"enabled": True, "emptyDirConfig": {"sizeLimit": "10Gi"}}, {"emptyDir": {"sizeLimit": "10Gi"}}),
@@ -318,7 +318,7 @@ class TestPodTemplateFile:
         assert {"name": "dags", **expected} in jmespath.search("spec.volumes", docs[0])
 
     @pytest.mark.parametrize(
-        "log_values, expected",
+        ("log_values", "expected"),
         [
             ({"persistence": {"enabled": False}}, {"emptyDir": {}}),
             (
@@ -983,7 +983,7 @@ class TestPodTemplateFile:
         } in jmespath.search("spec.containers[1].volumeMounts", docs[0])
 
     @pytest.mark.parametrize(
-        "airflow_version, init_container_enabled, expected_init_containers",
+        ("airflow_version", "init_container_enabled", "expected_init_containers"),
         [
             ("1.9.0", True, 0),
             ("1.9.0", False, 0),
@@ -1020,7 +1020,7 @@ class TestPodTemplateFile:
             assert initContainers[0]["args"] == ["kerberos", "-o"]
 
     @pytest.mark.parametrize(
-        "cmd, expected",
+        ("cmd", "expected"),
         [
             (["test", "command", "to", "run"], ["test", "command", "to", "run"]),
             (["cmd", "{{ .Release.Name }}"], ["cmd", "release-name"]),
@@ -1056,7 +1056,7 @@ class TestPodTemplateFile:
         assert jmespath.search("spec.containers[0].command", docs[0]) is None
 
     @pytest.mark.parametrize(
-        "workers_values, kerberos_init_container",
+        ("workers_values", "kerberos_init_container"),
         [
             ({"kerberosSidecar": {"enabled": True}}, False),
             ({"kerberosInitContainer": {"enabled": True}}, True),

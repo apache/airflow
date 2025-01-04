@@ -502,7 +502,9 @@ class TestPodManager:
         args, kwargs = self.mock_kube_client.read_namespaced_pod_log.call_args_list[0]
         assert kwargs["since_seconds"] == 5
 
-    @pytest.mark.parametrize("follow, is_running_calls, exp_running", [(True, 3, False), (False, 3, False)])
+    @pytest.mark.parametrize(
+        ("follow", "is_running_calls", "exp_running"), [(True, 3, False), (False, 3, False)]
+    )
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
     def test_fetch_container_running_follow(
         self, container_running_mock, follow, is_running_calls, exp_running
@@ -522,7 +524,7 @@ class TestPodManager:
         assert ret.running is exp_running
 
     @pytest.mark.parametrize(
-        "container_state, expected_is_terminated",
+        ("container_state", "expected_is_terminated"),
         [("waiting", False), ("running", False), ("terminated", True)],
     )
     def test_container_is_terminated_with_waiting_state(self, container_state, expected_is_terminated):
@@ -653,7 +655,7 @@ def params_for_test_container_is_running():
     return pod_mock_list
 
 
-@pytest.mark.parametrize("remote_pod, result", params_for_test_container_is_running())
+@pytest.mark.parametrize(("remote_pod", "result"), params_for_test_container_is_running())
 def test_container_is_running(remote_pod, result):
     """The `container_is_running` function is designed to handle an assortment of bad objects
     returned from `read_pod`.  E.g. a None object, an object `e` such that `e.status` is None,
@@ -664,7 +666,7 @@ def test_container_is_running(remote_pod, result):
 
 class TestPodLogsConsumer:
     @pytest.mark.parametrize(
-        "chunks, expected_logs",
+        ("chunks", "expected_logs"),
         [
             ([b"message"], [b"message"]),
             ([b"message1\nmessage2"], [b"message1\n", b"message2"]),
@@ -696,7 +698,13 @@ class TestPodLogsConsumer:
             assert list(consumer) == []
 
     @pytest.mark.parametrize(
-        "container_run, termination_time, now_time, post_termination_timeout, expected_logs_available",
+        (
+            "container_run",
+            "termination_time",
+            "now_time",
+            "post_termination_timeout",
+            "expected_logs_available",
+        ),
         [
             (
                 False,
@@ -769,7 +777,13 @@ class TestPodLogsConsumer:
             assert consumer.logs_available() == expected_logs_available
 
     @pytest.mark.parametrize(
-        "read_pod_cache_timeout, mock_read_pod_at_0, mock_read_pod_at_1, mock_read_pods, expected_read_pods",
+        (
+            "read_pod_cache_timeout",
+            "mock_read_pod_at_0",
+            "mock_read_pod_at_1",
+            "mock_read_pods",
+            "expected_read_pods",
+        ),
         [
             (
                 120,
@@ -890,7 +904,7 @@ def params_for_test_container_is_succeeded():
     return pod_mock_list
 
 
-@pytest.mark.parametrize("remote_pod, result", params_for_test_container_is_succeeded())
+@pytest.mark.parametrize(("remote_pod", "result"), params_for_test_container_is_succeeded())
 def test_container_is_succeeded(remote_pod, result):
     """The `container_is_succeeded` function is designed to handle an assortment of bad objects
     returned from `read_pod`.  E.g. a None object, an object `e` such that `e.status` is None,

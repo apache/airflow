@@ -33,7 +33,7 @@ pytestmark = pytest.mark.db_test
 
 class TestKerberos:
     @pytest.mark.parametrize(
-        "kerberos_config, expected_cmd",
+        ("kerberos_config", "expected_cmd"),
         [
             (
                 {("kerberos", "reinit_frequency"): "42"},

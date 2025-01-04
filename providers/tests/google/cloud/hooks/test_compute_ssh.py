@@ -113,7 +113,7 @@ class TestComputeEngineHookWithPassedProjectId:
         )
 
     @pytest.mark.parametrize(
-        "exception_type, error_message",
+        ("exception_type", "error_message"),
         [(SSHException, r"Error occurred when establishing SSH connection using Paramiko")],
     )
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook")
@@ -215,7 +215,7 @@ class TestComputeEngineHookWithPassedProjectId:
         mock_os_login_hook.return_value.import_ssh_public_key.assert_not_called()
 
     @pytest.mark.parametrize(
-        "exception_type, error_message",
+        ("exception_type", "error_message"),
         [
             (
                 HttpError(resp=httplib2.Response({"status": 412}), content=b"Error content"),
@@ -408,7 +408,7 @@ class TestComputeEngineHookWithPassedProjectId:
         )
 
     @pytest.mark.parametrize(
-        "exception_type, error_message",
+        ("exception_type", "error_message"),
         [(SSHException, r"Error occurred when establishing SSH connection using Paramiko")],
     )
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook")
@@ -514,7 +514,7 @@ class TestComputeEngineHookWithPassedProjectId:
         assert isinstance(hook.expire_time, int)
 
     @pytest.mark.parametrize(
-        "metadata, expected_metadata",
+        ("metadata", "expected_metadata"),
         [
             ({"items": []}, {"items": [{"key": "ssh-keys", "value": "user:pubkey\n"}]}),
             (

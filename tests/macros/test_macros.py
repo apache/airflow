@@ -26,7 +26,7 @@ from airflow.utils import timezone
 
 
 @pytest.mark.parametrize(
-    "ds, days, expected",
+    ("ds", "days", "expected"),
     [
         ("2015-01-01", 5, "2015-01-06"),
         ("2015-01-02", 0, "2015-01-02"),
@@ -42,7 +42,7 @@ def test_ds_add(ds, days, expected):
 
 
 @pytest.mark.parametrize(
-    "ds, input_format, output_format, expected",
+    ("ds", "input_format", "output_format", "expected"),
     [
         ("2015-01-02", "%Y-%m-%d", "%m-%d-%y", "01-02-15"),
         ("2015-01-02", "%Y-%m-%d", "%Y-%m-%d", "2015-01-02"),
@@ -60,7 +60,7 @@ def test_ds_format(ds, input_format, output_format, expected):
 
 
 @pytest.mark.parametrize(
-    "ds, input_format, output_format, locale, expected",
+    ("ds", "input_format", "output_format", "locale", "expected"),
     [
         ("2015-01-02", "%Y-%m-%d", "MM-dd-yy", None, "01-02-15"),
         ("2015-01-02", "%Y-%m-%d", "yyyy-MM-dd", None, "2015-01-02"),
@@ -80,7 +80,7 @@ def test_ds_format_locale(ds, input_format, output_format, locale, expected):
 
 
 @pytest.mark.parametrize(
-    "dt, since, expected",
+    ("dt", "since", "expected"),
     [
         (
             timezone.datetime(2017, 1, 2),
@@ -112,7 +112,7 @@ def test_datetime_diff_for_humans(dt, since, expected):
 
 
 @pytest.mark.parametrize(
-    "input_value, expected",
+    ("input_value", "expected"),
     [
         ('{"field1":"value1", "field2":4, "field3":true}', {"field1": "value1", "field2": 4, "field3": True}),
         (
@@ -127,7 +127,7 @@ def test_json_loads(input_value, expected):
 
 
 @pytest.mark.parametrize(
-    "input_value, expected",
+    ("input_value", "expected"),
     [
         ('{"field1":"value1", "field2":4, "field3":true}', {"field1": "value1", "field2": 4, "field3": True}),
         ("field1: value1\nfield2: value2", {"field1": "value1", "field2": "value2"}),

@@ -57,7 +57,7 @@ class TestResultBackendConnectionSecret:
         assert len(docs) == 0
 
     @pytest.mark.parametrize(
-        "executor, expected_doc_count",
+        ("executor", "expected_doc_count"),
         [
             ("CeleryExecutor", 1),
             ("CeleryKubernetesExecutor", 1),

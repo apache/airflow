@@ -148,7 +148,7 @@ class TestCeleryExecutor:
         mock_stats_gauge.assert_has_calls(calls)
 
     @pytest.mark.parametrize(
-        "command, raise_exception",
+        ("command", "raise_exception"),
         [
             pytest.param(["true"], True, id="wrong-command"),
             pytest.param(["airflow", "tasks"], True, id="incomplete-command"),

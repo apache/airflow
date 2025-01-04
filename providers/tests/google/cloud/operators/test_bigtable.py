@@ -57,7 +57,7 @@ EMPTY_COLUMN_FAMILIES: dict = {}
 
 class TestBigtableInstanceCreate:
     @pytest.mark.parametrize(
-        "missing_attribute, project_id, instance_id, main_cluster_id, main_cluster_zone",
+        ("missing_attribute", "project_id", "instance_id", "main_cluster_id", "main_cluster_zone"),
         [
             ("instance_id", PROJECT_ID, "", CLUSTER_ID, CLUSTER_ZONE),
             ("main_cluster_id", PROJECT_ID, INSTANCE_ID, "", CLUSTER_ZONE),
@@ -283,7 +283,7 @@ class TestBigtableInstanceUpdate:
         )
 
     @pytest.mark.parametrize(
-        "missing_attribute, project_id, instance_id",
+        ("missing_attribute", "project_id", "instance_id"),
         [("instance_id", PROJECT_ID, "")],
     )
     @mock.patch("airflow.providers.google.cloud.operators.bigtable.BigtableHook")
@@ -385,7 +385,7 @@ class TestBigtableInstanceUpdate:
 
 class TestBigtableClusterUpdate:
     @pytest.mark.parametrize(
-        "missing_attribute, project_id, instance_id, cluster_id, nodes",
+        ("missing_attribute", "project_id", "instance_id", "cluster_id", "nodes"),
         [
             ("instance_id", PROJECT_ID, "", CLUSTER_ID, NODES),
             ("cluster_id", PROJECT_ID, INSTANCE_ID, "", NODES),
@@ -572,7 +572,7 @@ class TestBigtableInstanceDelete:
         )
 
     @pytest.mark.parametrize(
-        "missing_attribute, project_id, instance_id",
+        ("missing_attribute", "project_id", "instance_id"),
         [("instance_id", PROJECT_ID, "")],
     )
     @mock.patch("airflow.providers.google.cloud.operators.bigtable.BigtableHook")
@@ -670,7 +670,7 @@ class TestBigtableTableDelete:
         )
 
     @pytest.mark.parametrize(
-        "missing_attribute, project_id, instance_id, table_id",
+        ("missing_attribute", "project_id", "instance_id", "table_id"),
         [
             ("instance_id", PROJECT_ID, "", TABLE_ID),
             ("table_id", PROJECT_ID, INSTANCE_ID, ""),
@@ -810,7 +810,7 @@ class TestBigtableTableCreate:
         )
 
     @pytest.mark.parametrize(
-        "missing_attribute, project_id, instance_id, table_id",
+        ("missing_attribute", "project_id", "instance_id", "table_id"),
         [
             ("instance_id", PROJECT_ID, "", TABLE_ID),
             ("table_id", PROJECT_ID, INSTANCE_ID, ""),

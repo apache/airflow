@@ -91,7 +91,7 @@ class TestDAGRunSchema(TestDAGRunBase):
         assert deserialized_dagrun == expected_deserialized_dagrun
 
     @pytest.mark.parametrize(
-        "serialized_dagrun, expected_result",
+        ("serialized_dagrun", "expected_result"),
         [
             (  # Conf not provided
                 {"dag_run_id": "my-dag-run", "logical_date": DEFAULT_TIME},

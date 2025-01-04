@@ -518,7 +518,7 @@ class TestGetGridDataEndpoint:
         }
 
     @pytest.mark.parametrize(
-        "order_by,expected",
+        ("order_by", "expected"),
         [
             (
                 "logical_date",
@@ -1298,7 +1298,7 @@ class TestGetGridDataEndpoint:
         assert response.json() == expected
 
     @pytest.mark.parametrize(
-        "include_upstream, include_downstream, expected",
+        ("include_upstream", "include_downstream", "expected"),
         [
             (
                 "true",
@@ -1589,7 +1589,7 @@ class TestGetGridDataEndpoint:
         assert response.json() == expected
 
     @pytest.mark.parametrize(
-        "limit, expected",
+        ("limit", "expected"),
         [
             (
                 1,
@@ -2180,7 +2180,7 @@ class TestGetGridDataEndpoint:
         assert response.json() == expected
 
     @pytest.mark.parametrize(
-        "logical_date_gte, logical_date_lte, expected",
+        ("logical_date_gte", "logical_date_lte", "expected"),
         [
             (
                 "2024-11-30T00:00:00",
@@ -2393,7 +2393,7 @@ class TestGetGridDataEndpoint:
         assert response.json() == expected
 
     @pytest.mark.parametrize(
-        "run_type, expected",
+        ("run_type", "expected"),
         [
             (
                 ["manual"],
@@ -2795,7 +2795,7 @@ class TestGetGridDataEndpoint:
         assert response.json() == expected
 
     @pytest.mark.parametrize(
-        "run_type, expected",
+        ("run_type", "expected"),
         [
             (
                 ["invalid"],
@@ -2809,7 +2809,7 @@ class TestGetGridDataEndpoint:
         assert response.json() == expected
 
     @pytest.mark.parametrize(
-        "state, expected",
+        ("state", "expected"),
         [
             (
                 ["success"],
@@ -3215,7 +3215,7 @@ class TestGetGridDataEndpoint:
         assert response.json() == expected
 
     @pytest.mark.parametrize(
-        "state, expected",
+        ("state", "expected"),
         [
             (
                 ["invalid"],

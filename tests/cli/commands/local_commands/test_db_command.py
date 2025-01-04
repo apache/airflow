@@ -54,7 +54,7 @@ class TestCliDb:
         mock_wait_for_migrations.assert_called_once_with(timeout=60)
 
     @pytest.mark.parametrize(
-        "args, called_with",
+        ("args", "called_with"),
         [
             (
                 [],
@@ -141,7 +141,7 @@ class TestCliDb:
         mock_upgradedb.assert_called_once_with(**called_with, reserialize_dags=True)
 
     @pytest.mark.parametrize(
-        "args, pattern",
+        ("args", "pattern"),
         [
             pytest.param(
                 ["--to-revision", "abc", "--to-version", "2.10.0"],
@@ -268,7 +268,7 @@ class TestCliDb:
             db_command.shell(self.parser.parse_args(["db", "shell"]))
 
     @pytest.mark.parametrize(
-        "args, match",
+        ("args", "match"),
         [
             (["-y", "--to-revision", "abc", "--to-version", "2.2.0"], "Cannot supply both"),
             (["-y", "--to-revision", "abc1", "--from-revision", "abc2"], "only .* with `--show-sql-only`"),
@@ -290,7 +290,7 @@ class TestCliDb:
             db_command.downgrade(self.parser.parse_args(["db", "downgrade", *args]))
 
     @pytest.mark.parametrize(
-        "args, expected",
+        ("args", "expected"),
         [
             (["-y", "--to-revision", "abc1"], dict(to_revision="abc1")),
             (
@@ -315,7 +315,7 @@ class TestCliDb:
         mock_dg.assert_called_with(**{**defaults, **expected})
 
     @pytest.mark.parametrize(
-        "resp, raise_",
+        ("resp", "raise_"),
         [
             ("y", False),
             ("Y", False),
@@ -401,7 +401,7 @@ class TestCLIDBClean:
             skip_archive=False,
         )
 
-    @pytest.mark.parametrize("confirm_arg, expected", [(["-y"], False), ([], True)])
+    @pytest.mark.parametrize(("confirm_arg", "expected"), [(["-y"], False), ([], True)])
     @patch("airflow.cli.commands.local_commands.db_command.run_cleanup")
     def test_confirm(self, run_cleanup_mock, confirm_arg, expected):
         """
@@ -427,7 +427,7 @@ class TestCLIDBClean:
             skip_archive=False,
         )
 
-    @pytest.mark.parametrize("extra_arg, expected", [(["--skip-archive"], True), ([], False)])
+    @pytest.mark.parametrize(("extra_arg", "expected"), [(["--skip-archive"], True), ([], False)])
     @patch("airflow.cli.commands.local_commands.db_command.run_cleanup")
     def test_skip_archive(self, run_cleanup_mock, extra_arg, expected):
         """
@@ -453,7 +453,7 @@ class TestCLIDBClean:
             skip_archive=expected,
         )
 
-    @pytest.mark.parametrize("dry_run_arg, expected", [(["--dry-run"], True), ([], False)])
+    @pytest.mark.parametrize(("dry_run_arg", "expected"), [(["--dry-run"], True), ([], False)])
     @patch("airflow.cli.commands.local_commands.db_command.run_cleanup")
     def test_dry_run(self, run_cleanup_mock, dry_run_arg, expected):
         """
@@ -480,7 +480,7 @@ class TestCLIDBClean:
         )
 
     @pytest.mark.parametrize(
-        "extra_args, expected", [(["--tables", "hello, goodbye"], ["hello", "goodbye"]), ([], None)]
+        ("extra_args", "expected"), [(["--tables", "hello, goodbye"], ["hello", "goodbye"]), ([], None)]
     )
     @patch("airflow.cli.commands.local_commands.db_command.run_cleanup")
     def test_tables(self, run_cleanup_mock, extra_args, expected):
@@ -507,7 +507,7 @@ class TestCLIDBClean:
             skip_archive=False,
         )
 
-    @pytest.mark.parametrize("extra_args, expected", [(["--verbose"], True), ([], False)])
+    @pytest.mark.parametrize(("extra_args", "expected"), [(["--verbose"], True), ([], False)])
     @patch("airflow.cli.commands.local_commands.db_command.run_cleanup")
     def test_verbose(self, run_cleanup_mock, extra_args, expected):
         """
@@ -551,7 +551,7 @@ class TestCLIDBClean:
         )
 
     @pytest.mark.parametrize(
-        "extra_args, expected", [(["--tables", "hello, goodbye"], ["hello", "goodbye"]), ([], None)]
+        ("extra_args", "expected"), [(["--tables", "hello, goodbye"], ["hello", "goodbye"]), ([], None)]
     )
     @patch("airflow.cli.commands.local_commands.db_command.export_archived_records")
     @patch("airflow.cli.commands.local_commands.db_command.os.path.isdir", return_value=True)
@@ -576,7 +576,7 @@ class TestCLIDBClean:
             needs_confirm=True,
         )
 
-    @pytest.mark.parametrize("extra_args, expected", [(["--drop-archives"], True), ([], False)])
+    @pytest.mark.parametrize(("extra_args", "expected"), [(["--drop-archives"], True), ([], False)])
     @patch("airflow.cli.commands.local_commands.db_command.export_archived_records")
     @patch("airflow.cli.commands.local_commands.db_command.os.path.isdir", return_value=True)
     def test_drop_archives_in_export_archived_records_command(
@@ -601,7 +601,7 @@ class TestCLIDBClean:
         )
 
     @pytest.mark.parametrize(
-        "extra_args, expected", [(["--tables", "hello, goodbye"], ["hello", "goodbye"]), ([], None)]
+        ("extra_args", "expected"), [(["--tables", "hello, goodbye"], ["hello", "goodbye"]), ([], None)]
     )
     @patch("airflow.cli.commands.local_commands.db_command.drop_archived_tables")
     def test_tables_in_drop_archived_records_command(self, mock_drop_archived_records, extra_args, expected):
@@ -615,7 +615,7 @@ class TestCLIDBClean:
         db_command.drop_archived(args)
         mock_drop_archived_records.assert_called_once_with(table_names=expected, needs_confirm=True)
 
-    @pytest.mark.parametrize("extra_args, expected", [(["-y"], False), ([], True)])
+    @pytest.mark.parametrize(("extra_args", "expected"), [(["-y"], False), ([], True)])
     @patch("airflow.cli.commands.local_commands.db_command.drop_archived_tables")
     def test_confirm_in_drop_archived_records_command(self, mock_drop_archived_records, extra_args, expected):
         args = self.parser.parse_args(

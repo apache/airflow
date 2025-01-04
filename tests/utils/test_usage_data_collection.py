@@ -31,7 +31,7 @@ from airflow.utils.usage_data_collection import (
 )
 
 
-@pytest.mark.parametrize("is_enabled, is_prerelease", [(False, True), (True, True)])
+@pytest.mark.parametrize(("is_enabled", "is_prerelease"), [(False, True), (True, True)])
 @mock.patch("httpx.get")
 def test_scarf_analytics_disabled(mock_get, is_enabled, is_prerelease):
     with (
@@ -78,7 +78,7 @@ def test_scarf_analytics(
 
 @pytest.mark.db_test
 @pytest.mark.parametrize(
-    "version_info, expected_version",
+    ("version_info", "expected_version"),
     [
         ((1, 2, 3), "1.2"),  # Normal version tuple
         (None, "None"),  # No version info available
@@ -92,7 +92,7 @@ def test_get_database_version(version_info, expected_version):
 
 
 @pytest.mark.parametrize(
-    "version_info, expected_version",
+    ("version_info", "expected_version"),
     [
         ("1.2.3", "1.2"),  # Normal version
         ("4", "4"),  # Single element version

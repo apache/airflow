@@ -168,7 +168,7 @@ def client_ti_without_dag_edit(app):
 
 
 @pytest.mark.parametrize(
-    "url, contents",
+    ("url", "contents"),
     [
         pytest.param(
             "/",
@@ -519,7 +519,7 @@ def test_code_from_db_all_example_dags(admin_client):
 
 
 @pytest.mark.parametrize(
-    "url, data, content",
+    ("url", "data", "content"),
     [
         ("paused?dag_id=example_bash_operator&is_paused=false", None, "OK"),
         (

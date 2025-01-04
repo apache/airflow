@@ -622,7 +622,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.md5")
     @pytest.mark.parametrize(
-        "test_dag_id, expected_job_id",
+        ("test_dag_id", "expected_job_id"),
         [("test-dag-id-1.1", "airflow_test_dag_id_1_1_test_job_id_2020_01_23T00_00_00_hash")],
         ids=["test-dag-id-1.1"],
     )
@@ -662,7 +662,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
             self.hook.get_query_results(job_id=JOB_ID, location=LOCATION)
 
     @pytest.mark.parametrize(
-        "selected_fields, result",
+        ("selected_fields", "result"),
         [
             (None, [{"a": 1, "b": 2}, {"a": 3, "b": 4}]),
             ("a", [{"a": 1}, {"a": 3}]),
@@ -689,7 +689,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
             self.hook.split_tablename("dataset.table", None)
 
     @pytest.mark.parametrize(
-        "project_expected, dataset_expected, table_expected, table_input",
+        ("project_expected", "dataset_expected", "table_expected", "table_input"),
         [
             ("project", "dataset", "table", "dataset.table"),
             ("alternative", "dataset", "table", "alternative:dataset.table"),
@@ -706,7 +706,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         assert table_expected == table
 
     @pytest.mark.parametrize(
-        "table_input, var_name, exception_message",
+        ("table_input", "var_name", "exception_message"),
         [
             ("alt1:alt2:alt3:dataset.table", None, "Use either : or . to specify project got {}"),
             (
@@ -745,7 +745,7 @@ class TestBigQueryTableSplitter:
 
     @pytest.mark.parametrize("partition", ["$partition", ""])
     @pytest.mark.parametrize(
-        "project_expected, dataset_expected, table_expected, table_input",
+        ("project_expected", "dataset_expected", "table_expected", "table_input"),
         [
             ("project", "dataset", "table", "dataset.table"),
             ("alternative", "dataset", "table", "alternative:dataset.table"),
@@ -762,7 +762,7 @@ class TestBigQueryTableSplitter:
             split_tablename(table_input + partition, default_project_id)
 
     @pytest.mark.parametrize(
-        "table_input, var_name, exception_message",
+        ("table_input", "var_name", "exception_message"),
         [
             ("alt1:alt2:alt3:dataset.table", None, "Use either : or . to specify project got {}"),
             (
@@ -1517,7 +1517,7 @@ class TestBigQueryAsyncHookMethods:
         assert isinstance(result, Job)
 
     @pytest.mark.parametrize(
-        "job_state, error_result, expected",
+        ("job_state", "error_result", "expected"),
         [
             ("DONE", None, {"status": "success", "message": "Job completed"}),
             ("DONE", {"message": "Timeout"}, {"status": "error", "message": "Timeout"}),
@@ -1710,7 +1710,8 @@ class TestBigQueryAsyncHookMethods:
         assert resp == response
 
     @pytest.mark.parametrize(
-        "records,pass_value,tolerance", [(["str"], "str", None), ([2], 2, None), ([0], 2, 1), ([4], 2, 1)]
+        ("records", "pass_value", "tolerance"),
+        [(["str"], "str", None), ([2], 2, None), ([0], 2, 1), ([4], 2, 1)],
     )
     def test_value_check_success(self, records, pass_value, tolerance):
         """
@@ -1722,7 +1723,7 @@ class TestBigQueryAsyncHookMethods:
         assert response is None
 
     @pytest.mark.parametrize(
-        "records,pass_value,tolerance",
+        ("records", "pass_value", "tolerance"),
         [([], "", None), (["str"], "str1", None), ([2], 21, None), ([5], 2, 1), (["str"], 2, None)],
     )
     def test_value_check_fail(self, records, pass_value, tolerance):
@@ -1735,7 +1736,7 @@ class TestBigQueryAsyncHookMethods:
         assert isinstance(ex.value, AirflowException)
 
     @pytest.mark.parametrize(
-        "records,pass_value,tolerance, expected",
+        ("records", "pass_value", "tolerance", "expected"),
         [
             ([2.0], 2.0, None, [True]),
             ([2.0], 2.1, None, [False]),
@@ -1751,7 +1752,7 @@ class TestBigQueryAsyncHookMethods:
 
         assert BigQueryAsyncHook._get_numeric_matches(records, pass_value, tolerance) == expected
 
-    @pytest.mark.parametrize("test_input,expected", [(5.0, 5.0), (5, 5.0), ("5", 5), ("str", "str")])
+    @pytest.mark.parametrize(("test_input", "expected"), [(5.0, 5.0), (5, 5.0), ("5", 5), ("str", "str")])
     def test_convert_to_float_if_possible(self, test_input, expected):
         """
         Assert that type casting succeed for the possible value

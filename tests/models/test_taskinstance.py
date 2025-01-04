@@ -589,7 +589,7 @@ class TestTaskInstance:
         ti.state == state
 
     @pytest.mark.parametrize(
-        "state, exception, retries",
+        ("state", "exception", "retries"),
         [
             (State.FAILED, AirflowException, 0),
             (State.SKIPPED, AirflowSkipException, 0),
@@ -1183,7 +1183,14 @@ class TestTaskInstance:
     # Numeric fields are in order:
     #   successes, skipped, failed, upstream_failed, removed, done
     @pytest.mark.parametrize(
-        "trigger_rule, upstream_setups, upstream_states, flag_upstream_failed, expect_state, expect_passed",
+        (
+            "trigger_rule",
+            "upstream_setups",
+            "upstream_states",
+            "flag_upstream_failed",
+            "expect_state",
+            "expect_passed",
+        ),
         [
             #
             # Tests for all_success
@@ -1457,7 +1464,7 @@ class TestTaskInstance:
     # Does not work for database isolation mode because there is local test monkeypatching of upstream_failed
     # That never gets propagated to internal_api
     @pytest.mark.parametrize(
-        "trigger_rule, upstream_states, flag_upstream_failed, expect_state, expect_completed",
+        ("trigger_rule", "upstream_states", "flag_upstream_failed", "expect_state", "expect_completed"),
         [
             #
             # Tests for all_success
@@ -1587,7 +1594,7 @@ class TestTaskInstance:
             assert ti.are_dependencies_met()
 
     @pytest.mark.parametrize(
-        "downstream_ti_state, expected_are_dependents_done",
+        ("downstream_ti_state", "expected_are_dependents_done"),
         [
             (State.SUCCESS, True),
             (State.SKIPPED, True),
@@ -2948,7 +2955,7 @@ class TestTaskInstance:
 
     @pytest.mark.want_activate_assets(True)
     @pytest.mark.parametrize(
-        "slicer, expected",
+        ("slicer", "expected"),
         [
             (lambda x: x[-2:], [{"from": 8}, {"from": 9}]),
             (lambda x: x[-5:-3], [{"from": 5}, {"from": 6}]),
@@ -3001,7 +3008,7 @@ class TestTaskInstance:
         assert result == expected
 
     @pytest.mark.parametrize(
-        "slicer, expected",
+        ("slicer", "expected"),
         [
             (lambda x: x[-2:], [{"from": 8}, {"from": 9}]),
             (lambda x: x[-5:-3], [{"from": 5}, {"from": 6}]),
@@ -3142,7 +3149,7 @@ class TestTaskInstance:
         pytest.param(datetime.timedelta(days=1), False, id="timedelta/no-catchup"),
     ]
 
-    @pytest.mark.parametrize("schedule, catchup", _prev_dates_param_list)
+    @pytest.mark.parametrize(("schedule", "catchup"), _prev_dates_param_list)
     def test_previous_ti(self, schedule, catchup, dag_maker) -> None:
         scenario = [State.SUCCESS, State.FAILED, State.SUCCESS]
 
@@ -3154,7 +3161,7 @@ class TestTaskInstance:
 
         assert ti_list[2].get_previous_ti().run_id != ti_list[0].run_id
 
-    @pytest.mark.parametrize("schedule, catchup", _prev_dates_param_list)
+    @pytest.mark.parametrize(("schedule", "catchup"), _prev_dates_param_list)
     def test_previous_ti_success(self, schedule, catchup, dag_maker) -> None:
         scenario = [State.FAILED, State.SUCCESS, State.FAILED, State.SUCCESS]
 
@@ -3167,7 +3174,7 @@ class TestTaskInstance:
 
         assert ti_list[3].get_previous_ti(state=State.SUCCESS).run_id != ti_list[2].run_id
 
-    @pytest.mark.parametrize("schedule, catchup", _prev_dates_param_list)
+    @pytest.mark.parametrize(("schedule", "catchup"), _prev_dates_param_list)
     def test_previous_logical_date_success(self, schedule, catchup, dag_maker) -> None:
         scenario = [State.FAILED, State.SUCCESS, State.FAILED, State.SUCCESS]
 
@@ -3181,7 +3188,7 @@ class TestTaskInstance:
         assert ti_list[3].get_previous_logical_date(state=State.SUCCESS) == ti_list[1].logical_date
         assert ti_list[3].get_previous_logical_date(state=State.SUCCESS) != ti_list[2].logical_date
 
-    @pytest.mark.parametrize("schedule, catchup", _prev_dates_param_list)
+    @pytest.mark.parametrize(("schedule", "catchup"), _prev_dates_param_list)
     def test_previous_start_date_success(self, schedule, catchup, dag_maker) -> None:
         scenario = [State.FAILED, State.SUCCESS, State.FAILED, State.SUCCESS]
 
@@ -3313,7 +3320,7 @@ class TestTaskInstance:
         assert result == "Task: test_template_render -> test_template_render_task"
 
     @pytest.mark.parametrize(
-        "content, expected_output",
+        ("content", "expected_output"),
         [
             ('{{ conn.get("a_connection").host }}', "hostvalue"),
             ('{{ conn.get("a_connection", "unused_fallback").host }}', "hostvalue"),
@@ -3356,7 +3363,7 @@ class TestTaskInstance:
         assert result == expected_output
 
     @pytest.mark.parametrize(
-        "content, expected_output",
+        ("content", "expected_output"),
         [
             ("{{ var.value.a_variable }}", "a test value"),
             ('{{ var.value.get("a_variable") }}', "a test value"),
@@ -3389,7 +3396,7 @@ class TestTaskInstance:
             ti.task.render_template('{{ var.value.get("missing_variable") }}', context)
 
     @pytest.mark.parametrize(
-        "content, expected_output",
+        ("content", "expected_output"),
         [
             ("{{ var.value.a_variable }}", '{\n  "a": {\n    "test": "value"\n  }\n}'),
             ('{{ var.json.a_variable["a"]["test"] }}', "value"),
@@ -3787,7 +3794,7 @@ class TestTaskInstance:
         assert ti.state == State.SUCCESS
 
     @pytest.mark.parametrize(
-        "code, expected_state",
+        ("code", "expected_state"),
         [
             pytest.param(1, State.FAILED, id="code-positive-number"),
             pytest.param(-1, State.FAILED, id="code-negative-number"),
@@ -4508,7 +4515,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
         assert dag_maker.session.query(TaskMap).count() == 2
 
     @pytest.mark.parametrize(
-        "return_value, exception_type, error_message",
+        ("return_value", "exception_type", "error_message"),
         [
             ("abc", UnmappableXComTypePushed, "unmappable return type 'str'"),
             (None, XComForMappingNotPushed, "did not push XCom for task mapping"),
@@ -4537,7 +4544,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
         assert str(ctx.value) == error_message
 
     @pytest.mark.parametrize(
-        "return_value, exception_type, error_message",
+        ("return_value", "exception_type", "error_message"),
         [
             (123, UnmappableXComTypePushed, "unmappable return type 'int'"),
             (None, XComForMappingNotPushed, "did not push XCom for task mapping"),
@@ -4568,7 +4575,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
         assert str(ctx.value) == error_message
 
     @pytest.mark.parametrize(
-        "return_value, exception_type, error_message",
+        ("return_value", "exception_type", "error_message"),
         [
             (123, UnmappableXComTypePushed, "unmappable return type 'int'"),
             (None, XComForMappingNotPushed, "did not push XCom for task mapping"),
@@ -4603,7 +4610,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
         assert str(ctx.value) == error_message
 
     @pytest.mark.parametrize(
-        "return_value, exception_type, error_message",
+        ("return_value", "exception_type", "error_message"),
         [
             (123, UnmappableXComTypePushed, "unmappable return type 'int'"),
             (None, XComForMappingNotPushed, "did not push XCom for task mapping"),
@@ -4673,7 +4680,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
             assert str(ctx.value) == "expand_kwargs() expects a list[dict], not list[int]"
 
     @pytest.mark.parametrize(
-        "downstream, error_message",
+        ("downstream", "error_message"),
         [
             ("taskflow", "mapping already partial argument: arg2"),
             ("classic", "unmappable or already specified argument: arg2"),
@@ -4773,7 +4780,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
         assert str(ctx.value) == "unmappable return value length: 2 > 1"
 
     @pytest.mark.parametrize(
-        "xcom_value, expected_length, expected_keys",
+        ("xcom_value", "expected_length", "expected_keys"),
         [
             ([1, 2, 3], 3, None),
             ({"a": 1, "b": 2}, 2, ["a", "b"]),
@@ -4841,7 +4848,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
 
 class TestMappedTaskInstanceReceiveValue:
     @pytest.mark.parametrize(
-        "literal, expected_outputs",
+        ("literal", "expected_outputs"),
         [
             pytest.param([1, 2, 3], [1, 2, 3], id="list"),
             pytest.param({"a": 1, "b": 2}, [("a", 1), ("b", 2)], id="dict"),
@@ -4874,7 +4881,7 @@ class TestMappedTaskInstanceReceiveValue:
         assert outputs == expected_outputs
 
     @pytest.mark.parametrize(
-        "upstream_return, expected_outputs",
+        ("upstream_return", "expected_outputs"),
         [
             pytest.param([1, 2, 3], [1, 2, 3], id="list"),
             pytest.param({"a": 1, "b": 2}, [("a", 1), ("b", 2)], id="dict"),

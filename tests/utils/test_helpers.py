@@ -181,7 +181,7 @@ class TestHelpers:
             assert build_airflow_url_with_query(query) == expected_url
 
     @pytest.mark.parametrize(
-        "key_id, message, exception",
+        ("key_id", "message", "exception"),
         [
             (3, "The key has to be a string and is <class 'int'>:3", TypeError),
             (None, "The key has to be a string and is <class 'NoneType'>:None", TypeError),
@@ -212,7 +212,7 @@ class TestHelpers:
             validate_key(key_id)
 
     @pytest.mark.parametrize(
-        "key_id, message, exception",
+        ("key_id", "message", "exception"),
         [
             (3, "The key has to be a string and is <class 'int'>:3", TypeError),
             (None, "The key has to be a string and is <class 'NoneType'>:None", TypeError),
@@ -306,7 +306,7 @@ class TestHelpers:
             assert_at_most_one(*row)
 
     @pytest.mark.parametrize(
-        "mode, expected",
+        ("mode", "expected"),
         [
             (
                 "strict",
@@ -368,7 +368,7 @@ class ClassToValidateArgs:
 
 # Edge cases
 @pytest.mark.parametrize(
-    "instance, expected_arg_types",
+    ("instance", "expected_arg_types"),
     [
         (ClassToValidateArgs("Alice", 30, None), {"name": str, "age": int, "active": bool}),
         (ClassToValidateArgs(None, 25, True), {"name": str, "age": int, "active": bool}),
@@ -380,7 +380,7 @@ def test_validate_instance_args_raises_no_error(instance, expected_arg_types):
 
 # Error cases
 @pytest.mark.parametrize(
-    "instance, expected_arg_types",
+    ("instance", "expected_arg_types"),
     [
         (ClassToValidateArgs("Alice", "thirty", True), {"name": str, "age": int, "active": bool}),
         (ClassToValidateArgs("Bob", 25, "yes"), {"name": str, "age": int, "active": bool}),

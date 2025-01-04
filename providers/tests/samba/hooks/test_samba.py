@@ -133,7 +133,7 @@ class TestSambaHook:
             assert dict(kwargs, **connection_settings) == p_kwargs
 
     @pytest.mark.parametrize(
-        "path, full_path",
+        ("path", "full_path"),
         [
             ("/start/path/with/slash", "//ip/share/start/path/with/slash"),
             ("start/path/without/slash", "//ip/share/start/path/without/slash"),

@@ -131,7 +131,7 @@ class TestDockerDecorator:
         assert dag.task_ids[-1] == "do_run__20"
 
     @pytest.mark.parametrize(
-        "kwargs, actual_exit_code, expected_state",
+        ("kwargs", "actual_exit_code", "expected_state"),
         [
             ({}, 0, TaskInstanceState.SUCCESS),
             ({}, 100, TaskInstanceState.FAILED),

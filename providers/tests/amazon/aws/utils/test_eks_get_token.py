@@ -30,7 +30,7 @@ class TestGetEksToken:
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook")
     @time_machine.travel("1995-02-14", tick=False)
     @pytest.mark.parametrize(
-        "args, expected_aws_conn_id, expected_region_name",
+        ("args", "expected_aws_conn_id", "expected_region_name"),
         [
             [
                 [

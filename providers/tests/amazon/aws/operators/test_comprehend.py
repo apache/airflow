@@ -146,7 +146,7 @@ class TestComprehendStartPiiEntitiesDetectionJobOperator:
         )
 
     @pytest.mark.parametrize(
-        "wait_for_completion, deferrable",
+        ("wait_for_completion", "deferrable"),
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
@@ -246,7 +246,7 @@ class TestComprehendCreateDocumentClassifierOperator:
         )
 
     @pytest.mark.parametrize(
-        "wait_for_completion, deferrable",
+        ("wait_for_completion", "deferrable"),
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),

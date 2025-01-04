@@ -264,7 +264,7 @@ class TestSnowflakeSqlApiOperator:
         with pytest.raises(AirflowException):
             operator.execute(context=None)
 
-    @pytest.mark.parametrize("mock_sql, statement_count", [(SQL_MULTIPLE_STMTS, 4), (SINGLE_STMT, 1)])
+    @pytest.mark.parametrize(("mock_sql", "statement_count"), [(SQL_MULTIPLE_STMTS, 4), (SINGLE_STMT, 1)])
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.execute_query")
     def test_snowflake_sql_api_execute_operator_async(
         self, mock_execute_query, mock_sql, statement_count, mock_get_sql_api_query_status

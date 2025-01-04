@@ -252,7 +252,7 @@ class TestGetValue:
     )
     @conf_vars({("webserver", "expose_config"): "non-sensitive-only"})
     @pytest.mark.parametrize(
-        "section, option",
+        ("section", "option"),
         [
             ("database", "sql_alchemy_conn"),
             ("database", "SQL_ALCHEMY_CONN"),

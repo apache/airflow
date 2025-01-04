@@ -237,7 +237,7 @@ class TestKubernetesPodTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "logging_interval, exp_event",
+        ("logging_interval", "exp_event"),
         [
             pytest.param(
                 0,
@@ -280,7 +280,7 @@ class TestKubernetesPodTrigger:
         assert await trigger.run().__anext__() == TriggerEvent(exp_event)
 
     @pytest.mark.parametrize(
-        "container_state, expected_state",
+        ("container_state", "expected_state"),
         [
             (
                 {"running": k8s.V1ContainerStateRunning(), "terminated": None, "waiting": None},

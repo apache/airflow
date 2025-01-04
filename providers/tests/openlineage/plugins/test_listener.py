@@ -576,7 +576,7 @@ def test_listener_on_task_instance_success_do_not_call_adapter_when_disabled_ope
 
 
 @pytest.mark.parametrize(
-    "max_workers,expected",
+    ("max_workers", "expected"),
     [
         (None, 1),
         ("8", 8),
@@ -696,7 +696,7 @@ class TestOpenLineageSelectiveEnable:
         self.task_instance_1.dag_run = self.task_instance_2.dag_run = self.dagrun
 
     @pytest.mark.parametrize(
-        "selective_enable, enable_dag, expected_call_count",
+        ("selective_enable", "enable_dag", "expected_call_count"),
         [
             ("True", True, 3),
             ("False", True, 3),
@@ -720,7 +720,7 @@ class TestOpenLineageSelectiveEnable:
             listener.on_dag_run_success(self.dagrun, msg="test success")
 
     @pytest.mark.parametrize(
-        "selective_enable, enable_task, expected_dag_call_count, expected_task_call_count",
+        ("selective_enable", "enable_task", "expected_dag_call_count", "expected_task_call_count"),
         [
             ("True", True, 3, 3),
             ("False", True, 3, 3),
@@ -783,7 +783,7 @@ class TestOpenLineageSelectiveEnable:
             assert expected_task_call_count == listener.extractor_manager.extract_metadata.call_count
 
     @pytest.mark.parametrize(
-        "selective_enable, enable_task, expected_call_count, expected_task_call_count",
+        ("selective_enable", "enable_task", "expected_call_count", "expected_task_call_count"),
         [
             ("True", True, 3, 3),
             ("False", True, 3, 3),

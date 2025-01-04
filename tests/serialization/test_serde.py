@@ -408,7 +408,7 @@ class TestSerDe:
         s = deserialize(e, full=False)
 
     @pytest.mark.parametrize(
-        "obj, expected",
+        ("obj", "expected"),
         [
             (
                 Z(10),

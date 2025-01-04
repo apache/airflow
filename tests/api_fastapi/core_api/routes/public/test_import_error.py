@@ -80,7 +80,7 @@ class TestImportErrorEndpoint:
 
 class TestGetImportError(TestImportErrorEndpoint):
     @pytest.mark.parametrize(
-        "import_error_key, expected_status_code, expected_body",
+        ("import_error_key", "expected_status_code", "expected_body"),
         [
             (
                 FILENAME1,
@@ -125,7 +125,7 @@ class TestGetImportError(TestImportErrorEndpoint):
 
 class TestGetImportErrors(TestImportErrorEndpoint):
     @pytest.mark.parametrize(
-        "query_params, expected_status_code, expected_total_entries, expected_filenames",
+        ("query_params", "expected_status_code", "expected_total_entries", "expected_filenames"),
         [
             (
                 {},

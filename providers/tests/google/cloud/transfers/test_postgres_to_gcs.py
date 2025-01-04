@@ -101,7 +101,7 @@ class TestPostgresToGoogleCloudStorageOperator:
             assert b"".join(NDJSON_LINES) == file.read()
 
     @pytest.mark.parametrize(
-        "value, expected",
+        ("value", "expected"),
         [
             ("string", "string"),
             (32.9, 32.9),

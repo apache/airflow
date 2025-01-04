@@ -275,7 +275,7 @@ else:
 
 @pytest.mark.enable_redact
 @pytest.mark.parametrize(
-    "env, expected",
+    ("env", "expected"),
     [
         pytest.param(
             {"plain_key": "plain_value"},

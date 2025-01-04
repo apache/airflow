@@ -272,7 +272,7 @@ class TestGetAssets(TestAssets):
         assert response.json()["detail"] == msg
 
     @pytest.mark.parametrize(
-        "params, expected_assets",
+        ("params", "expected_assets"),
         [
             ({"name_pattern": "s3"}, {"s3://folder/key"}),
             ({"name_pattern": "bucket"}, {"gcp://bucket/key", "wasb://some_asset_bucket_/key"}),
@@ -308,7 +308,7 @@ class TestGetAssets(TestAssets):
         assert expected_assets == asset_urls
 
     @pytest.mark.parametrize(
-        "params, expected_assets",
+        ("params", "expected_assets"),
         [
             ({"uri_pattern": "s3"}, {"s3://folder/key"}),
             ({"uri_pattern": "bucket"}, {"gcp://bucket/key", "wasb://some_asset_bucket_/key"}),
@@ -343,7 +343,7 @@ class TestGetAssets(TestAssets):
         asset_urls = {asset["uri"] for asset in response.json()["assets"]}
         assert expected_assets == asset_urls
 
-    @pytest.mark.parametrize("dag_ids, expected_num", [("dag1,dag2", 2), ("dag3", 1), ("dag2,dag3", 2)])
+    @pytest.mark.parametrize(("dag_ids", "expected_num"), [("dag1,dag2", 2), ("dag3", 1), ("dag2,dag3", 2)])
     @provide_session
     def test_filter_assets_by_dag_ids_works(self, test_client, dag_ids, expected_num, session):
         session.query(DagModel).delete()
@@ -367,7 +367,7 @@ class TestGetAssets(TestAssets):
         assert len(response_data["assets"]) == expected_num
 
     @pytest.mark.parametrize(
-        "dag_ids, uri_pattern,expected_num",
+        ("dag_ids", "uri_pattern", "expected_num"),
         [("dag1,dag2", "folder", 1), ("dag3", "nothing", 0), ("dag2,dag3", "key", 2)],
     )
     @provide_session
@@ -397,7 +397,7 @@ class TestGetAssets(TestAssets):
 
 class TestGetAssetsEndpointPagination(TestAssets):
     @pytest.mark.parametrize(
-        "url, expected_asset_uris",
+        ("url", "expected_asset_uris"),
         [
             # Limit test data
             ("/public/assets?limit=1", ["s3://bucket/key/1"]),
@@ -471,7 +471,7 @@ class TestGetAssetAliases(TestAssetAliases):
         assert response.json()["detail"] == msg
 
     @pytest.mark.parametrize(
-        "params, expected_asset_aliases",
+        ("params", "expected_asset_aliases"),
         [
             ({"name_pattern": "foo"}, {"foo1"}),
             ({"name_pattern": "1"}, {"foo1", "bar12"}),
@@ -498,7 +498,7 @@ class TestGetAssetAliases(TestAssetAliases):
 
 class TestGetAssetAliasesEndpointPagination(TestAssetAliases):
     @pytest.mark.parametrize(
-        "url, expected_asset_aliases",
+        ("url", "expected_asset_aliases"),
         [
             # Limit test data
             ("/public/assets/aliases?limit=1", ["simple1"]),
@@ -588,7 +588,7 @@ class TestGetAssetEvents(TestAssets):
         }
 
     @pytest.mark.parametrize(
-        "params, total_entries",
+        ("params", "total_entries"),
         [
             ({"asset_id": "2"}, 1),
             ({"source_dag_id": "source_dag_id"}, 2),
@@ -608,7 +608,7 @@ class TestGetAssetEvents(TestAssets):
         assert response.json()["total_entries"] == total_entries
 
     @pytest.mark.parametrize(
-        "params, expected_ids",
+        ("params", "expected_ids"),
         [
             # Test Case 1: Filtering with both timestamp_gte and timestamp_lte set to the same date
             (
@@ -667,7 +667,7 @@ class TestGetAssetEvents(TestAssets):
         assert response.json()["detail"] == msg
 
     @pytest.mark.parametrize(
-        "params, expected_asset_ids",
+        ("params", "expected_asset_ids"),
         [
             # Limit test data
             ({"limit": "1"}, [1]),

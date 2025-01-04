@@ -222,7 +222,7 @@ def _fake_ctx_output(*names: str) -> str:
 
 
 @pytest.mark.parametrize(
-    "context_output, selected_context, console_output",
+    ("context_output", "selected_context", "console_output"),
     [
         (
             _fake_ctx_output("default"),

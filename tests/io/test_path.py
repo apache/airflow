@@ -170,7 +170,7 @@ class TestFs:
             FakeLocalFileSystem.pseudo_dirs[:] = [""]
 
     @pytest.mark.parametrize(
-        "fn, args, fn2, path, expected_args, expected_kwargs",
+        ("fn", "args", "fn2", "path", "expected_args", "expected_kwargs"),
         [
             ("checksum", {}, "checksum", FOO, FakeLocalFileSystem._strip_protocol(BAR), {}),
             ("size", {}, "size", FOO, FakeLocalFileSystem._strip_protocol(BAR), {}),

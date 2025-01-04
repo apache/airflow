@@ -153,7 +153,7 @@ class TestGetXComEntry(TestXComEndpoint):
         assert response.json()["detail"] == f"XCom entry with key: `{TEST_XCOM_KEY_2}` not found"
 
     @pytest.mark.parametrize(
-        "support_deserialize, params, expected_status_or_value",
+        ("support_deserialize", "params", "expected_status_or_value"),
         [
             pytest.param(
                 True,
@@ -349,7 +349,7 @@ class TestGetXComEntries(TestXComEndpoint):
         }
 
     @pytest.mark.parametrize(
-        "key, expected_entries",
+        ("key", "expected_entries"),
         [
             (
                 TEST_XCOM_KEY,
@@ -436,7 +436,7 @@ class TestGetXComEntries(TestXComEndpoint):
 
 class TestPaginationGetXComEntries(TestXComEndpoint):
     @pytest.mark.parametrize(
-        "query_params, expected_xcom_ids",
+        ("query_params", "expected_xcom_ids"),
         [
             (
                 {"limit": "1"},

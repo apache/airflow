@@ -181,7 +181,7 @@ class TestDagStatsEndpoint:
         assert response.json["total_entries"] == 2
 
     @pytest.mark.parametrize(
-        "url, exp_payload",
+        ("url", "exp_payload"),
         [
             (
                 "api/v1/dagStats",

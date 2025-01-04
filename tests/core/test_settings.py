@@ -238,7 +238,7 @@ _local_db_path_error = pytest.raises(AirflowConfigException, match=r"Cannot use 
 
 
 @pytest.mark.parametrize(
-    ["value", "expectation"],
+    ("value", "expectation"),
     [
         ("sqlite:///./relative_path.db", _local_db_path_error),
         ("sqlite:///relative/path.db", _local_db_path_error),
@@ -297,7 +297,7 @@ class TestEngineArgs:
 
 
 @pytest.mark.parametrize(
-    "env_var, conf_setting, is_enabled",
+    ("env_var", "conf_setting", "is_enabled"),
     [
         ("false", "True", False),  # env forces disable
         ("false", "False", False),  # Both force disable

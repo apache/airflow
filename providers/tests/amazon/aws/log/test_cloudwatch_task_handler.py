@@ -161,7 +161,7 @@ class TestCloudwatchTaskHandler:
         )
 
     @pytest.mark.parametrize(
-        "end_date, expected_end_time",
+        ("end_date", "expected_end_time"),
         [
             (None, None),
             (datetime(2020, 1, 2), datetime_to_epoch_utc_ms(datetime(2020, 1, 2) + timedelta(seconds=30))),
@@ -178,7 +178,7 @@ class TestCloudwatchTaskHandler:
         )
 
     @pytest.mark.parametrize(
-        "conf_json_serialize, expected_serialized_output",
+        ("conf_json_serialize", "expected_serialized_output"),
         [
             pytest.param(
                 "airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize_legacy",

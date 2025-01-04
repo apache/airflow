@@ -88,7 +88,7 @@ class TestCliUtil:
             cli.get_dags(None, "foobar", True)
 
     @pytest.mark.parametrize(
-        ["given_command", "expected_masked_command"],
+        ("given_command", "expected_masked_command"),
         [
             (
                 "airflow users create -u test2 -l doe -f jon -e jdoe@apache.org -r admin --password test",
@@ -169,7 +169,7 @@ class TestCliUtil:
         assert pid == default_pid_path
 
     @pytest.mark.parametrize(
-        ["given_command", "expected_masked_command"],
+        ("given_command", "expected_masked_command"),
         [
             (
                 "airflow variables set --description 'needed for dag 4' client_secret_234 7fh4375f5gy353wdf",

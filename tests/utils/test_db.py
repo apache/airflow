@@ -141,7 +141,7 @@ class TestDb:
         assert mock_alembic_command.upgrade.call_count == 2
 
     @pytest.mark.parametrize(
-        "from_revision, to_revision",
+        ("from_revision", "to_revision"),
         [("be2bfac3da23", "e959f08ac86c"), ("ccde3e26fe78", "2e42bb497a22")],
     )
     def test_offline_upgrade_wrong_order(self, from_revision, to_revision):
@@ -151,7 +151,7 @@ class TestDb:
                     upgradedb(from_revision=from_revision, to_revision=to_revision, show_sql_only=True)
 
     @pytest.mark.parametrize(
-        "to_revision, from_revision",
+        ("to_revision", "from_revision"),
         [
             ("e959f08ac86c", "e959f08ac86c"),
         ],

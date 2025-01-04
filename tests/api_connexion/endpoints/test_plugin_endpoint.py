@@ -195,7 +195,7 @@ class TestGetPlugins(TestPluginsEndpoint):
 
 class TestGetPluginsPagination(TestPluginsEndpoint):
     @pytest.mark.parametrize(
-        "url, expected_plugin_names",
+        ("url", "expected_plugin_names"),
         [
             ("/api/v1/plugins?limit=1", ["TEST_PLUGIN_1"]),
             ("/api/v1/plugins?limit=2", ["TEST_PLUGIN_1", "TEST_PLUGIN_2"]),

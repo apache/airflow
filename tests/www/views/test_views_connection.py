@@ -140,7 +140,7 @@ def test_prefill_form_sensitive_fields_extra():
 
 
 @pytest.mark.parametrize(
-    "extras, expected",
+    ("extras", "expected"),
     [
         pytest.param({"extra__test__my_param": "this_val"}, "this_val", id="conn_not_upgraded"),
         pytest.param({"my_param": "my_val"}, "my_val", id="conn_upgraded"),

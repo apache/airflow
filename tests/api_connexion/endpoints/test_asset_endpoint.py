@@ -228,7 +228,7 @@ class TestGetAssets(TestAssetEndpoint):
         assert_401(response)
 
     @pytest.mark.parametrize(
-        "url, expected_assets",
+        ("url", "expected_assets"),
         [
             ("api/v1/assets?uri_pattern=s3", {"s3://folder/key"}),
             ("api/v1/assets?uri_pattern=bucket", {"gcp://bucket/key", "wasb://some_asset_bucket_/key"}),
@@ -260,7 +260,7 @@ class TestGetAssets(TestAssetEndpoint):
         asset_urls = {asset["uri"] for asset in response.json["assets"]}
         assert expected_assets == asset_urls
 
-    @pytest.mark.parametrize("dag_ids, expected_num", [("dag1,dag2", 2), ("dag3", 1), ("dag2,dag3", 2)])
+    @pytest.mark.parametrize(("dag_ids", "expected_num"), [("dag1,dag2", 2), ("dag3", 1), ("dag2,dag3", 2)])
     @provide_session
     def test_filter_assets_by_dag_ids_works(self, dag_ids, expected_num, session):
         session.query(DagModel).delete()
@@ -284,7 +284,7 @@ class TestGetAssets(TestAssetEndpoint):
         assert len(response_data["assets"]) == expected_num
 
     @pytest.mark.parametrize(
-        "dag_ids, uri_pattern,expected_num",
+        ("dag_ids", "uri_pattern", "expected_num"),
         [("dag1,dag2", "folder", 1), ("dag3", "nothing", 0), ("dag2,dag3", "key", 2)],
     )
     def test_filter_assets_by_dag_ids_and_uri_pattern_works(
@@ -314,7 +314,7 @@ class TestGetAssets(TestAssetEndpoint):
 
 class TestGetAssetsEndpointPagination(TestAssetEndpoint):
     @pytest.mark.parametrize(
-        "url, expected_asset_uris",
+        ("url", "expected_asset_uris"),
         [
             # Limit test data
             ("/api/v1/assets?limit=1", ["s3://bucket/key/1"]),
@@ -425,7 +425,7 @@ class TestGetAssetEvents(TestAssetEndpoint):
         }
 
     @pytest.mark.parametrize(
-        "attr, value",
+        ("attr", "value"),
         [
             ("asset_id", "2"),
             ("source_dag_id", "dag2"),
@@ -652,7 +652,7 @@ class TestPostAssetEvents(TestAssetEndpoint):
 
 class TestGetAssetEventsEndpointPagination(TestAssetEndpoint):
     @pytest.mark.parametrize(
-        "url, expected_event_runids",
+        ("url", "expected_event_runids"),
         [
             # Limit test data
             ("/api/v1/assets/events?limit=1&order_by=source_run_id", ["run1"]),

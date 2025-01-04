@@ -174,7 +174,7 @@ class TestPythonPackages:
     }
 
     @pytest.mark.skipif(os.environ.get("TEST_SLIM_IMAGE") == "true", reason="Skipped with slim image")
-    @pytest.mark.parametrize("package_name,import_names", PACKAGE_IMPORTS.items())
+    @pytest.mark.parametrize(("package_name", "import_names"), PACKAGE_IMPORTS.items())
     def test_check_dependencies_imports(self, package_name, import_names, default_docker_image):
         run_python_in_docker(f"import {','.join(import_names)}", image=default_docker_image)
 

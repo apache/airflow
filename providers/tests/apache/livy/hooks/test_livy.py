@@ -88,7 +88,7 @@ class TestLivyDbHook:
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
-        "conn_id, expected",
+        ("conn_id", "expected"),
         [
             pytest.param("default_port", "http://host", id="default-port"),
             pytest.param("default_protocol", "http://host", id="default-protocol"),

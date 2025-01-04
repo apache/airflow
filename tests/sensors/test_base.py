@@ -1402,7 +1402,7 @@ class TestPokeModeOnly:
 
 class TestAsyncSensor:
     @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
+        ("soft_fail", "expected_exception"),
         [
             (True, AirflowSkipException),
             (False, AirflowException),

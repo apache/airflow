@@ -49,7 +49,7 @@ class TestConfigmap:
         assert annotations.get("key-two") == "value-two"
 
     @pytest.mark.parametrize(
-        "af_version, secret_key, secret_key_name, expected",
+        ("af_version", "secret_key", "secret_key_name", "expected"),
         [
             ("2.2.0", None, None, True),
             ("2.2.0", "foo", None, False),
@@ -98,7 +98,7 @@ class TestConfigmap:
         assert jmespath.search('data."krb5.conf"', docs[0]) == "krb5\ncontent"
 
     @pytest.mark.parametrize(
-        "executor, af_version, should_be_created",
+        ("executor", "af_version", "should_be_created"),
         [
             ("KubernetesExecutor", "1.10.11", False),
             ("KubernetesExecutor", "1.10.12", True),
@@ -164,7 +164,7 @@ metadata:
         assert expected in cfg.splitlines()
 
     @pytest.mark.parametrize(
-        "dag_values, expected_default_dag_folder",
+        ("dag_values", "expected_default_dag_folder"),
         [
             (
                 {"gitSync": {"enabled": True}},

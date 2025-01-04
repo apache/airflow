@@ -37,7 +37,7 @@ class TestSqliteHookConn:
         self.db_hook = UnitTestSqliteHook()
 
     @pytest.mark.parametrize(
-        "connection, uri",
+        ("connection", "uri"),
         [
             (Connection(host="host"), "file:host"),
             (Connection(host="host", extra='{"mode":"ro"}'), "file:host?mode=ro"),

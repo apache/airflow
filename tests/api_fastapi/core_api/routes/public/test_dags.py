@@ -140,7 +140,7 @@ class TestGetDags(TestDagEndpoint):
     """Unit tests for Get DAGs."""
 
     @pytest.mark.parametrize(
-        "query_params, expected_total_entries, expected_ids",
+        ("query_params", "expected_total_entries", "expected_ids"),
         [
             # Filters
             ({}, 2, [DAG1_ID, DAG2_ID]),
@@ -190,7 +190,7 @@ class TestPatchDag(TestDagEndpoint):
     """Unit tests for Patch DAG."""
 
     @pytest.mark.parametrize(
-        "query_params, dag_id, body, expected_status_code, expected_is_paused",
+        ("query_params", "dag_id", "body", "expected_status_code", "expected_is_paused"),
         [
             ({}, "fake_dag_id", {"is_paused": True}, 404, None),
             ({"update_mask": ["field_1", "is_paused"]}, DAG1_ID, {"is_paused": True}, 400, None),
@@ -215,7 +215,7 @@ class TestPatchDags(TestDagEndpoint):
     """Unit tests for Patch DAGs."""
 
     @pytest.mark.parametrize(
-        "query_params, body, expected_status_code, expected_ids, expected_paused_ids",
+        ("query_params", "body", "expected_status_code", "expected_ids", "expected_paused_ids"),
         [
             ({"update_mask": ["field_1", "is_paused"]}, {"is_paused": True}, 400, None, None),
             (
@@ -272,7 +272,7 @@ class TestDagDetails(TestDagEndpoint):
     """Unit tests for DAG Details."""
 
     @pytest.mark.parametrize(
-        "query_params, dag_id, expected_status_code, dag_display_name, start_date",
+        ("query_params", "dag_id", "expected_status_code", "dag_display_name", "start_date"),
         [
             ({}, "fake_dag_id", 404, "fake_dag", "2023-12-31T00:00:00Z"),
             ({}, DAG2_ID, 200, DAG2_ID, "2021-06-15T00:00:00Z"),
@@ -343,7 +343,7 @@ class TestGetDag(TestDagEndpoint):
     """Unit tests for Get DAG."""
 
     @pytest.mark.parametrize(
-        "query_params, dag_id, expected_status_code, dag_display_name",
+        ("query_params", "dag_id", "expected_status_code", "dag_display_name"),
         [
             ({}, "fake_dag_id", 404, "fake_dag"),
             ({}, DAG2_ID, 200, DAG2_ID),
@@ -412,7 +412,14 @@ class TestDeleteDAG(TestDagEndpoint):
         dag_maker.dagbag.sync_to_db()
 
     @pytest.mark.parametrize(
-        "dag_id, dag_display_name, status_code_delete, status_code_details, has_running_dagruns, is_create_dag",
+        (
+            "dag_id",
+            "dag_display_name",
+            "status_code_delete",
+            "status_code_details",
+            "has_running_dagruns",
+            "is_create_dag",
+        ),
         [
             ("test_nonexistent_dag_id", "nonexistent_display_name", 404, 404, False, False),
             (DAG4_ID, DAG4_DISPLAY_NAME, 204, 404, False, True),

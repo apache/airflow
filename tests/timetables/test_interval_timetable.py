@@ -145,7 +145,7 @@ def test_validate_success(timetable: Timetable) -> None:
 
 
 @pytest.mark.parametrize(
-    "timetable, error_message",
+    ("timetable", "error_message"),
     [
         pytest.param(
             CronDataIntervalTimetable("0 0 1 13 0", utc),
@@ -187,7 +187,7 @@ def test_cron_interval_timezone_from_string():
 
 
 @pytest.mark.parametrize(
-    "trigger_at, expected_interval",
+    ("trigger_at", "expected_interval"),
     [
         # Arbitrary trigger time.
         pytest.param(
@@ -218,7 +218,7 @@ def test_cron_infer_manual_data_interval_alignment(
 
 
 @pytest.mark.parametrize(
-    "last_data_interval, expected_info",
+    ("last_data_interval", "expected_info"),
     [
         pytest.param(
             DataInterval(

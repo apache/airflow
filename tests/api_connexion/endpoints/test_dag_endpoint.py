@@ -826,7 +826,7 @@ class TestGetDags(TestDagEndpoint):
         }
 
     @pytest.mark.parametrize(
-        "url, expected_dag_ids",
+        ("url", "expected_dag_ids"),
         [
             ("api/v1/dags?tags=t1", ["TEST_DAG_1", "TEST_DAG_3"]),
             ("api/v1/dags?tags=t2", ["TEST_DAG_2", "TEST_DAG_3"]),
@@ -852,7 +852,7 @@ class TestGetDags(TestDagEndpoint):
         assert expected_dag_ids == dag_ids
 
     @pytest.mark.parametrize(
-        "url, expected_dag_ids",
+        ("url", "expected_dag_ids"),
         [
             ("api/v1/dags?dag_id_pattern=DAG_1", {"TEST_DAG_1", "SAMPLE_DAG_1"}),
             ("api/v1/dags?dag_id_pattern=SAMPLE_DAG", {"SAMPLE_DAG_1", "SAMPLE_DAG_2"}),
@@ -880,7 +880,7 @@ class TestGetDags(TestDagEndpoint):
         assert expected_dag_ids == dag_ids
 
     @pytest.mark.parametrize(
-        "url, expected_dag_ids",
+        ("url", "expected_dag_ids"),
         [
             ("api/v1/dags?limit=1", ["TEST_DAG_1"]),
             ("api/v1/dags?limit=2", ["TEST_DAG_1", "TEST_DAG_10"]),
@@ -1260,7 +1260,7 @@ class TestPatchDag(TestDagEndpoint):
         assert response.json == expected_response
 
     @pytest.mark.parametrize(
-        "payload, update_mask, error_message",
+        ("payload", "update_mask", "error_message"),
         [
             (
                 {
@@ -1616,7 +1616,7 @@ class TestPatchDags(TestDagEndpoint):
         _check_last_log(session, dag_id=None, event="api.patch_dags", logical_date=None)
 
     @pytest.mark.parametrize(
-        "url, expected_dag_ids",
+        ("url", "expected_dag_ids"),
         [
             ("api/v1/dags?tags=t1&dag_id_pattern=~", ["TEST_DAG_1", "TEST_DAG_3"]),
             ("api/v1/dags?tags=t2&dag_id_pattern=~", ["TEST_DAG_2", "TEST_DAG_3"]),
@@ -1647,7 +1647,7 @@ class TestPatchDags(TestDagEndpoint):
         assert expected_dag_ids == dag_ids
 
     @pytest.mark.parametrize(
-        "url, expected_dag_ids",
+        ("url", "expected_dag_ids"),
         [
             ("api/v1/dags?dag_id_pattern=DAG_1", {"TEST_DAG_1", "SAMPLE_DAG_1"}),
             ("api/v1/dags?dag_id_pattern=SAMPLE_DAG", {"SAMPLE_DAG_1", "SAMPLE_DAG_2"}),
@@ -1681,7 +1681,7 @@ class TestPatchDags(TestDagEndpoint):
         assert expected_dag_ids == dag_ids
 
     @pytest.mark.parametrize(
-        "url, expected_dag_ids",
+        ("url", "expected_dag_ids"),
         [
             ("api/v1/dags?limit=1&dag_id_pattern=~", ["TEST_DAG_1"]),
             ("api/v1/dags?limit=2&dag_id_pattern=~", ["TEST_DAG_1", "TEST_DAG_10"]),

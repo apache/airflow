@@ -98,7 +98,7 @@ class TestUniqueConstraintErrorHandler:
         clear_db_dags()
 
     @pytest.mark.parametrize(
-        "table, expected_exception",
+        ("table", "expected_exception"),
         generate_test_cases_parametrize(
             ["Pool", "Variable"],
             [
@@ -177,7 +177,7 @@ class TestUniqueConstraintErrorHandler:
         assert exeinfo_response_error.value.detail == expected_exception.detail
 
     @pytest.mark.parametrize(
-        "table, expected_exception",
+        ("table", "expected_exception"),
         generate_test_cases_parametrize(
             ["DagRun"],
             [

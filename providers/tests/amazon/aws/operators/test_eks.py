@@ -718,7 +718,7 @@ class TestEksPodOperator:
         assert mock_generate_config_file.return_value.__enter__.return_value == op.config_file
 
     @pytest.mark.parametrize(
-        "compatible_kpo, kwargs, expected_attributes",
+        ("compatible_kpo", "kwargs", "expected_attributes"),
         [
             (
                 True,

@@ -48,7 +48,7 @@ class TestAvpCommands:
             cls.arg_parser = cli_parser.get_parser()
 
     @pytest.mark.parametrize(
-        "dry_run, verbose",
+        ("dry_run", "verbose"),
         [
             (False, False),
             (True, True),
@@ -98,7 +98,7 @@ class TestAvpCommands:
             )
 
     @pytest.mark.parametrize(
-        "dry_run, verbose",
+        ("dry_run", "verbose"),
         [
             (False, False),
             (True, True),
@@ -136,7 +136,7 @@ class TestAvpCommands:
         mock_boto3.put_schema.assert_not_called()
 
     @pytest.mark.parametrize(
-        "dry_run, verbose",
+        ("dry_run", "verbose"),
         [
             (False, False),
             (True, True),

@@ -232,7 +232,7 @@ class TestBigQueryCreateEmptyTableOperator:
         )
 
     @pytest.mark.parametrize(
-        "if_exists, is_conflict, expected_error, log_msg",
+        ("if_exists", "is_conflict", "expected_error", "log_msg"),
         [
             ("ignore", False, None, None),
             ("log", False, None, None),
@@ -503,7 +503,7 @@ class TestBigQueryCreateEmptyDatasetOperator:
         )
 
     @pytest.mark.parametrize(
-        "if_exists, is_conflict, expected_error, log_msg",
+        ("if_exists", "is_conflict", "expected_error", "log_msg"),
         [
             ("ignore", False, None, None),
             ("log", False, None, None),
@@ -2360,7 +2360,7 @@ class TestBigQueryValueCheckOperator:
         assert str(exc.value) == f"BigQuery job {real_job_id} failed: True"
 
     @pytest.mark.parametrize(
-        "kwargs, expected",
+        ("kwargs", "expected"),
         [
             ({"sql": "SELECT COUNT(*) from Any"}, "missing keyword argument 'pass_value'"),
             ({"pass_value": "Any"}, "missing keyword argument 'sql'"),
@@ -2460,7 +2460,7 @@ class TestBigQueryValueCheckOperator:
 @pytest.mark.db_test
 class TestBigQueryColumnCheckOperator:
     @pytest.mark.parametrize(
-        "check_type, check_value, check_result",
+        ("check_type", "check_value", "check_result"),
         [
             ("equal_to", 0, 0),
             ("greater_than", 0, 1),
@@ -2494,7 +2494,7 @@ class TestBigQueryColumnCheckOperator:
         ti.task.execute(MagicMock())
 
     @pytest.mark.parametrize(
-        "check_type, check_value, check_result",
+        ("check_type", "check_value", "check_result"),
         [
             ("equal_to", 0, 1),
             ("greater_than", 0, -1),
@@ -2527,7 +2527,7 @@ class TestBigQueryColumnCheckOperator:
             ti.task.execute(MagicMock())
 
     @pytest.mark.parametrize(
-        "check_type, check_value, check_result",
+        ("check_type", "check_value", "check_result"),
         [
             ("equal_to", 0, 0),
             ("greater_than", 0, 1),

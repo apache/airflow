@@ -135,7 +135,7 @@ def test_users_list(admin_client):
 
 
 @pytest.mark.parametrize(
-    "path, body_content",
+    ("path", "body_content"),
     [("roles/list", "List Roles"), ("roles/show/1", "Show Role")],
 )
 def test_roles_read(admin_client, path, body_content):
@@ -218,7 +218,7 @@ def test_roles_delete_unauthorized(app, viewer_client, exist_role, exist_role_na
 
 
 @pytest.mark.parametrize(
-    "url, client, content",
+    ("url", "client", "content"),
     [
         ("userstatschartview/chart/", "admin_client", "User Statistics"),
         ("userstatschartview/chart/", "viewer_client", "Access is Denied"),
@@ -258,7 +258,7 @@ def _check_task_stats_json(resp):
 
 
 @pytest.mark.parametrize(
-    "url, check_response",
+    ("url", "check_response"),
     [
         ("blocked", None),
         ("dag_stats", None),
@@ -273,7 +273,7 @@ def test_views_post(admin_client, url, check_response):
 
 
 @pytest.mark.parametrize(
-    "url, client, content, username",
+    ("url", "client", "content", "username"),
     [
         ("resetmypassword/form", "viewer_client", "Password Changed", "test_viewer"),
         ("resetpassword/form?pk={}", "admin_client", "Password Changed", "test_admin"),

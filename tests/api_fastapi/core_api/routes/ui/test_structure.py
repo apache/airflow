@@ -83,7 +83,7 @@ def make_dag(dag_maker, session, time_machine):
 
 class TestStructureDataEndpoint:
     @pytest.mark.parametrize(
-        "params, expected",
+        ("params", "expected"),
         [
             (
                 {"dag_id": DAG_ID},

@@ -176,7 +176,7 @@ class TestSimpleAuthManager:
         ],
     )
     @pytest.mark.parametrize(
-        "is_logged_in, role, method, result",
+        ("is_logged_in", "role", "method", "result"),
         [
             (True, "ADMIN", "GET", True),
             (True, "ADMIN", "DELETE", True),
@@ -198,7 +198,7 @@ class TestSimpleAuthManager:
     @pytest.mark.db_test
     @patch.object(SimpleAuthManager, "is_logged_in")
     @pytest.mark.parametrize(
-        "api, kwargs",
+        ("api", "kwargs"),
         [
             ("is_authorized_view", {"access_view": AccessView.CLUSTER_ACTIVITY}),
             (
@@ -211,7 +211,7 @@ class TestSimpleAuthManager:
         ],
     )
     @pytest.mark.parametrize(
-        "is_logged_in, role, result",
+        ("is_logged_in", "role", "result"),
         [
             (True, "ADMIN", True),
             (True, "VIEWER", True),
@@ -242,7 +242,7 @@ class TestSimpleAuthManager:
         ],
     )
     @pytest.mark.parametrize(
-        "role, method, result",
+        ("role", "method", "result"),
         [
             ("ADMIN", "GET", True),
             ("OP", "DELETE", True),
@@ -266,7 +266,7 @@ class TestSimpleAuthManager:
         ["is_authorized_dag"],
     )
     @pytest.mark.parametrize(
-        "role, method, result",
+        ("role", "method", "result"),
         [
             ("ADMIN", "GET", True),
             ("OP", "DELETE", True),
@@ -291,7 +291,7 @@ class TestSimpleAuthManager:
         ["is_authorized_dag", "is_authorized_asset", "is_authorized_pool"],
     )
     @pytest.mark.parametrize(
-        "role, method, result",
+        ("role", "method", "result"),
         [
             ("ADMIN", "GET", True),
             ("VIEWER", "GET", True),

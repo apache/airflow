@@ -65,7 +65,7 @@ class TestCliBackfill:
 
     @mock.patch("airflow.cli.commands.remote_commands.backfill_command._create_backfill")
     @pytest.mark.parametrize(
-        "repro, expected_repro",
+        ("repro", "expected_repro"),
         [
             (None, None),
             ("none", ReprocessBehavior.NONE),

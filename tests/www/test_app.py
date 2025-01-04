@@ -236,7 +236,7 @@ class TestApp:
         assert app.config["SESSION_COOKIE_SAMESITE"] == "Lax"
 
     @pytest.mark.parametrize(
-        "hash_method, result",
+        ("hash_method", "result"),
         [
             pytest.param("sha512", hashlib.sha512, id="sha512"),
             pytest.param("sha384", hashlib.sha384, id="sha384"),

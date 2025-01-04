@@ -44,7 +44,7 @@ def mock_local_file(content):
 
 class TestFileParsers:
     @pytest.mark.parametrize(
-        "content, expected_message",
+        ("content", "expected_message"),
         [
             ("AA", 'Invalid line format. The line should contain at least one equal sign ("=")'),
             ("=", "Invalid line format. Key is empty."),
@@ -56,7 +56,7 @@ class TestFileParsers:
                 local_filesystem.load_variables("a.env")
 
     @pytest.mark.parametrize(
-        "content, expected_message",
+        ("content", "expected_message"),
         [
             ("[]", "The file should contain the object."),
             ("{AAAAA}", "Expecting property name enclosed in double quotes"),
@@ -71,7 +71,7 @@ class TestFileParsers:
 
 class TestLoadVariables:
     @pytest.mark.parametrize(
-        "file_content, expected_variables",
+        ("file_content", "expected_variables"),
         [
             ("", {}),
             ("KEY=AAA", {"KEY": "AAA"}),
@@ -86,7 +86,7 @@ class TestLoadVariables:
             assert expected_variables == variables
 
     @pytest.mark.parametrize(
-        "content, expected_message",
+        ("content", "expected_message"),
         [
             ("AA=A\nAA=B", "The \"a.env\" file contains multiple values for keys: ['AA']"),
         ],
@@ -97,7 +97,7 @@ class TestLoadVariables:
                 local_filesystem.load_variables("a.env")
 
     @pytest.mark.parametrize(
-        "file_content, expected_variables",
+        ("file_content", "expected_variables"),
         [
             ({}, {}),
             ({"KEY": "AAA"}, {"KEY": "AAA"}),
@@ -118,7 +118,7 @@ class TestLoadVariables:
             local_filesystem.load_variables("a.json")
 
     @pytest.mark.parametrize(
-        "file_content, expected_variables",
+        ("file_content", "expected_variables"),
         [
             ("KEY: AAA", {"KEY": "AAA"}),
             (
@@ -139,7 +139,7 @@ class TestLoadVariables:
 
 class TestLoadConnection:
     @pytest.mark.parametrize(
-        "file_content, expected_connection_uris",
+        ("file_content", "expected_connection_uris"),
         [
             ("CONN_ID=mysql://host_1/", {"CONN_ID": "mysql://host_1"}),
             (
@@ -166,7 +166,7 @@ class TestLoadConnection:
             assert expected_connection_uris == connection_uris_by_conn_id
 
     @pytest.mark.parametrize(
-        "content, expected_connection_uris",
+        ("content", "expected_connection_uris"),
         [
             (
                 "CONN_ID=mysql://host_1/?param1=val1&param2=val2",
@@ -184,7 +184,7 @@ class TestLoadConnection:
             assert expected_connection_uris == connection_uris_by_conn_id
 
     @pytest.mark.parametrize(
-        "content, expected_message",
+        ("content", "expected_message"),
         [
             ("AA", 'Invalid line format. The line should contain at least one equal sign ("=")'),
             ("=", "Invalid line format. Key is empty."),
@@ -196,7 +196,7 @@ class TestLoadConnection:
                 local_filesystem.load_connections_dict("a.env")
 
     @pytest.mark.parametrize(
-        "file_content, expected_connection_uris",
+        ("file_content", "expected_connection_uris"),
         [
             ({"CONN_ID": "mysql://host_1"}, {"CONN_ID": "mysql://host_1"}),
             ({"CONN_ID": ["mysql://host_1"]}, {"CONN_ID": "mysql://host_1"}),
@@ -214,7 +214,7 @@ class TestLoadConnection:
             assert expected_connection_uris == connection_uris_by_conn_id
 
     @pytest.mark.parametrize(
-        "file_content, expected_connection_uris",
+        ("file_content", "expected_connection_uris"),
         [
             ({"CONN_ID": None}, "Unexpected value type: <class 'NoneType'>."),
             ({"CONN_ID": 1}, "Unexpected value type: <class 'int'>."),
@@ -239,7 +239,7 @@ class TestLoadConnection:
             local_filesystem.load_connections_dict("a.json")
 
     @pytest.mark.parametrize(
-        "file_content, expected_attrs_dict",
+        ("file_content", "expected_attrs_dict"),
         [
             (
                 """CONN_A: 'mysql://host_a'""",
@@ -288,7 +288,7 @@ class TestLoadConnection:
                 assert actual_attrs == expected_attrs
 
     @pytest.mark.parametrize(
-        "file_content, expected_extras",
+        ("file_content", "expected_extras"),
         [
             (
                 """
@@ -350,7 +350,7 @@ class TestLoadConnection:
             assert expected_extras == connection_uris_by_conn_id
 
     @pytest.mark.parametrize(
-        "file_content, expected_message",
+        ("file_content", "expected_message"),
         [
             (
                 """conn_c:

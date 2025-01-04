@@ -35,7 +35,7 @@ class TestDateTimeSensor:
         cls.dag = DAG("test_dag", schedule=None, default_args=args)
 
     @pytest.mark.parametrize(
-        "task_id, target_time, expected",
+        ("task_id", "target_time", "expected"),
         [
             (
                 "valid_datetime",
@@ -72,7 +72,7 @@ class TestDateTimeSensor:
             )
 
     @pytest.mark.parametrize(
-        "task_id, target_time, expected",
+        ("task_id", "target_time", "expected"),
         [
             (
                 "poke_datetime",

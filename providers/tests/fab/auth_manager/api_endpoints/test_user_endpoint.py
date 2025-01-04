@@ -250,7 +250,7 @@ class TestGetUsers(TestUserEndpoint):
 
 class TestGetUsersPagination(TestUserEndpoint):
     @pytest.mark.parametrize(
-        "url, expected_usernames",
+        ("url", "expected_usernames"),
         [
             ("/auth/fab/v1/users?limit=1", ["test"]),
             ("/auth/fab/v1/users?limit=2", ["test", "test_no_permissions"]),
@@ -482,7 +482,7 @@ class TestPostUser(TestUserEndpoint):
         assert response.status_code == 403, response.json
 
     @pytest.mark.parametrize(
-        "existing_user_fixture_name, error_detail_template",
+        ("existing_user_fixture_name", "error_detail_template"),
         [
             ("user_with_same_username", "Username `{username}` already exists. Use PATCH to update."),
             ("user_with_same_email", "The email `{email}` is already taken."),
@@ -509,7 +509,7 @@ class TestPostUser(TestUserEndpoint):
         assert response.json["detail"] == error_detail
 
     @pytest.mark.parametrize(
-        "payload_converter, error_message",
+        ("payload_converter", "error_message"),
         [
             pytest.param(
                 lambda p: {k: v for k, v in p.items() if k != "username"},
@@ -595,7 +595,7 @@ class TestPatchUser(TestUserEndpoint):
         assert data["last_name"] == "McTesterson"
 
     @pytest.mark.parametrize(
-        "payload, error_message",
+        ("payload", "error_message"),
         [
             ({"username": "another_user"}, "The username `another_user` already exists"),
             ({"email": "another_user@example.com"}, "The email `another_user@example.com` already exists"),
@@ -732,7 +732,7 @@ class TestPatchUser(TestUserEndpoint):
         assert response.status_code == 404, response.json
 
     @pytest.mark.parametrize(
-        "payload_converter, error_message",
+        ("payload_converter", "error_message"),
         [
             pytest.param(
                 lambda p: {k: v for k, v in p.items() if k != "username"},

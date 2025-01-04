@@ -40,7 +40,7 @@ def clean_db(session):
 
 @time_machine.travel("2016-11-01")
 @pytest.mark.parametrize(
-    "allow_trigger_in_future,schedule,logical_date,is_met",
+    ("allow_trigger_in_future", "schedule", "logical_date", "is_met"),
     [
         (True, "@daily", datetime(2016, 11, 3), False),
         (False, None, datetime(2016, 11, 3), False),

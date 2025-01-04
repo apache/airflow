@@ -115,7 +115,7 @@ class TestSlackHook:
             hook._get_conn_params()
 
     @pytest.mark.parametrize(
-        "hook_config,conn_extra,expected",
+        ("hook_config", "conn_extra", "expected"),
         [
             (  # Test Case: hook config
                 {
@@ -491,7 +491,7 @@ class TestSlackHook:
             )
 
     @pytest.mark.parametrize(
-        "file,content",
+        ("file", "content"),
         [
             pytest.param(None, None, id="both-none"),
             pytest.param("", "", id="both-empty"),
@@ -505,7 +505,7 @@ class TestSlackHook:
             hook.send_file_v1_to_v2(file=file, content=content)
 
     @pytest.mark.parametrize(
-        "channels, expected_calls",
+        ("channels", "expected_calls"),
         [
             pytest.param("#foo, #bar", 2, id="comma-separated-string"),
             pytest.param(["#random", "#development", "#airflow-upgrades"], 3, id="list"),

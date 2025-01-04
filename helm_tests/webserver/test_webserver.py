@@ -104,7 +104,7 @@ class TestWebserverDeployment:
         )
 
     @pytest.mark.parametrize(
-        "revision_history_limit, global_revision_history_limit",
+        ("revision_history_limit", "global_revision_history_limit"),
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
     )
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
@@ -324,7 +324,7 @@ class TestWebserverDeployment:
         )
 
     @pytest.mark.parametrize(
-        "airflow_version, expected_arg",
+        ("airflow_version", "expected_arg"),
         [
             ("2.0.0", ["airflow", "db", "check-migrations", "--migration-wait-timeout=60"]),
             ("2.1.0", ["airflow", "db", "check-migrations", "--migration-wait-timeout=60"]),
@@ -554,7 +554,7 @@ class TestWebserverDeployment:
         )
 
     @pytest.mark.parametrize(
-        "log_persistence_values, expected_claim_name",
+        ("log_persistence_values", "expected_claim_name"),
         [
             ({"enabled": False}, None),
             ({"enabled": True}, "release-name-logs"),
@@ -583,7 +583,7 @@ class TestWebserverDeployment:
             ]
 
     @pytest.mark.parametrize(
-        "af_version, pod_template_file_expected",
+        ("af_version", "pod_template_file_expected"),
         [
             ("1.10.10", False),
             ("1.10.12", True),
@@ -713,7 +713,7 @@ class TestWebserverDeployment:
         assert jmespath.search("spec.template.spec.initContainers[0].resources", docs[0]) == {}
 
     @pytest.mark.parametrize(
-        "airflow_version, expected_strategy",
+        ("airflow_version", "expected_strategy"),
         [
             ("2.0.2", {"type": "RollingUpdate", "rollingUpdate": {"maxSurge": 1, "maxUnavailable": 0}}),
             ("1.10.14", {"type": "Recreate"}),
@@ -792,7 +792,7 @@ class TestWebserverDeployment:
         assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == ["Helm"]
 
     @pytest.mark.parametrize(
-        "airflow_version, dag_values",
+        ("airflow_version", "dag_values"),
         [
             ("1.10.15", {"gitSync": {"enabled": False}}),
             ("1.10.15", {"persistence": {"enabled": False}}),
@@ -817,7 +817,7 @@ class TestWebserverDeployment:
         assert len(jmespath.search("spec.template.spec.containers", docs[0])) == 1
 
     @pytest.mark.parametrize(
-        "airflow_version, dag_values, expected_read_only",
+        ("airflow_version", "dag_values", "expected_read_only"),
         [
             ("1.10.15", {"gitSync": {"enabled": True}}, True),
             ("1.10.15", {"persistence": {"enabled": True}}, False),
@@ -849,7 +849,7 @@ class TestWebserverDeployment:
         ]
 
     @pytest.mark.parametrize(
-        "dags_values, expected_claim_name",
+        ("dags_values", "expected_claim_name"),
         [
             ({"persistence": {"enabled": True}}, "release-name-dags"),
             ({"persistence": {"enabled": True, "existingClaim": "test-claim"}}, "test-claim"),
@@ -910,7 +910,7 @@ class TestWebserverDeployment:
         assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
 
     @pytest.mark.parametrize(
-        "webserver_values, expected",
+        ("webserver_values", "expected"),
         [
             ({}, 30),
             ({"webserver": {"terminationGracePeriodSeconds": 1200}}, 1200),
@@ -965,7 +965,7 @@ class TestWebserverService:
         assert jmespath.search("spec.loadBalancerSourceRanges", docs[0]) == ["10.123.0.0/16"]
 
     @pytest.mark.parametrize(
-        "ports, expected_ports",
+        ("ports", "expected_ports"),
         [
             ([{"port": 8888}], [{"port": 8888}]),  # name is optional with a single port
             (
@@ -1008,7 +1008,7 @@ class TestWebserverService:
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
     @pytest.mark.parametrize(
-        "ports, expected_ports",
+        ("ports", "expected_ports"),
         [
             (
                 [{"nodePort": "31000", "port": "8080"}],
@@ -1102,7 +1102,7 @@ class TestWebserverNetworkPolicy:
         assert jmespath.search("spec.ingress[0].ports", docs[0]) == [{"port": 8080}]
 
     @pytest.mark.parametrize(
-        "ports, expected_ports",
+        ("ports", "expected_ports"),
         [
             ([{"port": "sidecar"}], [{"port": "sidecar"}]),
             (

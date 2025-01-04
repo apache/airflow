@@ -226,7 +226,7 @@ class TestGetXComEntry(TestXComEndpoint):
         )
 
     @pytest.mark.parametrize(
-        "allowed, query, expected_status_or_value, key",
+        ("allowed", "query", "expected_status_or_value", "key"),
         [
             pytest.param(
                 True,
@@ -583,7 +583,7 @@ class TestPaginationGetXComEntries(TestXComEndpoint):
         self.run_id = DagRun.generate_run_id(DagRunType.MANUAL, self.logical_date_parsed)
 
     @pytest.mark.parametrize(
-        "query_params, expected_xcom_ids",
+        ("query_params", "expected_xcom_ids"),
         [
             (
                 "limit=1",

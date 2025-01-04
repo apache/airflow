@@ -74,7 +74,7 @@ class TestAlloyDbHook:
         )
 
     @pytest.mark.parametrize(
-        "given_timeout, expected_timeout",
+        ("given_timeout", "expected_timeout"),
         [
             (None, None),
             (0.0, None),
@@ -94,7 +94,7 @@ class TestAlloyDbHook:
         mock_operation.result.assert_called_once_with(timeout=expected_timeout)
 
     @pytest.mark.parametrize(
-        "given_timeout, expected_timeout",
+        ("given_timeout", "expected_timeout"),
         [
             (None, None),
             (0.0, None),
@@ -215,7 +215,7 @@ class TestAlloyDbHook:
         )
 
     @pytest.mark.parametrize(
-        "given_cluster, expected_cluster",
+        ("given_cluster", "expected_cluster"),
         [
             (TEST_CLUSTER, {**deepcopy(TEST_CLUSTER), **{"name": TEST_CLUSTER_NAME}}),
             (alloydb_v1.Cluster(), {"name": TEST_CLUSTER_NAME}),

@@ -56,7 +56,7 @@ class TestSimpleAuthManagerAuthenticationViews:
             assert session.get("user") is None
 
     @pytest.mark.parametrize(
-        "username, password, is_successful, query_params, expected_redirect",
+        ("username", "password", "is_successful", "query_params", "expected_redirect"),
         [
             ("test", "test", True, {}, None),
             ("test", "test2", False, {}, None),

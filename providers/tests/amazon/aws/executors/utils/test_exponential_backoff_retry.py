@@ -41,7 +41,7 @@ class TestExponentialBackoffRetry:
 
     @mock.patch("airflow.utils.timezone.utcnow")
     @pytest.mark.parametrize(
-        "attempt_number, utcnow_value, expected_calls",
+        ("attempt_number", "utcnow_value", "expected_calls"),
         [
             (
                 0,
@@ -198,7 +198,7 @@ class TestExponentialBackoffRetry:
 
     @mock.patch("airflow.utils.timezone.utcnow")
     @pytest.mark.parametrize(
-        "attempt_number, utcnow_value, expected_calls",
+        ("attempt_number", "utcnow_value", "expected_calls"),
         [
             (
                 0,

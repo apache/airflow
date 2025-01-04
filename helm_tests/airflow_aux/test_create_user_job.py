@@ -344,7 +344,7 @@ class TestCreateUserJob:
         assert "ttlSecondsAfterFinished" not in spec
 
     @pytest.mark.parametrize(
-        "airflow_version, expected_arg",
+        ("airflow_version", "expected_arg"),
         [
             ("1.10.14", "airflow create_user"),
             ("2.0.2", "airflow users create"),

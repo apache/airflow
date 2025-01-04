@@ -284,7 +284,7 @@ class TestDag:
 
 # Test some of the arg valiadtion. This is not all the validations we perform, just some of them.
 @pytest.mark.parametrize(
-    ["attr", "value"],
+    ("attr", "value"),
     [
         pytest.param("max_consecutive_failed_dag_runs", "not_an_int", id="max_consecutive_failed_dag_runs"),
         pytest.param("dagrun_timeout", "not_an_int", id="dagrun_timeout"),
@@ -297,7 +297,7 @@ def test_invalid_type_for_args(attr: str, value: Any):
 
 
 @pytest.mark.parametrize(
-    "tags, should_pass",
+    ("tags", "should_pass"),
     [
         pytest.param([], True, id="empty tags"),
         pytest.param(["a normal tag"], True, id="one tag"),
@@ -315,7 +315,7 @@ def test__tags_length(tags: list[str], should_pass: bool):
 
 
 @pytest.mark.parametrize(
-    "input_tags, expected_result",
+    ("input_tags", "expected_result"),
     [
         pytest.param([], set(), id="empty tags"),
         pytest.param(

@@ -253,7 +253,7 @@ class TestGetConnections(TestConnectionEndpoint):
 
 class TestGetConnectionsPagination(TestConnectionEndpoint):
     @pytest.mark.parametrize(
-        "url, expected_conn_ids",
+        ("url", "expected_conn_ids"),
         [
             ("/api/v1/connections?limit=1", ["TEST_CONN_ID1"]),
             ("/api/v1/connections?limit=2", ["TEST_CONN_ID1", "TEST_CONN_ID2"]),
@@ -402,7 +402,7 @@ class TestPatchConnection(TestConnectionEndpoint):
         }
 
     @pytest.mark.parametrize(
-        "payload, update_mask, error_message",
+        ("payload", "update_mask", "error_message"),
         [
             (
                 {
@@ -462,7 +462,7 @@ class TestPatchConnection(TestConnectionEndpoint):
         assert response.json["detail"] == error_message
 
     @pytest.mark.parametrize(
-        "payload, error_message",
+        ("payload", "error_message"),
         [
             (
                 {

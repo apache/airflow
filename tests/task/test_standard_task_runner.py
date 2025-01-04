@@ -84,7 +84,7 @@ def propagate_task_logger():
             h.maintain_propagate = _propagate
 
 
-@pytest.mark.parametrize(["impersonation"], (("nobody",), ("airflow",), (None,)))
+@pytest.mark.parametrize("impersonation", (("nobody",), ("airflow",), (None,)))
 @mock.patch("subprocess.check_call")
 # Mock this to avoid DB calls in render template. Remove this once AIP-44 is removed as it should be able to
 # render without needing ti/DR to exist. Make it so

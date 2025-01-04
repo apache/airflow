@@ -496,7 +496,7 @@ class TestWatchedSubprocess:
         } in captured_logs
 
     @pytest.mark.parametrize(
-        ["terminal_state", "task_end_time_monotonic", "overtime_threshold", "expected_kill"],
+        ("terminal_state", "task_end_time_monotonic", "overtime_threshold", "expected_kill"),
         [
             pytest.param(
                 None,
@@ -608,7 +608,7 @@ class TestWatchedSubprocessKill:
         mock_process.wait.assert_called_once_with(timeout=0)
 
     @pytest.mark.parametrize(
-        ["signal_to_send", "exit_after"],
+        ("signal_to_send", "exit_after"),
         [
             pytest.param(
                 signal.SIGINT,
@@ -762,7 +762,7 @@ class TestHandleRequest:
         )
 
     @pytest.mark.parametrize(
-        ["message", "expected_buffer", "client_attr_path", "method_arg", "mock_response"],
+        ("message", "expected_buffer", "client_attr_path", "method_arg", "mock_response"),
         [
             pytest.param(
                 GetConnection(conn_id="test_conn"),

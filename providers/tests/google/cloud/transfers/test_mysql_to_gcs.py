@@ -92,7 +92,7 @@ class TestMySqlToGoogleCloudStorageOperator:
         assert op.field_delimiter == "|"
 
     @pytest.mark.parametrize(
-        "value, schema_type, expected",
+        ("value", "schema_type", "expected"),
         [
             ("string", None, "string"),
             (datetime.date(1970, 1, 2), None, "1970-01-02 00:00:00"),

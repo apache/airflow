@@ -192,7 +192,7 @@ class TestPythonVirtualenvDecorator:
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     @pytest.mark.parametrize(
-        "serializer, extra_requirements",
+        ("serializer", "extra_requirements"),
         [
             pytest.param("pickle", [], id="pickle"),
             pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
@@ -238,7 +238,7 @@ class TestPythonVirtualenvDecorator:
             ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     @pytest.mark.parametrize(
-        "serializer, extra_requirements",
+        ("serializer", "extra_requirements"),
         [
             pytest.param("pickle", [], id="pickle"),
             pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
@@ -265,7 +265,7 @@ class TestPythonVirtualenvDecorator:
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     @pytest.mark.parametrize(
-        "serializer, extra_requirements",
+        ("serializer", "extra_requirements"),
         [
             pytest.param("pickle", [], id="pickle"),
             pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),

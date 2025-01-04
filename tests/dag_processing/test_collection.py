@@ -121,7 +121,7 @@ class TestAssetModelOperation:
         self.clean_db()
 
     @pytest.mark.parametrize(
-        "is_active, is_paused, expected_num_triggers",
+        ("is_active", "is_paused", "expected_num_triggers"),
         [
             (True, True, 0),
             (True, False, 1),

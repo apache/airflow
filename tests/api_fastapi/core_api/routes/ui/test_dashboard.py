@@ -101,7 +101,7 @@ def make_dag_runs(dag_maker, session, time_machine):
 
 class TestHistoricalMetricsDataEndpoint:
     @pytest.mark.parametrize(
-        "params, expected",
+        ("params", "expected"),
         [
             (
                 {"start_date": "2023-01-01T00:00", "end_date": "2023-08-02T00:00"},

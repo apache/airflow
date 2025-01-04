@@ -161,7 +161,7 @@ class TestBaseAuthManager:
         assert auth_manager.get_url_user_profile() is None
 
     @pytest.mark.parametrize(
-        "return_values, expected",
+        ("return_values", "expected"),
         [
             ([False, False], False),
             ([True, False], False),
@@ -180,7 +180,7 @@ class TestBaseAuthManager:
         assert result == expected
 
     @pytest.mark.parametrize(
-        "return_values, expected",
+        ("return_values", "expected"),
         [
             ([False, False], False),
             ([True, False], False),
@@ -201,7 +201,7 @@ class TestBaseAuthManager:
         assert result == expected
 
     @pytest.mark.parametrize(
-        "return_values, expected",
+        ("return_values", "expected"),
         [
             ([False, False], False),
             ([True, False], False),
@@ -220,7 +220,7 @@ class TestBaseAuthManager:
         assert result == expected
 
     @pytest.mark.parametrize(
-        "return_values, expected",
+        ("return_values", "expected"),
         [
             ([False, False], False),
             ([True, False], False),
@@ -247,7 +247,7 @@ class TestBaseAuthManager:
         assert auth_manager.security_manager == mock_airflow_security_manager()
 
     @pytest.mark.parametrize(
-        "access_all, access_per_dag, dag_ids, expected",
+        ("access_all", "access_per_dag", "dag_ids", "expected"),
         [
             # Access to all dags
             (

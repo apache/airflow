@@ -228,7 +228,7 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
             )
 
     @pytest.mark.parametrize(
-        "ssl_arguments, error_pattern",
+        ("ssl_arguments", "error_pattern"),
         [
             (["--ssl-cert", "_.crt", "--ssl-key", "_.key"], "does not exist _.crt"),
             (["--ssl-cert", "_.crt"], "Need both.*certificate.*key"),

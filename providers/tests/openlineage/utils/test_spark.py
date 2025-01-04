@@ -50,7 +50,7 @@ def test_get_parent_job_information_as_spark_properties():
 
 
 @pytest.mark.parametrize(
-    "properties, expected",
+    ("properties", "expected"),
     [
         (
             {"spark.openlineage.parentJobNamespace": "example_namespace"},
@@ -87,7 +87,7 @@ def test_is_parent_job_information_present_in_spark_properties(properties, expec
 
 
 @pytest.mark.parametrize(
-    "properties, should_inject",
+    ("properties", "should_inject"),
     [
         (
             {"spark.openlineage.parentJobNamespace": "example_namespace"},

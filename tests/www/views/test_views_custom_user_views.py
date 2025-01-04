@@ -88,7 +88,7 @@ class TestSecurity:
         for role_name in ["role_edit_one_dag"]:
             delete_role(self.app, role_name)
 
-    @pytest.mark.parametrize("url, _, expected_text", PERMISSIONS_TESTS_PARAMS)
+    @pytest.mark.parametrize(("url", "_", "expected_text"), PERMISSIONS_TESTS_PARAMS)
     def test_user_model_view_with_access(self, url, expected_text, _):
         user_without_access = create_user(
             self.app,
@@ -106,7 +106,7 @@ class TestSecurity:
         response = client.get(url.replace("{user.id}", str(user_without_access.id)), follow_redirects=True)
         check_content_not_in_response(expected_text, response)
 
-    @pytest.mark.parametrize("url, permission, expected_text", PERMISSIONS_TESTS_PARAMS)
+    @pytest.mark.parametrize(("url", "permission", "expected_text"), PERMISSIONS_TESTS_PARAMS)
     def test_user_model_view_without_access(self, url, permission, expected_text):
         user_with_access = create_user(
             self.app,
@@ -226,7 +226,7 @@ class TestResetUserSessions:
         )
 
     @pytest.mark.parametrize(
-        "time_delta, user_sessions_deleted",
+        ("time_delta", "user_sessions_deleted"),
         [
             pytest.param(timedelta(days=-1), True, id="Both expired"),
             pytest.param(timedelta(hours=1), True, id="Both fresh"),

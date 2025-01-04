@@ -729,7 +729,7 @@ class TestSchedulerJob:
         session.rollback()
 
     @pytest.mark.parametrize(
-        "state, total_executed_ti",
+        ("state", "total_executed_ti"),
         [
             (DagRunState.SUCCESS, 0),
             (DagRunState.FAILED, 0),
@@ -1603,7 +1603,7 @@ class TestSchedulerJob:
         mock_queue_command.assert_not_called()
 
     @pytest.mark.parametrize(
-        "task1_exec, task2_exec",
+        ("task1_exec", "task2_exec"),
         [
             ("default_exec", "default_exec"),
             ("default_exec", "secondary_exec"),
@@ -1749,7 +1749,7 @@ class TestSchedulerJob:
             assert ti.state == State.QUEUED
 
     @pytest.mark.parametrize(
-        "task1_exec, task2_exec",
+        ("task1_exec", "task2_exec"),
         [
             ("default_exec", "default_exec"),
             ("default_exec", "secondary_exec"),
@@ -1889,7 +1889,7 @@ class TestSchedulerJob:
         session.rollback()
 
     @pytest.mark.parametrize(
-        "task1_exec, task2_exec",
+        ("task1_exec", "task2_exec"),
         [
             ("default_exec", "default_exec"),
             ("default_exec", "secondary_exec"),
@@ -1950,7 +1950,7 @@ class TestSchedulerJob:
         session.rollback()
 
     @pytest.mark.parametrize(
-        "task1_exec, task2_exec",
+        ("task1_exec", "task2_exec"),
         [
             ("default_exec", "default_exec"),
             ("default_exec", "secondary_exec"),
@@ -2011,7 +2011,7 @@ class TestSchedulerJob:
         session.rollback()
 
     @pytest.mark.parametrize(
-        "task1_exec, task2_exec",
+        ("task1_exec", "task2_exec"),
         [
             ("default_exec", "default_exec"),
             ("default_exec", "secondary_exec"),
@@ -2569,7 +2569,7 @@ class TestSchedulerJob:
         )
 
     @pytest.mark.parametrize(
-        "state, expected_callback_msg", [(State.SUCCESS, "success"), (State.FAILED, "task_failure")]
+        ("state", "expected_callback_msg"), [(State.SUCCESS, "success"), (State.FAILED, "task_failure")]
     )
     def test_dagrun_callbacks_are_called(self, state, expected_callback_msg, dag_maker):
         """
@@ -2611,7 +2611,7 @@ class TestSchedulerJob:
         session.close()
 
     @pytest.mark.parametrize(
-        "state, expected_callback_msg", [(State.SUCCESS, "success"), (State.FAILED, "task_failure")]
+        ("state", "expected_callback_msg"), [(State.SUCCESS, "success"), (State.FAILED, "task_failure")]
     )
     def test_dagrun_plugins_are_notified(self, state, expected_callback_msg, dag_maker):
         """
@@ -2767,7 +2767,7 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
-    @pytest.mark.parametrize("state, msg", [[State.SUCCESS, "success"], [State.FAILED, "task_failure"]])
+    @pytest.mark.parametrize(("state", "msg"), [[State.SUCCESS, "success"], [State.FAILED, "task_failure"]])
     def test_dagrun_callbacks_are_added_when_callbacks_are_defined(self, state, msg, dag_maker):
         """
         Test if on_*_callback are defined on DAG, Callbacks ARE registered and sent to DAG Processor
@@ -2864,7 +2864,7 @@ class TestSchedulerJob:
         assert res == []
 
     @pytest.mark.parametrize(
-        "ti_states, run_state",
+        ("ti_states", "run_state"),
         [
             (["failed", "success"], "failed"),
             (["success", "success"], "success"),
@@ -3885,7 +3885,7 @@ class TestSchedulerJob:
         assert actual == should_update
 
     @pytest.mark.parametrize(
-        "run_type, expected",
+        ("run_type", "expected"),
         [
             (DagRunType.MANUAL, False),
             (DagRunType.SCHEDULED, True),
@@ -4057,7 +4057,7 @@ class TestSchedulerJob:
 
     @pytest.mark.need_serialized_dag
     @pytest.mark.parametrize(
-        "disable, enable",
+        ("disable", "enable"),
         [
             pytest.param({"is_active": False}, {"is_active": True}, id="active"),
             pytest.param({"is_paused": True}, {"is_paused": False}, id="paused"),
@@ -5024,7 +5024,7 @@ class TestSchedulerJob:
         assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 36
 
     @pytest.mark.parametrize(
-        "pause_it, expected_running",
+        ("pause_it", "expected_running"),
         [
             (True, 0),
             (False, 3),
@@ -5242,7 +5242,7 @@ class TestSchedulerJob:
         assert DagRun.find(run_id="dr1_run_2")[0].state == State.RUNNING
 
     @pytest.mark.parametrize(
-        "state, start_date, end_date",
+        ("state", "start_date", "end_date"),
         [
             [State.NONE, None, None],
             [
@@ -5286,7 +5286,7 @@ class TestSchedulerJob:
             assert ti.state == State.SCHEDULED
 
     @pytest.mark.parametrize(
-        "state,start_date,end_date",
+        ("state", "start_date", "end_date"),
         [
             [State.NONE, None, None],
             [
@@ -5334,7 +5334,7 @@ class TestSchedulerJob:
             assert ti.state == State.SCHEDULED
 
     @pytest.mark.parametrize(
-        "state,start_date,end_date",
+        ("state", "start_date", "end_date"),
         [
             [State.NONE, None, None],
             [
@@ -5382,7 +5382,7 @@ class TestSchedulerJob:
             assert ti.state == State.SCHEDULED
 
     @pytest.mark.parametrize(
-        "state, start_date, end_date",
+        ("state", "start_date", "end_date"),
         [
             [State.NONE, None, None],
             [
@@ -6462,7 +6462,7 @@ class TestSchedulerJobQueriesCount:
         self.clean_db()
 
     @pytest.mark.parametrize(
-        "expected_query_count, dag_count, task_count",
+        ("expected_query_count", "dag_count", "task_count"),
         [
             (21, 1, 1),  # One DAG with one task per DAG file.
             (21, 1, 5),  # One DAG with five tasks per DAG file.
@@ -6531,7 +6531,7 @@ class TestSchedulerJobQueriesCount:
                     self.job_runner._run_scheduler_loop()
 
     @pytest.mark.parametrize(
-        "expected_query_counts, dag_count, task_count, start_ago, schedule, shape",
+        ("expected_query_counts", "dag_count", "task_count", "start_ago", "schedule", "shape"),
         [
             # One DAG with one task per DAG file.
             ([10, 10, 10, 10], 1, 1, "1d", "None", "no_structure"),

@@ -106,7 +106,7 @@ class TestEventLogsEndpoint:
 
 class TestGetEventLog(TestEventLogsEndpoint):
     @pytest.mark.parametrize(
-        "event_log_key, expected_status_code, expected_body",
+        ("event_log_key", "expected_status_code", "expected_body"),
         [
             (
                 EVENT_NORMAL,
@@ -180,7 +180,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
 
 class TestGetEventLogs(TestEventLogsEndpoint):
     @pytest.mark.parametrize(
-        "query_params, expected_status_code, expected_total_entries, expected_events",
+        ("query_params", "expected_status_code", "expected_total_entries", "expected_events"),
         [
             (
                 {},

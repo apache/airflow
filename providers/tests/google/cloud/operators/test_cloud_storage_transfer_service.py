@@ -379,7 +379,7 @@ class TestGcpStorageTransferJobCreateOperator:
     # fields
     @pytest.mark.db_test
     @pytest.mark.parametrize(
-        "body, excepted",
+        ("body", "excepted"),
         [(VALID_TRANSFER_JOB_JINJA, VALID_TRANSFER_JOB_JINJA_RENDERED)],
     )
     @mock.patch(

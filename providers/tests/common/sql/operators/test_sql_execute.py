@@ -50,7 +50,7 @@ class Row2(NamedTuple):
 
 
 @pytest.mark.parametrize(
-    "sql, return_last, split_statement, hook_results, hook_descriptions, expected_results",
+    ("sql", "return_last", "split_statement", "hook_results", "hook_descriptions", "expected_results"),
     [
         pytest.param(
             "select * from dummy",
@@ -165,7 +165,7 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
 
 
 @pytest.mark.parametrize(
-    "sql, return_last, split_statement, hook_results, hook_descriptions, expected_results",
+    ("sql", "return_last", "split_statement", "hook_results", "hook_descriptions", "expected_results"),
     [
         pytest.param(
             "select * from dummy",
@@ -287,7 +287,7 @@ def test_exec_success_with_process_output(
 
 
 @pytest.mark.parametrize(
-    "connection_port, default_port, expected_port",
+    ("connection_port", "default_port", "expected_port"),
     [(None, 4321, 4321), (1234, None, 1234), (1234, 4321, 1234)],
 )
 def test_execute_openlineage_events(connection_port, default_port, expected_port):

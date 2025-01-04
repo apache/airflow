@@ -728,7 +728,7 @@ class TestGetMappedTaskInstances:
         assert body["task_instances"] == []
 
     @pytest.mark.parametrize(
-        "query_params, expected_total_entries, expected_task_instance_count",
+        ("query_params", "expected_total_entries", "expected_task_instance_count"),
         [
             ({"state": "success"}, 3, 3),
             ({"state": "running"}, 0, 0),
@@ -778,7 +778,7 @@ class TestGetMappedTaskInstances:
 
 class TestGetTaskInstances(TestTaskInstanceEndpoint):
     @pytest.mark.parametrize(
-        "task_instances, update_extras, url, params, expected_ti",
+        ("task_instances", "update_extras", "url", "params", "expected_ti"),
         [
             pytest.param(
                 [
@@ -1117,7 +1117,7 @@ class TestGetTaskDependencies(TestTaskInstanceEndpoint):
         assert response.json() == {"dependencies": []}
 
     @pytest.mark.parametrize(
-        "state, dependencies",
+        ("state", "dependencies"),
         [
             (
                 State.SCHEDULED,
@@ -1183,7 +1183,7 @@ class TestGetTaskDependencies(TestTaskInstanceEndpoint):
 
 class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
     @pytest.mark.parametrize(
-        "task_instances, update_extras, payload, expected_ti_count",
+        ("task_instances", "update_extras", "payload", "expected_ti_count"),
         [
             pytest.param(
                 [
@@ -1320,7 +1320,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         assert start_dates_asc == list(reversed(start_dates_desc))
 
     @pytest.mark.parametrize(
-        "task_instances, payload, expected_ti_count",
+        ("task_instances", "payload", "expected_ti_count"),
         [
             pytest.param(
                 [
@@ -1358,7 +1358,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         assert expected_ti_count == len(body["task_instances"])
 
     @pytest.mark.parametrize(
-        "payload, expected_ti, total_ti",
+        ("payload", "expected_ti", "total_ti"),
         [
             pytest.param(
                 {"dag_ids": ["example_python_operator", "example_skip_dag"]},
@@ -1407,7 +1407,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         assert "Input should be '~'" in str(response.json()["detail"])
 
     @pytest.mark.parametrize(
-        "payload, expected",
+        ("payload", "expected"),
         [
             ({"end_date_lte": "2020-11-10T12:42:39.442973"}, "Input should have timezone info"),
             ({"end_date_gte": "2020-11-10T12:42:39.442973"}, "Input should have timezone info"),
@@ -1709,7 +1709,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
 
 class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
     @pytest.mark.parametrize(
-        "main_dag, task_instances, request_dag, payload, expected_ti",
+        ("main_dag", "task_instances", "request_dag", "payload", "expected_ti"),
         [
             pytest.param(
                 "example_python_operator",
@@ -2240,7 +2240,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert f"Dag Run id TEST_DAG_RUN_ID_100 not found in dag {dag_id}" in response.text
 
     @pytest.mark.parametrize(
-        "payload, expected",
+        ("payload", "expected"),
         [
             (
                 {"end_date": "2020-11-10T12:42:39.442973"},
@@ -2728,7 +2728,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response2.json()["state"] == self.NEW_STATE
 
     @pytest.mark.parametrize(
-        "error, code, payload",
+        ("error", "code", "payload"),
         [
             [
                 (
@@ -2807,7 +2807,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response.status_code == 404
 
     @pytest.mark.parametrize(
-        "payload, expected",
+        ("payload", "expected"),
         [
             (
                 {
@@ -2845,7 +2845,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         }
 
     @pytest.mark.parametrize(
-        "new_state,expected_status_code,expected_json,set_ti_state_call_count",
+        ("new_state", "expected_status_code", "expected_json", "set_ti_state_call_count"),
         [
             (
                 "failed",

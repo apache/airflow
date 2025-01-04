@@ -46,7 +46,7 @@ TEST_IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 class TestDataflowJobStatusSensor:
     @pytest.mark.parametrize(
-        "expected_status, current_status, sensor_return",
+        ("expected_status", "current_status", "sensor_return"),
         [
             (DataflowJobStatus.JOB_STATE_DONE, DataflowJobStatus.JOB_STATE_DONE, True),
             (DataflowJobStatus.JOB_STATE_DONE, DataflowJobStatus.JOB_STATE_RUNNING, False),
@@ -171,7 +171,7 @@ class TestDataflowJobStatusSensor:
 
 class TestDataflowJobMetricsSensor:
     @pytest.mark.parametrize(
-        "job_current_state, fail_on_terminal_state",
+        ("job_current_state", "fail_on_terminal_state"),
         [
             (DataflowJobStatus.JOB_STATE_RUNNING, True),
             (DataflowJobStatus.JOB_STATE_RUNNING, False),
@@ -349,7 +349,7 @@ class TestDataflowJobMetricsSensor:
 
 class TestDataflowJobMessagesSensor:
     @pytest.mark.parametrize(
-        "job_current_state, fail_on_terminal_state",
+        ("job_current_state", "fail_on_terminal_state"),
         [
             (DataflowJobStatus.JOB_STATE_RUNNING, True),
             (DataflowJobStatus.JOB_STATE_RUNNING, False),
@@ -525,7 +525,7 @@ class TestDataflowJobMessagesSensor:
 
 class TestDataflowJobAutoScalingEventsSensor:
     @pytest.mark.parametrize(
-        "job_current_state, fail_on_terminal_state",
+        ("job_current_state", "fail_on_terminal_state"),
         [
             (DataflowJobStatus.JOB_STATE_RUNNING, True),
             (DataflowJobStatus.JOB_STATE_RUNNING, False),

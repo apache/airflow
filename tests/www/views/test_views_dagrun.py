@@ -203,7 +203,7 @@ def test_delete_dagrun_permission_denied(session, running_dag_run, client_dr_wit
 
 
 @pytest.mark.parametrize(
-    "action, expected_ti_states, expected_message",
+    ("action", "expected_ti_states", "expected_message"),
     [
         (
             "clear",
@@ -251,7 +251,7 @@ def test_set_dag_runs_action(
 
 
 @pytest.mark.parametrize(
-    "action, expected_message",
+    ("action", "expected_message"),
     [
         ("clear", "Failed to clear state"),
         ("set_success", "Failed to set state"),

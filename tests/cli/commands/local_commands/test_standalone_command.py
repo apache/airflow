@@ -37,7 +37,7 @@ from airflow.executors.executor_constants import (
 
 class TestStandaloneCommand:
     @pytest.mark.parametrize(
-        "conf_executor_name, conf_sql_alchemy_conn, expected_standalone_executor",
+        ("conf_executor_name", "conf_sql_alchemy_conn", "expected_standalone_executor"),
         [
             (LOCAL_EXECUTOR, "sqlite_conn_string", LOCAL_EXECUTOR),
             (LOCAL_KUBERNETES_EXECUTOR, "sqlite_conn_string", SEQUENTIAL_EXECUTOR),

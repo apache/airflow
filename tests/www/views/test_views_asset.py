@@ -141,7 +141,7 @@ class TestGetAssets(TestAssetEndpoint):
         assert [json_dict["id"] for json_dict in response.json["assets"]] == [1, 2]
 
     @pytest.mark.parametrize(
-        "order_by, ordered_asset_ids",
+        ("order_by", "ordered_asset_ids"),
         [
             ("uri", [1, 2, 3, 4]),
             ("-uri", [4, 3, 2, 1]),
@@ -359,7 +359,7 @@ class TestGetAssets(TestAssetEndpoint):
 
 class TestGetAssetsEndpointPagination(TestAssetEndpoint):
     @pytest.mark.parametrize(
-        "url, expected_asset_uris",
+        ("url", "expected_asset_uris"),
         [
             # Limit test data
             ("/object/assets_summary?limit=1", ["s3://bucket/key/1"]),

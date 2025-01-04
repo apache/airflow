@@ -255,7 +255,7 @@ def test_run_basic_skipped(time_machine, mocked_parse, make_ti_context, mock_sup
 
 
 @pytest.mark.parametrize(
-    ["task_params", "expected_rendered_fields"],
+    ("task_params", "expected_rendered_fields"),
     [
         pytest.param(
             {"op_args": [], "op_kwargs": {}, "templates_dict": None},
@@ -328,7 +328,7 @@ def test_startup_and_run_dag_with_templated_fields(
 
 
 @pytest.mark.parametrize(
-    ["dag_id", "task_id", "fail_with_exception"],
+    ("dag_id", "task_id", "fail_with_exception"),
     [
         pytest.param(
             "basic_failed", "fail-exception", AirflowFailException("Oops. Failing by AirflowFailException!")
@@ -505,7 +505,7 @@ class TestRuntimeTaskInstance:
 
 class TestXComAfterTaskExecution:
     @pytest.mark.parametrize(
-        ["do_xcom_push", "should_push_xcom", "expected_xcom_value"],
+        ("do_xcom_push", "should_push_xcom", "expected_xcom_value"),
         [
             pytest.param(False, False, None, id="do_xcom_push_false"),
             pytest.param(True, True, "Hello World!", id="do_xcom_push_true"),

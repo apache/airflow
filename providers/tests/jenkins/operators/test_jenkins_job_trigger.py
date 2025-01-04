@@ -159,7 +159,7 @@ class TestJenkinsOperator:
                 operator.execute(None)
 
     @pytest.mark.parametrize(
-        "state, allowed_jenkins_states",
+        ("state", "allowed_jenkins_states"),
         [
             (
                 "SUCCESS",
@@ -222,7 +222,7 @@ class TestJenkinsOperator:
                 pytest.fail(f"Job failed with state={state} while allowed states={allowed_jenkins_states}")
 
     @pytest.mark.parametrize(
-        "state, allowed_jenkins_states",
+        ("state", "allowed_jenkins_states"),
         [
             (
                 "FAILURE",

@@ -804,7 +804,7 @@ class TestLogsfromTaskRunCommand:
             )
 
     @pytest.mark.parametrize(
-        "is_k8s, is_container_exec", [("true", "true"), ("true", ""), ("", "true"), ("", "")]
+        ("is_k8s", "is_container_exec"), [("true", "true"), ("true", ""), ("", "true"), ("", "")]
     )
     def test_logging_with_run_task_stdout_k8s_executor_pod(self, is_k8s, is_container_exec, session):
         """

@@ -23,7 +23,7 @@ pytestmark = pytest.mark.db_test
 
 class TestGetConnections:
     @pytest.mark.parametrize(
-        "query_params, expected_total_entries, expected_names",
+        ("query_params", "expected_total_entries", "expected_names"),
         [
             # Filters
             (

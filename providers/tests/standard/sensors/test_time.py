@@ -36,7 +36,7 @@ DEFAULT_DATE_WITH_TZ = datetime(2015, 1, 1, tzinfo=timezone.parse_timezone(DEFAU
 
 class TestTimeSensor:
     @pytest.mark.parametrize(
-        "default_timezone, start_date, expected",
+        ("default_timezone", "start_date", "expected"),
         [
             ("UTC", DEFAULT_DATE_WO_TZ, True),
             ("UTC", DEFAULT_DATE_WITH_TZ, False),

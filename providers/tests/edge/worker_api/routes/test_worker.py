@@ -122,7 +122,7 @@ class TestWorkerApiRoutes:
         assert return_queues == ["default", "default2"]
 
     @pytest.mark.parametrize(
-        "add_queues, remove_queues, expected_queues",
+        ("add_queues", "remove_queues", "expected_queues"),
         [
             pytest.param(None, None, ["init"], id="no-changes"),
             pytest.param(

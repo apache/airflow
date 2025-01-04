@@ -95,7 +95,7 @@ class TestRenderedTaskInstanceFields:
         self.clean_db()
 
     @pytest.mark.parametrize(
-        ["templated_field", "expected_rendered_field"],
+        ("templated_field", "expected_rendered_field"),
         [
             pytest.param(None, None, id="None"),
             pytest.param([], [], id="list"),
@@ -222,7 +222,7 @@ class TestRenderedTaskInstanceFields:
         rtif.write()
 
     @pytest.mark.parametrize(
-        "rtif_num, num_to_keep, remaining_rtifs, expected_query_count",
+        ("rtif_num", "num_to_keep", "remaining_rtifs", "expected_query_count"),
         [
             (0, 1, 0, 1),
             (1, 1, 1, 1),
@@ -267,7 +267,7 @@ class TestRenderedTaskInstanceFields:
             assert remaining_rtifs == len(result)
 
     @pytest.mark.parametrize(
-        "num_runs, num_to_keep, remaining_rtifs, expected_query_count",
+        ("num_runs", "num_to_keep", "remaining_rtifs", "expected_query_count"),
         [
             (3, 1, 1, 1),
             (4, 2, 2, 1),

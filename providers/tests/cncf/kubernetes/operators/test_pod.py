@@ -242,7 +242,7 @@ class TestKubernetesPodOperator:
         )
 
     @pytest.mark.parametrize(
-        "input,render_template_as_native_obj,raises_error",
+        ("input", "render_template_as_native_obj", "raises_error"),
         [
             pytest.param([k8s.V1EnvVar(name="{{ bar }}", value="{{ foo }}")], False, False, id="current"),
             pytest.param({"{{ bar }}": "{{ foo }}"}, False, False, id="backcompat"),
@@ -343,7 +343,7 @@ class TestKubernetesPodOperator:
             k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name=secret_ref))
         ]
 
-    @pytest.mark.parametrize(("in_cluster",), ([True], [False]))
+    @pytest.mark.parametrize("in_cluster", ([True], [False]))
     @patch(HOOK_CLASS)
     def test_labels(self, hook_mock, in_cluster):
         hook_mock.return_value.is_in_cluster = in_cluster
@@ -693,7 +693,7 @@ class TestKubernetesPodOperator:
         assert pod.spec.containers[0].termination_message_policy == "File"
 
     @pytest.mark.parametrize(
-        "task_kwargs, base_container_fail, expect_to_delete_pod",
+        ("task_kwargs", "base_container_fail", "expect_to_delete_pod"),
         [
             ({"on_finish_action": "delete_pod"}, True, True),
             ({"on_finish_action": "delete_pod"}, False, True),
@@ -772,7 +772,7 @@ class TestKubernetesPodOperator:
             delete_pod_mock.assert_not_called()
 
     @pytest.mark.parametrize(
-        "task_kwargs, should_be_deleted",
+        ("task_kwargs", "should_be_deleted"),
         [
             pytest.param({}, True, id="default"),  # default values
             pytest.param({"on_finish_action": "delete_pod"}, True, id="delete-pod"),
@@ -863,7 +863,7 @@ class TestKubernetesPodOperator:
             ),
         )
 
-    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    @pytest.mark.parametrize("randomize_name", ([True], [False]))
     def test_full_pod_spec(self, randomize_name, pod_spec):
         pod_spec_name_base = pod_spec.metadata.name
 
@@ -896,7 +896,7 @@ class TestKubernetesPodOperator:
             "run_id": "test",
         }
 
-    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    @pytest.mark.parametrize("randomize_name", ([True], [False]))
     def test_full_pod_spec_kwargs(self, randomize_name, pod_spec):
         # kwargs take precedence, however
         image = "some.custom.image:andtag"
@@ -976,7 +976,7 @@ class TestKubernetesPodOperator:
 
         return tpl_file
 
-    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    @pytest.mark.parametrize("randomize_name", ([True], [False]))
     def test_pod_template_file(self, randomize_name, pod_template_file):
         k = KubernetesPodOperator(
             task_id="task",
@@ -1037,7 +1037,7 @@ class TestKubernetesPodOperator:
 
         assert pod.spec.affinity.to_dict() == affinity
 
-    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    @pytest.mark.parametrize("randomize_name", ([True], [False]))
     def test_pod_template_file_kwargs_override(self, randomize_name, pod_template_file):
         # kwargs take precedence, however
         image = "some.custom.image:andtag"
@@ -1073,7 +1073,7 @@ class TestKubernetesPodOperator:
             "run_id": "test",
         }
 
-    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    @pytest.mark.parametrize("randomize_name", ([True], [False]))
     def test_pod_template_dict(self, randomize_name):
         templated_pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
@@ -1305,7 +1305,7 @@ class TestKubernetesPodOperator:
             mock_await.assert_not_called()
 
     @pytest.mark.parametrize(
-        "task_kwargs, should_fail, should_be_deleted",
+        ("task_kwargs", "should_fail", "should_be_deleted"),
         [
             ({}, False, True),
             ({}, True, True),
@@ -1401,7 +1401,7 @@ class TestKubernetesPodOperator:
         assert re.match(r"a-very-reasonable-task-name-[a-z0-9-]+", pod.metadata.name) is not None
 
     @pytest.mark.parametrize(
-        "kwargs, actual_exit_code, expected_exc",
+        ("kwargs", "actual_exit_code", "expected_exc"),
         [
             ({}, 0, None),
             ({}, 100, AirflowException),
@@ -1660,7 +1660,7 @@ class TestKubernetesPodOperator:
         assert pod_manager != k.pod_manager
 
     @pytest.mark.parametrize(
-        "side_effect, exception_type, expect_exc",
+        ("side_effect", "exception_type", "expect_exc"),
         [
             ([ApiException(401), mock.DEFAULT], ApiException, True),  # works after one 401
             ([ApiException(401)] * 3 + [mock.DEFAULT], ApiException, True),  # works after 3 retries
@@ -1956,7 +1956,7 @@ class TestKubernetesPodOperatorAsync:
             )
 
     @pytest.mark.parametrize(
-        "kwargs, actual_exit_code, expected_exc, pod_status, event_status",
+        ("kwargs", "actual_exit_code", "expected_exc", "pod_status", "event_status"),
         [
             ({}, 0, None, "Succeeded", "success"),
             ({}, 100, AirflowException, "Failed", "error"),
@@ -2178,7 +2178,7 @@ class TestKubernetesPodOperatorAsync:
         post_complete_action.assert_not_called()
 
     @pytest.mark.parametrize(
-        "log_pod_spec_on_failure,expect_match",
+        ("log_pod_spec_on_failure", "expect_match"),
         [
             (True, r"Pod task-.* returned a failure.\nremote_pod:.*"),
             (False, r"Pod task-.* returned a failure.(?!\nremote_pod:)"),

@@ -120,7 +120,7 @@ class TestBedrockCustomizeModelOperator:
         self.operator.defer = mock.MagicMock()
 
     @pytest.mark.parametrize(
-        "wait_for_completion, deferrable",
+        ("wait_for_completion", "deferrable"),
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
@@ -148,7 +148,7 @@ class TestBedrockCustomizeModelOperator:
     success = {"ResponseMetadata": {"HTTPStatusCode": 201}, "jobArn": CUSTOMIZE_JOB_ARN}
 
     @pytest.mark.parametrize(
-        "side_effect, ensure_unique_name",
+        ("side_effect", "ensure_unique_name"),
         [
             pytest.param([conflict_exception, success], True, id="conflict_and_ensure_unique"),
             pytest.param([conflict_exception, success], False, id="conflict_and_not_ensure_unique"),
@@ -208,7 +208,7 @@ class TestBedrockCreateProvisionedModelThroughputOperator:
         self.operator.defer = mock.MagicMock()
 
     @pytest.mark.parametrize(
-        "wait_for_completion, deferrable",
+        ("wait_for_completion", "deferrable"),
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
@@ -271,7 +271,7 @@ class TestBedrockCreateKnowledgeBaseOperator:
         self.operator.defer = mock.MagicMock()
 
     @pytest.mark.parametrize(
-        "wait_for_completion, deferrable",
+        ("wait_for_completion", "deferrable"),
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
@@ -374,7 +374,7 @@ class TestBedrockRaGOperator:
     MODEL_ARN = "model arn"
 
     @pytest.mark.parametrize(
-        "source_type, vector_search_config, knowledge_base_id, sources, expect_success",
+        ("source_type", "vector_search_config", "knowledge_base_id", "sources", "expect_success"),
         [
             pytest.param(
                 "invalid_source_type",

@@ -71,7 +71,7 @@ class TestVariableEndpoint:
 
 class TestGetVariable(TestVariableEndpoint):
     @pytest.mark.parametrize(
-        "user, expected_status_code",
+        ("user", "expected_status_code"),
         [
             ("test_read_only", 200),
             ("test_delete_only", 403),

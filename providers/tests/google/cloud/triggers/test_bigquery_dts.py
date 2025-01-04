@@ -68,7 +68,7 @@ class TestBigQueryDataTransferRunTrigger:
         }
 
     @pytest.mark.parametrize(
-        "attr, expected_value",
+        ("attr", "expected_value"),
         [
             ("gcp_conn_id", GCP_CONN_ID),
             ("location", LOCATION),

@@ -284,7 +284,7 @@ class TestLoggingSettings:
         assert isinstance(logger.handlers[0], WasbTaskHandler)
 
     @pytest.mark.parametrize(
-        "remote_base_log_folder, log_group_arn",
+        ("remote_base_log_folder", "log_group_arn"),
         [
             (
                 "cloudwatch://arn:aws:logs:aaaa:bbbbb:log-group:ccccc",

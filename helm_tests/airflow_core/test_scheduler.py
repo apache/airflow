@@ -27,7 +27,7 @@ class TestScheduler:
     """Tests scheduler."""
 
     @pytest.mark.parametrize(
-        "executor, persistence, kind",
+        ("executor", "persistence", "kind"),
         [
             ("CeleryExecutor", False, "Deployment"),
             ("CeleryExecutor", True, "Deployment"),
@@ -229,7 +229,7 @@ class TestScheduler:
         assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
 
     @pytest.mark.parametrize(
-        "revision_history_limit, global_revision_history_limit",
+        ("revision_history_limit", "global_revision_history_limit"),
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
     )
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
@@ -460,7 +460,7 @@ class TestScheduler:
         ]
 
     @pytest.mark.parametrize(
-        "airflow_version, probe_command",
+        ("airflow_version", "probe_command"),
         [
             ("1.9.0", "from airflow.jobs.scheduler_job import SchedulerJob"),
             ("2.1.0", "airflow jobs check --job-type SchedulerJob --hostname $(hostname)"),
@@ -478,7 +478,7 @@ class TestScheduler:
         )
 
     @pytest.mark.parametrize(
-        "airflow_version, probe_command",
+        ("airflow_version", "probe_command"),
         [
             ("1.9.0", "from airflow.jobs.scheduler_job import SchedulerJob"),
             ("2.1.0", "airflow jobs check --job-type SchedulerJob --hostname $(hostname)"),
@@ -496,7 +496,7 @@ class TestScheduler:
         )
 
     @pytest.mark.parametrize(
-        "log_values, expected_volume",
+        ("log_values", "expected_volume"),
         [
             ({"persistence": {"enabled": False}}, {"emptyDir": {}}),
             (
@@ -637,7 +637,7 @@ class TestScheduler:
         assert volume_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", docs[0])
 
     @pytest.mark.parametrize(
-        "executor, persistence, update_strategy, expected_update_strategy",
+        ("executor", "persistence", "update_strategy", "expected_update_strategy"),
         [
             ("CeleryExecutor", False, {"rollingUpdate": {"partition": 0}}, None),
             ("CeleryExecutor", True, {"rollingUpdate": {"partition": 0}}, None),
@@ -669,7 +669,7 @@ class TestScheduler:
         assert expected_update_strategy == jmespath.search("spec.updateStrategy", docs[0])
 
     @pytest.mark.parametrize(
-        "executor, persistence, strategy, expected_strategy",
+        ("executor", "persistence", "strategy", "expected_strategy"),
         [
             ("LocalExecutor", False, None, None),
             ("LocalExecutor", False, {"type": "Recreate"}, {"type": "Recreate"}),
@@ -749,7 +749,7 @@ class TestScheduler:
         ]
 
     @pytest.mark.parametrize(
-        "dag_processor, executor, skip_dags_mount",
+        ("dag_processor", "executor", "skip_dags_mount"),
         [
             (True, "LocalExecutor", False),
             (True, "CeleryExecutor", True),
@@ -887,7 +887,7 @@ class TestScheduler:
         }
 
     @pytest.mark.parametrize(
-        "scheduler_values, expected",
+        ("scheduler_values", "expected"),
         [
             ({}, 10),
             ({"scheduler": {"terminationGracePeriodSeconds": 1200}}, 1200),
@@ -930,7 +930,7 @@ class TestSchedulerService:
     """Tests scheduler service."""
 
     @pytest.mark.parametrize(
-        "executor, creates_service",
+        ("executor", "creates_service"),
         [
             ("LocalExecutor", True),
             ("CeleryExecutor", False),

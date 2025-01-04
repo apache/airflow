@@ -123,7 +123,7 @@ def test_get_suspended_provider_folders():
 
 
 @pytest.mark.parametrize(
-    "short_packages, filters, long_packages",
+    ("short_packages", "filters", "long_packages"),
     [
         (("amazon",), (), ("apache-airflow-providers-amazon",)),
         (("apache.hdfs",), (), ("apache-airflow-providers-apache-hdfs",)),
@@ -161,7 +161,7 @@ def test_get_documentation_package_path():
 
 
 @pytest.mark.parametrize(
-    "provider, version_suffix, expected",
+    ("provider", "version_suffix", "expected"),
     [
         pytest.param(
             "fab",
@@ -235,7 +235,7 @@ def test_get_install_requirements(provider: str, version_suffix: str, expected: 
 
 
 @pytest.mark.parametrize(
-    "version_suffix, expected",
+    ("version_suffix", "expected"),
     [
         pytest.param(
             "",
@@ -337,7 +337,7 @@ def test_get_provider_details():
 
 
 @pytest.mark.parametrize(
-    "provider_id, pip_package_name",
+    ("provider_id", "pip_package_name"),
     [
         ("asana", "apache-airflow-providers-asana"),
         ("apache.hdfs", "apache-airflow-providers-apache-hdfs"),
@@ -348,7 +348,7 @@ def test_get_pip_package_name(provider_id: str, pip_package_name: str):
 
 
 @pytest.mark.parametrize(
-    "provider_id, expected_package_name",
+    ("provider_id", "expected_package_name"),
     [
         ("asana", "apache_airflow_providers_asana"),
         ("apache.hdfs", "apache_airflow_providers_apache_hdfs"),
@@ -359,7 +359,7 @@ def test_get_dist_package_name_prefix(provider_id: str, expected_package_name: s
 
 
 @pytest.mark.parametrize(
-    "requirement_string, expected",
+    ("requirement_string", "expected"),
     [
         pytest.param("apache-airflow", ("apache-airflow", ""), id="no-version-specifier"),
         pytest.param(
@@ -399,7 +399,7 @@ def test_parse_pip_requirements_parse(requirement_string: str, expected: tuple[s
 
 
 @pytest.mark.parametrize(
-    "requirements, markdown, table",
+    ("requirements", "markdown", "table"),
     [
         (
             ["apache-airflow>2.5.0", "apache-airflow-providers-http"],
@@ -435,7 +435,7 @@ def test_validate_provider_info_with_schema():
 
 
 @pytest.mark.parametrize(
-    "provider_id, min_version",
+    ("provider_id", "min_version"),
     [
         ("amazon", "2.9.0"),
         ("fab", "3.0.0.dev0"),

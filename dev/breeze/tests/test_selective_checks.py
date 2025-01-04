@@ -106,7 +106,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs,",
+    ("files", "expected_outputs"),
     [
         (
             pytest.param(
@@ -969,7 +969,7 @@ def test_expected_output_pull_request_main(
 
 
 @pytest.mark.parametrize(
-    "files, commit_ref, expected_outputs",
+    ("files", "commit_ref", "expected_outputs"),
     [
         (
             pytest.param(
@@ -1037,7 +1037,7 @@ def test_excluded_providers():
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs",
+    ("files", "expected_outputs"),
     [
         (
             pytest.param(
@@ -1088,7 +1088,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
 
 
 @pytest.mark.parametrize(
-    "files, pr_labels, default_branch, expected_outputs,",
+    ("files", "pr_labels", "default_branch", "expected_outputs"),
     [
         (
             pytest.param(
@@ -1356,7 +1356,7 @@ def test_expected_output_full_tests_needed(
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs,",
+    ("files", "expected_outputs"),
     [
         pytest.param(
             ("INTHEWILD.md",),
@@ -1474,7 +1474,7 @@ def test_expected_output_pull_request_v2_7(
 
 
 @pytest.mark.parametrize(
-    "files, pr_labels, default_branch, expected_outputs,",
+    ("files", "pr_labels", "default_branch", "expected_outputs"),
     [
         pytest.param(
             ("INTHEWILD.md",),
@@ -1561,7 +1561,7 @@ def test_expected_output_push(
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs,",
+    ("files", "expected_outputs"),
     [
         pytest.param(
             ("INTHEWILD.md",),
@@ -1830,7 +1830,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs, pr_labels, commit_ref",
+    ("files", "expected_outputs", "pr_labels", "commit_ref"),
     [
         pytest.param(
             ("airflow/models/dag.py",),
@@ -1897,7 +1897,7 @@ def test_upgrade_to_newer_dependencies(
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs,",
+    ("files", "expected_outputs"),
     [
         pytest.param(
             ("docs/apache-airflow-providers-google/docs.rst",),
@@ -2010,7 +2010,7 @@ def test_docs_filter(files: tuple[str, ...], expected_outputs: dict[str, str]):
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs,",
+    ("files", "expected_outputs"),
     [
         pytest.param(
             ("helm_tests/random_helm_test.py",),
@@ -2036,9 +2036,20 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
 
 @pytest.mark.parametrize(
     (
-        "github_event, github_actor, github_repository, pr_labels, "
-        "github_context_dict, runs_on_as_json_default, runs_on_as_docs_build, is_self_hosted_runner, "
-        "is_airflow_runner, is_amd_runner, is_arm_runner, is_vm_runner, is_k8s_runner, exception"
+        "github_event",
+        "github_actor",
+        "github_repository",
+        "pr_labels",
+        "github_context_dict",
+        "runs_on_as_json_default",
+        "runs_on_as_docs_build",
+        "is_self_hosted_runner",
+        "is_airflow_runner",
+        "is_amd_runner",
+        "is_arm_runner",
+        "is_vm_runner",
+        "is_k8s_runner",
+        "exception",
     ),
     [
         pytest.param(
@@ -2331,7 +2342,7 @@ def test_runs_on(
 
 
 @pytest.mark.parametrize(
-    "files, has_migrations",
+    ("files", "has_migrations"),
     [
         pytest.param(
             ("airflow/test.py",),
@@ -2358,7 +2369,7 @@ def test_has_migrations(files: tuple[str, ...], has_migrations: bool):
 
 
 @pytest.mark.parametrize(
-    "labels, expected_outputs,",
+    ("labels", "expected_outputs"),
     [
         pytest.param(
             (),
@@ -2392,7 +2403,7 @@ def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs, default_branch, pr_labels",
+    ("files", "expected_outputs", "default_branch", "pr_labels"),
     [
         pytest.param(
             ("README.md",),
@@ -2490,7 +2501,7 @@ def test_mypy_matches(
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs, github_actor, pr_labels",
+    ("files", "expected_outputs", "github_actor", "pr_labels"),
     [
         pytest.param(
             ("README.md",),
@@ -2559,7 +2570,7 @@ def test_pr_labels(
 
 
 @pytest.mark.parametrize(
-    "files, pr_labels, github_event, expected_label",
+    ("files", "pr_labels", "github_event", "expected_label"),
     [
         pytest.param(
             ("airflow/www/package.json",),
@@ -2610,7 +2621,7 @@ def test_is_legacy_ui_api_labeled_should_fail(
 
 
 @pytest.mark.parametrize(
-    "files, pr_labels, github_event, expected_label",
+    ("files", "pr_labels", "github_event", "expected_label"),
     [
         pytest.param(
             ("airflow/www/package.json",),

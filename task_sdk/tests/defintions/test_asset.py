@@ -43,7 +43,7 @@ ASSET_MODULE_PATH = "airflow.sdk.definitions.asset"
 
 
 @pytest.mark.parametrize(
-    ["name"],
+    "name",
     [
         pytest.param("", id="empty"),
         pytest.param("\n\t", id="whitespace"),
@@ -57,7 +57,7 @@ def test_invalid_names(name):
 
 
 @pytest.mark.parametrize(
-    ["uri"],
+    "uri",
     [
         pytest.param("", id="empty"),
         pytest.param("\n\t", id="whitespace"),
@@ -97,7 +97,7 @@ def test_both_name_and_uri():
 
 
 @pytest.mark.parametrize(
-    "uri, normalized",
+    ("uri", "normalized"),
     [
         pytest.param("foobar", "foobar", id="scheme-less"),
         pytest.param("foo:bar", "foo:bar", id="scheme-less-colon"),
@@ -186,7 +186,7 @@ def test_asset_iter_asset_aliases():
 
 
 @pytest.mark.parametrize(
-    "statuses, result",
+    ("statuses", "result"),
     [
         ({AssetUniqueKey.from_asset(asset1): True}, True),
         ({AssetUniqueKey.from_asset(asset1): False}, False),
@@ -213,7 +213,7 @@ def test_asset_all_operations():
 
 
 @pytest.mark.parametrize(
-    "condition, statuses, result",
+    ("condition", "statuses", "result"),
     [
         (
             AssetAny(asset1, asset2),
@@ -241,7 +241,7 @@ def test_assset_boolean_condition_evaluate_iter(condition, statuses, result):
 
 
 @pytest.mark.parametrize(
-    "inputs, scenario, expected",
+    ("inputs", "scenario", "expected"),
     [
         # Scenarios for AssetAny
         ((True, True, True), "any", True),
@@ -280,7 +280,7 @@ def test_asset_logical_conditions_evaluation_and_serialization(inputs, scenario,
 
 
 @pytest.mark.parametrize(
-    "status_values, expected_evaluation",
+    ("status_values", "expected_evaluation"),
     [
         (
             (False, True, True),
@@ -404,14 +404,14 @@ test_cases = [
 ]
 
 
-@pytest.mark.parametrize("expression, expected", test_cases)
+@pytest.mark.parametrize(("expression", "expected"), test_cases)
 def test_evaluate_assets_expression(expression, expected):
     expr = expression()
     assert assets_equal(expr, expected)
 
 
 @pytest.mark.parametrize(
-    "expression, error",
+    ("expression", "error"),
     [
         pytest.param(
             lambda: asset1 & 1,  # type: ignore[operator]
@@ -534,21 +534,21 @@ class TestAssetAlias:
 
 
 class TestAssetSubclasses:
-    @pytest.mark.parametrize("subcls, group", ((Model, "model"), (Dataset, "dataset")))
+    @pytest.mark.parametrize(("subcls", "group"), ((Model, "model"), (Dataset, "dataset")))
     def test_only_name(self, subcls, group):
         obj = subcls(name="foobar")
         assert obj.name == "foobar"
         assert obj.uri == "foobar"
         assert obj.group == group
 
-    @pytest.mark.parametrize("subcls, group", ((Model, "model"), (Dataset, "dataset")))
+    @pytest.mark.parametrize(("subcls", "group"), ((Model, "model"), (Dataset, "dataset")))
     def test_only_uri(self, subcls, group):
         obj = subcls(uri="s3://bucket/key/path")
         assert obj.name == "s3://bucket/key/path"
         assert obj.uri == "s3://bucket/key/path"
         assert obj.group == group
 
-    @pytest.mark.parametrize("subcls, group", ((Model, "model"), (Dataset, "dataset")))
+    @pytest.mark.parametrize(("subcls", "group"), ((Model, "model"), (Dataset, "dataset")))
     def test_both_name_and_uri(self, subcls, group):
         obj = subcls("foobar", "s3://bucket/key/path")
         assert obj.name == "foobar"
@@ -556,7 +556,7 @@ class TestAssetSubclasses:
         assert obj.group == group
 
     @pytest.mark.parametrize("arg", ["foobar", "s3://bucket/key/path"])
-    @pytest.mark.parametrize("subcls, group", ((Model, "model"), (Dataset, "dataset")))
+    @pytest.mark.parametrize(("subcls", "group"), ((Model, "model"), (Dataset, "dataset")))
     def test_only_posarg(self, subcls, group, arg):
         obj = subcls(arg)
         assert obj.name == arg

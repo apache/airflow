@@ -240,7 +240,7 @@ class TestCliExportConnections:
         assert output_filepath.read_text() == expected_connections
 
     @pytest.mark.parametrize(
-        "serialization_format, expected",
+        ("serialization_format", "expected"),
         [
             (
                 "uri",
@@ -354,7 +354,7 @@ class TestCliAddConnections:
         clear_db_connections(add_default_connections_back=False)
 
     @pytest.mark.parametrize(
-        "cmd, expected_output, expected_conn",
+        ("cmd", "expected_output", "expected_conn"),
         [
             pytest.param(
                 [

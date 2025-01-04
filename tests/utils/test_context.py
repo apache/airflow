@@ -27,7 +27,7 @@ from airflow.utils.context import AssetAliasEvent, OutletEventAccessor, OutletEv
 
 class TestOutletEventAccessor:
     @pytest.mark.parametrize(
-        "key, asset_alias_events",
+        ("key", "asset_alias_events"),
         (
             (AssetUniqueKey.from_asset(Asset("test_uri")), []),
             (
@@ -54,7 +54,7 @@ class TestOutletEventAccessor:
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
-        "key, asset_alias_events",
+        ("key", "asset_alias_events"),
         (
             (AssetUniqueKey.from_asset(Asset("test_uri")), []),
             (
@@ -83,7 +83,7 @@ class TestOutletEventAccessor:
 
 class TestOutletEventAccessors:
     @pytest.mark.parametrize(
-        "access_key, internal_key",
+        ("access_key", "internal_key"),
         (
             (Asset("test"), AssetUniqueKey.from_asset(Asset("test"))),
             (

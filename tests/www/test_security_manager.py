@@ -51,7 +51,7 @@ def security_manager(app_builder):
 @pytest.mark.db_test
 class TestAirflowSecurityManagerV2:
     @pytest.mark.parametrize(
-        "action_name, resource_name, auth_manager_methods, expected",
+        ("action_name", "resource_name", "auth_manager_methods", "expected"),
         [
             (ACTION_CAN_READ, RESOURCE_VARIABLE, {"is_authorized_variable": True}, True),
             (ACTION_CAN_READ, RESOURCE_VARIABLE, {"is_authorized_variable": False}, False),

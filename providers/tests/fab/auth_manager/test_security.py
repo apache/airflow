@@ -847,7 +847,7 @@ def test_access_control_is_set_on_init(
 
 
 @pytest.mark.parametrize(
-    "access_control_before, access_control_after",
+    ("access_control_before", "access_control_after"),
     [
         (READ_WRITE, READ_ONLY),
         # old access control format
@@ -1133,7 +1133,7 @@ def test_custom_access_denied_message():
 @pytest.mark.db_test
 class TestHasAccessDagDecorator:
     @pytest.mark.parametrize(
-        "dag_id_args, dag_id_kwargs, dag_id_form, dag_id_json, fail",
+        ("dag_id_args", "dag_id_kwargs", "dag_id_form", "dag_id_json", "fail"),
         [
             ("a", None, None, None, False),
             (None, "b", None, None, False),

@@ -133,7 +133,7 @@ class TestGCSBlobTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "exists,response",
+        ("exists", "response"),
         [
             (True, "success"),
             (False, "pending"),
@@ -157,7 +157,7 @@ class TestGCSBlobTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "blob_list,response",
+        ("blob_list", "response"),
         [
             ([TEST_OBJECT], "success"),
             ([], "pending"),
@@ -339,7 +339,7 @@ class TestGCSCheckBlobUpdateTimeTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "blob_object_update_datetime, ts_object, expected_response",
+        ("blob_object_update_datetime", "ts_object", "expected_response"),
         [
             (
                 "2022-03-07T10:05:43.535Z",
@@ -377,7 +377,7 @@ class TestGCSCheckBlobUpdateTimeTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "blob_object, expected_response",
+        ("blob_object", "expected_response"),
         [
             (
                 None,
@@ -512,7 +512,7 @@ class TestGCSUploadSessionTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "allow_delete, current_objects, response",
+        ("allow_delete", "current_objects", "response"),
         [
             (True, {"a", "aa", "ab"}, {"status": "pending"}),
         ],
@@ -539,7 +539,7 @@ class TestGCSUploadSessionTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "last_activity_time , min_objects, response",
+        ("last_activity_time", "min_objects", "response"),
         [
             (
                 datetime.now() - timedelta(hours=0, minutes=50),

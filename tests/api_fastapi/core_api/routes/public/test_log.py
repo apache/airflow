@@ -174,7 +174,7 @@ class TestTaskInstancesLog:
         assert response.status_code == 200
 
     @pytest.mark.parametrize(
-        "request_url, expected_filename, extra_query_string, try_number",
+        ("request_url", "expected_filename", "extra_query_string", "try_number"),
         [
             (
                 f"public/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/1",
@@ -225,7 +225,7 @@ class TestTaskInstancesLog:
         assert f"{log_content}\n" in response.content.decode("utf-8")
 
     @pytest.mark.parametrize(
-        "request_url, expected_filename, extra_query_string, try_number",
+        ("request_url", "expected_filename", "extra_query_string", "try_number"),
         [
             (
                 f"public/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/1",

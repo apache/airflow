@@ -27,7 +27,7 @@ class TestDagProcessor:
     """Tests DAG processor."""
 
     @pytest.mark.parametrize(
-        "airflow_version, num_docs",
+        ("airflow_version", "num_docs"),
         [
             ("2.2.0", 0),
             ("2.3.0", 1),
@@ -444,7 +444,7 @@ class TestDagProcessor:
         ]
 
     @pytest.mark.parametrize(
-        "airflow_version, probe_command",
+        ("airflow_version", "probe_command"),
         [
             ("2.4.9", "airflow jobs check --hostname $(hostname)"),
             ("2.5.0", "airflow jobs check --local"),
@@ -462,7 +462,7 @@ class TestDagProcessor:
         )
 
     @pytest.mark.parametrize(
-        "log_values, expected_volume",
+        ("log_values", "expected_volume"),
         [
             ({"persistence": {"enabled": False}}, {"emptyDir": {}}),
             (
@@ -534,7 +534,7 @@ class TestDagProcessor:
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
 
     @pytest.mark.parametrize(
-        "strategy, expected_strategy",
+        ("strategy", "expected_strategy"),
         [
             (None, None),
             (
@@ -568,7 +568,7 @@ class TestDagProcessor:
         ]
 
     @pytest.mark.parametrize(
-        "revision_history_limit, global_revision_history_limit",
+        ("revision_history_limit", "global_revision_history_limit"),
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
     )
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
@@ -697,7 +697,7 @@ class TestDagProcessor:
         assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
 
     @pytest.mark.parametrize(
-        "webserver_config, should_add_volume",
+        ("webserver_config", "should_add_volume"),
         [
             ("CSRF_ENABLED = True", True),
             (None, False),

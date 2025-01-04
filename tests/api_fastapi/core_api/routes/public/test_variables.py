@@ -108,7 +108,7 @@ class TestDeleteVariable(TestVariableEndpoint):
 class TestGetVariable(TestVariableEndpoint):
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "key, expected_response",
+        ("key", "expected_response"),
         [
             (
                 TEST_VARIABLE_KEY,
@@ -164,7 +164,7 @@ class TestGetVariable(TestVariableEndpoint):
 class TestGetVariables(TestVariableEndpoint):
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "query_params, expected_total_entries, expected_keys",
+        ("query_params", "expected_total_entries", "expected_keys"),
         [
             # Filters
             ({}, 4, [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3, TEST_VARIABLE_SEARCH_KEY]),
@@ -215,7 +215,7 @@ class TestGetVariables(TestVariableEndpoint):
 class TestPatchVariable(TestVariableEndpoint):
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "key, body, params, expected_response",
+        ("key", "body", "params", "expected_response"),
         [
             (
                 TEST_VARIABLE_KEY,
@@ -307,7 +307,7 @@ class TestPatchVariable(TestVariableEndpoint):
 class TestPostVariable(TestVariableEndpoint):
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "body, expected_response",
+        ("body", "expected_response"),
         [
             (
                 {

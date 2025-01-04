@@ -1059,7 +1059,7 @@ class TestCloudSqlDatabaseHook:
 
     @pytest.mark.parametrize("ssl_name", ["sslcert", "sslkey", "sslrootcert"])
     @pytest.mark.parametrize(
-        "cert_value, cert_path, extra_cert_path",
+        ("cert_value", "cert_path", "extra_cert_path"),
         [
             (None, None, "/connection/path/to/cert.pem"),
             (None, "/path/to/cert.pem", None),
@@ -1148,7 +1148,7 @@ class TestCloudSqlDatabaseHook:
         assert not mock_set_temporary_ssl_file.called
 
     @pytest.mark.parametrize(
-        "cert_name, cert_value",
+        ("cert_name", "cert_value"),
         [
             ["sslcert", SSL_CERT],
             ["sslkey", SSL_KEY],
@@ -1191,7 +1191,7 @@ class TestCloudSqlDatabaseHook:
         )
 
     @pytest.mark.parametrize(
-        "cert_name, cert_value",
+        ("cert_name", "cert_value"),
         [
             ["sslcert", SSL_CERT],
             ["sslkey", SSL_KEY],
@@ -1602,7 +1602,7 @@ def get_processor():
 
 class TestCloudSqlProxyRunner:
     @pytest.mark.parametrize(
-        ["version", "download_url"],
+        ("version", "download_url"),
         [
             (
                 "v1.23.0",

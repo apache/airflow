@@ -235,7 +235,7 @@ def test_extraction_without_on_start():
 
 
 @pytest.mark.parametrize(
-    "task_state, is_airflow_2_10_or_higher, should_call_on_failure",
+    ("task_state", "is_airflow_2_10_or_higher", "should_call_on_failure"),
     (
         # Airflow >= 2.10
         (TaskInstanceState.FAILED, True, True),

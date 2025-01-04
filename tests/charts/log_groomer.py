@@ -140,7 +140,7 @@ class LogGroomerTestBase:
         assert jmespath.search("spec.template.spec.containers[1].command", docs[0]) == ["release-name"]
         assert jmespath.search("spec.template.spec.containers[1].args", docs[0]) == ["Helm"]
 
-    @pytest.mark.parametrize("retention_days, retention_result", [(None, None), (30, "30")])
+    @pytest.mark.parametrize(("retention_days", "retention_result"), [(None, None), (30, "30")])
     def test_log_groomer_retention_days_overrides(self, retention_days, retention_result):
         if self.obj_name == "dag-processor":
             values = {

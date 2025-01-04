@@ -105,7 +105,7 @@ class TestGetPool(TestPoolsEndpoint):
 
 class TestGetPools(TestPoolsEndpoint):
     @pytest.mark.parametrize(
-        "query_params, expected_total_entries, expected_ids",
+        ("query_params", "expected_total_entries", "expected_ids"),
         [
             # Filters
             ({}, 3, [Pool.DEFAULT_POOL_NAME, POOL1_NAME, POOL2_NAME]),
@@ -130,7 +130,7 @@ class TestGetPools(TestPoolsEndpoint):
 
 class TestPatchPool(TestPoolsEndpoint):
     @pytest.mark.parametrize(
-        "pool_name, query_params, body, expected_status_code, expected_response",
+        ("pool_name", "query_params", "body", "expected_status_code", "expected_response"),
         [
             # Error
             (
@@ -285,7 +285,7 @@ class TestPatchPool(TestPoolsEndpoint):
 
 class TestPostPool(TestPoolsEndpoint):
     @pytest.mark.parametrize(
-        "body, expected_status_code, expected_response",
+        ("body", "expected_status_code", "expected_response"),
         [
             (
                 {"name": "my_pool", "slots": 11},
@@ -331,7 +331,13 @@ class TestPostPool(TestPoolsEndpoint):
         assert session.query(Pool).count() == n_pools + 1
 
     @pytest.mark.parametrize(
-        "body,first_expected_status_code, first_expected_response, second_expected_status_code, second_expected_response",
+        (
+            "body",
+            "first_expected_status_code",
+            "first_expected_response",
+            "second_expected_status_code",
+            "second_expected_response",
+        ),
         [
             (
                 {"name": "my_pool", "slots": 11},
@@ -383,7 +389,7 @@ class TestPostPool(TestPoolsEndpoint):
 
 class TestPostPools(TestPoolsEndpoint):
     @pytest.mark.parametrize(
-        "body, expected_status_code, expected_response",
+        ("body", "expected_status_code", "expected_response"),
         [
             (
                 {

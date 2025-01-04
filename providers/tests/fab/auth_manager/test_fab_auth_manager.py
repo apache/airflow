@@ -103,7 +103,7 @@ def auth_manager_with_appbuilder(flask_app):
 @pytest.mark.db_test
 class TestFabAuthManager:
     @pytest.mark.parametrize(
-        "id,first_name,last_name,username,email,expected",
+        ("id", "first_name", "last_name", "username", "email", "expected"),
         [
             (1, "First", "Last", None, None, "First Last"),
             (1, "First", None, "user", None, "First"),
@@ -175,7 +175,7 @@ class TestFabAuthManager:
         assert auth_manager_with_appbuilder.is_logged_in() is False
 
     @pytest.mark.parametrize(
-        "api_name, method, user_permissions, expected_result",
+        ("api_name", "method", "user_permissions", "expected_result"),
         chain(
             *[
                 (
@@ -229,7 +229,7 @@ class TestFabAuthManager:
         assert result == expected_result
 
     @pytest.mark.parametrize(
-        "method, dag_access_entity, dag_details, user_permissions, expected_result",
+        ("method", "dag_access_entity", "dag_details", "user_permissions", "expected_result"),
         [
             # Scenario 1 #
             # With global permissions on Dags
@@ -368,7 +368,7 @@ class TestFabAuthManager:
         assert result == expected_result
 
     @pytest.mark.parametrize(
-        "access_view, user_permissions, expected_result",
+        ("access_view", "user_permissions", "expected_result"),
         [
             # With permission (jobs)
             (
@@ -433,7 +433,7 @@ class TestFabAuthManager:
         assert result == expected_result
 
     @pytest.mark.parametrize(
-        "method, resource_name, user_permissions, expected_result",
+        ("method", "resource_name", "user_permissions", "expected_result"),
         [
             (
                 "GET",

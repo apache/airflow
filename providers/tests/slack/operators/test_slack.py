@@ -35,7 +35,7 @@ DEFAULT_HOOKS_PARAMETERS = {"base_url": None, "timeout": None, "proxy": None, "r
 class TestSlackAPIOperator:
     @mock.patch("airflow.providers.slack.operators.slack.SlackHook")
     @pytest.mark.parametrize(
-        "slack_op_kwargs, hook_extra_kwargs",
+        ("slack_op_kwargs", "hook_extra_kwargs"),
         [
             pytest.param({}, DEFAULT_HOOKS_PARAMETERS, id="default-hook-parameters"),
             pytest.param(
@@ -218,7 +218,7 @@ class TestSlackAPIFileOperator:
     @pytest.mark.parametrize("initial_comment", [None, "foo-bar"])
     @pytest.mark.parametrize("title", [None, "Spam Egg"])
     @pytest.mark.parametrize(
-        "method_version, method_name",
+        ("method_version", "method_name"),
         [
             pytest.param("v2", "send_file_v1_to_v2", id="v2"),
         ],
@@ -252,7 +252,7 @@ class TestSlackAPIFileOperator:
     @pytest.mark.parametrize("initial_comment", [None, "foo-bar"])
     @pytest.mark.parametrize("title", [None, "Spam Egg"])
     @pytest.mark.parametrize(
-        "method_version, method_name",
+        ("method_version", "method_name"),
         [
             pytest.param("v2", "send_file_v1_to_v2", id="v2"),
         ],

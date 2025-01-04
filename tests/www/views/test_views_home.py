@@ -361,7 +361,7 @@ def test_home_robots_header_in_response(user_client):
 
 
 @pytest.mark.parametrize(
-    "client, flash_message, expected",
+    ("client", "flash_message", "expected"),
     [
         ("anonymous_client", UIAlert("hello world"), True),
         ("anonymous_client", UIAlert("hello world", roles=["Viewer"]), True),
@@ -423,7 +423,7 @@ def test_dashboard_flash_messages_type(user_client):
 
 
 @pytest.mark.parametrize(
-    "url, lower_key, greater_key",
+    ("url", "lower_key", "greater_key"),
     [
         ("home?status=all", "a_first_dag_id_asc", "filter_test_1"),
         ("home?status=all&sorting_key=dag_id&sorting_direction=asc", "filter_test_1", "filter_test_2"),
@@ -440,7 +440,13 @@ def test_sorting_home_view(url, lower_key, greater_key, user_client, _working_da
 
 
 @pytest.mark.parametrize(
-    "url, filter_tags_cookie_val, filter_lastrun_cookie_val, expected_filter_tags, expected_filter_lastrun",
+    (
+        "url",
+        "filter_tags_cookie_val",
+        "filter_lastrun_cookie_val",
+        "expected_filter_tags",
+        "expected_filter_lastrun",
+    ),
     [
         ("home", None, None, [], None),
         # from url only

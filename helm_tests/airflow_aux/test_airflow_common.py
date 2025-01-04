@@ -30,7 +30,7 @@ class TestAirflowCommon:
     """
 
     @pytest.mark.parametrize(
-        "dag_values, expected_mount",
+        ("dag_values", "expected_mount"),
         [
             (
                 {"gitSync": {"enabled": True}},
@@ -249,7 +249,7 @@ class TestAirflowCommon:
             assert jmespath.search("topologySpreadConstraints[0].topologyKey", podSpec) == "foo"
 
     @pytest.mark.parametrize(
-        "expected_image,tag,digest",
+        ("expected_image", "tag", "digest"),
         [
             ("apache/airflow:user-tag", "user-tag", None),
             ("apache/airflow@user-digest", None, "user-digest"),
@@ -280,7 +280,7 @@ class TestAirflowCommon:
             assert expected_image == jmespath.search("spec.template.spec.initContainers[0].image", doc)
 
     @pytest.mark.parametrize(
-        "expected_image,tag,digest",
+        ("expected_image", "tag", "digest"),
         [
             ("apache/airflow:user-tag", "user-tag", None),
             ("apache/airflow@user-digest", None, "user-digest"),

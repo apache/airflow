@@ -460,7 +460,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
 
 class TestGetTaskInstances(TestTaskInstanceEndpoint):
     @pytest.mark.parametrize(
-        "task_instances, update_extras, url, expected_ti",
+        ("task_instances", "update_extras", "url", "expected_ti"),
         [
             pytest.param(
                 [
@@ -770,7 +770,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
 
 class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
     @pytest.mark.parametrize(
-        "task_instances, update_extras, payload, expected_ti_count, username",
+        ("task_instances", "update_extras", "payload", "expected_ti_count", "username"),
         [
             pytest.param(
                 [
@@ -915,7 +915,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         assert start_dates_asc == list(reversed(start_dates_desc))
 
     @pytest.mark.parametrize(
-        "task_instances, payload, expected_ti_count",
+        ("task_instances", "payload", "expected_ti_count"),
         [
             pytest.param(
                 [
@@ -954,7 +954,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         assert expected_ti_count == len(response.json["task_instances"])
 
     @pytest.mark.parametrize(
-        "payload, expected_ti, total_ti",
+        ("payload", "expected_ti", "total_ti"),
         [
             pytest.param(
                 {"dag_ids": ["example_python_operator", "example_skip_dag"]},
@@ -1010,7 +1010,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         assert response.json["detail"] == "{'unknown_field': ['Unknown field.']}"
 
     @pytest.mark.parametrize(
-        "payload, expected",
+        ("payload", "expected"),
         [
             ({"end_date_lte": "2020-11-10T12:42:39.442973"}, "is not a 'date-time'"),
             ({"end_date_gte": "2020-11-10T12:42:39.442973"}, "is not a 'date-time'"),
@@ -1084,7 +1084,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
 
 class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
     @pytest.mark.parametrize(
-        "main_dag, task_instances, request_dag, payload, expected_ti",
+        ("main_dag", "task_instances", "request_dag", "payload", "expected_ti"),
         [
             pytest.param(
                 "example_python_operator",
@@ -1670,7 +1670,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "payload, expected",
+        ("payload", "expected"),
         [
             ({"end_date": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
             ({"end_date": "2020-11-10T12:4po"}, "{'end_date': ['Not a valid datetime.']}"),
@@ -1816,7 +1816,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         )
 
     @pytest.mark.parametrize(
-        "error, code, payload",
+        ("error", "code", "payload"),
         [
             [
                 "{'dag_run_id': ['Missing data for required field.']}",
@@ -2130,7 +2130,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response2.json["state"] == NEW_STATE
 
     @pytest.mark.parametrize(
-        "error, code, payload",
+        ("error", "code", "payload"),
         [
             [
                 "Task instance not found for task 'print_the_context' on DAG run with ID 'TEST_DAG_RUN_ID'",
@@ -2236,7 +2236,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response.status_code == 404
 
     @pytest.mark.parametrize(
-        "payload, expected",
+        ("payload", "expected"),
         [
             (
                 {
@@ -2457,7 +2457,7 @@ class TestGetTaskDependencies(TestTaskInstanceEndpoint):
         assert response.json == {"dependencies": []}
 
     @pytest.mark.parametrize(
-        "state, dependencies",
+        ("state", "dependencies"),
         [
             (
                 State.SCHEDULED,

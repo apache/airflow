@@ -234,7 +234,7 @@ def test_partial_on_invalid_pool_slots_raises() -> None:
 
 
 @pytest.mark.parametrize(
-    ["num_existing_tis", "expected"],
+    ("num_existing_tis", "expected"),
     (
         pytest.param(0, [(0, None), (1, None), (2, None)], id="only-unmapped-ti-exists"),
         pytest.param(
@@ -398,7 +398,7 @@ def test_mapped_task_applies_default_args_taskflow(dag_maker):
 
 
 @pytest.mark.parametrize(
-    "dag_params, task_params, expected_partial_params",
+    ("dag_params", "task_params", "expected_partial_params"),
     [
         pytest.param(None, None, ParamsDict(), id="none"),
         pytest.param({"a": -1}, None, ParamsDict({"a": -1}), id="dag"),
@@ -555,7 +555,7 @@ def test_mapped_render_nested_template_fields(dag_maker, session):
 
 
 @pytest.mark.parametrize(
-    ["num_existing_tis", "expected"],
+    ("num_existing_tis", "expected"),
     (
         pytest.param(0, [(0, None), (1, None), (2, None)], id="only-unmapped-ti-exists"),
         pytest.param(
@@ -674,7 +674,7 @@ def _create_named_map_index_renders_on_failure_taskflow(*, task_id, map_names, t
 
 
 @pytest.mark.parametrize(
-    "template, expected_rendered_names",
+    ("template", "expected_rendered_names"),
     [
         pytest.param(None, [None, None], id="unset"),
         pytest.param("", ["", ""], id="constant"),
@@ -746,7 +746,7 @@ def test_expand_mapped_task_task_instance_mutation_hook(dag_maker, session, crea
 
 
 @pytest.mark.parametrize(
-    "map_index, expected",
+    ("map_index", "expected"),
     [
         pytest.param(0, "2016-01-01", id="0"),
         pytest.param(1, 2, id="1"),

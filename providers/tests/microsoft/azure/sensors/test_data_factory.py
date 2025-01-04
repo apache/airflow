@@ -55,7 +55,7 @@ class TestAzureDataFactoryPipelineRunStatusSensor:
         assert self.sensor.poke_interval == self.config["poke_interval"]
 
     @pytest.mark.parametrize(
-        "pipeline_run_status, expected_status",
+        ("pipeline_run_status", "expected_status"),
         [
             (AzureDataFactoryPipelineRunStatus.SUCCEEDED, True),
             (AzureDataFactoryPipelineRunStatus.FAILED, "exception"),

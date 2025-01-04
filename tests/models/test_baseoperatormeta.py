@@ -78,7 +78,7 @@ class TestExecutorSafeguard:
         mock_log.warning.assert_not_called()
 
     @pytest.mark.parametrize(
-        "state, exception, retries",
+        ("state", "exception", "retries"),
         [
             (State.FAILED, AirflowException, 0),
             (State.SKIPPED, AirflowSkipException, 0),
