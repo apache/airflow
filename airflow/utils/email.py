@@ -254,6 +254,10 @@ def send_mime_email(
             smtp_password = airflow_conn.password
         except AirflowException:
             pass
+    if smtp_user is None:
+        smtp_user = conf.get("smtp", "SMTP_USER", fallback=os.getenv('AIRFLOW__SMTP__SMTP_USER'))
+    if smtp_password is None:
+        smtp_password = conf.get("smtp", "SMTP_PASSWORD", fallback=os.getenv('AIRFLOW__SMTP__SMTP_PASSWORD'))
     if smtp_user is None or smtp_password is None:
         log.debug("No user/password found for SMTP, so logging in with no authentication.")
 
