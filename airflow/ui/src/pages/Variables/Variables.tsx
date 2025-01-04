@@ -108,10 +108,11 @@ export const Variables = () => {
     variableKeyPattern: variableKeyPattern ?? undefined,
   });
 
-  const { allRowsSelected, handleRowSelect, handleSelectAll, selectedRows } = useRowSelection({
-    data: data?.variables,
-    getKey: (variable) => variable.key,
-  });
+  const { allRowsSelected, clearSelections, handleRowSelect, handleSelectAll, selectedRows } =
+    useRowSelection({
+      data: data?.variables,
+      getKey: (variable) => variable.key,
+    });
 
   const columns = useMemo(
     () =>
@@ -178,6 +179,7 @@ export const Variables = () => {
             <FiShare />
             Export
           </Button>
+          <ActionBar.CloseTrigger onClick={clearSelections} />
         </ActionBar.Content>
       </ActionBar.Root>
     </>

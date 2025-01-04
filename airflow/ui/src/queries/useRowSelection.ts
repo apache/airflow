@@ -73,8 +73,13 @@ export const useRowSelection = <T>({ data = [], getKey }: UseRowSelectionProps<T
     [data, selectedRows, getKey],
   );
 
+  const clearSelections = useCallback(() => {
+    setSelectedRows(new Map());
+  }, []);
+
   return {
     allRowsSelected,
+    clearSelections,
     handleRowSelect,
     handleSelectAll,
     selectedRows,
