@@ -29,15 +29,15 @@ from airflow_breeze.utils.packages import (
     get_available_packages,
     get_latest_provider_tag,
     get_not_ready_provider_ids,
+    get_old_source_providers_package_path,
     get_provider_details,
     get_provider_jinja_context,
     get_removed_provider_ids,
-    get_source_package_path,
     get_target_root_for_copied_provider_sources,
     render_template,
     tag_exists_for_provider,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_PROVIDERS_SRC, AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, OLD_AIRFLOW_PROVIDERS_SRC_DIR
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.version_utils import is_local_package_version
 
@@ -83,8 +83,8 @@ def copy_provider_sources_to_target(provider_id: str) -> Path:
         )
     rmtree(target_provider_root_path, ignore_errors=True)
     target_provider_root_path.mkdir(parents=True)
-    source_provider_sources_path = get_source_package_path(provider_id)
-    relative_provider_path = source_provider_sources_path.relative_to(AIRFLOW_PROVIDERS_SRC)
+    source_provider_sources_path = get_old_source_providers_package_path(provider_id)
+    relative_provider_path = source_provider_sources_path.relative_to(OLD_AIRFLOW_PROVIDERS_SRC_DIR)
     target_providers_sub_folder = target_provider_root_path / relative_provider_path
     get_console().print(
         f"[info]Copying provider sources: {source_provider_sources_path} -> {target_providers_sub_folder}"

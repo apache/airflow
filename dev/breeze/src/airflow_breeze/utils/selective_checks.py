@@ -63,11 +63,11 @@ from airflow_breeze.utils.exclude_from_matrix import excluded_combos
 from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
 from airflow_breeze.utils.packages import get_available_packages
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_PROVIDERS_NS_PACKAGE,
     AIRFLOW_SOURCES_ROOT,
     DOCS_DIR,
-    SYSTEM_TESTS_PROVIDERS_ROOT,
-    TESTS_PROVIDERS_ROOT,
+    OLD_AIRFLOW_PROVIDERS_NS_PACKAGE,
+    OLD_SYSTEM_TESTS_PROVIDERS_ROOT,
+    OLD_TESTS_PROVIDERS_ROOT,
 )
 from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related_providers
 from airflow_breeze.utils.run_utils import run_command
@@ -327,7 +327,11 @@ TEST_TYPE_EXCLUDES = HashableDict({})
 def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
     file_path = AIRFLOW_SOURCES_ROOT / changed_file
     # Check providers in SRC/SYSTEM_TESTS/TESTS/(optionally) DOCS
-    for provider_root in (SYSTEM_TESTS_PROVIDERS_ROOT, TESTS_PROVIDERS_ROOT, AIRFLOW_PROVIDERS_NS_PACKAGE):
+    for provider_root in (
+        OLD_SYSTEM_TESTS_PROVIDERS_ROOT,
+        OLD_TESTS_PROVIDERS_ROOT,
+        OLD_AIRFLOW_PROVIDERS_NS_PACKAGE,
+    ):
         if file_path.is_relative_to(provider_root):
             provider_base_path = provider_root
             break
@@ -346,7 +350,7 @@ def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
             break
         relative_path = parent_dir_path.relative_to(provider_base_path)
         # check if this path belongs to a specific provider
-        if (AIRFLOW_PROVIDERS_NS_PACKAGE / relative_path / "provider.yaml").exists():
+        if (OLD_AIRFLOW_PROVIDERS_NS_PACKAGE / relative_path / "provider.yaml").exists():
             return str(parent_dir_path.relative_to(provider_base_path)).replace(os.sep, ".")
     # If we got here it means that some "common" files were modified. so we need to test all Providers
     return "Providers"

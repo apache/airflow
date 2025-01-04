@@ -14,8 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# yaml-language-server: $schema=../../provider.yaml.schema.json
 ---
 package-name: apache-airflow-providers-edge
 name: Edge Executor
