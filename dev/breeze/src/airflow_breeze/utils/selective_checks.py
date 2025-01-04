@@ -746,6 +746,8 @@ class SelectiveChecks:
 
     @cached_property
     def run_tests(self) -> bool:
+        if self._is_canary_run():
+            return True
         if self.only_new_ui_files:
             return False
         # we should run all test

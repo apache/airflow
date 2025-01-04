@@ -66,8 +66,8 @@ import type {
   GetConnectionsResponse,
   PostConnectionData,
   PostConnectionResponse,
-  PostConnectionsData,
-  PostConnectionsResponse,
+  PutConnectionsData,
+  PutConnectionsResponse,
   TestConnectionData,
   TestConnectionResponse,
   GetDagRunData,
@@ -1108,16 +1108,17 @@ export class ConnectionService {
   }
 
   /**
-   * Post Connections
+   * Put Connections
    * Create connection entry.
    * @param data The data for the request.
    * @param data.requestBody
-   * @returns ConnectionCollectionResponse Successful Response
+   * @returns ConnectionCollectionResponse Created with overwrite
+   * @returns ConnectionCollectionResponse Created
    * @throws ApiError
    */
-  public static postConnections(data: PostConnectionsData): CancelablePromise<PostConnectionsResponse> {
+  public static putConnections(data: PutConnectionsData): CancelablePromise<PutConnectionsResponse> {
     return __request(OpenAPI, {
-      method: "POST",
+      method: "PUT",
       url: "/public/connections/bulk",
       body: data.requestBody,
       mediaType: "application/json",
