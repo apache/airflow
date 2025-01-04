@@ -205,6 +205,7 @@ jobs:
       use-uv: ${{ inputs.use-uv }}
     if: ${{ inputs.default-branch == 'main' }}
 
+  # matrix.test-group comes from run-unit-tests.yml
   tests-system:
     name: "System test: ${{ matrix.test-group }}"
     uses: ./.github/workflows/run-unit-tests.yml

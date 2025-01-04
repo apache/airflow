@@ -138,7 +138,7 @@ class TestCliDb:
     def test_cli_upgrade_success(self, mock_upgradedb, args, called_with):
         # TODO(ephraimbuddy): Revisit this when we add more migration files and use other versions/revisions other than 2.10.0/22ed7efa9da2
         db_command.migratedb(self.parser.parse_args(["db", "migrate", *args]))
-        mock_upgradedb.assert_called_once_with(**called_with, reserialize_dags=True)
+        mock_upgradedb.assert_called_once_with(**called_with)
 
     @pytest.mark.parametrize(
         "args, pattern",

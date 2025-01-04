@@ -168,7 +168,7 @@ jobs:
   install-pre-commit:
     timeout-minutes: 5
     name: "Install pre-commit for cache"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
     if: inputs.basic-checks-only == 'true'

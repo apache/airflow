@@ -360,8 +360,6 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-breeze-readme-config-hash                          | Update Breeze README.md with config files hash         |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| update-build-dependencies                                 | Update build-dependencies to latest (manual)           |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-chart-dependencies                                 | Update chart dependencies to latest (manual)           |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-common-sql-api-stubs                               | Check and update common.sql API stubs                  |         |
