@@ -32,7 +32,8 @@ from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
 from airflow.utils import timezone
 
 from providers.tests.microsoft.azure.base import Base
-from providers.tests.microsoft.conftest import get_airflow_connection, mock_context
+from providers.tests.microsoft.conftest import get_airflow_connection
+from tests_common.test_utils.mock_context import mock_context
 
 DEFAULT_CONNECTION_CLIENT_SECRET = "powerbi_conn_id"
 TASK_ID = "run_powerbi_operator"
