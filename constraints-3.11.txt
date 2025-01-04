@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-03T02:23:00.749639
+# This constraints file was automatically generated on 2025-01-04T02:21:42.356569
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -133,7 +133,7 @@ apache-airflow-providers-discord==3.9.0
 apache-airflow-providers-docker==4.0.0
 apache-airflow-providers-elasticsearch==6.0.0
 apache-airflow-providers-exasol==4.7.0
-apache-airflow-providers-fab==1.5.1
+apache-airflow-providers-fab==1.5.2
 apache-airflow-providers-facebook==3.7.0
 apache-airflow-providers-ftp==3.12.0
 apache-airflow-providers-github==2.8.0
@@ -259,7 +259,7 @@ click-repl==0.3.0
 click==8.1.8
 clickclick==20.10.2
 cloudpickle==2.2.1
-cohere==5.13.4
+cohere==5.13.5
 colorama==0.4.6
 colorlog==6.9.0
 comm==0.2.2
@@ -452,7 +452,7 @@ lz4==4.3.3
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.1.1
 marshmallow-sqlalchemy==0.28.2
-marshmallow==3.23.2
+marshmallow==3.23.3
 matplotlib-inline==0.1.7
 mdit-py-plugins==0.4.2
 mdurl==0.1.2
@@ -480,7 +480,7 @@ multidict==6.1.0
 mypy-boto3-appflow==1.35.39
 mypy-boto3-rds==1.35.89
 mypy-boto3-redshift-data==1.35.51
-mypy-boto3-s3==1.35.81
+mypy-boto3-s3==1.35.92
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.1.0
@@ -494,7 +494,7 @@ nh3==0.2.20
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.58.1
+openai==1.59.3
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.26.0
@@ -606,7 +606,7 @@ python-ldap==3.4.4
 python-multipart==0.0.20
 python-nvd3==0.16.0
 python-slugify==8.0.4
-python-telegram-bot==21.9
+python-telegram-bot==21.10
 python3-saml==1.16.0
 pytz==2024.2
 pywinrm==0.5.0
