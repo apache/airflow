@@ -80,18 +80,14 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
       <Controller
         control={control}
         name="value"
-        render={({ field, fieldState }) => (
-          <Field.Root invalid={Boolean(fieldState.error)} mt={4} required>
+        render={({ field }) => (
+          <Field.Root mt={4}>
             <Field.Label fontSize="md">
               Value <Field.RequiredIndicator />
             </Field.Label>
-            <Textarea {...field} required size="sm" />
-            {fieldState.error ? <Field.ErrorText>{fieldState.error.message}</Field.ErrorText> : undefined}
+            <Textarea {...field} size="sm" />
           </Field.Root>
         )}
-        rules={{
-          required: "Value is required",
-        }}
       />
 
       <Controller
