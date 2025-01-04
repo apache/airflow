@@ -877,6 +877,18 @@ export const $ConnectionBulkBody = {
       type: "array",
       title: "Connections",
     },
+    overwrite: {
+      anyOf: [
+        {
+          type: "boolean",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Overwrite",
+      default: false,
+    },
   },
   type: "object",
   required: ["connections"],
