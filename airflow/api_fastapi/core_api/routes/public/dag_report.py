@@ -23,6 +23,7 @@ from airflow.api_fastapi.core_api.datamodels.dag_report import (
     DagReportResponse,
 )
 from airflow.models.dagbag import DagBag
+from airflow.utils.cli import process_subdir
 
 dag_report_router = AirflowRouter(tags=["DagReport"], prefix="/dagReport")
 
@@ -34,7 +35,8 @@ def get_dag_report(
     subdir: str,
 ):
     """Get DAG report."""
-    dagbag = DagBag(subdir)
+    # though the `subdir` will be validated on CLI side, we still need to validate again here or the CodeQL will report a security issue
+    dagbag = DagBag(process_subdir(subdir))
     return DagReportCollectionResponse(
         dag_reports=[
             DagReportResponse.model_validate(
