@@ -25,7 +25,7 @@ inputs:
     default: "3.9"
   uv-version:
     description: 'uv version to use'
-    default: "0.5.13"
+    default: "0.5.14"
   pre-commit-version:
     description: 'pre-commit version to use'
     default: "4.0.1"
