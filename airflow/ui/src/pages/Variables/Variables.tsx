@@ -28,7 +28,7 @@ import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
-import { Button } from "src/components/ui";
+import { Button, Tooltip } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
@@ -174,14 +174,19 @@ export const Variables = () => {
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>{selectedRows.size} selected</ActionBar.SelectionTrigger>
           <ActionBar.Separator />
-          <Button disabled size="sm" variant="outline">
-            <FiTrash2 />
-            Delete
-          </Button>
-          <Button disabled size="sm" variant="outline">
-            <FiShare />
-            Export
-          </Button>
+          {/* TODO: Implement the delete and export selected */}
+          <Tooltip content="Delete selected variable coming soon..">
+            <Button disabled size="sm" variant="outline">
+              <FiTrash2 />
+              Delete
+            </Button>
+          </Tooltip>
+          <Tooltip content="Export selected variable coming soon..">
+            <Button disabled size="sm" variant="outline">
+              <FiShare />
+              Export
+            </Button>
+          </Tooltip>
           <ActionBar.CloseTrigger onClick={clearSelections} />
         </ActionBar.Content>
       </ActionBar.Root>
