@@ -42,9 +42,9 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseAsyncHook,
     GoogleBaseHook,
 )
+from airflow.providers.google.common.hooks.operation_helpers import OperationHelper
 
 if TYPE_CHECKING:
-    from google.api_core.operation import Operation
     from google.api_core.retry import Retry
     from google.api_core.retry_async import AsyncRetry
     from googleapiclient.discovery import Resource
@@ -60,7 +60,7 @@ class AirflowDataQualityScanResultTimeoutException(AirflowException):
     """Raised when no result found after specified amount of seconds."""
 
 
-class DataplexHook(GoogleBaseHook):
+class DataplexHook(GoogleBaseHook, OperationHelper):
     """
     Hook for Google Dataplex.
 
@@ -109,14 +109,6 @@ class DataplexHook(GoogleBaseHook):
         return DataScanServiceClient(
             credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
-
-    def wait_for_operation(self, timeout: float | None, operation: Operation):
-        """Wait for long-lasting operation to complete."""
-        try:
-            return operation.result(timeout=timeout)
-        except Exception:
-            error = operation.exception(timeout=timeout)
-            raise AirflowException(error)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_task(
