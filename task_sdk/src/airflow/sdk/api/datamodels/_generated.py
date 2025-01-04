@@ -168,6 +168,11 @@ class XComResponse(BaseModel):
     value: Annotated[Any, Field(title="Value")]
 
 
+class DagBundle(BaseModel):
+    name: str
+    version: str
+
+
 class TaskInstance(BaseModel):
     """
     Schema for TaskInstance model with minimal required fields needed for Runtime.
@@ -179,6 +184,7 @@ class TaskInstance(BaseModel):
     run_id: Annotated[str, Field(title="Run Id")]
     try_number: Annotated[int, Field(title="Try Number")]
     map_index: Annotated[int | None, Field(title="Map Index")] = None
+    bundle: DagBundle | None = None
 
 
 class DagRun(BaseModel):

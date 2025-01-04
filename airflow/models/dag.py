@@ -83,6 +83,7 @@ from airflow.models.asset import (
 from airflow.models.base import Base, StringID
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
 from airflow.models.taskinstance import (
     Context,
@@ -244,6 +245,20 @@ def _triggerer_is_healthy():
     return job and job.is_alive()
 
 
+def _ensure_bundle(session):
+    name = "my_bundle"
+    version = "dd4399e"
+    if not (b := session.scalar(select(DagBundleModel).where(DagBundleModel.name == name))):
+        b = DagBundleModel(
+            name=name,
+            latest_version=version,
+        )
+        session.add(b)
+    b.latest_version = version
+    session.commit()
+    return b
+
+
 @provide_session
 def _create_orm_dagrun(
     dag,
@@ -262,6 +277,21 @@ def _create_orm_dagrun(
     session,
     triggered_by,
 ):
+    b = _ensure_bundle(session=session)
+    session.execute(
+        update(DagModel).values(
+            latest_bundle_version=b.latest_version,
+            bundle_name=b.name,
+        )
+    )
+    session.commit()
+    bundle_version = session.scalar(
+        select(
+            DagModel.latest_bundle_version,
+        ).where(
+            DagModel.dag_id == dag.dag_id,
+        )
+    )
     run = DagRun(
         dag_id=dag_id,
         run_id=run_id,
@@ -276,6 +306,7 @@ def _create_orm_dagrun(
         data_interval=data_interval,
         triggered_by=triggered_by,
         backfill_id=backfill_id,
+        bundle_version=bundle_version,
     )
     # Load defaults into the following two fields to ensure result can be serialized detached
     run.log_template_id = int(session.scalar(select(func.max(LogTemplate.__table__.c.id))))
@@ -2122,6 +2153,8 @@ class DagModel(Base):
     dag_versions = relationship(
         "DagVersion", back_populates="dag_model", cascade="all, delete, delete-orphan"
     )
+
+    dag_bundle = relationship("DagBundleModel")
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
