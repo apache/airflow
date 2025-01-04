@@ -637,6 +637,21 @@ export type DagTagResponse = {
 export type DagWarningType = "asset conflict" | "non-existent pool";
 
 /**
+ * Serializer for responses in dry-run mode for backfill operations.
+ */
+export type DryRunBackfillCollectionResponse = {
+  backfills: Array<DryRunBackfillResponse>;
+  total_entries: number;
+};
+
+/**
+ * Data model for run information during a backfill operation.
+ */
+export type DryRunBackfillResponse = {
+  logical_date: string;
+};
+
+/**
  * Edge serializer for responses.
  */
 export type EdgeResponse = {
@@ -1566,6 +1581,12 @@ export type CancelBackfillData = {
 };
 
 export type CancelBackfillResponse = BackfillResponse;
+
+export type CreateBackfillDryRunData = {
+  requestBody: BackfillPostBody;
+};
+
+export type CreateBackfillDryRunResponse = DryRunBackfillCollectionResponse;
 
 export type GridDataData = {
   dagId: string;
@@ -2809,6 +2830,37 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: BackfillResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/backfills/dry_run": {
+    post: {
+      req: CreateBackfillDryRunData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DryRunBackfillCollectionResponse;
         /**
          * Unauthorized
          */

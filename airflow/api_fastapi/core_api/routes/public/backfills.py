@@ -32,6 +32,8 @@ from airflow.api_fastapi.core_api.datamodels.backfills import (
     BackfillCollectionResponse,
     BackfillPostBody,
     BackfillResponse,
+    DryRunBackfillCollectionResponse,
+    DryRunBackfillResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import (
     create_openapi_http_exception_doc,
@@ -205,4 +207,41 @@ def create_backfill(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"There is already a running backfill for dag {backfill_request.dag_id}",
+        )
+
+
+@backfills_router.post(
+    path="/dry_run",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
+        ]
+    ),
+)
+def create_backfill_dry_run(
+    body: BackfillPostBody,
+) -> DryRunBackfillCollectionResponse:
+    from_date = timezone.coerce_datetime(body.from_date)
+    to_date = timezone.coerce_datetime(body.to_date)
+
+    try:
+        backfills_dry_run = _create_backfill(
+            dag_id=body.dag_id,
+            from_date=from_date,
+            to_date=to_date,
+            max_active_runs=body.max_active_runs,
+            reverse=body.run_backwards,
+            dag_run_conf=body.dag_run_conf,
+            reprocess_behavior=body.reprocess_behavior,
+            dry_run=True,
+        )
+        backfills = [DryRunBackfillResponse(logical_date=logical_date) for logical_date in backfills_dry_run]
+
+        return DryRunBackfillCollectionResponse(backfills=backfills, total_entries=len(backfills_dry_run))
+
+    except AlreadyRunningBackfill:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="There is already a running backfill for the dag",
         )
