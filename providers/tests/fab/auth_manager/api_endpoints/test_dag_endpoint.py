@@ -16,16 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-import os
-from datetime import datetime
-
 import pendulum
 import pytest
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.models import DagBag, DagModel
-from airflow.models.dag import DAG
-from airflow.operators.empty import EmptyOperator
+from airflow.models import DagModel
 from airflow.security import permissions
 from airflow.utils.session import provide_session
 
@@ -73,27 +68,6 @@ def configured_app(minimal_app_for_auth_api):
             },
         },
     )
-
-    with DAG(
-        DAG_ID,
-        schedule=None,
-        start_date=datetime(2020, 6, 15),
-        doc_md="details",
-        params={"foo": 1},
-        tags=["example"],
-    ) as dag:
-        EmptyOperator(task_id=TASK_ID)
-
-    with DAG(DAG2_ID, schedule=None, start_date=datetime(2020, 6, 15)) as dag2:  # no doc_md
-        EmptyOperator(task_id=TASK_ID)
-
-    with DAG(DAG3_ID, schedule=None) as dag3:  # DAG start_date set to None
-        EmptyOperator(task_id=TASK_ID, start_date=datetime(2019, 6, 12))
-
-    dag_bag = DagBag(os.devnull, include_examples=False)
-    dag_bag.dags = {dag.dag_id: dag, dag2.dag_id: dag2, dag3.dag_id: dag3}
-
-    app.dag_bag = dag_bag
 
     yield app
 

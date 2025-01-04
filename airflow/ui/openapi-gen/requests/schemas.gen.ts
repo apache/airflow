@@ -5485,14 +5485,7 @@ export const $VariableBody = {
       title: "Key",
     },
     value: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "string",
       title: "Value",
     },
     description: {
@@ -5540,14 +5533,7 @@ export const $VariableResponse = {
       title: "Key",
     },
     value: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "string",
       title: "Value",
     },
     description: {

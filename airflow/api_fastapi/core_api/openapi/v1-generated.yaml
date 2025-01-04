@@ -9736,9 +9736,7 @@ components:
           maxLength: 250
           title: Key
         value:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Value
         description:
           anyOf:
@@ -9773,9 +9771,7 @@ components:
           type: string
           title: Key
         value:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Value
         description:
           anyOf:

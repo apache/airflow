@@ -307,11 +307,12 @@ jobs:
         run: >
           pre-commit run
           --all-files --show-diff-on-failure --color always --verbose
-          --hook-stage manual update-installers || true
+          --hook-stage manual update-installers-and-pre-commit || true
         if: always()
         env:
           UPGRADE_UV: "true"
           UPGRADE_PIP: "false"
+          UPGRADE_PRE_COMMIT: "true"
       - name: "Run automated upgrade for pip"
         run: >
           pre-commit run
