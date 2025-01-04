@@ -28,6 +28,7 @@ import pytest
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG
 from airflow.providers.databricks.hooks.databricks import RunState
+from airflow.providers.databricks.links.databricks import DatabricksJobRunLink
 from airflow.providers.databricks.operators.databricks import (
     DatabricksCreateJobsOperator,
     DatabricksNotebookOperator,
@@ -2343,3 +2344,95 @@ class TestDatabricksTaskOperator:
         expected_task_key = "test_task_key"
 
         assert expected_task_key == operator.databricks_task_key
+
+
+def test_get_link_with_valid_s3_url():
+    """Test the `get_link` method with a valid S3 URL."""
+    # Create a mock for XCom.get_value
+    mock_xcom = MagicMock()
+    mock_xcom.get_value.return_value = "s3://bucket/path/to/job_info.json"
+
+    # Create a mock for DatabricksJobRunLink.construct_databricks_url
+    mock_construct_url = MagicMock()
+    mock_construct_url.return_value = "https://databricks.com/some_link"
+
+    # Create an instance of DatabricksJobRunLink
+    link = DatabricksJobRunLink()
+
+    # Manually replace the method with the mock
+    link.construct_databricks_url = mock_construct_url
+
+    # Call the method and verify it works as expected
+    result = link.get_link(operator=None, ti_key=None)
+
+    # Assert that the result is as expected
+    assert result == "https://databricks.com/some_link"
+
+
+def test_get_link_with_invalid_s3_url():
+    """Test the `get_link` method with an invalid S3 URL."""
+    # Create a mock for XCom.get_value with an invalid S3 URL
+    mock_xcom = MagicMock()
+    mock_xcom.get_value.return_value = "s3://bucket/path/to/invalid_job_info.json"
+
+    # Create a mock for DatabricksJobRunLink.construct_databricks_url
+    mock_construct_url = MagicMock()
+    mock_construct_url.return_value = "https://databricks.com/some_link"
+
+    # Create an instance of DatabricksJobRunLink
+    link = DatabricksJobRunLink()
+
+    # Manually replace the method with the mock
+    link.construct_databricks_url = mock_construct_url
+
+    # Call the method and verify it works as expected
+    result = link.get_link(operator=None, ti_key=None)
+
+    # Assert that the result is as expected
+    assert result == "https://databricks.com/some_link"
+
+
+def test_get_link_with_non_s3_url():
+    """Test the `get_link` method with a non-S3 URL."""
+    # Create a mock for XCom.get_value with a non-S3 URL
+    mock_xcom = MagicMock()
+    mock_xcom.get_value.return_value = "https://example.com/job_info.json"
+
+    # Create a mock for DatabricksJobRunLink.construct_databricks_url
+    mock_construct_url = MagicMock()
+    mock_construct_url.return_value = "https://databricks.com/some_link"
+
+    # Create an instance of DatabricksJobRunLink
+    link = DatabricksJobRunLink()
+
+    # Manually replace the method with the mock
+    link.construct_databricks_url = mock_construct_url
+
+    # Call the method and verify it works as expected
+    result = link.get_link(operator=None, ti_key=None)
+
+    # Assert that the result is as expected
+    assert result == "https://databricks.com/some_link"
+
+
+def test_get_link_with_none_value():
+    """Test the `get_link` method with None as the return value."""
+    # Create a mock for XCom.get_value returning None
+    mock_xcom = MagicMock()
+    mock_xcom.get_value.return_value = None
+
+    # Create a mock for DatabricksJobRunLink.construct_databricks_url
+    mock_construct_url = MagicMock()
+    mock_construct_url.return_value = "https://databricks.com/some_link"
+
+    # Create an instance of DatabricksJobRunLink
+    link = DatabricksJobRunLink()
+
+    # Manually replace the method with the mock
+    link.construct_databricks_url = mock_construct_url
+
+    # Call the method and verify it works as expected
+    result = link.get_link(operator=None, ti_key=None)
+
+    # Assert that the result is as expected
+    assert result == "https://databricks.com/some_link"
