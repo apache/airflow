@@ -18,8 +18,8 @@
  */
 import { useState, useCallback, useMemo } from "react";
 
-export type RowSelectionHookParams<T> = {
-  data: Array<T> | undefined;
+type UseRowSelectionProps<T> = {
+  data?: Array<T>;
   getKey: (item: T) => string;
 };
 
@@ -27,50 +27,51 @@ export type GetColumnsParams = {
   allRowsSelected: boolean;
   onRowSelect: (key: string, isChecked: boolean) => void;
   onSelectAll: (isChecked: boolean) => void;
-  selectedRows: Record<string, boolean>;
+  selectedRows: Map<string, boolean>;
 };
 
-export const useRowSelection = <T>({ data, getKey }: RowSelectionHookParams<T>) => {
-  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+export const useRowSelection = <T>({ data = [], getKey }: UseRowSelectionProps<T>) => {
+  const [selectedRows, setSelectedRows] = useState<Map<string, boolean>>(new Map());
+
+  const handleRowSelect = useCallback((key: string, isChecked: boolean) => {
+    setSelectedRows((prev) => {
+      const isAlreadySelected = prev.has(key);
+
+      if (isChecked && !isAlreadySelected) {
+        return new Map(prev).set(key, true);
+      } else if (!isChecked && isAlreadySelected) {
+        const newMap = new Map(prev);
+
+        newMap.delete(key);
+
+        return newMap;
+      }
+
+      return prev;
+    });
+  }, []);
 
   const handleSelectAll = useCallback(
     (isChecked: boolean) => {
-      setSelectedRows((prev) => {
-        const newSelected = new Set(prev);
-
+      setSelectedRows(() => {
         if (isChecked) {
-          data?.forEach((item) => newSelected.add(getKey(item)));
-        } else {
-          data?.forEach((item) => newSelected.delete(getKey(item)));
+          const newMap = new Map();
+
+          data.forEach((item) => newMap.set(getKey(item), true));
+
+          return newMap;
         }
 
-        return newSelected;
+        return new Map();
       });
     },
     [data, getKey],
   );
 
-  const handleRowSelect = useCallback((key: string, isChecked: boolean) => {
-    setSelectedRows((prev) => {
-      const newSet = new Set(prev);
-
-      if (isChecked) {
-        newSet.add(key);
-      } else {
-        newSet.delete(key);
-      }
-
-      return newSet;
-    });
-  }, []);
-
-  const allRowsSelected = useMemo(() => {
-    if (!data || data.length === 0) {
-      return false;
-    }
-
-    return data.every((item) => selectedRows.has(getKey(item)));
-  }, [data, selectedRows, getKey]);
+  const allRowsSelected = useMemo(
+    () => data.length > 0 && data.every((item) => selectedRows.has(getKey(item))),
+    [data, selectedRows, getKey],
+  );
 
   return {
     allRowsSelected,

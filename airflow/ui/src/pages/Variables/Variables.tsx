@@ -49,7 +49,7 @@ const getColumns = ({
     accessorKey: "select",
     cell: ({ row }) => (
       <Checkbox
-        checked={Boolean(selectedRows[row.original.key])}
+        checked={selectedRows.get(row.original.key)}
         onCheckedChange={(event) => onRowSelect(row.original.key, Boolean(event.checked))}
       />
     ),
@@ -119,7 +119,7 @@ export const Variables = () => {
         allRowsSelected,
         onRowSelect: handleRowSelect,
         onSelectAll: handleSelectAll,
-        selectedRows: Object.fromEntries([...selectedRows].map((key) => [key, true])),
+        selectedRows,
       }),
     [allRowsSelected, handleRowSelect, handleSelectAll, selectedRows],
   );
