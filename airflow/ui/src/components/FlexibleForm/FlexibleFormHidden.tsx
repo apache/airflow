@@ -27,6 +27,6 @@ export const isHidden = (fieldSchema: ParamSchema) => Boolean(fieldSchema.const)
 /** Render a "const" field where user can not change data as hidden */
 export const FlexibleFormHidden = ({ name, param }: FlexibleFormElementProps) => (
   <VisuallyHidden asChild>
-    <input id={`element_${name}`} name={`element_${name}`} type="hidden" value={param.value as string} />
+    <input id={`element_${name}`} name={`element_${name}`} type="hidden" value={String(param.value)} />
   </VisuallyHidden>
 );

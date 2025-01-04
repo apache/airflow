@@ -24,11 +24,10 @@ import type { ParamSchema } from "src/queries/useDagParams";
 
 import type { FlexibleFormElementProps } from ".";
 
-export const isFieldDropdown = (fieldType: string, fieldSchema: ParamSchema) => {
-  const enumTypes = ["string", "number", "integer"];
+const enumTypes = ["string", "number", "integer"];
 
-  return enumTypes.includes(fieldType) && Array.isArray(fieldSchema.enum);
-};
+export const isFieldDropdown = (fieldType: string, fieldSchema: ParamSchema) =>
+  enumTypes.includes(fieldType) && Array.isArray(fieldSchema.enum);
 
 const labelLookup = (key: string, valuesDisplay: Record<string, string> | null): string => {
   if (valuesDisplay && typeof valuesDisplay === "object") {
@@ -51,7 +50,7 @@ export const FlexibleFormFieldDropdown = ({ name, param }: FlexibleFormElementPr
   return (
     <Select.Root
       collection={selectOptions}
-      defaultValue={[param.value as string]}
+      defaultValue={[String(param.value)]}
       id={`element_${name}`}
       name={`element_${name}`}
       ref={contentRef}

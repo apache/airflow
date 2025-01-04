@@ -27,7 +27,7 @@ export const isFieldTime = (fieldType: string, fieldSchema: ParamSchema) =>
 
 export const FlexibleFormFieldTime = ({ name, param }: FlexibleFormElementProps) => (
   <Input
-    defaultValue={param.value as string}
+    defaultValue={typeof param.value === "string" ? param.value : undefined}
     id={`element_${name}`}
     name={`element_${name}`}
     placeholder="hh:mm"

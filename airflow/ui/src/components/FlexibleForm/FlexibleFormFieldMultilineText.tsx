@@ -27,7 +27,7 @@ export const isFieldMultilineText = (fieldType: string, fieldSchema: ParamSchema
 
 export const FlexibleFormFieldMultilineText = ({ name, param }: FlexibleFormElementProps) => (
   <Textarea
-    defaultValue={param.value as string}
+    defaultValue={typeof param.value === "string" ? param.value : String(param.value)}
     id={`element_${name}`}
     name={`element_${name}`}
     rows={6}

@@ -23,7 +23,7 @@ import type { FlexibleFormElementProps } from ".";
 export const FlexibleFormFieldString = ({ name, param }: FlexibleFormElementProps) => (
   <>
     <Input
-      defaultValue={param.value as string}
+      defaultValue={String(param.value)}
       id={`element_${name}`}
       list={param.schema.examples ? `list_${name}` : undefined}
       maxLength={param.schema.maxLength ?? undefined}

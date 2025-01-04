@@ -24,7 +24,7 @@ export const isFieldBool = (fieldType: string) => fieldType === "boolean";
 export const FlexibleFormFieldBool = ({ name, param }: FlexibleFormElementProps) => (
   <Switch
     colorPalette="blue"
-    defaultChecked={param.value as boolean}
+    defaultChecked={Boolean(param.value)}
     id={`element_${name}`}
     name={`element_${name}`}
   />

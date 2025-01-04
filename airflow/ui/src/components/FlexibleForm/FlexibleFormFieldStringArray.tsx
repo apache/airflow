@@ -28,7 +28,9 @@ export const isFieldStringArray = (fieldType: string, fieldSchema: ParamSchema) 
 
 export const FlexibleFormFieldStringArray = ({ name, param }: FlexibleFormElementProps) => (
   <Textarea
-    defaultValue={(param.value as Array<string>).join("\n")}
+    defaultValue={
+      Array.isArray(param.value) ? (param.value as Array<string>).join("\n") : String(param.value)
+    }
     id={`element_${name}`}
     name={`element_${name}`}
     rows={6}

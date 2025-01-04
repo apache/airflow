@@ -28,7 +28,7 @@ export const isFieldNumber = (fieldType: string) => {
 export const FlexibleFormFieldNumber = ({ name, param }: FlexibleFormElementProps) => (
   <NumberInputRoot
     allowMouseWheel
-    defaultValue={param.value as string}
+    defaultValue={String(param.value)}
     id={`element_${name}`}
     max={param.schema.maximum ?? undefined}
     min={param.schema.minimum ?? undefined}
