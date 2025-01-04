@@ -18,12 +18,7 @@
  */
 import { Textarea } from "@chakra-ui/react";
 
-import type { ParamSchema } from "src/queries/useDagParams";
-
 import type { FlexibleFormElementProps } from ".";
-
-export const isFieldMultilineText = (fieldType: string, fieldSchema: ParamSchema) =>
-  fieldType === "string" && fieldSchema.format === "multiline";
 
 export const FlexibleFormFieldMultilineText = ({ name, param }: FlexibleFormElementProps) => (
   <Textarea

@@ -57,7 +57,7 @@ const FlexibleForm = ({ params }: FlexibleFormProps) => {
           const currentSection = secParam.schema.section;
 
           if (processedSections.has(currentSection)) {
-            return null;
+            return undefined;
           } else {
             processedSections.set(currentSection, true);
 

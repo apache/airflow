@@ -19,12 +19,7 @@
 import { Select as ReactSelect } from "chakra-react-select";
 import { useState } from "react";
 
-import type { ParamSchema } from "src/queries/useDagParams";
-
 import type { FlexibleFormElementProps } from ".";
-
-export const isFieldMultiSelect = (fieldType: string, fieldSchema: ParamSchema) =>
-  fieldType === "array" && Array.isArray(fieldSchema.examples);
 
 const labelLookup = (key: string, valuesDisplay: Record<string, string> | null): string => {
   if (valuesDisplay && typeof valuesDisplay === "object") {

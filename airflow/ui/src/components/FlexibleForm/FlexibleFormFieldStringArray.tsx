@@ -18,13 +18,7 @@
  */
 import { Textarea } from "@chakra-ui/react";
 
-import type { ParamSchema } from "src/queries/useDagParams";
-
 import type { FlexibleFormElementProps } from ".";
-
-export const isFieldStringArray = (fieldType: string, fieldSchema: ParamSchema) =>
-  fieldType === "array" &&
-  (!fieldSchema.items || fieldSchema.items.type === undefined || fieldSchema.items.type === "string");
 
 export const FlexibleFormFieldStringArray = ({ name, param }: FlexibleFormElementProps) => (
   <Textarea

@@ -19,8 +19,6 @@
 import type { FlexibleFormElementProps } from ".";
 import { Switch } from "../ui";
 
-export const isFieldBool = (fieldType: string) => fieldType === "boolean";
-
 export const FlexibleFormFieldBool = ({ name, param }: FlexibleFormElementProps) => (
   <Switch
     colorPalette="blue"

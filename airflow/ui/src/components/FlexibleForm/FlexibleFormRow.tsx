@@ -16,9 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ParamSchema } from "src/queries/useDagParams";
+
 import type { FlexibleFormElementProps } from ".";
-import { FlexibleFormHidden, isHidden } from "./FlexibleFormHidden";
+import { FlexibleFormHidden } from "./FlexibleFormHidden";
 import { FlexibleFormNormalRow } from "./FlexibleFormNormalRow";
+
+const isHidden = (fieldSchema: ParamSchema) => Boolean(fieldSchema.const);
 
 /** Generates a form row */
 export const FlexibleFormRow = ({ key, name, param }: FlexibleFormElementProps) =>

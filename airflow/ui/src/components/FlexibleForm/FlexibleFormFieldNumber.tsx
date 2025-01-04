@@ -19,12 +19,6 @@
 import type { FlexibleFormElementProps } from ".";
 import { NumberInputField, NumberInputRoot } from "../ui/NumberInput";
 
-export const isFieldNumber = (fieldType: string) => {
-  const numberTypes = ["integer", "number"];
-
-  return numberTypes.includes(fieldType);
-};
-
 export const FlexibleFormFieldNumber = ({ name, param }: FlexibleFormElementProps) => (
   <NumberInputRoot
     allowMouseWheel

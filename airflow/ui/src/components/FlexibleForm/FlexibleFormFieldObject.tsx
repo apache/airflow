@@ -24,8 +24,6 @@ import { useColorMode } from "src/context/colorMode";
 
 import type { FlexibleFormElementProps } from ".";
 
-export const isFieldObject = (fieldType: string) => fieldType === "object";
-
 export const FlexibleFormFieldObject = ({ name, param }: FlexibleFormElementProps) => {
   const { colorMode } = useColorMode();
 

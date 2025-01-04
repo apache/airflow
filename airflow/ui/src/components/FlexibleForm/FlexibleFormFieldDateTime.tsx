@@ -18,12 +18,7 @@
  */
 import { Input } from "@chakra-ui/react";
 
-import type { ParamSchema } from "src/queries/useDagParams";
-
 import type { FlexibleFormElementProps } from ".";
-
-export const isFieldDateTime = (fieldType: string, fieldSchema: ParamSchema) =>
-  fieldType === "string" && fieldSchema.format === "date-time";
 
 export const FlexibleFormFieldDateTime = ({ name, param }: FlexibleFormElementProps) => (
   <Input

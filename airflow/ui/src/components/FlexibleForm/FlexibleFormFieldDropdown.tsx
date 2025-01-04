@@ -20,14 +20,8 @@ import { createListCollection } from "@chakra-ui/react/collection";
 import { useRef } from "react";
 
 import { Select } from "src/components/ui";
-import type { ParamSchema } from "src/queries/useDagParams";
 
 import type { FlexibleFormElementProps } from ".";
-
-const enumTypes = ["string", "number", "integer"];
-
-export const isFieldDropdown = (fieldType: string, fieldSchema: ParamSchema) =>
-  enumTypes.includes(fieldType) && Array.isArray(fieldSchema.enum);
 
 const labelLookup = (key: string, valuesDisplay: Record<string, string> | null): string => {
   if (valuesDisplay && typeof valuesDisplay === "object") {
