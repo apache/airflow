@@ -18,7 +18,7 @@
  */
 import { Box, Flex, HStack, Spacer, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState } from "react";
 import { FiShare, FiTrash2 } from "react-icons/fi";
 import { useSearchParams } from "react-router-dom";
 
@@ -32,18 +32,12 @@ import { Button } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useRowSelection, type GetColumnsParams } from "src/queries/useRowSelection";
 
 import ImportVariablesButton from "./ImportVariablesButton";
 import AddVariableButton from "./ManageVariable/AddVariableButton";
 import DeleteVariableButton from "./ManageVariable/DeleteVariableButton";
 import EditVariableButton from "./ManageVariable/EditVariableButton";
-
-type GetColumnsParams = {
-  allRowsSelected: boolean;
-  onRowSelect: (key: string, isChecked: boolean) => void;
-  onSelectAll: (isChecked: boolean) => void;
-  selectedRows: Record<string, boolean>;
-};
 
 const getColumns = ({
   allRowsSelected,
@@ -114,58 +108,20 @@ export const Variables = () => {
     variableKeyPattern: variableKeyPattern ?? undefined,
   });
 
-  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
-
-  const handleSelectAll = useCallback(
-    (isChecked: boolean) => {
-      setSelectedRows((prev) => {
-        const newSelected = new Set(prev);
-
-        if (isChecked) {
-          data?.variables.forEach((variable) => newSelected.add(variable.key));
-        } else {
-          data?.variables.forEach((variable) => newSelected.delete(variable.key));
-        }
-
-        return newSelected;
-      });
-    },
-    [data?.variables],
-  );
-
-  const handleRowSelect = useCallback((key: string, isChecked: boolean) => {
-    setSelectedRows((prev) => {
-      const newSet = new Set(prev);
-
-      if (isChecked) {
-        newSet.add(key);
-      } else {
-        newSet.delete(key);
-      }
-
-      return newSet;
-    });
-  }, []);
-
-  const currentPageSelected = useMemo(() => {
-    const variables = data?.variables ?? [];
-
-    if (variables.length === 0) {
-      return false;
-    }
-
-    return variables.every((variable) => selectedRows.has(variable.key));
-  }, [data?.variables, selectedRows]);
+  const { allRowsSelected, handleRowSelect, handleSelectAll, selectedRows } = useRowSelection({
+    data: data?.variables,
+    getKey: (variable) => variable.key,
+  });
 
   const columns = useMemo(
     () =>
       getColumns({
-        allRowsSelected: currentPageSelected,
+        allRowsSelected,
         onRowSelect: handleRowSelect,
         onSelectAll: handleSelectAll,
         selectedRows: Object.fromEntries([...selectedRows].map((key) => [key, true])),
       }),
-    [currentPageSelected, handleRowSelect, handleSelectAll, selectedRows],
+    [allRowsSelected, handleRowSelect, handleSelectAll, selectedRows],
   );
 
   const handleSearchChange = (value: string) => {
