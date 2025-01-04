@@ -197,12 +197,12 @@ repos:
         additional_dependencies: ['pyyaml']
         pass_filenames: false
         require_serial: true
-      - id: update-installers
-        name: Update installers to latest (manual)
-        entry: ./scripts/ci/pre_commit/update_installers.py
+      - id: update-installers-and-pre-commit
+        name: Update installers and pre-commit to latest (manual)
+        entry: ./scripts/ci/pre_commit/update_installers_and_pre_commit.py
         stages: ['manual']
         language: python
-        files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/update_installers.py$
+        files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/update_installers_and_pre_commit.py$
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['pyyaml', 'rich>=12.4.4', 'requests']
