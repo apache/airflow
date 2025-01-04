@@ -3767,6 +3767,18 @@ export const $PoolPostBulkBody = {
       type: "array",
       title: "Pools",
     },
+    overwrite: {
+      anyOf: [
+        {
+          type: "boolean",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Overwrite",
+      default: false,
+    },
   },
   type: "object",
   required: ["pools"],
