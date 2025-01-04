@@ -53,7 +53,12 @@ ILLEGAL_LONG_OPTION_PATTERN = re.compile("^--[a-z]+_[a-z]+|^--.*[A-Z].*")
 # Only can be `-[a-z]` or `-[A-Z]`
 LEGAL_SHORT_OPTION_PATTERN = re.compile("^-[a-zA-z]$")
 
-cli_args = {k: v for k, v in cli_parser.__dict__.items() if k.startswith("ARG_")}
+cli_args = {k: v for k, v in cli_config.__dict__.items() if k.startswith("ARG_")}
+subcommand = {
+    var: cli_config.__dict__.get(var)
+    for var in cli_config.__dict__
+    if var.isupper() and var.endswith("COMMANDS")
+}
 
 
 class TestCli:
@@ -82,40 +87,41 @@ class TestCli:
         """
         Test if each of cli.*_COMMANDS without conflict subcommand
         """
-        subcommand = {
-            var: cli_parser.__dict__.get(var)
-            for var in cli_parser.__dict__
-            if var.isupper() and var.startswith("COMMANDS")
-        }
-        for group_name, sub in subcommand.items():
-            name = [command.name.lower() for command in sub]
-            assert len(name) == len(set(name)), f"Command group {group_name} have conflict subcommand"
+        # no subcommand conflict
+        subcommand_times = Counter(
+            [sub.name.lower() for sub in cli_parser.airgraph_commands]
+        )
+        conflict_subcommand = [
+            command for command, count in subcommand_times.items() if count > 1
+        ]
+        assert conflict_subcommand == [], f"Subcommand {conflict_subcommand} conflicts"
+        # no conflicts for subcommands of subcommand
+        for group, commands in subcommand.items():
+        subcommand_times = Counter(
+            [sub.name.lower() for sub in commands]
+        )
+        conflict_subcommand = [
+            subcommand for subcommand, count in subcommand_times.items() if count > 1
+        ]
+        assert conflict_subcommand == [], f"Subcommand {group}'s have conflict subcommands {conflict_subcommand}"
 
     def test_subcommand_arg_name_conflict(self):
         """
         Test if each of cli.*_COMMANDS.arg name without conflict
         """
-        subcommand = {
-            var: cli_parser.__dict__.get(var)
-            for var in cli_parser.__dict__
-            if var.isupper() and var.startswith("COMMANDS")
-        }
-        for group, command in subcommand.items():
-            for com in command:
-                conflict_arg = [arg for arg, count in Counter(com.args).items() if count > 1]
+        for group, commands in subcommand.items():
+            for command in commands:
+                conflict_arg = [
+                    arg for arg, count in Counter(command.args).items() if count > 1
+                ]
                 assert (
                     conflict_arg == []
-                ), f"Command group {group} function {com.name} have conflict args name {conflict_arg}"
+                ), f"Command group {group} function {command.name} have conflict args name {conflict_arg}"
 
     def test_subcommand_arg_flag_conflict(self):
         """
         Test if each of cli.*_COMMANDS.arg flags without conflict
         """
-        subcommand = {
-            key: val
-            for key, val in cli_parser.__dict__.items()
-            if key.isupper() and key.startswith("COMMANDS")
-        }
         for group, command in subcommand.items():
             for com in command:
                 position = [
