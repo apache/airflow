@@ -50,6 +50,10 @@ class TaskInstance(BaseModel):
     try_number: int
     map_index: int | None = None
 
+    pool_slots: int
+    queue: str
+    priority_weight: int
+
     # TODO: Task-SDK: Can we replace TastInstanceKey with just the uuid across the codebase?
     @property
     def key(self) -> TaskInstanceKey:
