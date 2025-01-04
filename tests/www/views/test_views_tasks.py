@@ -827,7 +827,7 @@ def test_task_instance_delete_permission_denied(session, client_ti_without_dag_e
 
 
 @pytest.mark.parametrize(
-    "client_fixture, should_succeed",
+    ("client_fixture", "should_succeed"),
     [
         ("admin_client", True),
         ("user_client", True),
@@ -932,7 +932,7 @@ def test_task_instance_clear_failure(admin_client):
 
 
 @pytest.mark.parametrize(
-    "action, expected_state",
+    ("action", "expected_state"),
     [
         ("set_failed", State.FAILED),
         ("set_success", State.SUCCESS),

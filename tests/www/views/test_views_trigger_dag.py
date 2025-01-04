@@ -57,7 +57,7 @@ def test_trigger_dag_button_normal_exist(admin_client):
 
 # test trigger button with and without run_id
 @pytest.mark.parametrize(
-    "req , expected_run_id", [("", DagRunType.MANUAL), ("&run_id=test_run_id", "test_run_id")]
+    ("req", "expected_run_id"), [("", DagRunType.MANUAL), ("&run_id=test_run_id", "test_run_id")]
 )
 def test_trigger_dag_button(admin_client, req, expected_run_id):
     test_dag_id = "example_bash_operator"
@@ -186,7 +186,7 @@ def test_trigger_dag_form(admin_client):
 
 
 @pytest.mark.parametrize(
-    "test_origin, expected_origin",
+    ("test_origin", "expected_origin"),
     [
         ("javascript:alert(1)", "/home"),
         ("http://google.com", "/home"),
@@ -211,7 +211,7 @@ def test_trigger_dag_form_origin_url(admin_client, test_origin, expected_origin)
 
 
 @pytest.mark.parametrize(
-    "request_conf, expected_conf",
+    ("request_conf", "expected_conf"),
     [
         (None, {"example_key": "example_value"}),
         ({"other": "test_data", "key": 12}, {"other": "test_data", "key": 12}),
@@ -331,7 +331,7 @@ def test_trigger_dag_params_array_value_none_render(admin_client, dag_maker, ses
 
 
 @pytest.mark.parametrize(
-    "pattern, run_id, result",
+    ("pattern", "run_id", "result"),
     [
         ["^[A-Z]", "ABC", True],
         ["^[A-Z]", "abc", False],
