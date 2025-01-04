@@ -18,13 +18,14 @@
 from __future__ import annotations
 
 import textwrap
-from typing import Any
+from collections.abc import Iterable
 
-from fastapi import HTTPException, Request, Response, status
+from fastapi import HTTPException, Request, status
 from itsdangerous import BadSignature, URLSafeSerializer
 from pydantic import PositiveInt
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
+from starlette.responses import StreamingResponse
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.headers import HeaderAcceptJsonOrText
@@ -135,12 +136,17 @@ def get_log(
         except TaskNotFound:
             pass
 
-    logs: Any
+    log_streams: list[Iterable[str]]
+    log_stream: Iterable[str]
     if accept == Mimetype.JSON or accept == Mimetype.ANY:  # default
-        logs, metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)
+        hosts, log_streams, metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)
         # we must have token here, so we can safely ignore it
         token = URLSafeSerializer(request.app.state.secret_key).dumps(metadata)  # type: ignore[assignment]
-        return TaskInstancesLogResponse(continuation_token=token, content=str(logs[0])).model_dump()
+        host = f"{hosts[0] or ''}\n"
+        log_stream = log_streams[0]
+        return TaskInstancesLogResponse(
+            continuation_token=token, content=host + "\n".join(log for log in log_stream)
+        ).model_dump()
     # text/plain. Stream
-    logs = task_log_reader.read_log_stream(ti, try_number, metadata)
-    return Response(media_type=accept, content="".join(list(logs)))
+    log_stream = task_log_reader.read_log_stream(ti, try_number, metadata)
+    return StreamingResponse(log_stream, media_type=Mimetype.TEXT.value)
