@@ -1830,6 +1830,42 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
 
 
 @pytest.mark.parametrize(
+    "github_event",
+    [
+        GithubEvents.PUSH,
+        GithubEvents.SCHEDULE,
+    ],
+)
+def test_files_provided_trigger_full_build_for_any_event_type(github_event):
+    stderr = SelectiveChecks(
+        files=("airflow/ui/src/pages/Run/Details.tsx", "airflow/ui/src/router.tsx"),
+        commit_ref="",
+        github_event=github_event,
+        pr_labels=(),
+        default_branch="main",
+    )
+    assert_outputs_are_printed(
+        {
+            "all-python-versions": "['3.9', '3.10', '3.11', '3.12']",
+            "all-python-versions-list-as-string": "3.9 3.10 3.11 3.12",
+            "ci-image-build": "true",
+            "prod-image-build": "true",
+            "needs-helm-tests": "true",
+            "run-tests": "true",
+            "docs-build": "true",
+            "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
+            "upgrade-to-newer-dependencies": (
+                "true" if github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE] else "false"
+            ),
+            "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+            "needs-mypy": "true",
+            "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+        },
+        str(stderr),
+    )
+
+
+@pytest.mark.parametrize(
     "files, expected_outputs, pr_labels, commit_ref",
     [
         pytest.param(
