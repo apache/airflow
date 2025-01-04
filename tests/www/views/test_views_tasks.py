@@ -29,8 +29,6 @@ import time_machine
 
 from airflow import settings
 from airflow.models.dag import DAG
-from airflow.models.dagbag import DagBag
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCom
@@ -398,7 +396,7 @@ def test_rendered_k8s_without_k8s(admin_client):
 
 def test_tree_trigger_origin_tree_view(app, admin_client):
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-    app.dag_bag.get_dag("test_tree_view").create_dagrun(
+    app.dag_bag.get_dag("example_bash_operator").create_dagrun(
         run_type=DagRunType.SCHEDULED,
         logical_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
@@ -407,16 +405,16 @@ def test_tree_trigger_origin_tree_view(app, admin_client):
         **triggered_by_kwargs,
     )
 
-    url = "tree?dag_id=test_tree_view"
+    url = "tree?dag_id=example_bash_operator"
     resp = admin_client.get(url, follow_redirects=True)
-    params = {"origin": "/dags/test_tree_view/grid"}
-    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params))}"
+    params = {"origin": "/dags/example_bash_operator/grid"}
+    href = f"/dags/example_bash_operator/trigger?{html.escape(urllib.parse.urlencode(params))}"
     check_content_in_response(href, resp)
 
 
 def test_graph_trigger_origin_grid_view(app, admin_client):
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-    app.dag_bag.get_dag("test_tree_view").create_dagrun(
+    app.dag_bag.get_dag("example_bash_operator").create_dagrun(
         run_type=DagRunType.SCHEDULED,
         logical_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
@@ -425,16 +423,16 @@ def test_graph_trigger_origin_grid_view(app, admin_client):
         **triggered_by_kwargs,
     )
 
-    url = "/dags/test_tree_view/graph"
+    url = "/dags/example_bash_operator/graph"
     resp = admin_client.get(url, follow_redirects=True)
-    params = {"origin": "/dags/test_tree_view/grid?tab=graph"}
-    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params))}"
+    params = {"origin": "/dags/example_bash_operator/grid?tab=graph"}
+    href = f"/dags/example_bash_operator/trigger?{html.escape(urllib.parse.urlencode(params))}"
     check_content_in_response(href, resp)
 
 
 def test_gantt_trigger_origin_grid_view(app, admin_client):
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-    app.dag_bag.get_dag("test_tree_view").create_dagrun(
+    app.dag_bag.get_dag("example_bash_operator").create_dagrun(
         run_type=DagRunType.SCHEDULED,
         logical_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
@@ -443,10 +441,10 @@ def test_gantt_trigger_origin_grid_view(app, admin_client):
         **triggered_by_kwargs,
     )
 
-    url = "/dags/test_tree_view/gantt"
+    url = "/dags/example_bash_operator/gantt"
     resp = admin_client.get(url, follow_redirects=True)
-    params = {"origin": "/dags/test_tree_view/grid?tab=gantt"}
-    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params))}"
+    params = {"origin": "/dags/example_bash_operator/grid?tab=gantt"}
+    href = f"/dags/example_bash_operator/trigger?{html.escape(urllib.parse.urlencode(params))}"
     check_content_in_response(href, resp)
 
 
@@ -493,25 +491,6 @@ def test_last_dagruns_success_when_selecting_dags(admin_client):
 
 
 def test_code(admin_client):
-    url = "code?dag_id=example_bash_operator"
-    resp = admin_client.get(url, follow_redirects=True)
-    check_content_not_in_response("Failed to load DAG file Code", resp)
-    check_content_in_response("example_bash_operator", resp)
-
-
-def test_code_from_db(admin_client):
-    dag = DagBag(include_examples=True).get_dag("example_bash_operator")
-    SerializedDagModel.write_dag(dag)
-    url = "code?dag_id=example_bash_operator"
-    resp = admin_client.get(url, follow_redirects=True)
-    check_content_not_in_response("Failed to load DAG file Code", resp)
-    check_content_in_response("example_bash_operator", resp)
-
-
-def test_code_from_db_all_example_dags(admin_client):
-    dagbag = DagBag(include_examples=True)
-    for dag in dagbag.dags.values():
-        SerializedDagModel.write_dag(dag)
     url = "code?dag_id=example_bash_operator"
     resp = admin_client.get(url, follow_redirects=True)
     check_content_not_in_response("Failed to load DAG file Code", resp)

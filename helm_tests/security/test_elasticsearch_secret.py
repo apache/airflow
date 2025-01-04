@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import base64
-from subprocess import CalledProcessError
 
 import jmespath
 import pytest
@@ -27,50 +26,6 @@ from tests.charts.helm_template_generator import render_chart
 
 class TestElasticsearchSecret:
     """Tests elasticsearch secret."""
-
-    def test_should_not_generate_a_document_if_elasticsearch_disabled(self):
-        docs = render_chart(
-            values={"elasticsearch": {"enabled": False}},
-            show_only=["templates/secrets/elasticsearch-secret.yaml"],
-        )
-
-        assert len(docs) == 0
-
-    def test_should_raise_error_when_connection_not_provided(self):
-        with pytest.raises(CalledProcessError) as ex_ctx:
-            render_chart(
-                values={
-                    "elasticsearch": {
-                        "enabled": True,
-                    }
-                },
-                show_only=["templates/secrets/elasticsearch-secret.yaml"],
-            )
-        assert (
-            "You must set one of the values elasticsearch.secretName or elasticsearch.connection "
-            "when using a Elasticsearch" in ex_ctx.value.stderr.decode()
-        )
-
-    def test_should_raise_error_when_conflicting_options(self):
-        with pytest.raises(CalledProcessError) as ex_ctx:
-            render_chart(
-                values={
-                    "elasticsearch": {
-                        "enabled": True,
-                        "secretName": "my-test",
-                        "connection": {
-                            "user": "username!@#$%%^&*()",
-                            "pass": "password!@#$%%^&*()",
-                            "host": "elastichostname",
-                        },
-                    },
-                },
-                show_only=["templates/secrets/elasticsearch-secret.yaml"],
-            )
-        assert (
-            "You must not set both values elasticsearch.secretName and elasticsearch.connection"
-            in ex_ctx.value.stderr.decode()
-        )
 
     def _get_connection(self, values: dict) -> str:
         docs = render_chart(

@@ -25,8 +25,9 @@ import pytest
 import uuid6
 
 from airflow.sdk.api.client import Client, RemoteValidationError, ServerResponseError
-from airflow.sdk.api.datamodels._generated import VariableResponse, XComResponse
-from airflow.sdk.execution_time.comms import DeferTask, RescheduleTask
+from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse, XComResponse
+from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time.comms import DeferTask, ErrorResponse, RescheduleTask
 from airflow.utils import timezone
 from airflow.utils.state import TerminalTIState
 
@@ -460,6 +461,30 @@ class TestXCOMOperations:
         assert result.key == "test_key"
         assert result.value == "test_value"
 
+    @mock.patch("time.sleep", return_value=None)
+    def test_xcom_get_500_error(self, mock_sleep):
+        # Simulate a successful response from the server returning a 500 error
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/xcoms/dag_id/run_id/task_id/key":
+                return httpx.Response(
+                    status_code=500,
+                    headers=[("content-Type", "application/json")],
+                    json={
+                        "reason": "invalid_format",
+                        "message": "XCom value is not a valid JSON",
+                    },
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        with pytest.raises(ServerResponseError):
+            client.xcoms.get(
+                dag_id="dag_id",
+                run_id="run_id",
+                task_id="task_id",
+                key="key",
+            )
+
     @pytest.mark.parametrize(
         "values",
         [
@@ -514,3 +539,50 @@ class TestXCOMOperations:
             map_index=2,
         )
         assert result == {"ok": True}
+
+
+class TestConnectionOperations:
+    """
+    Test that the TestConnectionOperations class works as expected. While the operations are simple, it
+    still catches the basic functionality of the client for connections including endpoint and
+    response parsing.
+    """
+
+    def test_connection_get_success(self):
+        # Simulate a successful response from the server with a connection
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/connections/test_conn":
+                return httpx.Response(
+                    status_code=200,
+                    json={
+                        "conn_id": "test_conn",
+                        "conn_type": "mysql",
+                    },
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.connections.get(conn_id="test_conn")
+
+        assert isinstance(result, ConnectionResponse)
+        assert result.conn_id == "test_conn"
+        assert result.conn_type == "mysql"
+
+    def test_connection_get_404_not_found(self):
+        # Simulate a successful response from the server with a connection
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/connections/test_conn":
+                return httpx.Response(
+                    status_code=404,
+                    json={
+                        "reason": "not_found",
+                        "message": "Connection with ID test_conn not found",
+                    },
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.connections.get(conn_id="test_conn")
+
+        assert isinstance(result, ErrorResponse)
+        assert result.error == ErrorType.CONNECTION_NOT_FOUND

@@ -138,6 +138,10 @@ export type BaseInfoResponse = {
   status: string | null;
 };
 
+export type Body_import_variables = {
+  file: Blob | File;
+};
+
 /**
  * Request body for Clear Task Instances endpoint.
  */
@@ -581,11 +585,7 @@ export type DagRunTriggeredByType =
 /**
  * Class with DagRun types.
  */
-export type DagRunType =
-  | "backfill"
-  | "scheduled"
-  | "manual"
-  | "asset_triggered";
+export type DagRunType = "backfill" | "scheduled" | "manual" | "asset_triggered";
 
 /**
  * DAG schedule reference serializer for assets.
@@ -816,15 +816,7 @@ export type NodeResponse = {
   label: string;
   tooltip?: string | null;
   setup_teardown_type?: "setup" | "teardown" | null;
-  type:
-    | "join"
-    | "task"
-    | "asset-condition"
-    | "asset"
-    | "asset-alias"
-    | "dag"
-    | "sensor"
-    | "trigger";
+  type: "join" | "task" | "asset-condition" | "asset" | "asset-alias" | "dag" | "sensor" | "trigger";
   operator?: string | null;
   asset_condition_type?: "or-gate" | "and-gate" | null;
 };
@@ -1306,6 +1298,15 @@ export type VariableResponse = {
 };
 
 /**
+ * Import Variables serializer for responses.
+ */
+export type VariablesImportResponse = {
+  created_variable_keys: Array<string>;
+  import_count: number;
+  created_count: number;
+};
+
+/**
  * Version information serializer for responses.
  */
 export type VersionInfo = {
@@ -1664,9 +1665,7 @@ export type ClearDagRunData = {
   requestBody: DAGRunClearBody;
 };
 
-export type ClearDagRunResponse =
-  | TaskInstanceCollectionResponse
-  | DAGRunResponse;
+export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunResponse;
 
 export type GetDagRunsData = {
   dagId: string;
@@ -1873,8 +1872,7 @@ export type GetTaskInstanceDependenciesData = {
   taskId: string;
 };
 
-export type GetTaskInstanceDependenciesResponse =
-  TaskDependencyCollectionResponse;
+export type GetTaskInstanceDependenciesResponse = TaskDependencyCollectionResponse;
 
 export type GetTaskInstanceDependencies1Data = {
   dagId: string;
@@ -1883,8 +1881,7 @@ export type GetTaskInstanceDependencies1Data = {
   taskId: string;
 };
 
-export type GetTaskInstanceDependencies1Response =
-  TaskDependencyCollectionResponse;
+export type GetTaskInstanceDependencies1Response = TaskDependencyCollectionResponse;
 
 export type GetTaskInstanceTriesData = {
   dagId: string;
@@ -1893,8 +1890,7 @@ export type GetTaskInstanceTriesData = {
   taskId: string;
 };
 
-export type GetTaskInstanceTriesResponse =
-  TaskInstanceHistoryCollectionResponse;
+export type GetTaskInstanceTriesResponse = TaskInstanceHistoryCollectionResponse;
 
 export type GetMappedTaskInstanceTriesData = {
   dagId: string;
@@ -1903,8 +1899,7 @@ export type GetMappedTaskInstanceTriesData = {
   taskId: string;
 };
 
-export type GetMappedTaskInstanceTriesResponse =
-  TaskInstanceHistoryCollectionResponse;
+export type GetMappedTaskInstanceTriesResponse = TaskInstanceHistoryCollectionResponse;
 
 export type GetMappedTaskInstanceData = {
   dagId: string;
@@ -1978,16 +1973,14 @@ export type GetMappedTaskInstanceTryDetailsData = {
   taskTryNumber: number;
 };
 
-export type GetMappedTaskInstanceTryDetailsResponse =
-  TaskInstanceHistoryResponse;
+export type GetMappedTaskInstanceTryDetailsResponse = TaskInstanceHistoryResponse;
 
 export type PostClearTaskInstancesData = {
   dagId: string;
   requestBody: ClearTaskInstancesBody;
 };
 
-export type PostClearTaskInstancesResponse =
-  TaskInstanceReferenceCollectionResponse;
+export type PostClearTaskInstancesResponse = TaskInstanceReferenceCollectionResponse;
 
 export type GetLogData = {
   accept?: "application/json" | "text/plain" | "*/*";
@@ -2159,6 +2152,13 @@ export type PostVariableData = {
 };
 
 export type PostVariableResponse = VariableResponse;
+
+export type ImportVariablesData = {
+  actionIfExists?: "overwrite" | "fail" | "skip";
+  formData: Body_import_variables;
+};
+
+export type ImportVariablesResponse = VariablesImportResponse;
 
 export type ReparseDagFileData = {
   fileToken: string;
@@ -4571,6 +4571,37 @@ export type $OpenApiTs = {
          * Validation Error
          */
         422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/variables/import": {
+    post: {
+      req: ImportVariablesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: VariablesImportResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
+        /**
+         * Unprocessable Entity
+         */
+        422: HTTPExceptionResponse;
       };
     };
   };

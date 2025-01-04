@@ -616,13 +616,17 @@ class SelectiveChecks:
         return " ".join(self.kubernetes_versions)
 
     @cached_property
-    def kubernetes_combos_list_as_string(self) -> str:
+    def kubernetes_combos(self) -> list[str]:
         python_version_array: list[str] = self.python_versions_list_as_string.split(" ")
         kubernetes_version_array: list[str] = self.kubernetes_versions_list_as_string.split(" ")
         combo_titles, short_combo_titles, combos = get_kubernetes_python_combos(
             kubernetes_version_array, python_version_array
         )
-        return " ".join(short_combo_titles)
+        return short_combo_titles
+
+    @cached_property
+    def kubernetes_combos_list_as_string(self) -> str:
+        return " ".join(self.kubernetes_combos)
 
     def _matching_files(
         self, match_group: FileGroupForCi, match_dict: HashableDict, exclude_dict: HashableDict
@@ -1199,11 +1203,7 @@ class SelectiveChecks:
 
     @cached_property
     def docker_cache(self) -> str:
-        return (
-            "disabled"
-            if (self._github_event == GithubEvents.SCHEDULE or DISABLE_IMAGE_CACHE_LABEL in self._pr_labels)
-            else "registry"
-        )
+        return "disabled" if DISABLE_IMAGE_CACHE_LABEL in self._pr_labels else "registry"
 
     @cached_property
     def debug_resources(self) -> bool:

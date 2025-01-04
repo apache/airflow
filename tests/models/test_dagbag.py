@@ -228,12 +228,12 @@ class TestDagBag:
         mocked_get_dagbag_import_timeout.return_value = 0
 
         dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
-        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_default_views.py"))
+        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_sensor.py"))
         mocked_timeout.assert_not_called()
 
         mocked_get_dagbag_import_timeout.return_value = -1
         dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
-        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_default_views.py"))
+        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_sensor.py"))
         mocked_timeout.assert_not_called()
 
     @patch("airflow.models.dagbag.timeout")
@@ -251,7 +251,7 @@ class TestDagBag:
         assert timeout_value != settings.conf.getfloat("core", "DAGBAG_IMPORT_TIMEOUT")
 
         dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
-        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_default_views.py"))
+        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_sensor.py"))
 
         mocked_timeout.assert_called_once_with(timeout_value, error_message=mock.ANY)
 
@@ -268,7 +268,7 @@ class TestDagBag:
         with pytest.raises(
             TypeError, match=r"Value \(1\) from get_dagbag_import_timeout must be int or float"
         ):
-            dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_default_views.py"))
+            dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_sensor.py"))
 
     @pytest.fixture
     def invalid_cron_dag(self) -> str:

@@ -132,7 +132,6 @@ class TaskInstanceOperations:
         """Tell the API server that this TI has reached a terminal state."""
         # TODO: handle the naming better. finish sounds wrong as "even" deferred is essentially finishing.
         body = TITerminalStatePayload(end_date=when, state=TerminalTIState(state))
-
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
     def heartbeat(self, id: uuid.UUID, pid: int):
@@ -220,7 +219,25 @@ class XComOperations:
         params = {}
         if map_index is not None:
             params.update({"map_index": map_index})
-        resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
+        try:
+            resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.error(
+                    "XCom not found",
+                    dag_id=dag_id,
+                    run_id=run_id,
+                    task_id=task_id,
+                    key=key,
+                    map_index=map_index,
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                # Airflow 2.x just ignores the absence of an XCom and moves on with a return value of None
+                # Hence returning with key as `key` and value as `None`, so that the message is sent back to task runner
+                # and the default value of None in xcom_pull is used.
+                return XComResponse(key=key, value=None)
+            raise
         return XComResponse.model_validate_json(resp.read())
 
     def set(

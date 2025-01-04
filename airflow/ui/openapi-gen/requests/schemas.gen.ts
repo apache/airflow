@@ -242,13 +242,7 @@ export const $AssetEventResponse = {
     },
   },
   type: "object",
-  required: [
-    "id",
-    "asset_id",
-    "source_map_index",
-    "created_dagruns",
-    "timestamp",
-  ],
+  required: ["id", "asset_id", "source_map_index", "created_dagruns", "timestamp"],
   title: "AssetEventResponse",
   description: "Asset event serializer for responses.",
 } as const;
@@ -486,6 +480,19 @@ export const $BaseInfoResponse = {
   required: ["status"],
   title: "BaseInfoResponse",
   description: "Base info serializer for responses.",
+} as const;
+
+export const $Body_import_variables = {
+  properties: {
+    file: {
+      type: "string",
+      format: "binary",
+      title: "File",
+    },
+  },
+  type: "object",
+  required: ["file"],
+  title: "Body_import_variables",
 } as const;
 
 export const $ClearTaskInstancesBody = {
@@ -2503,16 +2510,7 @@ same name in TaskInstanceState.`,
 
 export const $DagRunTriggeredByType = {
   type: "string",
-  enum: [
-    "cli",
-    "operator",
-    "rest_api",
-    "ui",
-    "test",
-    "timetable",
-    "asset",
-    "backfill",
-  ],
+  enum: ["cli", "operator", "rest_api", "ui", "test", "timetable", "asset", "backfill"],
   title: "DagRunTriggeredByType",
   description: "Class with TriggeredBy types for DagRun.",
 } as const;
@@ -3433,16 +3431,7 @@ export const $NodeResponse = {
     },
     type: {
       type: "string",
-      enum: [
-        "join",
-        "task",
-        "asset-condition",
-        "asset",
-        "asset-alias",
-        "dag",
-        "sensor",
-        "trigger",
-      ],
+      enum: ["join", "task", "asset-condition", "asset", "asset-alias", "dag", "sensor", "trigger"],
       title: "Type",
     },
     operator: {
@@ -4024,8 +4013,7 @@ export const $TaskDependencyCollectionResponse = {
   type: "object",
   required: ["dependencies"],
   title: "TaskDependencyCollectionResponse",
-  description:
-    "Task scheduling dependencies collection serializer for responses.",
+  description: "Task scheduling dependencies collection serializer for responses.",
 } as const;
 
 export const $TaskDependencyResponse = {
@@ -5318,8 +5306,7 @@ export const $TimeDelta = {
   type: "object",
   required: ["days", "seconds", "microseconds"],
   title: "TimeDelta",
-  description:
-    "TimeDelta can be used to interact with datetime.timedelta objects.",
+  description: "TimeDelta can be used to interact with datetime.timedelta objects.",
 } as const;
 
 export const $TriggerDAGRunPostBody = {
@@ -5573,6 +5560,30 @@ export const $VariableResponse = {
   description: "Variable serializer for responses.",
 } as const;
 
+export const $VariablesImportResponse = {
+  properties: {
+    created_variable_keys: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Created Variable Keys",
+    },
+    import_count: {
+      type: "integer",
+      title: "Import Count",
+    },
+    created_count: {
+      type: "integer",
+      title: "Created Count",
+    },
+  },
+  type: "object",
+  required: ["created_variable_keys", "import_count", "created_count"],
+  title: "VariablesImportResponse",
+  description: "Import Variables serializer for responses.",
+} as const;
+
 export const $VersionInfo = {
   properties: {
     version: {
@@ -5651,15 +5662,7 @@ export const $XComResponse = {
     },
   },
   type: "object",
-  required: [
-    "key",
-    "timestamp",
-    "logical_date",
-    "map_index",
-    "task_id",
-    "dag_id",
-    "run_id",
-  ],
+  required: ["key", "timestamp", "logical_date", "map_index", "task_id", "dag_id", "run_id"],
   title: "XComResponse",
   description: "Serializer for a xcom item.",
 } as const;
@@ -5701,16 +5704,7 @@ export const $XComResponseNative = {
     },
   },
   type: "object",
-  required: [
-    "key",
-    "timestamp",
-    "logical_date",
-    "map_index",
-    "task_id",
-    "dag_id",
-    "run_id",
-    "value",
-  ],
+  required: ["key", "timestamp", "logical_date", "map_index", "task_id", "dag_id", "run_id", "value"],
   title: "XComResponseNative",
   description: "XCom response serializer with native return type.",
 } as const;
@@ -5760,16 +5754,7 @@ export const $XComResponseString = {
     },
   },
   type: "object",
-  required: [
-    "key",
-    "timestamp",
-    "logical_date",
-    "map_index",
-    "task_id",
-    "dag_id",
-    "run_id",
-    "value",
-  ],
+  required: ["key", "timestamp", "logical_date", "map_index", "task_id", "dag_id", "run_id", "value"],
   title: "XComResponseString",
   description: "XCom response serializer with string return type.",
 } as const;

@@ -422,85 +422,6 @@ common::show_packaging_tool_version_and_location
 common::install_packaging_tools
 EOF
 
-# The content below is automatically copied from scripts/docker/install_airflow_dependencies_from_branch_tip.sh
-COPY <<"EOF" /install_airflow_dependencies_from_branch_tip.sh
-#!/usr/bin/env bash
-
-. "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
-
-: "${AIRFLOW_REPO:?Should be set}"
-: "${AIRFLOW_BRANCH:?Should be set}"
-: "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
-: "${INSTALL_POSTGRES_CLIENT:?Should be true or false}"
-
-function install_airflow_dependencies_from_branch_tip() {
-    echo
-    echo "${COLOR_BLUE}Installing airflow from ${AIRFLOW_BRANCH}. It is used to cache dependencies${COLOR_RESET}"
-    echo
-    if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then
-       AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}
-    fi
-    if [[ ${INSTALL_POSTGRES_CLIENT} != "true" ]]; then
-       AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/postgres,}
-    fi
-    local TEMP_AIRFLOW_DIR
-    TEMP_AIRFLOW_DIR=$(mktemp -d)
-    # Install latest set of dependencies - without constraints. This is to download a "base" set of
-    # dependencies that we can cache and reuse when installing airflow using constraints and latest
-    # pyproject.toml in the next step (when we install regular airflow).
-    set -x
-    curl -fsSL "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz" | \
-        tar xz -C "${TEMP_AIRFLOW_DIR}" --strip 1
-    # Make sure editable dependencies are calculated when devel-ci dependencies are installed
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-        --editable "${TEMP_AIRFLOW_DIR}[${AIRFLOW_EXTRAS}]"
-    set +x
-    common::install_packaging_tools
-    set -x
-    echo "${COLOR_BLUE}Uninstalling providers. Dependencies remain${COLOR_RESET}"
-    # Uninstall airflow and providers to keep only the dependencies. In the future when
-    # planned https://github.com/pypa/pip/issues/11440 is implemented in pip we might be able to use this
-    # flag and skip the remove step.
-    pip freeze | grep apache-airflow-providers | xargs ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} || true
-    set +x
-    echo
-    echo "${COLOR_BLUE}Uninstalling just airflow. Dependencies remain. Now target airflow can be reinstalled using mostly cached dependencies${COLOR_RESET}"
-    echo
-    set +x
-    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} apache-airflow
-    rm -rf "${TEMP_AIRFLOW_DIR}"
-    set -x
-    # If you want to make sure dependency is removed from cache in your PR when you removed it from
-    # pyproject.toml - please add your dependency here as a list of strings
-    # for example:
-    # DEPENDENCIES_TO_REMOVE=("package_a" "package_b")
-    # Once your PR is merged, you should make a follow-up PR to remove it from this list
-    # and increase the AIRFLOW_CI_BUILD_EPOCH in Dockerfile.ci to make sure your cache is rebuilt.
-    local DEPENDENCIES_TO_REMOVE
-    # IMPORTANT!! Make sure to increase AIRFLOW_CI_BUILD_EPOCH in Dockerfile.ci when you remove a dependency from that list
-    DEPENDENCIES_TO_REMOVE=()
-    if [[ "${DEPENDENCIES_TO_REMOVE[*]}" != "" ]]; then
-        echo
-        echo "${COLOR_BLUE}Uninstalling just removed dependencies (temporary until cache refreshes)${COLOR_RESET}"
-        echo "${COLOR_BLUE}Dependencies to uninstall: ${DEPENDENCIES_TO_REMOVE[*]}${COLOR_RESET}"
-        echo
-        set +x
-        ${PACKAGING_TOOL_CMD} uninstall "${DEPENDENCIES_TO_REMOVE[@]}" || true
-        set -x
-        # make sure that the dependency is not needed by something else
-        pip check
-    fi
-}
-
-common::get_colors
-common::get_packaging_tool
-common::get_airflow_version_specification
-common::get_constraints_location
-common::show_packaging_tool_version_and_location
-
-install_airflow_dependencies_from_branch_tip
-EOF
-
 # The content below is automatically copied from scripts/docker/common.sh
 COPY <<"EOF" /common.sh
 #!/usr/bin/env bash
@@ -524,8 +445,6 @@ function common::get_packaging_tool() {
 
     ## IMPORTANT: IF YOU MODIFY THIS FUNCTION YOU SHOULD ALSO MODIFY CORRESPONDING FUNCTION IN
     ## `scripts/in_container/_in_container_utils.sh`
-    local PYTHON_BIN
-    PYTHON_BIN=$(which python)
     if [[ ${AIRFLOW_USE_UV} == "true" ]]; then
         echo
         echo "${COLOR_BLUE}Using 'uv' to install Airflow${COLOR_RESET}"
@@ -533,8 +452,8 @@ function common::get_packaging_tool() {
         export PACKAGING_TOOL="uv"
         export PACKAGING_TOOL_CMD="uv pip"
         if [[ -z ${VIRTUAL_ENV=} ]]; then
-            export EXTRA_INSTALL_FLAGS="--python ${PYTHON_BIN}"
-            export EXTRA_UNINSTALL_FLAGS="--python ${PYTHON_BIN}"
+            export EXTRA_INSTALL_FLAGS="--system"
+            export EXTRA_UNINSTALL_FLAGS="--system"
         else
             export EXTRA_INSTALL_FLAGS=""
             export EXTRA_UNINSTALL_FLAGS=""
@@ -900,18 +819,12 @@ function install_airflow() {
     # Determine the installation_command_flags based on AIRFLOW_INSTALLATION_METHOD method
     local installation_command_flags
     if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then
-        # We need _a_ file in there otherwise the editable install doesn't include anything in the .pth file
-        mkdir -p ./providers/src/airflow/providers/
-        touch ./providers/src/airflow/providers/__init__.py
-
-        # Similarly we need _a_ file for task_sdk too
-        mkdir -p ./task_sdk/src/airflow/sdk/
-        echo '__version__ = "0.0.0dev0"' > ./task_sdk/src/airflow/sdk/__init__.py
-
-        trap 'rm -f ./providers/src/airflow/providers/__init__.py ./task_sdk/src/airflow/__init__.py 2>/dev/null' EXIT
-
         # When installing from sources - we always use `--editable` mode
-        installation_command_flags="--editable .[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION} --editable ./providers --editable ./task_sdk"
+        installation_command_flags="--editable .[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION} --editable ./task_sdk"
+        while IFS= read -r -d '' pyproject_toml_file; do
+            project_folder=$(dirname ${pyproject_toml_file})
+            installation_command_flags="${installation_command_flags} --editable ${project_folder}"
+        done < <(find "providers" -name "pyproject.toml" -print0)
     elif [[ ${AIRFLOW_INSTALLATION_METHOD} == "apache-airflow" ]]; then
         installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
     elif [[ ${AIRFLOW_INSTALLATION_METHOD} == apache-airflow\ @\ * ]]; then
@@ -1407,7 +1320,8 @@ ARG PYTHON_BASE_IMAGE
 ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 \
-    PIP_CACHE_DIR=/tmp/.cache/pip
+    PIP_CACHE_DIR=/tmp/.cache/pip \
+    UV_CACHE_DIR=/tmp/.cache/uv
 
 ARG DEV_APT_DEPS=""
 ARG ADDITIONAL_DEV_APT_DEPS=""
@@ -1473,9 +1387,6 @@ ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
 
 # By default PIP has progress bar but you can disable it.
 ARG PIP_PROGRESS_BAR
-# By default we do not use pre-cached packages, but in CI/Breeze environment we override this to speed up
-# builds in case pyproject.toml changed. This is pure optimisation of CI/Breeze builds.
-ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
 # This is airflow version that is put in the label of the image build
 ARG AIRFLOW_VERSION
 # By default latest released version of airflow is installed (when empty) but this value can be overridden
@@ -1513,7 +1424,6 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
     UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT} \
     AIRFLOW_USE_UV=${AIRFLOW_USE_UV} \
-    AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES} \
     AIRFLOW_VERSION=${AIRFLOW_VERSION} \
     AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD} \
     AIRFLOW_VERSION_SPECIFICATION=${AIRFLOW_VERSION_SPECIFICATION} \
@@ -1538,8 +1448,7 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
 
 # Copy all scripts required for installation - changing any of those should lead to
 # rebuilding from here
-COPY --from=scripts common.sh install_packaging_tools.sh \
-     install_airflow_dependencies_from_branch_tip.sh create_prod_venv.sh /scripts/docker/
+COPY --from=scripts common.sh install_packaging_tools.sh create_prod_venv.sh /scripts/docker/
 
 # We can set this value to true in case we want to install .whl/.tar.gz packages placed in the
 # docker-context-files folder. This can be done for both additional packages you want to install
@@ -1569,13 +1478,7 @@ ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
 # By default PIP installs everything to ~/.local and it's also treated as VIRTUALENV
 ENV VIRTUAL_ENV="${AIRFLOW_USER_HOME_DIR}/.local"
 
-RUN bash /scripts/docker/install_packaging_tools.sh; \
-    bash /scripts/docker/create_prod_venv.sh; \
-    if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
-        ${INSTALL_PACKAGES_FROM_CONTEXT} == "false" && \
-        ${UPGRADE_INVALIDATION_STRING} == "" ]]; then \
-        bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
-    fi
+RUN bash /scripts/docker/install_packaging_tools.sh; bash /scripts/docker/create_prod_venv.sh
 
 COPY --chown=airflow:0 ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
 
@@ -1599,10 +1502,10 @@ COPY --from=scripts install_from_docker_context_files.sh install_airflow.sh \
 # an incorrect architecture.
 ARG TARGETARCH
 # Value to be able to easily change cache id and therefore use a bare new cache
-ARG PIP_CACHE_EPOCH="9"
+ARG DEPENDENCY_CACHE_EPOCH="9"
 
 # hadolint ignore=SC2086, SC2010, DL3042
-RUN --mount=type=cache,id=$PYTHON_BASE_IMAGE-$AIRFLOW_PIP_VERSION-$TARGETARCH-$PIP_CACHE_EPOCH,target=/tmp/.cache/pip,uid=${AIRFLOW_UID} \
+RUN --mount=type=cache,id=prod-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/tmp/.cache/,uid=${AIRFLOW_UID} \
     if [[ ${INSTALL_PACKAGES_FROM_CONTEXT} == "true" ]]; then \
         bash /scripts/docker/install_from_docker_context_files.sh; \
     fi; \
@@ -1622,7 +1525,7 @@ RUN --mount=type=cache,id=$PYTHON_BASE_IMAGE-$AIRFLOW_PIP_VERSION-$TARGETARCH-$P
 # during the build additionally to whatever has been installed so far. It is recommended that
 # the requirements.txt contains only dependencies with == version specification
 # hadolint ignore=DL3042
-RUN --mount=type=cache,id=additional-requirements-$PYTHON_BASE_IMAGE-$AIRFLOW_PIP_VERSION-$TARGETARCH-$PIP_CACHE_EPOCH,target=/tmp/.cache/pip,uid=${AIRFLOW_UID} \
+RUN --mount=type=cache,id=prod-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/tmp/.cache/,uid=${AIRFLOW_UID} \
     if [[ -f /docker-context-files/requirements.txt ]]; then \
         pip install -r /docker-context-files/requirements.txt; \
     fi
@@ -1650,7 +1553,9 @@ ARG PYTHON_BASE_IMAGE
 ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
     # Make sure noninteractive debian install is used and language variables set
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
-    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 LD_LIBRARY_PATH=/usr/local/lib
+    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 LD_LIBRARY_PATH=/usr/local/lib \
+    PIP_CACHE_DIR=/tmp/.cache/pip \
+    UV_CACHE_DIR=/tmp/.cache/uv
 
 ARG RUNTIME_APT_DEPS=""
 ARG ADDITIONAL_RUNTIME_APT_DEPS=""

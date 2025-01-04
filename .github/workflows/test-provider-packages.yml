@@ -24,10 +24,6 @@ on:  # yamllint disable-line rule:truthy
         description: "The array of labels (in json form) determining default runner used for the build."
         required: true
         type: string
-      image-tag:
-        description: "Tag to set for the image"
-        required: true
-        type: string
       canary-run:
         description: "Whether this is a canary run"
         required: true
@@ -62,6 +58,10 @@ on:  # yamllint disable-line rule:truthy
         description: "JSON-formatted array of Python versions to build images from"
         required: true
         type: string
+      use-uv:
+        description: "Whether to use uv"
+        required: true
+        type: string
 jobs:
   prepare-install-verify-provider-packages:
     timeout-minutes: 80
@@ -75,7 +75,6 @@ jobs:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
-      IMAGE_TAG: "${{ inputs.image-tag }}"
       INCLUDE_NOT_READY_PROVIDERS: "true"
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       VERBOSE: "true"
@@ -87,11 +86,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: >
-          Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}
+      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: "linux/amd64"
+          python: ${{ inputs.default-python-version }}
+          use-uv: ${{ inputs.use-uv }}
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: "Prepare provider documentation"
@@ -149,6 +149,7 @@ jobs:
           --run-in-parallel
         if: matrix.package-format == 'sdist'
 
+  # All matrix parameters are passed as JSON string in the input variable providers-compatibility-tests-matrix
   providers-compatibility-tests-matrix:
     timeout-minutes: 80
     name: Compat ${{ matrix.airflow-version }}:P${{ matrix.python-version }} providers test
@@ -161,9 +162,8 @@ jobs:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
-      IMAGE_TAG: "${{ inputs.image-tag }}"
       INCLUDE_NOT_READY_PROVIDERS: "true"
-      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
       VERSION_SUFFIX_FOR_PYPI: "dev0"
       VERBOSE: "true"
       CLEAN_AIRFLOW_INSTALLATION: "${{ inputs.canary-run }}"
@@ -176,10 +176,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: "Prepare breeze & CI image: ${{ matrix.python-version }}:${{ inputs.image-tag }}"
+      - name: "Prepare breeze & CI image: ${{ matrix.python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: "linux/amd64"
+          python: ${{ matrix.python-version }}
+          use-uv: ${{ inputs.use-uv }}
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: "Prepare provider packages: wheel"
@@ -212,6 +214,9 @@ jobs:
           --airflow-constraints-reference constraints-${{matrix.airflow-version}}
           --providers-skip-constraints
           --install-airflow-with-constraints
+      - name: Check amount of disk space available
+        run: df -H
+        shell: bash
       - name: >
           Run provider unit tests on
           Airflow ${{ matrix.airflow-version }}:Python ${{ matrix.python-version }}

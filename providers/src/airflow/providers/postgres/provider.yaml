@@ -86,6 +86,10 @@ integrations:
     logo: /integration-logos/postgres/Postgres.png
     tags: [software]
 
+dialects:
+  - dialect-type: postgresql
+    dialect-class-name: airflow.providers.postgres.dialects.postgres.PostgresDialect
+
 hooks:
   - integration-name: PostgreSQL
     python-modules:

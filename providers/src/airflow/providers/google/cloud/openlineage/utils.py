@@ -17,22 +17,21 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 import logging
 import os
 import pathlib
+import re
+from collections import defaultdict
+from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
 from attr import define, field
-
-if TYPE_CHECKING:
-    from google.cloud.bigquery.table import Table
-
-    from airflow.providers.common.compat.openlineage.facet import Dataset
-    from airflow.utils.context import Context
+from google.cloud.dataproc_v1 import Batch, RuntimeConfig
 
 from airflow.providers.common.compat.openlineage.facet import (
-    BaseFacet,
     ColumnLineageDatasetFacet,
+    DatasetFacet,
     DocumentationDatasetFacet,
     Fields,
     Identifier,
@@ -48,11 +47,118 @@ from airflow.providers.common.compat.openlineage.utils.spark import (
 from airflow.providers.google import __version__ as provider_version
 from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
 
+if TYPE_CHECKING:
+    from google.cloud.bigquery.table import Table
+
+    from airflow.providers.common.compat.openlineage.facet import Dataset
+    from airflow.utils.context import Context
+
+
 log = logging.getLogger(__name__)
 
 BIGQUERY_NAMESPACE = "bigquery"
 BIGQUERY_URI = "bigquery"
 WILDCARD = "*"
+
+
+def merge_column_lineage_facets(facets: list[ColumnLineageDatasetFacet]) -> ColumnLineageDatasetFacet:
+    """
+    Merge multiple column lineage facets into a single consolidated facet.
+
+    Specifically, it aggregates input fields and transformations for each field across all provided facets.
+
+    Args:
+        facets: Column Lineage Facets to be merged.
+
+    Returns:
+        A new Column Lineage Facet containing all fields, their respective input fields and transformations.
+
+    Notes:
+        - Input fields are uniquely identified by their `(namespace, name, field)` tuple.
+        - If multiple facets contain the same field with the same input field, those input
+          fields are merged without duplication.
+        - Transformations associated with input fields are also merged. If transformations
+          are not supported by the version of the `InputField` class, they will be omitted.
+        - Transformation merging relies on a composite key of the field name and input field
+          tuple to track and consolidate transformations.
+
+    Examples:
+        Case 1: Two facets with the same input field
+        ```
+        >>> facet1 = ColumnLineageDatasetFacet(
+        ...     fields={"columnA": Fields(inputFields=[InputField("namespace1", "dataset1", "field1")])}
+        ... )
+        >>> facet2 = ColumnLineageDatasetFacet(
+        ...     fields={"columnA": Fields(inputFields=[InputField("namespace1", "dataset1", "field1")])}
+        ... )
+        >>> merged = merge_column_lineage_facets([facet1, facet2])
+        >>> merged.fields["columnA"].inputFields
+        [InputField("namespace1", "dataset1", "field1")]
+        ```
+
+        Case 2: Two facets with different transformations for the same input field
+        ```
+        >>> facet1 = ColumnLineageDatasetFacet(
+        ...     fields={
+        ...         "columnA": Fields(
+        ...             inputFields=[InputField("namespace1", "dataset1", "field1", transformations=["t1"])]
+        ...         )
+        ...     }
+        ... )
+        >>> facet2 = ColumnLineageDatasetFacet(
+        ...     fields={
+        ...         "columnA": Fields(
+        ...             inputFields=[InputField("namespace1", "dataset1", "field1", transformations=["t2"])]
+        ...         )
+        ...     }
+        ... )
+        >>> merged = merge_column_lineage_facets([facet1, facet2])
+        >>> merged.fields["columnA"].inputFields[0].transformations
+        ["t1", "t2"]
+        ```
+    """
+    # Dictionary to collect all unique input fields for each field name
+    fields_sources: dict[str, set[tuple[str, str, str]]] = defaultdict(set)
+    # Dictionary to aggregate transformations for each input field
+    transformations: dict[str, list] = defaultdict(list)
+
+    for facet in facets:
+        for field_name, single_field in facet.fields.items():
+            for input_field in single_field.inputFields:
+                input_key_fields = (input_field.namespace, input_field.name, input_field.field)
+                fields_sources[field_name].add(input_key_fields)
+
+                if single_transformations := getattr(input_field, "transformations", []):
+                    transformation_key = "".join((field_name, *input_key_fields))
+                    transformations[transformation_key].extend(single_transformations)
+
+    # Check if the `InputField` class supports the `transformations` attribute (since OL client 1.17.1)
+    input_field_allows_transformation_info = True
+    try:
+        InputField(namespace="a", name="b", field="c", transformations=[])
+    except TypeError:
+        input_field_allows_transformation_info = False
+
+    return ColumnLineageDatasetFacet(
+        fields={
+            field_name: Fields(
+                inputFields=[
+                    InputField(
+                        namespace,
+                        name,
+                        column,
+                        transformations.get("".join((field_name, namespace, name, column)), []),
+                    )
+                    if input_field_allows_transformation_info
+                    else InputField(namespace, name, column)
+                    for namespace, name, column in sorted(input_fields)
+                ],
+                transformationType="",  # Legacy transformation information
+                transformationDescription="",  # Legacy transformation information
+            )
+            for field_name, input_fields in fields_sources.items()
+        }
+    )
 
 
 def extract_ds_name_from_gcs_path(path: str) -> str:
@@ -108,9 +214,9 @@ def extract_ds_name_from_gcs_path(path: str) -> str:
     return path
 
 
-def get_facets_from_bq_table(table: Table) -> dict[str, BaseFacet]:
+def get_facets_from_bq_table(table: Table) -> dict[str, DatasetFacet]:
     """Get facets from BigQuery table object."""
-    facets: dict[str, BaseFacet] = {}
+    facets: dict[str, DatasetFacet] = {}
     if table.schema:
         facets["schema"] = SchemaDatasetFacet(
             fields=[
@@ -124,26 +230,37 @@ def get_facets_from_bq_table(table: Table) -> dict[str, BaseFacet]:
         facets["documentation"] = DocumentationDatasetFacet(description=table.description)
 
     if table.external_data_configuration:
-        symlinks = set()
-        for uri in table.external_data_configuration.source_uris:
-            if uri.startswith("gs://"):
-                bucket, blob = _parse_gcs_url(uri)
-                blob = extract_ds_name_from_gcs_path(blob)
-                symlinks.add((f"gs://{bucket}", blob))
-
+        symlinks = get_namespace_name_from_source_uris(table.external_data_configuration.source_uris)
         facets["symlink"] = SymlinksDatasetFacet(
             identifiers=[
-                Identifier(namespace=namespace, name=name, type="file")
+                Identifier(
+                    namespace=namespace, name=name, type="file" if namespace.startswith("gs://") else "table"
+                )
                 for namespace, name in sorted(symlinks)
             ]
         )
     return facets
 
 
+def get_namespace_name_from_source_uris(source_uris: Iterable[str]) -> set[tuple[str, str]]:
+    result = set()
+    for uri in source_uris:
+        if uri.startswith("gs://"):
+            bucket, blob = _parse_gcs_url(uri)
+            result.add((f"gs://{bucket}", extract_ds_name_from_gcs_path(blob)))
+        elif uri.startswith("https://googleapis.com/bigtable"):
+            regex = r"https://googleapis.com/bigtable/projects/([^/]+)/instances/([^/]+)(?:/appProfiles/([^/]+))?/tables/([^/]+)"
+            match = re.match(regex, uri)
+            if match:
+                project_id, instance_id, table_id = match.groups()[0], match.groups()[1], match.groups()[3]
+                result.add((f"bigtable://{project_id}/{instance_id}", table_id))
+    return result
+
+
 def get_identity_column_lineage_facet(
-    dest_field_names: list[str],
-    input_datasets: list[Dataset],
-) -> dict[str, ColumnLineageDatasetFacet]:
+    dest_field_names: Iterable[str],
+    input_datasets: Iterable[Dataset],
+) -> dict[str, DatasetFacet]:
     """
     Get column lineage facet for identity transformations.
 
@@ -386,3 +503,199 @@ def inject_openlineage_properties_into_dataproc_job(
         job=job, job_type=job_type, new_properties=properties
     )
     return job_with_ol_config
+
+
+def _is_dataproc_batch_of_supported_type(batch: dict | Batch) -> bool:
+    """
+    Check if a Dataproc batch is of a supported type for Openlineage automatic injection.
+
+    This function determines if the given batch is of a supported type
+    by checking for specific job type attributes or keys in the batch.
+
+    Args:
+        batch: The Dataproc batch to check.
+
+    Returns:
+        True if the batch is of a supported type (`spark_batch` or
+        `pyspark_batch`), otherwise False.
+    """
+    supported_job_types = ("spark_batch", "pyspark_batch")
+    if isinstance(batch, Batch):
+        if any(getattr(batch, job_type) for job_type in supported_job_types):
+            return True
+        return False
+
+    # For dictionary-based batch
+    if any(job_type in batch for job_type in supported_job_types):
+        return True
+    return False
+
+
+def _extract_dataproc_batch_properties(batch: dict | Batch) -> dict:
+    """
+    Extract Dataproc batch properties from a Batch object or dictionary.
+
+    This function retrieves the `properties` from the `runtime_config` of a
+    Dataproc `Batch` object or a dictionary representation of a batch.
+
+    Args:
+        batch: The Dataproc batch to extract properties from.
+
+    Returns:
+        Extracted `properties` if found, otherwise an empty dictionary.
+    """
+    if isinstance(batch, Batch):
+        return dict(batch.runtime_config.properties)
+
+    # For dictionary-based batch
+    run_time_config = batch.get("runtime_config", {})
+    if isinstance(run_time_config, RuntimeConfig):
+        return dict(run_time_config.properties)
+    return run_time_config.get("properties", {})
+
+
+def _replace_dataproc_batch_properties(batch: dict | Batch, new_properties: dict) -> dict | Batch:
+    """
+    Replace the properties of a Dataproc batch.
+
+    Args:
+        batch: The original Dataproc batch definition.
+        new_properties: The new properties to replace the existing ones.
+
+    Returns:
+        A modified copy of the Dataproc batch definition with updated properties.
+    """
+    batch = copy.deepcopy(batch)
+    if isinstance(batch, Batch):
+        if not batch.runtime_config:
+            batch.runtime_config = RuntimeConfig(properties=new_properties)
+        elif isinstance(batch.runtime_config, dict):
+            batch.runtime_config["properties"] = new_properties
+        else:
+            batch.runtime_config.properties = new_properties
+        return batch
+
+    # For dictionary-based batch
+    run_time_config = batch.get("runtime_config")
+    if not run_time_config:
+        batch["runtime_config"] = {"properties": new_properties}
+    elif isinstance(run_time_config, dict):
+        run_time_config["properties"] = new_properties
+    else:
+        run_time_config.properties = new_properties
+    return batch
+
+
+def inject_openlineage_properties_into_dataproc_batch(
+    batch: dict | Batch, context: Context, inject_parent_job_info: bool
+) -> dict | Batch:
+    """
+    Inject OpenLineage properties into Dataproc batch definition.
+
+    It's not removing any configuration or modifying the batch in any other way.
+    This function add desired OpenLineage properties to Dataproc batch configuration.
+
+    Note:
+        Any modification to job will be skipped if:
+            - OpenLineage provider is not accessible.
+            - The batch type is not supported.
+            - Automatic parent job information injection is disabled.
+            - Any OpenLineage properties with parent job information are already present
+              in the Spark job configuration.
+
+    Args:
+        batch: The original Dataproc batch definition.
+        context: The Airflow context in which the job is running.
+        inject_parent_job_info: Flag indicating whether to inject parent job information.
+
+    Returns:
+        The modified batch definition with OpenLineage properties injected, if applicable.
+    """
+    if not inject_parent_job_info:
+        log.debug("Automatic injection of OpenLineage information is disabled.")
+        return batch
+
+    if not _is_openlineage_provider_accessible():
+        log.warning(
+            "Could not access OpenLineage provider for automatic OpenLineage "
+            "properties injection. No action will be performed."
+        )
+        return batch
+
+    if not _is_dataproc_batch_of_supported_type(batch):
+        log.warning(
+            "Could not find a supported Dataproc batch type for automatic OpenLineage "
+            "properties injection. No action will be performed.",
+        )
+        return batch
+
+    properties = _extract_dataproc_batch_properties(batch)
+
+    properties = inject_parent_job_information_into_spark_properties(properties=properties, context=context)
+
+    batch_with_ol_config = _replace_dataproc_batch_properties(batch=batch, new_properties=properties)
+    return batch_with_ol_config
+
+
+def inject_openlineage_properties_into_dataproc_workflow_template(
+    template: dict, context: Context, inject_parent_job_info: bool
+) -> dict:
+    """
+    Inject OpenLineage properties into Spark jobs in Workflow Template.
+
+    Function is not removing any configuration or modifying the jobs in any other way,
+    apart from adding desired OpenLineage properties to Dataproc job definition if not already present.
+
+    Note:
+        Any modification to job will be skipped if:
+            - OpenLineage provider is not accessible.
+            - The job type is not supported.
+            - Automatic parent job information injection is disabled.
+            - Any OpenLineage properties with parent job information are already present
+              in the Spark job definition.
+
+    Args:
+        template: The original Dataproc Workflow Template definition.
+        context: The Airflow context in which the job is running.
+        inject_parent_job_info: Flag indicating whether to inject parent job information.
+
+    Returns:
+        The modified Workflow Template definition with OpenLineage properties injected, if applicable.
+    """
+    if not inject_parent_job_info:
+        log.debug("Automatic injection of OpenLineage information is disabled.")
+        return template
+
+    if not _is_openlineage_provider_accessible():
+        log.warning(
+            "Could not access OpenLineage provider for automatic OpenLineage "
+            "properties injection. No action will be performed."
+        )
+        return template
+
+    final_jobs = []
+    for single_job_definition in template["jobs"]:
+        step_id = single_job_definition["step_id"]
+        log.debug("Injecting OpenLineage properties into Workflow step: `%s`", step_id)
+
+        if (job_type := _extract_supported_job_type_from_dataproc_job(single_job_definition)) is None:
+            log.debug(
+                "Could not find a supported Dataproc job type for automatic OpenLineage "
+                "properties injection. No action will be performed.",
+            )
+            final_jobs.append(single_job_definition)
+            continue
+
+        properties = single_job_definition[job_type].get("properties", {})
+
+        properties = inject_parent_job_information_into_spark_properties(
+            properties=properties, context=context
+        )
+
+        job_with_ol_config = _replace_dataproc_job_properties(
+            job=single_job_definition, job_type=job_type, new_properties=properties
+        )
+        final_jobs.append(job_with_ol_config)
+
+    template["jobs"] = final_jobs
+    return template
