@@ -528,7 +528,8 @@
   "edge": {
     "deps": [
       "apache-airflow>=2.10.0",
-      "pydantic>=2.10.2"
+      "pydantic>=2.10.2",
+      "retryhttp>=1.2.0"
     ],
     "devel-deps": [],
     "plugins": [
