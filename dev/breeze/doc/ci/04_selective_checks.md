@@ -319,22 +319,22 @@ unsuccessful runs of the tests.
 
 This table summarizes the labels you can use on PRs to control the selective checks and the CI runs:
 
-| Label                            | Affected outputs                  | Meaning                                                                                   |
-|----------------------------------|-----------------------------------|-------------------------------------------------------------------------------------------|
-| all versions                     | all-versions, *-versions-*        | Run tests for all python and k8s versions.                                                |
-| allow suspended provider changes | allow-suspended-provider-changes  | Allow changes to suspended providers.                                                     |
-| canary                           | is-canary-run                     | If set, the PR run from apache/airflow repo behaves as `canary` run.                      |
-| debug ci resources               | debug-ci-resources                | If set, then debugging resources is enabled during parallel tests and you can see them.   |
-| default versions only            | all-versions, *-versions-*        | If set, the number of Python and Kubernetes, DB versions are limited to the default ones. |
-| disable image cache              | docker-cache                      | If set, the image cache is disables when building the image.                              |
-| force pip                        | force-pip                         | If set, the image build uses pip instead of uv.                                           |
-| full tests needed                | full-tests-needed                 | If set, complete set of tests are run                                                     |
-| include success outputs          | include-success-outputs           | If set, outputs of successful parallel tests are shown not only failed outputs.           |
-| latest versions only             | *-versions-*, *-versions-*        | If set, the number of Python, Kubernetes, DB versions will be limited to the latest ones. |
-| non committer build              | is-committer-build                | If set, the scripts used for images are used from target branch for committers.           |
-| upgrade to newer dependencies    | upgrade-to-newer-dependencies     | If set to true (default false) then dependencies in the CI image build are upgraded.      |
-| use public runners               | runs-on-as-json-public            | Force using public runners as default runners.                                            |
-| use self-hosted runners          | runs-on-as-json-default           | Force using self-hosted runners as default runners.                                       |
+| Label                            | Affected outputs                 | Meaning                                                                                   |
+|----------------------------------|----------------------------------|-------------------------------------------------------------------------------------------|
+| all versions                     | all-versions, *-versions-*       | Run tests for all python and k8s versions.                                                |
+| allow suspended provider changes | allow-suspended-provider-changes | Allow changes to suspended providers.                                                     |
+| canary                           | is-canary-run                    | If set, the PR run from apache/airflow repo behaves as `canary` run.                      |
+| debug ci resources               | debug-ci-resources               | If set, then debugging resources is enabled during parallel tests and you can see them.   |
+| default versions only            | all-versions, *-versions-*       | If set, the number of Python and Kubernetes, DB versions are limited to the default ones. |
+| disable image cache              | docker-cache                     | If set, the image cache is disables when building the image.                              |
+| force pip                        | force-pip                        | If set, the image build uses pip instead of uv.                                           |
+| full tests needed                | full-tests-needed                | If set, complete set of tests are run                                                     |
+| include success outputs          | include-success-outputs          | If set, outputs of successful parallel tests are shown not only failed outputs.           |
+| latest versions only             | *-versions-*, *-versions-*       | If set, the number of Python, Kubernetes, DB versions will be limited to the latest ones. |
+| non committer build              | is-committer-build               | If set, the scripts used for images are used from target branch for committers.           |
+| upgrade to newer dependencies    | upgrade-to-newer-dependencies    | If set to true (default false) then dependencies in the CI image build are upgraded.      |
+| use public runners               | runs-on-as-json-public           | Force using public runners as default runners.                                            |
+| use self-hosted runners          | runs-on-as-json-default          | Force using self-hosted runners as default runners.                                       |
 
 -----
 
