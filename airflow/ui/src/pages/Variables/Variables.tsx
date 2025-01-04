@@ -18,15 +18,20 @@
  */
 import { Box, Flex, HStack, Spacer, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { FiShare, FiTrash2 } from "react-icons/fi";
 import { useSearchParams } from "react-router-dom";
 
 import { useVariableServiceGetVariables } from "openapi/queries";
 import type { VariableResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
+import { useRowSelection, type GetColumnsParams } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
+import { Button, Tooltip } from "src/components/ui";
+import { ActionBar } from "src/components/ui/ActionBar";
+import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 
 import ImportVariablesButton from "./ImportVariablesButton";
@@ -34,7 +39,28 @@ import AddVariableButton from "./ManageVariable/AddVariableButton";
 import DeleteVariableButton from "./ManageVariable/DeleteVariableButton";
 import EditVariableButton from "./ManageVariable/EditVariableButton";
 
-const columns: Array<ColumnDef<VariableResponse>> = [
+const getColumns = ({
+  allRowsSelected,
+  onRowSelect,
+  onSelectAll,
+  selectedRows,
+}: GetColumnsParams): Array<ColumnDef<VariableResponse>> => [
+  {
+    accessorKey: "select",
+    cell: ({ row }) => (
+      <Checkbox
+        checked={selectedRows.get(row.original.key)}
+        onCheckedChange={(event) => onRowSelect(row.original.key, Boolean(event.checked))}
+      />
+    ),
+    enableSorting: false,
+    header: () => (
+      <Checkbox checked={allRowsSelected} onCheckedChange={(event) => onSelectAll(Boolean(event.checked))} />
+    ),
+    meta: {
+      skeletonWidth: 10,
+    },
+  },
   {
     accessorKey: "key",
     header: "Key",
@@ -61,6 +87,9 @@ const columns: Array<ColumnDef<VariableResponse>> = [
     ),
     enableSorting: false,
     header: "",
+    meta: {
+      skeletonWidth: 10,
+    },
   },
 ];
 
@@ -79,8 +108,25 @@ export const Variables = () => {
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy,
-    variableKeyPattern: Boolean(variableKeyPattern) ? `${variableKeyPattern}` : undefined,
+    variableKeyPattern: variableKeyPattern ?? undefined,
   });
+
+  const { allRowsSelected, clearSelections, handleRowSelect, handleSelectAll, selectedRows } =
+    useRowSelection({
+      data: data?.variables,
+      getKey: (variable) => variable.key,
+    });
+
+  const columns = useMemo(
+    () =>
+      getColumns({
+        allRowsSelected,
+        onRowSelect: handleRowSelect,
+        onSelectAll: handleSelectAll,
+        selectedRows,
+      }),
+    [allRowsSelected, handleRowSelect, handleSelectAll, selectedRows],
+  );
 
   const handleSearchChange = (value: string) => {
     if (value) {
@@ -114,16 +160,36 @@ export const Variables = () => {
       <Box overflow="auto">
         <DataTable
           columns={columns}
-          data={data ? data.variables : []}
+          data={data?.variables ?? []}
           errorMessage={<ErrorAlert error={error} />}
           initialState={tableURLState}
           isFetching={isFetching}
           isLoading={isLoading}
           modelName="Variable"
           onStateChange={setTableURLState}
-          total={data ? data.total_entries : 0}
+          total={data?.total_entries ?? 0}
         />
       </Box>
+      <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
+        <ActionBar.Content>
+          <ActionBar.SelectionTrigger>{selectedRows.size} selected</ActionBar.SelectionTrigger>
+          <ActionBar.Separator />
+          {/* TODO: Implement the delete and export selected */}
+          <Tooltip content="Delete selected variable coming soon..">
+            <Button disabled size="sm" variant="outline">
+              <FiTrash2 />
+              Delete
+            </Button>
+          </Tooltip>
+          <Tooltip content="Export selected variable coming soon..">
+            <Button disabled size="sm" variant="outline">
+              <FiShare />
+              Export
+            </Button>
+          </Tooltip>
+          <ActionBar.CloseTrigger onClick={clearSelections} />
+        </ActionBar.Content>
+      </ActionBar.Root>
     </>
   );
 };
