@@ -2125,7 +2125,7 @@ class TestKubernetesJobWatcher:
         self.pod.metadata.deletion_timestamp = timezone.utcnow()
 
         self._run()
-        self.assert_watcher_queue_called_once_with_state(State.FAILED)
+        self.watcher.watcher_queue.put.assert_not_called()
 
     def test_process_status_failed(self):
         self.pod.status.phase = "Failed"
