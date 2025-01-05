@@ -67,7 +67,7 @@ export const TrimText = ({
         </Box>
       </Tooltip>
 
-      <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+      <Dialog.Root onOpenChange={onClose} open={isClickable ? open : undefined} size="xl">
         <Dialog.Content backdrop>
           <Dialog.Header>
             <Heading size="xl">Details</Heading>
@@ -97,7 +97,7 @@ export const TrimText = ({
                         whiteSpace="pre-wrap"
                       >
                         <Text
-                          color={isEmpty ? "red.solid" : undefined}
+                          color={isEmpty ? "gray.emphasized" : undefined}
                           fontWeight={isEmpty ? "bold" : "normal"}
                         >
                           {isEmpty ? "Empty" : String(value)}
