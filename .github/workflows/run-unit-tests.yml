@@ -175,7 +175,10 @@ jobs:
       - name: >
           ${{ matrix.test-group}}:${{ inputs.test-scope }} Tests ${{ inputs.test-name }} ${{ matrix.backend-version }}
           Py${{ matrix.python-version }}:${{ env.PARALLEL_TEST_TYPES }}
-        run: ./scripts/ci/testing/run_unit_tests.sh "${{ matrix.test-group }}" "${{ inputs.test-scope }}"
+        env:
+          TEST_GROUP: "${{ matrix.test-group }}"
+          TEST_SCOPE: "${{ inputs.test-scope }}"
+        run: ./scripts/ci/testing/run_unit_tests.sh "${TEST_GROUP}" "${TEST_SCOPE}"
       - name: "Post Tests success"
         uses: ./.github/actions/post_tests_success
         with:

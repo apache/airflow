@@ -72,9 +72,11 @@ jobs:
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Prepare PYTHON_MAJOR_MINOR_VERSION and KUBERNETES_VERSION"
         id: prepare-versions
+        env:
+          KUBERNETES_COMBO: ${{ matrix.kubernetes-combo }}
         run: |
-          echo "PYTHON_MAJOR_MINOR_VERSION=${{ matrix.kubernetes-combo }}" | sed 's/-.*//' >> $GITHUB_ENV
-          echo "KUBERNETES_VERSION=${{ matrix.kubernetes-combo }}" | sed 's/=[^-]*-/=/'  >> $GITHUB_ENV
+          echo "PYTHON_MAJOR_MINOR_VERSION=${KUBERNETES_COMBO}" | sed 's/-.*//' >> $GITHUB_ENV
+          echo "KUBERNETES_VERSION=${KUBERNETES_COMBO}" | sed 's/=[^-]*-/=/'  >> $GITHUB_ENV
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:
