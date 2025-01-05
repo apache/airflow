@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-04T02:14:28.841790
+# This constraints file was automatically generated on 2025-01-05T07:46:20.808628
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -84,7 +84,7 @@ google-re2==1.1.20240702
 googleapis-common-protos==1.66.0
 graphviz==0.20.3
 greenlet==3.1.1
-grpcio==1.68.1
+grpcio==1.69.0
 gssapi==1.9.0
 gunicorn==23.0.0
 h11==0.14.0
@@ -185,7 +185,7 @@ uc-micro-py==1.0.3
 universal_pathlib==0.2.6
 urllib3==2.3.0
 uuid6==2024.7.10
-uv==0.5.11
+uv==0.5.14
 uvicorn==0.34.0
 uvloop==0.21.0
 vine==5.1.0
