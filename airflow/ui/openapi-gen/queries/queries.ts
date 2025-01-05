@@ -3034,42 +3034,6 @@ export const usePoolServicePostPool = <
     ...options,
   });
 /**
- * Post Pools
- * Create multiple pools.
- * @param data The data for the request.
- * @param data.requestBody
- * @returns PoolCollectionResponse Successful Response
- * @throws ApiError
- */
-export const usePoolServicePostPools = <
-  TData = Common.PoolServicePostPoolsMutationResult,
-  TError = unknown,
-  TContext = unknown,
->(
-  options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      {
-        requestBody: PoolPostBulkBody;
-      },
-      TContext
-    >,
-    "mutationFn"
-  >,
-) =>
-  useMutation<
-    TData,
-    TError,
-    {
-      requestBody: PoolPostBulkBody;
-    },
-    TContext
-  >({
-    mutationFn: ({ requestBody }) => PoolService.postPools({ requestBody }) as unknown as Promise<TData>,
-    ...options,
-  });
-/**
  * Post Variable
  * Create a variable.
  * @param data The data for the request.
@@ -3290,6 +3254,43 @@ export const useConnectionServicePutConnections = <
   >({
     mutationFn: ({ requestBody }) =>
       ConnectionService.putConnections({ requestBody }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Put Pools
+ * Create multiple pools.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns PoolCollectionResponse Created with overwriting
+ * @returns PoolCollectionResponse Created
+ * @throws ApiError
+ */
+export const usePoolServicePutPools = <
+  TData = Common.PoolServicePutPoolsMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: PoolPostBulkBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: PoolPostBulkBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) => PoolService.putPools({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**

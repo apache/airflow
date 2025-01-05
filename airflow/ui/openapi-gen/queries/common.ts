@@ -1616,7 +1616,6 @@ export type TaskInstanceServicePostClearTaskInstancesMutationResult = Awaited<
   ReturnType<typeof TaskInstanceService.postClearTaskInstances>
 >;
 export type PoolServicePostPoolMutationResult = Awaited<ReturnType<typeof PoolService.postPool>>;
-export type PoolServicePostPoolsMutationResult = Awaited<ReturnType<typeof PoolService.postPools>>;
 export type VariableServicePostVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.postVariable>
 >;
@@ -1635,6 +1634,7 @@ export type BackfillServiceCancelBackfillMutationResult = Awaited<
 export type ConnectionServicePutConnectionsMutationResult = Awaited<
   ReturnType<typeof ConnectionService.putConnections>
 >;
+export type PoolServicePutPoolsMutationResult = Awaited<ReturnType<typeof PoolService.putPools>>;
 export type DagParsingServiceReparseDagFileMutationResult = Awaited<
   ReturnType<typeof DagParsingService.reparseDagFile>
 >;
