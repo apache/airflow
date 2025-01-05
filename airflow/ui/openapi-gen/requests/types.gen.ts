@@ -904,6 +904,7 @@ export type PoolPostBody = {
  */
 export type PoolPostBulkBody = {
   pools: Array<PoolPostBody>;
+  overwrite?: boolean | null;
 };
 
 /**
@@ -2068,11 +2069,11 @@ export type PostPoolData = {
 
 export type PostPoolResponse = PoolResponse;
 
-export type PostPoolsData = {
+export type PutPoolsData = {
   requestBody: PoolPostBulkBody;
 };
 
-export type PostPoolsResponse = PoolCollectionResponse;
+export type PutPoolsResponse = PoolCollectionResponse;
 
 export type GetProvidersData = {
   limit?: number;
@@ -4277,11 +4278,15 @@ export type $OpenApiTs = {
     };
   };
   "/public/pools/bulk": {
-    post: {
-      req: PostPoolsData;
+    put: {
+      req: PutPoolsData;
       res: {
         /**
-         * Successful Response
+         * Created with overwriting
+         */
+        200: PoolCollectionResponse;
+        /**
+         * Created
          */
         201: PoolCollectionResponse;
         /**

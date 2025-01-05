@@ -3999,12 +3999,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
   /public/pools/bulk:
-    post:
+    put:
       tags:
       - Pool
-      summary: Post Pools
+      summary: Put Pools
       description: Create multiple pools.
-      operationId: post_pools
+      operationId: put_pools
       requestBody:
         content:
           application/json:
@@ -4013,7 +4013,7 @@ paths:
         required: true
       responses:
         '201':
-          description: Successful Response
+          description: Created
           content:
             application/json:
               schema:
@@ -4036,6 +4036,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+        '200':
+          description: Created with overwriting
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolCollectionResponse'
         '422':
           description: Validation Error
           content:
@@ -8645,6 +8651,12 @@ components:
             $ref: '#/components/schemas/PoolPostBody'
           type: array
           title: Pools
+        overwrite:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Overwrite
+          default: false
       type: object
       required:
       - pools

@@ -160,8 +160,8 @@ import type {
   GetPoolsResponse,
   PostPoolData,
   PostPoolResponse,
-  PostPoolsData,
-  PostPoolsResponse,
+  PutPoolsData,
+  PutPoolsResponse,
   GetProvidersData,
   GetProvidersResponse,
   GetXcomEntryData,
@@ -2701,16 +2701,17 @@ export class PoolService {
   }
 
   /**
-   * Post Pools
+   * Put Pools
    * Create multiple pools.
    * @param data The data for the request.
    * @param data.requestBody
-   * @returns PoolCollectionResponse Successful Response
+   * @returns PoolCollectionResponse Created with overwriting
+   * @returns PoolCollectionResponse Created
    * @throws ApiError
    */
-  public static postPools(data: PostPoolsData): CancelablePromise<PostPoolsResponse> {
+  public static putPools(data: PutPoolsData): CancelablePromise<PutPoolsResponse> {
     return __request(OpenAPI, {
-      method: "POST",
+      method: "PUT",
       url: "/public/pools/bulk",
       body: data.requestBody,
       mediaType: "application/json",
