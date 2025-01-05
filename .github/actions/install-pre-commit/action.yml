@@ -42,7 +42,7 @@ runs:
         PRE_COMMIT_UV_VERSION: ${{inputs.pre-commit-uv-version}}
       run: |
         pip install uv==${{inputs.uv-version}} || true
-        uv tool install pre-commit==${PRE_COMMIT_VERSION} --with uv==${UV_VERSION} \
+        uv tool install pre-commit==${{inputs.pre-commit-version}} --with uv==${UV_VERSION} \
         --with pre-commit-uv==${PRE_COMMIT_UV_VERSION}
       working-directory: ${{ github.workspace }}
     # We need to use tar file with archive to restore all the permissions and symlinks
