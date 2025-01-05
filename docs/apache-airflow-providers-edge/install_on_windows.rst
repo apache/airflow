@@ -28,7 +28,7 @@ Install Edge Worker on Windows
     This is also especially true for Windows. The Edge Worker is only manually tested on Windows
     and the setup is not validated in CI. It is recommended to use Linux for Edge Worker. The
     Windows-based setup is only for testing at your own risk. It is also technically limited
-    due to Python OS restrictions and rather a PoC quality.
+    due to Python OS restrictions and rather a Proof-of-Concept quality.
 
 
 .. note::
@@ -81,7 +81,7 @@ To setup a instance of Edge Worker on Windows, you need to follow the steps belo
     airflow edge worker --concurrency 4 -q windows
 
 10. Note on logs: Per default the DAG Run ID is used as path in the log structure and per default the date and time
-    is contained in the Run ID. Unfortunaltey Windows fails with a colon (":") in a file or folder name and this also
+    is contained in the Run ID. Windows fails with a colon (":") in a file or folder name and this also
     the Edge Worker fails.
     Therefore you might consider changing the config ``AIRFLOW__LOGGING__LOG_FILENAME_TEMPLATE`` to avoid the colon.
     For example you could add the Jinja2 template replacement ``| replace(":", "-")`` to use other characters.
