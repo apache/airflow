@@ -162,7 +162,7 @@ jobs:
           CHICKEN_EGG_PROVIDERS: ${{ inputs.chicken-egg-providers }}
         run: >
           breeze release-management prepare-provider-packages
-          --package-format wheel "${CHICKEN_EGG_PROVIDERS}"
+          --package-format wheel ${CHICKEN_EGG_PROVIDERS}
         if: >
           inputs.upload-package-artifact == 'true' &&
           inputs.chicken-egg-providers != ''

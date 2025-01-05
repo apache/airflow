@@ -104,7 +104,7 @@ jobs:
         run: >
           breeze release-management prepare-provider-packages --include-not-ready-providers
           --package-format wheel --version-suffix-for-pypi dev0
-          "${CHICKEN_EGG_PROVIDERS}"
+          ${CHICKEN_EGG_PROVIDERS}
         if: inputs.chicken-egg-providers != ''
       - name: "PyPI constraints"
         shell: bash
@@ -114,7 +114,7 @@ jobs:
         run: >
           breeze release-management generate-constraints --run-in-parallel
           --airflow-constraints-mode constraints --answer yes
-          --chicken-egg-providers "${CHICKEN_EGG_PROVIDERS}" --parallelism 3
+          --chicken-egg-providers ${CHICKEN_EGG_PROVIDERS} --parallelism 3
       - name: "Dependency upgrade summary"
         shell: bash
         env:

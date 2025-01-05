@@ -172,12 +172,12 @@ jobs:
           CHICKEN_EGG_PROVIDERS: ${{ needs.build-info.outputs.chicken-egg-providers }}
         run: >
           breeze release-management release-prod-images
-          --dockerhub-repo ${REPOSITORY}
-          --airflow-version  ${AIRFLOW_VERSION}
+          --dockerhub-repo "${REPOSITORY}"
+          --airflow-version "${AIRFLOW_VERSION}"
           ${SKIP_LATEST}
           ${LIMIT_PLATFORM}
           --limit-python ${PYTHON_VERSION}
-          --chicken-egg-providers "${CHICKEN_EGG_PROVIDERS}"
+          --chicken-egg-providers ${CHICKEN_EGG_PROVIDERS}
       - name: >
           Release slim images: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
         env:
@@ -189,8 +189,8 @@ jobs:
           LIMIT_PLATFORM: ${{ needs.build-info.outputs.limitPlatform }}
         run: >
           breeze release-management release-prod-images
-          --dockerhub-repo ${REPOSITORY}
-          --airflow-version  ${AIRFLOW_VERSION}
+          --dockerhub-repo "${REPOSITORY}"
+          --airflow-version "${AIRFLOW_VERSION}"
           ${SKIP_LATEST}
           ${LIMIT_PLATFORM}
           --limit-python ${PYTHON_VERSION} --slim-images

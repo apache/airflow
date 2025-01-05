@@ -133,8 +133,8 @@ jobs:
         run: >
           breeze release-management verify-provider-packages
           --use-packages-from-dist
-          --package-format ${PACKAGE_FORMAT}
-          --use-airflow-version ${PACKAGE_FORMAT}
+          --package-format "${PACKAGE_FORMAT}"
+          --use-airflow-version "${PACKAGE_FORMAT}"
           --airflow-constraints-reference default
           --providers-constraints-location
           /files/constraints-${PYTHON_MAJOR_MINOR_VERSION}/constraints-source-providers-${PYTHON_MAJOR_MINOR_VERSION}.txt
@@ -146,7 +146,7 @@ jobs:
         run: >
           breeze release-management install-provider-packages
           --use-packages-from-dist
-          --package-format ${PACKAGE_FORMAT}
+          --package-format "${PACKAGE_FORMAT}"
           --use-airflow-version ${PACKAGE_FORMAT}
           --airflow-constraints-reference default
           --providers-constraints-location

@@ -280,7 +280,7 @@ jobs:
         env:
           DOCS_LIST_AS_STRING: ${{ inputs.docs-list-as-string }}
         run: >
-          breeze build-docs "$DOCS_LIST_AS_STRING" ${{ matrix.flag }}
+          breeze build-docs ${DOCS_LIST_AS_STRING} ${{ matrix.flag }}
       - name: "Save docs inventory cache"
         uses: apache/infrastructure-actions/stash/save@c94b890bbedc2fc61466d28e6bd9966bc6c6643c
         with:
@@ -346,7 +346,7 @@ jobs:
           DOCS_LIST_AS_STRING: ${{ inputs.docs-list-as-string }}
         run: >
           breeze release-management publish-docs --override-versioned --run-in-parallel
-          "$DOCS_LIST_AS_STRING"
+          ${DOCS_LIST_AS_STRING}
       - name: Check disk space available
         run: df -h
       - name: "Generate back references for providers"
