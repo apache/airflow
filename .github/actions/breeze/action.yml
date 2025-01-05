@@ -58,15 +58,3 @@ runs:
       run: breeze setup config --no-cheatsheet --no-asciiart
       env:
         AIRFLOW_SOURCES_ROOT: "${{ github.workspace }}"
-    - name: "Use uv "
-      shell: bash
-      run: breeze setup config --use-uv
-      env:
-        AIRFLOW_SOURCES_ROOT: "${{ github.workspace }}"
-      if: inputs.use-uv == 'true'
-    - name: "Don't use uv "
-      shell: bash
-      run: breeze setup config --no-use-uv
-      env:
-        AIRFLOW_SOURCES_ROOT: "${{ github.workspace }}"
-      if: inputs.use-uv != 'true'
