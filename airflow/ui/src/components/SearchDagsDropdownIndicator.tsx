@@ -22,9 +22,7 @@ import { FiSearch } from "react-icons/fi";
 
 import type { Option } from "./SearchDags";
 
-export const DropdownIndicator: React.FC<
-  DropdownIndicatorProps<Option, false>
-> = (props) => (
+export const DropdownIndicator: React.FC<DropdownIndicatorProps<Option, false>> = (props) => (
   <chakraComponents.DropdownIndicator {...props}>
     <FiSearch />
   </chakraComponents.DropdownIndicator>

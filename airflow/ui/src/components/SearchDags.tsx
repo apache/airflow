@@ -19,20 +19,13 @@
 import { Field } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AsyncSelect } from "chakra-react-select";
-import type {
-  OptionsOrGroups,
-  GroupBase,
-  OnChangeValue,
-} from "chakra-react-select";
+import type { OptionsOrGroups, GroupBase, OnChangeValue } from "chakra-react-select";
 import debounce from "debounce-promise";
 import { useNavigate } from "react-router-dom";
 
 import { UseDagServiceGetDagsKeyFn } from "openapi/queries";
 import { DagService } from "openapi/requests/services.gen";
-import type {
-  DAGCollectionResponse,
-  DAGResponse,
-} from "openapi/requests/types.gen";
+import type { DAGCollectionResponse, DAGResponse } from "openapi/requests/types.gen";
 
 import { DropdownIndicator } from "./SearchDagsDropdownIndicator";
 
