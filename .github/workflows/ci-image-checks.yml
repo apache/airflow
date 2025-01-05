@@ -228,7 +228,7 @@ jobs:
         with:
           python-version: ${{steps.breeze.outputs.host-python-version}}
       - name: "MyPy checks for ${{ matrix.mypy-check }}"
-        run: pre-commit run --color always --verbose --hook-stage manual ${{matrix.mypy-check}} --all-files
+        run: pre-commit run --color always --verbose --hook-stage manual "$MYPY_CHECK" --all-files
         env:
           VERBOSE: "false"
           COLUMNS: "250"
@@ -236,6 +236,7 @@ jobs:
           DEFAULT_BRANCH: ${{ inputs.branch }}
           RUFF_FORMAT: "github"
           INCLUDE_MYPY_VOLUME: "false"
+          MYPY_CHECK: ${{ matrix.mypy-check }}
 
   build-docs:
     timeout-minutes: 150
@@ -276,8 +277,10 @@ jobs:
           key: cache-docs-inventory-v1-${{ hashFiles('pyproject.toml') }}
         id: restore-docs-inventory-cache
       - name: "Building docs with ${{ matrix.flag }} flag"
+        env:
+          DOCS_LIST_AS_STRING: ${{ inputs.docs-list-as-string }}
         run: >
-          breeze build-docs ${{ inputs.docs-list-as-string }} ${{ matrix.flag }}
+          breeze build-docs ${DOCS_LIST_AS_STRING} ${{ matrix.flag }}
       - name: "Save docs inventory cache"
         uses: apache/infrastructure-actions/stash/save@c94b890bbedc2fc61466d28e6bd9966bc6c6643c
         with:
@@ -339,9 +342,11 @@ jobs:
           python: ${{ inputs.default-python-version }}
           use-uv: ${{ inputs.use-uv }}
       - name: "Publish docs"
+        env:
+          DOCS_LIST_AS_STRING: ${{ inputs.docs-list-as-string }}
         run: >
           breeze release-management publish-docs --override-versioned --run-in-parallel
-          ${{ inputs.docs-list-as-string }}
+          ${DOCS_LIST_AS_STRING}
       - name: Check disk space available
         run: df -h
       - name: "Generate back references for providers"

@@ -36,10 +36,14 @@ runs:
   steps:
     - name: Install pre-commit, uv, and pre-commit-uv
       shell: bash
+      env:
+        UV_VERSION: ${{inputs.uv-version}}
+        PRE_COMMIT_VERSION: ${{inputs.pre-commit-version}}
+        PRE_COMMIT_UV_VERSION: ${{inputs.pre-commit-uv-version}}
       run: |
-        pip install uv==${{inputs.uv-version}} || true
-        uv tool install pre-commit==${{inputs.pre-commit-version}} --with uv==${{inputs.uv-version}} \
-        --with pre-commit-uv==${{inputs.pre-commit-uv-version}}
+        pip install uv==${UV_VERSION} || true
+        uv tool install pre-commit==${PRE_COMMIT_VERSION} --with uv==${UV_VERSION} \
+        --with pre-commit-uv==${PRE_COMMIT_UV_VERSION}
       working-directory: ${{ github.workspace }}
     # We need to use tar file with archive to restore all the permissions and symlinks
     - name: "Delete ~.cache"
