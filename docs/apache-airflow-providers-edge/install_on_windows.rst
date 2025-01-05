@@ -20,31 +20,31 @@ Install Edge Worker on Windows
 
 .. note::
 
-    The Edge Provider Package is an experimental preview. Features and stability is limited
-    and needs to be improved over time. Target is to have full support in Airflow 3.
-    Once Airflow 3 support contains Edge Provider, maintenance of the Airflow 2 package will
-    be dis-continued.
+    The Edge Provider Package is an experimental preview. Features and stability are limited,
+    and need to be improved over time. The target is to achieve full support in Airflow 3.
+    Once the Edge Provider is fully supported in Airflow 3, maintenance of the Airflow 2 package will
+    be discontinued.
 
-    This is also especially true for Windows. The Edge Worker is only manually tested on Windows
+    This is also especially true for Windows. The Edge Worker has only been manually tested on Windows,
     and the setup is not validated in CI. It is recommended to use Linux for Edge Worker. The
-    Windows-based setup is only for testing at your own risk. It is also technically limited
-    due to Python OS restrictions and rather a Proof-of-Concept quality.
+    Windows-based setup is intended solely for testing at your own risk. It is technically limited
+    due to Python OS restrictions and if currently of Proof-of-Concept quality.
 
 
 .. note::
 
-    As of Airflow 2.10.3, the ``edge`` provider package is not included in normal release cycle.
-    Thus you can not directly install it via: ``pip install 'apache-airflow[edge]'`` as the dependency
-    can not be downloaded.
+    As of Airflow 2.10.4, the ``edge`` provider package is not included in normal release cycle.
+    Thus, it cannot be directly installed using: ``pip install 'apache-airflow[edge]'`` as the dependency
+    cannot be downloaded.
 
-    While it is in not-ready state, a wheel release package must be manually built from source tree
-    via ``breeze release-management prepare-provider-packages --include-not-ready-providers edge``..
+    While it is in a not-ready state, a wheel release package must be manually built from source tree
+    via ``breeze release-management prepare-provider-packages --include-not-ready-providers edge``.
 
 
 The setup was tested on Windows 10 with Python 3.12.8, 64-bit.
 To setup a instance of Edge Worker on Windows, you need to follow the steps below:
 
-1. Install Python 3.9 or higher (This document was written using Python 3.12.8, 64-bit)
+1. Install Python 3.9 or higher.
 2. Create an empty folder as base to start with. In our example it is ``C:\\Airflow``.
 3. Start Shell/Command Line in ``C:\\Airflow`` and create a new virtual environment via: ``python -m venv venv``
 4. Activate the virtual environment via: ``venv\\Scripts\\activate.bat``
