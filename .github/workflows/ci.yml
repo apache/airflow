@@ -223,6 +223,7 @@ jobs:
     needs: [build-info, build-ci-images]
     uses: ./.github/workflows/additional-ci-image-checks.yml
     permissions:
+      contents: read
       packages: write
     if: needs.build-info.outputs.canary-run == 'true'
     with:
