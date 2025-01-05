@@ -16,38 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Box,
-  Link,
-  createListCollection,
-  HStack,
-  type SelectValueChangeDetails,
-} from "@chakra-ui/react";
-
+import { Box, Link, createListCollection, HStack, type SelectValueChangeDetails } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useCallback, useState } from "react";
-import {
-  Link as RouterLink,
-  useParams,
-  useSearchParams,
-} from "react-router-dom";
+import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import { ClearTaskInstanceButton } from "src/components/Clear";
-import type {
-  TaskInstanceResponse,
-  TaskInstanceState,
-} from "openapi/requests/types.gen";
+import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
 import { Select, Status } from "src/components/ui";
-import {
-  SearchParamsKeys,
-  type SearchParamsKeysType,
-} from "src/constants/searchParams";
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { capitalize, getDuration } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
@@ -144,8 +127,7 @@ export const TaskInstances = () => {
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-start_date";
   const filteredState = searchParams.get(STATE_PARAM);
-  const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType =
-    SearchParamsKeys;
+  const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
 
   const [taskDisplayNamePattern, setTaskDisplayNamePattern] = useState(
     searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
@@ -183,22 +165,19 @@ export const TaskInstances = () => {
     setTaskDisplayNamePattern(value);
   };
 
-  const { data, error, isFetching, isLoading } =
-    useTaskInstanceServiceGetTaskInstances(
-      {
-        dagId,
-        dagRunId: runId,
-        limit: pagination.pageSize,
-        offset: pagination.pageIndex * pagination.pageSize,
-        orderBy,
-        state: filteredState === null ? undefined : [filteredState],
-        taskDisplayNamePattern: Boolean(taskDisplayNamePattern)
-          ? taskDisplayNamePattern
-          : undefined,
-      },
-      undefined,
-      { enabled: !isNaN(pagination.pageSize) },
-    );
+  const { data, error, isFetching, isLoading } = useTaskInstanceServiceGetTaskInstances(
+    {
+      dagId,
+      dagRunId: runId,
+      limit: pagination.pageSize,
+      offset: pagination.pageIndex * pagination.pageSize,
+      orderBy,
+      state: filteredState === null ? undefined : [filteredState],
+      taskDisplayNamePattern: Boolean(taskDisplayNamePattern) ? taskDisplayNamePattern : undefined,
+    },
+    undefined,
+    { enabled: !isNaN(pagination.pageSize) },
+  );
 
   return (
     <Box pt={4}>
@@ -209,19 +188,13 @@ export const TaskInstances = () => {
           onValueChange={handleStateChange}
           value={[filteredState ?? "all"]}
         >
-          <Select.Trigger
-            clearable
-            colorPalette="blue"
-            isActive={Boolean(filteredState)}
-          >
+          <Select.Trigger clearable colorPalette="blue" isActive={Boolean(filteredState)}>
             <Select.ValueText>
               {() =>
                 filteredState === null ? (
                   "All States"
                 ) : (
-                  <Status state={filteredState as TaskInstanceState}>
-                    {capitalize(filteredState)}
-                  </Status>
+                  <Status state={filteredState as TaskInstanceState}>{capitalize(filteredState)}</Status>
                 )
               }
             </Select.ValueText>
@@ -232,9 +205,7 @@ export const TaskInstances = () => {
                 {option.value === "all" ? (
                   option.label
                 ) : (
-                  <Status state={option.value as TaskInstanceState}>
-                    {option.label}
-                  </Status>
+                  <Status state={option.value as TaskInstanceState}>{option.label}</Status>
                 )}
               </Select.Item>
             ))}

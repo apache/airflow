@@ -42,10 +42,7 @@ export const SearchBar = ({
   onChange,
   placeHolder,
 }: Props) => {
-  const handleSearchChange = useDebouncedCallback(
-    (val: string) => onChange(val),
-    debounceDelay,
-  );
+  const handleSearchChange = useDebouncedCallback((val: string) => onChange(val), debounceDelay);
 
   const [value, setValue] = useState(defaultValue);
 
@@ -73,13 +70,7 @@ export const SearchBar = ({
             />
           ) : undefined}
           {Boolean(hideAdvanced) ? undefined : (
-            <Button
-              fontWeight="normal"
-              height="1.75rem"
-              variant="ghost"
-              width={140}
-              {...buttonProps}
-            >
+            <Button fontWeight="normal" height="1.75rem" variant="ghost" width={140} {...buttonProps}>
               Advanced Search
             </Button>
           )}
