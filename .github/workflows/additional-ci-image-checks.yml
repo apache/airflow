@@ -146,7 +146,10 @@ jobs:
         with:
           use-uv: ${{ inputs.use-uv }}
       - name: "Login to ghcr.io"
-        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+        env:
+          actor: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$actor" --password-stdin
       - name: "Check that image builds quickly"
         run: breeze shell --max-time 600 --platform "linux/amd64"
 

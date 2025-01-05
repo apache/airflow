@@ -24,8 +24,7 @@ inputs:
     default: "3.9"
   use-uv:
     description: 'Whether to use uv tool'
-    required: "true"
-    type: "string"
+    required: true
 outputs:
   host-python-version:
     description: Python version used in host

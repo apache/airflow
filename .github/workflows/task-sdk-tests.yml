@@ -87,5 +87,7 @@ jobs:
           uv tool install twine && twine check dist/*.whl
       - name: >
           Run unit tests for Airflow Task SDK:Python ${{ matrix.python-version }}
+        env:
+          PYTHON_VERSION: "${{ matrix.python-version }}"
         run: >
-          breeze testing task-sdk-tests --python "${{ matrix.python-version }}"
+          breeze testing task-sdk-tests --python "${PYTHON_VERSION}"

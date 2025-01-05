@@ -154,4 +154,5 @@ PRE_COMMIT_LIST = [
     "update-version",
     "validate-operators-init",
     "yamllint",
+    "zizmor",
 ]
