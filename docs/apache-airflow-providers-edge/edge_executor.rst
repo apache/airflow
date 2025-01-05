@@ -20,19 +20,19 @@ Edge Executor
 
 .. note::
 
-    The Edge Provider Package is an experimental preview. Features and stability is limited
-    and needs to be improved over time. Target is to have full support in Airflow 3.
-    Once Airflow 3 support contains Edge Provider, maintenance of the Airflow 2 package will
-    be dis-continued.
+    The Edge Provider Package is an experimental preview. Features and stability are limited,
+    and need to be improved over time. The target is to achieve full support in Airflow 3.
+    Once the Edge Provider is fully supported in Airflow 3, maintenance of the Airflow 2 package will
+    be discontinued.
 
 
 .. note::
 
-    As of Airflow 2.10.3, the ``edge`` provider package is not included in normal release cycle.
-    Thus you can not directly install it via: ``pip install 'apache-airflow[edge]'`` as the dependency
-    can not be downloaded.
+    As of Airflow 2.10.4, the ``edge`` provider package is not included in normal release cycle.
+    Thus, it cannot be directly installed using: ``pip install 'apache-airflow[edge]'`` as the dependency
+    cannot be downloaded.
 
-    While it is in not-ready state, a wheel release package must be manually built from source tree
+    While it is in a not-ready state, a wheel release package must be manually built from source tree
     via ``breeze release-management prepare-provider-packages --include-not-ready-providers edge``
     and then installed via pip or uv from the generated wheel file. like:
     ``pip install apache_airflow_providers_edge-<version>-py3-none-any.whl``.
