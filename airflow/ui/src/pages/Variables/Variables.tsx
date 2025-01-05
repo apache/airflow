@@ -33,6 +33,7 @@ import { Button, Tooltip } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { TrimText } from "src/utils/TrimText";
 
 import ImportVariablesButton from "./ImportVariablesButton";
 import AddVariableButton from "./ManageVariable/AddVariableButton";
@@ -63,14 +64,17 @@ const getColumns = ({
   },
   {
     accessorKey: "key",
+    cell: ({ row }) => <TrimText isClickable onClickContent={row.original} text={row.original.key} />,
     header: "Key",
   },
   {
     accessorKey: "value",
+    cell: ({ row }) => <TrimText showTooltip text={row.original.value} />,
     header: "Value",
   },
   {
     accessorKey: "description",
+    cell: ({ row }) => <TrimText showTooltip text={row.original.description} />,
     header: "Description",
   },
   {
