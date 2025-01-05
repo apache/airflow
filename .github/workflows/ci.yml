@@ -39,6 +39,7 @@ permissions:
   # denied error when attempting to just pull private image, changing the token permission to write solves the
   # issue. This is not dangerous, because if it is for "apache/airflow", only maintainers can push ci.yml
   # changes. If it is for a fork, then the token is read-only anyway.
+  packages: write  # zizmor: ignore[excessive-permissions]
 env:
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
