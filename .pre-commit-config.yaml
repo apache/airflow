@@ -328,7 +328,7 @@ repos:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
         types: [yaml]
-        files: \.github/.*$
+        files: \.github/workflows/.*$|\.github/actions/.*$
         require_serial: true
         entry: zizmor
   - repo: local
