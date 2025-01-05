@@ -114,8 +114,7 @@ jobs:
         run: >
           breeze release-management generate-constraints --run-in-parallel
           --airflow-constraints-mode constraints --answer yes
-          --chicken-egg-providers
-          ${CHICKEN_EGG_PROVIDERS} --parallelism 3
+          --chicken-egg-providers "${CHICKEN_EGG_PROVIDERS}" --parallelism 3
       - name: "Dependency upgrade summary"
         shell: bash
         env:
