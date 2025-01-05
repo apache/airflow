@@ -138,6 +138,10 @@ export type BaseInfoResponse = {
   status: string | null;
 };
 
+export type Body_import_variables = {
+  file: Blob | File;
+};
+
 /**
  * Request body for Clear Task Instances endpoint.
  */
@@ -227,6 +231,7 @@ export type ConnectionBody = {
  */
 export type ConnectionBulkBody = {
   connections: Array<ConnectionBody>;
+  overwrite?: boolean | null;
 };
 
 /**
@@ -581,11 +586,7 @@ export type DagRunTriggeredByType =
 /**
  * Class with DagRun types.
  */
-export type DagRunType =
-  | "backfill"
-  | "scheduled"
-  | "manual"
-  | "asset_triggered";
+export type DagRunType = "backfill" | "scheduled" | "manual" | "asset_triggered";
 
 /**
  * DAG schedule reference serializer for assets.
@@ -690,6 +691,47 @@ export type FastAPIAppResponse = {
 };
 
 /**
+ * DAG Run model for the Grid UI.
+ */
+export type GridDAGRunwithTIs = {
+  dag_run_id: string;
+  queued_at: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  state: DagRunState;
+  run_type: DagRunType;
+  data_interval_start: string | null;
+  data_interval_end: string | null;
+  version_number: string | null;
+  note: string | null;
+  task_instances: Array<GridTaskInstanceSummary>;
+};
+
+/**
+ * Response model for the Grid UI.
+ */
+export type GridResponse = {
+  dag_runs: Array<GridDAGRunwithTIs>;
+};
+
+/**
+ * Task Instance Summary model for the Grid UI.
+ */
+export type GridTaskInstanceSummary = {
+  task_id: string;
+  try_number: number;
+  start_date: string | null;
+  end_date: string | null;
+  queued_dttm: string | null;
+  child_states: {
+    [key: string]: number;
+  } | null;
+  task_count: number;
+  state: TaskInstanceState | null;
+  note: string | null;
+};
+
+/**
  * HTTPException Model used for error response.
  */
 export type HTTPExceptionResponse = {
@@ -775,15 +817,7 @@ export type NodeResponse = {
   label: string;
   tooltip?: string | null;
   setup_teardown_type?: "setup" | "teardown" | null;
-  type:
-    | "join"
-    | "task"
-    | "asset-condition"
-    | "asset"
-    | "asset-alias"
-    | "dag"
-    | "sensor"
-    | "trigger";
+  type: "join" | "task" | "asset-condition" | "asset" | "asset-alias" | "dag" | "sensor" | "trigger";
   operator?: string | null;
   asset_condition_type?: "or-gate" | "and-gate" | null;
 };
@@ -870,6 +904,7 @@ export type PoolPostBody = {
  */
 export type PoolPostBulkBody = {
   pools: Array<PoolPostBody>;
+  overwrite?: boolean | null;
 };
 
 /**
@@ -1242,7 +1277,7 @@ export type ValidationError = {
  */
 export type VariableBody = {
   key: string;
-  value: string | null;
+  value: string;
   description?: string | null;
 };
 
@@ -1259,8 +1294,18 @@ export type VariableCollectionResponse = {
  */
 export type VariableResponse = {
   key: string;
-  value: string | null;
+  value: string;
   description: string | null;
+  is_encrypted: boolean;
+};
+
+/**
+ * Import Variables serializer for responses.
+ */
+export type VariablesImportResponse = {
+  created_variable_keys: Array<string>;
+  import_count: number;
+  created_count: number;
 };
 
 /**
@@ -1524,6 +1569,22 @@ export type CancelBackfillData = {
 
 export type CancelBackfillResponse = BackfillResponse;
 
+export type GridDataData = {
+  dagId: string;
+  includeDownstream?: boolean;
+  includeUpstream?: boolean;
+  limit?: number;
+  logicalDateGte?: string | null;
+  logicalDateLte?: string | null;
+  offset?: number;
+  orderBy?: string;
+  root?: string | null;
+  runType?: Array<string>;
+  state?: Array<string>;
+};
+
+export type GridDataResponse = GridResponse;
+
 export type DeleteConnectionData = {
   connectionId: string;
 };
@@ -1558,11 +1619,11 @@ export type PostConnectionData = {
 
 export type PostConnectionResponse = ConnectionResponse;
 
-export type PostConnectionsData = {
+export type PutConnectionsData = {
   requestBody: ConnectionBulkBody;
 };
 
-export type PostConnectionsResponse = ConnectionCollectionResponse;
+export type PutConnectionsResponse = ConnectionCollectionResponse;
 
 export type TestConnectionData = {
   requestBody: ConnectionBody;
@@ -1606,9 +1667,7 @@ export type ClearDagRunData = {
   requestBody: DAGRunClearBody;
 };
 
-export type ClearDagRunResponse =
-  | TaskInstanceCollectionResponse
-  | DAGRunResponse;
+export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunResponse;
 
 export type GetDagRunsData = {
   dagId: string;
@@ -1815,8 +1874,7 @@ export type GetTaskInstanceDependenciesData = {
   taskId: string;
 };
 
-export type GetTaskInstanceDependenciesResponse =
-  TaskDependencyCollectionResponse;
+export type GetTaskInstanceDependenciesResponse = TaskDependencyCollectionResponse;
 
 export type GetTaskInstanceDependencies1Data = {
   dagId: string;
@@ -1825,8 +1883,7 @@ export type GetTaskInstanceDependencies1Data = {
   taskId: string;
 };
 
-export type GetTaskInstanceDependencies1Response =
-  TaskDependencyCollectionResponse;
+export type GetTaskInstanceDependencies1Response = TaskDependencyCollectionResponse;
 
 export type GetTaskInstanceTriesData = {
   dagId: string;
@@ -1835,8 +1892,7 @@ export type GetTaskInstanceTriesData = {
   taskId: string;
 };
 
-export type GetTaskInstanceTriesResponse =
-  TaskInstanceHistoryCollectionResponse;
+export type GetTaskInstanceTriesResponse = TaskInstanceHistoryCollectionResponse;
 
 export type GetMappedTaskInstanceTriesData = {
   dagId: string;
@@ -1845,8 +1901,7 @@ export type GetMappedTaskInstanceTriesData = {
   taskId: string;
 };
 
-export type GetMappedTaskInstanceTriesResponse =
-  TaskInstanceHistoryCollectionResponse;
+export type GetMappedTaskInstanceTriesResponse = TaskInstanceHistoryCollectionResponse;
 
 export type GetMappedTaskInstanceData = {
   dagId: string;
@@ -1920,16 +1975,14 @@ export type GetMappedTaskInstanceTryDetailsData = {
   taskTryNumber: number;
 };
 
-export type GetMappedTaskInstanceTryDetailsResponse =
-  TaskInstanceHistoryResponse;
+export type GetMappedTaskInstanceTryDetailsResponse = TaskInstanceHistoryResponse;
 
 export type PostClearTaskInstancesData = {
   dagId: string;
   requestBody: ClearTaskInstancesBody;
 };
 
-export type PostClearTaskInstancesResponse =
-  TaskInstanceReferenceCollectionResponse;
+export type PostClearTaskInstancesResponse = TaskInstanceReferenceCollectionResponse;
 
 export type GetLogData = {
   accept?: "application/json" | "text/plain" | "*/*";
@@ -2016,11 +2069,11 @@ export type PostPoolData = {
 
 export type PostPoolResponse = PoolResponse;
 
-export type PostPoolsData = {
+export type PutPoolsData = {
   requestBody: PoolPostBulkBody;
 };
 
-export type PostPoolsResponse = PoolCollectionResponse;
+export type PutPoolsResponse = PoolCollectionResponse;
 
 export type GetProvidersData = {
   limit?: number;
@@ -2101,6 +2154,13 @@ export type PostVariableData = {
 };
 
 export type PostVariableResponse = VariableResponse;
+
+export type ImportVariablesData = {
+  actionIfExists?: "overwrite" | "fail" | "skip";
+  formData: Body_import_variables;
+};
+
+export type ImportVariablesResponse = VariablesImportResponse;
 
 export type ReparseDagFileData = {
   fileToken: string;
@@ -2774,6 +2834,29 @@ export type $OpenApiTs = {
       };
     };
   };
+  "/ui/grid/{dag_id}": {
+    get: {
+      req: GridDataData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: GridResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
   "/public/connections/{connection_id}": {
     delete: {
       req: DeleteConnectionData;
@@ -2908,11 +2991,15 @@ export type $OpenApiTs = {
     };
   };
   "/public/connections/bulk": {
-    post: {
-      req: PostConnectionsData;
+    put: {
+      req: PutConnectionsData;
       res: {
         /**
-         * Successful Response
+         * Created with overwrite
+         */
+        200: ConnectionCollectionResponse;
+        /**
+         * Created
          */
         201: ConnectionCollectionResponse;
         /**
@@ -4191,11 +4278,15 @@ export type $OpenApiTs = {
     };
   };
   "/public/pools/bulk": {
-    post: {
-      req: PostPoolsData;
+    put: {
+      req: PutPoolsData;
       res: {
         /**
-         * Successful Response
+         * Created with overwriting
+         */
+        200: PoolCollectionResponse;
+        /**
+         * Created
          */
         201: PoolCollectionResponse;
         /**
@@ -4490,6 +4581,37 @@ export type $OpenApiTs = {
          * Validation Error
          */
         422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/variables/import": {
+    post: {
+      req: ImportVariablesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: VariablesImportResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
+        /**
+         * Unprocessable Entity
+         */
+        422: HTTPExceptionResponse;
       };
     };
   };

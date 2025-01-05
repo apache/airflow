@@ -134,7 +134,6 @@ PRE_COMMIT_LIST = [
     "update-black-version",
     "update-breeze-cmd-output",
     "update-breeze-readme-config-hash",
-    "update-build-dependencies",
     "update-chart-dependencies",
     "update-common-sql-api-stubs",
     "update-er-diagram",
@@ -142,7 +141,7 @@ PRE_COMMIT_LIST = [
     "update-in-the-wild-to-be-sorted",
     "update-inlined-dockerfile-scripts",
     "update-installed-providers-to-be-sorted",
-    "update-installers",
+    "update-installers-and-pre-commit",
     "update-local-yml-file",
     "update-migration-references",
     "update-openapi-spec-tags-to-be-sorted",
@@ -155,4 +154,5 @@ PRE_COMMIT_LIST = [
     "update-version",
     "validate-operators-init",
     "yamllint",
+    "zizmor",
 ]

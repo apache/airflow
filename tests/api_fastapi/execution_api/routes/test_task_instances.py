@@ -28,7 +28,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import State, TaskInstanceState, TerminalTIState
 
 from tests_common.test_utils.db import clear_db_runs, clear_rendered_ti_fields
 
@@ -234,7 +234,7 @@ class TestTIUpdateState:
         with mock.patch(
             "airflow.api_fastapi.common.db.common.Session.execute",
             side_effect=[
-                mock.Mock(one=lambda: ("running",)),  # First call returns "queued"
+                mock.Mock(one=lambda: ("running", 1, 0)),  # First call returns "queued"
                 SQLAlchemyError("Database error"),  # Second call raises an error
             ],
         ):
@@ -340,7 +340,105 @@ class TestTIUpdateState:
         assert trs[0].map_index == -1
         assert trs[0].duration == 129600
 
-    def test_ti_update_state_to_failed_table_check(self, client, session, create_task_instance):
+    @pytest.mark.parametrize(
+        ("retries", "expected_state"),
+        [
+            (0, State.FAILED),
+            (None, State.FAILED),
+            (3, State.UP_FOR_RETRY),
+        ],
+    )
+    def test_ti_update_state_to_failed_with_retries(
+        self, client, session, create_task_instance, retries, expected_state
+    ):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_retry",
+            state=State.RUNNING,
+        )
+
+        if retries is not None:
+            ti.max_tries = retries
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": TerminalTIState.FAILED,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.state == expected_state
+        assert ti.next_method is None
+        assert ti.next_kwargs is None
+
+    def test_ti_update_state_when_ti_is_restarting(self, client, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_when_ti_is_restarting",
+            state=State.RUNNING,
+        )
+        # update state to restarting
+        ti.state = State.RESTARTING
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": TerminalTIState.FAILED,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        ti = session.get(TaskInstance, ti.id)
+        # restarting is always retried
+        assert ti.state == State.UP_FOR_RETRY
+        assert ti.next_method is None
+        assert ti.next_kwargs is None
+
+    def test_ti_update_state_when_ti_has_higher_tries_than_retries(
+        self, client, session, create_task_instance
+    ):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_when_ti_has_higher_tries_than_retries",
+            state=State.RUNNING,
+        )
+        # two maximum tries defined, but third try going on
+        ti.max_tries = 2
+        ti.try_number = 3
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": TerminalTIState.FAILED,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        ti = session.get(TaskInstance, ti.id)
+        # all retries exhausted, marking as failed
+        assert ti.state == State.FAILED
+        assert ti.next_method is None
+        assert ti.next_kwargs is None
+
+    def test_ti_update_state_to_failed_without_retry_table_check(self, client, session, create_task_instance):
+        # we just want to fail in this test, no need to retry
         ti = create_task_instance(
             task_id="test_ti_update_state_to_failed_table_check",
             state=State.RUNNING,
@@ -351,7 +449,7 @@ class TestTIUpdateState:
         response = client.patch(
             f"/execution/task-instances/{ti.id}/state",
             json={
-                "state": State.FAILED,
+                "state": TerminalTIState.FAIL_WITHOUT_RETRY,
                 "end_date": DEFAULT_END_DATE.isoformat(),
             },
         )

@@ -81,14 +81,9 @@ const getDirection = (arrange: string) => {
   }
 };
 
-const formatElkEdge = (
-  edge: EdgeResponse,
-  font: string,
-  node?: NodeResponse,
-): FormattedEdge => ({
+const formatElkEdge = (edge: EdgeResponse, font: string, node?: NodeResponse): FormattedEdge => ({
   id: `${edge.source_id}-${edge.target_id}`,
-  isSetupTeardown:
-    edge.is_setup_teardown === null ? undefined : edge.is_setup_teardown,
+  isSetupTeardown: edge.is_setup_teardown === null ? undefined : edge.is_setup_teardown,
   // isSourceAsset: e.isSourceAsset,
   labels:
     edge.label === undefined || edge.label === null
@@ -142,12 +137,9 @@ const generateElkGraph = ({
   const formatChildNode = (node: NodeResponse): FormattedNode => {
     const isOpen = openGroupIds?.includes(node.id);
 
-    const childCount =
-      node.children?.filter((child) => child.type !== "join").length ?? 0;
+    const childCount = node.children?.filter((child) => child.type !== "join").length ?? 0;
     const childIds =
-      node.children === null || node.children === undefined
-        ? []
-        : getNestedChildIds(node.children);
+      node.children === null || node.children === undefined ? [] : getNestedChildIds(node.children);
 
     if (isOpen && node.children !== null && node.children !== undefined) {
       return {
@@ -156,17 +148,10 @@ const generateElkGraph = ({
         children: node.children.map(formatChildNode),
         edges: filteredEdges
           .filter((edge) => {
-            if (
-              childIds.includes(edge.source_id) &&
-              childIds.includes(edge.target_id)
-            ) {
+            if (childIds.includes(edge.source_id) && childIds.includes(edge.target_id)) {
               // Remove edge from array when we add it here
               filteredEdges = filteredEdges.filter(
-                (fe) =>
-                  !(
-                    fe.source_id === edge.source_id &&
-                    fe.target_id === edge.target_id
-                  ),
+                (fe) => !(fe.source_id === edge.source_id && fe.target_id === edge.target_id),
               );
 
               return true;
@@ -188,12 +173,7 @@ const generateElkGraph = ({
     if (!Boolean(isOpen) && node.children !== undefined) {
       filteredEdges = filteredEdges
         // Filter out internal group edges
-        .filter(
-          (fe) =>
-            !(
-              childIds.includes(fe.source_id) && childIds.includes(fe.target_id)
-            ),
-        )
+        .filter((fe) => !(childIds.includes(fe.source_id) && childIds.includes(fe.target_id)))
         // For external group edges, point to the group itself instead of a child node
         .map((fe) => ({
           ...fe,
@@ -252,18 +232,10 @@ type LayoutProps = {
   openGroupIds: Array<string>;
 } & StructureDataResponse;
 
-export const useGraphLayout = ({
-  arrange = "LR",
-  dagId,
-  edges,
-  nodes,
-  openGroupIds = [],
-}: LayoutProps) =>
+export const useGraphLayout = ({ arrange = "LR", dagId, edges, nodes, openGroupIds = [] }: LayoutProps) =>
   useQuery({
     queryFn: async () => {
-      const font = `bold 16px ${
-        globalThis.getComputedStyle(document.body).fontFamily
-      }`;
+      const font = `bold 16px ${globalThis.getComputedStyle(document.body).fontFamily}`;
       const elk = new ELK();
 
       // 1. Format graph data to pass for elk to process
@@ -285,8 +257,7 @@ export const useGraphLayout = ({
 
       // merge & dedupe edges
       const flatEdges = [...(data.edges ?? []), ...flattenedData.edges].filter(
-        (value, index, self) =>
-          index === self.findIndex((edge) => edge.id === value.id),
+        (value, index, self) => index === self.findIndex((edge) => edge.id === value.id),
       );
 
       const formattedEdges = formatFlowEdges({ edges: flatEdges });

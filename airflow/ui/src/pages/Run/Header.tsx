@@ -67,9 +67,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => (
       <Stat label="End">
         <Time datetime={dagRun.end_date} />
       </Stat>
-      <Stat label="Duration">
-        {getDuration(dagRun.start_date, dagRun.end_date)}s
-      </Stat>
+      <Stat label="Duration">{getDuration(dagRun.start_date, dagRun.end_date)}s</Stat>
     </SimpleGrid>
   </Box>
 );

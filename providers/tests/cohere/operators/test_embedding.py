@@ -23,7 +23,7 @@ from airflow.providers.cohere.operators.embedding import CohereEmbeddingOperator
 
 
 @patch("airflow.providers.cohere.hooks.cohere.CohereHook.get_connection")
-@patch("cohere.Client")
+@patch("cohere.ClientV2")
 def test_cohere_embedding_operator(cohere_client, get_connection):
     """
     Test Cohere client is getting called with the correct key and that
@@ -35,22 +35,24 @@ def test_cohere_embedding_operator(cohere_client, get_connection):
         embeddings = embedded_obj
 
     api_key = "test"
-    api_url = "http://some_host.com"
+    base_url = "http://some_host.com"
     timeout = 150
-    max_retries = 5
     texts = ["On Kernel-Target Alignment. We describe a family of global optimization procedures"]
+    request_options = None
 
-    get_connection.return_value = Connection(conn_type="cohere", password=api_key, host=api_url)
+    get_connection.return_value = Connection(conn_type="cohere", password=api_key, host=base_url)
     client_obj = MagicMock()
     cohere_client.return_value = client_obj
     client_obj.embed.return_value = resp
 
     op = CohereEmbeddingOperator(
-        task_id="embed", conn_id="some_conn", input_text=texts, timeout=timeout, max_retries=max_retries
+        task_id="embed",
+        conn_id="some_conn",
+        input_text=texts,
+        timeout=timeout,
+        request_options=request_options,
     )
 
     val = op.execute(context={})
-    cohere_client.assert_called_once_with(
-        api_key=api_key, api_url=api_url, timeout=timeout, max_retries=max_retries
-    )
+    cohere_client.assert_called_once_with(api_key=api_key, base_url=base_url, timeout=timeout)
     assert val == embedded_obj
