@@ -248,10 +248,7 @@ jobs:
     name: "Generate constraints"
     needs: [build-info, build-ci-images]
     uses: ./.github/workflows/generate-constraints.yml
-    if: >
-      needs.build-info.outputs.canary-run == 'true' ||
-      (needs.build-info.outputs.ci-image-build == 'true' &&
-      needs.build-info.outputs.only-new-ui-files != 'true')
+    if: needs.build-info.outputs.ci-image-build == 'true'
     with:
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
