@@ -327,6 +327,10 @@ repos:
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
+        types: [yaml]
+        files: \.github/.*$
+        require_serial: true
+        entry: zizmor
   - repo: local
     # Note that this is the 2nd "local" repo group in the .pre-commit-config.yaml file. This is because
     # we try to minimise the number of passes that must happen in order to apply some of the changes
