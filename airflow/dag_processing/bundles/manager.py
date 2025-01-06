@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
@@ -27,6 +26,8 @@ from airflow.utils.module_loading import import_string
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from sqlalchemy.orm import Session
 
     from airflow.dag_processing.bundles.base import BaseDagBundle
