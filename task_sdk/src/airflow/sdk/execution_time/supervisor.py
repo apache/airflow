@@ -889,7 +889,7 @@ def supervise(
         except OSError as e:
             log.warning("OSError while changing ownership of the log file. ", e)
 
-        pretty_logs = False
+        pretty_logs = True
         if pretty_logs:
             underlying_logger: WrappedLogger = structlog.WriteLogger(log_file.open("w", buffering=1))
         else:
