@@ -142,7 +142,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "statsd>=3.3.0",
     ],
     "uv": [
-        "uv>=0.5.5",
+        "uv>=0.5.14",
     ],
 }
 
@@ -258,7 +258,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "deepdiff>=8.1.1",
         "jmespath>=0.7.0",
         "kgb>=7.0.0",
-        "pytest-asyncio>=0.23.6",
+        "pytest-asyncio>=0.23.6,!=0.25.1",
         "pytest-cov>=4.1.0",
         "pytest-custom-exit-code>=0.3.0",
         "pytest-icdiff>=0.9",
@@ -411,7 +411,9 @@ DEPENDENCIES = [
     "pluggy>=1.5.0",
     "psutil>=5.8.0",
     "pydantic>=2.10.2",
-    "pygments>=2.0.1",
+    # Pygments 2.19.0 improperly renders .ini files with dictionaries as values
+    # See https://github.com/pygments/pygments/issues/2834
+    "pygments>=2.0.1,!=2.19.0",
     "pyjwt>=2.0.0",
     "python-daemon>=3.0.0",
     "python-dateutil>=2.7.0",

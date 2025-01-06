@@ -236,7 +236,8 @@ This setting can be configured in the Airflow chart at different levels:
   webserver:
     safeToEvict: true
 
-When using ``KubernetesExecutor``, ``workers.safeToEvict`` should be set to ``false`` to avoid them being removed before finishing.
+``workers.safeToEvict`` defaults to ``false``, and when using ``KubernetesExecutor``
+``workers.safeToEvict`` shouldn't be set to ``true`` or workers may be removed before finishing.
 
 Extending and customizing Airflow Image
 ---------------------------------------

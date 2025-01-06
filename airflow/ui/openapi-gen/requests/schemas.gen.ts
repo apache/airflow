@@ -877,6 +877,18 @@ export const $ConnectionBulkBody = {
       type: "array",
       title: "Connections",
     },
+    overwrite: {
+      anyOf: [
+        {
+          type: "boolean",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Overwrite",
+      default: false,
+    },
   },
   type: "object",
   required: ["connections"],
@@ -3755,6 +3767,18 @@ export const $PoolPostBulkBody = {
       type: "array",
       title: "Pools",
     },
+    overwrite: {
+      anyOf: [
+        {
+          type: "boolean",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Overwrite",
+      default: false,
+    },
   },
   type: "object",
   required: ["pools"],
@@ -5473,14 +5497,7 @@ export const $VariableBody = {
       title: "Key",
     },
     value: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "string",
       title: "Value",
     },
     description: {
@@ -5528,14 +5545,7 @@ export const $VariableResponse = {
       title: "Key",
     },
     value: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "string",
       title: "Value",
     },
     description: {

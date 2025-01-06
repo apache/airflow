@@ -832,6 +832,14 @@ class TestHandleRequest:
                 id="get_xcom_map_index",
             ),
             pytest.param(
+                GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
+                b'{"key":"test_key","value":null,"type":"XComResult"}\n',
+                "xcoms.get",
+                ("test_dag", "test_run", "test_task", "test_key", None),
+                XComResult(key="test_key", value=None, type="XComResult"),
+                id="get_xcom_not_found",
+            ),
+            pytest.param(
                 SetXCom(
                     dag_id="test_dag",
                     run_id="test_run",

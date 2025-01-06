@@ -42,6 +42,9 @@ runs:
         path: "/tmp/"
       if: contains(inputs.python-versions-list-as-string, inputs.python)
     - name: "Load CI image ${{ inputs.platform }}:${{ inputs.python }}"
-      run: breeze ci-image load --platform "${{ inputs.platform }}" --python "${{ inputs.python }}"
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        PYTHON: ${{ inputs.python }}
+      run: breeze ci-image load --platform "${PLATFORM}" --python "${PYTHON}"
       shell: bash
       if: contains(inputs.python-versions-list-as-string, inputs.python)

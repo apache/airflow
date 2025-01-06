@@ -512,6 +512,17 @@ class ShellParams:
                 _env, "AIRFLOW__CORE__EXECUTOR", "airflow.providers.edge.executors.edge_executor.EdgeExecutor"
             )
             _set_var(_env, "AIRFLOW__EDGE__API_ENABLED", "true")
+
+            # For testing Edge Worker on Windows... Default Run ID is having a colon (":") from the time which is
+            # made into the log path template, which then fails to be used in Windows. So we replace it with a dash
+            _set_var(
+                _env,
+                "AIRFLOW__LOGGING__LOG_FILENAME_TEMPLATE",
+                "dag_id={{ ti.dag_id }}/run_id={{ ti.run_id|replace(':', '-') }}/task_id={{ ti.task_id }}/"
+                "{% if ti.map_index >= 0 %}map_index={{ ti.map_index }}/{% endif %}"
+                "attempt={{ try_number|default(ti.try_number) }}.log",
+            )
+
             # Dev Airflow 3 runs API on FastAPI transitional
             port = 9091
             if self.use_airflow_version and self.use_airflow_version.startswith("2."):
