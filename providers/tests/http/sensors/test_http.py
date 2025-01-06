@@ -17,13 +17,20 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 from unittest import mock
 from unittest.mock import patch
 
+import cloudpickle
 import pytest
 import requests
 
-from airflow.exceptions import AirflowException, AirflowSensorTimeout, TaskDeferred
+from airflow.exceptions import (
+    AirflowException,
+    AirflowSensorTimeout,
+    ResponseCheckFailedException,
+    TaskDeferred,
+)
 from airflow.models.dag import DAG
 from airflow.providers.http.operators.http import HttpOperator
 from airflow.providers.http.sensors.http import HttpSensor
@@ -356,3 +363,69 @@ class TestHttpSensorAsync:
         with pytest.raises(TaskDeferred) as exc:
             task.execute({})
         assert isinstance(exc.value.trigger, HttpSensorTrigger), "Trigger is not a HttpTrigger"
+
+    @mock.patch("airflow.providers.http.sensors.http.HttpSensor.log")
+    def test_execute_complete_success_without_response_check(self, mock_log):
+        """
+        Test execute_complete when event status is 'success' and no response_check is provided.
+        """
+        task = HttpSensor(task_id="test_http_sensor", endpoint="/test")
+        context = mock.Mock()
+        success_event = {
+            "status": "success",
+            "response": base64.standard_b64encode(cloudpickle.dumps({"key": "value"})).decode("utf-8"),
+        }
+
+        task.response_check = None
+        task.execute_complete(context=context, event=success_event)
+        mock_log.info.assert_any_call("%s completed successfully.", task.task_id)
+
+    @mock.patch("airflow.providers.http.sensors.http.HttpSensor.log")
+    def test_execute_complete_success_with_response_check(self, mock_log):
+        """
+        Test execute_complete when event status is 'success' and response_check passes.
+        """
+        task = HttpSensor(task_id="test_http_sensor", endpoint="/test")
+        context = mock.Mock()
+        success_event = {
+            "status": "success",
+            "response": base64.standard_b64encode(cloudpickle.dumps({"key": "value"})).decode("utf-8"),
+        }
+
+        task.response_check = mock.Mock(return_value=True)
+        with mock.patch.object(task, "process_response", return_value=True) as mock_process_response:
+            task.execute_complete(context=context, event=success_event)
+            mock_process_response.assert_called_once_with(context=context, response={"key": "value"})
+            mock_log.info.assert_any_call("response_check condition is matched for %s", task.task_id)
+            mock_log.info.assert_any_call("%s completed successfully.", task.task_id)
+
+    def test_execute_complete_failure(self):
+        """
+        Test execute_complete when event status is 'failure'.
+        """
+        task = HttpSensor(task_id="test_http_sensor", endpoint="/test")
+        context = mock.Mock()
+        failure_event = {"status": "failure", "message": "An error occurred"}
+
+        with pytest.raises(AirflowException, match="Unexpected error in the operation: An error occurred"):
+            task.execute_complete(context=context, event=failure_event)
+
+    @mock.patch("airflow.providers.http.sensors.http.HttpSensor.log")
+    def test_execute_complete_response_check_failure(self, mock_log):
+        """
+        Test execute_complete when response_check fails.
+        """
+        task = HttpSensor(task_id="test_http_sensor", endpoint="/test")
+        context = mock.Mock()
+        success_event = {
+            "status": "success",
+            "response": base64.standard_b64encode(cloudpickle.dumps({"key": "value"})).decode("utf-8"),
+        }
+
+        task.response_check = mock.Mock(return_value=True)
+        with mock.patch.object(task, "process_response", return_value=False):
+            with pytest.raises(
+                ResponseCheckFailedException,
+                match="('response_check condition is not matched for %s', 'test_http_sensor')",
+            ):
+                task.execute_complete(context=context, event=success_event)
