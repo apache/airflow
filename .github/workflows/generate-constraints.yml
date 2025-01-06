@@ -99,22 +99,28 @@ jobs:
         # from the source code, not from the PyPI because they have apache-airflow>=X.Y.Z dependency
         # And when we prepare them from sources they will have apache-airflow>=X.Y.Z.dev0
         shell: bash
+        env:
+          CHICKEN_EGG_PROVIDERS: ${{ inputs.chicken-egg-providers }}
         run: >
           breeze release-management prepare-provider-packages --include-not-ready-providers
           --package-format wheel --version-suffix-for-pypi dev0
-          ${{ inputs.chicken-egg-providers }}
+          ${CHICKEN_EGG_PROVIDERS}
         if: inputs.chicken-egg-providers != ''
       - name: "PyPI constraints"
         shell: bash
         timeout-minutes: 25
+        env:
+          CHICKEN_EGG_PROVIDERS: ${{ inputs.chicken-egg-providers }}
         run: >
           breeze release-management generate-constraints --run-in-parallel
           --airflow-constraints-mode constraints --answer yes
-          --chicken-egg-providers "${{ inputs.chicken-egg-providers }}" --parallelism 3
+          --chicken-egg-providers "${CHICKEN_EGG_PROVIDERS}" --parallelism 3
       - name: "Dependency upgrade summary"
         shell: bash
+        env:
+          PYTHON_VERSIONS: ${{ env.PYTHON_VERSIONS }}
         run: |
-          for PYTHON_VERSION in ${{ env.PYTHON_VERSIONS }}; do
+          for PYTHON_VERSION in $PYTHON_VERSIONS; do
             echo "Summarizing Python $PYTHON_VERSION"
             cat "files/constraints-${PYTHON_VERSION}"/*.md >> $GITHUB_STEP_SUMMARY || true
           done

@@ -101,8 +101,10 @@ jobs:
           python: ${{ inputs.default-python-version }}
           use-uv: ${{ inputs.use-uv }}
       - name: "Integration: core ${{ matrix.integration }}"
+        env:
+          INTEGRATION: "${{ matrix.integration }}"
         # yamllint disable rule:line-length
-        run: ./scripts/ci/testing/run_integration_tests_with_retry.sh core "${{ matrix.integration }}"
+        run: ./scripts/ci/testing/run_integration_tests_with_retry.sh core "${INTEGRATION}"
       - name: "Post Tests success"
         uses: ./.github/actions/post_tests_success
         with:
@@ -148,7 +150,9 @@ jobs:
           python: ${{ inputs.default-python-version }}
           use-uv: ${{ inputs.use-uv }}
       - name: "Integration: providers ${{ matrix.integration }}"
-        run: ./scripts/ci/testing/run_integration_tests_with_retry.sh providers "${{ matrix.integration }}"
+        env:
+          INTEGRATION: "${{ matrix.integration }}"
+        run: ./scripts/ci/testing/run_integration_tests_with_retry.sh providers "${INTEGRATION}"
       - name: "Post Tests success"
         uses: ./.github/actions/post_tests_success
         with:

@@ -1,0 +1,52 @@
+{
+    "kind": "bigquery#job",
+    "etag": "AbKXChCUwE1fgklx3toVRA==",
+    "id": "job_5f02bb13d96f64be13effec4ad23ee66",
+    "selfLink": "https://bigquery.googleapis.com/bigquery/v2/projects/airflow-openlineage/jobs/job_5f02bb13d96f64be13effec4ad23ee66?location=EU",
+    "user_email": "svc-account@airflow-openlineage.iam.gserviceaccount.com",
+    "configuration": {
+        "copy": {
+            "sourceTables": [
+                {
+                    "projectId": "airflow-openlineage",
+                    "datasetId": "new_dataset",
+                    "tableId": "copy_job_source"
+                },
+                {
+                    "projectId": "airflow-openlineage",
+                    "datasetId": "new_dataset",
+                    "tableId": "copy_job_source2"
+                }
+            ],
+            "destinationTable": {
+                "projectId": "airflow-openlineage",
+                "datasetId": "new_dataset",
+                "tableId": "copy_job_result"
+            },
+            "writeDisposition": "WRITE_TRUNCATE",
+            "operationType": "COPY"
+        },
+        "jobType": "COPY"
+    },
+    "jobReference": {
+        "projectId": "airflow-openlineage",
+        "jobId": "job_5f02bb13d96f64be13effec4ad23ee66",
+        "location": "EU"
+    },
+    "statistics": {
+        "creationTime": 1734541406502.0,
+        "startTime": 1734541406646.0,
+        "endTime": 1734541408159.0,
+        "copy": {
+            "copiedRows": "20",
+            "copiedLogicalBytes": "3800"
+        }
+    },
+    "status": {
+        "state": "DONE"
+    },
+    "principal_subject": "serviceAccount:svc-account@airflow-openlineage.iam.gserviceaccount.com",
+    "jobCreationReason": {
+        "code": "REQUESTED"
+    }
+}

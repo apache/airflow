@@ -988,27 +988,54 @@ class TestSchedulerServiceAccount:
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
-    def test_default_automount_service_account_token(self):
+    @pytest.mark.parametrize(
+        "executor, default_automount_service_account",
+        [
+            ("LocalExecutor", None),
+            ("CeleryExecutor", True),
+            ("CeleryKubernetesExecutor", None),
+            ("KubernetesExecutor", None),
+            ("LocalKubernetesExecutor", None),
+        ],
+    )
+    def test_default_automount_service_account_token(self, executor, default_automount_service_account):
         docs = render_chart(
             values={
                 "scheduler": {
                     "serviceAccount": {"create": True},
                 },
+                "executor": executor,
             },
             show_only=["templates/scheduler/scheduler-serviceaccount.yaml"],
         )
-        assert jmespath.search("automountServiceAccountToken", docs[0]) is True
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is default_automount_service_account
 
-    def test_overridden_automount_service_account_token(self):
+    @pytest.mark.parametrize(
+        "executor, automount_service_account, should_automount_service_account",
+        [
+            ("LocalExecutor", True, None),
+            ("CeleryExecutor", False, False),
+            ("CeleryKubernetesExecutor", False, None),
+            ("KubernetesExecutor", False, None),
+            ("LocalKubernetesExecutor", False, None),
+        ],
+    )
+    def test_overridden_automount_service_account_token(
+        self, executor, automount_service_account, should_automount_service_account
+    ):
         docs = render_chart(
             values={
                 "scheduler": {
-                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                    "serviceAccount": {
+                        "create": True,
+                        "automountServiceAccountToken": automount_service_account,
+                    },
                 },
+                "executor": executor,
             },
             show_only=["templates/scheduler/scheduler-serviceaccount.yaml"],
         )
-        assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is should_automount_service_account
 
 
 class TestSchedulerCreation:

@@ -458,11 +458,11 @@ export const reactRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
     [`${reactNamespace}/jsx-key`]: ERROR,
 
     /**
-     * Enforce JSX maximum depth to 5.
+     * Enforce JSX maximum depth to 7.
      *
      * @see [react/jsx-max-depth](https://github.com/jsx-eslint/eslint-plugin-react/blob/HEAD/docs/rules/jsx-max-depth.md)
      */
-    [`${reactNamespace}/jsx-max-depth`]: [ERROR, { max: 5 }],
+    [`${reactNamespace}/jsx-max-depth`]: [ERROR, { max: 7 }],
 
     /**
      * Disallow comments from being inserted as text nodes.

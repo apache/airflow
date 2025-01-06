@@ -83,3 +83,4 @@ class PoolPostBulkBody(BaseModel):
     """Pools serializer for post bodies."""
 
     pools: list[PoolPostBody]
+    overwrite: bool | None = Field(default=False)

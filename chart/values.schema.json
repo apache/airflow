@@ -1093,6 +1093,11 @@
                     "description": "Enable ``AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST`` variable to be read from the Elasticsearch Host Secret - Airflow <1.10.4 variant",
                     "type": "boolean",
                     "default": true
+                },
+                "AIRFLOW__OPENSEARCH__HOST": {
+                    "description": "Enable ``AIRFLOW__OPENSEARCH__HOST`` variable to be read from the OpenSearch Host Secret",
+                    "type": "boolean",
+                    "default": true
                 }
             }
         },
@@ -1483,7 +1488,7 @@
                     "default": "airflow@FOO.COM"
                 },
                 "reinitFrequency": {
-                    "description": "How often (in seconds) airflow kerberos will reinitialize the credentials cache.",
+                    "description": "How often (in minutes) airflow kerberos will reinitialize the credentials cache.",
                     "type": "integer",
                     "default": 3600
                 },
@@ -8002,6 +8007,69 @@
                 },
                 "connection": {
                     "description": "Elasticsearch connection configuration.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": false,
+                    "properties": {
+                        "scheme": {
+                            "description": "Scheme",
+                            "type": "string",
+                            "default": "http"
+                        },
+                        "user": {
+                            "description": "Username",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "pass": {
+                            "description": "Password",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "host": {
+                            "description": "Host",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "port": {
+                            "description": "Port",
+                            "type": "number",
+                            "default": 80
+                        }
+                    },
+                    "examples": [
+                        {
+                            "scheme": "https",
+                            "user": "...",
+                            "pass": "...",
+                            "host": "...",
+                            "port": "..."
+                        }
+                    ]
+                }
+            }
+        },
+        "opensearch": {
+            "description": "OpenSearch logging configuration.",
+            "type": "object",
+            "x-docsSection": "Airflow",
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {
+                    "description": "Enable OpenSearch task logging.",
+                    "type": "boolean",
+                    "default": false
+                },
+                "secretName": {
+                    "description": "A secret containing the connection string.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
+                "connection": {
+                    "description": "OpenSearch connection configuration.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": false,

@@ -3089,3 +3089,21 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 200, response.text
         assert response.json()["note"] == new_note_value
+
+    @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
+    def test_should_raise_409_for_updating_same_task_instance_state(
+        self, mock_set_ti_state, test_client, session
+    ):
+        self.create_task_instances(session)
+
+        mock_set_ti_state.return_value = None
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "dry_run": False,
+                "new_state": "success",
+            },
+        )
+        assert response.status_code == 409
+        assert "Task id print_the_context is already in success state" in response.text

@@ -2748,43 +2748,6 @@ export const useConnectionServicePostConnection = <
     ...options,
   });
 /**
- * Post Connections
- * Create connection entry.
- * @param data The data for the request.
- * @param data.requestBody
- * @returns ConnectionCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useConnectionServicePostConnections = <
-  TData = Common.ConnectionServicePostConnectionsMutationResult,
-  TError = unknown,
-  TContext = unknown,
->(
-  options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      {
-        requestBody: ConnectionBulkBody;
-      },
-      TContext
-    >,
-    "mutationFn"
-  >,
-) =>
-  useMutation<
-    TData,
-    TError,
-    {
-      requestBody: ConnectionBulkBody;
-    },
-    TContext
-  >({
-    mutationFn: ({ requestBody }) =>
-      ConnectionService.postConnections({ requestBody }) as unknown as Promise<TData>,
-    ...options,
-  });
-/**
  * Test Connection
  * Test an API connection.
  *
@@ -3071,42 +3034,6 @@ export const usePoolServicePostPool = <
     ...options,
   });
 /**
- * Post Pools
- * Create multiple pools.
- * @param data The data for the request.
- * @param data.requestBody
- * @returns PoolCollectionResponse Successful Response
- * @throws ApiError
- */
-export const usePoolServicePostPools = <
-  TData = Common.PoolServicePostPoolsMutationResult,
-  TError = unknown,
-  TContext = unknown,
->(
-  options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      {
-        requestBody: PoolPostBulkBody;
-      },
-      TContext
-    >,
-    "mutationFn"
-  >,
-) =>
-  useMutation<
-    TData,
-    TError,
-    {
-      requestBody: PoolPostBulkBody;
-    },
-    TContext
-  >({
-    mutationFn: ({ requestBody }) => PoolService.postPools({ requestBody }) as unknown as Promise<TData>,
-    ...options,
-  });
-/**
  * Post Variable
  * Create a variable.
  * @param data The data for the request.
@@ -3289,6 +3216,81 @@ export const useBackfillServiceCancelBackfill = <
   >({
     mutationFn: ({ backfillId }) =>
       BackfillService.cancelBackfill({ backfillId }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Put Connections
+ * Create connection entry.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns ConnectionCollectionResponse Created with overwrite
+ * @returns ConnectionCollectionResponse Created
+ * @throws ApiError
+ */
+export const useConnectionServicePutConnections = <
+  TData = Common.ConnectionServicePutConnectionsMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: ConnectionBulkBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: ConnectionBulkBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      ConnectionService.putConnections({ requestBody }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Put Pools
+ * Create multiple pools.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns PoolCollectionResponse Created with overwriting
+ * @returns PoolCollectionResponse Created
+ * @throws ApiError
+ */
+export const usePoolServicePutPools = <
+  TData = Common.PoolServicePutPoolsMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: PoolPostBulkBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: PoolPostBulkBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) => PoolService.putPools({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
