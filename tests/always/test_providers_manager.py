@@ -446,7 +446,8 @@ class TestProviderManager:
     def test_dialects(self):
         provider_manager = ProvidersManager()
         dialect_class_names = list(provider_manager.dialects)
-        assert len(dialect_class_names) == 0
+        assert len(dialect_class_names) == 3
+        assert dialect_class_names == ["default", "mssql", "postgresql"]
 
     @patch("airflow.providers_manager.import_string")
     def test_optional_feature_no_warning(self, mock_importlib_import_string):

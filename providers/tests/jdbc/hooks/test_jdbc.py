@@ -44,17 +44,27 @@ logger = logging.getLogger(__name__)
 def get_hook(
     hook_params=None,
     conn_params=None,
+    conn_type: str | None = None,
     login: str | None = "login",
     password: str | None = "password",
     host: str | None = "host",
     schema: str | None = "schema",
     port: int | None = 1234,
+    uri: str | None = None,
 ):
     hook_params = hook_params or {}
     conn_params = conn_params or {}
     connection = Connection(
         **{
-            **dict(login=login, password=password, host=host, schema=schema, port=port),
+            **dict(
+                conn_type=conn_type,
+                login=login,
+                password=password,
+                host=host,
+                schema=schema,
+                port=port,
+                uri=uri,
+            ),
             **conn_params,
         }
     )
@@ -250,6 +260,19 @@ class TestJdbcHook:
             jdbc_hook.get_conn = lambda: connection
             engine = jdbc_hook.get_sqlalchemy_engine()
             assert engine.connect().connection.connection == connection
+
+    def test_dialect_name(self):
+        jdbc_hook = get_hook(
+            conn_params=dict(extra={"sqlalchemy_scheme": "hana"}),
+            conn_type="jdbc",
+            login=None,
+            password=None,
+            host="localhost",
+            schema="sap",
+            port=30215,
+        )
+
+        assert jdbc_hook.dialect_name == "hana"
 
     def test_get_conn_thread_safety(self):
         mock_conn = MagicMock()

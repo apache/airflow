@@ -23,6 +23,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from google.cloud.bigquery.table import Table
 from google.cloud.dataproc_v1 import Batch, RuntimeConfig
+from openlineage.client.facet_v2 import column_lineage_dataset
 
 from airflow.providers.common.compat.openlineage.facet import (
     ColumnLineageDatasetFacet,
@@ -45,8 +46,11 @@ from airflow.providers.google.cloud.openlineage.utils import (
     extract_ds_name_from_gcs_path,
     get_facets_from_bq_table,
     get_identity_column_lineage_facet,
+    get_namespace_name_from_source_uris,
     inject_openlineage_properties_into_dataproc_batch,
     inject_openlineage_properties_into_dataproc_job,
+    inject_openlineage_properties_into_dataproc_workflow_template,
+    merge_column_lineage_facets,
 )
 
 TEST_DATASET = "test-dataset"
@@ -89,6 +93,135 @@ class TableMock(MagicMock):
     @property
     def _properties(self):
         return self.inputs.pop()
+
+
+def test_merge_column_lineage_facets():
+    result = merge_column_lineage_facets(
+        [
+            ColumnLineageDatasetFacet(
+                fields={
+                    "c": Fields(
+                        inputFields=[
+                            InputField(
+                                "bigquery",
+                                "a.b.1",
+                                "c",
+                                [
+                                    column_lineage_dataset.Transformation(
+                                        "type", "some_subtype", "desc", False
+                                    )
+                                ],
+                            )
+                        ],
+                        transformationType="IDENTITY",
+                        transformationDescription="IDENTICAL",
+                    ),
+                    "d": Fields(
+                        inputFields=[
+                            InputField(
+                                "bigquery",
+                                "a.b.2",
+                                "d",
+                                [column_lineage_dataset.Transformation("t", "s", "d", False)],
+                            )
+                        ],
+                        transformationType="",
+                        transformationDescription="",
+                    ),
+                }
+            ),
+            ColumnLineageDatasetFacet(
+                fields={
+                    "c": Fields(
+                        inputFields=[
+                            InputField(
+                                "bigquery",
+                                "a.b.3",
+                                "x",
+                                [
+                                    column_lineage_dataset.Transformation(
+                                        "another_type", "different_subtype", "example", True
+                                    )
+                                ],
+                            ),
+                            InputField(
+                                "bigquery",
+                                "a.b.1",
+                                "c",
+                                [
+                                    column_lineage_dataset.Transformation(
+                                        "diff_type", "diff_subtype", "diff", True
+                                    )
+                                ],
+                            ),
+                        ],
+                        transformationType="",
+                        transformationDescription="",
+                    ),
+                    "e": Fields(
+                        inputFields=[InputField("bigquery", "a.b.1", "e")],
+                        transformationType="IDENTITY",
+                        transformationDescription="IDENTICAL",
+                    ),
+                }
+            ),
+            ColumnLineageDatasetFacet(
+                fields={
+                    "c": Fields(
+                        inputFields=[InputField("bigquery", "a.b.3", "x")],
+                        transformationType="",
+                        transformationDescription="",
+                    )
+                }
+            ),
+        ]
+    )
+    assert result == ColumnLineageDatasetFacet(
+        fields={
+            "c": Fields(
+                inputFields=[
+                    InputField(
+                        "bigquery",
+                        "a.b.1",
+                        "c",
+                        [
+                            column_lineage_dataset.Transformation("type", "some_subtype", "desc", False),
+                            column_lineage_dataset.Transformation("diff_type", "diff_subtype", "diff", True),
+                        ],
+                    ),
+                    InputField(
+                        "bigquery",
+                        "a.b.3",
+                        "x",
+                        [
+                            column_lineage_dataset.Transformation(
+                                "another_type", "different_subtype", "example", True
+                            )
+                        ],
+                    ),
+                ],
+                transformationType="",
+                transformationDescription="",
+            ),
+            "d": Fields(
+                inputFields=[
+                    InputField(
+                        "bigquery",
+                        "a.b.2",
+                        "d",
+                        [column_lineage_dataset.Transformation("t", "s", "d", False)],
+                    )
+                ],
+                transformationType="",
+                transformationDescription="",
+            ),
+            "e": Fields(
+                inputFields=[InputField("bigquery", "a.b.1", "e")],
+                transformationType="",
+                transformationDescription="",
+            ),
+        }
+    )
 
 
 def test_get_facets_from_bq_table():
@@ -698,3 +831,153 @@ def test_inject_openlineage_properties_into_dataproc_batch(mock_is_ol_accessible
     }
     result = inject_openlineage_properties_into_dataproc_batch(batch, context, True)
     assert result == expected_batch
+
+
+@pytest.mark.parametrize(
+    "input_uris, expected_output",
+    [
+        (["gs://bucket/blob"], {("gs://bucket", "/")}),
+        (["gs://bucket/blob/*"], {("gs://bucket", "blob")}),
+        (
+            [
+                "https://googleapis.com/bigtable/projects/project/instances/instance/appProfiles/profile/tables/table",
+                "https://googleapis.com/bigtable/projects/project/instances/instance/tables/table",
+            ],
+            {("bigtable://project/instance", "table"), ("bigtable://project/instance", "table")},
+        ),
+        (
+            [
+                "gs://bucket/blob",
+                "https://googleapis.com/bigtable/projects/project/instances/instance/tables/table",
+                "invalid_uri",
+            ],
+            {("gs://bucket", "/"), ("bigtable://project/instance", "table")},
+        ),
+        ([], set()),
+        (["invalid_uri"], set()),
+    ],
+)
+def test_get_namespace_name_from_source_uris(input_uris, expected_output):
+    assert get_namespace_name_from_source_uris(input_uris) == expected_output
+
+
+@patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
+def test_inject_openlineage_properties_into_dataproc_workflow_template_provider_not_accessible(
+    mock_is_accessible,
+):
+    mock_is_accessible.return_value = False
+    template = {"workflow": "template"}  # It does not matter what the dict is, we should return it unmodified
+    result = inject_openlineage_properties_into_dataproc_workflow_template(template, None, True)
+    assert result == template
+
+
+@patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
+@patch("airflow.providers.google.cloud.openlineage.utils._extract_supported_job_type_from_dataproc_job")
+def test_inject_openlineage_properties_into_dataproc_workflow_template_no_inject_parent_job_info(
+    mock_extract_job_type, mock_is_accessible
+):
+    mock_is_accessible.return_value = True
+    mock_extract_job_type.return_value = "sparkJob"
+    inject_parent_job_info = False
+    template = {"workflow": "template"}  # It does not matter what the dict is, we should return it unmodified
+    result = inject_openlineage_properties_into_dataproc_workflow_template(
+        template, None, inject_parent_job_info
+    )
+    assert result == template
+
+
+@patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
+def test_inject_openlineage_properties_into_dataproc_workflow_template(mock_is_ol_accessible):
+    mock_is_ol_accessible.return_value = True
+    context = {
+        "ti": MagicMock(
+            dag_id="dag_id",
+            task_id="task_id",
+            try_number=1,
+            map_index=1,
+            logical_date=dt.datetime(2024, 11, 11),
+        )
+    }
+    template = {
+        "id": "test-workflow",
+        "placement": {
+            "cluster_selector": {
+                "zone": "europe-central2-c",
+                "cluster_labels": {"key": "value"},
+            }
+        },
+        "jobs": [
+            {
+                "step_id": "job_1",
+                "pyspark_job": {
+                    "main_python_file_uri": "gs://bucket1/spark_job.py",
+                    "properties": {
+                        "spark.sql.shuffle.partitions": "1",
+                    },
+                },
+            },
+            {
+                "step_id": "job_2",
+                "pyspark_job": {
+                    "main_python_file_uri": "gs://bucket2/spark_job.py",
+                    "properties": {
+                        "spark.sql.shuffle.partitions": "1",
+                        "spark.openlineage.parentJobNamespace": "test",
+                    },
+                },
+            },
+            {
+                "step_id": "job_3",
+                "hive_job": {
+                    "main_python_file_uri": "gs://bucket3/hive_job.py",
+                    "properties": {
+                        "spark.sql.shuffle.partitions": "1",
+                    },
+                },
+            },
+        ],
+    }
+    expected_template = {
+        "id": "test-workflow",
+        "placement": {
+            "cluster_selector": {
+                "zone": "europe-central2-c",
+                "cluster_labels": {"key": "value"},
+            }
+        },
+        "jobs": [
+            {
+                "step_id": "job_1",
+                "pyspark_job": {
+                    "main_python_file_uri": "gs://bucket1/spark_job.py",
+                    "properties": {  # Injected properties
+                        "spark.sql.shuffle.partitions": "1",
+                        "spark.openlineage.parentJobName": "dag_id.task_id",
+                        "spark.openlineage.parentJobNamespace": "default",
+                        "spark.openlineage.parentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+                    },
+                },
+            },
+            {
+                "step_id": "job_2",
+                "pyspark_job": {  # Not modified because it's already present
+                    "main_python_file_uri": "gs://bucket2/spark_job.py",
+                    "properties": {
+                        "spark.sql.shuffle.partitions": "1",
+                        "spark.openlineage.parentJobNamespace": "test",
+                    },
+                },
+            },
+            {
+                "step_id": "job_3",
+                "hive_job": {  # Not modified because it's unsupported job type
+                    "main_python_file_uri": "gs://bucket3/hive_job.py",
+                    "properties": {
+                        "spark.sql.shuffle.partitions": "1",
+                    },
+                },
+            },
+        ],
+    }
+    result = inject_openlineage_properties_into_dataproc_workflow_template(template, context, True)
+    assert result == expected_template

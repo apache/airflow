@@ -33,32 +33,18 @@ import { Line } from "react-chartjs-2";
 
 import { useColorMode } from "src/context/colorMode";
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Filler,
-  Tooltip,
-);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip);
 
 export type ChartEvent = { timestamp: string };
 
-const aggregateEventsIntoIntervals = (
-  events: Array<ChartEvent>,
-  startDate: string,
-  endDate: string,
-) => {
+const aggregateEventsIntoIntervals = (events: Array<ChartEvent>, startDate: string, endDate: string) => {
   const totalMinutes = dayjs(endDate).diff(startDate, "minutes");
   const intervalSize = Math.floor(totalMinutes / 10);
   const intervals = Array.from({ length: 10 }).fill(0) as Array<number>;
 
   events.forEach((event) => {
     const minutesSinceStart = dayjs(event.timestamp).diff(startDate, "minutes");
-    const intervalIndex = Math.min(
-      Math.floor(minutesSinceStart / intervalSize),
-      9,
-    );
+    const intervalIndex = Math.min(Math.floor(minutesSinceStart / intervalSize), 9);
 
     if (intervals[intervalIndex] !== undefined) {
       intervals[intervalIndex] += 1;

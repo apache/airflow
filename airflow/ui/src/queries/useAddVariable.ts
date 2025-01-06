@@ -19,18 +19,11 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import {
-  useVariableServiceGetVariablesKey,
-  useVariableServicePostVariable,
-} from "openapi/queries";
+import { useVariableServiceGetVariablesKey, useVariableServicePostVariable } from "openapi/queries";
 import { toaster } from "src/components/ui";
 import type { VariableBody } from "src/pages/Variables/ManageVariable/VariableForm";
 
-export const useAddVariable = ({
-  onSuccessConfirm,
-}: {
-  onSuccessConfirm: () => void;
-}) => {
+export const useAddVariable = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
 
@@ -59,9 +52,7 @@ export const useAddVariable = ({
 
   const addVariable = (variableRequestBody: VariableBody) => {
     const parsedDescription =
-      variableRequestBody.description === ""
-        ? undefined
-        : variableRequestBody.description;
+      variableRequestBody.description === "" ? undefined : variableRequestBody.description;
 
     mutate({
       requestBody: {

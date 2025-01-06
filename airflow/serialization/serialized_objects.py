@@ -1787,6 +1787,7 @@ class TaskGroupSerialization(BaseSerialization):
         # When calling json.dumps(self.data, sort_keys=True) to generate dag_hash, misjudgment will occur
         encoded = {
             "_group_id": task_group._group_id,
+            "group_display_name": task_group.group_display_name,
             "prefix_group_id": task_group.prefix_group_id,
             "tooltip": task_group.tooltip,
             "ui_color": task_group.ui_color,
@@ -1822,7 +1823,7 @@ class TaskGroupSerialization(BaseSerialization):
         group_id = cls.deserialize(encoded_group["_group_id"])
         kwargs = {
             key: cls.deserialize(encoded_group[key])
-            for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor"]
+            for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor", "group_display_name"]
         }
 
         if not encoded_group.get("is_mapped"):

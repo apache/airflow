@@ -28,12 +28,7 @@ type DagRunMetricsProps = {
   readonly total: number;
 };
 
-const DAGRUN_STATES: Array<keyof DAGRunStates> = [
-  "queued",
-  "running",
-  "success",
-  "failed",
-];
+const DAGRUN_STATES: Array<keyof DAGRunStates> = ["queued", "running", "success", "failed"];
 
 export const DagRunMetrics = ({ dagRunStates, total }: DagRunMetricsProps) => (
   <Box borderRadius={5} borderWidth={1} p={2}>
@@ -42,12 +37,7 @@ export const DagRunMetrics = ({ dagRunStates, total }: DagRunMetricsProps) => (
       <Heading size="md">Dag Runs</Heading>
     </HStack>
     {DAGRUN_STATES.map((state) => (
-      <MetricSection
-        key={state}
-        runs={dagRunStates[state]}
-        state={state}
-        total={total}
-      />
+      <MetricSection key={state} runs={dagRunStates[state]} state={state} total={total} />
     ))}
   </Box>
 );

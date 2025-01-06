@@ -27,6 +27,7 @@ import pytest
 from uuid6 import uuid7
 
 from airflow.exceptions import (
+    AirflowException,
     AirflowFailException,
     AirflowSensorTimeout,
     AirflowSkipException,
@@ -283,6 +284,126 @@ def test_run_raises_base_exception(time_machine, mocked_parse, make_ti_context, 
 
     run(ti, log=mock.MagicMock())
 
+    mock_supervisor_comms.send_request.assert_called_once_with(
+        msg=TaskState(
+            state=TerminalTIState.FAILED,
+            end_date=instant,
+        ),
+        log=mock.ANY,
+    )
+
+
+def test_run_raises_system_exit(time_machine, mocked_parse, make_ti_context, mock_supervisor_comms):
+    """Test running a basic task that exits with SystemExit exception."""
+    from airflow.providers.standard.operators.python import PythonOperator
+
+    task = PythonOperator(
+        task_id="system_exit_task",
+        python_callable=lambda: exit(10),
+    )
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="system_exit_task",
+            dag_id="basic_dag_system_exit",
+            run_id="c",
+            try_number=1,
+        ),
+        file="",
+        requests_fd=0,
+        ti_context=make_ti_context(),
+    )
+
+    ti = mocked_parse(what, "basic_dag_system_exit", task)
+
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
+
+    run(ti, log=mock.MagicMock())
+
+    mock_supervisor_comms.send_request.assert_called_once_with(
+        msg=TaskState(
+            state=TerminalTIState.FAILED,
+            end_date=instant,
+        ),
+        log=mock.ANY,
+    )
+
+
+def test_run_raises_airflow_exception(time_machine, mocked_parse, make_ti_context, mock_supervisor_comms):
+    """Test running a basic task that exits with AirflowException."""
+    from airflow.providers.standard.operators.python import PythonOperator
+
+    task = PythonOperator(
+        task_id="af_exception_task",
+        python_callable=lambda: (_ for _ in ()).throw(
+            AirflowException("Oops! I am failing with AirflowException!"),
+        ),
+    )
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="af_exception_task",
+            dag_id="basic_dag_af_exception",
+            run_id="c",
+            try_number=1,
+        ),
+        file="",
+        requests_fd=0,
+        ti_context=make_ti_context(),
+    )
+
+    ti = mocked_parse(what, "basic_dag_af_exception", task)
+
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
+
+    run(ti, log=mock.MagicMock())
+
+    mock_supervisor_comms.send_request.assert_called_once_with(
+        msg=TaskState(
+            state=TerminalTIState.FAILED,
+            end_date=instant,
+        ),
+        log=mock.ANY,
+    )
+
+
+def test_run_task_timeout(time_machine, mocked_parse, make_ti_context, mock_supervisor_comms):
+    """Test running a basic task that times out."""
+    from time import sleep
+
+    from airflow.providers.standard.operators.python import PythonOperator
+
+    task = PythonOperator(
+        task_id="sleep",
+        execution_timeout=timedelta(milliseconds=10),
+        python_callable=lambda: sleep(2),
+    )
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="sleep",
+            dag_id="basic_dag_time_out",
+            run_id="c",
+            try_number=1,
+        ),
+        file="",
+        requests_fd=0,
+        ti_context=make_ti_context(),
+    )
+
+    ti = mocked_parse(what, "basic_dag_time_out", task)
+
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
+
+    run(ti, log=mock.MagicMock())
+
+    # this state can only be reached if the try block passed down the exception to handler of AirflowTaskTimeout
     mock_supervisor_comms.send_request.assert_called_once_with(
         msg=TaskState(
             state=TerminalTIState.FAILED,

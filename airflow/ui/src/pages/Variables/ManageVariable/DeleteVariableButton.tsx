@@ -63,16 +63,14 @@ const DeleteVariableButton = ({ deleteKey: variableKey }: Props) => {
         <Dialog.Content backdrop>
           <Dialog.Header>
             <VStack align="start" gap={4}>
-              <Heading size="xl">Delete Variable - {variableKey} </Heading>
+              <Heading size="xl">Delete Variable</Heading>
             </VStack>
           </Dialog.Header>
 
           <Dialog.CloseTrigger />
 
           <Dialog.Body width="full">
-            <Text>
-              Are you sure you want to delete the variable key: `{variableKey}`?
-            </Text>
+            <Text>Are you sure you want to delete the variable key: `{variableKey}`?</Text>
             <Flex justifyContent="end" mt={3}>
               {renderDeleteButton()}
             </Flex>
