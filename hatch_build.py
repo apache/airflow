@@ -413,7 +413,7 @@ DEPENDENCIES = [
     "pydantic>=2.10.2",
     # Pygments 2.19.0 improperly renders .ini files with dictionaries as values
     # See https://github.com/pygments/pygments/issues/2834
-    "pygments>=2.0.1,!=2.19.0",
+    "pygments @ git+https://github.com/pygments/pygments.git@a9858663ed85219ed7475f5877b22b9cb49f660f",
     "pyjwt>=2.0.0",
     "python-daemon>=3.0.0",
     "python-dateutil>=2.7.0",
