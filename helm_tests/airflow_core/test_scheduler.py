@@ -632,14 +632,7 @@ class TestScheduler:
                 {"rollingUpdate": {"partition": 0}},
             ),
             ("LocalExecutor", False, {"rollingUpdate": {"partition": 0}}, None),
-            ("LocalExecutor,KubernetesExecutor", False, {"rollingUpdate": {"partition": 0}}, None),  # noqa: PT014
             ("LocalExecutor", True, {"rollingUpdate": {"partition": 0}}, {"rollingUpdate": {"partition": 0}}),
-            (  # noqa: PT014
-                "LocalExecutor,KubernetesExecutor",
-                True,
-                {"rollingUpdate": {"partition": 0}},
-                {"rollingUpdate": {"partition": 0}},
-            ),
             ("LocalExecutor", True, None, None),
             ("LocalExecutor,KubernetesExecutor", True, None, None),
         ],
