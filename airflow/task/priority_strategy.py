@@ -123,7 +123,7 @@ airflow_priority_weight_strategies_classes = {
 
 
 def validate_and_load_priority_weight_strategy(
-    priority_weight_strategy: str | PriorityWeightStrategy | None,
+    priority_weight_strategy: str | PriorityWeightStrategy,
 ) -> PriorityWeightStrategy:
     """
     Validate and load a priority weight strategy.
@@ -136,9 +136,6 @@ def validate_and_load_priority_weight_strategy(
     """
     from airflow.serialization.serialized_objects import _get_registered_priority_weight_strategy
     from airflow.utils.module_loading import qualname
-
-    if priority_weight_strategy is None:
-        return _AbsolutePriorityWeightStrategy()
 
     if isinstance(priority_weight_strategy, str):
         if priority_weight_strategy in airflow_priority_weight_strategies:
