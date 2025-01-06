@@ -267,13 +267,8 @@ def patch_dags(
         # todo: this is not used?
         update_mask = ["is_paused"]
 
-    dag_runs_select, total_entries = paginated_select(
-        statement=select(DagRun),
-        session=session,
-    )
-
     dags_select, total_entries = paginated_select(
-        statement=generate_dag_select_query(dag_runs_select.cte()),
+        statement=generate_dag_select_query(),
         filters=[only_active, paused, dag_id_pattern, tags, owners, last_dag_run_state],
         order_by=None,
         offset=offset,

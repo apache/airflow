@@ -17,13 +17,20 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import func, select
+
+if TYPE_CHECKING:
+    from sqlalchemy.sql import Select
 
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 
 
-def generate_dag_select_query(stmt, use_outer_join: bool = True):
+def generate_dag_select_query(
+    stmt: Select = select(DagRun).where().cte(), use_outer_join: bool = True
+) -> Select:
     latest_dag_run_per_dag_id_cte = (
         select(stmt.c.dag_id, func.max(stmt.c.start_date).label("start_date"))
         .where()
