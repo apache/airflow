@@ -43,8 +43,7 @@ def _convert_variable_result_to_variable(var_result: VariableResult, deserialize
         from json import loads
 
         var_result.value = loads(var_result.value)  # type: ignore
-    # `by_alias=True` is used to convert the `schema` field to `schema_` in the Variable model
-    return Variable(**var_result.model_dump(exclude={"type"}, by_alias=True))
+    return Variable(**var_result.model_dump(exclude={"type"}))
 
 
 def _get_connection(conn_id: str) -> Connection:
