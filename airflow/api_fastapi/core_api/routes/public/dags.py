@@ -22,18 +22,19 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, Query, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
-from sqlalchemy import update
+from sqlalchemy import select, update
 
 from airflow.api.common import delete_dag as delete_dag_module
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
     paginated_select,
 )
-from airflow.api_fastapi.common.db.dags import dags_select_with_latest_dag_run
+from airflow.api_fastapi.common.db.dags import generate_dag_select_query
 from airflow.api_fastapi.common.parameters import (
     QueryDagDisplayNamePatternSearch,
     QueryDagIdPatternSearch,
     QueryDagIdPatternSearchWithNone,
+    QueryDagRunStateFilter,
     QueryLastDagRunStateFilter,
     QueryLimit,
     QueryOffset,
@@ -41,7 +42,10 @@ from airflow.api_fastapi.common.parameters import (
     QueryOwnersFilter,
     QueryPausedFilter,
     QueryTagsFilter,
+    RangeFilter,
     SortParam,
+    datetime_range_filter_factory,
+    is_range_filter_active,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.dags import (
@@ -69,6 +73,13 @@ def get_dags(
     only_active: QueryOnlyActiveFilter,
     paused: QueryPausedFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
+    dag_run_start_date_range: Annotated[
+        RangeFilter, Depends(datetime_range_filter_factory("start_date", DagRun))
+    ],
+    dag_run_end_date_range: Annotated[
+        RangeFilter, Depends(datetime_range_filter_factory("end_date", DagRun))
+    ],
+    dag_run_state: QueryDagRunStateFilter,
     order_by: Annotated[
         SortParam,
         Depends(
@@ -82,8 +93,25 @@ def get_dags(
     session: SessionDep,
 ) -> DAGCollectionResponse:
     """Get all DAGs."""
+    dag_runs_select, total_entries = paginated_select(
+        statement=select(DagRun),
+        filters=[
+            dag_run_start_date_range,
+            dag_run_end_date_range,
+            dag_run_state,
+        ],
+        session=session,
+    )
+
     dags_select, total_entries = paginated_select(
-        statement=dags_select_with_latest_dag_run,
+        statement=generate_dag_select_query(
+            dag_runs_select.cte(),
+            use_outer_join=not (
+                is_range_filter_active(dag_run_start_date_range)
+                or is_range_filter_active(dag_run_end_date_range)
+            )
+            and dag_run_state.value is None,
+        ),
         filters=[
             only_active,
             paused,
@@ -239,8 +267,13 @@ def patch_dags(
         # todo: this is not used?
         update_mask = ["is_paused"]
 
+    dag_runs_select, total_entries = paginated_select(
+        statement=select(DagRun),
+        session=session,
+    )
+
     dags_select, total_entries = paginated_select(
-        statement=dags_select_with_latest_dag_run,
+        statement=generate_dag_select_query(dag_runs_select.cte()),
         filters=[only_active, paused, dag_id_pattern, tags, owners, last_dag_run_state],
         order_by=None,
         offset=offset,

@@ -1499,6 +1499,7 @@ export type RecentDagRunsData = {
   owners?: Array<string>;
   paused?: boolean | null;
   tags?: Array<string>;
+  tagsMatchMode?: string | null;
 };
 
 export type RecentDagRunsResponse = DAGWithLatestDagRunsCollectionResponse;
@@ -1728,6 +1729,8 @@ export type ListDagWarningsResponse = DAGWarningCollectionResponse;
 export type GetDagsData = {
   dagDisplayNamePattern?: string | null;
   dagIdPattern?: string | null;
+  endDateGte?: string | null;
+  endDateLte?: string | null;
   lastDagRunState?: DagRunState | null;
   limit?: number;
   offset?: number;
@@ -1735,7 +1738,11 @@ export type GetDagsData = {
   orderBy?: string;
   owners?: Array<string>;
   paused?: boolean | null;
+  startDateGte?: string | null;
+  startDateLte?: string | null;
+  state?: Array<string>;
   tags?: Array<string>;
+  tagsMatchMode?: string | null;
 };
 
 export type GetDagsResponse = DAGCollectionResponse;
@@ -1750,6 +1757,7 @@ export type PatchDagsData = {
   paused?: boolean | null;
   requestBody: DAGPatchBody;
   tags?: Array<string>;
+  tagsMatchMode?: string | null;
   updateMask?: Array<string> | null;
 };
 

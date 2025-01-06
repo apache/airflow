@@ -444,6 +444,7 @@ export const useConfigServiceGetConfigValueSuspense = <
  * @param data.limit
  * @param data.offset
  * @param data.tags
+ * @param data.tagsMatchMode
  * @param data.owners
  * @param data.dagIds
  * @param data.dagIdPattern
@@ -471,6 +472,7 @@ export const useDagsServiceRecentDagRunsSuspense = <
     owners,
     paused,
     tags,
+    tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
@@ -483,6 +485,7 @@ export const useDagsServiceRecentDagRunsSuspense = <
     owners?: string[];
     paused?: boolean;
     tags?: string[];
+    tagsMatchMode?: string;
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -501,6 +504,7 @@ export const useDagsServiceRecentDagRunsSuspense = <
         owners,
         paused,
         tags,
+        tagsMatchMode,
       },
       queryKey,
     ),
@@ -517,6 +521,7 @@ export const useDagsServiceRecentDagRunsSuspense = <
         owners,
         paused,
         tags,
+        tagsMatchMode,
       }) as TData,
     ...options,
   });
@@ -1097,12 +1102,18 @@ export const useDagWarningServiceListDagWarningsSuspense = <
  * @param data.limit
  * @param data.offset
  * @param data.tags
+ * @param data.tagsMatchMode
  * @param data.owners
  * @param data.dagIdPattern
  * @param data.dagDisplayNamePattern
  * @param data.onlyActive
  * @param data.paused
  * @param data.lastDagRunState
+ * @param data.startDateGte
+ * @param data.startDateLte
+ * @param data.endDateGte
+ * @param data.endDateLte
+ * @param data.state
  * @param data.orderBy
  * @returns DAGCollectionResponse Successful Response
  * @throws ApiError
@@ -1115,6 +1126,8 @@ export const useDagServiceGetDagsSuspense = <
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    endDateGte,
+    endDateLte,
     lastDagRunState,
     limit,
     offset,
@@ -1122,10 +1135,16 @@ export const useDagServiceGetDagsSuspense = <
     orderBy,
     owners,
     paused,
+    startDateGte,
+    startDateLte,
+    state,
     tags,
+    tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    endDateGte?: string;
+    endDateLte?: string;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
@@ -1133,7 +1152,11 @@ export const useDagServiceGetDagsSuspense = <
     orderBy?: string;
     owners?: string[];
     paused?: boolean;
+    startDateGte?: string;
+    startDateLte?: string;
+    state?: string[];
     tags?: string[];
+    tagsMatchMode?: string;
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -1143,6 +1166,8 @@ export const useDagServiceGetDagsSuspense = <
       {
         dagDisplayNamePattern,
         dagIdPattern,
+        endDateGte,
+        endDateLte,
         lastDagRunState,
         limit,
         offset,
@@ -1150,7 +1175,11 @@ export const useDagServiceGetDagsSuspense = <
         orderBy,
         owners,
         paused,
+        startDateGte,
+        startDateLte,
+        state,
         tags,
+        tagsMatchMode,
       },
       queryKey,
     ),
@@ -1158,6 +1187,8 @@ export const useDagServiceGetDagsSuspense = <
       DagService.getDags({
         dagDisplayNamePattern,
         dagIdPattern,
+        endDateGte,
+        endDateLte,
         lastDagRunState,
         limit,
         offset,
@@ -1165,7 +1196,11 @@ export const useDagServiceGetDagsSuspense = <
         orderBy,
         owners,
         paused,
+        startDateGte,
+        startDateLte,
+        state,
         tags,
+        tagsMatchMode,
       }) as TData,
     ...options,
   });

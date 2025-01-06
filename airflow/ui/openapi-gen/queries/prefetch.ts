@@ -370,6 +370,7 @@ export const prefetchUseConfigServiceGetConfigValue = (
  * @param data.limit
  * @param data.offset
  * @param data.tags
+ * @param data.tagsMatchMode
  * @param data.owners
  * @param data.dagIds
  * @param data.dagIdPattern
@@ -394,6 +395,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
     owners,
     paused,
     tags,
+    tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
@@ -406,6 +408,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
     owners?: string[];
     paused?: boolean;
     tags?: string[];
+    tagsMatchMode?: string;
   } = {},
 ) =>
   queryClient.prefetchQuery({
@@ -421,6 +424,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
       owners,
       paused,
       tags,
+      tagsMatchMode,
     }),
     queryFn: () =>
       DagsService.recentDagRuns({
@@ -435,6 +439,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
         owners,
         paused,
         tags,
+        tagsMatchMode,
       }),
   });
 /**
@@ -921,12 +926,18 @@ export const prefetchUseDagWarningServiceListDagWarnings = (
  * @param data.limit
  * @param data.offset
  * @param data.tags
+ * @param data.tagsMatchMode
  * @param data.owners
  * @param data.dagIdPattern
  * @param data.dagDisplayNamePattern
  * @param data.onlyActive
  * @param data.paused
  * @param data.lastDagRunState
+ * @param data.startDateGte
+ * @param data.startDateLte
+ * @param data.endDateGte
+ * @param data.endDateLte
+ * @param data.state
  * @param data.orderBy
  * @returns DAGCollectionResponse Successful Response
  * @throws ApiError
@@ -936,6 +947,8 @@ export const prefetchUseDagServiceGetDags = (
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    endDateGte,
+    endDateLte,
     lastDagRunState,
     limit,
     offset,
@@ -943,10 +956,16 @@ export const prefetchUseDagServiceGetDags = (
     orderBy,
     owners,
     paused,
+    startDateGte,
+    startDateLte,
+    state,
     tags,
+    tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    endDateGte?: string;
+    endDateLte?: string;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
@@ -954,13 +973,19 @@ export const prefetchUseDagServiceGetDags = (
     orderBy?: string;
     owners?: string[];
     paused?: boolean;
+    startDateGte?: string;
+    startDateLte?: string;
+    state?: string[];
     tags?: string[];
+    tagsMatchMode?: string;
   } = {},
 ) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseDagServiceGetDagsKeyFn({
       dagDisplayNamePattern,
       dagIdPattern,
+      endDateGte,
+      endDateLte,
       lastDagRunState,
       limit,
       offset,
@@ -968,12 +993,18 @@ export const prefetchUseDagServiceGetDags = (
       orderBy,
       owners,
       paused,
+      startDateGte,
+      startDateLte,
+      state,
       tags,
+      tagsMatchMode,
     }),
     queryFn: () =>
       DagService.getDags({
         dagDisplayNamePattern,
         dagIdPattern,
+        endDateGte,
+        endDateLte,
         lastDagRunState,
         limit,
         offset,
@@ -981,7 +1012,11 @@ export const prefetchUseDagServiceGetDags = (
         orderBy,
         owners,
         paused,
+        startDateGte,
+        startDateLte,
+        state,
         tags,
+        tagsMatchMode,
       }),
   });
 /**

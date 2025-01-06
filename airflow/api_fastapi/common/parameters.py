@@ -36,7 +36,7 @@ from typing import (
 from fastapi import Depends, HTTPException, Query, status
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
-from sqlalchemy import Column, case, or_
+from sqlalchemy import Column, and_, case, or_
 from sqlalchemy.inspection import inspect
 
 from airflow.models import Base
@@ -233,6 +233,7 @@ class FilterOptionEnum(Enum):
     IN = "in"
     NOT_IN = "not_in"
     ANY_EQUAL = "any_eq"
+    ALL_EQUAL = "all_eq"
     IS_NONE = "is_none"
 
 
@@ -265,6 +266,9 @@ class FilterParam(BaseParam[T]):
             if self.filter_option == FilterOptionEnum.ANY_EQUAL:
                 conditions = [self.attribute == val for val in self.value]
                 return select.where(or_(*conditions))
+            if self.filter_option == FilterOptionEnum.ALL_EQUAL:
+                conditions = [self.attribute == val for val in self.value]
+                return select.where(and_(*conditions))
             raise HTTPException(
                 400, f"Invalid filter option {self.filter_option} for list value {self.value}"
             )
@@ -324,21 +328,34 @@ def filter_param_factory(
     return depends_filter
 
 
-class _TagsFilter(BaseParam[list[str]]):
+class _TagFilterModel(BaseModel):
+    """Tag Filter Model with a match mode parameter."""
+
+    tags: list[str]
+    tags_match_mode: str | None
+
+
+class _TagsFilter(BaseParam[_TagFilterModel]):
     """Filter on tags."""
 
     def to_orm(self, select: Select) -> Select:
         if self.skip_none is False:
             raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
 
-        if not self.value:
+        if not self.value or not self.value.tags:
             return select
 
-        conditions = [DagModel.tags.any(DagTag.name == tag) for tag in self.value]
-        return select.where(or_(*conditions))
+        if not self.value.tags_match_mode or self.value.tags_match_mode == "any":
+            conditions = [DagModel.tags.any(DagTag.name == tag) for tag in self.value.tags]
+            return select.where(or_(*conditions))
+        else:
+            conditions = [DagModel.tags.any(DagTag.name == tag) for tag in self.value.tags]
+            return select.where(and_(*conditions))
 
-    def depends(self, tags: list[str] = Query(default_factory=list)) -> _TagsFilter:
-        return self.set_value(tags)
+    def depends(
+        self, tags: list[str] = Query(default_factory=list), tags_match_mode: str | None = Query(default=None)
+    ) -> _TagsFilter:
+        return self.set_value(_TagFilterModel(tags=tags, tags_match_mode=tags_match_mode))
 
 
 class _OwnersFilter(BaseParam[list[str]]):
@@ -471,6 +488,13 @@ def float_range_filter_factory(
         )
 
     return depends_float
+
+
+def is_range_filter_active(range_filter: RangeFilter) -> bool:
+    """Check if a range filter has any active bounds."""
+    if range_filter is not None and range_filter.value is not None:
+        return range_filter.value.lower_bound is not None or range_filter.value.upper_bound is not None
+    return False
 
 
 # Common Safe DateTime

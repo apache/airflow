@@ -659,6 +659,7 @@ export class DagsService {
    * @param data.limit
    * @param data.offset
    * @param data.tags
+   * @param data.tagsMatchMode
    * @param data.owners
    * @param data.dagIds
    * @param data.dagIdPattern
@@ -678,6 +679,7 @@ export class DagsService {
         limit: data.limit,
         offset: data.offset,
         tags: data.tags,
+        tags_match_mode: data.tagsMatchMode,
         owners: data.owners,
         dag_ids: data.dagIds,
         dag_id_pattern: data.dagIdPattern,
@@ -1516,12 +1518,18 @@ export class DagService {
    * @param data.limit
    * @param data.offset
    * @param data.tags
+   * @param data.tagsMatchMode
    * @param data.owners
    * @param data.dagIdPattern
    * @param data.dagDisplayNamePattern
    * @param data.onlyActive
    * @param data.paused
    * @param data.lastDagRunState
+   * @param data.startDateGte
+   * @param data.startDateLte
+   * @param data.endDateGte
+   * @param data.endDateLte
+   * @param data.state
    * @param data.orderBy
    * @returns DAGCollectionResponse Successful Response
    * @throws ApiError
@@ -1534,12 +1542,18 @@ export class DagService {
         limit: data.limit,
         offset: data.offset,
         tags: data.tags,
+        tags_match_mode: data.tagsMatchMode,
         owners: data.owners,
         dag_id_pattern: data.dagIdPattern,
         dag_display_name_pattern: data.dagDisplayNamePattern,
         only_active: data.onlyActive,
         paused: data.paused,
         last_dag_run_state: data.lastDagRunState,
+        start_date_gte: data.startDateGte,
+        start_date_lte: data.startDateLte,
+        end_date_gte: data.endDateGte,
+        end_date_lte: data.endDateLte,
+        state: data.state,
         order_by: data.orderBy,
       },
       errors: {
@@ -1559,6 +1573,7 @@ export class DagService {
    * @param data.limit
    * @param data.offset
    * @param data.tags
+   * @param data.tagsMatchMode
    * @param data.owners
    * @param data.dagIdPattern
    * @param data.onlyActive
@@ -1576,6 +1591,7 @@ export class DagService {
         limit: data.limit,
         offset: data.offset,
         tags: data.tags,
+        tags_match_mode: data.tagsMatchMode,
         owners: data.owners,
         dag_id_pattern: data.dagIdPattern,
         only_active: data.onlyActive,
