@@ -40,6 +40,11 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uv to build the image (true/false)"
         required: true
         type: string
+      canary-run:
+        description: "Whether this is a canary run (true/false)"
+        required: true
+        type: string
+
 jobs:
   task-sdk-tests:
     timeout-minutes: 80
@@ -82,5 +87,7 @@ jobs:
           uv tool install twine && twine check dist/*.whl
       - name: >
           Run unit tests for Airflow Task SDK:Python ${{ matrix.python-version }}
+        env:
+          PYTHON_VERSION: "${{ matrix.python-version }}"
         run: >
-          breeze testing task-sdk-tests --python "${{ matrix.python-version }}"
+          breeze testing task-sdk-tests --python "${PYTHON_VERSION}"

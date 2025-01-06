@@ -25,10 +25,6 @@ inputs:
   platform:
     description: 'Platform for the build - linux/amd64 or linux/arm64'
     required: true
-outputs:
-  host-python-version:
-    description: Python version used in host
-    value: ${{ steps.breeze.outputs.host-python-version }}
 runs:
   using: "composite"
   steps:

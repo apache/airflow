@@ -231,6 +231,7 @@ export type ConnectionBody = {
  */
 export type ConnectionBulkBody = {
   connections: Array<ConnectionBody>;
+  overwrite?: boolean | null;
 };
 
 /**
@@ -903,6 +904,7 @@ export type PoolPostBody = {
  */
 export type PoolPostBulkBody = {
   pools: Array<PoolPostBody>;
+  overwrite?: boolean | null;
 };
 
 /**
@@ -1275,7 +1277,7 @@ export type ValidationError = {
  */
 export type VariableBody = {
   key: string;
-  value: string | null;
+  value: string;
   description?: string | null;
 };
 
@@ -1292,7 +1294,7 @@ export type VariableCollectionResponse = {
  */
 export type VariableResponse = {
   key: string;
-  value: string | null;
+  value: string;
   description: string | null;
   is_encrypted: boolean;
 };
@@ -1617,11 +1619,11 @@ export type PostConnectionData = {
 
 export type PostConnectionResponse = ConnectionResponse;
 
-export type PostConnectionsData = {
+export type PutConnectionsData = {
   requestBody: ConnectionBulkBody;
 };
 
-export type PostConnectionsResponse = ConnectionCollectionResponse;
+export type PutConnectionsResponse = ConnectionCollectionResponse;
 
 export type TestConnectionData = {
   requestBody: ConnectionBody;
@@ -2067,11 +2069,11 @@ export type PostPoolData = {
 
 export type PostPoolResponse = PoolResponse;
 
-export type PostPoolsData = {
+export type PutPoolsData = {
   requestBody: PoolPostBulkBody;
 };
 
-export type PostPoolsResponse = PoolCollectionResponse;
+export type PutPoolsResponse = PoolCollectionResponse;
 
 export type GetProvidersData = {
   limit?: number;
@@ -2989,11 +2991,15 @@ export type $OpenApiTs = {
     };
   };
   "/public/connections/bulk": {
-    post: {
-      req: PostConnectionsData;
+    put: {
+      req: PutConnectionsData;
       res: {
         /**
-         * Successful Response
+         * Created with overwrite
+         */
+        200: ConnectionCollectionResponse;
+        /**
+         * Created
          */
         201: ConnectionCollectionResponse;
         /**
@@ -3675,6 +3681,10 @@ export type $OpenApiTs = {
          */
         404: HTTPExceptionResponse;
         /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
+        /**
          * Validation Error
          */
         422: HTTPValidationError;
@@ -3865,6 +3875,10 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
         /**
          * Validation Error
          */
@@ -4272,11 +4286,15 @@ export type $OpenApiTs = {
     };
   };
   "/public/pools/bulk": {
-    post: {
-      req: PostPoolsData;
+    put: {
+      req: PutPoolsData;
       res: {
         /**
-         * Successful Response
+         * Created with overwriting
+         */
+        200: PoolCollectionResponse;
+        /**
+         * Created
          */
         201: PoolCollectionResponse;
         /**

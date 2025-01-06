@@ -588,14 +588,6 @@ ARG_MIGRATION_TIMEOUT = Arg(
     type=int,
     default=60,
 )
-ARG_DB_RESERIALIZE_DAGS = Arg(
-    ("--no-reserialize-dags",),
-    # Not intended for user, so dont show in help
-    help=argparse.SUPPRESS,
-    action="store_false",
-    default=True,
-    dest="reserialize_dags",
-)
 ARG_DB_VERSION__UPGRADE = Arg(
     ("-n", "--to-version"),
     help=(
@@ -1473,7 +1465,6 @@ DB_COMMANDS = (
             ARG_DB_SQL_ONLY,
             ARG_DB_FROM_REVISION,
             ARG_DB_FROM_VERSION,
-            ARG_DB_RESERIALIZE_DAGS,
             ARG_VERBOSE,
         ),
     ),

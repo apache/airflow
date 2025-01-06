@@ -66,8 +66,8 @@ import type {
   GetConnectionsResponse,
   PostConnectionData,
   PostConnectionResponse,
-  PostConnectionsData,
-  PostConnectionsResponse,
+  PutConnectionsData,
+  PutConnectionsResponse,
   TestConnectionData,
   TestConnectionResponse,
   GetDagRunData,
@@ -160,8 +160,8 @@ import type {
   GetPoolsResponse,
   PostPoolData,
   PostPoolResponse,
-  PostPoolsData,
-  PostPoolsResponse,
+  PutPoolsData,
+  PutPoolsResponse,
   GetProvidersData,
   GetProvidersResponse,
   GetXcomEntryData,
@@ -1108,16 +1108,17 @@ export class ConnectionService {
   }
 
   /**
-   * Post Connections
+   * Put Connections
    * Create connection entry.
    * @param data The data for the request.
    * @param data.requestBody
-   * @returns ConnectionCollectionResponse Successful Response
+   * @returns ConnectionCollectionResponse Created with overwrite
+   * @returns ConnectionCollectionResponse Created
    * @throws ApiError
    */
-  public static postConnections(data: PostConnectionsData): CancelablePromise<PostConnectionsResponse> {
+  public static putConnections(data: PutConnectionsData): CancelablePromise<PutConnectionsResponse> {
     return __request(OpenAPI, {
-      method: "POST",
+      method: "PUT",
       url: "/public/connections/bulk",
       body: data.requestBody,
       mediaType: "application/json",
@@ -1924,6 +1925,7 @@ export class TaskInstanceService {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
+        409: "Conflict",
         422: "Validation Error",
       },
     });
@@ -2193,6 +2195,7 @@ export class TaskInstanceService {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
+        409: "Conflict",
         422: "Validation Error",
       },
     });
@@ -2700,16 +2703,17 @@ export class PoolService {
   }
 
   /**
-   * Post Pools
+   * Put Pools
    * Create multiple pools.
    * @param data The data for the request.
    * @param data.requestBody
-   * @returns PoolCollectionResponse Successful Response
+   * @returns PoolCollectionResponse Created with overwriting
+   * @returns PoolCollectionResponse Created
    * @throws ApiError
    */
-  public static postPools(data: PostPoolsData): CancelablePromise<PostPoolsResponse> {
+  public static putPools(data: PutPoolsData): CancelablePromise<PutPoolsResponse> {
     return __request(OpenAPI, {
-      method: "POST",
+      method: "PUT",
       url: "/public/pools/bulk",
       body: data.requestBody,
       mediaType: "application/json",
