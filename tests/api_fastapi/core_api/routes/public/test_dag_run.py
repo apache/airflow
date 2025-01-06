@@ -1019,6 +1019,8 @@ class TestGetDagRunAssetTriggerEvents:
                     "uri": "file:///da1",
                     "extra": {},
                     "id": event.id,
+                    "group": "asset",
+                    "name": "ds1",
                     "source_dag_id": ti.dag_id,
                     "source_map_index": ti.map_index,
                     "source_run_id": ti.run_id,

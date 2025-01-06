@@ -16,15 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Box,
-  Heading,
-  Flex,
-  HStack,
-  VStack,
-  StackSeparator,
-  Skeleton,
-} from "@chakra-ui/react";
+import { Box, Heading, Flex, HStack, VStack, StackSeparator, Skeleton } from "@chakra-ui/react";
 import { createListCollection } from "@chakra-ui/react/collection";
 
 import { useAssetServiceGetAssetEvents } from "openapi/queries";
@@ -40,12 +32,7 @@ type AssetEventProps = {
   readonly startDate: string;
 };
 
-export const AssetEvents = ({
-  assetSortBy,
-  endDate,
-  setAssetSortBy,
-  startDate,
-}: AssetEventProps) => {
+export const AssetEvents = ({ assetSortBy, endDate, setAssetSortBy, startDate }: AssetEventProps) => {
   const { data, isLoading } = useAssetServiceGetAssetEvents({
     limit: 6,
     orderBy: assetSortBy,
@@ -64,10 +51,7 @@ export const AssetEvents = ({
     <Box borderRadius={5} borderWidth={1} ml={2} pb={2}>
       <Flex justify="space-between" mr={1} mt={0} pl={3} pt={1}>
         <HStack>
-          <MetricsBadge
-            backgroundColor="blue.solid"
-            runs={isLoading ? 0 : data?.total_entries}
-          />
+          <MetricsBadge backgroundColor="blue.solid" runs={isLoading ? 0 : data?.total_entries} />
           <Heading marginEnd="auto" size="md">
             Asset Events
           </Heading>
@@ -101,9 +85,7 @@ export const AssetEvents = ({
         </VStack>
       ) : (
         <VStack px={3} separator={<StackSeparator />}>
-          {data?.asset_events.map((event) => (
-            <AssetEvent event={event} key={event.id} />
-          ))}
+          {data?.asset_events.map((event) => <AssetEvent event={event} key={event.id} />)}
         </VStack>
       )}
     </Box>

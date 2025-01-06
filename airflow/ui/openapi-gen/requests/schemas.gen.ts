@@ -191,6 +191,28 @@ export const $AssetEventResponse = {
       ],
       title: "Uri",
     },
+    name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Name",
+    },
+    group: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Group",
+    },
     extra: {
       anyOf: [
         {
@@ -253,13 +275,7 @@ export const $AssetEventResponse = {
     },
   },
   type: "object",
-  required: [
-    "id",
-    "asset_id",
-    "source_map_index",
-    "created_dagruns",
-    "timestamp",
-  ],
+  required: ["id", "asset_id", "source_map_index", "created_dagruns", "timestamp"],
   title: "AssetEventResponse",
   description: "Asset event serializer for responses.",
 } as const;

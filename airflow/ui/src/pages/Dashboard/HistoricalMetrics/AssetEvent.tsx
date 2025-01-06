@@ -23,12 +23,9 @@ import { Link } from "react-router-dom";
 
 import type { AssetEventResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
+import { Tooltip } from "src/components/ui";
 
-export const AssetEvent = ({
-  event,
-}: {
-  readonly event: AssetEventResponse;
-}) => {
+export const AssetEvent = ({ event }: { readonly event: AssetEventResponse }) => {
   const hasDagRuns = event.created_dagruns.length > 0;
   const source = event.extra?.from_rest_api === true ? "API" : "";
 
@@ -38,7 +35,18 @@ export const AssetEvent = ({
         <Time datetime={event.timestamp} />
       </Text>
       <HStack>
-        <FiDatabase /> <Text> {event.uri ?? ""} </Text>
+        <FiDatabase />
+        <Tooltip
+          content={
+            <div>
+              <Text> group: {event.group ?? ""} </Text>
+              <Text> uri: {event.uri ?? ""} </Text>
+            </div>
+          }
+          showArrow
+        >
+          <Text> {event.name ?? ""} </Text>
+        </Tooltip>
       </HStack>
       <HStack>
         <MdOutlineAccountTree /> <Text> Source: </Text>
@@ -55,9 +63,7 @@ export const AssetEvent = ({
       <HStack>
         <Text> Triggered Dag Runs: </Text>
         {hasDagRuns ? (
-          <Link
-            to={`/dags/${event.created_dagruns[0]?.dag_id}/runs/${event.created_dagruns[0]?.run_id}`}
-          >
+          <Link to={`/dags/${event.created_dagruns[0]?.dag_id}/runs/${event.created_dagruns[0]?.run_id}`}>
             <Text color="fg.info"> {event.created_dagruns[0]?.dag_id} </Text>
           </Link>
         ) : (
