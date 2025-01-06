@@ -27,6 +27,7 @@ import packaging.version
 from connexion import FlaskApi
 from fastapi import FastAPI
 from flask import Blueprint, g, url_for
+from flask_appbuilder.menu import MenuItem
 from packaging.version import Version
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
@@ -59,8 +60,11 @@ from airflow.providers.fab.auth_manager.cli_commands.definition import (
 )
 from airflow.providers.fab.auth_manager.models import Permission, Role, User
 from airflow.providers.fab.www.app import create_app
+from airflow.providers.fab.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
+from airflow.providers.fab.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
 from airflow.security import permissions
 from airflow.security.permissions import (
+    ACTION_CAN_ACCESS_MENU,
     RESOURCE_AUDIT_LOG,
     RESOURCE_CLUSTER_ACTIVITY,
     RESOURCE_CONFIG,
@@ -88,8 +92,6 @@ from airflow.security.permissions import (
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.yaml import safe_load
 from airflow.version import version
-from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
-from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
 
 if TYPE_CHECKING:
     from airflow.auth.managers.models.base_user import BaseUser
@@ -397,6 +399,32 @@ class FabAuthManager(BaseAuthManager[User]):
                     else:
                         resources.add(resource)
         return set(session.scalars(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources))))
+
+    def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
+        """
+        Filter menu items based on user permissions.
+
+        :param menu_items: list of all menu items
+        """
+        items = filter(
+            lambda item: self.security_manager.has_access(ACTION_CAN_ACCESS_MENU, item.name), menu_items
+        )
+        accessible_items = []
+        for menu_item in items:
+            menu_item_copy = MenuItem(
+                **{
+                    **menu_item.__dict__,
+                    "childs": [],
+                }
+            )
+            if menu_item.childs:
+                accessible_children = []
+                for child in menu_item.childs:
+                    if self.security_manager.has_access(ACTION_CAN_ACCESS_MENU, child.name):
+                        accessible_children.append(child)
+                menu_item_copy.childs = accessible_children
+            accessible_items.append(menu_item_copy)
+        return accessible_items
 
     @cached_property
     def security_manager(self) -> FabAirflowSecurityManagerOverride:
