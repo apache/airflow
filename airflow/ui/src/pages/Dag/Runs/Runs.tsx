@@ -27,7 +27,11 @@ import {
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useCallback } from "react";
-import { useParams, Link as RouterLink, useSearchParams } from "react-router-dom";
+import {
+  useParams,
+  Link as RouterLink,
+  useSearchParams,
+} from "react-router-dom";
 
 import { useDagRunServiceGetDagRuns } from "openapi/queries";
 import type { DAGRunResponse, DagRunState } from "openapi/requests/types.gen";
@@ -84,14 +88,15 @@ const columns: Array<ColumnDef<DAGRunResponse>> = [
     header: "End Date",
   },
   {
-    cell: ({ row: { original } }) => getDuration(original.start_date, original.end_date),
+    cell: ({ row: { original } }) =>
+      getDuration(original.start_date, original.end_date),
     header: "Duration",
   },
   {
     accessorKey: "clear_dag_run",
     cell: ({ row }) => (
       <Flex justifyContent="end">
-        <ClearRunButton dagId={row.original.dag_id} dagRunId={row.original.dag_run_id} withText={false} />
+        <ClearRunButton dagRun={row.original} withText={false} />
       </Flex>
     ),
     enableSorting: false,
@@ -168,7 +173,9 @@ export const Runs = () => {
                 filteredState === null ? (
                   "All States"
                 ) : (
-                  <Status state={filteredState as DagRunState}>{capitalize(filteredState)}</Status>
+                  <Status state={filteredState as DagRunState}>
+                    {capitalize(filteredState)}
+                  </Status>
                 )
               }
             </Select.ValueText>
@@ -179,7 +186,9 @@ export const Runs = () => {
                 {option.value === "all" ? (
                   option.label
                 ) : (
-                  <Status state={option.value as DagRunState}>{option.label}</Status>
+                  <Status state={option.value as DagRunState}>
+                    {option.label}
+                  </Status>
                 )}
               </Select.Item>
             ))}
