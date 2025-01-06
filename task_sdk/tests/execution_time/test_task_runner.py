@@ -35,15 +35,18 @@ from airflow.exceptions import (
 )
 from airflow.sdk import DAG, BaseOperator, Connection
 from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
+from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeferTask,
     GetConnection,
+    GetVariable,
     SetRenderedFields,
     StartupDetails,
     TaskState,
+    VariableResult,
 )
-from airflow.sdk.execution_time.context import ConnectionAccessor
+from airflow.sdk.execution_time.context import ConnectionAccessor, VariableAccessor
 from airflow.sdk.execution_time.task_runner import (
     CommsDecoder,
     RuntimeTaskInstance,
@@ -590,6 +593,10 @@ class TestRuntimeTaskInstance:
 
         # Verify the context keys and values
         assert context == {
+            "var": {
+                "json": VariableAccessor(deserialize_json=True),
+                "value": VariableAccessor(deserialize_json=False),
+            },
             "conn": ConnectionAccessor(),
             "dag": runtime_ti.task.dag,
             "inlets": task.inlets,
@@ -623,6 +630,10 @@ class TestRuntimeTaskInstance:
         context = runtime_ti.get_template_context()
 
         assert context == {
+            "var": {
+                "json": VariableAccessor(deserialize_json=True),
+                "value": VariableAccessor(deserialize_json=False),
+            },
             "conn": ConnectionAccessor(),
             "dag": runtime_ti.task.dag,
             "inlets": task.inlets,
@@ -694,6 +705,51 @@ class TestRuntimeTaskInstance:
             port=1234,
             extra='{"extra_key": "extra_value"}',
         )
+
+    @pytest.mark.parametrize(
+        ["accessor_type", "var_value", "expected_value"],
+        [
+            pytest.param("value", "test_value", "test_value"),
+            pytest.param(
+                "json",
+                '{\r\n  "key1": "value1",\r\n  "key2": "value2",\r\n  "enabled": true,\r\n  "threshold": 42\r\n}',
+                {"key1": "value1", "key2": "value2", "enabled": True, "threshold": 42},
+            ),
+        ],
+    )
+    def test_get_variable_from_context(
+        self, mocked_parse, make_ti_context, mock_supervisor_comms, accessor_type, var_value, expected_value
+    ):
+        """Test that the variable is fetched from the API server via the Supervisor lazily when accessed"""
+
+        task = BaseOperator(task_id="hello")
+
+        ti_id = uuid7()
+        ti = TaskInstance(
+            id=ti_id, task_id=task.task_id, dag_id="basic_task", run_id="test_run", try_number=1
+        )
+        var = VariableResult(key="test_key", value=var_value)
+
+        what = StartupDetails(ti=ti, file="", requests_fd=0, ti_context=make_ti_context())
+        runtime_ti = mocked_parse(what, ti.dag_id, task)
+        mock_supervisor_comms.get_message.return_value = var
+
+        context = runtime_ti.get_template_context()
+
+        # Assert that the variable is not fetched from the API server yet!
+        # The variable should be only fetched connection is accessed
+        mock_supervisor_comms.send_request.assert_not_called()
+        mock_supervisor_comms.get_message.assert_not_called()
+
+        # Access the variable from the context
+        var_from_context = context["var"][accessor_type].test_key
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            log=mock.ANY, msg=GetVariable(key="test_key")
+        )
+        mock_supervisor_comms.get_message.assert_called_once_with()
+
+        assert var_from_context == Variable(key="test_key", value=expected_value)
 
 
 class TestXComAfterTaskExecution:
