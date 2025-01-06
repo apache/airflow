@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import os
+from contextlib import nullcontext
 from unittest.mock import patch
 
 import pytest
@@ -33,62 +34,52 @@ from tests_common.test_utils.db import clear_db_dag_bundles
 
 
 @pytest.mark.parametrize(
-    "envs,expected_names",
+    "value, expected",
     [
-        pytest.param({}, {"dags-folder"}, id="default"),
+        pytest.param(None, {"dags-folder"}, id="default"),
+        pytest.param("{}", set(), id="empty dict"),
         pytest.param(
-            {"AIRFLOW__DAG_BUNDLES__BACKENDS": "[]"},
+            "[]",
             set(),
-            id="empty-list",
+            id="empty list",
         ),
         pytest.param(
-            {
-                "AIRFLOW__DAG_BUNDLES__BACKENDS": json.dumps(
-                    [
-                        {
-                            "name": "my-bundle",
-                            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                            "kwargs": {"local_folder": "/tmp/hihi", "refresh_interval": 1},
-                        }
-                    ]
-                )
-            },
+            json.dumps(
+                [
+                    {
+                        "name": "my-bundle",
+                        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                        "kwargs": {"local_folder": "/tmp/hihi", "refresh_interval": 1},
+                    }
+                ]
+            ),
             {"my-bundle"},
             id="remove_dags_folder_default_add_bundle",
         ),
         pytest.param(
-            {
-                "AIRFLOW__DAG_BUNDLES__BACKENDS": "[]",
-            },
+            "[]",
             set(),
             id="remove_dags_folder_default",
         ),
-    ],
-)
-def test_parse_bundle_config(envs, expected_names):
-    """Test that bundle_configs are read from configuration."""
-    with patch.dict(os.environ, envs):
-        bundle_manager = DagBundlesManager()
-        names = set(x.name for x in bundle_manager.get_all_dag_bundles())
-    assert names == expected_names
-
-
-@pytest.mark.parametrize(
-    "config,message",
-    [
         pytest.param("1", "Bundle config is not a list", id="int"),
-        pytest.param("[]", None, id="list"),
-        pytest.param("{}", None, id="dict"),
         pytest.param("abc", "Unable to parse .* as valid json", id="not_json"),
     ],
 )
-def test_bundle_configs_property_raises(config, message):
-    with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__BACKENDS": config}):
-        if message:
-            with pytest.raises(AirflowConfigException, match=message):
-                DagBundlesManager()
-        else:
-            DagBundlesManager()
+def test_parse_bundle_config(value, expected):
+    """Test that bundle_configs are read from configuration."""
+    envs = {"AIRFLOW__DAG_BUNDLES__BACKENDS": value} if value else {}
+    cm = nullcontext()
+    exp_fail = False
+    if isinstance(expected, str):
+        exp_fail = True
+        cm = pytest.raises(AirflowConfigException, match=expected)
+
+    with patch.dict(os.environ, envs), cm:
+        bundle_manager = DagBundlesManager()
+        names = set(x.name for x in bundle_manager.get_all_dag_bundles())
+
+    if not exp_fail:
+        assert names == expected
 
 
 class BasicBundle(BaseDagBundle):
@@ -131,31 +122,6 @@ def test_get_bundle():
     assert isinstance(bundle, BasicBundle)
     assert bundle.name == "my-test-bundle"
     assert bundle.version is None
-
-
-def test_get_all_dag_bundles():
-    """Test that get_all_dag_bundles returns all bundles."""
-
-    with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__BACKENDS": json.dumps(BASIC_BUNDLE_CONFIG)}):
-        manager = DagBundlesManager()
-        bundles = list(manager.get_all_dag_bundles())
-    assert len(bundles) == 1
-    assert all(isinstance(x, BaseDagBundle) for x in bundles)
-
-    bundle_names = {x.name for x in bundles}
-    assert bundle_names == {"my-test-bundle"}
-
-
-def test_get_all_dag_bundles_default():
-    """Test that get_all_dag_bundles returns all bundles."""
-
-    bundle_manager = DagBundlesManager()
-    bundles = list(bundle_manager.get_all_dag_bundles())
-    assert len(bundles) == 1
-    assert all(isinstance(x, BaseDagBundle) for x in bundles)
-
-    bundle_names = {x.name for x in bundles}
-    assert bundle_names == {"dags-folder"}
 
 
 @pytest.fixture
