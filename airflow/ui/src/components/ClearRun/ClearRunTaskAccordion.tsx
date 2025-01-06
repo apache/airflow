@@ -23,8 +23,9 @@ import { Link as RouterLink } from "react-router-dom";
 
 import type { TaskInstanceCollectionResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
-import { Status } from "src/components/ui";
+import { Status, Tooltip } from "src/components/ui";
 import { getTaskInstanceLink } from "src/utils/links";
+import { trimText } from "src/utils/trimTextFn";
 
 import { Accordion } from "../ui";
 
@@ -32,9 +33,13 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
   {
     accessorKey: "task_display_name",
     cell: ({ row: { original } }) => (
-      <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink to={getTaskInstanceLink(original)}>{original.task_display_name}</RouterLink>
-      </Link>
+      <Tooltip content={original.task_display_name}>
+        <Link asChild color="fg.info" fontWeight="bold" maxWidth="200px" overflow="hidden">
+          <RouterLink to={getTaskInstanceLink(original)}>
+            {trimText(original.task_display_name, 25).trimmedText}
+          </RouterLink>
+        </Link>
+      </Tooltip>
     ),
     enableSorting: false,
     header: "Task ID",
