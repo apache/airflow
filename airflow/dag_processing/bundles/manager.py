@@ -42,11 +42,13 @@ class DagBundlesManager(LoggingMixin):
 
     def parse_config(self) -> None:
         """
-        Get all DAG bundle configurations and store in module variable.
+        Get all DAG bundle configurations and store in instance variable.
 
         If a bundle class for a given name has already been imported, it will not be imported again.
 
         todo (AIP-66): proper validation of the bundle configuration so we have better error messages
+
+        :meta private:
         """
         if self._bundle_config:
             return
