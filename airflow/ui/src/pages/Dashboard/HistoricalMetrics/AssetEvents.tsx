@@ -57,11 +57,11 @@ export const AssetEvents = ({ assetSortBy, endDate, setAssetSortBy, startDate }:
           </Heading>
         </HStack>
         <Select.Root
+          borderWidth={0}
           collection={assetSortOptions}
           data-testid="asset-sort-duration"
           defaultValue={["-timestamp"]}
           onValueChange={(option) => setAssetSortBy(option.value[0] as string)}
-          variant="outline" // Flushed seems to be right option to remove border but is not valid as per typescript
           width={130}
         >
           <Select.Trigger>
