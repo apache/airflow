@@ -111,7 +111,7 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
     :param repo_url: URL of the git repository
     :param tracking_ref: Branch or tag for this DAG bundle
     :param subdir: Subdirectory within the repository where the DAGs are stored (Optional)
-    :param ssh_conn_id: Connection ID for SSH connection to the repository (Optional)
+    :param git_conn_id: Connection ID for SSH connection to the repository (Optional)
     """
 
     supports_versioning = True
