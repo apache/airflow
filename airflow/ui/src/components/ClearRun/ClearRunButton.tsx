@@ -20,10 +20,7 @@ import { Box, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
 import { FiRefreshCw } from "react-icons/fi";
 
-import type {
-  DAGRunResponse,
-  TaskInstanceCollectionResponse,
-} from "openapi/requests/types.gen";
+import type { DAGRunResponse, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
 import { useClearDagRun } from "src/queries/useClearRun";
 
 import ActionButton from "../ui/ActionButton";

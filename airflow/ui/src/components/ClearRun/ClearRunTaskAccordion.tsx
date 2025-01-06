@@ -82,7 +82,7 @@ type Props = {
 // Table is in memory, pagination and sorting are disabled.
 // TODO: Make a front-end only unconnected table component with client side ordering and pagination
 const ClearRunTasksAccordion = ({ affectedTasks, note, setNote }: Props) => (
-  <Accordion.Root collapsible multiple variant="enclosed">
+  <Accordion.Root collapsible multiple={false} variant="enclosed">
     <Accordion.Item key="tasks" value="tasks">
       <Accordion.ItemTrigger>
         <Text fontWeight="bold">Affected Tasks: {affectedTasks?.total_entries ?? 0}</Text>
@@ -115,7 +115,14 @@ const ClearRunTasksAccordion = ({ affectedTasks, note, setNote }: Props) => (
           onChange={(event: ChangeEvent<HTMLInputElement>) => setNote(event.target.value)}
           value={note ?? ""}
         >
-          <Editable.Preview alignItems="flex-start" as={VStack} gap="0" height="200px" width="100%">
+          <Editable.Preview
+            alignItems="flex-start"
+            as={VStack}
+            gap="0"
+            height="200px"
+            overflowY="auto"
+            width="100%"
+          >
             {Boolean(note) ? (
               <Markdown>{note}</Markdown>
             ) : (
@@ -127,7 +134,7 @@ const ClearRunTasksAccordion = ({ affectedTasks, note, setNote }: Props) => (
           <Editable.Textarea
             data-testid="notes-input"
             height="200px"
-            overflow="hidden"
+            overflowY="auto"
             placeholder="Add a note..."
             resize="none"
           />

@@ -33,24 +33,13 @@ const onError = () => {
   });
 };
 
-export const usePatchDagRun = ({
-  dagId,
-  dagRunId,
-}: {
-  dagId: string;
-  dagRunId: string;
-}) => {
+export const usePatchDagRun = ({ dagId, dagRunId }: { dagId: string; dagRunId: string }) => {
   const queryClient = useQueryClient();
 
   const onSuccess = async () => {
-    const queryKeys = [
-      UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
-      [useDagRunServiceGetDagRunsKey],
-    ];
+    const queryKeys = [UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }), [useDagRunServiceGetDagRunsKey]];
 
-    await Promise.all(
-      queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })),
-    );
+    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
   };
 
   return useDagRunServicePatchDagRun({

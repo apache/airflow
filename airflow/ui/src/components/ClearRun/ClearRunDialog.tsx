@@ -64,8 +64,7 @@ const ClearRunDialog = ({
   const dagRunId = dagRun.dag_run_id;
 
   const [note, setNote] = useState<string | null>(dagRun.note);
-  const { isPending: isPendingPatchDagRun, mutate: mutatePatchDagRun } =
-    usePatchDagRun({ dagId, dagRunId });
+  const { isPending: isPendingPatchDagRun, mutate: mutatePatchDagRun } = usePatchDagRun({ dagId, dagRunId });
 
   const onChange = (value: string) => {
     switch (value) {
@@ -119,11 +118,7 @@ const ClearRunDialog = ({
               value={onlyFailed ? "only_failed" : "existing_tasks"}
             />
           </Flex>
-          <ClearRunTasksAccordion
-            affectedTasks={affectedTasks}
-            note={note}
-            setNote={setNote}
-          />
+          <ClearRunTasksAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
           <Flex justifyContent="end" mt={3}>
             <Button
               colorPalette="blue"
