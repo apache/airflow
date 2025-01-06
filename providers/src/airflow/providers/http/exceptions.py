@@ -18,5 +18,8 @@
 from airflow.exceptions import AirflowException
 
 
+class HttpErrorException(AirflowException):
+    """Exception raised for HTTP error in Http hook."""
+
 class HttpMethodException(AirflowException):
     """Exception raised for invalid HTTP methods in Http hook."""

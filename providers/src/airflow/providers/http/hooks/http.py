@@ -32,7 +32,7 @@ from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.providers.http.exceptions import HttpMethodException
+from airflow.providers.http.exceptions import HttpErrorException, HttpMethodException
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
@@ -452,9 +452,7 @@ class HttpAsyncHook(BaseHook):
                     self.log.exception("HTTP error with status: %s", e.status)
                     # In this case, the user probably made a mistake.
                     # Don't retry.
-                    raise AirflowException(f"{e.status}:{e.message}")
-                else:
-                await asyncio.sleep(self.retry_delay)
+                    raise HttpErrorException(f"{e.status}:{e.message}")
             else:
                 return response
 
