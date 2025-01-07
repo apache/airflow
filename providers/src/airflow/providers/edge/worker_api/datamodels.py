@@ -26,7 +26,7 @@ from pydantic import BaseModel, Field
 
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.edge.models.edge_worker import EdgeWorkerState  # noqa: TCH001
-from airflow.providers.edge.worker_api.routes._v2_compat import Path
+from airflow.providers.edge.worker_api.routes._v2_compat import ExecuteTask, Path
 
 
 class WorkerApiDocs:
@@ -90,7 +90,11 @@ class EdgeJobFetched(EdgeJobBase):
     """Job that is to be executed on the edge worker."""
 
     command: Annotated[
-        list[str], Field(title="Command", description="Command line to use to execute the job.")
+        ExecuteTask,
+        Field(
+            title="Command",
+            description="Command line to use to execute the job in Airflow 2. Task definition in Airflow 3",
+        ),
     ]
     concurrency_slots: Annotated[int, Field(description="Number of concurrency slots the job requires.")]
 
