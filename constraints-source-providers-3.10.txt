@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-06T13:50:58.713131
+# This constraints file was automatically generated on 2025-01-07T07:47:16.706869
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -37,7 +37,7 @@ PyJWT==2.10.1
 PyMySQL==1.1.1
 PyNaCl==1.5.0
 PyYAML==6.0.2
-Pygments==2.18.0
+Pygments==2.19.1
 SQLAlchemy-JSONField==1.0.2
 SQLAlchemy-Utils==0.41.2
 SQLAlchemy==1.4.54
@@ -47,7 +47,7 @@ WTForms==3.2.1
 Werkzeug==2.2.3
 adal==1.2.7
 adlfs==2024.12.0
-aiobotocore==2.16.1
+aiobotocore==2.17.0
 aiofiles==23.2.1
 aiohappyeyeballs==2.4.4
 aiohttp==3.11.11
@@ -77,7 +77,7 @@ ansicolors==1.1.8
 anyascii==0.3.2
 anyio==4.8.0
 apache-beam==2.61.0
-apispec==6.8.0
+apispec==6.8.1
 apprise==1.9.1
 argcomplete==3.5.3
 asana==3.2.3
@@ -127,8 +127,8 @@ billiard==4.2.1
 bitarray==3.0.0
 black==24.10.0
 blinker==1.9.0
-boto3==1.35.88
-botocore==1.35.88
+boto3==1.35.93
+botocore==1.35.93
 cachelib==0.9.0
 cachetools==5.5.0
 cassandra-driver==3.29.2
@@ -168,7 +168,7 @@ debugpy==1.8.11
 decorator==5.1.1
 deepdiff==8.1.1
 defusedxml==0.7.1
-deltalake==0.23.1
+deltalake==0.23.2
 diagrams==0.24.1
 dill==0.3.1.1
 distro==1.9.0
@@ -241,7 +241,7 @@ google-cloud-memcache==1.11.0
 google-cloud-monitoring==2.25.0
 google-cloud-orchestration-airflow==1.16.0
 google-cloud-os-login==2.16.0
-google-cloud-pubsub==2.27.1
+google-cloud-pubsub==2.27.2
 google-cloud-redis==2.17.0
 google-cloud-resource-manager==1.14.0
 google-cloud-run==0.10.14
@@ -367,10 +367,10 @@ msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.1.0
-mypy-boto3-appflow==1.35.39
-mypy-boto3-rds==1.35.89
-mypy-boto3-redshift-data==1.35.51
-mypy-boto3-s3==1.35.92
+mypy-boto3-appflow==1.35.93
+mypy-boto3-rds==1.35.93
+mypy-boto3-redshift-data==1.35.93
+mypy-boto3-s3==1.35.93
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.1.0
@@ -408,7 +408,7 @@ orderly-set==5.2.3
 orjson==3.10.13
 oss2==2.19.1
 packaging==24.2
-pandas-gbq==0.26.0
+pandas-gbq==0.26.1
 pandas-stubs==2.2.3.241126
 pandas==2.1.4
 papermill==2.6.0
@@ -580,10 +580,10 @@ std-uritemplate==2.0.1
 strictyaml==1.7.3
 structlog==24.4.0
 sympy==1.13.3
-tableauserverclient==0.34
+tableauserverclient==0.35
 tabulate==0.9.0
 tenacity==9.0.0
-teradatasql==20.0.0.21
+teradatasql==20.0.0.22
 teradatasqlalchemy==20.0.0.3
 termcolor==2.5.0
 text-unidecode==1.3
