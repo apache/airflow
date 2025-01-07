@@ -61,7 +61,7 @@ def upgrade():
             """)
         )
     else:
-        BATCH_SIZE = 2
+        BATCH_SIZE = 100
         offset = 0
         while True:
             rows = conn.execute(
@@ -113,7 +113,7 @@ def downgrade():
         )
 
     else:
-        BATCH_SIZE = 2
+        BATCH_SIZE = 100
         offset = 0
         while True:
             rows = conn.execute(
