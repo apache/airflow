@@ -98,8 +98,7 @@ def upgrade():
 def downgrade():
     """Unapply Remove pickled data from dagrun table."""
     conn = op.get_bind()
-    conf_type = sa.LargeBinary().with_variant(postgresql.BYTEA, "postgresql")
-    op.add_column("dag_run", sa.Column("conf_pickle", conf_type, nullable=True))
+    op.add_column("dag_run", sa.Column("conf_pickle", sa.PickleType(), nullable=True))
 
     if context.is_offline_mode():
         print(
@@ -143,4 +142,4 @@ def downgrade():
 
     op.drop_column("dag_run", "conf")
 
-    op.alter_column("dag_run", "conf_pickle", existing_type=conf_type, new_column_name="conf")
+    op.alter_column("dag_run", "conf_pickle", existing_type=sa.PickleType(), new_column_name="conf")
