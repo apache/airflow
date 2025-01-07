@@ -1711,134 +1711,134 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
     @pytest.mark.parametrize(
         "main_dag, task_instances, request_dag, payload, expected_ti",
         [
-            # pytest.param(
-            #     "example_python_operator",
-            #     [
-            #         {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},
-            #         {
-            #             "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
-            #             "state": State.FAILED,
-            #         },
-            #         {
-            #             "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
-            #             "state": State.FAILED,
-            #         },
-            #     ],
-            #     "example_python_operator",
-            #     {
-            #         "dry_run": True,
-            #         "start_date": DEFAULT_DATETIME_STR_2,
-            #         "only_failed": True,
-            #     },
-            #     2,
-            #     id="clear start date filter",
-            # ),
-            # pytest.param(
-            #     "example_python_operator",
-            #     [
-            #         {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},
-            #         {
-            #             "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
-            #             "state": State.FAILED,
-            #         },
-            #         {
-            #             "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
-            #             "state": State.FAILED,
-            #         },
-            #     ],
-            #     "example_python_operator",
-            #     {
-            #         "dry_run": True,
-            #         "end_date": DEFAULT_DATETIME_STR_2,
-            #         "only_failed": True,
-            #     },
-            #     2,
-            #     id="clear end date filter",
-            # ),
-            # pytest.param(
-            #     "example_python_operator",
-            #     [
-            #         {"logical_date": DEFAULT_DATETIME_1, "state": State.RUNNING},
-            #         {
-            #             "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
-            #             "state": State.RUNNING,
-            #         },
-            #         {
-            #             "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
-            #             "state": State.FAILED,
-            #         },
-            #     ],
-            #     "example_python_operator",
-            #     {"dry_run": True, "only_running": True, "only_failed": False},
-            #     2,
-            #     id="clear only running",
-            # ),
-            # pytest.param(
-            #     "example_python_operator",
-            #     [
-            #         {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},
-            #         {
-            #             "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
-            #             "state": State.FAILED,
-            #         },
-            #         {
-            #             "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
-            #             "state": State.RUNNING,
-            #         },
-            #     ],
-            #     "example_python_operator",
-            #     {
-            #         "dry_run": True,
-            #         "only_failed": True,
-            #     },
-            #     2,
-            #     id="clear only failed",
-            # ),
-            # pytest.param(
-            #     "example_python_operator",
-            #     [
-            #         {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},
-            #         {
-            #             "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
-            #             "state": State.FAILED,
-            #         },
-            #         {
-            #             "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
-            #             "state": State.FAILED,
-            #         },
-            #         {
-            #             "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3),
-            #             "state": State.FAILED,
-            #         },
-            #     ],
-            #     "example_python_operator",
-            #     {
-            #         "dry_run": True,
-            #         "task_ids": ["print_the_context", "sleep_for_1"],
-            #     },
-            #     2,
-            #     id="clear by task ids",
-            # ),
-            # pytest.param(
-            #     "example_python_operator",
-            #     [
-            #         {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},
-            #         {
-            #             "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
-            #             "state": State.FAILED,
-            #         },
-            #         {
-            #             "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
-            #             "state": State.RUNNING,
-            #         },
-            #     ],
-            #     "example_python_operator",
-            #     {
-            #         "only_failed": True,
-            #     },
-            #     2,
-            #     id="dry_run default",
-            # ),
+            pytest.param(
+                "example_python_operator",
+                [
+                    {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                        "state": State.FAILED,
+                    },
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
+                        "state": State.FAILED,
+                    },
+                ],
+                "example_python_operator",
+                {
+                    "dry_run": True,
+                    "start_date": DEFAULT_DATETIME_STR_2,
+                    "only_failed": True,
+                },
+                2,
+                id="clear start date filter",
+            ),
+            pytest.param(
+                "example_python_operator",
+                [
+                    {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                        "state": State.FAILED,
+                    },
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
+                        "state": State.FAILED,
+                    },
+                ],
+                "example_python_operator",
+                {
+                    "dry_run": True,
+                    "end_date": DEFAULT_DATETIME_STR_2,
+                    "only_failed": True,
+                },
+                2,
+                id="clear end date filter",
+            ),
+            pytest.param(
+                "example_python_operator",
+                [
+                    {"logical_date": DEFAULT_DATETIME_1, "state": State.RUNNING},
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                        "state": State.RUNNING,
+                    },
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
+                        "state": State.FAILED,
+                    },
+                ],
+                "example_python_operator",
+                {"dry_run": True, "only_running": True, "only_failed": False},
+                2,
+                id="clear only running",
+            ),
+            pytest.param(
+                "example_python_operator",
+                [
+                    {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                        "state": State.FAILED,
+                    },
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
+                        "state": State.RUNNING,
+                    },
+                ],
+                "example_python_operator",
+                {
+                    "dry_run": True,
+                    "only_failed": True,
+                },
+                2,
+                id="clear only failed",
+            ),
+            pytest.param(
+                "example_python_operator",
+                [
+                    {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                        "state": State.FAILED,
+                    },
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
+                        "state": State.FAILED,
+                    },
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3),
+                        "state": State.FAILED,
+                    },
+                ],
+                "example_python_operator",
+                {
+                    "dry_run": True,
+                    "task_ids": ["print_the_context", "sleep_for_1"],
+                },
+                2,
+                id="clear by task ids",
+            ),
+            pytest.param(
+                "example_python_operator",
+                [
+                    {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                        "state": State.FAILED,
+                    },
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
+                        "state": State.RUNNING,
+                    },
+                ],
+                "example_python_operator",
+                {
+                    "only_failed": True,
+                },
+                2,
+                id="dry_run default",
+            ),
             pytest.param(
                 "example_python_operator",
                 [
