@@ -18,10 +18,12 @@
 from __future__ import annotations
 
 import datetime
+import logging
 from abc import abstractmethod
 from collections.abc import (
     Collection,
     Iterable,
+    Mapping,
 )
 from typing import (
     TYPE_CHECKING,
@@ -31,10 +33,13 @@ from typing import (
 
 from airflow.sdk.definitions.mixins import DependencyMixin
 from airflow.sdk.definitions.node import DAGNode
+from airflow.sdk.definitions.templater import Templater
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
 if TYPE_CHECKING:
+    import jinja2
+
     from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.operator import Operator
     from airflow.sdk.definitions.baseoperator import BaseOperator
@@ -62,12 +67,14 @@ DEFAULT_TRIGGER_RULE: TriggerRule = TriggerRule.ALL_SUCCESS
 DEFAULT_WEIGHT_RULE: WeightRule = WeightRule.DOWNSTREAM
 DEFAULT_TASK_EXECUTION_TIMEOUT: datetime.timedelta | None = None
 
+log = logging.getLogger(__name__)
+
 
 class NotMapped(Exception):
     """Raise if a task is neither mapped nor has any parent mapped groups."""
 
 
-class AbstractOperator(DAGNode):
+class AbstractOperator(Templater, DAGNode):
     """
     Common implementation for operators, including unmapped and mapped.
 
@@ -265,3 +272,67 @@ class AbstractOperator(DAGNode):
         for task in self.get_upstreams_only_setups_and_teardowns():
             if task.is_setup:
                 yield task
+
+    # TODO: Task-SDK -- Should the following methods removed?
+    #   get_template_env
+    #   _render
+    def get_template_env(self, dag: DAG | None = None) -> jinja2.Environment:
+        """Get the template environment for rendering templates."""
+        if dag is None:
+            dag = self.get_dag()
+        return super().get_template_env(dag=dag)
+
+    def _render(self, template, context, dag: DAG | None = None):
+        if dag is None:
+            dag = self.get_dag()
+        return super()._render(template, context, dag=dag)
+
+    def _do_render_template_fields(
+        self,
+        parent: Any,
+        template_fields: Iterable[str],
+        context: Mapping[str, Any],
+        jinja_env: jinja2.Environment,
+        seen_oids: set[int],
+    ) -> None:
+        """Override the base to use custom error logging."""
+        for attr_name in template_fields:
+            try:
+                value = getattr(parent, attr_name)
+            except AttributeError:
+                raise AttributeError(
+                    f"{attr_name!r} is configured as a template field "
+                    f"but {parent.task_type} does not have this attribute."
+                )
+            try:
+                if not value:
+                    continue
+            except Exception:
+                # This may happen if the templated field points to a class which does not support `__bool__`,
+                # such as Pandas DataFrames:
+                # https://github.com/pandas-dev/pandas/blob/9135c3aaf12d26f857fcc787a5b64d521c51e379/pandas/core/generic.py#L1465
+                log.info(
+                    "Unable to check if the value of type '%s' is False for task '%s', field '%s'.",
+                    type(value).__name__,
+                    self.task_id,
+                    attr_name,
+                )
+                # We may still want to render custom classes which do not support __bool__
+                pass
+
+            try:
+                if callable(value):
+                    rendered_content = value(context=context, jinja_env=jinja_env)
+                else:
+                    rendered_content = self.render_template(value, context, jinja_env, seen_oids)
+            except Exception:
+                # TODO: Mask the value. Depends on https://github.com/apache/airflow/issues/45438
+                log.exception(
+                    "Exception rendering Jinja template for task '%s', field '%s'. Template: %r",
+                    self.task_id,
+                    attr_name,
+                    value,
+                )
+                raise
+            else:
+                setattr(parent, attr_name, rendered_content)

@@ -656,7 +656,7 @@ class DAG:
 
     def get_template_env(self, *, force_sandboxed: bool = False) -> jinja2.Environment:
         """Build a Jinja2 environment."""
-        import airflow.templates
+        from airflow.sdk.definitions.templater import NativeEnvironment, SandboxedEnvironment
 
         # Collect directories to search for template files
         searchpath = [self.folder]
@@ -674,9 +674,9 @@ class DAG:
             jinja_env_options.update(self.jinja_environment_kwargs)
         env: jinja2.Environment
         if self.render_template_as_native_obj and not force_sandboxed:
-            env = airflow.templates.NativeEnvironment(**jinja_env_options)
+            env = NativeEnvironment(**jinja_env_options)
         else:
-            env = airflow.templates.SandboxedEnvironment(**jinja_env_options)
+            env = SandboxedEnvironment(**jinja_env_options)
 
         # Add any user defined items. Safe to edit globals as long as no templates are rendered yet.
         # http://jinja.pocoo.org/docs/2.10/api/#jinja2.Environment.globals
