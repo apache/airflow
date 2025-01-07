@@ -400,6 +400,9 @@ DEPENDENCIES = [
     "markdown-it-py>=2.1.0",
     "markupsafe>=1.1.1",
     "marshmallow-oneofschema>=2.0.1",
+    # Marshmallow 3.24.0 introduced a breaking changes
+    # https://github.com/marshmallow-code/marshmallow/blob/dev/CHANGELOG.rst#3240-2025-01-06
+    "marshmallow==3.23.3",
     "mdit-py-plugins>=0.3.0",
     "methodtools>=0.4.7",
     "opentelemetry-api>=1.24.0",
