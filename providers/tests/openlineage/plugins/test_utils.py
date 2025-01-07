@@ -51,7 +51,7 @@ from airflow.utils.state import State
 from tests_common.test_utils.compat import (
     BashOperator,
 )
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS, AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -425,31 +425,8 @@ def test_serialize_timetable_2_10():
     }
 
 
-@pytest.mark.skipif(
-    not AIRFLOW_V_2_9_PLUS or AIRFLOW_V_2_10_PLUS,
-    reason="This test checks serialization only in 2.9 conditions",
-)
+@pytest.mark.skipif(AIRFLOW_V_2_10_PLUS, reason="This test checks serialization only in 2.9 conditions")
 def test_serialize_timetable_2_9():
-    dag = MagicMock()
-    dag.timetable.serialize.return_value = {}
-    dag.dataset_triggers = [Asset("a"), Asset("b")]
-    dag_info = DagInfo(dag)
-    assert dag_info.timetable == {
-        "dataset_condition": {
-            "__type": "dataset_all",
-            "objects": [
-                {"__type": "dataset", "extra": None, "uri": "a"},
-                {"__type": "dataset", "extra": None, "uri": "b"},
-            ],
-        }
-    }
-
-
-@pytest.mark.skipif(
-    AIRFLOW_V_2_9_PLUS,
-    reason="This test checks serialization only in 2.8 conditions",
-)
-def test_serialize_timetable_2_8():
     dag = MagicMock()
     dag.timetable.serialize.return_value = {}
     dag.dataset_triggers = [Asset("a"), Asset("b")]

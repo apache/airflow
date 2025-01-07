@@ -109,7 +109,7 @@ class StdBinaryStreamHandler(logging.StreamHandler):
     def emit(self, record: logging.LogRecord):
         try:
             msg = self.format(record)
-            buffer = bytearray(msg, "ascii", "backslashreplace")
+            buffer = bytearray(msg, "utf-8", "backslashreplace")
 
             buffer += b"\n"
 
@@ -202,7 +202,7 @@ def logging_processors(
             return encoder.encode(msg)
 
         def json_processor(logger: Any, method_name: Any, event_dict: EventDict) -> str:
-            return encoder.encode(event_dict).decode("ascii")
+            return encoder.encode(event_dict).decode("utf-8")
 
         json = structlog.processors.JSONRenderer(serializer=json_dumps)
 
@@ -324,19 +324,15 @@ def configure_logging(
                 },
             },
             "loggers": {
+                # Set Airflow logging to the level requested, but most everything else at "INFO"
                 "": {
                     "handlers": ["to_supervisor" if output else "default"],
-                    "level": log_level.upper(),
+                    "level": "INFO",
                     "propagate": True,
                 },
-                # Some modules we _never_ want at debug level
-                "alembic": {"level": "INFO"},
-                "asyncio": {"level": "INFO"},
-                "cron_descriptor.GetText": {"level": "INFO"},
-                "httpcore": {"level": "INFO"},
-                "httpx": {"level": "WARN"},
-                "psycopg.pq": {"level": "INFO"},
+                "airflow": {"level": log_level.upper()},
                 # These ones are too chatty even at info
+                "httpx": {"level": "WARN"},
                 "sqlalchemy.engine": {"level": "WARN"},
             },
         }

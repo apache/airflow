@@ -35,6 +35,25 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.0.0
+.....
+
+Latest change: 2024-12-19
+
+=================================================================================================  ===========  =================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================================================
+`35b927fe17 <https://github.com/apache/airflow/commit/35b927fe177065dad0e00c49d72b494e58b27ca8>`_  2024-12-19   ``Update path of example dags in docs (#45069)``
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`e03265bb56 <https://github.com/apache/airflow/commit/e03265bb5613b8cfcaa2a42cf6369b1ba091ddf4>`_  2024-12-05   ``Correct new changelog breaking changes header (#44659)``
+`71fec4e661 <https://github.com/apache/airflow/commit/71fec4e661ae4858dfe0f3797124c68b87aa13b2>`_  2024-12-03   ``[Providers/HTTP] Add adapter parameter to HttpHook to allow custom requests adapters (#44302)``
+`1cf796460c <https://github.com/apache/airflow/commit/1cf796460cb033726336e7d7c688c6ed3ea2fa9a>`_  2024-12-02   ``Remove Provider Deprecations in HTTP (#44542)``
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`4dfae23532 <https://github.com/apache/airflow/commit/4dfae23532d26ed838069c49d48f28c185e954c6>`_  2024-11-15   ``Update DAG example links in multiple providers documents (#44034)``
+`123dadda0e <https://github.com/apache/airflow/commit/123dadda0e0648ef1412053d1743128333eecb63>`_  2024-11-15   ``Rename execution_date to logical_date across codebase (#43902)``
+`cc7b7a2795 <https://github.com/apache/airflow/commit/cc7b7a2795b2226fdbcbfa15a52164f5b2811fb6>`_  2024-11-14   ``Apply suggestions from code review (#44036)``
+=================================================================================================  ===========  =================================================================================================
+
 4.13.3
 ......
 
@@ -43,6 +62,7 @@ Latest change: 2024-11-14
 =================================================================================================  ===========  ===============================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===============================================================
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
 `e7a0dddc09 <https://github.com/apache/airflow/commit/e7a0dddc09c3ebad29c73e1c2f66a7c09a6f2b5e>`_  2024-11-14   ``Limit temporarily aiohttp to < 3.11.0 (#44006)``
 `fba17703b7 <https://github.com/apache/airflow/commit/fba17703b7e745a7a8574693f75f7b46dec13222>`_  2024-10-29   ``Fix(http) bug, pass request_kwargs to HttpHooK.run (#43459)``
 =================================================================================================  ===========  ===============================================================

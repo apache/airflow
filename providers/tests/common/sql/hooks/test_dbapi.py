@@ -28,6 +28,7 @@ from pyodbc import Cursor
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
+from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, fetch_one_handler
 
 
@@ -61,6 +62,10 @@ class TestDbApiHook:
 
             def get_conn(self):
                 return conn
+
+            @property
+            def dialect(self):
+                return Dialect(self)
 
             def get_db_log_messages(self, conn) -> None:
                 return conn.get_messages()

@@ -31,6 +31,7 @@ from airflow.providers.google.cloud.links.translate import (
     TranslateResultByOutputConfigLink,
     TranslateTextBatchLink,
     TranslationDatasetsListLink,
+    TranslationGlossariesListLink,
     TranslationModelLink,
     TranslationModelsListLink,
     TranslationNativeDatasetLink,
@@ -52,6 +53,7 @@ if TYPE_CHECKING:
         TransliterationConfig,
         automl_translation,
     )
+    from google.cloud.translate_v3.types.translation_service import Glossary, GlossaryInputConfig
 
     from airflow.utils.context import Context
 
@@ -158,6 +160,7 @@ class TranslateTextOperator(GoogleCloudBaseOperator):
 
     :param project_id: Optional. The ID of the Google Cloud project that the
         service belongs to.
+        If not provided default project_id is used.
     :param location: optional. The ID of the Google Cloud location that the
         service belongs to. if not specified, 'global' is used.
         Non-global location is required for requests using AutoML models or custom glossaries.
@@ -1308,3 +1311,411 @@ class TranslateDocumentBatchOperator(GoogleCloudBaseOperator):
         result = hook.wait_for_operation_result(batch_document_translate_operation)
         self.log.info("Batch document translation job finished")
         return cast(dict, type(result).to_dict(result))
+
+
+class TranslateCreateGlossaryOperator(GoogleCloudBaseOperator):
+    """
+    Creates a Google Cloud Translation Glossary.
+
+    Creates a translation glossary, using API V3.
+    For more information on how to use this operator, take a look at the guide:
+    :ref:`howto/operator:TranslateCreateGlossaryOperator`.
+
+    :param glossary_id: User-specified id to built glossary resource name.
+    :param input_config: The input configuration of examples to built glossary from.
+        Total glossary must not exceed 10M Unicode codepoints.
+        The headers should not be included into the input file table, as languages specified with the
+        ``language_pair`` or ``language_codes_set`` params.
+    :param language_pair: Pair of language codes to be used for glossary creation.
+        Used to built unidirectional glossary. If specified, the ``language_codes_set`` should be empty.
+    :param language_codes_set: Set of language codes to create the equivalent term sets glossary.
+        Meant multiple languages mapping. If specified, the ``language_pair`` should be empty.
+    :param project_id: ID of the Google Cloud project where glossary is located.
+        If not provided default project_id is used.
+    :param location: The location of the project.
+    :param retry: Designation of what errors, if any, should be retried.
+    :param timeout: The timeout for this request.
+    :param metadata:  Strings which should be sent along with the request as metadata.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = (
+        "glossary_id",
+        "location",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+
+    def __init__(
+        self,
+        *,
+        project_id: str = PROVIDE_PROJECT_ID,
+        location: str,
+        glossary_id: str,
+        input_config: GlossaryInputConfig | dict,
+        language_pair: Glossary.LanguageCodePair | dict | None = None,
+        language_codes_set: Glossary.LanguageCodesSet | MutableSequence[str] | None = None,
+        timeout: float | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        gcp_conn_id: str = "google_cloud_default",
+        metadata: Sequence[tuple[str, str]] = (),
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.glossary_id = glossary_id
+        self.input_config = input_config
+        self.language_pair = language_pair
+        self.language_codes_set = language_codes_set
+        self.metadata = metadata
+        self.timeout = timeout
+        self.retry = retry
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context) -> str:
+        hook = TranslateHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        project_id = self.project_id or hook.project_id
+        try:
+            result_operation = hook.create_glossary(
+                glossary_id=self.glossary_id,
+                input_config=self.input_config,
+                language_pair=self.language_pair,
+                language_codes_set=self.language_codes_set,
+                project_id=project_id,
+                location=self.location,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except GoogleAPICallError as e:
+            self.log.error("Error submitting create_glossary operation ")
+            raise AirflowException(e)
+        self.log.info("Glossary creation started, glossary_id %s...", self.glossary_id)
+
+        result = hook.wait_for_operation_result(operation=result_operation)
+        result = type(result).to_dict(result)
+
+        glossary_id = hook.extract_object_id(result)
+        self.xcom_push(context, key="glossary_id", value=glossary_id)
+        self.log.info("Glossary creation complete. The glossary_id: %s.", glossary_id)
+        return result
+
+
+class TranslateUpdateGlossaryOperator(GoogleCloudBaseOperator):
+    """
+    Update glossary item with values provided.
+
+    Updates the translation glossary, using translation API V3.
+    Only ``display_name`` and ``input_config`` fields are allowed for update.
+
+    For more information on how to use this operator, take a look at the guide:
+    :ref:`howto/operator:TranslateUpdateGlossaryOperator`.
+
+    :param glossary_id: User-specified id to built glossary resource name.
+    :param input_config: The input configuration of examples to built glossary from.
+        Total glossary must not exceed 10M Unicode codepoints.
+        The headers should not be included into the input file table, as languages specified with the
+        ``language_pair`` or ``language_codes_set`` params.
+    :param language_pair: Pair of language codes to be used for glossary creation.
+        Used to built unidirectional glossary. If specified, the ``language_codes_set`` should be empty.
+    :param language_codes_set: Set of language codes to create the equivalent term sets glossary.
+        Meant multiple languages mapping. If specified, the ``language_pair`` should be empty.
+    :param project_id: ID of the Google Cloud project where glossary is located.
+        If not provided default project_id is used.
+    :param location: The location of the project.
+    :param retry: Designation of what errors, if any, should be retried.
+    :param timeout: The timeout for this request.
+    :param metadata:  Strings which should be sent along with the request as metadata.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = (
+        "glossary_id",
+        "location",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+
+    def __init__(
+        self,
+        *,
+        project_id: str = PROVIDE_PROJECT_ID,
+        location: str,
+        glossary_id: str,
+        new_display_name: str,
+        new_input_config: GlossaryInputConfig | dict | None = None,
+        timeout: float | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        gcp_conn_id: str = "google_cloud_default",
+        metadata: Sequence[tuple[str, str]] = (),
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.glossary_id = glossary_id
+        self.new_display_name = new_display_name
+        self.new_input_config = new_input_config
+        self.metadata = metadata
+        self.timeout = timeout
+        self.retry = retry
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context) -> str:
+        hook = TranslateHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        project_id = self.project_id or hook.project_id
+        glossary = hook.get_glossary(
+            glossary_id=self.glossary_id,
+            project_id=project_id,
+            location=self.location,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+        try:
+            result_operation = hook.update_glossary(
+                glossary=glossary,
+                new_display_name=self.new_display_name,
+                new_input_config=self.new_input_config,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except GoogleAPICallError as e:
+            self.log.error("Error submitting update_glossary operation ")
+            raise AirflowException(e)
+        self.log.info("Glossary update started, glossary_id %s...", self.glossary_id)
+
+        result = hook.wait_for_operation_result(operation=result_operation)
+        result = type(result).to_dict(result)
+        self.log.info("Glossary update complete. The glossary_id: %s.", self.glossary_id)
+        return result
+
+
+class TranslateListGlossariesOperator(GoogleCloudBaseOperator):
+    """
+    Get a list of translation glossaries in a project.
+
+    List the translation glossaries, using translation API V3.
+
+    For more information on how to use this operator, take a look at the guide:
+    :ref:`howto/operator:TranslateListGlossariesOperator`.
+
+    :param project_id: ID of the Google Cloud project where glossary is located.
+        If not provided default project_id is used.
+    :param page_size: Page size requested, if not set server use appropriate default.
+    :param page_token: A token identifying a page of results the server should return.
+            The first page is returned if ``page_token`` is empty or missing.
+    :param filter_str: Filter specifying constraints of a list operation. Specify the constraint by the
+            format of "key=value", where key must be ``src`` or ``tgt``, and the value must be a valid
+            language code.
+            For multiple restrictions, concatenate them by "AND" (uppercase only), such as:
+            ``src=en-US AND tgt=zh-CN``. Notice that the exact match is used here, which means using 'en-US'
+            and 'en' can lead to different results, which depends on the language code you used when you
+            create the glossary.
+            For the unidirectional glossaries, the ``src`` and ``tgt`` add restrictions
+            on the source and target language code separately.
+            For the equivalent term set glossaries, the ``src`` and/or ``tgt``
+            add restrictions on the term set.
+            For example: ``src=en-US AND tgt=zh-CN`` will only pick the unidirectional glossaries which
+            exactly match the source language code as ``en-US`` and the target language code ``zh-CN``,
+            but all equivalent term set glossaries which contain ``en-US`` and ``zh-CN`` in their language
+            set will be picked.
+            If missing, no filtering is performed.
+    :param location: The location of the project.
+    :param retry: Designation of what errors, if any, should be retried.
+    :param timeout: The timeout for this request.
+    :param metadata:  Strings which should be sent along with the request as metadata.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    operator_extra_links = (TranslationGlossariesListLink(),)
+
+    template_fields: Sequence[str] = (
+        "location",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+
+    def __init__(
+        self,
+        *,
+        project_id: str = PROVIDE_PROJECT_ID,
+        location: str,
+        page_size: int | None = None,
+        page_token: str | None = None,
+        filter_str: str | None = None,
+        timeout: float | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        gcp_conn_id: str = "google_cloud_default",
+        metadata: Sequence[tuple[str, str]] = (),
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.page_size = page_size
+        self.page_token = page_token
+        self.filter_str = filter_str
+        self.metadata = metadata
+        self.timeout = timeout
+        self.retry = retry
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context) -> Sequence[str]:
+        hook = TranslateHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        project_id = self.project_id or hook.project_id
+        TranslationGlossariesListLink.persist(
+            context=context,
+            task_instance=self,
+            project_id=project_id,
+        )
+        self.log.info("Requesting glossaries list")
+        try:
+            results_pager = hook.list_glossaries(
+                project_id=project_id,
+                location=self.location,
+                page_size=self.page_size,
+                page_token=self.page_token,
+                filter_str=self.filter_str,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except GoogleAPICallError as e:
+            self.log.error("Error submitting list_glossaries request")
+            raise AirflowException(e)
+
+        result_ids = []
+        for glossary_item in results_pager:
+            glossary_item = type(glossary_item).to_dict(glossary_item)
+            glossary_id = hook.extract_object_id(glossary_item)
+            result_ids.append(glossary_id)
+        self.log.info("Fetching the glossaries list complete. Glossary id-s: %s", result_ids)
+        return result_ids
+
+
+class TranslateDeleteGlossaryOperator(GoogleCloudBaseOperator):
+    """
+    Delete a Google Cloud Translation Glossary.
+
+    Deletes a translation glossary, using API V3.
+    For more information on how to use this operator, take a look at the guide:
+    :ref:`howto/operator:TranslateDeleteGlossaryOperator`.
+
+    :param glossary_id: User-specified id to delete glossary resource item.
+    :param project_id: ID of the Google Cloud project where glossary is located.
+        If not provided default project_id is used.
+    :param location: The location of the project.
+    :param retry: Designation of what errors, if any, should be retried.
+    :param timeout: The timeout for this request.
+    :param metadata:  Strings which should be sent along with the request as metadata.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = (
+        "glossary_id",
+        "location",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+
+    def __init__(
+        self,
+        *,
+        project_id: str = PROVIDE_PROJECT_ID,
+        location: str,
+        glossary_id: str,
+        timeout: float | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        gcp_conn_id: str = "google_cloud_default",
+        metadata: Sequence[tuple[str, str]] = (),
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.glossary_id = glossary_id
+        self.project_id = project_id
+        self.location = location
+        self.metadata = metadata
+        self.timeout = timeout
+        self.retry = retry
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context) -> str:
+        hook = TranslateHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        project_id = self.project_id or hook.project_id
+        try:
+            result_operation = hook.delete_glossary(
+                glossary_id=self.glossary_id,
+                project_id=project_id,
+                location=self.location,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except GoogleAPICallError as e:
+            self.log.error("Error submitting delete_glossary operation ")
+            raise AirflowException(e)
+        self.log.info("Glossary delete started, glossary_id %s...", self.glossary_id)
+
+        result = hook.wait_for_operation_result(operation=result_operation)
+        result = type(result).to_dict(result)
+        self.log.info("Glossary deletion complete. The glossary_id: %s.", self.glossary_id)
+        return result

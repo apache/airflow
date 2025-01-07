@@ -31,16 +31,7 @@ export type AlertProps = {
 } & Omit<ChakraAlert.RootProps, "title">;
 
 export const Alert = forwardRef<HTMLDivElement, AlertProps>((props, ref) => {
-  const {
-    children,
-    closable,
-    endElement,
-    icon,
-    onClose,
-    startElement,
-    title,
-    ...rest
-  } = props;
+  const { children, closable, endElement, icon, onClose, startElement, title, ...rest } = props;
 
   return (
     <ChakraAlert.Root ref={ref} {...rest}>

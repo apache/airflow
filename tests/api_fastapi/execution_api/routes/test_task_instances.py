@@ -25,10 +25,10 @@ import uuid6
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
-from airflow.models import RenderedTaskInstanceFields, Trigger
+from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import State, TaskInstanceState, TerminalTIState
 
 from tests_common.test_utils.db import clear_db_runs, clear_rendered_ti_fields
 
@@ -234,7 +234,7 @@ class TestTIUpdateState:
         with mock.patch(
             "airflow.api_fastapi.common.db.common.Session.execute",
             side_effect=[
-                mock.Mock(one=lambda: ("running",)),  # First call returns "queued"
+                mock.Mock(one=lambda: ("running", 1, 0)),  # First call returns "queued"
                 SQLAlchemyError("Database error"),  # Second call raises an error
             ],
         ):
@@ -259,7 +259,7 @@ class TestTIUpdateState:
 
         payload = {
             "state": "deferred",
-            "trigger_kwargs": {"key": "value"},
+            "trigger_kwargs": {"key": "value", "moment": "2024-12-18T00:00:00Z"},
             "classpath": "my-classpath",
             "next_method": "execute_callback",
             "trigger_timeout": "P1D",  # 1 day
@@ -277,14 +277,193 @@ class TestTIUpdateState:
 
         assert tis[0].state == TaskInstanceState.DEFERRED
         assert tis[0].next_method == "execute_callback"
-        assert tis[0].next_kwargs == {"key": "value"}
+        assert tis[0].next_kwargs == {
+            "key": "value",
+            "moment": datetime(2024, 12, 18, 00, 00, 00, tzinfo=timezone.utc),
+        }
         assert tis[0].trigger_timeout == timezone.make_aware(datetime(2024, 11, 23), timezone=timezone.utc)
 
         t = session.query(Trigger).all()
         assert len(t) == 1
         assert t[0].created_date == instant
         assert t[0].classpath == "my-classpath"
-        assert t[0].kwargs == {"key": "value"}
+        assert t[0].kwargs == {
+            "key": "value",
+            "moment": datetime(2024, 12, 18, 00, 00, 00, tzinfo=timezone.utc),
+        }
+
+    def test_ti_update_state_to_reschedule(self, client, session, create_task_instance, time_machine):
+        """
+        Test that tests if the transition to reschedule state is handled correctly.
+        """
+
+        instant = timezone.datetime(2024, 10, 30)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_reschedule",
+            state=State.RUNNING,
+            session=session,
+        )
+        ti.start_date = instant
+        session.commit()
+
+        payload = {
+            "state": "up_for_reschedule",
+            "reschedule_date": "2024-10-31T11:03:00+00:00",
+            "end_date": DEFAULT_END_DATE.isoformat(),
+        }
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        tis = session.query(TaskInstance).all()
+        assert len(tis) == 1
+        assert tis[0].state == TaskInstanceState.UP_FOR_RESCHEDULE
+        assert tis[0].next_method is None
+        assert tis[0].next_kwargs is None
+        assert tis[0].duration == 129600
+
+        trs = session.query(TaskReschedule).all()
+        assert len(trs) == 1
+        assert trs[0].dag_id == "dag"
+        assert trs[0].task_id == "test_ti_update_state_to_reschedule"
+        assert trs[0].run_id == "test"
+        assert trs[0].try_number == 0
+        assert trs[0].start_date == instant
+        assert trs[0].end_date == DEFAULT_END_DATE
+        assert trs[0].reschedule_date == timezone.parse("2024-10-31T11:03:00+00:00")
+        assert trs[0].map_index == -1
+        assert trs[0].duration == 129600
+
+    @pytest.mark.parametrize(
+        ("retries", "expected_state"),
+        [
+            (0, State.FAILED),
+            (None, State.FAILED),
+            (3, State.UP_FOR_RETRY),
+        ],
+    )
+    def test_ti_update_state_to_failed_with_retries(
+        self, client, session, create_task_instance, retries, expected_state
+    ):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_retry",
+            state=State.RUNNING,
+        )
+
+        if retries is not None:
+            ti.max_tries = retries
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": TerminalTIState.FAILED,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.state == expected_state
+        assert ti.next_method is None
+        assert ti.next_kwargs is None
+
+    def test_ti_update_state_when_ti_is_restarting(self, client, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_when_ti_is_restarting",
+            state=State.RUNNING,
+        )
+        # update state to restarting
+        ti.state = State.RESTARTING
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": TerminalTIState.FAILED,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        ti = session.get(TaskInstance, ti.id)
+        # restarting is always retried
+        assert ti.state == State.UP_FOR_RETRY
+        assert ti.next_method is None
+        assert ti.next_kwargs is None
+
+    def test_ti_update_state_when_ti_has_higher_tries_than_retries(
+        self, client, session, create_task_instance
+    ):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_when_ti_has_higher_tries_than_retries",
+            state=State.RUNNING,
+        )
+        # two maximum tries defined, but third try going on
+        ti.max_tries = 2
+        ti.try_number = 3
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": TerminalTIState.FAILED,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        ti = session.get(TaskInstance, ti.id)
+        # all retries exhausted, marking as failed
+        assert ti.state == State.FAILED
+        assert ti.next_method is None
+        assert ti.next_kwargs is None
+
+    def test_ti_update_state_to_failed_without_retry_table_check(self, client, session, create_task_instance):
+        # we just want to fail in this test, no need to retry
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_failed_table_check",
+            state=State.RUNNING,
+        )
+        ti.start_date = DEFAULT_START_DATE
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": TerminalTIState.FAIL_WITHOUT_RETRY,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.state == State.FAILED
+        assert ti.next_method is None
+        assert ti.next_kwargs is None
+        assert ti.duration == 3600.00
 
 
 class TestTIHealthEndpoint:
@@ -454,33 +633,6 @@ class TestTIHealthEndpoint:
         # If successful, ensure last_heartbeat_at is updated
         session.refresh(ti)
         assert ti.last_heartbeat_at == time_now.add(minutes=10)
-
-    def test_ti_update_state_to_failed_table_check(self, client, session, create_task_instance):
-        ti = create_task_instance(
-            task_id="test_ti_update_state_to_failed_table_check",
-            state=State.RUNNING,
-        )
-        ti.start_date = DEFAULT_START_DATE
-        session.commit()
-
-        response = client.patch(
-            f"/execution/task-instances/{ti.id}/state",
-            json={
-                "state": State.FAILED,
-                "end_date": DEFAULT_END_DATE.isoformat(),
-            },
-        )
-
-        assert response.status_code == 204
-        assert response.text == ""
-
-        session.expire_all()
-
-        ti = session.get(TaskInstance, ti.id)
-        assert ti.state == State.FAILED
-        assert ti.next_method is None
-        assert ti.next_kwargs is None
-        assert ti.duration == 3600.00
 
 
 class TestTIPutRTIF:

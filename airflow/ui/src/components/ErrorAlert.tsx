@@ -16,12 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { HStack } from "@chakra-ui/react";
 import type { ApiError } from "openapi-gen/requests/core/ApiError";
-import type {
-  HTTPExceptionResponse,
-  HTTPValidationError,
-} from "openapi-gen/requests/types.gen";
-import { FiAlertTriangle } from "react-icons/fi";
+import type { HTTPExceptionResponse, HTTPValidationError } from "openapi-gen/requests/types.gen";
 
 import { Alert } from "./ui";
 
@@ -52,18 +49,16 @@ export const ErrorAlert = ({ error: err }: Props) => {
           ${detail.loc.join(".")} ${detail.msg}`,
       );
     } else {
-      detailMessage = Object.keys(details).map(
-        (key) => `${key}: ${details[key] as string}`,
-      );
+      detailMessage = Object.keys(details).map((key) => `${key}: ${details[key] as string}`);
     }
   }
 
   return (
     <Alert status="error">
-      <FiAlertTriangle />
-      {error.message}
-      <br />
-      {detailMessage}
+      <HStack align="start" flexDirection="column" gap={2} mt={-1}>
+        {error.message}
+        <span>{detailMessage}</span>
+      </HStack>
     </Alert>
   );
 };

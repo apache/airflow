@@ -537,5 +537,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
 @provide_session
 def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
     """Serialize a DAG instance."""
-    dagbag = DagBag(process_subdir(args.subdir))
-    dagbag.sync_to_db(session=session)
+    # TODO: AIP-66 bundle centric reserialize
+    raise NotImplementedError(
+        "AIP-66: This command is not implemented yet - use `dag-processor --num-runs 1` in the meantime."
+    )

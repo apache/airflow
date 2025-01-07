@@ -58,14 +58,18 @@ export const XCom = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination } = tableURLState;
 
-  const { data, error, isFetching, isLoading } = useXcomServiceGetXcomEntries({
-    dagId,
-    dagRunId: runId,
-    limit: pagination.pageSize,
-    mapIndex,
-    offset: pagination.pageIndex * pagination.pageSize,
-    taskId,
-  });
+  const { data, error, isFetching, isLoading } = useXcomServiceGetXcomEntries(
+    {
+      dagId,
+      dagRunId: runId,
+      limit: pagination.pageSize,
+      mapIndex,
+      offset: pagination.pageIndex * pagination.pageSize,
+      taskId,
+    },
+    undefined,
+    { enabled: !isNaN(pagination.pageSize) },
+  );
 
   return (
     <Box>
