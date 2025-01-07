@@ -17,12 +17,65 @@
 from __future__ import annotations
 
 import logging
+from functools import cached_property
 from typing import TYPE_CHECKING
+
+from connexion import Resolver
+from connexion.decorators.validation import RequestBodyValidator
+from connexion.exceptions import BadRequestProblem
 
 if TYPE_CHECKING:
     from flask import Flask
 
 log = logging.getLogger(__name__)
+
+
+class _LazyResolution:
+    """
+    OpenAPI endpoint that lazily resolves the function on first use.
+
+    This is a stand-in replacement for ``connexion.Resolution`` that implements
+    its public attributes ``function`` and ``operation_id``, but the function
+    is only resolved when it is first accessed.
+    """
+
+    def __init__(self, resolve_func, operation_id):
+        self._resolve_func = resolve_func
+        self.operation_id = operation_id
+
+    @cached_property
+    def function(self):
+        return self._resolve_func(self.operation_id)
+
+
+class _LazyResolver(Resolver):
+    """
+    OpenAPI endpoint resolver that loads lazily on first use.
+
+    This re-implements ``connexion.Resolver.resolve()`` to not eagerly resolve
+    the endpoint function (and thus avoid importing it in the process), but only
+    return a placeholder that will be actually resolved when the contained
+    function is accessed.
+    """
+
+    def resolve(self, operation):
+        operation_id = self.resolve_operation_id(operation)
+        return _LazyResolution(self.resolve_function_from_operation_id, operation_id)
+
+
+class _CustomErrorRequestBodyValidator(RequestBodyValidator):
+    """
+    Custom request body validator that overrides error messages.
+
+    By default, Connextion emits a very generic *None is not of type 'object'*
+    error when receiving an empty request body (with the view specifying the
+    body as non-nullable). We overrides it to provide a more useful message.
+    """
+
+    def validate_schema(self, data, url):
+        if not self.is_null_value_valid and data is None:
+            raise BadRequestProblem(detail="Request body must not be empty")
+        return super().validate_schema(data, url)
 
 
 def init_plugins(app):
@@ -61,7 +114,7 @@ def init_plugins(app):
 
 def init_error_handlers(app: Flask):
     """Add custom errors handlers."""
-    from airflow.www import views
+    from airflow.providers.fab.www import views
 
     app.register_error_handler(500, views.show_traceback)
     app.register_error_handler(404, views.not_found)
