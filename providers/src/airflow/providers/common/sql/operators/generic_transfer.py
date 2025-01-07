@@ -52,7 +52,7 @@ class GenericTransfer(BaseOperator):
     :param preoperator: sql statement or list of statements to be
         executed prior to loading the data. (templated)
     :param insert_args: extra params for `insert_rows` method.
-    :param chunk_size: number of records to be read in paginated mode (optional).
+    :param page_size: number of records to be read in paginated mode (optional).
     """
 
     template_fields: Sequence[str] = (
@@ -81,7 +81,7 @@ class GenericTransfer(BaseOperator):
         destination_hook_params: dict | None = None,
         preoperator: str | list[str] | None = None,
         insert_args: dict | None = None,
-        chunk_size: int | None = None,
+        page_size: int | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -93,7 +93,7 @@ class GenericTransfer(BaseOperator):
         self.destination_hook_params = destination_hook_params
         self.preoperator = preoperator
         self.insert_args = insert_args or {}
-        self.chunk_size = chunk_size
+        self.page_size = page_size
         self._paginated_sql_statement_format = kwargs.get(
             "paginated_sql_statement_format", "{} LIMIT {} OFFSET {}"
         )
@@ -123,7 +123,7 @@ class GenericTransfer(BaseOperator):
 
     def get_paginated_sql(self, offset: int) -> str:
         """Format the paginated SQL statement using the current format."""
-        return self._paginated_sql_statement_format.format(self.sql, self.chunk_size, offset)
+        return self._paginated_sql_statement_format.format(self.sql, self.page_size, offset)
 
     def render_template_fields(
         self,
@@ -133,8 +133,8 @@ class GenericTransfer(BaseOperator):
         super().render_template_fields(context=context, jinja_env=jinja_env)
 
         # Make sure string are converted to integers
-        if isinstance(self.chunk_size, str):
-            self.chunk_size = int(self.chunk_size)
+        if isinstance(self.page_size, str):
+            self.page_size = int(self.page_size)
         commit_every = self.insert_args.get("commit_every")
         if isinstance(commit_every, str):
             self.insert_args["commit_every"] = int(commit_every)
@@ -145,7 +145,7 @@ class GenericTransfer(BaseOperator):
             self.log.info(self.preoperator)
             self.destination_hook.run(self.preoperator)
 
-        if self.chunk_size and isinstance(self.sql, str):
+        if self.page_size and isinstance(self.sql, str):
             self.defer(
                 trigger=SQLExecuteQueryTrigger(
                     conn_id=self.source_conn_id,
@@ -184,7 +184,7 @@ class GenericTransfer(BaseOperator):
                         map_indexes=map_index,
                         default=0,
                     )
-                    + self.chunk_size
+                    + self.page_size
                 )
 
                 self.log.info("Offset increased to %d", offset)

@@ -19,17 +19,20 @@ from __future__ import annotations
 
 import inspect
 from contextlib import closing
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
-
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.models.connection import Connection
 from airflow.models.dag import DAG
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils import timezone
 
 from tests_common.test_utils.compat import GenericTransfer
+from tests_common.test_utils.operators.run_deferable import execute_operator
 from tests_common.test_utils.providers import get_provider_min_airflow_version
 
 pytestmark = pytest.mark.db_test
@@ -38,6 +41,7 @@ DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 TEST_DAG_ID = "unit_test_dag"
+counter = 0
 
 
 @pytest.mark.backend("mysql")
@@ -192,6 +196,65 @@ class TestGenericTransfer:
         assert operator.destination_conn_id == "my_destination_conn_id"
         assert operator.preoperator == "my_preoperator"
         assert operator.insert_args == {"commit_every": 5000, "executemany": True, "replace": True}
+
+    def test_paginated_read(self):
+        """
+        This unit test is based on the example described in the medium article:
+        https://medium.com/apache-airflow/transfering-data-from-sap-hana-to-mssql-using-the-airflow-generictransfer-d29f147a9f1f
+        """
+
+        def create_get_records_side_effect():
+            records = [
+                [[1, 2], [11, 12], [3, 4], [13, 14]],
+                [[3, 4], [13, 14]],
+            ]
+
+            def side_effect(sql: str):
+                if records:
+                    return records.pop(0)
+                return []
+
+            return side_effect
+
+        get_records_side_effect = create_get_records_side_effect()
+
+        def get_hook(conn_id: str, hook_params: dict | None = None):
+            mocked_hook = MagicMock(conn_name_attr=conn_id, spec=DbApiHook)
+            mocked_hook.get_records.side_effect = get_records_side_effect
+            return mocked_hook
+
+        def get_connection(conn_id: str):
+            mocked_hook = get_hook(conn_id=conn_id)
+            mocked_conn = MagicMock(conn_id=conn_id, spec=Connection)
+            mocked_conn.get_hook.return_value = mocked_hook
+            return mocked_conn
+
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_connection):
+            with mock.patch("airflow.hooks.base.BaseHook.get_hook", side_effect=get_hook):
+                operator = GenericTransfer(
+                    task_id="transfer_table",
+                    source_conn_id="my_source_conn_id",
+                    destination_conn_id="my_destination_conn_id",
+                    sql="SELECT * FROM HR.EMPLOYEES",
+                    destination_table="NEW_HR.EMPLOYEES",
+                    page_size=1000,  # Fetch data in chunks of 1000 rows for pagination
+                    insert_args={
+                        "commit_every": 1000,  # Number of rows inserted in each batch
+                        "executemany": True,  # Enable batch inserts
+                        "fast_executemany": True,  # Boost performance for MSSQL inserts
+                        "replace": True,  # Used for upserts/merges if needed
+                    },
+                    execution_timeout=timedelta(hours=1),
+                )
+
+                results, events = execute_operator(operator)
+
+                assert not results
+                assert len(events) == 3
+                assert events[0].payload["results"] == [[1, 2], [11, 12], [3, 4], [13, 14]]
+                assert events[1].payload["results"] == [[3, 4], [13, 14]]
+                assert not events[2].payload["results"]
+
 
     def test_when_provider_min_airflow_version_is_3_0_or_higher_remove_obsolete_method(self):
         """

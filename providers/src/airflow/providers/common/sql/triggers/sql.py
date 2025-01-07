@@ -76,18 +76,9 @@ class SQLExecuteQueryTrigger(BaseTrigger):
 
             self.log.info("Extracting data from %s", self.conn_id)
             self.log.info("Executing: \n %s", self.sql)
-
-            get_records = getattr(hook, "get_records", None)
-
-            if not callable(get_records):
-                raise RuntimeError(
-                    f"Hook for connection {self.conn_id!r} "
-                    f"({type(hook).__name__}) has no `get_records` method"
-                )
-            else:
-                self.log.info("Reading records from %s", self.conn_id)
-                results = get_records(self.sql)
-                self.log.info("Reading records from %s done!", self.conn_id)
+            self.log.info("Reading records from %s", self.conn_id)
+            results = hook.get_records(self.sql)
+            self.log.info("Reading records from %s done!", self.conn_id)
 
             self.log.debug("results: %s", results)
             yield TriggerEvent({"status": "success", "results": results})
