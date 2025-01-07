@@ -29,9 +29,9 @@ from airflow.exceptions import AirflowException, XComNotFound
 from airflow.models import MappedOperator, TaskInstance
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.taskmixin import DependencyMixin
+from airflow.sdk.definitions.mixins import ResolveMixin
 from airflow.sdk.types import NOTSET, ArgNotSet
 from airflow.utils.db import exists_query
-from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.state import State
@@ -44,7 +44,6 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.dag import DAG
-    from airflow.utils.context import Context
     from airflow.utils.edgemodifier import EdgeModifier
 
 # Callable objects contained by MapXComArg. We only accept callables from
@@ -206,8 +205,9 @@ class XComArg(ResolveMixin, DependencyMixin):
         """
         raise NotImplementedError()
 
-    @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
+    def resolve(
+        self, context: Mapping[str, Any], session: Session | None = None, *, include_xcom: bool = True
+    ) -> Any:
         """
         Pull XCom value.
 
@@ -420,8 +420,11 @@ class PlainXComArg(XComArg):
             )
         return session.scalar(query)
 
+    # TODO: Task-SDK: Remove session argument once everything is ported over to Task SDK
     @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
+    def resolve(
+        self, context: Mapping[str, Any], session: Session = NEW_SESSION, *, include_xcom: bool = True
+    ) -> Any:
         ti = context["ti"]
         if TYPE_CHECKING:
             assert isinstance(ti, TaskInstance)
@@ -431,12 +434,12 @@ class PlainXComArg(XComArg):
             context["expanded_ti_count"],
             session=session,
         )
+
         result = ti.xcom_pull(
             task_ids=task_id,
             map_indexes=map_indexes,
             key=self.key,
             default=NOTSET,
-            session=session,
         )
         if not isinstance(result, ArgNotSet):
             return result
@@ -535,7 +538,9 @@ class MapXComArg(XComArg):
         return self.arg.get_task_map_length(run_id, session=session)
 
     @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
+    def resolve(
+        self, context: Mapping[str, Any], session: Session = NEW_SESSION, *, include_xcom: bool = True
+    ) -> Any:
         value = self.arg.resolve(context, session=session, include_xcom=include_xcom)
         if not isinstance(value, (Sequence, dict)):
             raise ValueError(f"XCom map expects sequence or dict, not {type(value).__name__}")
@@ -616,7 +621,9 @@ class ZipXComArg(XComArg):
         return max(ready_lengths)
 
     @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
+    def resolve(
+        self, context: Mapping[str, Any], session: Session = NEW_SESSION, *, include_xcom: bool = True
+    ) -> Any:
         values = [arg.resolve(context, session=session, include_xcom=include_xcom) for arg in self.args]
         for value in values:
             if not isinstance(value, (Sequence, dict)):
@@ -691,7 +698,9 @@ class ConcatXComArg(XComArg):
         return sum(ready_lengths)
 
     @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
+    def resolve(
+        self, context: Mapping[str, Any], session: Session = NEW_SESSION, *, include_xcom: bool = True
+    ) -> Any:
         values = [arg.resolve(context, session=session, include_xcom=include_xcom) for arg in self.args]
         for value in values:
             if not isinstance(value, (Sequence, dict)):

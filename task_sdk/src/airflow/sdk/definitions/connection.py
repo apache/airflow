@@ -18,11 +18,12 @@
 from __future__ import annotations
 
 import json
-from contextlib import suppress
+import logging
 from json import JSONDecodeError
 
 import attrs
-import structlog
+
+log = logging.getLogger(__name__)
 
 
 @attrs.define
@@ -63,21 +64,12 @@ class Connection:
         :param nested: Determines whether nested structures are also deserialized into JSON (default False).
         """
         extra = {}
-        log = structlog.get_logger(logger_name="task")
-
         if self.extra:
             try:
-                if nested:
-                    for key, value in json.loads(self.extra).items():
-                        extra[key] = value
-                        if isinstance(value, str):
-                            with suppress(JSONDecodeError):
-                                extra[key] = json.loads(value)
-                else:
-                    extra = json.loads(self.extra)
+                extra = json.loads(self.extra)
             except JSONDecodeError:
                 log.error("Failed to deserialize extra property `extra`, returning empty dictionary")
-        # Mask sensitive stuff here
+        # TODO: Mask sensitive keys from this list or revisit if it will be done in server
         return extra
 
     @property
