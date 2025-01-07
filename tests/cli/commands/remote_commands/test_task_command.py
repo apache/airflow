@@ -656,11 +656,7 @@ class TestCliTasks:
             else {}
         )
         dagrun = dag2.create_dagrun(
-            run_id=dag2.timetable.generate_run_id(
-                run_type=DagRunType.MANUAL,
-                logical_date=default_date2,
-                data_interval=data_interval,
-            ),
+            run_id="test",
             state=State.RUNNING,
             logical_date=default_date2,
             data_interval=data_interval,

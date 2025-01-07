@@ -884,15 +884,15 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             dag = self.dag
             kwargs = {
-                "run_type": DagRunType.MANUAL,
                 "state": DagRunState.RUNNING,
                 "start_date": self.start_date,
                 "session": self.session,
                 **kwargs,
             }
+            run_type = kwargs.get("run_type", DagRunType.MANUAL)
 
             if logical_date is None:
-                if kwargs["run_type"] == DagRunType.MANUAL:
+                if run_type == DagRunType.MANUAL:
                     logical_date = self.start_date
                 else:
                     logical_date = dag.next_dagrun_info(None).logical_date
@@ -901,18 +901,22 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             try:
                 data_interval = kwargs["data_interval"]
             except KeyError:
-                if kwargs["run_type"] == DagRunType.MANUAL:
+                if run_type == DagRunType.MANUAL:
                     data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
                 else:
                     data_interval = dag.infer_automated_data_interval(logical_date)
                 kwargs["data_interval"] = data_interval
 
             if "run_id" not in kwargs:
-                kwargs["run_id"] = dag.timetable.generate_run_id(
-                    run_type=kwargs["run_type"],
-                    logical_date=logical_date,
-                    data_interval=data_interval,
-                )
+                if "run_type" not in kwargs:
+                    kwargs["run_id"] = "test"
+                else:
+                    kwargs["run_id"] = dag.timetable.generate_run_id(
+                        run_type=kwargs["run_type"],
+                        logical_date=logical_date,
+                        data_interval=data_interval,
+                    )
+            kwargs["run_type"] = run_type
 
             if AIRFLOW_V_3_0_PLUS:
                 kwargs.setdefault("triggered_by", DagRunTriggeredByType.TEST)

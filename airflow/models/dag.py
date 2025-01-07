@@ -1775,6 +1775,14 @@ class DAG(TaskSDKDag, LoggingMixin):
                 f"the configured pattern: {regex!r} or the built-in pattern: {RUN_ID_REGEX!r}"
             )
 
+        # Prevent a manual run from using an ID that looks like a scheduled run.
+        if run_type == DagRunType.MANUAL:
+            if (inferred_run_type := DagRunType.from_run_id(run_id)) != DagRunType.MANUAL:
+                raise ValueError(
+                    f"A {run_type.value} DAG run cannot use ID {run_id!r} since it "
+                    f"is reserved for {inferred_run_type.value} runs"
+                )
+
         # todo: AIP-78 add verification that if run type is backfill then we have a backfill id
 
         if TYPE_CHECKING:
