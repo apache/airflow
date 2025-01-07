@@ -76,7 +76,9 @@ jobs:
           python: ${{ inputs.default-python-version }}
           use-uv: ${{ inputs.use-uv }}
       - name: "Helm Unit Tests: ${{ matrix.helm-test-package }}"
-        run: breeze testing helm-tests --test-type "${{ matrix.helm-test-package }}"
+        env:
+          HELM_TEST_PACKAGE: "${{ matrix.helm-test-package }}"
+        run: breeze testing helm-tests --test-type "${HELM_TEST_PACKAGE}"
 
   tests-helm-release:
     timeout-minutes: 80

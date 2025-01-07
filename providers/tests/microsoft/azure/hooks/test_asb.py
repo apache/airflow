@@ -184,6 +184,37 @@ class TestAdminClientHook:
         assert mock_subscription_properties.name == subscription_name
         assert mock_rule_properties.name == mock_rule_name
 
+    @mock.patch("azure.servicebus.management.SubscriptionProperties")
+    @mock.patch(f"{MODULE}.AdminClientHook.get_conn")
+    def test_modify_subscription(self, mock_sb_admin_client, mock_subscription_properties):
+        """
+        Test modify subscription functionality by ensuring correct data is copied into properties
+        and passed to update_subscription method of connection mocking the azure service bus function
+        `update_subscription`
+        """
+        subscription_name = "test_subscription_name"
+        topic_name = "test_topic_name"
+        hook = AdminClientHook(azure_service_bus_conn_id=self.conn_id)
+
+        mock_sb_admin_client.return_value.__enter__.return_value.get_subscription.return_value = (
+            mock_subscription_properties
+        )
+
+        hook.update_subscription(
+            topic_name,
+            subscription_name,
+            max_delivery_count=3,
+            dead_lettering_on_message_expiration=True,
+            enable_batched_operations=True,
+        )
+
+        expected_calls = [
+            mock.call().__enter__().get_subscription(topic_name, subscription_name),
+            mock.call().__enter__().update_subscription(topic_name, mock_subscription_properties),
+            mock.call().__enter__().get_subscription(topic_name, subscription_name),
+        ]
+        mock_sb_admin_client.assert_has_calls(expected_calls)
+
     @mock.patch(f"{MODULE}.AdminClientHook.get_conn")
     def test_delete_subscription(self, mock_sb_admin_client):
         """

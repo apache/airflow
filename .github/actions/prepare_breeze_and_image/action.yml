@@ -52,7 +52,11 @@ runs:
         key: ${{ inputs.image-type }}-image-save-${{ inputs.platform }}-${{ inputs.python }}
         path: "/tmp/"
     - name: "Load ${{ inputs.image-type }} image ${{ inputs.platform }}:${{ inputs.python }}"
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        PYTHON: ${{ inputs.python }}
+        IMAGE_TYPE: ${{ inputs.image-type }}
       run: >
-        breeze ${{ inputs.image-type }}-image load
-        --platform ${{ inputs.platform }} --python ${{ inputs.python }}
+        breeze ${IMAGE_TYPE}-image load
+        --platform ${PLATFORM} --python ${PYTHON}
       shell: bash

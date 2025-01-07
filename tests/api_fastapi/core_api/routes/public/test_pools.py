@@ -381,11 +381,11 @@ class TestPostPool(TestPoolsEndpoint):
         assert session.query(Pool).count() == n_pools + 1
 
 
-class TestPostPools(TestPoolsEndpoint):
+class TestPutPools(TestPoolsEndpoint):
     @pytest.mark.parametrize(
-        "body, expected_status_code, expected_response",
+        "body, expected_status_code, expected_response, expected_new_pools",
         [
-            (
+            pytest.param(
                 {
                     "pools": [
                         {"name": "my_pool", "slots": 11},
@@ -422,8 +422,90 @@ class TestPostPools(TestPoolsEndpoint):
                     ],
                     "total_entries": 2,
                 },
+                2,
+                id="Create two new pools",
             ),
-            (
+            pytest.param(
+                {
+                    "pools": [
+                        {"name": POOL1_NAME, "slots": POOL1_SLOT + 10},
+                        {"name": "my_pool", "slots": 12},
+                    ],
+                    "overwrite": True,
+                },
+                200,
+                {
+                    "pools": [
+                        {
+                            "name": POOL1_NAME,
+                            "slots": POOL1_SLOT + 10,
+                            "description": None,
+                            "include_deferred": False,
+                            "occupied_slots": 0,
+                            "running_slots": 0,
+                            "queued_slots": 0,
+                            "scheduled_slots": 0,
+                            "open_slots": POOL1_SLOT + 10,
+                            "deferred_slots": 0,
+                        },
+                        {
+                            "name": "my_pool",
+                            "slots": 12,
+                            "description": None,
+                            "include_deferred": False,
+                            "occupied_slots": 0,
+                            "running_slots": 0,
+                            "queued_slots": 0,
+                            "scheduled_slots": 0,
+                            "open_slots": 12,
+                            "deferred_slots": 0,
+                        },
+                    ],
+                },
+                1,
+                id="Create one new pool and one existing pool with overwrite",
+            ),
+            pytest.param(
+                {
+                    "pools": [
+                        {"name": POOL1_NAME, "slots": POOL1_SLOT + 10},
+                        {"name": POOL2_NAME, "slots": POOL2_SLOT + 10, "description": "New Description"},
+                    ],
+                    "overwrite": True,
+                },
+                200,
+                {
+                    "pools": [
+                        {
+                            "name": POOL1_NAME,
+                            "slots": POOL1_SLOT + 10,
+                            "description": None,
+                            "include_deferred": False,
+                            "occupied_slots": 0,
+                            "running_slots": 0,
+                            "queued_slots": 0,
+                            "scheduled_slots": 0,
+                            "open_slots": POOL1_SLOT + 10,
+                            "deferred_slots": 0,
+                        },
+                        {
+                            "name": POOL2_NAME,
+                            "slots": POOL2_SLOT + 10,
+                            "description": "New Description",
+                            "include_deferred": False,
+                            "occupied_slots": 0,
+                            "running_slots": 0,
+                            "queued_slots": 0,
+                            "scheduled_slots": 0,
+                            "open_slots": POOL2_SLOT + 10,
+                            "deferred_slots": 0,
+                        },
+                    ],
+                },
+                0,
+                id="Create two existing pools with overwrite",
+            ),
+            pytest.param(
                 {
                     "pools": [
                         {"name": "my_pool", "slots": 11},
@@ -432,8 +514,10 @@ class TestPostPools(TestPoolsEndpoint):
                 },
                 409,
                 None,
+                0,
+                id="Create one new pool and one existing pool",
             ),
-            (
+            pytest.param(
                 {
                     "pools": [
                         {"name": POOL1_NAME, "slots": 11},
@@ -442,8 +526,10 @@ class TestPostPools(TestPoolsEndpoint):
                 },
                 409,
                 None,
+                0,
+                id="Create two existing pools",
             ),
-            (
+            pytest.param(
                 {
                     "pools": [
                         {"name": "my_pool", "slots": 11},
@@ -452,19 +538,35 @@ class TestPostPools(TestPoolsEndpoint):
                 },
                 409,
                 None,
+                0,
+                id="Create two new pools with the same name",
+            ),
+            pytest.param(
+                {
+                    "pools": [
+                        {"name": "my_pool", "slots": 11},
+                        {"name": "my_pool", "slots": 12},
+                    ],
+                    "overwrite": True,
+                },
+                409,
+                None,
+                0,
+                id="Create two new pools with the same name with overwrite",
             ),
         ],
     )
-    def test_post_pools(self, test_client, session, body, expected_status_code, expected_response):
+    def test_put_pools(
+        self, test_client, session, body, expected_status_code, expected_response, expected_new_pools
+    ):
         self.create_pools()
         n_pools = session.query(Pool).count()
-        response = test_client.post("/public/pools/bulk", json=body)
+        response = test_client.put("/public/pools/bulk", json=body)
         assert response.status_code == expected_status_code
-        if expected_status_code == 201:
-            response.json() == expected_response
-            assert session.query(Pool).count() == n_pools + 2
-        else:
-            response_json = response.json()
+        assert session.query(Pool).count() == n_pools + expected_new_pools
+        response_json = response.json()
+        if expected_status_code == 201 or expected_status_code == 200:
+            response_json == expected_response
+        else:  # 409 case
             assert "detail" in response_json
             assert list(response_json["detail"].keys()) == ["reason", "statement", "orig_error"]
-            assert session.query(Pool).count() == n_pools

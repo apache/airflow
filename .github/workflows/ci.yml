@@ -34,12 +34,6 @@ on:  # yamllint disable-line rule:truthy
 permissions:
   # All other permissions are set to none by default
   contents: read
-  # Technically read access while waiting for images should be more than enough. However,
-  # there is a bug in GitHub Actions/Packages and in case private repositories are used, you get a permission
-  # denied error when attempting to just pull private image, changing the token permission to write solves the
-  # issue. This is not dangerous, because if it is for "apache/airflow", only maintainers can push ci.yml
-  # changes. If it is for a fork, then the token is read-only anyway.
-  packages: write
 env:
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -228,6 +222,9 @@ jobs:
     name: "Additional CI image checks"
     needs: [build-info, build-ci-images]
     uses: ./.github/workflows/additional-ci-image-checks.yml
+    permissions:
+      contents: read
+      packages: write
     if: needs.build-info.outputs.canary-run == 'true'
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
@@ -247,14 +244,11 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
 
-
   generate-constraints:
     name: "Generate constraints"
     needs: [build-info, build-ci-images]
     uses: ./.github/workflows/generate-constraints.yml
-    if: >
-      needs.build-info.outputs.ci-image-build == 'true' &&
-      needs.build-info.outputs.only-new-ui-files != 'true'
+    if: needs.build-info.outputs.ci-image-build == 'true'
     with:
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
@@ -610,6 +604,7 @@ jobs:
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       run-task-sdk-tests: ${{ needs.build-info.outputs.run-task-sdk-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      canary-run: ${{ needs.build-info.outputs.canary-run }}
     if: >
       ( needs.build-info.outputs.run-task-sdk-tests == 'true' ||
       needs.build-info.outputs.run-tests == 'true' &&
@@ -646,6 +641,7 @@ jobs:
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
 
   notify-slack-failure:
     name: "Notify Slack on Failure"

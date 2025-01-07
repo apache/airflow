@@ -333,7 +333,7 @@ This table summarizes the labels you can use on PRs to control the selective che
 | latest versions only             | *-versions-*, *-versions-*       | If set, the number of Python, Kubernetes, DB versions will be limited to the latest ones. |
 | non committer build              | is-committer-build               | If set, the scripts used for images are used from target branch for committers.           |
 | upgrade to newer dependencies    | upgrade-to-newer-dependencies    | If set to true (default false) then dependencies in the CI image build are upgraded.      |
-| use public runners               | runs-on-as-json-default          | Force using public runners as default runners.                                            |
+| use public runners               | runs-on-as-json-public           | Force using public runners as default runners.                                            |
 | use self-hosted runners          | runs-on-as-json-default          | Force using self-hosted runners as default runners.                                       |
 
 -----

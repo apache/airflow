@@ -18,10 +18,11 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from airflow.models.operator import Operator
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.edges import EdgeModifier
 
@@ -109,9 +110,6 @@ class DependencyMixin:
     def _iter_references(cls, obj: Any) -> Iterable[tuple[DependencyMixin, str]]:
         from airflow.sdk.definitions.abstractoperator import AbstractOperator
 
-        # TODO:Task-SDK
-        from airflow.utils.mixins import ResolveMixin
-
         if isinstance(obj, AbstractOperator):
             yield obj, "operator"
         elif isinstance(obj, ResolveMixin):
@@ -119,3 +117,25 @@ class DependencyMixin:
         elif isinstance(obj, Sequence):
             for o in obj:
                 yield from cls._iter_references(o)
+
+
+class ResolveMixin:
+    """A runtime-resolved value."""
+
+    def iter_references(self) -> Iterable[tuple[Operator, str]]:
+        """
+        Find underlying XCom references this contains.
+
+        This is used by the DAG parser to recursively find task dependencies.
+
+        :meta private:
+        """
+        raise NotImplementedError
+
+    def resolve(self, context: Mapping[str, Any], *, include_xcom: bool = True) -> Any:
+        """
+        Resolve this value for runtime.
+
+        :meta private:
+        """
+        raise NotImplementedError

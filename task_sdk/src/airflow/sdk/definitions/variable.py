@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,24 +14,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-import pendulum
+from typing import Any
 
-from airflow.models.dag import DAG
+import attrs
 
-args = {"owner": "airflow", "retries": 3, "start_date": pendulum.datetime(2022, 1, 1)}
 
-tree_dag = DAG(
-    dag_id="test_tree_view",
-    default_args=args,
-    schedule="0 0 * * *",
-    default_view="grid",
-)
+@attrs.define
+class Variable:
+    """
+    A generic way to store and retrieve arbitrary content or settings as a simple key/value store.
 
-graph_dag = DAG(
-    dag_id="test_graph_view",
-    default_args=args,
-    schedule="0 0 * * *",
-    default_view="graph",
-)
+    :param key: The variable key.
+    :param value: The variable value.
+    :param description: The variable description.
+
+    """
+
+    key: str
+    # keeping as any for supporting deserialize_json
+    value: Any | None = None
+    description: str | None = None
+
+    # TODO: Extend this definition for reading/writing variables without context

@@ -16,15 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Text } from "@chakra-ui/react";
+import { Box, Editable, Text, VStack } from "@chakra-ui/react";
 import { Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import type { ChangeEvent } from "react";
+import Markdown from "react-markdown";
 import { Link as RouterLink } from "react-router-dom";
 
-import type { TaskInstanceCollectionResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
+import type {
+  DAGRunResponse,
+  TaskInstanceCollectionResponse,
+  TaskInstanceResponse,
+} from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
-import { Status } from "src/components/ui";
+import { Status, Tooltip } from "src/components/ui";
 import { getTaskInstanceLink } from "src/utils/links";
+import { trimText } from "src/utils/trimTextFn";
 
 import { Accordion } from "../ui";
 
@@ -32,9 +39,13 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
   {
     accessorKey: "task_display_name",
     cell: ({ row: { original } }) => (
-      <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink to={getTaskInstanceLink(original)}>{original.task_display_name}</RouterLink>
-      </Link>
+      <Tooltip content={original.task_display_name}>
+        <Link asChild color="fg.info" fontWeight="bold" maxWidth="200px" overflow="hidden">
+          <RouterLink to={getTaskInstanceLink(original)}>
+            {trimText(original.task_display_name, 25).trimmedText}
+          </RouterLink>
+        </Link>
+      </Tooltip>
     ),
     enableSorting: false,
     header: "Task ID",
@@ -64,12 +75,14 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
 
 type Props = {
   readonly affectedTasks?: TaskInstanceCollectionResponse;
+  readonly note: DAGRunResponse["note"];
+  readonly setNote: (value: string) => void;
 };
 
 // Table is in memory, pagination and sorting are disabled.
 // TODO: Make a front-end only unconnected table component with client side ordering and pagination
-const ClearRunTasksAccordion = ({ affectedTasks }: Props) => (
-  <Accordion.Root collapsible variant="enclosed">
+const ClearRunTasksAccordion = ({ affectedTasks, note, setNote }: Props) => (
+  <Accordion.Root collapsible defaultValue={["note"]} multiple={false} variant="enclosed">
     <Accordion.Item key="tasks" value="tasks">
       <Accordion.ItemTrigger>
         <Text fontWeight="bold">Affected Tasks: {affectedTasks?.total_entries ?? 0}</Text>
@@ -91,6 +104,41 @@ const ClearRunTasksAccordion = ({ affectedTasks }: Props) => (
             total={affectedTasks?.total_entries}
           />
         </Box>
+      </Accordion.ItemContent>
+    </Accordion.Item>
+    <Accordion.Item key="note" value="note">
+      <Accordion.ItemTrigger>
+        <Text fontWeight="bold">Note</Text>
+      </Accordion.ItemTrigger>
+      <Accordion.ItemContent>
+        <Editable.Root
+          onChange={(event: ChangeEvent<HTMLInputElement>) => setNote(event.target.value)}
+          value={note ?? ""}
+        >
+          <Editable.Preview
+            alignItems="flex-start"
+            as={VStack}
+            gap="0"
+            height="200px"
+            overflowY="auto"
+            width="100%"
+          >
+            {Boolean(note) ? (
+              <Markdown>{note}</Markdown>
+            ) : (
+              <Text color="gray" opacity={0.6}>
+                Add a note...
+              </Text>
+            )}
+          </Editable.Preview>
+          <Editable.Textarea
+            data-testid="notes-input"
+            height="200px"
+            overflowY="auto"
+            placeholder="Add a note..."
+            resize="none"
+          />
+        </Editable.Root>
       </Accordion.ItemContent>
     </Accordion.Item>
   </Accordion.Root>
