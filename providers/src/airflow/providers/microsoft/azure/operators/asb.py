@@ -19,8 +19,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Callable
 
-from azure.core.exceptions import ResourceNotFoundError
-
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.asb import AdminClientHook, MessageHook
 
@@ -313,33 +311,23 @@ class AzureServiceBusTopicCreateOperator(BaseOperator):
         # Create the hook
         hook = AdminClientHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
 
-        with hook.get_conn() as service_mgmt_conn:
-            try:
-                topic_properties = service_mgmt_conn.get_topic(self.topic_name)
-            except ResourceNotFoundError:
-                topic_properties = None
-            if topic_properties and topic_properties.name == self.topic_name:
-                self.log.info("Topic name already exists")
-                return topic_properties.name
-            topic = service_mgmt_conn.create_topic(
-                topic_name=self.topic_name,
-                default_message_time_to_live=self.default_message_time_to_live,
-                max_size_in_megabytes=self.max_size_in_megabytes,
-                requires_duplicate_detection=self.requires_duplicate_detection,
-                duplicate_detection_history_time_window=self.duplicate_detection_history_time_window,
-                enable_batched_operations=self.enable_batched_operations,
-                size_in_bytes=self.size_in_bytes,
-                filtering_messages_before_publishing=self.filtering_messages_before_publishing,
-                authorization_rules=self.authorization_rules,
-                support_ordering=self.support_ordering,
-                auto_delete_on_idle=self.auto_delete_on_idle,
-                enable_partitioning=self.enable_partitioning,
-                enable_express=self.enable_express,
-                user_metadata=self.user_metadata,
-                max_message_size_in_kilobytes=self.max_message_size_in_kilobytes,
-            )
-            self.log.info("Created Topic %s", topic.name)
-            return topic.name
+        return hook.create_topic(
+            topic_name=self.topic_name,
+            default_message_time_to_live=self.default_message_time_to_live,
+            max_size_in_megabytes=self.max_size_in_megabytes,
+            requires_duplicate_detection=self.requires_duplicate_detection,
+            duplicate_detection_history_time_window=self.duplicate_detection_history_time_window,
+            enable_batched_operations=self.enable_batched_operations,
+            size_in_bytes=self.size_in_bytes,
+            filtering_messages_before_publishing=self.filtering_messages_before_publishing,
+            authorization_rules=self.authorization_rules,
+            support_ordering=self.support_ordering,
+            auto_delete_on_idle=self.auto_delete_on_idle,
+            enable_partitioning=self.enable_partitioning,
+            enable_express=self.enable_express,
+            user_metadata=self.user_metadata,
+            max_message_size_in_kilobytes=self.max_message_size_in_kilobytes,
+        )
 
 
 class AzureServiceBusSubscriptionCreateOperator(BaseOperator):
@@ -501,18 +489,13 @@ class AzureServiceBusUpdateSubscriptionOperator(BaseOperator):
         """Update Subscription properties, by connecting to Service Bus Admin client."""
         hook = AdminClientHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
 
-        with hook.get_conn() as service_mgmt_conn:
-            subscription_prop = service_mgmt_conn.get_subscription(self.topic_name, self.subscription_name)
-            if self.max_delivery_count:
-                subscription_prop.max_delivery_count = self.max_delivery_count
-            if self.dl_on_message_expiration is not None:
-                subscription_prop.dead_lettering_on_message_expiration = self.dl_on_message_expiration
-            if self.enable_batched_operations is not None:
-                subscription_prop.enable_batched_operations = self.enable_batched_operations
-            # update by updating the properties in the model
-            service_mgmt_conn.update_subscription(self.topic_name, subscription_prop)
-            updated_subscription = service_mgmt_conn.get_subscription(self.topic_name, self.subscription_name)
-            self.log.info("Subscription Updated successfully %s", updated_subscription)
+        hook.update_subscription(
+            topic_name=self.topic_name,
+            subscription_name=self.subscription_name,
+            max_delivery_count=self.max_delivery_count,
+            dead_lettering_on_message_expiration=self.dl_on_message_expiration,
+            enable_batched_operations=self.enable_batched_operations,
+        )
 
 
 class ASBReceiveSubscriptionMessageOperator(BaseOperator):

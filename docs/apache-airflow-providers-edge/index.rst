@@ -28,6 +28,7 @@
     Home <self>
     Changelog <changelog>
     Security <security>
+    Installation on Windows <install_on_windows>
 
 
 .. toctree::

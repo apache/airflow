@@ -24,10 +24,7 @@ type AccordionItemTriggerProps = {
   indicatorPlacement?: "end" | "start";
 } & Accordion.ItemTriggerProps;
 
-export const ItemTrigger = forwardRef<
-  HTMLButtonElement,
-  AccordionItemTriggerProps
->((props, ref) => {
+export const ItemTrigger = forwardRef<HTMLButtonElement, AccordionItemTriggerProps>((props, ref) => {
   const { children, indicatorPlacement = "end", ...rest } = props;
 
   return (

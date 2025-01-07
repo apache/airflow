@@ -234,7 +234,7 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "24.3.1"
-AIRFLOW_UV_VERSION = "0.5.11"
+AIRFLOW_UV_VERSION = "0.5.14"
 AIRFLOW_USE_UV = False
 # TODO: automate these as well
 WHEEL_VERSION = "0.44.0"
@@ -389,6 +389,7 @@ def _build_local_build_image():
             ".",
             "-f",
             "airflow-build-dockerfile",
+            "--load",
             "--tag",
             AIRFLOW_BUILD_IMAGE_TAG,
         ],

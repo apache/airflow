@@ -44,9 +44,10 @@ from airflow.sdk.execution_time.comms import (
     ToTask,
     XComResult,
 )
-from airflow.sdk.execution_time.context import ConnectionAccessor
+from airflow.sdk.execution_time.context import ConnectionAccessor, MacrosAccessor, VariableAccessor
 
 if TYPE_CHECKING:
+    import jinja2
     from structlog.typing import FilteringBoundLogger as Logger
 
 
@@ -76,8 +77,9 @@ class RuntimeTaskInstance(TaskInstance):
             "ti": self,
             # "outlet_events": OutletEventAccessors(),
             # "expanded_ti_count": expanded_ti_count,
+            "expanded_ti_count": None,  # TODO: Implement this
             # "inlet_events": InletEventsAccessors(task.inlets, session=session),
-            # "macros": macros,
+            "macros": MacrosAccessor(),
             # "params": validated_params,
             # "prev_data_interval_start_success": get_prev_data_interval_start_success(),
             # "prev_data_interval_end_success": get_prev_data_interval_end_success(),
@@ -85,10 +87,10 @@ class RuntimeTaskInstance(TaskInstance):
             # "prev_end_date_success": get_prev_end_date_success(),
             # "test_mode": task_instance.test_mode,
             # "triggering_asset_events": lazy_object_proxy.Proxy(get_triggering_events),
-            # "var": {
-            #     "json": VariableAccessor(deserialize_json=True),
-            #     "value": VariableAccessor(deserialize_json=False),
-            # },
+            "var": {
+                "json": VariableAccessor(deserialize_json=True),
+                "value": VariableAccessor(deserialize_json=False),
+            },
             "conn": ConnectionAccessor(),
         }
         if self._ti_context_from_server:
@@ -117,6 +119,41 @@ class RuntimeTaskInstance(TaskInstance):
             context.update(context_from_server)
         # TODO: We should use/move TypeDict from airflow.utils.context.Context
         return context
+
+    def render_templates(
+        self, context: dict[str, Any] | None = None, jinja_env: jinja2.Environment | None = None
+    ) -> BaseOperator:
+        """
+        Render templates in the operator fields.
+
+        If the task was originally mapped, this may replace ``self.task`` with
+        the unmapped, fully rendered BaseOperator. The original ``self.task``
+        before replacement is returned.
+        """
+        if not context:
+            context = self.get_template_context()
+        original_task = self.task
+
+        if TYPE_CHECKING:
+            assert context
+
+        ti = context["ti"]
+
+        if TYPE_CHECKING:
+            assert original_task
+            assert self.task
+            assert ti.task
+
+        # If self.task is mapped, this call replaces self.task to point to the
+        # unmapped BaseOperator created by this function! This is because the
+        # MappedOperator is useless for template rendering, and we need to be
+        # able to access the unmapped task instead.
+        original_task.render_template_fields(context, jinja_env)
+        # TODO: Add support for rendering templates in the MappedOperator
+        # if isinstance(self.task, MappedOperator):
+        #     self.task = context["ti"].task
+
+        return original_task
 
     def xcom_pull(
         self,
@@ -227,6 +264,12 @@ class RuntimeTaskInstance(TaskInstance):
                 run_id=self.run_id,
             ),
         )
+
+    def get_relevant_upstream_map_indexes(
+        self, upstream: BaseOperator, ti_count: int | None, session: Any
+    ) -> int | range | None:
+        # TODO: Implement this method
+        return None
 
 
 def parse(what: StartupDetails) -> RuntimeTaskInstance:
@@ -383,6 +426,9 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         # TODO: Get a real context object
         ti.task = ti.task.prepare_for_execution()
         context = ti.get_template_context()
+        jinja_env = ti.task.dag.get_template_env()
+        ti.task = ti.render_templates(context=context, jinja_env=jinja_env)
+
         # TODO: Get things from _execute_task_with_callbacks
         #   - Clearing XCom
         #   - Setting Current Context (set_current_context)
@@ -390,19 +436,37 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         #   - Update RTIF
         #   - Pre Execute
         #   etc
-        result = ti.task.execute(context)  # type: ignore[attr-defined]
-        _push_xcom_if_needed(result, ti)
 
+        result = None
+        if ti.task.execution_timeout:
+            # TODO: handle timeout in case of deferral
+            from airflow.utils.timeout import timeout
+
+            timeout_seconds = ti.task.execution_timeout.total_seconds()
+            try:
+                # It's possible we're already timed out, so fast-fail if true
+                if timeout_seconds <= 0:
+                    raise AirflowTaskTimeout()
+                # Run task in timeout wrapper
+                with timeout(timeout_seconds):
+                    result = ti.task.execute(context)  # type: ignore[attr-defined]
+            except AirflowTaskTimeout:
+                # TODO: handle on kill callback here
+                raise
+        else:
+            result = ti.task.execute(context)  # type: ignore[attr-defined]
+
+        _push_xcom_if_needed(result, ti)
         msg = TaskState(state=TerminalTIState.SUCCESS, end_date=datetime.now(tz=timezone.utc))
     except TaskDeferred as defer:
         classpath, trigger_kwargs = defer.trigger.serialize()
         next_method = defer.method_name
-        timeout = defer.timeout
+        defer_timeout = defer.timeout
         msg = DeferTask(
             classpath=classpath,
             trigger_kwargs=trigger_kwargs,
             next_method=next_method,
-            trigger_timeout=timeout,
+            trigger_timeout=defer_timeout,
         )
     except AirflowSkipException:
         msg = TaskState(
@@ -423,11 +487,20 @@ def run(ti: RuntimeTaskInstance, log: Logger):
             state=TerminalTIState.FAIL_WITHOUT_RETRY,
             end_date=datetime.now(tz=timezone.utc),
         )
-
         # TODO: Run task failure callbacks here
     except (AirflowTaskTimeout, AirflowException):
+        # We should allow retries if the task has defined it.
+        msg = TaskState(
+            state=TerminalTIState.FAILED,
+            end_date=datetime.now(tz=timezone.utc),
+        )
+        # TODO: Run task failure callbacks here
+    except AirflowException:
         # TODO: handle the case of up_for_retry here
-        ...
+        msg = TaskState(
+            state=TerminalTIState.FAILED,
+            end_date=datetime.now(tz=timezone.utc),
+        )
     except AirflowTaskTerminated:
         # External state updates are already handled with `ti_heartbeat` and will be
         # updated already be another UI API. So, these exceptions should ideally never be thrown.

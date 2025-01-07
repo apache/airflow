@@ -107,8 +107,11 @@ from airflow.providers.fab.auth_manager.views.user_edit import (
     CustomUserInfoEditView,
 )
 from airflow.providers.fab.auth_manager.views.user_stats import CustomUserStatsChartView
+from airflow.providers.fab.www.security_manager import AirflowSecurityManagerV2
+from airflow.providers.fab.www.session import (
+    AirflowDatabaseSessionInterface as FabAirflowDatabaseSessionInterface,
+)
 from airflow.security import permissions
-from airflow.www.security_manager import AirflowSecurityManagerV2
 from airflow.www.session import AirflowDatabaseSessionInterface
 
 if TYPE_CHECKING:
@@ -550,7 +553,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return self.update_user(user)
 
     def reset_user_sessions(self, user: User) -> None:
-        if isinstance(self.appbuilder.get_app.session_interface, AirflowDatabaseSessionInterface):
+        if isinstance(
+            self.appbuilder.get_app.session_interface, AirflowDatabaseSessionInterface
+        ) or isinstance(self.appbuilder.get_app.session_interface, FabAirflowDatabaseSessionInterface):
             interface = self.appbuilder.get_app.session_interface
             session = interface.db.session
             user_session_model = interface.sql_session_model

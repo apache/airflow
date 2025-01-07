@@ -182,30 +182,29 @@ def get_tag_date(tag: str) -> str | None:
     return datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def download_artifact_from_run_id(run_id: str, output_file: str):
+def download_artifact_from_run_id(run_id: str, output_file: str, github_repository: str, github_token: str):
     """
     Downloads a file from GitHub Actions artifact
 
     :param run_id: run_id of the workflow
     :param output_file: Path where the file should be downloaded
+    :param github_repository: GitHub repository
+    :param github_token: GitHub token
     """
     import requests
     from tqdm import tqdm
 
-    url = f"https://api.github.com/repos/apache/airflow/actions/runs/{run_id}/artifacts"
+    url = f"https://api.github.com/repos/{github_repository}/actions/runs/{run_id}/artifacts"
     headers = {"Accept": "application/vnd.github.v3+json"}
 
     session = requests.Session()
-    if os.getenv("GITHUB_TOKEN"):
-        headers["Authorization"] = f"Bearer {os.getenv  ('GITHUB_TOKEN')}"
-
+    headers["Authorization"] = f"Bearer {github_token}"
     artifact_response = requests.get(url, headers=headers)
 
     if artifact_response.status_code != 200:
         get_console().print(
-            "[error]Describing artifacts failed with status code %s, "
-            "you might need to provide GITHUB_TOKEN, set it as environment variable",
-            artifact_response.status_code,
+            "[error]Describing artifacts failed with status code "
+            f"{artifact_response.status_code}: {artifact_response.text}",
         )
         sys.exit(1)
 
@@ -226,9 +225,8 @@ def download_artifact_from_run_id(run_id: str, output_file: str):
 
     if response.status_code != 200:
         get_console().print(
-            "[error] Downloading artifact failed with status code %s, "
-            "you might need to provide GITHUB_TOKEN, set it as environment variable",
-            response.status_code,
+            "[error]Downloading artifacts failed with status code "
+            f"{response.status_code}: {response.text}",
         )
         sys.exit(1)
 
@@ -249,27 +247,24 @@ def download_artifact_from_run_id(run_id: str, output_file: str):
     os.remove(temp_file)
 
 
-def download_artifact_from_pr(pr: str, output_file: str):
+def download_artifact_from_pr(pr: str, output_file: str, github_repository: str, github_token: str):
     import requests
 
     pr_number = pr.lstrip("#")
-    pr_url = f"https://api.github.com/repos/apache/airflow/pulls/{pr_number}"
-    workflow_run_url = "https://api.github.com/repos/apache/airflow/actions/runs"
+    pr_url = f"https://api.github.com/repos/{github_repository}/pulls/{pr_number}"
+    workflow_run_url = f"https://api.github.com/repos/{github_repository}/actions/runs"
 
     headers = {"Accept": "application/vnd.github.v3+json"}
 
     session = requests.Session()
-    if os.getenv("GITHUB_TOKEN"):
-        headers["Authorization"] = f"Bearer {os.getenv('GITHUB_TOKEN')}"
+    headers["Authorization"] = f"Bearer {github_token}"
 
     pull_response = session.get(pr_url, headers=headers)
 
     if pull_response.status_code != 200:
         get_console().print(
-            "[error]Fetching PR failed with status code %s, %s, "
-            "you might need to provide GITHUB_TOKEN, set it as environment variable",
-            pull_response.status_code,
-            pull_response.content,
+            "[error]Fetching PR failed with status codee "
+            f"{pull_response.status_code}: {pull_response.text}",
         )
         sys.exit(1)
 
@@ -300,4 +295,4 @@ def download_artifact_from_pr(pr: str, output_file: str):
 
     get_console().print(f"[info]Found run id {run_id} for PR {pr}")
 
-    download_artifact_from_run_id(str(run_id), output_file)
+    download_artifact_from_run_id(str(run_id), output_file, github_repository, github_token)

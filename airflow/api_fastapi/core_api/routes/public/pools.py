@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Annotated, cast
 
-from fastapi import Depends, HTTPException, Query, status
+from fastapi import Depends, HTTPException, Query, Response, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import delete, select
@@ -176,21 +176,49 @@ def post_pool(
     return pool
 
 
-@pools_router.post(
+@pools_router.put(
     "/bulk",
     status_code=status.HTTP_201_CREATED,
-    responses=create_openapi_http_exception_doc(
-        [
-            status.HTTP_409_CONFLICT,  # handled by global exception handler
-        ]
-    ),
+    responses={
+        **create_openapi_http_exception_doc(
+            [
+                status.HTTP_409_CONFLICT,  # handled by global exception handler
+            ]
+        ),
+        status.HTTP_201_CREATED: {
+            "description": "Created",
+            "model": PoolCollectionResponse,
+        },
+        status.HTTP_200_OK: {
+            "description": "Created with overwriting",
+            "model": PoolCollectionResponse,
+        },
+    },
 )
-def post_pools(
-    body: PoolPostBulkBody,
+def put_pools(
+    response: Response,
+    put_body: PoolPostBulkBody,
     session: SessionDep,
 ) -> PoolCollectionResponse:
     """Create multiple pools."""
-    pools = [Pool(**body.model_dump()) for body in body.pools]
+    response.status_code = status.HTTP_201_CREATED if not put_body.overwrite else status.HTTP_200_OK
+    pools: list[Pool]
+    if not put_body.overwrite:
+        pools = [Pool(**body.model_dump()) for body in put_body.pools]
+    else:
+        pool_names = [pool.pool for pool in put_body.pools]
+        existed_pools = session.execute(select(Pool).filter(Pool.pool.in_(pool_names))).scalars()
+        existed_pools_dict = {pool.pool: pool for pool in existed_pools}
+        pools = []
+        # if pool already exists, update the corresponding pool, else add a new pool
+        for body in put_body.pools:
+            if body.pool in existed_pools_dict:
+                pool = existed_pools_dict[body.pool]
+                for key, val in body.model_dump().items():
+                    setattr(pool, key, val)
+                pools.append(pool)
+            else:
+                pools.append(Pool(**body.model_dump()))
     session.add_all(pools)
     return PoolCollectionResponse(
         pools=cast(list[PoolResponse], pools),

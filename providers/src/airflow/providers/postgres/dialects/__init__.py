@@ -14,19 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from typing import Any
-
-from airflow.template.templater import LiteralValue
-
-
-def literal(value: Any) -> LiteralValue:
-    """
-    Wrap a value to ensure it is rendered as-is without applying Jinja templating to its contents.
-
-    Designed for use in an operator's template field.
-
-    :param value: The value to be rendered without templating
-    """
-    return LiteralValue(value)

@@ -33,6 +33,8 @@ from airflow.auth.managers.simple.views.auth import SimpleAuthManagerAuthenticat
 from airflow.configuration import AIRFLOW_HOME, conf
 
 if TYPE_CHECKING:
+    from flask_appbuilder.menu import MenuItem
+
     from airflow.auth.managers.models.resource_details import (
         AccessView,
         AssetDetails,
@@ -223,6 +225,9 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         self, *, method: ResourceMethod | str, resource_name: str, user: SimpleAuthManagerUser | None = None
     ):
         return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER, user=user)
+
+    def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
+        return menu_items
 
     def register_views(self) -> None:
         if not self.appbuilder:
