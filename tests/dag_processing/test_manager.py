@@ -41,7 +41,7 @@ import time_machine
 from sqlalchemy import func
 from uuid6 import uuid7
 
-from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest
+from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.dag_processing.manager import (
     DagFileProcessorAgent,
@@ -434,6 +434,42 @@ class TestDagFileProcessorManager:
             manager._kill_timed_out_processors()
         mock_kill.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ["callbacks", "path", "child_comms_fd", "expected_buffer"],
+        [
+            pytest.param(
+                [],
+                "/opt/airflow/dags/test_dag.py",
+                123,
+                b'{"file":"/opt/airflow/dags/test_dag.py","requests_fd":123,"callback_requests":[],'
+                b'"type":"DagFileParseRequest"}\n',
+            ),
+            pytest.param(
+                [
+                    DagCallbackRequest(
+                        full_filepath="/opt/airflow/dags/dag_callback_dag.py",
+                        dag_id="dag_id",
+                        run_id="run_id",
+                        is_failure_callback=False,
+                    )
+                ],
+                "/opt/airflow/dags/dag_callback_dag.py",
+                123,
+                b'{"file":"/opt/airflow/dags/dag_callback_dag.py","requests_fd":123,"callback_requests":'
+                b'[{"full_filepath":"/opt/airflow/dags/dag_callback_dag.py","msg":null,"dag_id":"dag_id",'
+                b'"run_id":"run_id","is_failure_callback":false,"type":"DagCallbackRequest"}],'
+                b'"type":"DagFileParseRequest"}\n',
+            ),
+        ],
+    )
+    def test_serialize_callback_requests(self, callbacks, path, child_comms_fd, expected_buffer):
+        processor = self.mock_processor()
+        processor._on_child_started(callbacks, path, child_comms_fd)
+
+        # Verify the response was added to the buffer
+        val = processor.stdin.getvalue()
+        assert val == expected_buffer
+
     @conf_vars({("core", "load_examples"): "False"})
     @pytest.mark.execution_timeout(10)
     def test_dag_with_system_exit(self):
@@ -481,8 +517,10 @@ class TestDagFileProcessorManager:
                 if exit_event.is_set():
                     break
 
-                req = CallbackRequest(full_filepath=dag_filepath.as_posix())
-                logger.info("Sending CallbackRequests %d", n)
+                req = DagCallbackRequest(
+                    full_filepath=dag_filepath.as_posix(), dag_id="test_dag", run_id="run_id"
+                )
+                logger.info("Sending DagCallbackRequests %d", n)
                 try:
                     pipe.send(req)
                 except TypeError:
@@ -491,7 +529,7 @@ class TestDagFileProcessorManager:
                     break
                 except OSError:
                     break
-                logger.debug("   Sent %d CallbackRequests", n)
+                logger.debug("   Sent %d DagCallbackRequests", n)
 
         thread = threading.Thread(target=keep_pipe_full, args=(parent_pipe, exit_event))
 
