@@ -17,7 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+import json
+import logging
+from contextlib import suppress
+from json import JSONDecodeError
+
 import attrs
+
+log = logging.getLogger(__name__)
 
 
 @attrs.define
@@ -50,3 +57,30 @@ class Connection:
     def get_uri(self): ...
 
     def get_hook(self): ...
+
+    @property
+    def extra_dejson(self, nested: bool = False) -> dict:
+        """
+        Deserialize extra property to JSON.
+
+        :param nested: Determines whether nested structures are also deserialized into JSON (default False).
+        """
+        extra_json = {}
+
+        if self.extra:
+            try:
+                if nested:
+                    for key, value in json.loads(self.extra).items():
+                        extra_json[key] = value
+                        if isinstance(value, str):
+                            with suppress(JSONDecodeError):
+                                extra_json[key] = json.loads(value)
+                else:
+                    extra_json = json.loads(self.extra)
+            except JSONDecodeError:
+                log.exception("Failed parsing the json for conn_id %s", self.conn_id)
+
+            # TODO: Mask sensitive keys from this list
+            # mask_secret(extra)
+
+        return extra_json

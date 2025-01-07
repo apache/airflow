@@ -17,12 +17,13 @@
 
 from __future__ import annotations
 
-import jinja2
+from datetime import datetime, timezone
 
-from airflow.io.path import ObjectStoragePath
-from airflow.models.dag import DAG
-from airflow.template.templater import LiteralValue, Templater
-from airflow.utils.context import Context
+import jinja2
+import pytest
+
+from airflow.sdk.definitions.dag import DAG
+from airflow.sdk.definitions.templater import LiteralValue, SandboxedEnvironment, Templater
 
 
 class TestTemplater:
@@ -54,15 +55,18 @@ class TestTemplater:
         assert "Failed to resolve template field 'message'" in caplog.text
 
     def test_render_object_storage_path(self):
+        # TODO: Move this import to top-level after https://github.com/apache/airflow/issues/45425
+        from airflow.io.path import ObjectStoragePath
+
         templater = Templater()
         path = ObjectStoragePath("s3://bucket/key/{{ ds }}/part")
-        context = Context({"ds": "2006-02-01"})  # type: ignore
+        context = {"ds": "2006-02-01"}
         jinja_env = templater.get_template_env()
         rendered_content = templater._render_object_storage_path(path, context, jinja_env)
         assert rendered_content == ObjectStoragePath("s3://bucket/key/2006-02-01/part")
 
     def test_render_template(self):
-        context = Context({"name": "world"})  # type: ignore
+        context = {"name": "world"}
         templater = Templater()
         templater.message = "Hello {{ name }}"
         templater.template_fields = ["message"]
@@ -73,7 +77,7 @@ class TestTemplater:
     def test_not_render_literal_value(self):
         templater = Templater()
         templater.template_ext = []
-        context = Context()
+        context = {}
         content = LiteralValue("Hello {{ name }}")
 
         rendered_content = templater.render_template(content, context)
@@ -83,9 +87,42 @@ class TestTemplater:
     def test_not_render_file_literal_value(self):
         templater = Templater()
         templater.template_ext = [".txt"]
-        context = Context()
+        context = {}
         content = LiteralValue("template_file.txt")
 
         rendered_content = templater.render_template(content, context)
 
         assert rendered_content == "template_file.txt"
+
+
+@pytest.fixture
+def env():
+    return SandboxedEnvironment(undefined=jinja2.StrictUndefined, cache_size=0)
+
+
+def test_protected_access(env):
+    class Test:
+        _protected = 123
+
+    assert env.from_string(r"{{ obj._protected }}").render(obj=Test) == "123"
+
+
+def test_private_access(env):
+    with pytest.raises(jinja2.exceptions.SecurityError):
+        env.from_string(r"{{ func.__code__ }}").render(func=test_private_access)
+
+
+@pytest.mark.parametrize(
+    ["name", "expected"],
+    (
+        ("ds", "2012-07-24"),
+        ("ds_nodash", "20120724"),
+        ("ts", "2012-07-24T03:04:52+00:00"),
+        ("ts_nodash", "20120724T030452"),
+        ("ts_nodash_with_tz", "20120724T030452+0000"),
+    ),
+)
+def test_filters(env, name, expected):
+    when = datetime(2012, 7, 24, 3, 4, 52, tzinfo=timezone.utc)
+    result = env.from_string("{{ date |" + name + " }}").render(date=when)
+    assert result == expected
