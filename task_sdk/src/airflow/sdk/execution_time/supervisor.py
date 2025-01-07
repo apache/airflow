@@ -58,6 +58,7 @@ from airflow.sdk.api.datamodels._generated import (
     IntermediateTIState,
     TaskInstance,
     TerminalTIState,
+    VariableResponse,
 )
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
@@ -722,8 +723,11 @@ class WatchedSubprocess:
                 resp = conn.model_dump_json().encode()
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
-            var_result = VariableResult.from_variable_response(var)
-            resp = var_result.model_dump_json().encode()
+            if isinstance(var, VariableResponse):
+                var_result = VariableResult.from_variable_response(var)
+                resp = var_result.model_dump_json(exclude_unset=True).encode()
+            else:
+                resp = var.model_dump_json().encode()
         elif isinstance(msg, GetXCom):
             xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
             xcom_result = XComResult.from_xcom_response(xcom)
