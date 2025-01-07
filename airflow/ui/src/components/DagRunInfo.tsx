@@ -71,7 +71,6 @@ const DagRunInfo = ({
           </Text>
         </VStack>
       }
-      showArrow
     >
       <HStack fontSize="sm">
         <Time datetime={dataIntervalStart} showTooltip={false} />
