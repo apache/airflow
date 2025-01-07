@@ -145,6 +145,7 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         parent_model: str | None = None,
         window_stride_length: int | None = None,
         window_max_count: int | None = None,
+        holiday_region: list[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -184,6 +185,7 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         self.budget_milli_node_hours = budget_milli_node_hours
         self.window_stride_length = window_stride_length
         self.window_max_count = window_max_count
+        self.holiday_region = holiday_region
 
     def execute(self, context: Context):
         self.hook = AutoMLHook(
