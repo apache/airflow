@@ -83,7 +83,7 @@ from airflow.models.asset import (
 from airflow.models.base import Base, StringID
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagrun import RUN_ID_REGEX, DagRun
+from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import (
     Context,
     TaskInstance,
@@ -1767,13 +1767,6 @@ class DAG(TaskSDKDag, LoggingMixin):
             run_type = DagRunType(run_type)
         else:
             raise ValueError(f"run_type should be a DagRunType, not {type(run_type)}")
-
-        regex = airflow_conf.get("scheduler", "allowed_run_id_pattern").strip()
-        if not re2.match(RUN_ID_REGEX, run_id) and not (regex or re2.match(regex, run_id)):
-            raise AirflowException(
-                f"The provided run ID {run_id!r} is invalid. It does not match either "
-                f"the configured pattern: {regex!r} or the built-in pattern: {RUN_ID_REGEX!r}"
-            )
 
         # Prevent a manual run from using an ID that looks like a scheduled run.
         if run_type == DagRunType.MANUAL:
