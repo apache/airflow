@@ -201,62 +201,71 @@ class _EdgeWorkerCli:
             "free_concurrency": self.free_concurrency,
         }
 
+    def _launch_job_af3(self, edge_job: EdgeJobFetched) -> tuple[Process, Path]:
+        if TYPE_CHECKING:
+            from airflow.executors.workloads import ExecuteTask
+
+        def _run_job_via_supervisor(
+            workload: ExecuteTask,
+        ) -> int:
+            from setproctitle import setproctitle
+
+            from airflow.sdk.execution_time.supervisor import supervise
+
+            # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
+            signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+            logger.info("Worker starting up pid=%d", os.getpid())
+            setproctitle(f"airflow edge worker: {workload.ti.key}")
+
+            try:
+                supervise(
+                    # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
+                    # Same like in airflow/executors/local_executor.py:_execute_work()
+                    ti=workload.ti,  # type: ignore[arg-type]
+                    dag_path=workload.dag_path,
+                    token=workload.token,
+                    server=conf.get(
+                        "workers", "execution_api_server_url", fallback="http://localhost:9091/execution/"
+                    ),
+                    log_path=workload.log_path,
+                )
+                return 0
+            except Exception as e:
+                logger.exception("Task execution failed: %s", e)
+                return 1
+
+        workload: ExecuteTask = edge_job.command
+        process = Process(
+            target=_run_job_via_supervisor,
+            kwargs={"workload": workload},
+        )
+        process.start()
+        base_log_folder = conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE")
+        if TYPE_CHECKING:
+            assert workload.log_path  # We need to assume this is defined in here
+        logfile = Path(base_log_folder, workload.log_path)
+        return process, logfile
+
+    def _launch_job_af2_10(self, edge_job: EdgeJobFetched) -> tuple[Popen, Path]:
+        """Compatibility for Airflow 2.10 Launch."""
+        env = os.environ.copy()
+        env["AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION"] = "True"
+        env["AIRFLOW__CORE__INTERNAL_API_URL"] = conf.get("edge", "api_url")
+        env["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
+        command: list[str] = edge_job.command  # type: ignore[assignment]
+        process = Popen(command, close_fds=True, env=env, start_new_session=True)
+        logfile = logs_logfile_path(edge_job.key)
+        return process, logfile
+
     def _launch_job(self, edge_job: EdgeJobFetched):
         """Get the received job executed."""
         process: Popen | Process
         if AIRFLOW_V_3_0_PLUS:
-            if TYPE_CHECKING:
-                from airflow.executors.workloads import ExecuteTask
-
-            def _run_job_via_supervisor(
-                workload: ExecuteTask,
-            ) -> int:
-                from setproctitle import setproctitle
-
-                from airflow.sdk.execution_time.supervisor import supervise
-
-                # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
-                signal.signal(signal.SIGINT, signal.SIG_IGN)
-
-                logger.info("Worker starting up pid=%d", os.getpid())
-                setproctitle(f"airflow edge worker: {workload.ti.key}")
-
-                try:
-                    supervise(
-                        # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
-                        # Same like in airflow/executors/local_executor.py:_execute_work()
-                        ti=workload.ti,  # type: ignore[arg-type]
-                        dag_path=workload.dag_path,
-                        token=workload.token,
-                        server=conf.get(
-                            "workers", "execution_api_server_url", fallback="http://localhost:9091/execution/"
-                        ),
-                        log_path=workload.log_path,
-                    )
-                    return 0
-                except Exception as e:
-                    logger.exception("Task execution failed: %s", e)
-                    return 1
-
-            workload: ExecuteTask = edge_job.command
-            process = Process(
-                target=_run_job_via_supervisor,
-                kwargs={"workload": workload},
-            )
-            process.start()
-            base_log_folder = conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE")
-            if TYPE_CHECKING:
-                assert workload.log_path  # We need to assume this is defined in here
-            logfile = Path(base_log_folder, workload.log_path)
+            process, logfile = self._launch_job_af3(edge_job)
         else:
             # Airflow 2.10
-            env = os.environ.copy()
-            env["AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION"] = "True"
-            env["AIRFLOW__CORE__INTERNAL_API_URL"] = conf.get("edge", "api_url")
-            env["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
-            command: list[str] = edge_job.command  # type: ignore[assignment]
-            process = Popen(command, close_fds=True, env=env, start_new_session=True)
-            logfile = logs_logfile_path(edge_job.key)
+            process, logfile = self._launch_job_af2_10(edge_job)
         self.jobs.append(_Job(edge_job, process, logfile, 0))
 
     def start(self):
