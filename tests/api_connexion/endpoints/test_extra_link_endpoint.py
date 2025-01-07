@@ -77,7 +77,7 @@ class TestGetExtraLinks:
         DagBundlesManager().sync_bundles_to_db()
         self.app.dag_bag = DagBag(os.devnull, include_examples=False)
         self.app.dag_bag.dags = {self.dag.dag_id: self.dag}
-        self.app.dag_bag.sync_to_db("dags_folder", None)
+        self.app.dag_bag.sync_to_db("dags-folder", None)
 
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         self.dag.create_dagrun(

@@ -93,7 +93,7 @@ class TestDagRunEndpoint:
         dag = DAG(dag_id=dag_id, schedule=None, params={"validated_number": Param(1, minimum=1, maximum=10)})
         DagBundlesManager().sync_bundles_to_db()
         self.app.dag_bag.bag_dag(dag)
-        self.app.dag_bag.sync_to_db("dags_folder", None)
+        self.app.dag_bag.sync_to_db("dags-folder", None)
         return dag_instance
 
     def _create_test_dag_run(self, state=DagRunState.RUNNING, extra_dag=False, commit=True, idx_start=1):

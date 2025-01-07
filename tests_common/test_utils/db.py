@@ -72,7 +72,7 @@ def _bootstrap_dagbag():
         dagbag = DagBag()
         # Save DAGs in the ORM
         if AIRFLOW_V_3_0_PLUS:
-            dagbag.sync_to_db(bundle_name="dags_folder", bundle_version=None, session=session)
+            dagbag.sync_to_db(bundle_name="dags-folder", bundle_version=None, session=session)
         else:
             dagbag.sync_to_db(session=session)
 
@@ -120,7 +120,7 @@ def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
 
         dagbag = DagBag(dag_folder=folder, include_examples=include_examples)
         if AIRFLOW_V_3_0_PLUS:
-            dagbag.sync_to_db("dags_folder", None, session)
+            dagbag.sync_to_db("dags-folder", None, session)
         else:
             dagbag.sync_to_db(session=session)  # type: ignore[call-arg]
         session.commit()
