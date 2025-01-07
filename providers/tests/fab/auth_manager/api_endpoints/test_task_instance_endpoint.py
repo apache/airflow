@@ -21,8 +21,8 @@ import urllib
 
 import pytest
 
-from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DagRun, TaskInstance
+from airflow.providers.fab.www.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.security import permissions
 from airflow.utils.session import provide_session
 from airflow.utils.state import State

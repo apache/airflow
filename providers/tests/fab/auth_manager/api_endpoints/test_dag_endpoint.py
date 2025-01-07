@@ -19,8 +19,8 @@ from __future__ import annotations
 import pendulum
 import pytest
 
-from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DagModel
+from airflow.providers.fab.www.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.security import permissions
 from airflow.utils.session import provide_session
 
