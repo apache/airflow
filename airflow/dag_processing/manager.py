@@ -105,7 +105,7 @@ log = logging.getLogger("airflow.processor_manager")
 class DagFileInfo(NamedTuple):
     """Information about a DAG file."""
 
-    path: str
+    path: str  # absolute path of the file
     bundle_name: str
 
 
@@ -329,7 +329,6 @@ class DagFileProcessorManager:
         factory=_config_int_factory("scheduler", "min_file_process_interval")
     )
     stale_dag_threshold: float = attrs.field(factory=_config_int_factory("scheduler", "stale_dag_threshold"))
-    last_dag_dir_refresh_time: float = attrs.field(default=0, init=False)
 
     log: logging.Logger = attrs.field(default=log, init=False)
 
@@ -583,7 +582,8 @@ class DagFileProcessorManager:
 
     def _refresh_requested_filelocs(self) -> None:
         """Refresh filepaths from dag dir as requested by users via APIs."""
-        return  # TODO: AIP-66 make bundle aware!
+        return
+        # TODO: AIP-66 make bundle aware - fileloc will be relative (eventually), thus not unique in order to know what file to repase
         # Get values from DB table
         filelocs = self._get_priority_filelocs()
         for fileloc in filelocs:
@@ -655,51 +655,54 @@ class DagFileProcessorManager:
         for bundle in self._dag_bundles:
             # TODO: AIP-66 test to make sure we get a fresh record from the db and it's not cached
             with create_session() as session:
-                bundle_model = session.query(DagBundleModel).get(bundle.name)
+                bundle_model = session.get(DagBundleModel, bundle.name)
             elapsed_time_since_refresh = (
                 now - (bundle_model.last_refreshed or timezone.utc_epoch())
             ).total_seconds()
-            if not elapsed_time_since_refresh > bundle.refresh_interval:
-                # or bundle_model.version != bundle.get_current_version():
+            current_version = bundle.get_current_version()
+            if (
+                not elapsed_time_since_refresh > bundle.refresh_interval
+            ) and bundle_model.latest_version == current_version:
                 self.log.info("Not time to refresh %s", bundle.name)
                 continue
 
-            # TODO: AIP-66 locking / dealing with multiple processors
-            self.log.info("Time to refresh %s", bundle.name)
-            old_version = bundle.get_current_version()
-            bundle.refresh()
+            try:
+                bundle.refresh()
+            except Exception:
+                self.log.exception("Error refreshing bundle %s", bundle.name)
+                continue
             bundle_model.last_refreshed = now
 
-            if old_version != bundle.get_current_version():
-                self.log.info(
-                    "Version changed for %s, new version: %s", bundle.name, bundle.get_current_version()
-                )
-            bundle_file_paths = self._refresh_dag_dir(bundle)
-            # remove all files from the bundle, then add the new ones
-            self._file_paths = [f for f in self._file_paths if f.bundle_name != bundle_model.name]
-            self._file_paths.extend(
+            new_version = bundle.get_current_version()
+            if bundle.supports_versioning:
+                if current_version == new_version:
+                    self.log.debug("Bundle %s version not changed after refresh", bundle.name)
+                    continue
+                self.log.info("Version changed for %s, new version: %s", bundle.name, new_version)
+            bundle_file_paths = self._find_files_in_bundle(bundle)
+
+            new_file_paths = [f for f in self._file_paths if f.bundle_name != bundle_model.name]
+            new_file_paths.extend(
                 DagFileInfo(path=path, bundle_name=bundle_model.name) for path in bundle_file_paths
             )
+            self.set_file_paths(new_file_paths)
 
-            try:
-                self.log.debug("Removing old import errors")
-                self.clear_nonexistent_import_errors()
-            except Exception:
-                self.log.exception("Error removing old import errors")
+            self.deactivate_deleted_dags(bundle_file_paths)
+            self.clear_nonexistent_import_errors()
 
             self._bundle_versions[bundle_model.name] = bundle.get_current_version()
-            self.log.info("Found %s files for bundle %s", len(bundle_file_paths), bundle.name)
-            # TODO: AIP-66 detect if version changed and update accordingly
 
-    def _refresh_dag_dir(self, bundle: BaseDagBundle) -> list[str]:
+    def _find_files_in_bundle(self, bundle: BaseDagBundle) -> list[str]:
         """Refresh file paths from bundle dir."""
         # Build up a list of Python files that could contain DAGs
         self.log.info("Searching for files in %s at %s", bundle.name, bundle.path)
-        # todo: single prop for this doesn't make sense any longer
-        # self.last_dag_dir_refresh_time = now
-        self.log.info("Searching for files in %s at %s", bundle.name, bundle.path)
         file_paths = list_py_file_paths(bundle.path)
-        self.log.info("There are %s files in %s", len(file_paths), bundle.path)
+        self.log.info("Found %s files for bundle %s", len(file_paths), bundle.name)
+
+        return file_paths
+
+    def deactivate_deleted_dags(self, file_paths: set[str]) -> None:
+        """Deactivate DAGs that come from files that are no longer present."""
 
         def _iter_dag_filelocs(fileloc: str) -> Iterator[str]:
             """
@@ -720,10 +723,8 @@ class DagFileProcessorManager:
 
         dag_filelocs = {full_loc for path in file_paths for full_loc in _iter_dag_filelocs(path)}
 
-        # TODO: AIP-66 by bundle!
+        # TODO: AIP-66: make bundle aware, as fileloc won't be unique long term.
         DagModel.deactivate_deleted_dags(dag_filelocs)
-
-        return file_paths
 
     def _print_stat(self):
         """Occasionally print out stats about how fast the files are getting processed."""
@@ -741,15 +742,18 @@ class DagFileProcessorManager:
         :param session: session for ORM operations
         """
         self.log.debug("Removing old import errors")
-        query = delete(ParseImportError)
+        try:
+            query = delete(ParseImportError)
 
-        if self._file_paths:
-            query = query.where(
-                ParseImportError.filename.notin_([f.path for f in self._file_paths]),
-            )
+            if self._file_paths:
+                query = query.where(
+                    ParseImportError.filename.notin_([f.path for f in self._file_paths]),
+                )
 
-        session.execute(query.execution_options(synchronize_session="fetch"))
-        session.commit()
+            session.execute(query.execution_options(synchronize_session="fetch"))
+            session.commit()
+        except Exception:
+            self.log.exception("Error removing old import errors")
 
     def _log_file_processing_stats(self, known_file_paths):
         """
