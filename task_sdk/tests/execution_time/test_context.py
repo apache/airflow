@@ -143,10 +143,9 @@ class TestConnectionAccessor:
 
         assert dejson == {"extra_key": "extra_value"}
 
-    @patch("structlog.get_logger")
-    def test_getattr_connection_for_extra_dejson_decode_error(self, mock_get_logger, mock_supervisor_comms):
-        mock_logger = MagicMock()
-        mock_get_logger.return_value = mock_logger
+    @patch("airflow.sdk.definitions.connection.log", create=True)
+    def test_getattr_connection_for_extra_dejson_decode_error(self, mock_log, mock_supervisor_comms):
+        mock_log.return_value = MagicMock()
 
         accessor = ConnectionAccessor()
 
@@ -163,7 +162,7 @@ class TestConnectionAccessor:
         # empty in case of failed deserialising
         assert dejson == {}
 
-        mock_logger.error.assert_called_once_with(
+        mock_log.error.assert_called_once_with(
             "Failed to deserialize extra property `extra`, returning empty dictionary"
         )
 

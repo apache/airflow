@@ -57,12 +57,8 @@ class Connection:
 
     def get_hook(self): ...
 
-    def _get_extra_dejson(self, nested: bool = False) -> dict:
-        """
-        Deserialize extra property to JSON.
-
-        :param nested: Determines whether nested structures are also deserialized into JSON (default False).
-        """
+    def _get_extra_dejson(self) -> dict:
+        """Deserialize extra property to JSON."""
         extra = {}
         if self.extra:
             try:
