@@ -545,7 +545,17 @@ export const $ClearTaskInstancesBody = {
       anyOf: [
         {
           items: {
-            type: "string",
+            anyOf: [
+              {
+                type: "string",
+              },
+              {
+                items: {
+                  type: "string",
+                },
+                type: "array",
+              },
+            ],
           },
           type: "array",
         },

@@ -477,7 +477,7 @@ def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) ->
         data["end_date"] = None
     task_ids = data.pop("task_ids", None)
     if task_ids is not None:
-        task_id = [task[0] if isinstance(task, (list)) else task for task in task_ids]
+        task_id = [task[0] if isinstance(task, tuple) else task for task in task_ids]
         dag = dag.partial_subset(
             task_ids_or_regex=task_id,
             include_downstream=downstream,
