@@ -103,9 +103,6 @@ export const Graph = () => {
 
   const dagRun = gridData?.dag_runs.find((dr) => dr.dag_run_id === runId);
 
-  console.log(runId);
-  console.log(gridData?.dag_runs);
-
   // Add task instances to the node data but without having to recalculate how the graph is laid out
   const nodes =
     dagRun?.task_instances === undefined

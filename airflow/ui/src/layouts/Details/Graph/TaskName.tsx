@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { type LinkProps, Link } from "@chakra-ui/react";
+import { type LinkProps, Link, Text } from "@chakra-ui/react";
 import type { CSSProperties } from "react";
 import { FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
 import { useParams, useSearchParams, Link as RouterLink } from "react-router-dom";
@@ -51,6 +51,15 @@ export const TaskName = ({
 }: Props) => {
   const { dagId = "", runId } = useParams();
   const [searchParams] = useSearchParams();
+
+  // We don't have a task group details page to link to
+  if (isGroup) {
+    return (
+      <Text fontSize="md" fontWeight="bold">
+        {label}
+      </Text>
+    );
+  }
 
   return (
     <Link asChild data-testid={id} fontSize={isZoomedOut ? "lg" : "md"} fontWeight="bold" {...rest}>
