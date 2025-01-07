@@ -189,9 +189,20 @@ class VariableOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def get(self, key: str) -> VariableResponse:
+    def get(self, key: str) -> VariableResponse | ErrorResponse:
         """Get a variable from the API server."""
-        resp = self.client.get(f"variables/{key}")
+        try:
+            resp = self.client.get(f"variables/{key}")
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.error(
+                    "Variable not found",
+                    key=key,
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                return ErrorResponse(error=ErrorType.VARIABLE_NOT_FOUND, detail={"key": key})
+            raise
         return VariableResponse.model_validate_json(resp.read())
 
     def set(self, key: str, value: str | None, description: str | None = None):
