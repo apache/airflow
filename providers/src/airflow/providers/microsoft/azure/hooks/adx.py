@@ -41,7 +41,7 @@ from airflow.providers.microsoft.azure.utils import (
 )
 
 if TYPE_CHECKING:
-    from azure.kusto.data.response import KustoResponseDataSetV2
+    from azure.kusto.data.response import KustoResponseDataSet
 
 
 class AzureDataExplorerHook(BaseHook):
@@ -206,7 +206,7 @@ class AzureDataExplorerHook(BaseHook):
 
         return KustoClient(kcsb)
 
-    def run_query(self, query: str, database: str, options: dict | None = None) -> KustoResponseDataSetV2:
+    def run_query(self, query: str, database: str, options: dict | None = None) -> KustoResponseDataSet:
         """
         Run KQL query using provided configuration, and return KustoResponseDataSet instance.
 
