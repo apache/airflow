@@ -1887,7 +1887,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             f"/public/dags/{request_dag}/clearTaskInstances",
             json=payload,
         )
-        print(response.json())
         assert response.status_code == 200
         assert response.json()["total_entries"] == expected_ti
 
