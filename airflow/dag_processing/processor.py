@@ -31,8 +31,11 @@ from airflow.callbacks.callback_requests import (
     TaskCallbackRequest,
 )
 from airflow.configuration import conf
+from airflow.models import Variable
 from airflow.models.dagbag import DagBag
-from airflow.sdk.execution_time.comms import GetConnection, GetVariable
+from airflow.sdk.api.datamodels._generated import VariableResponse
+from airflow.sdk.execution_time import task_runner
+from airflow.sdk.execution_time.comms import GetConnection, GetVariable, VariableResult
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.stats import Stats
@@ -43,26 +46,22 @@ if TYPE_CHECKING:
     from airflow.typing_compat import Self
     from airflow.utils.context import Context
 
+COMMS_DECODER: task_runner.CommsDecoder[ToChild, ToParent]
+
 
 def _parse_file_entrypoint():
     import os
 
     import structlog
 
-    from airflow.sdk.execution_time import task_runner
     # Parse DAG file, send JSON back up!
-
-    comms_decoder = task_runner.CommsDecoder[DagFileParseRequest, DagFileParsingResult](
-        input=sys.stdin,
-        decoder=TypeAdapter[DagFileParseRequest](DagFileParseRequest),
-    )
-    msg = comms_decoder.get_message()
-    comms_decoder.request_socket = os.fdopen(msg.requests_fd, "wb", buffering=0)
+    msg = COMMS_DECODER.get_message()
+    COMMS_DECODER.request_socket = os.fdopen(msg.requests_fd, "wb", buffering=0)
 
     log = structlog.get_logger(logger_name="task")
 
     result = _parse_file(msg, log)
-    comms_decoder.send_request(log, result)
+    COMMS_DECODER.send_request(log, result)
 
 
 def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileParsingResult:
@@ -181,6 +180,11 @@ ToParent = Annotated[
     Field(discriminator="type"),
 ]
 
+ToChild = Annotated[
+    Union[DagFileParseRequest, VariableResult],
+    Field(discriminator="type"),
+]
+
 
 @attrs.define()
 class DagFileProcessorProcess(WatchedSubprocess):
@@ -204,6 +208,11 @@ class DagFileProcessorProcess(WatchedSubprocess):
         target: Callable[[], None] = _parse_file_entrypoint,
         **kwargs,
     ) -> Self:
+        global COMMS_DECODER
+        COMMS_DECODER = task_runner.CommsDecoder[ToChild, ToParent](
+            input=sys.stdin,
+            decoder=TypeAdapter[ToChild](ToChild),
+        )
         return super().start(path, callbacks, target=target, client=None, **kwargs)  # type:ignore[arg-type]
 
     def _on_child_started(  # type: ignore[override]
@@ -235,8 +244,16 @@ class DagFileProcessorProcess(WatchedSubprocess):
         if isinstance(msg, DagFileParsingResult):
             self.parsing_result = msg
             return
-        # GetVariable etc -- parsing a dag can run top level code that asks for an Airflow Variable
-        super()._handle_request(msg, log)
+        elif isinstance(msg, GetVariable):
+            key = msg.key
+            try:
+                value = Variable.get(key)
+            except KeyError:
+                log.exception("Variable: %s does not exist", key)
+                raise
+            var_result = VariableResult.from_variable_response(VariableResponse(key=key, value=value))
+            resp = var_result.model_dump_json(exclude_unset=True).encode()
+            self.stdin.write(resp + b"\n")
 
     @property
     def is_ready(self) -> bool:

@@ -21,6 +21,10 @@ from typing import Any
 
 import attrs
 
+from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.execution_time.context import _get_variable
+from airflow.sdk.types import NOTSET
+
 
 @attrs.define
 class Variable:
@@ -34,8 +38,15 @@ class Variable:
     """
 
     key: str
-    # keeping as any for supporting deserialize_json
+    # keeping as any for supporting `deserialize_json`
     value: Any | None = None
     description: str | None = None
 
-    # TODO: Extend this definition for reading/writing variables without context
+    @classmethod
+    def get(cls, key: str, default: Any = NOTSET) -> Any:
+        try:
+            return _get_variable(key).value
+        except AirflowRuntimeError as e:
+            if e.error.error == ErrorType.VARIABLE_NOT_FOUND:
+                return default
+            raise

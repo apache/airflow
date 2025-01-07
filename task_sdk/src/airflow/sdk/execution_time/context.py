@@ -66,18 +66,24 @@ def _get_connection(conn_id: str) -> Connection:
     return _convert_connection_result_conn(msg)
 
 
-def _get_variable(key: str, deserialize_json: bool) -> Variable:
+def _get_variable(key: str, deserialize_json: bool = False) -> Variable:
     # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
     #   or `airflow.sdk.execution_time.variable`
     #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
     #   will make that module depend on Task SDK, which is not ideal because we intend to
     #   keep Task SDK as a separate package than execution time mods.
     from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    try:
+        # We check the hypothesis if the request for variable came from task.
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS as COMMS  # type: ignore
+    except ImportError:
+        # If not, hypothesis is false and this request is from dag level.
+        from airflow.dag_processing.processor import COMMS_DECODER as COMMS  # type: ignore
 
     log = structlog.get_logger(logger_name="task")
-    SUPERVISOR_COMMS.send_request(log=log, msg=GetVariable(key=key))
-    msg = SUPERVISOR_COMMS.get_message()
+    COMMS.send_request(log=log, msg=GetVariable(key=key))
+    msg = COMMS.get_message()
     if isinstance(msg, ErrorResponse):
         raise AirflowRuntimeError(msg)
 

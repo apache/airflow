@@ -20,6 +20,7 @@ from __future__ import annotations
 import pathlib
 import sys
 from typing import TYPE_CHECKING
+from unittest import mock
 from unittest.mock import patch
 
 import pytest
@@ -35,6 +36,7 @@ from airflow.dag_processing.processor import (
 from airflow.models import DagBag, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.sdk.execution_time.comms import GetVariable, VariableResult
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -123,6 +125,13 @@ class TestDagFileProcessor:
         assert not resp.serialized_dags
         assert resp.import_errors is not None
         assert "a.py" in resp.import_errors
+
+    @patch("airflow.dag_processing.processor.COMMS_DECODER", create=True)
+    def test_parse_with_top_level_variable(self, mock_comms_decoder):
+        mock_comms_decoder.get_message.return_value = VariableResult(key="my_var", value="my_value")
+        dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
+        assert "example_get_variable_using_task_sdk" in dagbag.dag_ids
+        mock_comms_decoder.send_request.assert_called_once_with(log=mock.ANY, msg=GetVariable(key="my_var"))
 
 
 #     @conf_vars({("logging", "dag_processor_log_target"): "stdout"})

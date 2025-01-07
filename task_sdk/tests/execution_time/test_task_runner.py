@@ -878,3 +878,60 @@ class TestXComAfterTaskExecution:
         assert str(exc_info.value) == (
             f"Returned dictionary keys must be strings when using multiple_outputs, found 2 ({int}) instead"
         )
+
+
+class TestWritingTasksWithSDKDefinitions:
+    def test_run_task_which_gets_variable(
+        self, time_machine, mocked_parse, make_ti_context, mock_supervisor_comms
+    ):
+        """Test running a basic task that gets a variable"""
+        instant = timezone.datetime(2024, 12, 3, 10, 0)
+        time_machine.move_to(instant, tick=False)
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                # Gets a variable and returns it
+                value = Variable.get(key="my_var")
+                return value
+
+        task = CustomOperator(task_id="get_var")
+        what = StartupDetails(
+            ti=TaskInstance(
+                id=uuid7(),
+                task_id="get_var",
+                dag_id="get_var_dag",
+                run_id="c",
+                try_number=1,
+            ),
+            file="",
+            requests_fd=0,
+            ti_context=make_ti_context(),
+        )
+
+        # Parse the task instance
+        runtime_ti = mocked_parse(what, "get_var_dag", task)
+
+        # Mock the `get_message` to return VariableResult
+        mock_supervisor_comms.get_message.return_value = VariableResult(
+            key="my_var",
+            value="my_value",
+        )
+
+        # Run the task
+        run(runtime_ti, log=mock.MagicMock())
+
+        # Assert if a GetVariable call was made and later TaskState to mark as success
+        expected_calls = [
+            mock.call.send_request(
+                msg=GetVariable(
+                    key="my_var",
+                ),
+                log=mock.ANY,
+            ),
+            mock.call.send_request(
+                msg=TaskState(end_date=instant, state=TerminalTIState.SUCCESS),
+                log=mock.ANY,
+            ),
+        ]
+
+        mock_supervisor_comms.send_request.assert_has_calls(expected_calls, any_order=True)
