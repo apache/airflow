@@ -164,7 +164,7 @@ TEST_TRAINING_AVAILABLE_AT_FORECAST_COLUMNS: list[str] = []
 TEST_TRAINING_FORECAST_HORIZON = 10
 TEST_TRAINING_DATA_GRANULARITY_UNIT = "day"
 TEST_TRAINING_DATA_GRANULARITY_COUNT = 1
-TEST_TRAINING_DATA_HOLIDAY_REGION = ["US"]
+TEST_TRAINING_DATA_HOLIDAY_REGIONS = ["US"]
 
 TEST_MODEL_ID = "test_model_id"
 TEST_MODEL_NAME = f"projects/{GCP_PROJECT}/locations/{GCP_LOCATION}/models/test_model_id"
@@ -1507,7 +1507,7 @@ class TestVertexAICreateAutoMLForecastingTrainingJobOperator:
             model_version_description=None,
             window_stride_length=None,
             window_max_count=None,
-            holiday_region=TEST_TRAINING_DATA_HOLIDAY_REGION
+            holiday_regions=TEST_TRAINING_DATA_HOLIDAY_REGIONS
         )
 
     @mock.patch("google.cloud.aiplatform.datasets.TimeSeriesDataset")
