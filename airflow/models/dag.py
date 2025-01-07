@@ -1758,7 +1758,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         """
         logical_date = timezone.coerce_datetime(logical_date)
 
-        if data_interval and not isinstance(data_interval, DataInterval):
+        if not isinstance(data_interval, DataInterval):
             data_interval = DataInterval(*map(timezone.coerce_datetime, data_interval))
 
         if isinstance(run_type, DagRunType):
@@ -1767,6 +1767,9 @@ class DAG(TaskSDKDag, LoggingMixin):
             run_type = DagRunType(run_type)
         else:
             raise ValueError(f"run_type should be a DagRunType, not {type(run_type)}")
+
+        if not isinstance(run_id, str):
+            raise ValueError(f"`run_id` should be a str, not {type(run_id)}")
 
         # Prevent a manual run from using an ID that looks like a scheduled run.
         if run_type == DagRunType.MANUAL:
@@ -1791,7 +1794,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             dag=self,
             run_id=run_id,
             logical_date=logical_date,
-            start_date=start_date,
+            start_date=timezone.coerce_datetime(start_date),
             external_trigger=external_trigger,
             conf=conf,
             state=state,
