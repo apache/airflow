@@ -47,8 +47,8 @@ with DAG(
     description=__doc__.partition(".")[0],
     doc_md=__doc__,
     schedule=None,
-    start_date=datetime(2024, 7, 1),
-    tags=["example", "params", "integration test"],
+    start_date=datetime(2025, 1, 1),
+    tags=["example", "edge", "integration test"],
     params={
         "mapping_count": Param(
             4,

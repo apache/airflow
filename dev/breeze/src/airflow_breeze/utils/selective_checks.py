@@ -746,6 +746,8 @@ class SelectiveChecks:
 
     @cached_property
     def run_tests(self) -> bool:
+        if self._is_canary_run():
+            return True
         if self.only_new_ui_files:
             return False
         # we should run all test
@@ -1203,11 +1205,7 @@ class SelectiveChecks:
 
     @cached_property
     def docker_cache(self) -> str:
-        return (
-            "disabled"
-            if (self._github_event == GithubEvents.SCHEDULE or DISABLE_IMAGE_CACHE_LABEL in self._pr_labels)
-            else "registry"
-        )
+        return "disabled" if DISABLE_IMAGE_CACHE_LABEL in self._pr_labels else "registry"
 
     @cached_property
     def debug_resources(self) -> bool:

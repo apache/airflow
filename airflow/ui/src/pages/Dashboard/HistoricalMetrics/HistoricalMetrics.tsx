@@ -32,9 +32,7 @@ const defaultHour = "168";
 
 export const HistoricalMetrics = () => {
   const now = dayjs();
-  const [startDate, setStartDate] = useState(
-    now.subtract(Number(defaultHour), "hour").toISOString(),
-  );
+  const [startDate, setStartDate] = useState(now.subtract(Number(defaultHour), "hour").toISOString());
   const [endDate, setEndDate] = useState(now.toISOString());
 
   const { data, error, isLoading } = useDashboardServiceHistoricalMetrics({
@@ -43,17 +41,11 @@ export const HistoricalMetrics = () => {
   });
 
   const dagRunTotal = data
-    ? Object.values(data.dag_run_states).reduce(
-        (partialSum, value) => partialSum + value,
-        0,
-      )
+    ? Object.values(data.dag_run_states).reduce((partialSum, value) => partialSum + value, 0)
     : 0;
 
   const taskRunTotal = data
-    ? Object.values(data.task_instance_states).reduce(
-        (partialSum, value) => partialSum + value,
-        0,
-      )
+    ? Object.values(data.task_instance_states).reduce((partialSum, value) => partialSum + value, 0)
     : 0;
 
   return (
@@ -70,14 +62,8 @@ export const HistoricalMetrics = () => {
         {isLoading ? <MetricSectionSkeleton /> : undefined}
         {!isLoading && data !== undefined && (
           <Box>
-            <DagRunMetrics
-              dagRunStates={data.dag_run_states}
-              total={dagRunTotal}
-            />
-            <TaskInstanceMetrics
-              taskInstanceStates={data.task_instance_states}
-              total={taskRunTotal}
-            />
+            <DagRunMetrics dagRunStates={data.dag_run_states} total={dagRunTotal} />
+            <TaskInstanceMetrics taskInstanceStates={data.task_instance_states} total={taskRunTotal} />
           </Box>
         )}
       </VStack>

@@ -24,30 +24,28 @@ type ValueTextProps = {
   children?: (items: Array<CollectionItem>) => React.ReactNode;
 } & Omit<ChakraSelect.ValueTextProps, "children">;
 
-export const ValueText = forwardRef<HTMLSpanElement, ValueTextProps>(
-  (props, ref) => {
-    const { children, ...rest } = props;
+export const ValueText = forwardRef<HTMLSpanElement, ValueTextProps>((props, ref) => {
+  const { children, ...rest } = props;
 
-    return (
-      <ChakraSelect.ValueText {...rest} ref={ref}>
-        <ChakraSelect.Context>
-          {(select) => {
-            const items = select.selectedItems;
+  return (
+    <ChakraSelect.ValueText {...rest} ref={ref}>
+      <ChakraSelect.Context>
+        {(select) => {
+          const items = select.selectedItems;
 
-            if (items.length === 0) {
-              return props.placeholder;
-            }
-            if (children) {
-              return children(items);
-            }
-            if (items.length === 1) {
-              return select.collection.stringifyItem(items[0]);
-            }
+          if (items.length === 0) {
+            return props.placeholder;
+          }
+          if (children) {
+            return children(items);
+          }
+          if (items.length === 1) {
+            return select.collection.stringifyItem(items[0]);
+          }
 
-            return `${items.length} selected`;
-          }}
-        </ChakraSelect.Context>
-      </ChakraSelect.ValueText>
-    );
-  },
-);
+          return `${items.length} selected`;
+        }}
+      </ChakraSelect.Context>
+    </ChakraSelect.ValueText>
+  );
+});

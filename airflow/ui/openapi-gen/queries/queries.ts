@@ -1,10 +1,5 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.0
-import {
-  UseMutationOptions,
-  UseQueryOptions,
-  useMutation,
-  useQuery,
-} from "@tanstack/react-query";
+import { UseMutationOptions, UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
 
 import {
   AssetService,
@@ -125,14 +120,7 @@ export const useAssetServiceGetAssets = <
       queryKey,
     ),
     queryFn: () =>
-      AssetService.getAssets({
-        dagIds,
-        limit,
-        namePattern,
-        offset,
-        orderBy,
-        uriPattern,
-      }) as TData,
+      AssetService.getAssets({ dagIds, limit, namePattern, offset, orderBy, uriPattern }) as TData,
     ...options,
   });
 /**
@@ -166,17 +154,8 @@ export const useAssetServiceGetAssetAliases = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceGetAssetAliasesKeyFn(
-      { limit, namePattern, offset, orderBy },
-      queryKey,
-    ),
-    queryFn: () =>
-      AssetService.getAssetAliases({
-        limit,
-        namePattern,
-        offset,
-        orderBy,
-      }) as TData,
+    queryKey: Common.UseAssetServiceGetAssetAliasesKeyFn({ limit, namePattern, offset, orderBy }, queryKey),
+    queryFn: () => AssetService.getAssetAliases({ limit, namePattern, offset, orderBy }) as TData,
     ...options,
   });
 /**
@@ -201,10 +180,7 @@ export const useAssetServiceGetAssetAlias = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceGetAssetAliasKeyFn(
-      { assetAliasId },
-      queryKey,
-    ),
+    queryKey: Common.UseAssetServiceGetAssetAliasKeyFn({ assetAliasId }, queryKey),
     queryFn: () => AssetService.getAssetAlias({ assetAliasId }) as TData,
     ...options,
   });
@@ -312,12 +288,8 @@ export const useAssetServiceGetAssetQueuedEvents = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceGetAssetQueuedEventsKeyFn(
-      { assetId, before },
-      queryKey,
-    ),
-    queryFn: () =>
-      AssetService.getAssetQueuedEvents({ assetId, before }) as TData,
+    queryKey: Common.UseAssetServiceGetAssetQueuedEventsKeyFn({ assetId, before }, queryKey),
+    queryFn: () => AssetService.getAssetQueuedEvents({ assetId, before }) as TData,
     ...options,
   });
 /**
@@ -371,12 +343,8 @@ export const useAssetServiceGetDagAssetQueuedEvents = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceGetDagAssetQueuedEventsKeyFn(
-      { before, dagId },
-      queryKey,
-    ),
-    queryFn: () =>
-      AssetService.getDagAssetQueuedEvents({ before, dagId }) as TData,
+    queryKey: Common.UseAssetServiceGetDagAssetQueuedEventsKeyFn({ before, dagId }, queryKey),
+    queryFn: () => AssetService.getDagAssetQueuedEvents({ before, dagId }) as TData,
     ...options,
   });
 /**
@@ -407,12 +375,8 @@ export const useAssetServiceGetDagAssetQueuedEvent = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceGetDagAssetQueuedEventKeyFn(
-      { assetId, before, dagId },
-      queryKey,
-    ),
-    queryFn: () =>
-      AssetService.getDagAssetQueuedEvent({ assetId, before, dagId }) as TData,
+    queryKey: Common.UseAssetServiceGetDagAssetQueuedEventKeyFn({ assetId, before, dagId }, queryKey),
+    queryFn: () => AssetService.getDagAssetQueuedEvent({ assetId, before, dagId }) as TData,
     ...options,
   });
 /**
@@ -458,10 +422,7 @@ export const useConfigServiceGetConfig = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseConfigServiceGetConfigKeyFn(
-      { accept, section },
-      queryKey,
-    ),
+    queryKey: Common.UseConfigServiceGetConfigKeyFn({ accept, section }, queryKey),
     queryFn: () => ConfigService.getConfig({ accept, section }) as TData,
     ...options,
   });
@@ -492,12 +453,8 @@ export const useConfigServiceGetConfigValue = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseConfigServiceGetConfigValueKeyFn(
-      { accept, option, section },
-      queryKey,
-    ),
-    queryFn: () =>
-      ConfigService.getConfigValue({ accept, option, section }) as TData,
+    queryKey: Common.UseConfigServiceGetConfigValueKeyFn({ accept, option, section }, queryKey),
+    queryFn: () => ConfigService.getConfigValue({ accept, option, section }) as TData,
     ...options,
   });
 /**
@@ -609,12 +566,8 @@ export const useDashboardServiceHistoricalMetrics = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn(
-      { endDate, startDate },
-      queryKey,
-    ),
-    queryFn: () =>
-      DashboardService.historicalMetrics({ endDate, startDate }) as TData,
+    queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn({ endDate, startDate }, queryKey),
+    queryFn: () => DashboardService.historicalMetrics({ endDate, startDate }) as TData,
     ...options,
   });
 /**
@@ -702,14 +655,7 @@ export const useBackfillServiceListBackfills = <
       { active, dagId, limit, offset, orderBy },
       queryKey,
     ),
-    queryFn: () =>
-      BackfillService.listBackfills({
-        active,
-        dagId,
-        limit,
-        offset,
-        orderBy,
-      }) as TData,
+    queryFn: () => BackfillService.listBackfills({ active, dagId, limit, offset, orderBy }) as TData,
     ...options,
   });
 /**
@@ -742,17 +688,8 @@ export const useBackfillServiceListBackfills1 = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseBackfillServiceListBackfills1KeyFn(
-      { dagId, limit, offset, orderBy },
-      queryKey,
-    ),
-    queryFn: () =>
-      BackfillService.listBackfills1({
-        dagId,
-        limit,
-        offset,
-        orderBy,
-      }) as TData,
+    queryKey: Common.UseBackfillServiceListBackfills1KeyFn({ dagId, limit, offset, orderBy }, queryKey),
+    queryFn: () => BackfillService.listBackfills1({ dagId, limit, offset, orderBy }) as TData,
     ...options,
   });
 /**
@@ -776,10 +713,7 @@ export const useBackfillServiceGetBackfill = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseBackfillServiceGetBackfillKeyFn(
-      { backfillId },
-      queryKey,
-    ),
+    queryKey: Common.UseBackfillServiceGetBackfillKeyFn({ backfillId }, queryKey),
     queryFn: () => BackfillService.getBackfill({ backfillId }) as TData,
     ...options,
   });
@@ -889,10 +823,7 @@ export const useConnectionServiceGetConnection = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseConnectionServiceGetConnectionKeyFn(
-      { connectionId },
-      queryKey,
-    ),
+    queryKey: Common.UseConnectionServiceGetConnectionKeyFn({ connectionId }, queryKey),
     queryFn: () => ConnectionService.getConnection({ connectionId }) as TData,
     ...options,
   });
@@ -924,12 +855,8 @@ export const useConnectionServiceGetConnections = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn(
-      { limit, offset, orderBy },
-      queryKey,
-    ),
-    queryFn: () =>
-      ConnectionService.getConnections({ limit, offset, orderBy }) as TData,
+    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ limit, offset, orderBy }, queryKey),
+    queryFn: () => ConnectionService.getConnections({ limit, offset, orderBy }) as TData,
     ...options,
   });
 /**
@@ -956,10 +883,7 @@ export const useDagRunServiceGetDagRun = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDagRunServiceGetDagRunKeyFn(
-      { dagId, dagRunId },
-      queryKey,
-    ),
+    queryKey: Common.UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }, queryKey),
     queryFn: () => DagRunService.getDagRun({ dagId, dagRunId }) as TData,
     ...options,
   });
@@ -988,12 +912,8 @@ export const useDagRunServiceGetUpstreamAssetEvents = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn(
-      { dagId, dagRunId },
-      queryKey,
-    ),
-    queryFn: () =>
-      DagRunService.getUpstreamAssetEvents({ dagId, dagRunId }) as TData,
+    queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn({ dagId, dagRunId }, queryKey),
+    queryFn: () => DagRunService.getUpstreamAssetEvents({ dagId, dagRunId }) as TData,
     ...options,
   });
 /**
@@ -1120,12 +1040,8 @@ export const useDagSourceServiceGetDagSource = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDagSourceServiceGetDagSourceKeyFn(
-      { accept, dagId, versionNumber },
-      queryKey,
-    ),
-    queryFn: () =>
-      DagSourceService.getDagSource({ accept, dagId, versionNumber }) as TData,
+    queryKey: Common.UseDagSourceServiceGetDagSourceKeyFn({ accept, dagId, versionNumber }, queryKey),
+    queryFn: () => DagSourceService.getDagSource({ accept, dagId, versionNumber }) as TData,
     ...options,
   });
 /**
@@ -1192,14 +1108,7 @@ export const useDagWarningServiceListDagWarnings = <
       { dagId, limit, offset, orderBy, warningType },
       queryKey,
     ),
-    queryFn: () =>
-      DagWarningService.listDagWarnings({
-        dagId,
-        limit,
-        offset,
-        orderBy,
-        warningType,
-      }) as TData,
+    queryFn: () => DagWarningService.listDagWarnings({ dagId, limit, offset, orderBy, warningType }) as TData,
     ...options,
   });
 /**
@@ -1364,17 +1273,8 @@ export const useDagServiceGetDagTags = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDagServiceGetDagTagsKeyFn(
-      { limit, offset, orderBy, tagNamePattern },
-      queryKey,
-    ),
-    queryFn: () =>
-      DagService.getDagTags({
-        limit,
-        offset,
-        orderBy,
-        tagNamePattern,
-      }) as TData,
+    queryKey: Common.UseDagServiceGetDagTagsKeyFn({ limit, offset, orderBy, tagNamePattern }, queryKey),
+    queryFn: () => DagService.getDagTags({ limit, offset, orderBy, tagNamePattern }) as TData,
     ...options,
   });
 /**
@@ -1398,10 +1298,7 @@ export const useEventLogServiceGetEventLog = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseEventLogServiceGetEventLogKeyFn(
-      { eventLogId },
-      queryKey,
-    ),
+    queryKey: Common.UseEventLogServiceGetEventLogKeyFn({ eventLogId }, queryKey),
     queryFn: () => EventLogService.getEventLog({ eventLogId }) as TData,
     ...options,
   });
@@ -1532,12 +1429,8 @@ export const useExtraLinksServiceGetExtraLinks = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseExtraLinksServiceGetExtraLinksKeyFn(
-      { dagId, dagRunId, taskId },
-      queryKey,
-    ),
-    queryFn: () =>
-      ExtraLinksService.getExtraLinks({ dagId, dagRunId, taskId }) as TData,
+    queryKey: Common.UseExtraLinksServiceGetExtraLinksKeyFn({ dagId, dagRunId, taskId }, queryKey),
+    queryFn: () => ExtraLinksService.getExtraLinks({ dagId, dagRunId, taskId }) as TData,
     ...options,
   });
 /**
@@ -1568,12 +1461,8 @@ export const useTaskInstanceServiceGetExtraLinks = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseTaskInstanceServiceGetExtraLinksKeyFn(
-      { dagId, dagRunId, taskId },
-      queryKey,
-    ),
-    queryFn: () =>
-      TaskInstanceService.getExtraLinks({ dagId, dagRunId, taskId }) as TData,
+    queryKey: Common.UseTaskInstanceServiceGetExtraLinksKeyFn({ dagId, dagRunId, taskId }, queryKey),
+    queryFn: () => TaskInstanceService.getExtraLinks({ dagId, dagRunId, taskId }) as TData,
     ...options,
   });
 /**
@@ -1604,12 +1493,8 @@ export const useTaskInstanceServiceGetTaskInstance = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceKeyFn(
-      { dagId, dagRunId, taskId },
-      queryKey,
-    ),
-    queryFn: () =>
-      TaskInstanceService.getTaskInstance({ dagId, dagRunId, taskId }) as TData,
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceKeyFn({ dagId, dagRunId, taskId }, queryKey),
+    queryFn: () => TaskInstanceService.getTaskInstance({ dagId, dagRunId, taskId }) as TData,
     ...options,
   });
 /**
@@ -1777,12 +1662,7 @@ export const useTaskInstanceServiceGetTaskInstanceDependencies = <
       queryKey,
     ),
     queryFn: () =>
-      TaskInstanceService.getTaskInstanceDependencies({
-        dagId,
-        dagRunId,
-        mapIndex,
-        taskId,
-      }) as TData,
+      TaskInstanceService.getTaskInstanceDependencies({ dagId, dagRunId, mapIndex, taskId }) as TData,
     ...options,
   });
 /**
@@ -1821,12 +1701,7 @@ export const useTaskInstanceServiceGetTaskInstanceDependencies1 = <
       queryKey,
     ),
     queryFn: () =>
-      TaskInstanceService.getTaskInstanceDependencies1({
-        dagId,
-        dagRunId,
-        mapIndex,
-        taskId,
-      }) as TData,
+      TaskInstanceService.getTaskInstanceDependencies1({ dagId, dagRunId, mapIndex, taskId }) as TData,
     ...options,
   });
 /**
@@ -1864,13 +1739,7 @@ export const useTaskInstanceServiceGetTaskInstanceTries = <
       { dagId, dagRunId, mapIndex, taskId },
       queryKey,
     ),
-    queryFn: () =>
-      TaskInstanceService.getTaskInstanceTries({
-        dagId,
-        dagRunId,
-        mapIndex,
-        taskId,
-      }) as TData,
+    queryFn: () => TaskInstanceService.getTaskInstanceTries({ dagId, dagRunId, mapIndex, taskId }) as TData,
     ...options,
   });
 /**
@@ -1908,12 +1777,7 @@ export const useTaskInstanceServiceGetMappedTaskInstanceTries = <
       queryKey,
     ),
     queryFn: () =>
-      TaskInstanceService.getMappedTaskInstanceTries({
-        dagId,
-        dagRunId,
-        mapIndex,
-        taskId,
-      }) as TData,
+      TaskInstanceService.getMappedTaskInstanceTries({ dagId, dagRunId, mapIndex, taskId }) as TData,
     ...options,
   });
 /**
@@ -1951,13 +1815,7 @@ export const useTaskInstanceServiceGetMappedTaskInstance = <
       { dagId, dagRunId, mapIndex, taskId },
       queryKey,
     ),
-    queryFn: () =>
-      TaskInstanceService.getMappedTaskInstance({
-        dagId,
-        dagRunId,
-        mapIndex,
-        taskId,
-      }) as TData,
+    queryFn: () => TaskInstanceService.getMappedTaskInstance({ dagId, dagRunId, mapIndex, taskId }) as TData,
     ...options,
   });
 /**
@@ -2236,16 +2094,7 @@ export const useTaskInstanceServiceGetLog = <
 ) =>
   useQuery<TData, TError>({
     queryKey: Common.UseTaskInstanceServiceGetLogKeyFn(
-      {
-        accept,
-        dagId,
-        dagRunId,
-        fullContent,
-        mapIndex,
-        taskId,
-        token,
-        tryNumber,
-      },
+      { accept, dagId, dagRunId, fullContent, mapIndex, taskId, token, tryNumber },
       queryKey,
     ),
     queryFn: () =>
@@ -2283,12 +2132,8 @@ export const useImportErrorServiceGetImportError = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseImportErrorServiceGetImportErrorKeyFn(
-      { importErrorId },
-      queryKey,
-    ),
-    queryFn: () =>
-      ImportErrorService.getImportError({ importErrorId }) as TData,
+    queryKey: Common.UseImportErrorServiceGetImportErrorKeyFn({ importErrorId }, queryKey),
+    queryFn: () => ImportErrorService.getImportError({ importErrorId }) as TData,
     ...options,
   });
 /**
@@ -2319,12 +2164,8 @@ export const useImportErrorServiceGetImportErrors = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn(
-      { limit, offset, orderBy },
-      queryKey,
-    ),
-    queryFn: () =>
-      ImportErrorService.getImportErrors({ limit, offset, orderBy }) as TData,
+    queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ limit, offset, orderBy }, queryKey),
+    queryFn: () => ImportErrorService.getImportErrors({ limit, offset, orderBy }) as TData,
     ...options,
   });
 /**
@@ -2440,10 +2281,7 @@ export const usePluginServiceGetPlugins = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UsePluginServiceGetPluginsKeyFn(
-      { limit, offset },
-      queryKey,
-    ),
+    queryKey: Common.UsePluginServiceGetPluginsKeyFn({ limit, offset }, queryKey),
     queryFn: () => PluginService.getPlugins({ limit, offset }) as TData,
     ...options,
   });
@@ -2501,10 +2339,7 @@ export const usePoolServiceGetPools = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UsePoolServiceGetPoolsKeyFn(
-      { limit, offset, orderBy },
-      queryKey,
-    ),
+    queryKey: Common.UsePoolServiceGetPoolsKeyFn({ limit, offset, orderBy }, queryKey),
     queryFn: () => PoolService.getPools({ limit, offset, orderBy }) as TData,
     ...options,
   });
@@ -2533,10 +2368,7 @@ export const useProviderServiceGetProviders = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseProviderServiceGetProvidersKeyFn(
-      { limit, offset },
-      queryKey,
-    ),
+    queryKey: Common.UseProviderServiceGetProvidersKeyFn({ limit, offset }, queryKey),
     queryFn: () => ProviderService.getProviders({ limit, offset }) as TData,
     ...options,
   });
@@ -2643,15 +2475,7 @@ export const useXcomServiceGetXcomEntries = <
       queryKey,
     ),
     queryFn: () =>
-      XcomService.getXcomEntries({
-        dagId,
-        dagRunId,
-        limit,
-        mapIndex,
-        offset,
-        taskId,
-        xcomKey,
-      }) as TData,
+      XcomService.getXcomEntries({ dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKey }) as TData,
     ...options,
   });
 /**
@@ -2734,10 +2558,7 @@ export const useVariableServiceGetVariable = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseVariableServiceGetVariableKeyFn(
-      { variableKey },
-      queryKey,
-    ),
+    queryKey: Common.UseVariableServiceGetVariableKeyFn({ variableKey }, queryKey),
     queryFn: () => VariableService.getVariable({ variableKey }) as TData,
     ...options,
   });
@@ -2776,13 +2597,7 @@ export const useVariableServiceGetVariables = <
       { limit, offset, orderBy, variableKeyPattern },
       queryKey,
     ),
-    queryFn: () =>
-      VariableService.getVariables({
-        limit,
-        offset,
-        orderBy,
-        variableKeyPattern,
-      }) as TData,
+    queryFn: () => VariableService.getVariables({ limit, offset, orderBy, variableKeyPattern }) as TData,
     ...options,
   });
 /**
@@ -2856,9 +2671,7 @@ export const useAssetServiceCreateAssetEvent = <
     TContext
   >({
     mutationFn: ({ requestBody }) =>
-      AssetService.createAssetEvent({
-        requestBody,
-      }) as unknown as Promise<TData>,
+      AssetService.createAssetEvent({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -2894,9 +2707,7 @@ export const useBackfillServiceCreateBackfill = <
     TContext
   >({
     mutationFn: ({ requestBody }) =>
-      BackfillService.createBackfill({
-        requestBody,
-      }) as unknown as Promise<TData>,
+      BackfillService.createBackfill({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -2971,48 +2782,7 @@ export const useConnectionServicePostConnection = <
     TContext
   >({
     mutationFn: ({ requestBody }) =>
-      ConnectionService.postConnection({
-        requestBody,
-      }) as unknown as Promise<TData>,
-    ...options,
-  });
-/**
- * Post Connections
- * Create connection entry.
- * @param data The data for the request.
- * @param data.requestBody
- * @returns ConnectionCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useConnectionServicePostConnections = <
-  TData = Common.ConnectionServicePostConnectionsMutationResult,
-  TError = unknown,
-  TContext = unknown,
->(
-  options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      {
-        requestBody: ConnectionBulkBody;
-      },
-      TContext
-    >,
-    "mutationFn"
-  >,
-) =>
-  useMutation<
-    TData,
-    TError,
-    {
-      requestBody: ConnectionBulkBody;
-    },
-    TContext
-  >({
-    mutationFn: ({ requestBody }) =>
-      ConnectionService.postConnections({
-        requestBody,
-      }) as unknown as Promise<TData>,
+      ConnectionService.postConnection({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -3053,9 +2823,7 @@ export const useConnectionServiceTestConnection = <
     TContext
   >({
     mutationFn: ({ requestBody }) =>
-      ConnectionService.testConnection({
-        requestBody,
-      }) as unknown as Promise<TData>,
+      ConnectionService.testConnection({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -3097,11 +2865,7 @@ export const useDagRunServiceClearDagRun = <
     TContext
   >({
     mutationFn: ({ dagId, dagRunId, requestBody }) =>
-      DagRunService.clearDagRun({
-        dagId,
-        dagRunId,
-        requestBody,
-      }) as unknown as Promise<TData>,
+      DagRunService.clearDagRun({ dagId, dagRunId, requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -3141,10 +2905,7 @@ export const useDagRunServiceTriggerDagRun = <
     TContext
   >({
     mutationFn: ({ dagId, requestBody }) =>
-      DagRunService.triggerDagRun({
-        dagId,
-        requestBody,
-      }) as unknown as Promise<TData>,
+      DagRunService.triggerDagRun({ dagId, requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -3184,10 +2945,7 @@ export const useDagRunServiceGetListDagRunsBatch = <
     TContext
   >({
     mutationFn: ({ dagId, requestBody }) =>
-      DagRunService.getListDagRunsBatch({
-        dagId,
-        requestBody,
-      }) as unknown as Promise<TData>,
+      DagRunService.getListDagRunsBatch({ dagId, requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -3274,10 +3032,7 @@ export const useTaskInstanceServicePostClearTaskInstances = <
     TContext
   >({
     mutationFn: ({ dagId, requestBody }) =>
-      TaskInstanceService.postClearTaskInstances({
-        dagId,
-        requestBody,
-      }) as unknown as Promise<TData>,
+      TaskInstanceService.postClearTaskInstances({ dagId, requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -3313,45 +3068,7 @@ export const usePoolServicePostPool = <
     },
     TContext
   >({
-    mutationFn: ({ requestBody }) =>
-      PoolService.postPool({ requestBody }) as unknown as Promise<TData>,
-    ...options,
-  });
-/**
- * Post Pools
- * Create multiple pools.
- * @param data The data for the request.
- * @param data.requestBody
- * @returns PoolCollectionResponse Successful Response
- * @throws ApiError
- */
-export const usePoolServicePostPools = <
-  TData = Common.PoolServicePostPoolsMutationResult,
-  TError = unknown,
-  TContext = unknown,
->(
-  options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      {
-        requestBody: PoolPostBulkBody;
-      },
-      TContext
-    >,
-    "mutationFn"
-  >,
-) =>
-  useMutation<
-    TData,
-    TError,
-    {
-      requestBody: PoolPostBulkBody;
-    },
-    TContext
-  >({
-    mutationFn: ({ requestBody }) =>
-      PoolService.postPools({ requestBody }) as unknown as Promise<TData>,
+    mutationFn: ({ requestBody }) => PoolService.postPool({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -3388,9 +3105,7 @@ export const useVariableServicePostVariable = <
     TContext
   >({
     mutationFn: ({ requestBody }) =>
-      VariableService.postVariable({
-        requestBody,
-      }) as unknown as Promise<TData>,
+      VariableService.postVariable({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -3430,10 +3145,7 @@ export const useVariableServiceImportVariables = <
     TContext
   >({
     mutationFn: ({ actionIfExists, formData }) =>
-      VariableService.importVariables({
-        actionIfExists,
-        formData,
-      }) as unknown as Promise<TData>,
+      VariableService.importVariables({ actionIfExists, formData }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -3469,9 +3181,7 @@ export const useBackfillServicePauseBackfill = <
     TContext
   >({
     mutationFn: ({ backfillId }) =>
-      BackfillService.pauseBackfill({
-        backfillId,
-      }) as unknown as Promise<TData>,
+      BackfillService.pauseBackfill({ backfillId }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -3507,9 +3217,7 @@ export const useBackfillServiceUnpauseBackfill = <
     TContext
   >({
     mutationFn: ({ backfillId }) =>
-      BackfillService.unpauseBackfill({
-        backfillId,
-      }) as unknown as Promise<TData>,
+      BackfillService.unpauseBackfill({ backfillId }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -3545,9 +3253,82 @@ export const useBackfillServiceCancelBackfill = <
     TContext
   >({
     mutationFn: ({ backfillId }) =>
-      BackfillService.cancelBackfill({
-        backfillId,
-      }) as unknown as Promise<TData>,
+      BackfillService.cancelBackfill({ backfillId }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Put Connections
+ * Create connection entry.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns ConnectionCollectionResponse Created with overwrite
+ * @returns ConnectionCollectionResponse Created
+ * @throws ApiError
+ */
+export const useConnectionServicePutConnections = <
+  TData = Common.ConnectionServicePutConnectionsMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: ConnectionBulkBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: ConnectionBulkBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      ConnectionService.putConnections({ requestBody }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Put Pools
+ * Create multiple pools.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns PoolCollectionResponse Created with overwriting
+ * @returns PoolCollectionResponse Created
+ * @throws ApiError
+ */
+export const usePoolServicePutPools = <
+  TData = Common.PoolServicePutPoolsMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: PoolPostBulkBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: PoolPostBulkBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) => PoolService.putPools({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -3584,9 +3365,7 @@ export const useDagParsingServiceReparseDagFile = <
     TContext
   >({
     mutationFn: ({ fileToken }) =>
-      DagParsingService.reparseDagFile({
-        fileToken,
-      }) as unknown as Promise<TData>,
+      DagParsingService.reparseDagFile({ fileToken }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -3679,12 +3458,7 @@ export const useDagRunServicePatchDagRun = <
     TContext
   >({
     mutationFn: ({ dagId, dagRunId, requestBody, updateMask }) =>
-      DagRunService.patchDagRun({
-        dagId,
-        dagRunId,
-        requestBody,
-        updateMask,
-      }) as unknown as Promise<TData>,
+      DagRunService.patchDagRun({ dagId, dagRunId, requestBody, updateMask }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -3813,11 +3587,7 @@ export const useDagServicePatchDag = <
     TContext
   >({
     mutationFn: ({ dagId, requestBody, updateMask }) =>
-      DagService.patchDag({
-        dagId,
-        requestBody,
-        updateMask,
-      }) as unknown as Promise<TData>,
+      DagService.patchDag({ dagId, requestBody, updateMask }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -3868,14 +3638,7 @@ export const useTaskInstanceServicePatchTaskInstance = <
     },
     TContext
   >({
-    mutationFn: ({
-      dagId,
-      dagRunId,
-      mapIndex,
-      requestBody,
-      taskId,
-      updateMask,
-    }) =>
+    mutationFn: ({ dagId, dagRunId, mapIndex, requestBody, taskId, updateMask }) =>
       TaskInstanceService.patchTaskInstance({
         dagId,
         dagRunId,
@@ -3934,14 +3697,7 @@ export const useTaskInstanceServicePatchTaskInstance1 = <
     },
     TContext
   >({
-    mutationFn: ({
-      dagId,
-      dagRunId,
-      mapIndex,
-      requestBody,
-      taskId,
-      updateMask,
-    }) =>
+    mutationFn: ({ dagId, dagRunId, mapIndex, requestBody, taskId, updateMask }) =>
       TaskInstanceService.patchTaskInstance1({
         dagId,
         dagRunId,
@@ -3992,11 +3748,7 @@ export const usePoolServicePatchPool = <
     TContext
   >({
     mutationFn: ({ poolName, requestBody, updateMask }) =>
-      PoolService.patchPool({
-        poolName,
-        requestBody,
-        updateMask,
-      }) as unknown as Promise<TData>,
+      PoolService.patchPool({ poolName, requestBody, updateMask }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -4039,11 +3791,7 @@ export const useVariableServicePatchVariable = <
     TContext
   >({
     mutationFn: ({ requestBody, updateMask, variableKey }) =>
-      VariableService.patchVariable({
-        requestBody,
-        updateMask,
-        variableKey,
-      }) as unknown as Promise<TData>,
+      VariableService.patchVariable({ requestBody, updateMask, variableKey }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -4083,10 +3831,7 @@ export const useAssetServiceDeleteAssetQueuedEvents = <
     TContext
   >({
     mutationFn: ({ assetId, before }) =>
-      AssetService.deleteAssetQueuedEvents({
-        assetId,
-        before,
-      }) as unknown as Promise<TData>,
+      AssetService.deleteAssetQueuedEvents({ assetId, before }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -4125,10 +3870,7 @@ export const useAssetServiceDeleteDagAssetQueuedEvents = <
     TContext
   >({
     mutationFn: ({ before, dagId }) =>
-      AssetService.deleteDagAssetQueuedEvents({
-        before,
-        dagId,
-      }) as unknown as Promise<TData>,
+      AssetService.deleteDagAssetQueuedEvents({ before, dagId }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -4171,11 +3913,7 @@ export const useAssetServiceDeleteDagAssetQueuedEvent = <
     TContext
   >({
     mutationFn: ({ assetId, before, dagId }) =>
-      AssetService.deleteDagAssetQueuedEvent({
-        assetId,
-        before,
-        dagId,
-      }) as unknown as Promise<TData>,
+      AssetService.deleteDagAssetQueuedEvent({ assetId, before, dagId }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -4212,9 +3950,7 @@ export const useConnectionServiceDeleteConnection = <
     TContext
   >({
     mutationFn: ({ connectionId }) =>
-      ConnectionService.deleteConnection({
-        connectionId,
-      }) as unknown as Promise<TData>,
+      ConnectionService.deleteConnection({ connectionId }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -4254,10 +3990,7 @@ export const useDagRunServiceDeleteDagRun = <
     TContext
   >({
     mutationFn: ({ dagId, dagRunId }) =>
-      DagRunService.deleteDagRun({
-        dagId,
-        dagRunId,
-      }) as unknown as Promise<TData>,
+      DagRunService.deleteDagRun({ dagId, dagRunId }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -4292,11 +4025,7 @@ export const useDagServiceDeleteDag = <
       dagId: string;
     },
     TContext
-  >({
-    mutationFn: ({ dagId }) =>
-      DagService.deleteDag({ dagId }) as unknown as Promise<TData>,
-    ...options,
-  });
+  >({ mutationFn: ({ dagId }) => DagService.deleteDag({ dagId }) as unknown as Promise<TData>, ...options });
 /**
  * Delete Pool
  * Delete a pool entry.
@@ -4330,8 +4059,7 @@ export const usePoolServiceDeletePool = <
     },
     TContext
   >({
-    mutationFn: ({ poolName }) =>
-      PoolService.deletePool({ poolName }) as unknown as Promise<TData>,
+    mutationFn: ({ poolName }) => PoolService.deletePool({ poolName }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -4368,8 +4096,6 @@ export const useVariableServiceDeleteVariable = <
     TContext
   >({
     mutationFn: ({ variableKey }) =>
-      VariableService.deleteVariable({
-        variableKey,
-      }) as unknown as Promise<TData>,
+      VariableService.deleteVariable({ variableKey }) as unknown as Promise<TData>,
     ...options,
   });

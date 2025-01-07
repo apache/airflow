@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, Union
 
 import attr
 
-from airflow.utils.mixins import ResolveMixin
+from airflow.sdk.definitions.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -35,7 +35,6 @@ if TYPE_CHECKING:
     from airflow.models.xcom_arg import XComArg
     from airflow.serialization.serialized_objects import _ExpandInputRef
     from airflow.typing_compat import TypeGuard
-    from airflow.utils.context import Context
 
 ExpandInput = Union["DictOfListsExpandInput", "ListOfDictsExpandInput"]
 
@@ -69,7 +68,9 @@ class MappedArgument(ResolveMixin):
         yield from self._input.iter_references()
 
     @provide_session
-    def resolve(self, context: Context, *, include_xcom: bool = True, session: Session = NEW_SESSION) -> Any:
+    def resolve(
+        self, context: Mapping[str, Any], *, include_xcom: bool = True, session: Session = NEW_SESSION
+    ) -> Any:
         data, _ = self._input.resolve(context, session=session, include_xcom=include_xcom)
         return data[self._key]
 
@@ -166,7 +167,7 @@ class DictOfListsExpandInput(NamedTuple):
         return functools.reduce(operator.mul, (lengths[name] for name in self.value), 1)
 
     def _expand_mapped_field(
-        self, key: str, value: Any, context: Context, *, session: Session, include_xcom: bool
+        self, key: str, value: Any, context: Mapping[str, Any], *, session: Session, include_xcom: bool
     ) -> Any:
         if _needs_run_time_resolution(value):
             value = (
@@ -210,7 +211,7 @@ class DictOfListsExpandInput(NamedTuple):
                 yield from x.iter_references()
 
     def resolve(
-        self, context: Context, session: Session, *, include_xcom: bool = True
+        self, context: Mapping[str, Any], session: Session, *, include_xcom: bool = True
     ) -> tuple[Mapping[str, Any], set[int]]:
         data = {
             k: self._expand_mapped_field(k, v, context, session=session, include_xcom=include_xcom)
@@ -260,7 +261,7 @@ class ListOfDictsExpandInput(NamedTuple):
                     yield from x.iter_references()
 
     def resolve(
-        self, context: Context, session: Session, *, include_xcom: bool = True
+        self, context: Mapping[str, Any], session: Session, *, include_xcom: bool = True
     ) -> tuple[Mapping[str, Any], set[int]]:
         map_index = context["ti"].map_index
         if map_index < 0:

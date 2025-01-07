@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from airflow_breeze.params.build_ci_params import BuildCiParams
 
 
-def mark_image_as_refreshed(ci_image_params: BuildCiParams):
+def mark_image_as_rebuilt(ci_image_params: BuildCiParams):
     ci_image_cache_dir = BUILD_CACHE_DIR / ci_image_params.airflow_branch
     ci_image_cache_dir.mkdir(parents=True, exist_ok=True)
     touch_cache_file(f"built_{ci_image_params.python}", root_dir=ci_image_cache_dir)

@@ -33,7 +33,7 @@ if res_setup.returncode != 0:
     sys.exit(res_setup.returncode)
 
 AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].resolve()
-HELM_BIN_PATH = AIRFLOW_SOURCES_DIR / ".build" / ".k8s-env" / "bin" / "helm"
+HELM_BIN_PATH = AIRFLOW_SOURCES_DIR / ".build" / "k8s-env" / "bin" / "helm"
 
 result = subprocess.run(
     [os.fspath(HELM_BIN_PATH), "lint", ".", "-f", "values.yaml"],

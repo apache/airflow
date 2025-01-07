@@ -1262,7 +1262,7 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=24.3.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.5.11
+ARG AIRFLOW_UV_VERSION=0.5.14
 # TODO(potiuk): automate with upgrade check (possibly)
 ARG AIRFLOW_PRE_COMMIT_VERSION="4.0.1"
 ARG AIRFLOW_PRE_COMMIT_UV_VERSION="4.1.4"
@@ -1285,8 +1285,7 @@ ARG DEPENDENCY_CACHE_EPOCH="0"
 # Install useful command line tools in their own virtualenv so that they do not clash with
 # dependencies installed in Airflow also reinstall PIP and UV to make sure they are installed
 # in the version specified above
-RUN --mount=type=cache,id=ci-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/root/.cache/ \
-    bash /scripts/docker/install_packaging_tools.sh
+RUN bash /scripts/docker/install_packaging_tools.sh
 
 COPY --from=scripts install_airflow.sh /scripts/docker/
 

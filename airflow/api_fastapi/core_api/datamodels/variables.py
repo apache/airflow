@@ -33,7 +33,7 @@ class VariableResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
     key: str
-    val: str | None = Field(alias="value")
+    val: str = Field(alias="value")
     description: str | None
     is_encrypted: bool
 
@@ -56,7 +56,7 @@ class VariableBody(BaseModel):
     """Variable serializer for bodies."""
 
     key: str = Field(max_length=ID_LEN)
-    value: str | None = Field(serialization_alias="val")
+    value: str = Field(serialization_alias="val")
     description: str | None = Field(default=None)
 
 
