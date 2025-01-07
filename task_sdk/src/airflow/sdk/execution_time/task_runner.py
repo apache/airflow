@@ -121,7 +121,7 @@ class RuntimeTaskInstance(TaskInstance):
         return context
 
     def render_templates(
-        self, context: dict | None = None, jinja_env: jinja2.Environment | None = None
+        self, context: dict[str, Any] | None = None, jinja_env: jinja2.Environment | None = None
     ) -> BaseOperator:
         """
         Render templates in the operator fields.
@@ -133,6 +133,9 @@ class RuntimeTaskInstance(TaskInstance):
         if not context:
             context = self.get_template_context()
         original_task = self.task
+
+        if TYPE_CHECKING:
+            assert context
 
         ti = context["ti"]
 
@@ -264,7 +267,7 @@ class RuntimeTaskInstance(TaskInstance):
 
     def get_relevant_upstream_map_indexes(
         self, upstream: BaseOperator, ti_count: int | None, session: Any
-    ) -> list[int]:
+    ) -> int | range | None:
         # TODO: Implement this method
         return None
 

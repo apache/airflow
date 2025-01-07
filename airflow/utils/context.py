@@ -460,7 +460,7 @@ class Context(MutableMapping[str, Any]):
         return ValuesView(self._context)
 
 
-def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
+def context_merge(context: Mapping[str, Any], *args: Any, **kwargs: Any) -> None:
     """
     Merge parameters into an existing context.
 
@@ -479,7 +479,7 @@ def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
     context.update(*args, **kwargs)
 
 
-def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
+def context_update_for_unmapped(context: Mapping[str, Any], task: BaseOperator) -> None:
     """
     Update context after task unmapping.
 
@@ -495,7 +495,7 @@ def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
     context["params"] = process_params(context["dag"], task, context["dag_run"], suppress_exception=False)
 
 
-def context_copy_partial(source: Context, keys: Container[str]) -> Context:
+def context_copy_partial(source: Mapping[str, Any], keys: Container[str]) -> Context:
     """
     Create a context by copying items under selected keys in ``source``.
 

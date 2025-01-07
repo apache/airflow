@@ -24,7 +24,7 @@ import copy
 import inspect
 import sys
 import warnings
-from collections.abc import Collection, Iterable, Sequence
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from functools import total_ordering, wraps
@@ -1244,7 +1244,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def render_template_fields(
         self,
-        context: dict,  # TODO: Change to `Context` once we have it
+        context: Mapping[str, Any],  # TODO: Change to `Context` once we have it
         jinja_env: jinja2.Environment | None = None,
     ) -> None:
         """

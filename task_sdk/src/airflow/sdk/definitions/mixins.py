@@ -22,7 +22,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from airflow.sdk.definitions.abstractoperator import AbstractOperator
+    from airflow.models.operator import Operator
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.edges import EdgeModifier
 
@@ -122,7 +122,7 @@ class DependencyMixin:
 class ResolveMixin:
     """A runtime-resolved value."""
 
-    def iter_references(self) -> Iterable[tuple[AbstractOperator, str]]:
+    def iter_references(self) -> Iterable[tuple[Operator, str]]:
         """
         Find underlying XCom references this contains.
 

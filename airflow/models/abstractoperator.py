@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import datetime
 import inspect
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -512,7 +512,7 @@ class AbstractOperator(LoggingMixin, TaskSDKAbstractOperator):
 
     def render_template_fields(
         self,
-        context: Context,
+        context: Mapping[str, Any],
         jinja_env: jinja2.Environment | None = None,
     ) -> None:
         """

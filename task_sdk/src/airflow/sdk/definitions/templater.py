@@ -36,7 +36,6 @@ if TYPE_CHECKING:
 
     from airflow.models.operator import Operator
     from airflow.sdk.definitions.dag import DAG
-    from airflow.utils.context import Context
 
 
 def literal(value: Any) -> LiteralValue:
@@ -63,7 +62,7 @@ class LiteralValue(ResolveMixin):
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         return ()
 
-    def resolve(self, context: Context, *, include_xcom: bool = True) -> Any:
+    def resolve(self, context: Mapping[str, Any], *, include_xcom: bool = True) -> Any:
         return self.value
 
 
