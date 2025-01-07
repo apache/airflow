@@ -1575,6 +1575,7 @@ class TestVertexAICreateAutoMLForecastingTrainingJobOperator:
             model_version_description=None,
             window_stride_length=None,
             window_max_count=None,
+            holiday_regions=TEST_TRAINING_DATA_HOLIDAY_REGIONS
         )
 
 
