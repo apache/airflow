@@ -216,7 +216,11 @@ class _VaultClient(LoggingMixin):
                 session.verify = self.kwargs["verify"]
             self.kwargs["session"] = session
 
-        _client = hvac.Client(url=self.url, **self.kwargs)
+        if "namespace" in self.kwargs:
+            namespace = self.kwargs["namespace"]
+            _client = hvac.Client(url=self.url, namespace=namespace, **self.kwargs)
+        else:
+            _client = hvac.Client(url=self.url, **self.kwargs)
         if self.auth_type == "approle":
             self._auth_approle(_client)
         elif self.auth_type == "aws_iam":
