@@ -162,7 +162,7 @@ class TestConnectionAccessor:
         # empty in case of failed deserialising
         assert dejson == {}
 
-        mock_log.error.assert_called_once_with(
+        mock_log.exception.assert_called_once_with(
             "Failed to deserialize extra property `extra`, returning empty dictionary"
         )
 

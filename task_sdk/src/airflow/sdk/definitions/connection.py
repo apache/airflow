@@ -65,6 +65,6 @@ class Connection:
             try:
                 extra = json.loads(self.extra)
             except JSONDecodeError:
-                log.error("Failed to deserialize extra property `extra`, returning empty dictionary")
+                log.exception("Failed to deserialize extra property `extra`, returning empty dictionary")
         # TODO: Mask sensitive keys from this list or revisit if it will be done in server
         return extra
