@@ -46,6 +46,7 @@ __lazy_imports: dict[str, str] = {
     "EdgeModifier": ".definitions.edges",
     "Label": ".definitions.edges",
     "Connection": ".definitions.connection",
+    "Variable": ".definitions.variable",
 }
 
 

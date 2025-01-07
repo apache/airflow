@@ -382,6 +382,39 @@ class AdminClientHook(BaseAzureServiceBusHook):
 
             return subscription
 
+    def update_subscription(
+        self,
+        topic_name: str,
+        subscription_name: str,
+        max_delivery_count: int | None = None,
+        dead_lettering_on_message_expiration: bool | None = None,
+        enable_batched_operations: bool | None = None,
+    ) -> None:
+        """
+        Update an Azure ServiceBus Topic Subscription under a ServiceBus Namespace.
+
+        :param topic_name: The topic that will own the to-be-created subscription.
+        :param subscription_name: Name of the subscription that need to be created.
+        :param max_delivery_count: The maximum delivery count. A message is automatically dead lettered
+            after this number of deliveries. Default value is 10.
+        :param dead_lettering_on_message_expiration: A value that indicates whether this subscription
+            has dead letter support when a message expires.
+        :param enable_batched_operations: Value that indicates whether server-side batched
+            operations are enabled.
+        """
+        with self.get_conn() as service_mgmt_conn:
+            subscription_prop = service_mgmt_conn.get_subscription(topic_name, subscription_name)
+            if max_delivery_count:
+                subscription_prop.max_delivery_count = max_delivery_count
+            if dead_lettering_on_message_expiration is not None:
+                subscription_prop.dead_lettering_on_message_expiration = dead_lettering_on_message_expiration
+            if enable_batched_operations is not None:
+                subscription_prop.enable_batched_operations = enable_batched_operations
+            # update by updating the properties in the model
+            service_mgmt_conn.update_subscription(topic_name, subscription_prop)
+            updated_subscription = service_mgmt_conn.get_subscription(topic_name, subscription_name)
+            self.log.info("Subscription Updated successfully %s", updated_subscription.name)
+
     def delete_subscription(self, subscription_name: str, topic_name: str) -> None:
         """
         Delete a topic subscription entities under a ServiceBus Namespace.

@@ -14,19 +14,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
 from typing import Any
 
-from airflow.template.templater import LiteralValue
+import attrs
 
 
-def literal(value: Any) -> LiteralValue:
+@attrs.define
+class Variable:
     """
-    Wrap a value to ensure it is rendered as-is without applying Jinja templating to its contents.
+    A generic way to store and retrieve arbitrary content or settings as a simple key/value store.
 
-    Designed for use in an operator's template field.
+    :param key: The variable key.
+    :param value: The variable value.
+    :param description: The variable description.
 
-    :param value: The value to be rendered without templating
     """
-    return LiteralValue(value)
+
+    key: str
+    # keeping as any for supporting deserialize_json
+    value: Any | None = None
+    description: str | None = None
+
+    # TODO: Extend this definition for reading/writing variables without context
