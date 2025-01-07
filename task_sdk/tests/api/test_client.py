@@ -362,16 +362,32 @@ class TestVariableOperations:
 
         client = make_client(transport=httpx.MockTransport(handle_request))
 
-        with pytest.raises(ServerResponseError) as err:
-            client.variables.get(key="non_existent_var")
+        resp = client.variables.get(key="non_existent_var")
 
-        assert err.value.response.status_code == 404
-        assert err.value.detail == {
-            "detail": {
-                "message": "Variable with key 'non_existent_var' not found",
-                "reason": "not_found",
-            }
-        }
+        assert isinstance(resp, ErrorResponse)
+        assert resp.error == ErrorType.VARIABLE_NOT_FOUND
+        assert resp.detail == {"key": "non_existent_var"}
+
+    @mock.patch("time.sleep", return_value=None)
+    def test_variable_get_500_error(self, mock_sleep):
+        # Simulate a response from the server returning a 500 error
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/variables/test_key":
+                return httpx.Response(
+                    status_code=500,
+                    headers=[("content-Type", "application/json")],
+                    json={
+                        "reason": "internal_server_error",
+                        "message": "Internal Server Error",
+                    },
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        with pytest.raises(ServerResponseError):
+            client.variables.get(
+                key="test_key",
+            )
 
     def test_variable_set_success(self):
         # Simulate a successful response from the server when putting a variable

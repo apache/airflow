@@ -44,7 +44,7 @@ from airflow.sdk.execution_time.comms import (
     ToTask,
     XComResult,
 )
-from airflow.sdk.execution_time.context import ConnectionAccessor
+from airflow.sdk.execution_time.context import ConnectionAccessor, VariableAccessor
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
@@ -85,10 +85,10 @@ class RuntimeTaskInstance(TaskInstance):
             # "prev_end_date_success": get_prev_end_date_success(),
             # "test_mode": task_instance.test_mode,
             # "triggering_asset_events": lazy_object_proxy.Proxy(get_triggering_events),
-            # "var": {
-            #     "json": VariableAccessor(deserialize_json=True),
-            #     "value": VariableAccessor(deserialize_json=False),
-            # },
+            "var": {
+                "json": VariableAccessor(deserialize_json=True),
+                "value": VariableAccessor(deserialize_json=False),
+            },
             "conn": ConnectionAccessor(),
         }
         if self._ti_context_from_server:
