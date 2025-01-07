@@ -70,7 +70,6 @@ export const RecentRuns = ({
             },
             placement: "bottom-start",
           }}
-          showArrow
         >
           <Link to={`/dags/${run.dag_id}/runs/${run.dag_run_id}/`}>
             <Box p={1}>
