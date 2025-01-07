@@ -29,6 +29,7 @@ from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.security import requires_access_custom_view
 from airflow.api_fastapi.app import get_auth_manager
+from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 from airflow.providers.fab.auth_manager.models import User
 from airflow.providers.fab.auth_manager.schemas.user_schema import (
     UserCollection,
@@ -36,7 +37,6 @@ from airflow.providers.fab.auth_manager.schemas.user_schema import (
     user_collection_schema,
     user_schema,
 )
-from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.security import permissions
 
 if TYPE_CHECKING:
@@ -47,7 +47,7 @@ if TYPE_CHECKING:
 @requires_access_custom_view("GET", permissions.RESOURCE_USER)
 def get_user(*, username: str) -> APIResponse:
     """Get a user."""
-    security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
+    security_manager = cast(FabAuthManager, get_auth_manager()).security_manager
     user = security_manager.find_user(username=username)
     if not user:
         raise NotFound(title="User not found", detail=f"The User with username `{username}` was not found")
@@ -58,7 +58,7 @@ def get_user(*, username: str) -> APIResponse:
 @format_parameters({"limit": check_limit})
 def get_users(*, limit: int, order_by: str = "id", offset: str | None = None) -> APIResponse:
     """Get users."""
-    security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
+    security_manager = cast(FabAuthManager, get_auth_manager()).security_manager
     session = security_manager.get_session
     total_entries = session.execute(select(func.count(User.id))).scalar()
     direction = desc if order_by.startswith("-") else asc
@@ -94,7 +94,7 @@ def post_user() -> APIResponse:
     except ValidationError as e:
         raise BadRequest(detail=str(e.messages))
 
-    security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
+    security_manager = cast(FabAuthManager, get_auth_manager()).security_manager
     username = data["username"]
     email = data["email"]
 
@@ -137,7 +137,7 @@ def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
     except ValidationError as e:
         raise BadRequest(detail=str(e.messages))
 
-    security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
+    security_manager = cast(FabAuthManager, get_auth_manager()).security_manager
 
     user = security_manager.find_user(username=username)
     if user is None:
@@ -201,7 +201,7 @@ def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
 @requires_access_custom_view("DELETE", permissions.RESOURCE_USER)
 def delete_user(*, username: str) -> APIResponse:
     """Delete a user."""
-    security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
+    security_manager = cast(FabAuthManager, get_auth_manager()).security_manager
 
     user = security_manager.find_user(username=username)
     if user is None:
