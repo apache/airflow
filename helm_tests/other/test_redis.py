@@ -36,7 +36,7 @@ REDIS_OBJECTS = {
 }
 SET_POSSIBLE_REDIS_OBJECT_KEYS = set(REDIS_OBJECTS.values())
 
-CELERY_EXECUTORS_PARAMS = ["CeleryExecutor", "CeleryKubernetesExecutor"]
+CELERY_EXECUTORS_PARAMS = ["CeleryExecutor", "CeleryKubernetesExecutor", "CeleryExecutor,KubernetesExecutor"]
 
 
 class TestRedis:
