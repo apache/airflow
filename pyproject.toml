@@ -22,15 +22,15 @@
 # The dependencies can be automatically upgraded by running:
 # pre-commit run --hook-stage manual update-build-dependencies --all-files
 requires = [
-    "GitPython==3.1.43",
-    "gitdb==4.0.11",
+    "GitPython==3.1.44",
+    "gitdb==4.0.12",
     "hatchling==1.27.0",
     "packaging==24.2",
     "pathspec==0.12.1",
     "pluggy==1.5.0",
-    "smmap==5.0.1",
+    "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
-    "trove-classifiers==2024.10.21.16",
+    "trove-classifiers==2025.1.6.15",
 ]
 build-backend = "hatchling.build"
 
@@ -372,6 +372,7 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 
 # Test compat imports banned imports to allow testing against older airflow versions
 "tests_common/test_utils/compat.py" = ["TID251", "F401"]
+"tests_common/pytest_plugin.py" = ["F811"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.

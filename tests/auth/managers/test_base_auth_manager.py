@@ -39,9 +39,12 @@ if TYPE_CHECKING:
         ConfigurationDetails,
         DagAccessEntity,
     )
+    from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 
 
 class EmptyAuthManager(BaseAuthManager[BaseUser]):
+    appbuilder: AirflowAppBuilder | None = None
+
     def get_user(self) -> BaseUser:
         raise NotImplementedError()
 
@@ -114,7 +117,7 @@ class EmptyAuthManager(BaseAuthManager[BaseUser]):
 
 @pytest.fixture
 def auth_manager():
-    return EmptyAuthManager(None)
+    return EmptyAuthManager()
 
 
 class TestBaseAuthManager:
@@ -123,6 +126,9 @@ class TestBaseAuthManager:
 
     def test_get_api_endpoints_return_none(self, auth_manager):
         assert auth_manager.get_api_endpoints() is None
+
+    def test_get_fastapi_app_return_none(self, auth_manager):
+        assert auth_manager.get_fastapi_app() is None
 
     def test_get_user_name(self, auth_manager):
         user = Mock()

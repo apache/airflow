@@ -34,15 +34,17 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
+    TIRescheduleStatePayload,
     TIRunContext,
     TIStateUpdate,
     TITerminalStatePayload,
 )
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, _update_rtif
+from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.utils import timezone
-from airflow.utils.state import State
+from airflow.utils.state import State, TerminalTIState
 
 # TODO: Add dependency on JWT token
 router = AirflowRouter()
@@ -178,12 +180,18 @@ def ti_update_state(
     Not all state transitions are valid, and transitioning to some states requires extra information to be
     passed along. (Check out the datamodels for details, the rendered docs might not reflect this accurately)
     """
+    updated_state: str = ""
+
     # We only use UUID above for validation purposes
     ti_id_str = str(task_instance_id)
 
-    old = select(TI.state).where(TI.id == ti_id_str).with_for_update()
+    old = select(TI.state, TI.try_number, TI.max_tries).where(TI.id == ti_id_str).with_for_update()
     try:
-        (previous_state,) = session.execute(old).one()
+        (
+            previous_state,
+            try_number,
+            max_tries,
+        ) = session.execute(old).one()
     except NoResultFound:
         log.error("Task Instance %s not found", ti_id_str)
         raise HTTPException(
@@ -201,10 +209,17 @@ def ti_update_state(
 
     if isinstance(ti_patch_payload, TITerminalStatePayload):
         query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
-        query = query.values(state=ti_patch_payload.state)
-        if ti_patch_payload.state == State.FAILED:
-            # clear the next_method and next_kwargs
-            query = query.values(next_method=None, next_kwargs=None)
+        updated_state = ti_patch_payload.state
+        # if we get failed, we should attempt to retry, as it is a more
+        # normal state. Tasks with retries are more frequent than without retries.
+        if ti_patch_payload.state == TerminalTIState.FAIL_WITHOUT_RETRY:
+            updated_state = State.FAILED
+        elif ti_patch_payload.state == State.FAILED:
+            if _is_eligible_to_retry(previous_state, try_number, max_tries):
+                updated_state = State.UP_FOR_RETRY
+            else:
+                updated_state = State.FAILED
+        query = query.values(state=updated_state)
     elif isinstance(ti_patch_payload, TIDeferredStatePayload):
         # Calculate timeout if it was passed
         timeout = None
@@ -216,6 +231,7 @@ def ti_update_state(
             kwargs=ti_patch_payload.trigger_kwargs,
         )
         session.add(trigger_row)
+        session.flush()
 
         # TODO: HANDLE execution timeout later as it requires a call to the DB
         # either get it from the serialised DAG or get it from the API
@@ -228,12 +244,34 @@ def ti_update_state(
             next_kwargs=ti_patch_payload.trigger_kwargs,
             trigger_timeout=timeout,
         )
+        updated_state = State.DEFERRED
+    elif isinstance(ti_patch_payload, TIRescheduleStatePayload):
+        task_instance = session.get(TI, ti_id_str)
+        actual_start_date = timezone.utcnow()
+        session.add(
+            TaskReschedule(
+                task_instance.task_id,
+                task_instance.dag_id,
+                task_instance.run_id,
+                task_instance.try_number,
+                actual_start_date,
+                ti_patch_payload.end_date,
+                ti_patch_payload.reschedule_date,
+                task_instance.map_index,
+            )
+        )
 
+        query = update(TI).where(TI.id == ti_id_str)
+        # calculate the duration for TI table too
+        query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
+        # clear the next_method and next_kwargs so that none of the retries pick them up
+        query = query.values(state=State.UP_FOR_RESCHEDULE, next_method=None, next_kwargs=None)
+        updated_state = State.UP_FOR_RESCHEDULE
     # TODO: Replace this with FastAPI's Custom Exception handling:
     # https://fastapi.tiangolo.com/tutorial/handling-errors/#install-custom-exception-handlers
     try:
         result = session.execute(query)
-        log.info("TI %s state updated: %s row(s) affected", ti_id_str, result.rowcount)
+        log.info("TI %s state updated to %s: %s row(s) affected", ti_id_str, updated_state, result.rowcount)
     except SQLAlchemyError as e:
         log.error("Error updating Task Instance state: %s", e)
         raise HTTPException(
@@ -331,3 +369,15 @@ def ti_put_rtif(
     _update_rtif(task_instance, put_rtif_payload, session)
 
     return {"message": "Rendered task instance fields successfully set"}
+
+
+def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:
+    """Is task instance is eligible for retry."""
+    if state == State.RESTARTING:
+        # If a task is cleared when running, it goes into RESTARTING state and is always
+        # eligible for retry
+        return True
+
+    # max_tries is initialised with the retries defined at task level, we do not need to explicitly ask for
+    # retries from the task SDK now, we can handle using max_tries
+    return max_tries != 0 and try_number <= max_tries

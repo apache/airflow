@@ -125,6 +125,7 @@ autoscale
 autoscaled
 autoscaler
 autoscaling
+available
 avp
 Avro
 avro
@@ -579,6 +580,7 @@ errno
 errored
 eslint
 ETag
+etag
 etl
 europe
 eval

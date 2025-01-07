@@ -29,7 +29,7 @@ from airflow.triggers.base import TriggerEvent
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 _DATES = (
     {"logical_dates": [timezone.datetime(2022, 1, 1)]}
@@ -38,7 +38,6 @@ _DATES = (
 )
 
 
-@pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Test requires Airflow 2.9+")
 class TestWorkflowTrigger:
     DAG_ID = "external_task"
     TASK_ID = "external_task_op"

@@ -671,7 +671,7 @@ class MappedOperator(AbstractOperator):
         return DagAttributeTypes.OP, self.task_id
 
     def _expand_mapped_kwargs(
-        self, context: Context, session: Session, *, include_xcom: bool
+        self, context: Mapping[str, Any], session: Session, *, include_xcom: bool
     ) -> tuple[Mapping[str, Any], set[int]]:
         """
         Get the kwargs to create the unmapped operator.
@@ -869,7 +869,7 @@ class MappedOperator(AbstractOperator):
 
     def render_template_fields(
         self,
-        context: Context,
+        context: Mapping[str, Any],
         jinja_env: jinja2.Environment | None = None,
     ) -> None:
         """

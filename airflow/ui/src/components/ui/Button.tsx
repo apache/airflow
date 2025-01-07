@@ -17,12 +17,7 @@
  * under the License.
  */
 import type { ButtonProps as ChakraButtonProps } from "@chakra-ui/react";
-import {
-  AbsoluteCenter,
-  Button as ChakraButton,
-  Span,
-  Spinner,
-} from "@chakra-ui/react";
+import { AbsoluteCenter, Button as ChakraButton, Span, Spinner } from "@chakra-ui/react";
 import * as React from "react";
 
 type ButtonLoadingProps = {
@@ -32,28 +27,26 @@ type ButtonLoadingProps = {
 
 export type ButtonProps = {} & ButtonLoadingProps & ChakraButtonProps;
 
-export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  (props, ref) => {
-    const { children, disabled, loading, loadingText, ...rest } = props;
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>((props, ref) => {
+  const { children, disabled, loading, loadingText, ...rest } = props;
 
-    return (
-      <ChakraButton disabled={loading ?? disabled} ref={ref} {...rest}>
-        {loading && !Boolean(loadingText) ? (
-          <>
-            <AbsoluteCenter display="inline-flex">
-              <Spinner color="inherit" size="inherit" />
-            </AbsoluteCenter>
-            <Span opacity={0}>{children}</Span>
-          </>
-        ) : loading && Boolean(loadingText) ? (
-          <>
+  return (
+    <ChakraButton disabled={loading ?? disabled} ref={ref} {...rest}>
+      {loading && !Boolean(loadingText) ? (
+        <>
+          <AbsoluteCenter display="inline-flex">
             <Spinner color="inherit" size="inherit" />
-            {loadingText}
-          </>
-        ) : (
-          children
-        )}
-      </ChakraButton>
-    );
-  },
-);
+          </AbsoluteCenter>
+          <Span opacity={0}>{children}</Span>
+        </>
+      ) : loading && Boolean(loadingText) ? (
+        <>
+          <Spinner color="inherit" size="inherit" />
+          {loadingText}
+        </>
+      ) : (
+        children
+      )}
+    </ChakraButton>
+  );
+});

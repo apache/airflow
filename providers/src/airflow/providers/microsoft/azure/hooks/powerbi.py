@@ -44,6 +44,7 @@ class PowerBIDatasetRefreshStatus:
     DISABLED = "Disabled"
 
     TERMINAL_STATUSES = {FAILED, COMPLETED}
+    FAILURE_STATUSES = {FAILED, DISABLED}
 
 
 class PowerBIDatasetRefreshException(AirflowException):

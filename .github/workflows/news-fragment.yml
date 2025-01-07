@@ -37,12 +37,14 @@ jobs:
           fetch-depth: 0
 
       - name: Check news fragment existence
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: >
           python -m pip install --upgrade uv &&
           uv tool run towncrier check
           --dir .
           --config newsfragments/config.toml
-          --compare-with origin/${{ github.base_ref }}
+          --compare-with origin/${BASE_REF}
           ||
           {
           printf "\033[1;33mMissing significant newsfragment for PR labeled with
@@ -54,6 +56,8 @@ jobs:
           ; }
 
       - name: Check news fragment contains change types
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: >
           change_types=(
             'DAG changes'
@@ -64,7 +68,7 @@ jobs:
             'Plugin changes'
             'Dependency change'
           )
-          news_fragment_content=`git diff origin/${{ github.base_ref }} newsfragments/*.significant.rst`
+          news_fragment_content=`git diff origin/${BASE_REF} newsfragments/*.significant.rst`
 
           for type in "${change_types[@]}"; do
             if [[ $news_fragment_content != *"$type"* ]]; then

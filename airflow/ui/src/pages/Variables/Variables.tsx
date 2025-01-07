@@ -16,42 +16,83 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, VStack } from "@chakra-ui/react";
+import { Box, Flex, HStack, Spacer, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { FiShare, FiTrash2 } from "react-icons/fi";
 import { useSearchParams } from "react-router-dom";
 
 import { useVariableServiceGetVariables } from "openapi/queries";
 import type { VariableResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
+import { useRowSelection, type GetColumnsParams } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
-import {
-  SearchParamsKeys,
-  type SearchParamsKeysType,
-} from "src/constants/searchParams";
+import { Button, Tooltip } from "src/components/ui";
+import { ActionBar } from "src/components/ui/ActionBar";
+import { Checkbox } from "src/components/ui/Checkbox";
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { TrimText } from "src/utils/TrimText";
 
-const columns: Array<ColumnDef<VariableResponse>> = [
+import ImportVariablesButton from "./ImportVariablesButton";
+import AddVariableButton from "./ManageVariable/AddVariableButton";
+import DeleteVariableButton from "./ManageVariable/DeleteVariableButton";
+import EditVariableButton from "./ManageVariable/EditVariableButton";
+
+const getColumns = ({
+  allRowsSelected,
+  onRowSelect,
+  onSelectAll,
+  selectedRows,
+}: GetColumnsParams): Array<ColumnDef<VariableResponse>> => [
+  {
+    accessorKey: "select",
+    cell: ({ row }) => (
+      <Checkbox
+        checked={selectedRows.get(row.original.key)}
+        onCheckedChange={(event) => onRowSelect(row.original.key, Boolean(event.checked))}
+      />
+    ),
+    enableSorting: false,
+    header: () => (
+      <Checkbox checked={allRowsSelected} onCheckedChange={(event) => onSelectAll(Boolean(event.checked))} />
+    ),
+    meta: {
+      skeletonWidth: 10,
+    },
+  },
   {
     accessorKey: "key",
+    cell: ({ row }) => <TrimText isClickable onClickContent={row.original} text={row.original.key} />,
     header: "Key",
-    meta: {
-      skeletonWidth: 25,
-    },
   },
   {
     accessorKey: "value",
+    cell: ({ row }) => <TrimText showTooltip text={row.original.value} />,
     header: "Value",
-    meta: {
-      skeletonWidth: 25,
-    },
   },
   {
     accessorKey: "description",
+    cell: ({ row }) => <TrimText showTooltip text={row.original.description} />,
     header: "Description",
+  },
+  {
+    accessorKey: "is_encrypted",
+    header: "Is Encrypted",
+  },
+  {
+    accessorKey: "actions",
+    cell: ({ row: { original } }) => (
+      <Flex justifyContent="end">
+        <EditVariableButton variable={original} />
+        <DeleteVariableButton deleteKey={original.key} />
+      </Flex>
+    ),
+    enableSorting: false,
+    header: "",
     meta: {
-      skeletonWidth: 50,
+      skeletonWidth: 10,
     },
   },
 ];
@@ -59,26 +100,36 @@ const columns: Array<ColumnDef<VariableResponse>> = [
 export const Variables = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType =
-    SearchParamsKeys;
+  const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
   const [variableKeyPattern, setVariableKeyPattern] = useState(
     searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
   );
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort
-    ? `${sort.desc ? "-" : ""}${sort.id === "value" ? "_val" : sort.id}`
-    : "-key";
+  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id === "value" ? "_val" : sort.id}` : "-key";
 
-  const { data, error, isFetching, isLoading } = useVariableServiceGetVariables(
-    {
-      limit: pagination.pageSize,
-      offset: pagination.pageIndex * pagination.pageSize,
-      orderBy,
-      variableKeyPattern: Boolean(variableKeyPattern)
-        ? `${variableKeyPattern}`
-        : undefined,
-    },
+  const { data, error, isFetching, isLoading } = useVariableServiceGetVariables({
+    limit: pagination.pageSize,
+    offset: pagination.pageIndex * pagination.pageSize,
+    orderBy,
+    variableKeyPattern: variableKeyPattern ?? undefined,
+  });
+
+  const { allRowsSelected, clearSelections, handleRowSelect, handleSelectAll, selectedRows } =
+    useRowSelection({
+      data: data?.variables,
+      getKey: (variable) => variable.key,
+    });
+
+  const columns = useMemo(
+    () =>
+      getColumns({
+        allRowsSelected,
+        onRowSelect: handleRowSelect,
+        onSelectAll: handleSelectAll,
+        selectedRows,
+      }),
+    [allRowsSelected, handleRowSelect, handleSelectAll, selectedRows],
   );
 
   const handleSearchChange = (value: string) => {
@@ -104,20 +155,45 @@ export const Variables = () => {
           onChange={handleSearchChange}
           placeHolder="Search Keys"
         />
+        <HStack gap={4} mt={2}>
+          <ImportVariablesButton />
+          <Spacer />
+          <AddVariableButton />
+        </HStack>
       </VStack>
-      <Box>
+      <Box overflow="auto">
         <DataTable
           columns={columns}
-          data={data ? data.variables : []}
+          data={data?.variables ?? []}
           errorMessage={<ErrorAlert error={error} />}
           initialState={tableURLState}
           isFetching={isFetching}
           isLoading={isLoading}
           modelName="Variable"
           onStateChange={setTableURLState}
-          total={data ? data.total_entries : 0}
+          total={data?.total_entries ?? 0}
         />
       </Box>
+      <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
+        <ActionBar.Content>
+          <ActionBar.SelectionTrigger>{selectedRows.size} selected</ActionBar.SelectionTrigger>
+          <ActionBar.Separator />
+          {/* TODO: Implement the delete and export selected */}
+          <Tooltip content="Delete selected variable coming soon..">
+            <Button disabled size="sm" variant="outline">
+              <FiTrash2 />
+              Delete
+            </Button>
+          </Tooltip>
+          <Tooltip content="Export selected variable coming soon..">
+            <Button disabled size="sm" variant="outline">
+              <FiShare />
+              Export
+            </Button>
+          </Tooltip>
+          <ActionBar.CloseTrigger onClick={clearSelections} />
+        </ActionBar.Content>
+      </ActionBar.Root>
     </>
   );
 };

@@ -24,7 +24,7 @@ import copy
 import inspect
 import sys
 import warnings
-from collections.abc import Collection, Iterable, Sequence
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from functools import total_ordering, wraps
@@ -65,10 +65,13 @@ from airflow.utils.weight_rule import db_safe_priority
 T = TypeVar("T", bound=FunctionType)
 
 if TYPE_CHECKING:
+    import jinja2
+
     from airflow.models.xcom_arg import XComArg
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.serialization.enums import DagAttributeTypes
+    from airflow.typing_compat import Self
     from airflow.utils.operator_resources import Resources
 
 # TODO: Task-SDK
@@ -974,7 +977,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def __getstate__(self):
         state = dict(self.__dict__)
-        if self._log:
+        if "_log" in state:
             del state["_log"]
 
         return state
@@ -1219,6 +1222,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         return cls.__serialized_fields
 
+    def prepare_for_execution(self) -> Self:
+        """Lock task for execution to disable custom action in ``__setattr__`` and return a copy."""
+        other = copy.copy(self)
+        other._lock_for_execution = True
+        return other
+
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
         """Serialize; required by DAGNode."""
         from airflow.serialization.enums import DagAttributeTypes
@@ -1232,3 +1241,20 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         # needs to cope when `self` is a Serialized instance of a EmptyOperator or one
         # of its subclasses (which don't inherit from anything but BaseOperator).
         return getattr(self, "_is_empty", False)
+
+    def render_template_fields(
+        self,
+        context: Mapping[str, Any],  # TODO: Change to `Context` once we have it
+        jinja_env: jinja2.Environment | None = None,
+    ) -> None:
+        """
+        Template all attributes listed in *self.template_fields*.
+
+        This mutates the attributes in-place and is irreversible.
+
+        :param context: Context dict with values to apply on content.
+        :param jinja_env: Jinja's environment to use for rendering.
+        """
+        if not jinja_env:
+            jinja_env = self.get_template_env()
+        self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())

@@ -371,6 +371,104 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
+                ("providers/tests/system/apache/beam/file.py",),
+                {
+                    "selected-providers-list-as-string": "apache.beam common.compat google",
+                    "all-python-versions": "['3.9']",
+                    "all-python-versions-list-as-string": "3.9",
+                    "python-versions": "['3.9']",
+                    "python-versions-list-as-string": "3.9",
+                    "ci-image-build": "true",
+                    "prod-image-build": "false",
+                    "needs-helm-tests": "false",
+                    "run-tests": "true",
+                    "run-amazon-tests": "false",
+                    "docs-build": "false",
+                    "skip-pre-commits": (
+                        "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs"
+                        ",mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui,ts-compile-format-lint-www"
+                    ),
+                    "run-kubernetes-tests": "false",
+                    "upgrade-to-newer-dependencies": "false",
+                    "core-test-types-list-as-string": "Always",
+                    "providers-test-types-list-as-string": "Providers[apache.beam,common.compat] Providers[google]",
+                    "individual-providers-test-types-list-as-string": "Providers[apache.beam] Providers[common.compat] Providers[google]",
+                    "needs-mypy": "true",
+                    "mypy-checks": "['mypy-providers']",
+                    "skip-providers-tests": "false",
+                },
+                id="Selected Providers and docs should run when system tests are modified",
+            )
+        ),
+        (
+            pytest.param(
+                ("providers/tests/system/apache/beam/file.py", "providers/tests/apache/beam/file.py"),
+                {
+                    "selected-providers-list-as-string": "apache.beam common.compat google",
+                    "all-python-versions": "['3.9']",
+                    "all-python-versions-list-as-string": "3.9",
+                    "python-versions": "['3.9']",
+                    "python-versions-list-as-string": "3.9",
+                    "ci-image-build": "true",
+                    "prod-image-build": "false",
+                    "needs-helm-tests": "false",
+                    "run-tests": "true",
+                    "run-amazon-tests": "false",
+                    "docs-build": "false",
+                    "skip-pre-commits": (
+                        "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs"
+                        ",mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui,ts-compile-format-lint-www"
+                    ),
+                    "run-kubernetes-tests": "false",
+                    "upgrade-to-newer-dependencies": "false",
+                    "core-test-types-list-as-string": "Always",
+                    "providers-test-types-list-as-string": "Providers[apache.beam,common.compat] Providers[google]",
+                    "individual-providers-test-types-list-as-string": "Providers[apache.beam] Providers[common.compat] Providers[google]",
+                    "needs-mypy": "true",
+                    "mypy-checks": "['mypy-providers']",
+                    "skip-providers-tests": "false",
+                },
+                id="Selected Providers and docs should run when both system tests and tests are modified",
+            )
+        ),
+        (
+            pytest.param(
+                (
+                    "providers/tests/system/apache/beam/file.py",
+                    "providers/tests/apache/beam/file.py",
+                    "providers/tests/system/zendesk/file.py",
+                    "providers/tests/zendesk/file.py",
+                ),
+                {
+                    "selected-providers-list-as-string": "apache.beam common.compat google zendesk",
+                    "all-python-versions": "['3.9']",
+                    "all-python-versions-list-as-string": "3.9",
+                    "python-versions": "['3.9']",
+                    "python-versions-list-as-string": "3.9",
+                    "ci-image-build": "true",
+                    "prod-image-build": "false",
+                    "needs-helm-tests": "false",
+                    "run-tests": "true",
+                    "run-amazon-tests": "false",
+                    "docs-build": "false",
+                    "skip-pre-commits": (
+                        "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs"
+                        ",mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui,ts-compile-format-lint-www"
+                    ),
+                    "run-kubernetes-tests": "false",
+                    "upgrade-to-newer-dependencies": "false",
+                    "core-test-types-list-as-string": "Always",
+                    "providers-test-types-list-as-string": "Providers[apache.beam,common.compat,zendesk] Providers[google]",
+                    "individual-providers-test-types-list-as-string": "Providers[apache.beam] Providers[common.compat] Providers[google] Providers[zendesk]",
+                    "needs-mypy": "true",
+                    "mypy-checks": "['mypy-providers']",
+                    "skip-providers-tests": "false",
+                },
+                id="Selected Providers and docs should run when both system tests and tests are modified for more than one provider",
+            )
+        ),
+        (
+            pytest.param(
                 ("docs/file.rst",),
                 {
                     "selected-providers-list-as-string": None,
@@ -1006,9 +1104,9 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "postgres-versions": "['13', '14', '15', '16', '17']",
                     "python-versions": "['3.9', '3.10', '3.11', '3.12']",
                     "python-versions-list-as-string": "3.9 3.10 3.11 3.12",
-                    "kubernetes-versions": "['v1.28.13', 'v1.29.8', 'v1.30.4', 'v1.31.0']",
-                    "kubernetes-versions-list-as-string": "v1.28.13 v1.29.8 v1.30.4 v1.31.0",
-                    "kubernetes-combos-list-as-string": "3.9-v1.28.13 3.10-v1.29.8 3.11-v1.30.4 3.12-v1.31.0",
+                    "kubernetes-versions": "['v1.28.15', 'v1.29.12', 'v1.30.8', 'v1.31.4', 'v1.32.0']",
+                    "kubernetes-versions-list-as-string": "v1.28.15 v1.29.12 v1.30.8 v1.31.4 v1.32.0",
+                    "kubernetes-combos-list-as-string": "3.9-v1.28.15 3.10-v1.29.12 3.11-v1.30.8 3.12-v1.31.4 3.9-v1.32.0",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -1042,9 +1140,9 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "postgres-versions": "['13']",
                     "python-versions": "['3.9']",
                     "python-versions-list-as-string": "3.9",
-                    "kubernetes-versions": "['v1.28.13']",
-                    "kubernetes-versions-list-as-string": "v1.28.13",
-                    "kubernetes-combos-list-as-string": "3.9-v1.28.13",
+                    "kubernetes-versions": "['v1.28.15']",
+                    "kubernetes-versions-list-as-string": "v1.28.15",
+                    "kubernetes-combos-list-as-string": "3.9-v1.28.15",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -1078,9 +1176,9 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "postgres-versions": "['13']",
                     "python-versions": "['3.9']",
                     "python-versions-list-as-string": "3.9",
-                    "kubernetes-versions": "['v1.28.13']",
-                    "kubernetes-versions-list-as-string": "v1.28.13",
-                    "kubernetes-combos-list-as-string": "3.9-v1.28.13",
+                    "kubernetes-versions": "['v1.28.15']",
+                    "kubernetes-versions-list-as-string": "v1.28.15",
+                    "kubernetes-combos-list-as-string": "3.9-v1.28.15",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -1115,9 +1213,9 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "postgres-versions": "['17']",
                     "python-versions": "['3.12']",
                     "python-versions-list-as-string": "3.12",
-                    "kubernetes-versions": "['v1.31.0']",
-                    "kubernetes-versions-list-as-string": "v1.31.0",
-                    "kubernetes-combos-list-as-string": "3.12-v1.31.0",
+                    "kubernetes-versions": "['v1.32.0']",
+                    "kubernetes-versions-list-as-string": "v1.32.0",
+                    "kubernetes-combos-list-as-string": "3.12-v1.32.0",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -1152,9 +1250,9 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "all-versions": "false",
                     "python-versions": "['3.9']",
                     "python-versions-list-as-string": "3.9",
-                    "kubernetes-versions": "['v1.28.13']",
-                    "kubernetes-versions-list-as-string": "v1.28.13",
-                    "kubernetes-combos-list-as-string": "3.9-v1.28.13",
+                    "kubernetes-versions": "['v1.28.15']",
+                    "kubernetes-versions-list-as-string": "v1.28.15",
+                    "kubernetes-combos-list-as-string": "3.9-v1.28.15",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -1186,9 +1284,9 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "all-versions": "false",
                     "python-versions": "['3.9']",
                     "python-versions-list-as-string": "3.9",
-                    "kubernetes-versions": "['v1.28.13']",
-                    "kubernetes-versions-list-as-string": "v1.28.13",
-                    "kubernetes-combos-list-as-string": "3.9-v1.28.13",
+                    "kubernetes-versions": "['v1.28.15']",
+                    "kubernetes-versions-list-as-string": "v1.28.15",
+                    "kubernetes-combos-list-as-string": "3.9-v1.28.15",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -1705,6 +1803,42 @@ def test_expected_output_pull_request_target(
 def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
     stderr = SelectiveChecks(
         files=(),
+        commit_ref="",
+        github_event=github_event,
+        pr_labels=(),
+        default_branch="main",
+    )
+    assert_outputs_are_printed(
+        {
+            "all-python-versions": "['3.9', '3.10', '3.11', '3.12']",
+            "all-python-versions-list-as-string": "3.9 3.10 3.11 3.12",
+            "ci-image-build": "true",
+            "prod-image-build": "true",
+            "needs-helm-tests": "true",
+            "run-tests": "true",
+            "docs-build": "true",
+            "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
+            "upgrade-to-newer-dependencies": (
+                "true" if github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE] else "false"
+            ),
+            "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+            "needs-mypy": "true",
+            "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+        },
+        str(stderr),
+    )
+
+
+@pytest.mark.parametrize(
+    "github_event",
+    [
+        GithubEvents.PUSH,
+        GithubEvents.SCHEDULE,
+    ],
+)
+def test_files_provided_trigger_full_build_for_any_event_type(github_event):
+    stderr = SelectiveChecks(
+        files=("airflow/ui/src/pages/Run/Details.tsx", "airflow/ui/src/router.tsx"),
         commit_ref="",
         github_event=github_event,
         pr_labels=(),
