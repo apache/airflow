@@ -46,7 +46,7 @@ from airflow.sdk.execution_time.comms import (
     TaskState,
     VariableResult,
 )
-from airflow.sdk.execution_time.context import ConnectionAccessor, VariableAccessor
+from airflow.sdk.execution_time.context import ConnectionAccessor, MacrosAccessor, VariableAccessor
 from airflow.sdk.execution_time.task_runner import (
     CommsDecoder,
     RuntimeTaskInstance,
@@ -476,10 +476,10 @@ def test_startup_basic_templated_dag(mocked_parse, make_ti_context, mock_supervi
         ),
     ],
 )
-def test_startup_and_run_dag_with_templated_fields(
+def test_startup_and_run_dag_with_rtif(
     mocked_parse, task_params, expected_rendered_fields, make_ti_context, time_machine, mock_supervisor_comms
 ):
-    """Test startup of a DAG with various templated fields."""
+    """Test startup of a DAG with various rendered templated fields."""
 
     class CustomOperator(BaseOperator):
         template_fields = tuple(task_params.keys())
@@ -521,6 +521,42 @@ def test_startup_and_run_dag_with_templated_fields(
         ),
     ]
     mock_supervisor_comms.assert_has_calls(expected_calls)
+
+
+@pytest.mark.parametrize(
+    ["command", "rendered_command"],
+    [
+        ("{{ task.task_id }}", "templated_task"),
+        ("{{ run_id }}", "c"),
+        ("{{ logical_date }}", "2024-12-01 01:00:00+00:00"),
+    ],
+)
+def test_startup_and_run_dag_with_templated_fields(
+    command, rendered_command, mocked_parse, make_ti_context, time_machine, mock_supervisor_comms
+):
+    """Test startup of a DAG with various templated fields."""
+
+    from airflow.providers.standard.operators.bash import BashOperator
+
+    task = BashOperator(task_id="templated_task", bash_command=command)
+
+    what = StartupDetails(
+        ti=TaskInstance(id=uuid7(), task_id="templated_task", dag_id="basic_dag", run_id="c", try_number=1),
+        file="",
+        requests_fd=0,
+        ti_context=make_ti_context(),
+    )
+    ti = mocked_parse(what, "basic_dag", task)
+    ti._ti_context_from_server = make_ti_context(
+        logical_date="2024-12-01 01:00:00+00:00",
+        run_id="c",
+    )
+
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
+
+    run(ti, log=mock.MagicMock())
+    assert ti.task.bash_command == rendered_command
 
 
 @pytest.mark.parametrize(
@@ -599,7 +635,9 @@ class TestRuntimeTaskInstance:
             },
             "conn": ConnectionAccessor(),
             "dag": runtime_ti.task.dag,
+            "expanded_ti_count": None,
             "inlets": task.inlets,
+            "macros": MacrosAccessor(),
             "map_index_template": task.map_index_template,
             "outlets": task.outlets,
             "run_id": "test_run",
@@ -637,6 +675,7 @@ class TestRuntimeTaskInstance:
             "conn": ConnectionAccessor(),
             "dag": runtime_ti.task.dag,
             "inlets": task.inlets,
+            "macros": MacrosAccessor(),
             "map_index_template": task.map_index_template,
             "outlets": task.outlets,
             "run_id": "test_run",
@@ -649,6 +688,7 @@ class TestRuntimeTaskInstance:
             "logical_date": timezone.datetime(2024, 12, 1, 1, 0, 0),
             "ds": "2024-12-01",
             "ds_nodash": "20241201",
+            "expanded_ti_count": None,
             "task_instance_key_str": "basic_task__hello__20241201",
             "ts": "2024-12-01T01:00:00+00:00",
             "ts_nodash": "20241201T010000",
@@ -705,6 +745,62 @@ class TestRuntimeTaskInstance:
             port=1234,
             extra='{"extra_key": "extra_value"}',
         )
+
+    def test_template_render(self, mocked_parse, make_ti_context):
+        task = BaseOperator(task_id="test_template_render_task")
+
+        ti = TaskInstance(
+            id=uuid7(), task_id=task.task_id, dag_id="test_template_render", run_id="test_run", try_number=1
+        )
+
+        what = StartupDetails(ti=ti, file="", requests_fd=0, ti_context=make_ti_context())
+        runtime_ti = mocked_parse(what, ti.dag_id, task)
+        template_context = runtime_ti.get_template_context()
+        result = runtime_ti.task.render_template(
+            "Task: {{ dag.dag_id }} -> {{ task.task_id }}", template_context
+        )
+        assert result == "Task: test_template_render -> test_template_render_task"
+
+    @pytest.mark.parametrize(
+        ["content", "expected_output"],
+        [
+            ('{{ conn.get("a_connection").host }}', "hostvalue"),
+            ('{{ conn.get("a_connection", "unused_fallback").host }}', "hostvalue"),
+            ("{{ conn.a_connection.host }}", "hostvalue"),
+            ("{{ conn.a_connection.login }}", "loginvalue"),
+            ("{{ conn.a_connection.password }}", "passwordvalue"),
+            ('{{ conn.a_connection.extra_dejson["extra__asana__workspace"] }}', "extra1"),
+            ("{{ conn.a_connection.extra_dejson.extra__asana__workspace }}", "extra1"),
+        ],
+    )
+    def test_template_with_connection(
+        self, content, expected_output, make_ti_context, mocked_parse, mock_supervisor_comms
+    ):
+        """
+        Test the availability of connections in templates
+        """
+        task = BaseOperator(task_id="hello")
+
+        ti = TaskInstance(
+            id=uuid7(), task_id=task.task_id, dag_id="basic_task", run_id="test_run", try_number=1
+        )
+        conn = ConnectionResult(
+            conn_id="a_connection",
+            conn_type="a_type",
+            host="hostvalue",
+            login="loginvalue",
+            password="passwordvalue",
+            schema="schemavalues",
+            extra='{"extra__asana__workspace": "extra1"}',
+        )
+
+        what = StartupDetails(ti=ti, file="", requests_fd=0, ti_context=make_ti_context())
+        runtime_ti = mocked_parse(what, ti.dag_id, task)
+        mock_supervisor_comms.get_message.return_value = conn
+
+        context = runtime_ti.get_template_context()
+        result = runtime_ti.task.render_template(content, context)
+        assert result == expected_output
 
     @pytest.mark.parametrize(
         ["accessor_type", "var_value", "expected_value"],
