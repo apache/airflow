@@ -57,8 +57,9 @@ class Connection:
 
     def get_hook(self): ...
 
-    def _get_extra_dejson(self) -> dict:
-        """Deserialize extra property to JSON."""
+    @property
+    def extra_dejson(self) -> dict:
+        """Deserialize `extra` property to JSON."""
         extra = {}
         if self.extra:
             try:
@@ -67,8 +68,3 @@ class Connection:
                 log.error("Failed to deserialize extra property `extra`, returning empty dictionary")
         # TODO: Mask sensitive keys from this list or revisit if it will be done in server
         return extra
-
-    @property
-    def extra_dejson(self) -> dict:
-        """Property to provide the deserialized version of `extra`."""
-        return self._get_extra_dejson()
