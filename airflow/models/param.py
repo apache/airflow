@@ -20,18 +20,17 @@ import contextlib
 import copy
 import json
 import logging
-from collections.abc import ItemsView, Iterable, MutableMapping, ValuesView
+from collections.abc import ItemsView, Iterable, Mapping, MutableMapping, ValuesView
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.exceptions import AirflowException, ParamValidationError
-from airflow.utils.mixins import ResolveMixin
+from airflow.sdk.definitions.mixins import ResolveMixin
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
     from airflow.sdk.definitions.dag import DAG
-    from airflow.utils.context import Context
 
 logger = logging.getLogger(__name__)
 
@@ -295,7 +294,7 @@ class DagParam(ResolveMixin):
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         return ()
 
-    def resolve(self, context: Context, *, include_xcom: bool = True) -> Any:
+    def resolve(self, context: Mapping[str, Any], *, include_xcom: bool = True) -> Any:
         """Pull DagParam value from DagRun context. This method is run during ``op.execute()``."""
         with contextlib.suppress(KeyError):
             return context["dag_run"].conf[self._name]

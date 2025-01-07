@@ -44,6 +44,8 @@ class SqsPublishOperator(AwsBaseOperator[SqsHook]):
     :param delay_seconds: message delay (templated) (default: 1 second)
     :param message_group_id: This parameter applies only to FIFO (first-in-first-out) queues. (default: None)
         For details of the attributes parameter see :py:meth:`botocore.client.SQS.send_message`
+    :param message_deduplication_id: This applies only to FIFO (first-in-first-out) queues.
+        For details of the attributes parameter see :py:meth:`botocore.client.SQS.send_message`
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -63,6 +65,7 @@ class SqsPublishOperator(AwsBaseOperator[SqsHook]):
         "delay_seconds",
         "message_attributes",
         "message_group_id",
+        "message_deduplication_id",
     )
     template_fields_renderers = {"message_attributes": "json"}
     ui_color = "#6ad3fa"
@@ -75,6 +78,7 @@ class SqsPublishOperator(AwsBaseOperator[SqsHook]):
         message_attributes: dict | None = None,
         delay_seconds: int = 0,
         message_group_id: str | None = None,
+        message_deduplication_id: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -83,6 +87,7 @@ class SqsPublishOperator(AwsBaseOperator[SqsHook]):
         self.delay_seconds = delay_seconds
         self.message_attributes = message_attributes or {}
         self.message_group_id = message_group_id
+        self.message_deduplication_id = message_deduplication_id
 
     def execute(self, context: Context) -> dict:
         """
@@ -98,6 +103,7 @@ class SqsPublishOperator(AwsBaseOperator[SqsHook]):
             delay_seconds=self.delay_seconds,
             message_attributes=self.message_attributes,
             message_group_id=self.message_group_id,
+            message_deduplication_id=self.message_deduplication_id,
         )
 
         self.log.info("send_message result: %s", result)

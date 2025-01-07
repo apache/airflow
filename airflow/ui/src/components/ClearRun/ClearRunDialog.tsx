@@ -17,18 +17,23 @@
  * under the License.
  */
 import { Flex, Heading, VStack } from "@chakra-ui/react";
+import { useState } from "react";
 import { FiRefreshCw } from "react-icons/fi";
 
-import type { DAGRunClearBody, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
+import type {
+  DAGRunClearBody,
+  DAGRunResponse,
+  TaskInstanceCollectionResponse,
+} from "openapi/requests/types.gen";
 import { Button, Dialog } from "src/components/ui";
+import { usePatchDagRun } from "src/queries/usePatchDagRun";
 
 import SegmentedControl from "../ui/SegmentedControl";
 import ClearRunTasksAccordion from "./ClearRunTaskAccordion";
 
 type Props = {
   readonly affectedTasks: TaskInstanceCollectionResponse;
-  readonly dagId: string;
-  readonly dagRunId: string;
+  readonly dagRun: DAGRunResponse;
   readonly isPending: boolean;
   readonly mutate: ({
     dagId,
@@ -47,8 +52,7 @@ type Props = {
 
 const ClearRunDialog = ({
   affectedTasks,
-  dagId,
-  dagRunId,
+  dagRun,
   isPending,
   mutate,
   onClose,
@@ -56,6 +60,12 @@ const ClearRunDialog = ({
   open,
   setOnlyFailed,
 }: Props) => {
+  const dagId = dagRun.dag_id;
+  const dagRunId = dagRun.dag_run_id;
+
+  const [note, setNote] = useState<string | null>(dagRun.note);
+  const { isPending: isPendingPatchDagRun, mutate: mutatePatchDagRun } = usePatchDagRun({ dagId, dagRunId });
+
   const onChange = (value: string) => {
     switch (value) {
       case "existing_tasks":
@@ -108,16 +118,21 @@ const ClearRunDialog = ({
               value={onlyFailed ? "only_failed" : "existing_tasks"}
             />
           </Flex>
-          <ClearRunTasksAccordion affectedTasks={affectedTasks} />
+          <ClearRunTasksAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
           <Flex justifyContent="end" mt={3}>
             <Button
               colorPalette="blue"
-              loading={isPending}
+              loading={isPending || isPendingPatchDagRun}
               onClick={() => {
                 mutate({
                   dagId,
                   dagRunId,
                   requestBody: { dry_run: false, only_failed: onlyFailed },
+                });
+                mutatePatchDagRun({
+                  dagId,
+                  dagRunId,
+                  requestBody: { note },
                 });
               }}
             >

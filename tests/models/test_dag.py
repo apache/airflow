@@ -72,8 +72,8 @@ from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import TaskGroup
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
 from airflow.sdk.definitions.contextmanager import TaskGroupContext
+from airflow.sdk.definitions.templater import NativeEnvironment, SandboxedEnvironment
 from airflow.security import permissions
-from airflow.templates import NativeEnvironment, SandboxedEnvironment
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import (
     AssetTriggeredTimetable,
