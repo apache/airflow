@@ -43,7 +43,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => (
         </Flex>
       </HStack>
       <HStack>
-        <ClearRunButton dagId={dagRun.dag_id} dagRunId={dagRun.dag_run_id} />
+        <ClearRunButton dagRun={dagRun} />
       </HStack>
     </Flex>
     {dagRun.note === null || dagRun.note.length === 0 ? undefined : (

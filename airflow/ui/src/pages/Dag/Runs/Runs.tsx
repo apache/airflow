@@ -91,7 +91,7 @@ const columns: Array<ColumnDef<DAGRunResponse>> = [
     accessorKey: "clear_dag_run",
     cell: ({ row }) => (
       <Flex justifyContent="end">
-        <ClearRunButton dagId={row.original.dag_id} dagRunId={row.original.dag_run_id} withText={false} />
+        <ClearRunButton dagRun={row.original} withText={false} />
       </Flex>
     ),
     enableSorting: false,
