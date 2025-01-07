@@ -43,14 +43,14 @@ class TestVaultClient:
         vault_client = _VaultClient(auth_type="userpass", mount_point="custom")
         assert vault_client.mount_point == "custom"
 
-    # @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
-    # def test_namespace(self, mock_hvac):
-    #     mock_client = mock.MagicMock()
-    #     mock_hvac.Client.return_value = mock_client
-    #     vault_client = _VaultClient(namespace="mach")
-    #     assert vault_client.namespace == "mach"
-    #     vault_client = _VaultClient()
-    #     assert vault_client.namespace == None
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_namespace(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        vault_client = _VaultClient(namespace="mach")
+        assert vault_client.namespace == "mach"
+        vault_client = _VaultClient()
+        assert vault_client.namespace == None
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_version_one_init(self, mock_hvac):
