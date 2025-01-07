@@ -40,9 +40,9 @@ def _convert_variable_result_to_variable(var_result: VariableResult, deserialize
     from airflow.sdk.definitions.variable import Variable
 
     if deserialize_json:
-        from json import loads
+        import json
 
-        var_result.value = loads(var_result.value)  # type: ignore
+        var_result.value = json.loads(var_result.value)  # type: ignore
     return Variable(**var_result.model_dump(exclude={"type"}))
 
 
