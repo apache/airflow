@@ -407,7 +407,7 @@ class DagFileProcessorManager:
         DagBundlesManager().sync_bundles_to_db()
 
         self.log.info("Getting all DAG bundles")
-        self._dag_bundles = DagBundlesManager().get_all_dag_bundles()
+        self._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
 
         return self._run_parsing_loop()
 

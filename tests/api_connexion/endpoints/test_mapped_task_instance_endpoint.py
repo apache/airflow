@@ -126,7 +126,7 @@ class TestMappedTaskInstanceEndpoint:
             DagBundlesManager().sync_bundles_to_db()
             self.app.dag_bag = DagBag(os.devnull, include_examples=False)
             self.app.dag_bag.dags = {dag_id: dag_maker.dag}
-            self.app.dag_bag.sync_to_db("dags_folder", None)
+            self.app.dag_bag.sync_to_db("dags-folder", None)
             session.flush()
 
             mapped.expand_mapped_task(dr.run_id, session=session)

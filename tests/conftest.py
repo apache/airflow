@@ -104,13 +104,14 @@ def configure_testing_dag_bundle():
 
     @contextmanager
     def _config_bundle(path_to_parse: Path | str):
-        bundle_config = {
-            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-            "kwargs": {"local_folder": str(path_to_parse), "refresh_interval": 30},
-        }
-        with conf_vars(
-            {("dag_bundles", "testing"): json.dumps(bundle_config), ("dag_bundles", "dags_folder"): ""}
-        ):
+        bundle_config = [
+            {
+                "name": "testing",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"local_folder": str(path_to_parse), "refresh_interval": 30},
+            }
+        ]
+        with conf_vars({("dag_bundles", "backends"): json.dumps(bundle_config)}):
             yield
 
     return _config_bundle
