@@ -32,7 +32,7 @@ import { Gantt } from "./Gantt";
 import { Graph } from "./Graph";
 import { Grid } from "./Grid";
 
-type TriggerDAGModalProps = {
+type DAGVizModalProps = {
   dagDisplayName?: DAGResponse["dag_display_name"];
   dagId?: DAGResponse["dag_id"];
   onClose: () => void;
@@ -53,7 +53,7 @@ const visualizationOptions = [
   },
 ];
 
-export const DagVizModal: React.FC<TriggerDAGModalProps> = ({ dagDisplayName, dagId, onClose, open }) => {
+export const DagVizModal: React.FC<DAGVizModalProps> = ({ dagDisplayName, dagId, onClose, open }) => {
   const [searchParams] = useSearchParams();
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -63,7 +63,7 @@ export const DagVizModal: React.FC<TriggerDAGModalProps> = ({ dagDisplayName, da
   params.delete("modal");
 
   return (
-    <Dialog.Root onOpenChange={onClose} open={open} size="full">
+    <Dialog.Root motionPreset="none" onOpenChange={onClose} open={open} size="full">
       <Dialog.Content backdrop ref={contentRef}>
         <Dialog.Header bg="blue.muted" pr={16}>
           <HStack>

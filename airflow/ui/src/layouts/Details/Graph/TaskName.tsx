@@ -49,7 +49,7 @@ export const TaskName = ({
   setupTeardownType,
   ...rest
 }: Props) => {
-  const { dagId = "", runId } = useParams();
+  const { dagId = "", runId, taskId } = useParams();
   const [searchParams] = useSearchParams();
 
   // We don't have a task group details page to link to
@@ -65,7 +65,8 @@ export const TaskName = ({
     <Link asChild data-testid={id} fontSize={isZoomedOut ? "lg" : "md"} fontWeight="bold" {...rest}>
       <RouterLink
         to={{
-          pathname: `/dags/${dagId}/${runId === undefined ? "" : `runs/${runId}/`}tasks/${id}`,
+          // Do not include runId if there is no selected run, clicking a second time will deselect a task id
+          pathname: `/dags/${dagId}/${runId === undefined ? "" : `runs/${runId}/`}${taskId === id ? "" : `tasks/${id}`}`,
           search: searchParams.toString(),
         }}
       >
