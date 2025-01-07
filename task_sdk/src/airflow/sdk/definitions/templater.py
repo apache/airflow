@@ -17,23 +17,36 @@
 
 from __future__ import annotations
 
+import datetime
+import logging
 from collections.abc import Collection, Iterable, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+import jinja2
+import jinja2.nativetypes
+import jinja2.sandbox
+
 from airflow.io.path import ObjectStoragePath
+from airflow.sdk.definitions.mixins import ResolveMixin
 from airflow.utils.helpers import render_template_as_native, render_template_to_string
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.mixins import ResolveMixin
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    import jinja2
-
     from airflow.models.operator import Operator
     from airflow.sdk.definitions.dag import DAG
-    from airflow.utils.context import Context
+
+
+def literal(value: Any) -> LiteralValue:
+    """
+    Wrap a value to ensure it is rendered as-is without applying Jinja templating to its contents.
+
+    Designed for use in an operator's template field.
+
+    :param value: The value to be rendered without templating
+    """
+    return LiteralValue(value)
 
 
 @dataclass(frozen=True)
@@ -49,11 +62,16 @@ class LiteralValue(ResolveMixin):
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         return ()
 
-    def resolve(self, context: Context, *, include_xcom: bool = True) -> Any:
+    def resolve(self, context: Mapping[str, Any], *, include_xcom: bool = True) -> Any:
         return self.value
 
 
-class Templater(LoggingMixin):
+log = logging.getLogger(__name__)
+
+
+# TODO: Task-SDK: Should everything below this line live in `_internal/templater.py`?
+#   so that it is not exposed to the public API.
+class Templater:
     """
     This renders the template fields of object.
 
@@ -70,7 +88,6 @@ class Templater(LoggingMixin):
         # This is imported locally since Jinja2 is heavy and we don't need it
         # for most of the functionalities. It is imported by get_template_env()
         # though, so we don't need to put this after the 'if dag' check.
-        from airflow.templates import SandboxedEnvironment
 
         if dag:
             return dag.get_template_env(force_sandboxed=False)
@@ -94,7 +111,7 @@ class Templater(LoggingMixin):
                     try:
                         setattr(self, field, env.loader.get_source(env, content)[0])  # type: ignore
                     except Exception:
-                        self.log.exception("Failed to resolve template field %r", field)
+                        log.exception("Failed to resolve template field %r", field)
                 elif isinstance(content, list):
                     env = self.get_template_env()
                     for i, item in enumerate(content):
@@ -102,7 +119,7 @@ class Templater(LoggingMixin):
                             try:
                                 content[i] = env.loader.get_source(env, item)[0]  # type: ignore
                             except Exception:
-                                self.log.exception("Failed to get source %s", item)
+                                log.exception("Failed to get source %s", item)
         self.prepare_template()
 
     def _do_render_template_fields(
@@ -218,3 +235,71 @@ class Templater(LoggingMixin):
             # content has no inner template fields
             return
         self._do_render_template_fields(value, nested_template_fields, context, jinja_env, seen_oids)
+
+
+class _AirflowEnvironmentMixin:
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        self.filters.update(FILTERS)
+
+    def is_safe_attribute(self, obj, attr, value):
+        """
+        Allow access to ``_`` prefix vars (but not ``__``).
+
+        Unlike the stock SandboxedEnvironment, we allow access to "private" attributes (ones starting with
+        ``_``) whilst still blocking internal or truly private attributes (``__`` prefixed ones).
+        """
+        return not jinja2.sandbox.is_internal_attribute(obj, attr)
+
+
+class NativeEnvironment(_AirflowEnvironmentMixin, jinja2.nativetypes.NativeEnvironment):
+    """NativeEnvironment for Airflow task templates."""
+
+
+class SandboxedEnvironment(_AirflowEnvironmentMixin, jinja2.sandbox.SandboxedEnvironment):
+    """SandboxedEnvironment for Airflow task templates."""
+
+
+def ds_filter(value: datetime.date | datetime.time | None) -> str | None:
+    """Date filter."""
+    if value is None:
+        return None
+    return value.strftime("%Y-%m-%d")
+
+
+def ds_nodash_filter(value: datetime.date | datetime.time | None) -> str | None:
+    """Date filter without dashes."""
+    if value is None:
+        return None
+    return value.strftime("%Y%m%d")
+
+
+def ts_filter(value: datetime.date | datetime.time | None) -> str | None:
+    """Timestamp filter."""
+    if value is None:
+        return None
+    return value.isoformat()
+
+
+def ts_nodash_filter(value: datetime.date | datetime.time | None) -> str | None:
+    """Timestamp filter without dashes."""
+    if value is None:
+        return None
+    return value.strftime("%Y%m%dT%H%M%S")
+
+
+def ts_nodash_with_tz_filter(value: datetime.date | datetime.time | None) -> str | None:
+    """Timestamp filter with timezone."""
+    if value is None:
+        return None
+    return value.isoformat().replace("-", "").replace(":", "")
+
+
+FILTERS = {
+    "ds": ds_filter,
+    "ds_nodash": ds_nodash_filter,
+    "ts": ts_filter,
+    "ts_nodash": ts_nodash_filter,
+    "ts_nodash_with_tz": ts_nodash_with_tz_filter,
+}

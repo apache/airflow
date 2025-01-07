@@ -63,7 +63,7 @@ const DeleteVariableButton = ({ deleteKey: variableKey }: Props) => {
         <Dialog.Content backdrop>
           <Dialog.Header>
             <VStack align="start" gap={4}>
-              <Heading size="xl">Delete Variable - {variableKey} </Heading>
+              <Heading size="xl">Delete Variable</Heading>
             </VStack>
           </Dialog.Header>
 

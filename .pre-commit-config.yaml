@@ -197,21 +197,12 @@ repos:
         additional_dependencies: ['pyyaml']
         pass_filenames: false
         require_serial: true
-      - id: update-build-dependencies
-        name: Update build-dependencies to latest (manual)
-        entry: ./scripts/ci/pre_commit/update_build_dependencies.py
+      - id: update-installers-and-pre-commit
+        name: Update installers and pre-commit to latest (manual)
+        entry: ./scripts/ci/pre_commit/update_installers_and_pre_commit.py
         stages: ['manual']
         language: python
-        files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/update_build_dependencies.py$
-        pass_filenames: false
-        require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
-      - id: update-installers
-        name: Update installers to latest (manual)
-        entry: ./scripts/ci/pre_commit/update_installers.py
-        stages: ['manual']
-        language: python
-        files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/update_installers.py$
+        files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/update_installers_and_pre_commit.py$
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['pyyaml', 'rich>=12.4.4', 'requests']
@@ -331,6 +322,15 @@ repos:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=providers/src/airflow/providers/*/*.rst,airflow/www/*.log,docs/*/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
           - --exclude-file=.codespellignorelines
+  - repo: https://github.com/woodruffw/zizmor-pre-commit
+    rev: v1.0.0
+    hooks:
+      - id: zizmor
+        name: Run zizmor to check for github workflow syntax errors
+        types: [yaml]
+        files: \.github/workflows/.*$|\.github/actions/.*$
+        require_serial: true
+        entry: zizmor
   - repo: local
     # Note that this is the 2nd "local" repo group in the .pre-commit-config.yaml file. This is because
     # we try to minimise the number of passes that must happen in order to apply some of the changes

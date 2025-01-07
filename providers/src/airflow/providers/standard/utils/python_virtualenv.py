@@ -28,6 +28,7 @@ import jinja2
 from jinja2 import select_autoescape
 
 from airflow.configuration import conf
+from airflow.sdk.definitions.templater import NativeEnvironment
 from airflow.utils.process_utils import execute_in_subprocess
 
 
@@ -196,9 +197,7 @@ def write_python_script(
     template_loader = jinja2.FileSystemLoader(searchpath=os.path.dirname(__file__))
     template_env: jinja2.Environment
     if render_template_as_native_obj:
-        template_env = jinja2.nativetypes.NativeEnvironment(
-            loader=template_loader, undefined=jinja2.StrictUndefined
-        )
+        template_env = NativeEnvironment(loader=template_loader, undefined=jinja2.StrictUndefined)
     else:
         template_env = jinja2.Environment(
             loader=template_loader,

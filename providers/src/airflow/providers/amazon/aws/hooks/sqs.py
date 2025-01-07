@@ -59,6 +59,7 @@ class SqsHook(AwsBaseHook):
         delay_seconds: int = 0,
         message_attributes: dict | None = None,
         message_group_id: str | None = None,
+        message_deduplication_id: str | None = None,
     ) -> dict:
         """
         Send message to the queue.
@@ -71,6 +72,7 @@ class SqsHook(AwsBaseHook):
         :param delay_seconds: seconds to delay the message
         :param message_attributes: additional attributes for the message (default: None)
         :param message_group_id: This applies only to FIFO (first-in-first-out) queues. (default: None)
+        :param message_deduplication_id: This applies only to FIFO (first-in-first-out) queues.
         :return: dict with the information about the message sent
         """
         params = {
@@ -81,5 +83,7 @@ class SqsHook(AwsBaseHook):
         }
         if message_group_id:
             params["MessageGroupId"] = message_group_id
+        if message_deduplication_id:
+            params["MessageDeduplicationId"] = message_deduplication_id
 
         return self.get_conn().send_message(**params)

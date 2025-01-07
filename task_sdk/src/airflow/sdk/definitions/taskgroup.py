@@ -101,11 +101,13 @@ class TaskGroup(DAGNode):
     :param ui_fgcolor: The label color of the TaskGroup node when displayed in the UI
     :param add_suffix_on_collision: If this task group name already exists,
         automatically add `__1` etc suffixes
+    :param group_display_name: If set, this will be the display name for the TaskGroup node in the UI.
     """
 
     _group_id: str | None = attrs.field(
         validator=attrs.validators.optional(attrs.validators.instance_of(str))
     )
+    group_display_name: str = attrs.field(default="", validator=attrs.validators.instance_of(str))
     prefix_group_id: bool = attrs.field(default=True)
     parent_group: TaskGroup | None = attrs.field(factory=_default_parent_group)
     dag: DAG = attrs.field(default=attrs.Factory(_default_dag, takes_self=True))
@@ -270,7 +272,7 @@ class TaskGroup(DAGNode):
     @property
     def label(self) -> str | None:
         """group_id excluding parent's group_id used as the node label in UI."""
-        return self._group_id
+        return self.group_display_name or self._group_id
 
     def update_relative(
         self,

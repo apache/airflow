@@ -18,9 +18,15 @@
 from __future__ import annotations
 
 from airflow.sdk.definitions.connection import Connection
+from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse
-from airflow.sdk.execution_time.context import ConnectionAccessor, _convert_connection_result_conn
+from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse, VariableResult
+from airflow.sdk.execution_time.context import (
+    ConnectionAccessor,
+    VariableAccessor,
+    _convert_connection_result_conn,
+    _convert_variable_result_to_variable,
+)
 
 
 def test_convert_connection_result_conn():
@@ -45,6 +51,31 @@ def test_convert_connection_result_conn():
         password="password",
         port=1234,
         extra='{"extra_key": "extra_value"}',
+    )
+
+
+def test_convert_variable_result_to_variable():
+    """Test that the VariableResult is converted to a Variable object."""
+    var = VariableResult(
+        key="test_key",
+        value="test_value",
+    )
+    var = _convert_variable_result_to_variable(var, deserialize_json=False)
+    assert var == Variable(
+        key="test_key",
+        value="test_value",
+    )
+
+
+def test_convert_variable_result_to_variable_with_deserialize_json():
+    """Test that the VariableResult is converted to a Variable object with deserialize_json set to True."""
+    var = VariableResult(
+        key="test_key",
+        value='{\r\n  "key1": "value1",\r\n  "key2": "value2",\r\n  "enabled": true,\r\n  "threshold": 42\r\n}',
+    )
+    var = _convert_variable_result_to_variable(var, deserialize_json=True)
+    assert var == Variable(
+        key="test_key", value={"key1": "value1", "key2": "value2", "enabled": True, "threshold": 42}
     )
 
 
@@ -90,3 +121,44 @@ class TestConnectionAccessor:
 
         conn = accessor.get("nonexistent_conn", default_conn=default_conn)
         assert conn == default_conn
+
+
+class TestVariableAccessor:
+    def test_getattr_variable(self, mock_supervisor_comms):
+        """
+        Test that the variable is fetched when accessed via __getattr__.
+        """
+        accessor = VariableAccessor(deserialize_json=False)
+
+        # Variable from the supervisor / API Server
+        var_result = VariableResult(key="test_key", value="test_value")
+
+        mock_supervisor_comms.get_message.return_value = var_result
+
+        # Fetch the variable; triggers __getattr__
+        var = accessor.test_key
+
+        expected_var = Variable(key="test_key", value="test_value")
+        assert var == expected_var
+
+    def test_get_method_valid_variable(self, mock_supervisor_comms):
+        """Test that the get method returns the requested variable using `var.get`."""
+        accessor = VariableAccessor(deserialize_json=False)
+        var_result = VariableResult(key="test_key", value="test_value")
+
+        mock_supervisor_comms.get_message.return_value = var_result
+
+        var = accessor.get("test_key")
+        assert var == Variable(key="test_key", value="test_value")
+
+    def test_get_method_with_default(self, mock_supervisor_comms):
+        """Test that the get method returns the default variable when the requested variable is not found."""
+
+        accessor = VariableAccessor(deserialize_json=False)
+        default_var = {"default_key": "default_value"}
+        error_response = ErrorResponse(error=ErrorType.VARIABLE_NOT_FOUND, detail={"test_key": "test_value"})
+
+        mock_supervisor_comms.get_message.return_value = error_response
+
+        var = accessor.get("nonexistent_var_key", default_var=default_var)
+        assert var == default_var

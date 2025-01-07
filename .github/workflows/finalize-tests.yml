@@ -72,6 +72,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uv to build the image (true/false)"
         required: true
         type: string
+      debug-resources:
+        description: "Whether to debug resources or not (true/false)"
+        required: true
+        type: string
 jobs:
   update-constraints:
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}

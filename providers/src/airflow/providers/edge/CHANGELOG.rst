@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+0.9.7pre0
+.........
+
+* ``Make API retries configurable via ENV. Connection loss is sustained for 5min by default.``
+* ``Align retry handling logic and tooling with Task SDK, via retryhttp.``
+
+Misc
+~~~~
+
 0.9.6pre0
 .........
 

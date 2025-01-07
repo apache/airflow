@@ -107,10 +107,10 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import LazyXComSelectSequence, XCom
 from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
+from airflow.sdk.definitions.templater import SandboxedEnvironment
 from airflow.sentry import Sentry
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
-from airflow.templates import SandboxedEnvironment
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.traces.tracer import Trace

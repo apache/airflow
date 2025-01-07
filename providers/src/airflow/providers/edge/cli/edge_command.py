@@ -23,6 +23,7 @@ import signal
 import sys
 from dataclasses import dataclass
 from datetime import datetime
+from http import HTTPStatus
 from pathlib import Path
 from subprocess import Popen
 from time import sleep
@@ -30,11 +31,11 @@ from typing import TYPE_CHECKING
 
 import psutil
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile, write_pid_to_pidfile
+from requests import HTTPError
 
 from airflow import __version__ as airflow_version, settings
 from airflow.cli.cli_config import ARG_PID, ARG_VERBOSE, ActionCommand, Arg
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.providers.edge import __version__ as edge_provider_version
 from airflow.providers.edge.cli.api_client import (
     jobs_fetch,
@@ -199,8 +200,8 @@ class _EdgeWorkerCli:
         except EdgeWorkerVersionException as e:
             logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
             raise SystemExit(str(e))
-        except AirflowException as e:
-            if "404:NOT FOUND" in str(e):
+        except HTTPError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
                 raise SystemExit("Error: API endpoint is not ready, please set [edge] api_enabled=True.")
             raise SystemExit(str(e))
         _write_pid_to_pidfile(self.pid_file_path)
