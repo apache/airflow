@@ -695,6 +695,13 @@ class TestRuntimeTaskInstance:
             extra='{"extra_key": "extra_value"}',
         )
 
+        # Try and access the extra_dejson for conn
+        dejson_from_conn = conn_from_context.extra_dejson
+        assert dejson_from_conn == {"extra_key": "extra_value"}
+
+        # Try and access inner keys of dejson
+        assert conn_from_context.extra_dejson["extra_key"] == "extra_value"
+
 
 class TestXComAfterTaskExecution:
     @pytest.mark.parametrize(

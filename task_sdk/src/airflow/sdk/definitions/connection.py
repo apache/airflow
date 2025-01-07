@@ -17,7 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import json
+from contextlib import suppress
+from json import JSONDecodeError
+
 import attrs
+import structlog
 
 
 @attrs.define
@@ -50,3 +55,32 @@ class Connection:
     def get_uri(self): ...
 
     def get_hook(self): ...
+
+    def _get_extra_dejson(self, nested: bool = False) -> dict:
+        """
+        Deserialize extra property to JSON.
+
+        :param nested: Determines whether nested structures are also deserialized into JSON (default False).
+        """
+        extra = {}
+        log = structlog.get_logger(logger_name="task")
+
+        if self.extra:
+            try:
+                if nested:
+                    for key, value in json.loads(self.extra).items():
+                        extra[key] = value
+                        if isinstance(value, str):
+                            with suppress(JSONDecodeError):
+                                extra[key] = json.loads(value)
+                else:
+                    extra = json.loads(self.extra)
+            except JSONDecodeError:
+                log.error("Failed to deserialize extra property `extra`, returning empty dictionary")
+        # Mask sensitive stuff here
+        return extra
+
+    @property
+    def extra_dejson(self) -> dict:
+        """Property to provide the deserialized version of `extra`."""
+        return self._get_extra_dejson()

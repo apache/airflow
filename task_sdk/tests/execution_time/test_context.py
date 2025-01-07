@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock, patch
+
 from airflow.sdk.definitions.connection import Connection
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse
@@ -90,3 +92,46 @@ class TestConnectionAccessor:
 
         conn = accessor.get("nonexistent_conn", default_conn=default_conn)
         assert conn == default_conn
+
+    def test_getattr_connection_for_extra_dejson(self, mock_supervisor_comms):
+        accessor = ConnectionAccessor()
+
+        # Conn from the supervisor / API Server
+        conn_result = ConnectionResult(
+            conn_id="mysql_conn",
+            conn_type="mysql",
+            host="mysql",
+            port=3306,
+            extra='{"extra_key": "extra_value"}',
+        )
+
+        mock_supervisor_comms.get_message.return_value = conn_result
+
+        # Fetch the connection's dejson; triggers __getattr__
+        dejson = accessor.mysql_conn.extra_dejson
+
+        assert dejson == {"extra_key": "extra_value"}
+
+    @patch("structlog.get_logger")
+    def test_getattr_connection_for_extra_dejson_decode_error(self, mock_get_logger, mock_supervisor_comms):
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
+
+        accessor = ConnectionAccessor()
+
+        # Conn from the supervisor / API Server
+        conn_result = ConnectionResult(
+            conn_id="mysql_conn", conn_type="mysql", host="mysql", port=3306, extra="This is not JSON!"
+        )
+
+        mock_supervisor_comms.get_message.return_value = conn_result
+
+        # Fetch the connection's dejson; triggers __getattr__
+        dejson = accessor.mysql_conn.extra_dejson
+
+        # empty in case of failed deserialising
+        assert dejson == {}
+
+        mock_logger.error.assert_called_once_with(
+            "Failed to deserialize extra property `extra`, returning empty dictionary"
+        )
