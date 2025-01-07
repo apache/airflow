@@ -167,8 +167,7 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         # and export entire data or using the point in time functionality.
         if self.point_in_time_export or self.export_time:
             return self._export_table_to_point_in_time()
-        else:
-            return self._export_entire_data()
+        return self._export_entire_data()
 
     def _export_table_to_point_in_time(self):
         """
