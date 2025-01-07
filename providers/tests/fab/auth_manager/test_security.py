@@ -36,6 +36,8 @@ from airflow.configuration import initialize_config
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.models.dag import DAG
+from airflow.providers.fab.www.auth import get_access_denied_message, has_access_dag
+from airflow.providers.fab.www.utils import CustomSQLAInterface
 
 from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
@@ -45,11 +47,9 @@ with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 
 from airflow.api_fastapi.app import get_auth_manager
+from airflow.providers.fab.www import app as application
 from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security.permissions import ACTION_CAN_READ
-from airflow.www import app as application
-from airflow.www.auth import get_access_denied_message
-from airflow.www.utils import CustomSQLAInterface
 
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
@@ -1162,8 +1162,6 @@ class TestHasAccessDagDecorator:
         fail: bool,
     ):
         with app.test_request_context() as mock_context:
-            from airflow.www.auth import has_access_dag
-
             mock_context.request.args = {"dag_id": dag_id_args} if dag_id_args else {}
             kwargs = {"dag_id": dag_id_kwargs} if dag_id_kwargs else {}
             mock_context.request.form = {"dag_id": dag_id_form} if dag_id_form else {}

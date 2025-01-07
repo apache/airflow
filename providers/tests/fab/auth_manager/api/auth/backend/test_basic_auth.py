@@ -23,7 +23,7 @@ from flask import Response
 from flask_appbuilder.const import AUTH_LDAP
 
 from airflow.providers.fab.auth_manager.api.auth.backend.basic_auth import requires_authentication
-from airflow.www import app as application
+from airflow.providers.fab.www import app as application
 
 
 @pytest.fixture

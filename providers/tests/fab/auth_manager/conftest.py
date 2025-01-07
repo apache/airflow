@@ -20,7 +20,7 @@ import os
 
 import pytest
 
-from airflow.www import app
+from airflow.providers.fab.www import app
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import parse_and_sync_to_db

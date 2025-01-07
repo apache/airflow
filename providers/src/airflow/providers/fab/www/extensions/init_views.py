@@ -18,16 +18,57 @@ from __future__ import annotations
 
 import logging
 from functools import cached_property
+from pathlib import Path
 from typing import TYPE_CHECKING
 
-from connexion import Resolver
+from connexion import FlaskApi, Resolver
 from connexion.decorators.validation import RequestBodyValidator
-from connexion.exceptions import BadRequestProblem
+from connexion.exceptions import BadRequestProblem, ProblemException
+from flask import request
+
+from airflow.api_connexion.exceptions import common_error_handler
+from airflow.api_fastapi.app import get_auth_manager
+from airflow.configuration import conf
+from airflow.providers.fab.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
+from airflow.utils.yaml import safe_load
 
 if TYPE_CHECKING:
     from flask import Flask
 
 log = logging.getLogger(__name__)
+
+# providers/src/airflow/providers/fab/www/extensions/init_views.py => airflow/
+ROOT_APP_DIR = Path(__file__).parents[7].joinpath("airflow").resolve()
+
+
+def init_appbuilder_views(app):
+    """Initialize Web UI views."""
+    from airflow.www import views
+
+    appbuilder = app.appbuilder
+
+    appbuilder.session.remove()
+    appbuilder.add_view_no_menu(views.AutocompleteView())
+    appbuilder.add_view_no_menu(views.Airflow())
+
+
+def set_cors_headers_on_response(response):
+    """Add response headers."""
+    allow_headers = conf.get("api", "access_control_allow_headers")
+    allow_methods = conf.get("api", "access_control_allow_methods")
+    allow_origins = conf.get("api", "access_control_allow_origins")
+    if allow_headers:
+        response.headers["Access-Control-Allow-Headers"] = allow_headers
+    if allow_methods:
+        response.headers["Access-Control-Allow-Methods"] = allow_methods
+    if allow_origins == "*":
+        response.headers["Access-Control-Allow-Origin"] = "*"
+    elif allow_origins:
+        allowed_origins = allow_origins.split(" ")
+        origin = request.environ.get("HTTP_ORIGIN", allowed_origins[0])
+        if origin in allowed_origins:
+            response.headers["Access-Control-Allow-Origin"] = origin
+    return response
 
 
 class _LazyResolution:
@@ -78,6 +119,59 @@ class _CustomErrorRequestBodyValidator(RequestBodyValidator):
         return super().validate_schema(data, url)
 
 
+base_paths: list[str] = []  # contains the list of base paths that have api endpoints
+
+
+def init_api_error_handlers(app: Flask) -> None:
+    """Add error handlers for 404 and 405 errors for existing API paths."""
+
+    @app.errorhandler(404)
+    def _handle_api_not_found(ex):
+        if any([request.path.startswith(p) for p in base_paths]):
+            # 404 errors are never handled on the blueprint level
+            # unless raised from a view func so actual 404 errors,
+            # i.e. "no route for it" defined, need to be handled
+            # here on the application level
+            return common_error_handler(ex)
+        else:
+            from airflow.providers.fab.www.views import not_found
+
+            return not_found(ex)
+
+    @app.errorhandler(405)
+    def _handle_method_not_allowed(ex):
+        if any([request.path.startswith(p) for p in base_paths]):
+            return common_error_handler(ex)
+        else:
+            from airflow.providers.fab.www.views import method_not_allowed
+
+            return method_not_allowed(ex)
+
+    app.register_error_handler(ProblemException, common_error_handler)
+
+
+def init_api_connexion(app: Flask) -> None:
+    """Initialize Stable API."""
+    base_path = "/api/v1"
+    base_paths.append(base_path)
+
+    with ROOT_APP_DIR.joinpath("api_connexion", "openapi", "v1.yaml").open() as f:
+        specification = safe_load(f)
+    api_bp = FlaskApi(
+        specification=specification,
+        resolver=_LazyResolver(),
+        base_path=base_path,
+        options={"swagger_ui": SWAGGER_ENABLED, "swagger_path": SWAGGER_BUNDLE.__fspath__()},
+        strict_validation=True,
+        validate_responses=True,
+        validator_map={"body": _CustomErrorRequestBodyValidator},
+    ).blueprint
+    api_bp.after_request(set_cors_headers_on_response)
+
+    app.register_blueprint(api_bp)
+    app.extensions["csrf"].exempt(api_bp)
+
+
 def init_plugins(app):
     """Integrate Flask and FAB with plugins."""
     from airflow import plugins_manager
@@ -118,3 +212,13 @@ def init_error_handlers(app: Flask):
 
     app.register_error_handler(500, views.show_traceback)
     app.register_error_handler(404, views.not_found)
+
+
+def init_api_auth_provider(app):
+    """Initialize the API offered by the auth manager."""
+    auth_mgr = get_auth_manager()
+    blueprint = auth_mgr.get_api_endpoints()
+    if blueprint:
+        base_paths.append(blueprint.url_prefix)
+        app.register_blueprint(blueprint)
+        app.extensions["csrf"].exempt(blueprint)

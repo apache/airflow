@@ -52,7 +52,7 @@ class BaseTestAuth:
 class TestEmptyCors(BaseTestAuth):
     @pytest.fixture(autouse=True, scope="class")
     def with_basic_auth_backend(self, minimal_app_for_auth_api):
-        from airflow.www.extensions.init_security import init_api_auth
+        from airflow.providers.fab.www.extensions.init_security import init_api_auth
 
         old_auth = getattr(minimal_app_for_auth_api, "api_auth")
 
@@ -80,7 +80,7 @@ class TestEmptyCors(BaseTestAuth):
 class TestCorsOrigin(BaseTestAuth):
     @pytest.fixture(autouse=True, scope="class")
     def with_basic_auth_backend(self, minimal_app_for_auth_api):
-        from airflow.www.extensions.init_security import init_api_auth
+        from airflow.providers.fab.www.extensions.init_security import init_api_auth
 
         old_auth = getattr(minimal_app_for_auth_api, "api_auth")
 
@@ -124,7 +124,7 @@ class TestCorsOrigin(BaseTestAuth):
 class TestCorsWildcard(BaseTestAuth):
     @pytest.fixture(autouse=True, scope="class")
     def with_basic_auth_backend(self, minimal_app_for_auth_api):
-        from airflow.www.extensions.init_security import init_api_auth
+        from airflow.providers.fab.www.extensions.init_security import init_api_auth
 
         old_auth = getattr(minimal_app_for_auth_api, "api_auth")
 

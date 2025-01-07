@@ -36,10 +36,10 @@ from flask_appbuilder.const import (
 )
 from flask_appbuilder.filters import TemplateFilters
 from flask_appbuilder.menu import Menu
-from flask_appbuilder.views import IndexView
+from flask_appbuilder.views import IndexView, UtilView
 
 from airflow import settings
-from airflow.api_fastapi.app import create_auth_manager
+from airflow.api_fastapi.app import create_auth_manager, get_auth_manager
 from airflow.configuration import conf
 from airflow.providers.fab.www.security_manager import AirflowSecurityManagerV2
 
@@ -76,7 +76,30 @@ def dynamic_class_import(class_path):
 
 
 class AirflowAppBuilder:
-    """This is the base class for all the framework."""
+    """
+    This is the base class for all the framework.
+
+    This is where you will register all your views
+    and create the menu structure.
+    Will hold your flask app object, all your views, and security classes.
+    Initialize your application like this for SQLAlchemy::
+        from flask import Flask
+        from flask_appbuilder import SQLA, AppBuilder
+        app = Flask(__name__)
+        app.config.from_object('config')
+        db = SQLA(app)
+        appbuilder = AppBuilder(app, db.session)
+    When using MongoEngine::
+        from flask import Flask
+        from flask_appbuilder import AppBuilder
+        from flask_appbuilder.security.mongoengine.manager import SecurityManager
+        from flask_mongoengine import MongoEngine
+        app = Flask(__name__)
+        app.config.from_object('config')
+        dbmongo = MongoEngine(app)
+        appbuilder = AppBuilder(app)
+    You can also create everything as an application factory.
+    """
 
     baseviews: list[BaseView | Session] = []
     # Flask app
@@ -158,6 +181,7 @@ class AirflowAppBuilder:
         app.config.setdefault("LANGUAGES", {"en": {"flag": "gb", "name": "English"}})
         app.config.setdefault("ADDON_MANAGERS", [])
         app.config.setdefault("RATELIMIT_ENABLED", self.auth_rate_limited)
+        app.config.setdefault("FAB_API_MAX_PAGE_SIZE", 100)
         app.config.setdefault("FAB_BASE_TEMPLATE", self.base_template)
         app.config.setdefault("FAB_STATIC_FOLDER", self.static_folder)
         app.config.setdefault("FAB_STATIC_URL_PATH", self.static_url_path)
@@ -180,6 +204,9 @@ class AirflowAppBuilder:
         else:
             self.menu = self.menu or Menu()
 
+        if self.update_perms:  # default is True, if False takes precedence from config
+            self.update_perms = app.config.get("FAB_UPDATE_PERMS", True)
+
         self._addon_managers = app.config["ADDON_MANAGERS"]
         self.session = session
         auth_manager = create_auth_manager()
@@ -195,13 +222,36 @@ class AirflowAppBuilder:
         app.before_request(self.sm.before_request)
         self._add_admin_views()
         self._add_addon_views()
+        if self.app:
+            self._add_menu_permissions()
+        else:
+            self.post_init()
         self._init_extension(app)
+        self._swap_url_filter()
 
     def _init_extension(self, app):
         app.appbuilder = self
         if not hasattr(app, "extensions"):
             app.extensions = {}
         app.extensions["appbuilder"] = self
+
+    def _swap_url_filter(self):
+        """Use our url filtering util function so there is consistency between FAB and Airflow routes."""
+        from flask_appbuilder.security import views as fab_sec_views
+
+        from airflow.www.views import get_safe_url
+
+        fab_sec_views.get_safe_redirect = get_safe_url
+
+    def post_init(self):
+        for baseview in self.baseviews:
+            # instantiate the views and add session
+            self._check_and_init(baseview)
+            # Register the views has blueprints
+            if baseview.__class__.__name__ not in self.get_app.blueprints.keys():
+                self.register_blueprint(baseview)
+            # Add missing permissions where needed
+        self.add_permissions()
 
     @property
     def get_app(self):
@@ -232,6 +282,20 @@ class AirflowAppBuilder:
         :return: String with app name
         """
         return self.get_app.config["APP_NAME"]
+
+    @property
+    def require_confirmation_dag_change(self):
+        """
+        Get the value of the require_confirmation_dag_change configuration.
+
+        The logic is:
+         - return True, in page dag.html, when user trigger/pause the dag from UI.
+           Once confirmation box will be shown before triggering the dag.
+         - Default value is False.
+
+        :return: Boolean
+        """
+        return self.get_app.config["REQUIRE_CONFIRMATION_DAG_CHANGE"]
 
     @property
     def app_theme(self):
@@ -282,6 +346,10 @@ class AirflowAppBuilder:
         """Register indexview, utilview (back function), babel views and Security views."""
         self.indexview = self._check_and_init(self.indexview)
         self.add_view_no_menu(self.indexview)
+        self.add_view_no_menu(UtilView())
+        self.bm.register_views()
+
+        get_auth_manager().register_views()
 
     def _add_addon_views(self):
         """Register declared addons."""
@@ -328,9 +396,9 @@ class AirflowAppBuilder:
         :param name:
             The string name that identifies the menu.
         :param href:
-            Override the generated link for the menu.
+            Override the generated href for the menu.
             You can use an url string or an endpoint name
-            if non provided default_view from view will be set as link.
+            if non provided default_view from view will be set as href.
         :param icon:
             Font-Awesome icon name, optional.
         :param label:
@@ -423,7 +491,7 @@ class AirflowAppBuilder:
         :param name:
             The string name that identifies the menu.
         :param href:
-            Override the generated link for the menu.
+            Override the generated href for the menu.
             You can use an url string or an endpoint name
         :param icon:
             Font-Awesome icon name, optional.
@@ -498,9 +566,49 @@ class AirflowAppBuilder:
             log.warning(LOGMSG_WAR_FAB_VIEW_EXISTS, baseview.__class__.__name__)
         return baseview
 
+    def security_cleanup(self):
+        """
+        Clean up security.
+
+        This method is useful if you have changed the name of your menus or
+        classes. Changing them leaves behind permissions that are not associated
+        with anything. You can use it always or just sometimes to perform a
+        security cleanup.
+
+        .. warning::
+
+            This deletes any permission that is no longer part of any registered
+            view or menu. Only invoke AFTER YOU HAVE REGISTERED ALL VIEWS.
+        """
+        if not hasattr(self.sm, "security_cleanup"):
+            raise NotImplementedError("The auth manager used does not support security_cleanup method.")
+        self.sm.security_cleanup(self.baseviews, self.menu)
+
+    def security_converge(self, dry=False) -> dict:
+        """
+        Migrates all permissions to the new names on all the Roles.
+
+        This method is useful when you use:
+
+        - ``class_permission_name``
+        - ``previous_class_permission_name``
+        - ``method_permission_name``
+        - ``previous_method_permission_name``
+
+        :param dry: If True will not change DB
+        :return: Dict with all computed necessary operations
+        """
+        return self.sm.security_converge(self.baseviews, self.menu, dry)
+
+    def get_url_for_login_with(self, next_url: str | None = None) -> str:
+        return get_auth_manager().get_url_login(next_url=next_url)
+
+    @property
+    def get_url_for_login(self):
+        return get_auth_manager().get_url_login()
+
     @property
     def get_url_for_index(self):
-        # TODO: Return the fast api application homepage
         return url_for(f"{self.indexview.endpoint}.{self.indexview.default_view}")
 
     def get_url_for_locale(self, lang):
@@ -512,6 +620,12 @@ class AirflowAppBuilder:
     def add_limits(self, baseview) -> None:
         if hasattr(baseview, "limits"):
             self.sm.add_limit_view(baseview)
+
+    def add_permissions(self, update_perms=False):
+        if self.update_perms or update_perms:
+            for baseview in self.baseviews:
+                self._add_permission(baseview, update_perms=update_perms)
+            self._add_menu_permissions(update_perms=update_perms)
 
     def _add_permission(self, baseview, update_perms=False):
         if self.update_perms or update_perms:

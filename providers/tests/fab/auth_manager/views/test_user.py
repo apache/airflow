@@ -19,8 +19,8 @@ from __future__ import annotations
 
 import pytest
 
+from airflow.providers.fab.www import app as application
 from airflow.providers.fab.www.security import permissions
-from airflow.www import app as application
 
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
 from providers.tests.fab.auth_manager.views import _assert_dataset_deprecation_warning

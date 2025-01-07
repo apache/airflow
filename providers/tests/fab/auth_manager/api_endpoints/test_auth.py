@@ -25,7 +25,6 @@ from tests_common.test_utils.api_connexion_utils import assert_401
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_pools
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-from tests_common.test_utils.www import client_with_login
 
 pytestmark = [
     pytest.mark.db_test,
@@ -55,7 +54,7 @@ class BaseTestAuth:
 class TestBasicAuth(BaseTestAuth):
     @pytest.fixture(autouse=True, scope="class")
     def with_basic_auth_backend(self, minimal_app_for_auth_api):
-        from airflow.www.extensions.init_security import init_api_auth
+        from airflow.providers.fab.www.extensions.init_security import init_api_auth
 
         old_auth = getattr(minimal_app_for_auth_api, "api_auth")
 
@@ -132,44 +131,3 @@ class TestBasicAuth(BaseTestAuth):
             assert response.headers["Content-Type"] == "application/problem+json"
             assert response.headers["WWW-Authenticate"] == "Basic"
             assert_401(response)
-
-
-class TestSessionWithBasicAuthFallback(BaseTestAuth):
-    @pytest.fixture(autouse=True, scope="class")
-    def with_basic_auth_backend(self, minimal_app_for_auth_api):
-        from airflow.www.extensions.init_security import init_api_auth
-
-        old_auth = getattr(minimal_app_for_auth_api, "api_auth")
-
-        try:
-            with conf_vars(
-                {
-                    (
-                        "api",
-                        "auth_backends",
-                    ): "airflow.providers.fab.auth_manager.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth"
-                }
-            ):
-                init_api_auth(minimal_app_for_auth_api)
-                yield
-        finally:
-            setattr(minimal_app_for_auth_api, "api_auth", old_auth)
-
-    def test_basic_auth_fallback(self):
-        token = "Basic " + b64encode(b"test:test").decode()
-        clear_db_pools()
-
-        # request uses session
-        admin_user = client_with_login(self.app, username="test", password="test")
-        response = admin_user.get("/api/v1/pools")
-        assert response.status_code == 200
-
-        # request uses basic auth
-        with self.app.test_client() as test_client:
-            response = test_client.get("/api/v1/pools", headers={"Authorization": token})
-            assert response.status_code == 200
-
-        # request without session or basic auth header
-        with self.app.test_client() as test_client:
-            response = test_client.get("/api/v1/pools")
-            assert response.status_code == 401

@@ -27,6 +27,7 @@ from flask import Flask, g
 from flask_appbuilder.menu import Menu
 
 from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
 
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user
 
@@ -62,7 +63,6 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_VARIABLE,
     RESOURCE_WEBSITE,
 )
-from airflow.www.extensions.init_appbuilder import init_appbuilder
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
