@@ -24,6 +24,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from http import HTTPStatus
+from multiprocessing import Process
 from pathlib import Path
 from subprocess import Popen
 from time import sleep
@@ -82,12 +83,6 @@ def force_use_internal_api_on_edge_worker():
     os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
     os.environ["AIRFLOW_ENABLE_AIP_44"] = "True"
     if "airflow" in sys.argv[0] and sys.argv[1:3] == ["edge", "worker"]:
-        if AIRFLOW_V_3_0_PLUS:
-            # Obvious TODO Make EdgeWorker compatible with Airflow 3 (again)
-            raise SystemExit(
-                "Error: EdgeWorker is currently broken on Airflow 3/main due to removal of AIP-44, rework for AIP-72."
-            )
-
         api_url = conf.get("edge", "api_url")
         if not api_url:
             raise SystemExit("Error: API URL is not configured, please correct configuration.")
@@ -138,10 +133,25 @@ class _Job:
     """Holds all information for a task/job to be executed as bundle."""
 
     edge_job: EdgeJobFetched
-    process: Popen
+    process: Popen | Process
     logfile: Path
     logsize: int
     """Last size of log file, point of last chunk push."""
+
+    @property
+    def is_running(self) -> bool:
+        """Check if the job is still running."""
+        if isinstance(self.process, Popen):
+            self.process.poll()
+            return self.process.returncode is None
+        return self.process.exitcode is None
+
+    @property
+    def is_success(self) -> bool:
+        """Check if the job was successful."""
+        if isinstance(self.process, Popen):
+            return self.process.returncode == 0
+        return self.process.exitcode == 0
 
 
 class _EdgeWorkerCli:
@@ -191,6 +201,73 @@ class _EdgeWorkerCli:
             "free_concurrency": self.free_concurrency,
         }
 
+    def _launch_job_af3(self, edge_job: EdgeJobFetched) -> tuple[Process, Path]:
+        if TYPE_CHECKING:
+            from airflow.executors.workloads import ExecuteTask
+
+        def _run_job_via_supervisor(
+            workload: ExecuteTask,
+        ) -> int:
+            from setproctitle import setproctitle
+
+            from airflow.sdk.execution_time.supervisor import supervise
+
+            # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
+            signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+            logger.info("Worker starting up pid=%d", os.getpid())
+            setproctitle(f"airflow edge worker: {workload.ti.key}")
+
+            try:
+                supervise(
+                    # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
+                    # Same like in airflow/executors/local_executor.py:_execute_work()
+                    ti=workload.ti,  # type: ignore[arg-type]
+                    dag_path=workload.dag_path,
+                    token=workload.token,
+                    server=conf.get(
+                        "workers", "execution_api_server_url", fallback="http://localhost:9091/execution/"
+                    ),
+                    log_path=workload.log_path,
+                )
+                return 0
+            except Exception as e:
+                logger.exception("Task execution failed: %s", e)
+                return 1
+
+        workload: ExecuteTask = edge_job.command
+        process = Process(
+            target=_run_job_via_supervisor,
+            kwargs={"workload": workload},
+        )
+        process.start()
+        base_log_folder = conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE")
+        if TYPE_CHECKING:
+            assert workload.log_path  # We need to assume this is defined in here
+        logfile = Path(base_log_folder, workload.log_path)
+        return process, logfile
+
+    def _launch_job_af2_10(self, edge_job: EdgeJobFetched) -> tuple[Popen, Path]:
+        """Compatibility for Airflow 2.10 Launch."""
+        env = os.environ.copy()
+        env["AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION"] = "True"
+        env["AIRFLOW__CORE__INTERNAL_API_URL"] = conf.get("edge", "api_url")
+        env["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
+        command: list[str] = edge_job.command  # type: ignore[assignment]
+        process = Popen(command, close_fds=True, env=env, start_new_session=True)
+        logfile = logs_logfile_path(edge_job.key)
+        return process, logfile
+
+    def _launch_job(self, edge_job: EdgeJobFetched):
+        """Get the received job executed."""
+        process: Popen | Process
+        if AIRFLOW_V_3_0_PLUS:
+            process, logfile = self._launch_job_af3(edge_job)
+        else:
+            # Airflow 2.10
+            process, logfile = self._launch_job_af2_10(edge_job)
+        self.jobs.append(_Job(edge_job, process, logfile, 0))
+
     def start(self):
         """Start the execution in a loop until terminated."""
         try:
@@ -239,13 +316,7 @@ class _EdgeWorkerCli:
         edge_job = jobs_fetch(self.hostname, self.queues, self.free_concurrency)
         if edge_job:
             logger.info("Received job: %s", edge_job)
-            env = os.environ.copy()
-            env["AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION"] = "True"
-            env["AIRFLOW__CORE__INTERNAL_API_URL"] = conf.get("edge", "api_url")
-            env["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
-            process = Popen(edge_job.command, close_fds=True, env=env, start_new_session=True)
-            logfile = logs_logfile_path(edge_job.key)
-            self.jobs.append(_Job(edge_job, process, logfile, 0))
+            self._launch_job(edge_job)
             jobs_set_state(edge_job.key, TaskInstanceState.RUNNING)
             return True
 
@@ -257,10 +328,9 @@ class _EdgeWorkerCli:
         used_concurrency = 0
         for i in range(len(self.jobs) - 1, -1, -1):
             job = self.jobs[i]
-            job.process.poll()
-            if job.process.returncode is not None:
+            if not job.is_running:
                 self.jobs.remove(job)
-                if job.process.returncode == 0:
+                if job.is_success:
                     logger.info("Job completed: %s", job.edge_job)
                     jobs_set_state(job.edge_job.key, TaskInstanceState.SUCCESS)
                 else:
