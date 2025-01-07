@@ -42,10 +42,9 @@ export const Graph = () => {
 
   const { openGroupIds } = useOpenGroups();
 
-  const { data: graphData = { arrange: "LR", edges: [], nodes: [] } } =
-    useStructureServiceStructureData({
-      dagId,
-    });
+  const { data: graphData = { arrange: "LR", edges: [], nodes: [] } } = useStructureServiceStructureData({
+    dagId,
+  });
 
   const { data } = useGraphLayout({
     ...graphData,

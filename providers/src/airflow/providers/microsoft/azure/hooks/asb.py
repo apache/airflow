@@ -28,6 +28,7 @@ from azure.servicebus import (
     ServiceBusSender,
 )
 from azure.servicebus.management import (
+    AuthorizationRule,
     CorrelationRuleFilter,
     QueueProperties,
     ServiceBusAdministrationClient,
@@ -193,6 +194,93 @@ class AdminClientHook(BaseAzureServiceBusHook):
 
         with self.get_conn() as service_mgmt_conn:
             service_mgmt_conn.delete_queue(queue_name)
+
+    def create_topic(
+        self,
+        topic_name: str,
+        azure_service_bus_conn_id: str = "azure_service_bus_default",
+        default_message_time_to_live: datetime.timedelta | str | None = None,
+        max_size_in_megabytes: int | None = None,
+        requires_duplicate_detection: bool | None = None,
+        duplicate_detection_history_time_window: datetime.timedelta | str | None = None,
+        enable_batched_operations: bool | None = None,
+        size_in_bytes: int | None = None,
+        filtering_messages_before_publishing: bool | None = None,
+        authorization_rules: list[AuthorizationRule] | None = None,
+        support_ordering: bool | None = None,
+        auto_delete_on_idle: datetime.timedelta | str | None = None,
+        enable_partitioning: bool | None = None,
+        enable_express: bool | None = None,
+        user_metadata: str | None = None,
+        max_message_size_in_kilobytes: int | None = None,
+    ) -> str:
+        """
+        Create a topic by connecting to service Bus Admin client.
+
+        :param topic_name: Name of the topic.
+        :param default_message_time_to_live: ISO 8601 default message time span to live value. This is
+            the duration after which the message expires, starting from when the message is sent to Service
+            Bus. This is the default value used when TimeToLive is not set on a message itself.
+            Input value of either type ~datetime.timedelta or string in ISO 8601 duration format
+            like "PT300S" is accepted.
+        :param max_size_in_megabytes: The maximum size of the topic in megabytes, which is the size of
+            memory allocated for the topic.
+        :param requires_duplicate_detection: A value indicating if this topic requires duplicate
+            detection.
+        :param duplicate_detection_history_time_window: ISO 8601 time span structure that defines the
+            duration of the duplicate detection history. The default value is 10 minutes.
+            Input value of either type ~datetime.timedelta or string in ISO 8601 duration format
+            like "PT300S" is accepted.
+        :param enable_batched_operations: Value that indicates whether server-side batched operations
+            are enabled.
+        :param size_in_bytes: The size of the topic, in bytes.
+        :param filtering_messages_before_publishing: Filter messages before publishing.
+        :param authorization_rules: List of Authorization rules for resource.
+        :param support_ordering: A value that indicates whether the topic supports ordering.
+        :param auto_delete_on_idle: ISO 8601 time span idle interval after which the topic is
+            automatically deleted. The minimum duration is 5 minutes.
+            Input value of either type ~datetime.timedelta or string in ISO 8601 duration format
+            like "PT300S" is accepted.
+        :param enable_partitioning: A value that indicates whether the topic is to be partitioned
+            across multiple message brokers.
+        :param enable_express: A value that indicates whether Express Entities are enabled. An express
+            queue holds a message in memory temporarily before writing it to persistent storage.
+        :param user_metadata: Metadata associated with the topic.
+        :param max_message_size_in_kilobytes: The maximum size in kilobytes of message payload that
+            can be accepted by the queue. This feature is only available when using a Premium namespace
+            and Service Bus API version "2021-05" or higher.
+            The minimum allowed value is 1024 while the maximum allowed value is 102400. Default value is 1024.
+        """
+        if topic_name is None:
+            raise TypeError("Topic name cannot be None.")
+
+        with self.get_conn() as service_mgmt_conn:
+            try:
+                topic_properties = service_mgmt_conn.get_topic(topic_name)
+            except ResourceNotFoundError:
+                topic_properties = None
+            if topic_properties and topic_properties.name == topic_name:
+                self.log.info("Topic name already exists")
+                return topic_properties.name
+            topic = service_mgmt_conn.create_topic(
+                topic_name=topic_name,
+                default_message_time_to_live=default_message_time_to_live,
+                max_size_in_megabytes=max_size_in_megabytes,
+                requires_duplicate_detection=requires_duplicate_detection,
+                duplicate_detection_history_time_window=duplicate_detection_history_time_window,
+                enable_batched_operations=enable_batched_operations,
+                size_in_bytes=size_in_bytes,
+                filtering_messages_before_publishing=filtering_messages_before_publishing,
+                authorization_rules=authorization_rules,
+                support_ordering=support_ordering,
+                auto_delete_on_idle=auto_delete_on_idle,
+                enable_partitioning=enable_partitioning,
+                enable_express=enable_express,
+                user_metadata=user_metadata,
+                max_message_size_in_kilobytes=max_message_size_in_kilobytes,
+            )
+            self.log.info("Created Topic %s", topic.name)
+            return topic.name
 
     def create_subscription(
         self,

@@ -20,10 +20,12 @@ from __future__ import annotations
 import copy
 import json
 import traceback
+from collections.abc import Iterable
 from typing import TYPE_CHECKING, cast
 
 from airflow.providers.common.compat.openlineage.facet import (
     ColumnLineageDatasetFacet,
+    DatasetFacet,
     ErrorMessageRunFacet,
     ExternalQueryRunFacet,
     Fields,
@@ -32,13 +34,15 @@ from airflow.providers.common.compat.openlineage.facet import (
     OutputDataset,
     OutputStatisticsOutputDatasetFacet,
     SchemaDatasetFacet,
-    SchemaDatasetFacetFields,
     SQLJobFacet,
 )
 from airflow.providers.google.cloud.openlineage.utils import (
     BIGQUERY_NAMESPACE,
     BigQueryJobRunFacet,
+    get_facets_from_bq_table,
     get_from_nullable_chain,
+    get_identity_column_lineage_facet,
+    get_namespace_name_from_source_uris,
     merge_column_lineage_facets,
 )
 
@@ -100,7 +104,7 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
             if get_from_nullable_chain(job_properties, ["status", "state"]) != "DONE":
                 raise ValueError(f"Trying to extract data from running bigquery job: `{self.job_id}`")
 
-            run_facets.update(self._get_run_facets(job_properties))
+            run_facets["bigQueryJob"] = self._get_bigquery_job_run_facet(job_properties)
 
             if get_from_nullable_chain(job_properties, ["statistics", "numChildJobs"]):
                 self.log.debug("Found SCRIPT job. Extracting lineage from child jobs instead.")  # type: ignore[attr-defined]
@@ -108,12 +112,11 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
                 # https://cloud.google.com/bigquery/docs/information-schema-jobs#multi-statement_query_job
                 for child_job_id in self._client.list_jobs(parent_job=self.job_id):
                     child_job_properties = self._client.get_job(job_id=child_job_id)._properties  # type: ignore
-                    child_inputs, child_output = self._get_inputs_and_output(child_job_properties)
+                    child_inputs, child_outputs = self._get_inputs_and_outputs(child_job_properties)
                     inputs.extend(child_inputs)
-                    outputs.append(child_output)
+                    outputs.extend(child_outputs)
             else:
-                inputs, _output = self._get_inputs_and_output(job_properties)
-                outputs.append(_output)
+                inputs, outputs = self._get_inputs_and_outputs(job_properties)
 
         except Exception as e:
             self.log.warning("Cannot retrieve job details from BigQuery.Client. %s", e, exc_info=True)  # type: ignore[attr-defined]
@@ -128,33 +131,30 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
             )
 
         return OperatorLineage(
-            inputs=inputs,
+            inputs=list(inputs),
             outputs=self._deduplicate_outputs(outputs),
             run_facets=run_facets,
             job_facets={"sql": SQLJobFacet(query=SQLParser.normalize_sql(self.sql))} if self.sql else {},
         )
 
-    def _get_run_facets(self, properties: dict) -> dict[str, RunFacet]:
-        job_type = get_from_nullable_chain(properties, ["configuration", "jobType"])
-
-        run_facets: dict[str, RunFacet] = {}
-        if job_type == "QUERY":
-            run_facets["bigQueryJob"] = self._get_bigquery_job_run_facet(properties)
-
-        return run_facets
-
-    def _get_inputs_and_output(self, properties: dict) -> tuple[list[InputDataset], OutputDataset | None]:
+    def _get_inputs_and_outputs(self, properties: dict) -> tuple[list[InputDataset], list[OutputDataset]]:
         job_type = get_from_nullable_chain(properties, ["configuration", "jobType"])
 
         if job_type == "QUERY":
-            inputs, output = self._get_inputs_and_output_for_query_job(properties)
+            inputs, outputs = self._get_inputs_and_outputs_for_query_job(properties)
+        elif job_type == "LOAD":
+            inputs, outputs = self._get_inputs_and_outputs_for_load_job(properties)
+        elif job_type == "COPY":
+            inputs, outputs = self._get_inputs_and_outputs_for_copy_job(properties)
+        elif job_type == "EXTRACT":
+            inputs, outputs = self._get_inputs_and_outputs_for_extract_job(properties)
         else:
             self.log.debug("Unsupported job type for input/output extraction: `%s`.", job_type)  # type: ignore[attr-defined]
-            inputs, output = [], None
+            inputs, outputs = [], []
 
-        return inputs, output
+        return inputs, outputs
 
-    def _deduplicate_outputs(self, outputs: list[OutputDataset | None]) -> list[OutputDataset]:
+    def _deduplicate_outputs(self, outputs: Iterable[OutputDataset | None]) -> list[OutputDataset]:
         final_outputs = {}
         for single_output in outputs:
             if not single_output:
@@ -199,92 +199,133 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
         table_name = table.get("tableId")
         dataset_name = f"{project}.{dataset}.{table_name}"
 
-        dataset_schema = self._get_table_schema_safely(dataset_name)
+        dataset_facets = self._get_table_facets_safely(dataset_name)
         if dataset_type == "input":
             # Logic specific to creating InputDataset (if needed)
             return InputDataset(
                 namespace=BIGQUERY_NAMESPACE,
                 name=dataset_name,
-                facets={
-                    "schema": dataset_schema,
-                }
-                if dataset_schema
-                else {},
+                facets=dataset_facets,
             )
         elif dataset_type == "output":
             # Logic specific to creating OutputDataset (if needed)
             return OutputDataset(
                 namespace=BIGQUERY_NAMESPACE,
                 name=dataset_name,
-                facets={
-                    "schema": dataset_schema,
-                }
-                if dataset_schema
-                else {},
+                facets=dataset_facets,
             )
         else:
             raise ValueError("Invalid dataset_type. Must be 'input' or 'output'")
 
-    def _get_table_schema_safely(self, table_name: str) -> SchemaDatasetFacet | None:
+    def _get_table_facets_safely(self, table_name: str) -> dict[str, DatasetFacet]:
         try:
-            return self._get_table_schema(table_name)
+            bq_table = self._client.get_table(table_name)
+            return get_facets_from_bq_table(bq_table)
         except Exception as e:
-            self.log.warning("Could not extract output schema from bigquery. %s", e)  # type: ignore[attr-defined]
-        return None
+            self.log.warning("Could not extract facets from bigquery table: `%s`. %s", table_name, e)  # type: ignore[attr-defined]
+        return {}
 
-    def _get_table_schema(self, table: str) -> SchemaDatasetFacet | None:
-        bq_table = self._client.get_table(table)
-
-        if not bq_table._properties:
-            return None
-
-        fields = get_from_nullable_chain(bq_table._properties, ["schema", "fields"])
-        if not fields:
-            return None
-
-        return SchemaDatasetFacet(
-            fields=[
-                SchemaDatasetFacetFields(
-                    name=field.get("name"),
-                    type=field.get("type"),
-                    description=field.get("description"),
-                )
-                for field in fields
-            ]
-        )
-
-    def _get_inputs_and_output_for_query_job(
+    def _get_inputs_and_outputs_for_query_job(
         self, properties: dict
-    ) -> tuple[list[InputDataset], OutputDataset | None]:
+    ) -> tuple[list[InputDataset], list[OutputDataset]]:
         input_tables = get_from_nullable_chain(properties, ["statistics", "query", "referencedTables"]) or []
         output_table = get_from_nullable_chain(properties, ["configuration", "query", "destinationTable"])
 
         inputs = [
-            (self._get_input_dataset(input_table))
+            self._get_input_dataset(input_table)
             for input_table in input_tables
             if input_table != output_table  # Output table is in `referencedTables` and needs to be removed
         ]
 
         if not output_table:
-            return inputs, None
+            return inputs, []
 
         output = self._get_output_dataset(output_table)
-        if dataset_stat_facet := self._get_statistics_dataset_facet(properties):
+        if dataset_stat_facet := self._get_output_statistics_dataset_facet(properties):
             output.outputFacets = output.outputFacets or {}
             output.outputFacets["outputStatistics"] = dataset_stat_facet
-        if cll_facet := self._get_column_level_lineage_facet(properties, output, inputs):
+        if cll_facet := self._get_column_level_lineage_facet_for_query_job(properties, output, inputs):
             output.facets = output.facets or {}
             output.facets["columnLineage"] = cll_facet
-        return inputs, output
+        return inputs, [output]
+
+    def _get_inputs_and_outputs_for_load_job(
+        self, properties: dict
+    ) -> tuple[list[InputDataset], list[OutputDataset]]:
+        output = self._get_output_dataset(properties["configuration"]["load"]["destinationTable"])
+        output_table_schema_facet = output.facets.get("schema") if output.facets else None
+
+        source_uris = properties["configuration"]["load"]["sourceUris"]
+        inputs = [
+            InputDataset(
+                namespace=namespace,
+                name=name,
+                facets={"schema": output_table_schema_facet} if output_table_schema_facet else {},
+            )
+            for namespace, name in get_namespace_name_from_source_uris(source_uris)
+        ]
+
+        if dataset_stat_facet := self._get_output_statistics_dataset_facet(properties):
+            output.outputFacets = output.outputFacets or {}
+            output.outputFacets["outputStatistics"] = dataset_stat_facet
+        if cll_facet := get_identity_column_lineage_facet(self._extract_column_names(output), inputs):
+            output.facets = {**output.facets, **cll_facet} if output.facets else cll_facet
+        return inputs, [output]
+
+    def _get_inputs_and_outputs_for_copy_job(
+        self, properties: dict
+    ) -> tuple[list[InputDataset], list[OutputDataset]]:
+        input_tables = get_from_nullable_chain(properties, ["configuration", "copy", "sourceTables"]) or [
+            get_from_nullable_chain(properties, ["configuration", "copy", "sourceTable"])
+        ]
+        inputs = [self._get_input_dataset(input_table) for input_table in input_tables]
+
+        output = self._get_output_dataset(properties["configuration"]["copy"]["destinationTable"])
+        if dataset_stat_facet := self._get_output_statistics_dataset_facet(properties):
+            output.outputFacets = output.outputFacets or {}
+            output.outputFacets["outputStatistics"] = dataset_stat_facet
+        if cll_facet := get_identity_column_lineage_facet(self._extract_column_names(output), inputs):
+            output.facets = {**output.facets, **cll_facet} if output.facets else cll_facet
+        return inputs, [output]
+
+    def _get_inputs_and_outputs_for_extract_job(
+        self, properties: dict
+    ) -> tuple[list[InputDataset], list[OutputDataset]]:
+        source_table = get_from_nullable_chain(properties, ["configuration", "extract", "sourceTable"])
+        input_dataset = self._get_input_dataset(source_table) if source_table else None
+
+        destination_uris = get_from_nullable_chain(
+            properties, ["configuration", "extract", "destinationUris"]
+        ) or [get_from_nullable_chain(properties, ["configuration", "extract", "destinationUri"])]
+
+        outputs = []
+        for namespace, name in get_namespace_name_from_source_uris(destination_uris):
+            output_facets = {}
+            if input_dataset:
+                input_schema = input_dataset.facets.get("schema") if input_dataset.facets else None
+                if input_schema:
+                    output_facets["schema"] = input_schema
+                if cll_facet := get_identity_column_lineage_facet(
+                    self._extract_column_names(input_dataset), [input_dataset]
+                ):
+                    output_facets = {**output_facets, **cll_facet}
+            outputs.append(OutputDataset(namespace=namespace, name=name, facets=output_facets))
+
+        inputs = [input_dataset] if input_dataset else []
+        return inputs, outputs
 
     @staticmethod
     def _get_bigquery_job_run_facet(properties: dict) -> BigQueryJobRunFacet:
-        if get_from_nullable_chain(properties, ["configuration", "query", "query"]):
-            # Exclude the query to avoid event size issues and duplicating SqlJobFacet information.
-            properties = copy.deepcopy(properties)
-            properties["configuration"]["query"].pop("query")
-        cache_hit = get_from_nullable_chain(properties, ["statistics", "query", "cacheHit"])
-        billed_bytes = get_from_nullable_chain(properties, ["statistics", "query", "totalBytesBilled"])
+        job_type = get_from_nullable_chain(properties, ["configuration", "jobType"])
+        cache_hit, billed_bytes = None, None
+        if job_type == "QUERY":
+            if get_from_nullable_chain(properties, ["configuration", "query", "query"]):
+                # Exclude the query to avoid event size issues and duplicating SqlJobFacet information.
+                properties = copy.deepcopy(properties)
+                properties["configuration"]["query"].pop("query")
+            cache_hit = get_from_nullable_chain(properties, ["statistics", "query", "cacheHit"])
+            billed_bytes = get_from_nullable_chain(properties, ["statistics", "query", "totalBytesBilled"])
+
         return BigQueryJobRunFacet(
             cached=str(cache_hit).lower() == "true",
             billedBytes=int(billed_bytes) if billed_bytes else None,
@@ -292,22 +333,32 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
         )
 
     @staticmethod
-    def _get_statistics_dataset_facet(
+    def _get_output_statistics_dataset_facet(
         properties,
     ) -> OutputStatisticsOutputDatasetFacet | None:
-        query_plan = get_from_nullable_chain(properties, chain=["statistics", "query", "queryPlan"])
-        if not query_plan:
-            return None
+        job_type = get_from_nullable_chain(properties, ["configuration", "jobType"])
+        out_rows, out_bytes = None, None
+        if job_type == "QUERY":
+            query_plan = get_from_nullable_chain(properties, chain=["statistics", "query", "queryPlan"])
+            if not query_plan:  # Without query plan there is no statistics
+                return None
+            out_stage = query_plan[-1]  # Last stage of query plan writes the data and has all the statistics
+            out_rows = out_stage.get("recordsWritten", None)
+            out_bytes = out_stage.get("shuffleOutputBytes", None)
+        elif job_type == "LOAD":
+            out_rows = get_from_nullable_chain(properties, ["statistics", "load", "outputRows"])
+            out_bytes = get_from_nullable_chain(properties, ["statistics", "load", "outputBytes"])
+        elif job_type == "COPY":
+            out_rows = get_from_nullable_chain(properties, ["statistics", "copy", "copiedRows"])
+            out_bytes = get_from_nullable_chain(properties, ["statistics", "copy", "copiedLogicalBytes"])
+        # No statistics available for EXTRACT job type
 
-        out_stage = query_plan[-1]
-        out_rows = out_stage.get("recordsWritten", None)
-        out_bytes = out_stage.get("shuffleOutputBytes", None)
         if out_bytes and out_rows:
             return OutputStatisticsOutputDatasetFacet(rowCount=int(out_rows), size=int(out_bytes))
         return None
 
-    def _get_column_level_lineage_facet(
-        self, properties: dict, output: OutputDataset, inputs: list[InputDataset]
+    def _get_column_level_lineage_facet_for_query_job(
+        self, properties: dict, output: OutputDataset, inputs: Iterable[InputDataset]
     ) -> ColumnLineageDatasetFacet | None:
         """
         Extract column-level lineage information from a BigQuery job and return it as a facet.
@@ -330,9 +381,13 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
 
         # Extract SQL query and parse it
         self.log.debug("Extracting column-level lineage facet from BigQuery query.")  # type: ignore[attr-defined]
-        query = get_from_nullable_chain(properties, ["configuration", "query", "query"]) or ""
-        parse_result = SQLParser("bigquery").parse(SQLParser.split_sql_string(SQLParser.normalize_sql(query)))
 
+        query = get_from_nullable_chain(properties, ["configuration", "query", "query"])
+        if query is None:
+            self.log.debug("No query found in BQ job configuration. Facet generation skipped.")  # type: ignore[attr-defined]
+            return None
+
+        parse_result = SQLParser("bigquery").parse(SQLParser.split_sql_string(SQLParser.normalize_sql(query)))
         if parse_result is None or parse_result.column_lineage == []:
             self.log.debug("No column-level lineage found in the SQL query. Facet generation skipped.")  # type: ignore[attr-defined]
             return None

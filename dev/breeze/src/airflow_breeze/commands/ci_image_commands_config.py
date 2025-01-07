@@ -24,6 +24,8 @@ CI_IMAGE_TOOLS_COMMANDS: dict[str, str | list[str]] = {
         "verify",
         "save",
         "load",
+        "export-mount-cache",
+        "import-mount-cache",
     ],
 }
 CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
@@ -184,9 +186,27 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-file",
                 "--github-repository",
                 "--github-token",
-                "--from-job",
                 "--from-pr",
+                "--from-run",
                 "--skip-image-file-deletion",
+            ],
+        },
+    ],
+    "breeze ci-image export-mount-cache": [
+        {
+            "name": "Export flags",
+            "options": [
+                "--cache-file",
+                "--builder",
+            ],
+        },
+    ],
+    "breeze ci-image import-mount-cache": [
+        {
+            "name": "Import flags",
+            "options": [
+                "--cache-file",
+                "--builder",
             ],
         },
     ],

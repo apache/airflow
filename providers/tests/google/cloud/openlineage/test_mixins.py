@@ -20,13 +20,15 @@ import copy
 import json
 import logging
 import os
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
+from google.cloud.bigquery.table import Table
 
 from airflow.providers.common.compat.openlineage.facet import (
     ColumnLineageDatasetFacet,
     Dataset,
+    DocumentationDatasetFacet,
     ExternalQueryRunFacet,
     Fields,
     InputDataset,
@@ -110,22 +112,12 @@ def read_common_json_file(rel: str):
         return json.load(f)
 
 
-class TableMock(MagicMock):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.inputs = [
-            read_common_json_file("table_details.json"),
-            read_common_json_file("out_table_details.json"),
-        ]
-
-    @property
-    def _properties(self):
-        return self.inputs.pop()
-
-
 class TestBigQueryOpenLineageMixin:
     def setup_method(self):
-        self.job_details = read_common_json_file("job_details.json")
+        self.copy_job_details = read_common_json_file("copy_job_details.json")
+        self.extract_job_details = read_common_json_file("extract_job_details.json")
+        self.load_job_details = read_common_json_file("load_job_details.json")
+        self.query_job_details = read_common_json_file("query_job_details.json")
         self.script_job_details = read_common_json_file("script_job_details.json")
         hook = MagicMock()
         self.client = MagicMock()
@@ -143,19 +135,22 @@ class TestBigQueryOpenLineageMixin:
 
         hook.get_client.return_value = self.client
 
-        self.client.get_table.return_value = TableMock()
-
         self.operator = BQOperator()
+        self.operator._client = self.client
 
-    def test_bq_job_information(self):
-        self.client.get_job.return_value._properties = self.job_details
+    def test_get_openlineage_facets_on_complete_query_job(self):
+        self.client.get_job.return_value._properties = self.query_job_details
+        self.client.get_table.side_effect = [
+            Table.from_api_repr(read_common_json_file("table_details.json")),
+            Table.from_api_repr(read_common_json_file("out_table_details.json")),
+        ]
 
         lineage = self.operator.get_openlineage_facets_on_complete(None)
 
-        self.job_details["configuration"]["query"].pop("query")
+        self.query_job_details["configuration"]["query"].pop("query")
         assert lineage.run_facets == {
             "bigQueryJob": BigQueryJobRunFacet(
-                cached=False, billedBytes=111149056, properties=json.dumps(self.job_details)
+                cached=False, billedBytes=111149056, properties=json.dumps(self.query_job_details)
             ),
             "externalQuery": ExternalQueryRunFacet(externalQueryId="job_id", source="bigquery"),
         }
@@ -174,7 +169,10 @@ class TestBigQueryOpenLineageMixin:
                                 "number", "INTEGER", "Number of occurrences of the name"
                             ),
                         ]
-                    )
+                    ),
+                    "documentation": DocumentationDatasetFacet(
+                        "The table contains the number of applicants for a Social Security card by year of birth and sex."
+                    ),
                 },
             )
         ]
@@ -187,13 +185,226 @@ class TestBigQueryOpenLineageMixin:
                         rowCount=20, size=321, fileCount=None
                     )
                 },
+                facets={
+                    "schema": SchemaDatasetFacet(
+                        fields=[
+                            SchemaDatasetFacetFields("name", "STRING"),
+                            SchemaDatasetFacetFields("total_people", "INTEGER"),
+                        ]
+                    ),
+                },
             ),
         ]
 
-    def test_bq_script_job_information(self):
+    def test_get_openlineage_facets_on_complete_copy_job(self):
+        self.client.get_job.return_value._properties = self.copy_job_details
+        self.client.get_table.return_value = Table.from_api_repr(read_common_json_file("table_details.json"))
+        expected_facets = {
+            "schema": SchemaDatasetFacet(
+                fields=[
+                    SchemaDatasetFacetFields("state", "STRING", "2-digit state code"),
+                    SchemaDatasetFacetFields("gender", "STRING", "Sex (M=male or F=female)"),
+                    SchemaDatasetFacetFields("year", "INTEGER", "4-digit year of birth"),
+                    SchemaDatasetFacetFields("name", "STRING", "Given name of a person at birth"),
+                    SchemaDatasetFacetFields("number", "INTEGER", "Number of occurrences of the name"),
+                ]
+            ),
+            "documentation": DocumentationDatasetFacet(
+                "The table contains the number of applicants for a Social Security card by year of birth and sex."
+            ),
+        }
+
+        lineage = self.operator.get_openlineage_facets_on_complete(None)
+
+        assert lineage.run_facets == {
+            "bigQueryJob": BigQueryJobRunFacet(
+                cached=False, billedBytes=None, properties=json.dumps(self.copy_job_details)
+            ),
+            "externalQuery": ExternalQueryRunFacet(externalQueryId="job_id", source="bigquery"),
+        }
+        assert lineage.inputs == [
+            InputDataset(
+                namespace="bigquery",
+                name="airflow-openlineage.new_dataset.copy_job_source",
+                facets=expected_facets,
+            ),
+            InputDataset(
+                namespace="bigquery",
+                name="airflow-openlineage.new_dataset.copy_job_source2",
+                facets=expected_facets,
+            ),
+        ]
+        assert lineage.outputs == [
+            OutputDataset(
+                namespace="bigquery",
+                name="airflow-openlineage.new_dataset.copy_job_result",
+                outputFacets={
+                    "outputStatistics": OutputStatisticsOutputDatasetFacet(
+                        rowCount=20, size=3800, fileCount=None
+                    )
+                },
+                facets={
+                    **expected_facets,
+                    "columnLineage": ColumnLineageDatasetFacet(
+                        fields={
+                            col: Fields(
+                                inputFields=[
+                                    InputField(
+                                        "bigquery", "airflow-openlineage.new_dataset.copy_job_source", col
+                                    ),
+                                    InputField(
+                                        "bigquery", "airflow-openlineage.new_dataset.copy_job_source2", col
+                                    ),
+                                ],
+                                transformationType="IDENTITY",
+                                transformationDescription="identical",
+                            )
+                            for col in ["state", "gender", "year", "name", "number"]
+                        }
+                    ),
+                },
+            ),
+        ]
+
+    def test_get_openlineage_facets_on_complete_load_job(self):
+        self.client.get_job.return_value._properties = self.load_job_details
+        self.client.get_table.return_value = Table.from_api_repr(
+            read_common_json_file("out_table_details.json")
+        )
+
+        lineage = self.operator.get_openlineage_facets_on_complete(None)
+
+        assert lineage.run_facets == {
+            "bigQueryJob": BigQueryJobRunFacet(
+                cached=False, billedBytes=None, properties=json.dumps(self.load_job_details)
+            ),
+            "externalQuery": ExternalQueryRunFacet(externalQueryId="job_id", source="bigquery"),
+        }
+        assert lineage.inputs == [
+            InputDataset(
+                namespace="gs://airflow-openlineage",
+                name="/",
+                facets={
+                    "schema": SchemaDatasetFacet(
+                        fields=[
+                            SchemaDatasetFacetFields("name", "STRING"),
+                            SchemaDatasetFacetFields("total_people", "INTEGER"),
+                        ]
+                    )
+                },
+            ),
+        ]
+        assert lineage.outputs == [
+            OutputDataset(
+                namespace="bigquery",
+                name="airflow-openlineage.new_dataset.job_load",
+                outputFacets={
+                    "outputStatistics": OutputStatisticsOutputDatasetFacet(
+                        rowCount=10, size=546, fileCount=None
+                    )
+                },
+                facets={
+                    "schema": SchemaDatasetFacet(
+                        fields=[
+                            SchemaDatasetFacetFields("name", "STRING"),
+                            SchemaDatasetFacetFields("total_people", "INTEGER"),
+                        ]
+                    ),
+                    "columnLineage": ColumnLineageDatasetFacet(
+                        fields={
+                            "name": Fields(
+                                inputFields=[InputField("gs://airflow-openlineage", "/", "name")],
+                                transformationType="IDENTITY",
+                                transformationDescription="identical",
+                            ),
+                            "total_people": Fields(
+                                inputFields=[InputField("gs://airflow-openlineage", "/", "total_people")],
+                                transformationType="IDENTITY",
+                                transformationDescription="identical",
+                            ),
+                        }
+                    ),
+                },
+            ),
+        ]
+
+    def test_get_openlineage_facets_on_complete_extract_job(self):
+        self.client.get_job.return_value._properties = self.extract_job_details
+        self.client.get_table.return_value = Table.from_api_repr(
+            read_common_json_file("out_table_details.json")
+        )
+
+        lineage = self.operator.get_openlineage_facets_on_complete(None)
+
+        assert lineage.run_facets == {
+            "bigQueryJob": BigQueryJobRunFacet(
+                cached=False, billedBytes=None, properties=json.dumps(self.extract_job_details)
+            ),
+            "externalQuery": ExternalQueryRunFacet(externalQueryId="job_id", source="bigquery"),
+        }
+        assert lineage.inputs == [
+            InputDataset(
+                namespace="bigquery",
+                name="airflow-openlineage.new_dataset.extract_job_source",
+                facets={
+                    "schema": SchemaDatasetFacet(
+                        fields=[
+                            SchemaDatasetFacetFields("name", "STRING"),
+                            SchemaDatasetFacetFields("total_people", "INTEGER"),
+                        ]
+                    )
+                },
+            ),
+        ]
+        assert lineage.outputs == [
+            OutputDataset(
+                namespace="gs://airflow-openlineage",
+                name="extract_job_source",
+                facets={
+                    "schema": SchemaDatasetFacet(
+                        fields=[
+                            SchemaDatasetFacetFields("name", "STRING"),
+                            SchemaDatasetFacetFields("total_people", "INTEGER"),
+                        ]
+                    ),
+                    "columnLineage": ColumnLineageDatasetFacet(
+                        fields={
+                            "name": Fields(
+                                inputFields=[
+                                    InputField(
+                                        "bigquery",
+                                        "airflow-openlineage.new_dataset.extract_job_source",
+                                        "name",
+                                    )
+                                ],
+                                transformationType="IDENTITY",
+                                transformationDescription="identical",
+                            ),
+                            "total_people": Fields(
+                                inputFields=[
+                                    InputField(
+                                        "bigquery",
+                                        "airflow-openlineage.new_dataset.extract_job_source",
+                                        "total_people",
+                                    )
+                                ],
+                                transformationType="IDENTITY",
+                                transformationDescription="identical",
+                            ),
+                        }
+                    ),
+                },
+            ),
+        ]
+
+    def test_get_openlineage_facets_on_complete_script_job(self):
         self.client.get_job.side_effect = [
             MagicMock(_properties=self.script_job_details),
-            MagicMock(_properties=self.job_details),
+            MagicMock(_properties=self.query_job_details),
+        ]
+        self.client.get_table.side_effect = [
+            Table.from_api_repr(read_common_json_file("table_details.json")),
+            Table.from_api_repr(read_common_json_file("out_table_details.json")),
         ]
         self.client.list_jobs.return_value = ["child_job_id"]
 
@@ -221,7 +432,10 @@ class TestBigQueryOpenLineageMixin:
                                 "number", "INTEGER", "Number of occurrences of the name"
                             ),
                         ]
-                    )
+                    ),
+                    "documentation": DocumentationDatasetFacet(
+                        "The table contains the number of applicants for a Social Security card by year of birth and sex."
+                    ),
                 },
             )
         ]
@@ -233,6 +447,14 @@ class TestBigQueryOpenLineageMixin:
                     "outputStatistics": OutputStatisticsOutputDatasetFacet(
                         rowCount=20, size=321, fileCount=None
                     )
+                },
+                facets={
+                    "schema": SchemaDatasetFacet(
+                        fields=[
+                            SchemaDatasetFacetFields("name", "STRING"),
+                            SchemaDatasetFacetFields("total_people", "INTEGER"),
+                        ]
+                    ),
                 },
             ),
         ]
@@ -367,11 +589,63 @@ class TestBigQueryOpenLineageMixin:
             }
         )
 
+    @patch("airflow.providers.google.cloud.openlineage.mixins.get_facets_from_bq_table")
+    def test_get_table_facets_safely(self, mock_get_facets):
+        mock_get_facets.return_value = {"some": "facets"}
+        result = self.operator._get_table_facets_safely("some_table")
+        assert result == {"some": "facets"}
+
+    @patch("airflow.providers.google.cloud.openlineage.mixins.get_facets_from_bq_table")
+    def test_get_table_facets_safely_empty_when_error(self, mock_get_facets):
+        mock_get_facets.side_effect = ValueError("Some error")
+        result = self.operator._get_table_facets_safely("some_table")
+        assert result == {}
+
+    @patch("airflow.providers.google.cloud.openlineage.mixins.get_facets_from_bq_table")
+    def test_get_dataset(self, mock_get_facets):
+        mock_get_facets.return_value = {"some": "facets"}
+        table_ref = {"projectId": "p", "datasetId": "d", "tableId": "t"}
+        input_result = self.operator._get_dataset(table_ref, "input")
+        assert input_result == InputDataset("bigquery", "p.d.t", facets={"some": "facets"})
+
+        output_result = self.operator._get_dataset(table_ref, "output")
+        assert output_result == OutputDataset("bigquery", "p.d.t", facets={"some": "facets"})
+
+        with pytest.raises(ValueError):
+            self.operator._get_dataset(table_ref, "wrong")
+
+    @patch("airflow.providers.google.cloud.openlineage.mixins.get_facets_from_bq_table")
+    def test_get_input_dataset(self, mock_get_facets):
+        mock_get_facets.return_value = {"some": "facets"}
+        table_ref = {"projectId": "p", "datasetId": "d", "tableId": "t"}
+        expected_result = self.operator._get_dataset(table_ref, "input")
+        result = self.operator._get_input_dataset(table_ref)
+        assert result == expected_result
+
+    @patch("airflow.providers.google.cloud.openlineage.mixins.get_facets_from_bq_table")
+    def test_get_output_dataset(self, mock_get_facets):
+        mock_get_facets.return_value = {"some": "facets"}
+        table_ref = {"projectId": "p", "datasetId": "d", "tableId": "t"}
+        expected_result = self.operator._get_dataset(table_ref, "output")
+        result = self.operator._get_output_dataset(table_ref)
+        assert result == expected_result
+
+    @pytest.mark.parametrize("job_type", ("LOAD", "COPY", "EXTRACT"))
+    def test_get_bigquery_job_run_facet_non_query_jobs(self, job_type):
+        properties = {
+            "statistics": {"some": "stats"},
+            "configuration": {"jobType": job_type},
+        }
+        result = self.operator._get_bigquery_job_run_facet(properties)
+        assert result.cached is False
+        assert result.billedBytes is None
+        assert result.properties == json.dumps(properties)
+
     @pytest.mark.parametrize("cache", (None, "false", False, 0))
-    def test_get_job_run_facet_no_cache_and_with_bytes(self, cache):
+    def test_get_bigquery_job_run_facet_query_no_cache_and_with_bytes(self, cache):
         properties = {
             "statistics": {"query": {"cacheHit": cache, "totalBytesBilled": 10}},
-            "configuration": {"query": {"query": "SELECT ..."}},
+            "configuration": {"query": {"query": "SELECT ..."}, "jobType": "QUERY"},
         }
         result = self.operator._get_bigquery_job_run_facet(properties)
         assert result.cached is False
@@ -380,14 +654,14 @@ class TestBigQueryOpenLineageMixin:
         assert result.properties == json.dumps(properties)
 
     @pytest.mark.parametrize("cache", ("true", True))
-    def test_get_job_run_facet_with_cache_and_no_bytes(self, cache):
+    def test_get_bigquery_job_run_facet_query_with_cache_and_no_bytes(self, cache):
         properties = {
             "statistics": {
                 "query": {
                     "cacheHit": cache,
                 }
             },
-            "configuration": {"query": {"query": "SELECT ..."}},
+            "configuration": {"query": {"query": "SELECT ..."}, "jobType": "QUERY"},
         }
         result = self.operator._get_bigquery_job_run_facet(properties)
         assert result.cached is True
@@ -395,23 +669,23 @@ class TestBigQueryOpenLineageMixin:
         properties["configuration"]["query"].pop("query")
         assert result.properties == json.dumps(properties)
 
-    def test_get_statistics_dataset_facet_no_query_plan(self):
+    def test_get_output_statistics_dataset_facet_query_no_query_plan(self):
         properties = {
             "statistics": {"query": {"totalBytesBilled": 10}},
-            "configuration": {"query": {"query": "SELECT ..."}},
+            "configuration": {"query": {"query": "SELECT ..."}, "jobType": "QUERY"},
         }
-        result = self.operator._get_statistics_dataset_facet(properties)
+        result = self.operator._get_output_statistics_dataset_facet(properties)
         assert result is None
 
-    def test_get_statistics_dataset_facet_no_stats(self):
+    def test_get_output_statistics_dataset_facet_query_no_stats(self):
         properties = {
             "statistics": {"query": {"totalBytesBilled": 10, "queryPlan": [{"test": "test"}]}},
-            "configuration": {"query": {"query": "SELECT ..."}},
+            "configuration": {"query": {"query": "SELECT ..."}, "jobType": "QUERY"},
         }
-        result = self.operator._get_statistics_dataset_facet(properties)
+        result = self.operator._get_output_statistics_dataset_facet(properties)
         assert result is None
 
-    def test_get_statistics_dataset_facet_with_stats(self):
+    def test_get_output_statistics_dataset_facet_query(self):
         properties = {
             "statistics": {
                 "query": {
@@ -419,14 +693,42 @@ class TestBigQueryOpenLineageMixin:
                     "queryPlan": [{"recordsWritten": 123, "shuffleOutputBytes": "321"}],
                 }
             },
-            "configuration": {"query": {"query": "SELECT ..."}},
+            "configuration": {"query": {"query": "SELECT ..."}, "jobType": "QUERY"},
         }
-        result = self.operator._get_statistics_dataset_facet(properties)
+        result = self.operator._get_output_statistics_dataset_facet(properties)
+        assert result.rowCount == 123
+        assert result.size == 321
+
+    def test_get_output_statistics_dataset_facet_copy(self):
+        properties = {
+            "statistics": {
+                "copy": {
+                    "copiedRows": 123,
+                    "copiedLogicalBytes": 321,
+                }
+            },
+            "configuration": {"jobType": "COPY"},
+        }
+        result = self.operator._get_output_statistics_dataset_facet(properties)
+        assert result.rowCount == 123
+        assert result.size == 321
+
+    def test_get_output_statistics_dataset_facet_load(self):
+        properties = {
+            "statistics": {
+                "load": {
+                    "outputRows": 123,
+                    "outputBytes": 321,
+                }
+            },
+            "configuration": {"jobType": "LOAD"},
+        }
+        result = self.operator._get_output_statistics_dataset_facet(properties)
         assert result.rowCount == 123
         assert result.size == 321
 
     def test_get_column_level_lineage_facet(self):
-        result = self.operator._get_column_level_lineage_facet(
+        result = self.operator._get_column_level_lineage_facet_for_query_job(
             QUERY_JOB_PROPERTIES, OUTPUT_DATASET, INPUT_DATASETS
         )
         assert result == ColumnLineageDatasetFacet(
@@ -446,15 +748,23 @@ class TestBigQueryOpenLineageMixin:
     def test_get_column_level_lineage_facet_early_exit_empty_cll_from_parser(self):
         properties = {"configuration": {"query": {"query": "SELECT 1"}}}
         assert (
-            self.operator._get_column_level_lineage_facet(properties, OUTPUT_DATASET, INPUT_DATASETS) is None
+            self.operator._get_column_level_lineage_facet_for_query_job(
+                properties, OUTPUT_DATASET, INPUT_DATASETS
+            )
+            is None
         )
-        assert self.operator._get_column_level_lineage_facet({}, OUTPUT_DATASET, INPUT_DATASETS) is None
+        assert (
+            self.operator._get_column_level_lineage_facet_for_query_job({}, OUTPUT_DATASET, INPUT_DATASETS)
+            is None
+        )
 
     def test_get_column_level_lineage_facet_early_exit_output_table_id_mismatch(self):
         output = copy.deepcopy(OUTPUT_DATASET)
         output.name = "different.name.table"
         assert (
-            self.operator._get_column_level_lineage_facet(QUERY_JOB_PROPERTIES, output, INPUT_DATASETS)
+            self.operator._get_column_level_lineage_facet_for_query_job(
+                QUERY_JOB_PROPERTIES, output, INPUT_DATASETS
+            )
             is None
         )
 
@@ -464,7 +774,9 @@ class TestBigQueryOpenLineageMixin:
             SchemaDatasetFacetFields("different_col", "STRING"),
         ]
         assert (
-            self.operator._get_column_level_lineage_facet(QUERY_JOB_PROPERTIES, output, INPUT_DATASETS)
+            self.operator._get_column_level_lineage_facet_for_query_job(
+                QUERY_JOB_PROPERTIES, output, INPUT_DATASETS
+            )
             is None
         )
 
@@ -480,7 +792,10 @@ class TestBigQueryOpenLineageMixin:
             }
         }
         assert (
-            self.operator._get_column_level_lineage_facet(properties, OUTPUT_DATASET, INPUT_DATASETS) is None
+            self.operator._get_column_level_lineage_facet_for_query_job(
+                properties, OUTPUT_DATASET, INPUT_DATASETS
+            )
+            is None
         )
 
     def test_get_column_level_lineage_facet_early_exit_wrong_parsed_input_columns(self):
@@ -495,7 +810,10 @@ class TestBigQueryOpenLineageMixin:
             }
         }
         assert (
-            self.operator._get_column_level_lineage_facet(properties, OUTPUT_DATASET, INPUT_DATASETS) is None
+            self.operator._get_column_level_lineage_facet_for_query_job(
+                properties, OUTPUT_DATASET, INPUT_DATASETS
+            )
+            is None
         )
 
     def test_get_qualified_name_from_parse_result(self):
