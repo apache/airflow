@@ -457,7 +457,7 @@ class TaskDeferralTimeout(AirflowException):
 
 
 class ResponseCheckFailedException(AirflowException):
-    """Raise when response check failed."""
+    """Raise when response check condition is not met."""
 
 
 # The try/except handling is needed after we moved all k8s classes to cncf.kubernetes provider
