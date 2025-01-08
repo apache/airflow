@@ -57,7 +57,9 @@ def mock_context(task) -> Context:
             run_id: str | None = None,
         ) -> Any:
             if map_indexes:
-                return values.get(f"{task_ids or self.task_id}_{dag_id or self.dag_id}_{key}_{map_indexes}", default)
+                return values.get(
+                    f"{task_ids or self.task_id}_{dag_id or self.dag_id}_{key}_{map_indexes}", default
+                )
             return values.get(f"{task_ids or self.task_id}_{dag_id or self.dag_id}_{key}", default)
 
         def xcom_push(self, key: str, value: Any, session: Session = NEW_SESSION, **kwargs) -> None:
