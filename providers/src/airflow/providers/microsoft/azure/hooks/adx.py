@@ -20,7 +20,7 @@ This module contains Azure Data Explorer hook.
 
 .. spelling:word-list::
 
-    KustoResponseDataSetV
+    KustoResponseDataSet
     kusto
 """
 
@@ -208,9 +208,9 @@ class AzureDataExplorerHook(BaseHook):
 
     def run_query(self, query: str, database: str, options: dict | None = None) -> KustoResponseDataSet:
         """
-        Run KQL query using provided configuration, and return `KustoResponseDataSet` instance.
+        Run KQL query using provided configuration, and return KustoResponseDataSet instance.
 
-        See: `azure.kusto.data.response.KustoResponseDataSet`
+        See: azure.kusto.data.response.KustoResponseDataSet
         If query is unsuccessful AirflowException is raised.
 
         :param query: KQL query to run
