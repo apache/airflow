@@ -539,7 +539,7 @@ export const $ClearTaskInstancesBody = {
     reset_dag_runs: {
       type: "boolean",
       title: "Reset Dag Runs",
-      default: false,
+      default: true,
     },
     task_ids: {
       anyOf: [
