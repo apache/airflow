@@ -892,7 +892,8 @@ class TestCliImportConnections(TestCliConnection):
                 self.parser.parse_args(["connections", "import", "sample.json"]),
                 cli_api_client=cli_api_client,
             )
-            stdout = stdout.getvalue()
+
+        stdout = stdout.getvalue()
         for connection_id, _ in self.expected_connections.items():
             assert f"Imported connection {connection_id}" in stdout
 
@@ -901,16 +902,51 @@ class TestCliImportConnections(TestCliConnection):
     def test_cli_connections_import_should_not_overwrite_existing_connections(
         self, mock_exists, mock_parse_secret_file, cli_api_client_maker
     ):
-        # TODO: add me back when we have overwrite ability
-        pass
+        mock_exists.return_value = True
+
+        # We're not testing the behavior of _parse_secret_file, assume it successfully reads JSON, YAML or env
+        mock_parse_secret_file.return_value = self.expected_connections
+
+        cli_api_client = cli_api_client_maker(
+            path="/public/connections/bulk",
+            response_json={"detail": {"reason": "Unique constraint violation"}},
+            expected_http_status_code=409,
+        )
+
+        with redirect_stdout(StringIO()) as stdout, pytest.raises(SystemExit):
+            connection_command.connections_import(
+                self.parser.parse_args(["connections", "import", "sample.json"]),
+                cli_api_client=cli_api_client,
+            )
+
+        stdout = stdout.getvalue()
+        assert "Unique constraint violation" in stdout
 
     @mock.patch("airflow.secrets.local_filesystem._parse_secret_file")
     @mock.patch("os.path.exists")
     def test_cli_connections_import_should_overwrite_existing_connections(
-        self, mock_exists, mock_parse_secret_file, session
+        self, mock_exists, mock_parse_secret_file, cli_api_client_maker
     ):
-        # TODO: add me back when we have overwrite ability
-        pass
+        mock_exists.return_value = True
+
+        # We're not testing the behavior of _parse_secret_file, assume it successfully reads JSON, YAML or env
+        mock_parse_secret_file.return_value = self.expected_connections
+
+        cli_api_client = cli_api_client_maker(
+            path="/public/connections/bulk",
+            response_json=self.connections.model_dump(),
+            expected_http_status_code=201,
+        )
+
+        with redirect_stdout(StringIO()) as stdout:
+            connection_command.connections_import(
+                self.parser.parse_args(["connections", "import", "sample.json", "--overwrite"]),
+                cli_api_client=cli_api_client,
+            )
+            stdout = stdout.getvalue()
+
+        for connection_id, _ in self.expected_connections.items():
+            assert f"Imported connection {connection_id}" in stdout
 
 
 class TestCliTestConnections(TestCliConnection):
@@ -987,7 +1023,19 @@ class TestCliTestConnections(TestCliConnection):
         ) in stdout.getvalue()
 
 
-class TestCliCreateDefaultConnection:
-    def test_cli_create_default_connections(self):
-        # TODO: add me back when we have implemented ability in API
-        pass
+class TestCliCreateDefaultConnection(TestCliConnection):
+    def test_cli_create_default_connections(self, cli_api_client_maker):
+        cli_api_client = cli_api_client_maker(
+            path="/public/connections/defaults",
+            response_json="",
+            expected_http_status_code=204,
+        )
+
+        with redirect_stdout(StringIO()) as stdout:
+            connection_command.create_default_connections(
+                self.parser.parse_args(["connections", "create-default-connections"]),
+                cli_api_client=cli_api_client,
+            )
+            stdout = stdout.getvalue()
+
+        assert "Default connections have been created." in stdout
