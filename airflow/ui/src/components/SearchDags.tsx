@@ -19,7 +19,7 @@
 import { Field } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AsyncSelect } from "chakra-react-select";
-import type { OptionsOrGroups, GroupBase, OnChangeValue } from "chakra-react-select";
+import type { OptionsOrGroups, GroupBase, SingleValue } from "chakra-react-select";
 import debounce from "debounce-promise";
 import React from "react";
 import { useNavigate } from "react-router-dom";
@@ -44,10 +44,8 @@ export const SearchDags = ({
   const navigate = useNavigate();
   const SEARCH_LIMIT = 10;
 
-  const onSelect = (newValue: OnChangeValue<Option, false>) => {
-    const selected = newValue as Option;
-
-    if (newValue) {
+  const onSelect = (selected: SingleValue<Option>) => {
+    if (selected) {
       setIsOpen(false);
       navigate(`/dags/${selected.value}`);
     }
@@ -63,13 +61,10 @@ export const SearchDags = ({
           dagDisplayNamePattern: inputValue,
           limit: SEARCH_LIMIT,
         }).then((data: DAGCollectionResponse) => {
-          const options = data.dags.map(
-            (dag: DAGResponse) =>
-              ({
-                label: dag.dag_display_name || dag.dag_id,
-                value: dag.dag_id,
-              }) as Option,
-          );
+          const options = data.dags.map((dag: DAGResponse) => ({
+            label: dag.dag_display_name || dag.dag_id,
+            value: dag.dag_id,
+          }));
 
           callback(options);
 
@@ -88,6 +83,7 @@ export const SearchDags = ({
       <AsyncSelect
         backspaceRemovesValue={true}
         components={{ DropdownIndicator }}
+        defaultOptions
         filterOption={undefined}
         loadOptions={searchDagDebounced}
         onChange={onSelect}
