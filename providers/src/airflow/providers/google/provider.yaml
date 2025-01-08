@@ -1185,7 +1185,9 @@ connection-types:
     connection-type: leveldb
 
 extra-links:
+  - airflow.providers.google.cloud.links.alloy_db.AlloyDBBackupsLink
   - airflow.providers.google.cloud.links.alloy_db.AlloyDBClusterLink
+  - airflow.providers.google.cloud.links.alloy_db.AlloyDBUsersLink
   - airflow.providers.google.cloud.links.dataform.DataformRepositoryLink
   - airflow.providers.google.cloud.links.dataform.DataformWorkspaceLink
   - airflow.providers.google.cloud.links.dataform.DataformWorkflowInvocationLink
