@@ -1758,7 +1758,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         """
         logical_date = timezone.coerce_datetime(logical_date)
 
-        if not isinstance(data_interval, DataInterval):
+        if data_interval and not isinstance(data_interval, DataInterval):
             data_interval = DataInterval(*map(timezone.coerce_datetime, data_interval))
 
         if isinstance(run_type, DagRunType):
