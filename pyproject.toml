@@ -926,6 +926,7 @@ members = [
 # To use:
 #
 # TODO: Automate this in CI to validate the unit tests with newly generated API endpoint datamodels for compatibility
+# The FastAPI should be running in the background to serve the OpenAPI schema
 # uv run --group codegen --project apache-airflow --directory airflow/  datamodel-codegen
 [dependency-groups]
 codegen = [
