@@ -830,16 +830,22 @@ class TestDagFileProcessorManager:
         ]
 
     def test_bundles_are_refreshed(self):
+        """
+        Ensure bundles are refreshed by the manager, when necessary.
+
+        - refresh if the bundle hasn't been refreshed in the refresh_interval
+        - when the latest_version in the db doesn't match the version this parser knows about
+        """
         config = [
             {
                 "name": "bundleone",
                 "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                "kwargs": {"local_folder": "/dev/null", "refresh_interval": 1},
+                "kwargs": {"local_folder": "/dev/null", "refresh_interval": 0},
             },
             {
                 "name": "bundletwo",
                 "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                "kwargs": {"local_folder": "/dev/null", "refresh_interval": 1},
+                "kwargs": {"local_folder": "/dev/null", "refresh_interval": 300},
             },
         ]
 
@@ -882,7 +888,7 @@ class TestDagFileProcessorManager:
             {
                 "name": "mybundle",
                 "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                "kwargs": {"local_folder": "/dev/null", "refresh_interval": 1},
+                "kwargs": {"local_folder": "/dev/null", "refresh_interval": 0},
             },
         ]
 
