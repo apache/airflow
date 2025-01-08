@@ -35,7 +35,7 @@ from providers.tests.microsoft.conftest import (
     mock_response,
 )
 from tests_common.test_utils.mock_context import mock_context
-from tests_common.test_utils.operators.run_deferable import execute_operator
+from tests_common.test_utils.operators.run_deferrable import execute_operator
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
 
 if TYPE_CHECKING:

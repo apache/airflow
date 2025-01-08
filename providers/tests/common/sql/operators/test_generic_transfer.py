@@ -32,7 +32,7 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils import timezone
 
 from tests_common.test_utils.compat import GenericTransfer
-from tests_common.test_utils.operators.run_deferable import execute_operator
+from tests_common.test_utils.operators.run_deferrable import execute_operator
 from tests_common.test_utils.providers import get_provider_min_airflow_version
 
 pytestmark = pytest.mark.db_test

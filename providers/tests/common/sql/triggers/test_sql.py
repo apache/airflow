@@ -26,7 +26,7 @@ from airflow.providers.common.sql.triggers.sql import SQLExecuteQueryTrigger
 from airflow.triggers.base import TriggerEvent
 
 from providers.tests.microsoft.azure.base import Base
-from tests_common.test_utils.operators.run_deferable import run_trigger
+from tests_common.test_utils.operators.run_deferrable import run_trigger
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS
 
 pytestmark = pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Tests for Airflow 2.8.0+ only")

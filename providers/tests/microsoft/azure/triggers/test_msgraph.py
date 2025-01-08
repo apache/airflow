@@ -40,7 +40,7 @@ from providers.tests.microsoft.conftest import (
     mock_json_response,
     mock_response,
 )
-from tests_common.test_utils.operators.run_deferable import run_trigger
+from tests_common.test_utils.operators.run_deferrable import run_trigger
 
 
 class TestMSGraphTrigger(Base):
