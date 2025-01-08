@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-07T07:54:31.555224
+# This constraints file was automatically generated on 2025-01-08T19:57:27.703483
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -93,14 +93,14 @@ alibabacloud_tea_xml==0.0.2
 aliyun-python-sdk-core==2.16.0
 aliyun-python-sdk-kms==2.16.5
 amqp==5.3.1
-analytics-python==1.4.post1
+analytics-python==1.2.9
 annotated-types==0.7.0
 ansicolors==1.1.8
 anyascii==0.3.2
 anyio==4.8.0
 apache-airflow-providers-airbyte==5.0.0
 apache-airflow-providers-alibaba==3.0.0
-apache-airflow-providers-amazon==9.1.0
+apache-airflow-providers-amazon==9.2.0
 apache-airflow-providers-apache-beam==6.0.0
 apache-airflow-providers-apache-cassandra==3.7.0
 apache-airflow-providers-apache-drill==3.0.0
@@ -122,7 +122,7 @@ apache-airflow-providers-asana==2.7.0
 apache-airflow-providers-atlassian-jira==3.0.0
 apache-airflow-providers-celery==3.9.0
 apache-airflow-providers-cloudant==4.1.0
-apache-airflow-providers-cohere==1.1.2
+apache-airflow-providers-cohere==1.4.0
 apache-airflow-providers-common-io==1.5.0
 apache-airflow-providers-common-sql==1.21.0
 apache-airflow-providers-databricks==7.0.0
@@ -137,7 +137,7 @@ apache-airflow-providers-fab==1.5.2
 apache-airflow-providers-facebook==3.7.0
 apache-airflow-providers-ftp==3.12.0
 apache-airflow-providers-github==2.8.0
-apache-airflow-providers-google==11.0.0
+apache-airflow-providers-google==12.0.0
 apache-airflow-providers-grpc==3.7.0
 apache-airflow-providers-hashicorp==4.0.0
 apache-airflow-providers-http==5.0.0
@@ -155,7 +155,7 @@ apache-airflow-providers-neo4j==3.8.0
 apache-airflow-providers-odbc==4.9.0
 apache-airflow-providers-openai==1.5.0
 apache-airflow-providers-openfaas==3.7.0
-apache-airflow-providers-openlineage==1.14.0
+apache-airflow-providers-openlineage==2.0.0
 apache-airflow-providers-opensearch==1.6.0
 apache-airflow-providers-opsgenie==5.8.0
 apache-airflow-providers-oracle==4.0.0
@@ -211,7 +211,7 @@ azure-cosmos==4.9.0
 azure-datalake-store==0.0.53
 azure-identity==1.19.0
 azure-keyvault-secrets==4.9.0
-azure-kusto-data==4.6.1
+azure-kusto-data==4.6.2
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==10.3.0
 azure-mgmt-core==1.5.0
@@ -230,7 +230,7 @@ azure-storage-file-share==12.20.0
 azure-synapse-artifacts==0.19.0
 azure-synapse-spark==0.7.0
 babel==2.16.0
-backoff==1.10.0
+backoff==2.2.1
 backports.tarfile==1.2.0
 bcrypt==4.2.1
 beautifulsoup4==4.12.3
@@ -259,11 +259,11 @@ click-repl==0.3.0
 click==8.1.8
 clickclick==20.10.2
 cloudpickle==2.2.1
-cohere==5.13.5
+cohere==4.57
 colorama==0.4.6
 colorlog==6.9.0
 comm==0.2.2
-confluent-kafka==2.7.0
+confluent-kafka==2.8.0
 connexion==2.14.2
 coverage==7.6.10
 crcmod==1.7
@@ -271,7 +271,7 @@ cron-descriptor==1.4.5
 croniter==6.0.0
 cryptography==42.0.8
 curlify==2.2.1
-databricks-sql-connector==3.7.0
+databricks-sql-connector==3.7.1
 dataclasses-json==0.6.7
 datadog==0.50.2
 db-dtypes==1.3.1
@@ -290,7 +290,7 @@ docstring_parser==0.16
 docutils==0.16
 duckdb==1.1.3
 durationpy==0.9
-elastic-transport==8.15.1
+elastic-transport==8.17.0
 elasticsearch==8.17.0
 email_validator==2.2.0
 entrypoints==0.4
@@ -324,7 +324,7 @@ google-api-python-client==2.157.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.37.0
-google-cloud-aiplatform==1.75.0
+google-cloud-aiplatform==1.76.0
 google-cloud-alloydb==0.4.1
 google-cloud-appengine-logging==1.5.0
 google-cloud-audit-log==0.3.0
@@ -403,7 +403,7 @@ idna==3.10
 ijson==3.3.0
 imagesize==1.4.1
 immutabledict==4.2.1
-importlib_metadata==8.4.0
+importlib-metadata==6.11.0
 impyla==0.19.0
 incremental==24.7.2
 inflection==0.5.1
@@ -494,7 +494,7 @@ nh3==0.2.20
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.59.3
+openai==1.59.5
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.26.0
@@ -515,7 +515,7 @@ opsgenie-sdk==2.1.5
 oracledb==2.5.1
 ordered-set==4.1.0
 orderly-set==5.2.3
-orjson==3.10.13
+orjson==3.10.14
 oss2==2.19.1
 packaging==24.2
 pandas-gbq==0.26.1

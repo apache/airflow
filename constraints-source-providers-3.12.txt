@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-07T07:47:17.098927
+# This constraints file was automatically generated on 2025-01-08T19:49:57.655471
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -98,7 +98,7 @@ azure-cosmos==4.9.0
 azure-datalake-store==0.0.53
 azure-identity==1.19.0
 azure-keyvault-secrets==4.9.0
-azure-kusto-data==4.6.1
+azure-kusto-data==4.6.2
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==10.3.0
 azure-mgmt-core==1.5.0
@@ -145,11 +145,11 @@ click-repl==0.3.0
 click==8.1.8
 clickclick==20.10.2
 cloudpickle==3.1.0
-cohere==5.13.5
+cohere==5.13.6
 colorama==0.4.6
 colorlog==6.9.0
 comm==0.2.2
-confluent-kafka==2.7.0
+confluent-kafka==2.8.0
 connexion==2.14.2
 coverage==7.6.10
 crcmod==1.7
@@ -157,7 +157,7 @@ cron-descriptor==1.4.5
 croniter==6.0.0
 cryptography==42.0.8
 curlify==2.2.1
-databricks-sql-connector==3.7.0
+databricks-sql-connector==3.7.1
 dataclasses-json==0.6.7
 datadog==0.50.2
 db-dtypes==1.3.1
@@ -176,7 +176,7 @@ docstring_parser==0.16
 docutils==0.16
 duckdb==1.1.3
 durationpy==0.9
-elastic-transport==8.15.1
+elastic-transport==8.17.0
 elasticsearch==8.17.0
 email_validator==2.2.0
 entrypoints==0.4
@@ -209,7 +209,7 @@ google-api-python-client==2.157.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.37.0
-google-cloud-aiplatform==1.75.0
+google-cloud-aiplatform==1.76.0
 google-cloud-alloydb==0.4.1
 google-cloud-appengine-logging==1.5.0
 google-cloud-audit-log==0.3.0
@@ -377,7 +377,7 @@ networkx==3.4.2
 nh3==0.2.20
 numpy==1.26.4
 oauthlib==3.2.2
-openai==1.59.3
+openai==1.59.5
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.26.0
@@ -525,7 +525,7 @@ sendgrid==6.11.0
 sentinels==1.0.0
 sentry-sdk==2.19.2
 setproctitle==1.3.4
-setuptools==75.7.0
+setuptools==75.8.0
 shapely==2.0.6
 shellingham==1.5.4
 simple-salesforce==1.12.6
