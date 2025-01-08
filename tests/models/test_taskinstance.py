@@ -26,6 +26,7 @@ import pathlib
 import pickle
 import signal
 import sys
+import time
 import urllib
 from traceback import format_exception
 from typing import cast
@@ -34,6 +35,7 @@ from unittest.mock import call, mock_open, patch
 from uuid import uuid4
 
 import pendulum
+import psutil
 import pytest
 import time_machine
 from sqlalchemy import select
@@ -83,7 +85,7 @@ from airflow.operators.python import BranchPythonOperator, PythonOperator
 from airflow.sensors.base import BaseSensorOperator
 from airflow.sensors.python import PythonSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
-from airflow.settings import TIMEZONE, TracebackSessionForTests
+from airflow.settings import TIMEZONE, TracebackSessionForTests, reconfigure_orm
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
@@ -3586,6 +3588,43 @@ class TestTaskInstance:
         assert context_arg_3
         assert "task_instance" in context_arg_3
         mock_on_retry_3.assert_not_called()
+
+    @provide_session
+    def test_handle_failure_does_not_push_stale_dagrun_model(self, dag_maker, create_dummy_dag, session=None):
+        session = settings.Session()
+        with dag_maker():
+
+            def method(): ...
+
+            task = PythonOperator(task_id="mytask", python_callable=method)
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id)
+        ti.state = State.RUNNING
+
+        assert dr.state == DagRunState.RUNNING
+
+        session.merge(ti)
+        session.flush()
+        session.commit()
+
+        pid = os.fork()
+        if pid:
+            process = psutil.Process(pid)
+            time.sleep(1)
+
+            dr.state = DagRunState.SUCCESS
+            session.merge(dr)
+            session.flush()
+            session.commit()
+            process.wait(timeout=7)
+        else:
+            reconfigure_orm(disable_connection_pool=True)
+            time.sleep(2)
+            ti.handle_failure("should not update related models")
+            os._exit(0)
+
+        dr.refresh_from_db()
+        assert dr.state == DagRunState.SUCCESS
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_handle_failure_updates_queued_task_updates_state(self, dag_maker):

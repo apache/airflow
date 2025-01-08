@@ -247,7 +247,7 @@ def _run_raw_task(
     ti.hostname = get_hostname()
     ti.pid = os.getpid()
     if not test_mode:
-        TaskInstance.save_to_db(ti=ti, session=session)
+        TaskInstance.save_to_db(ti=ti, session=session, refresh_dag=False)
     actual_start_date = timezone.utcnow()
     Stats.incr(f"ti.start.{ti.task.dag_id}.{ti.task.task_id}", tags=ti.stats_tags)
     # Same metric with tagging
@@ -1241,7 +1241,7 @@ def _handle_failure(
         )
 
     if not test_mode:
-        TaskInstance.save_to_db(failure_context["ti"], session)
+        TaskInstance.save_to_db(task_instance, session)
 
     with Trace.start_span_from_taskinstance(ti=task_instance) as span:
         # ---- error info ----
@@ -3395,7 +3395,11 @@ class TaskInstance(Base, LoggingMixin):
     @staticmethod
     @internal_api_call
     @provide_session
-    def save_to_db(ti: TaskInstance | TaskInstancePydantic, session: Session = NEW_SESSION):
+    def save_to_db(
+        ti: TaskInstance | TaskInstancePydantic, session: Session = NEW_SESSION, refresh_dag: bool = True
+    ):
+        if refresh_dag and isinstance(ti, TaskInstance):
+            ti.get_dagrun().refresh_from_db()
         ti = _coalesce_to_orm_ti(ti=ti, session=session)
         ti.updated_at = timezone.utcnow()
         session.merge(ti)
