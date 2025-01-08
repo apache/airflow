@@ -41,6 +41,9 @@ from airflow.providers.common.compat.openlineage.facet import (
     ExternalQueryRunFacet,
     Identifier,
     InputDataset,
+    LifecycleStateChange,
+    LifecycleStateChangeDatasetFacet,
+    PreviousIdentifier,
     SchemaDatasetFacet,
     SchemaDatasetFacetFields,
     SQLJobFacet,
@@ -570,6 +573,49 @@ class TestBigQueryUpdateTableOperator:
             project_id=TEST_GCP_PROJECT_ID,
         )
 
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_get_openlineage_facets_on_complete(self, mock_hook):
+        table_resource = {
+            "tableReference": {
+                "projectId": TEST_GCP_PROJECT_ID,
+                "datasetId": TEST_DATASET,
+                "tableId": TEST_TABLE_ID,
+            },
+            "description": "Table description.",
+            "schema": {
+                "fields": [
+                    {"name": "field1", "type": "STRING", "description": "field1 description"},
+                    {"name": "field2", "type": "INTEGER"},
+                ]
+            },
+        }
+        mock_hook.return_value.update_table.return_value = table_resource
+        operator = BigQueryUpdateTableOperator(
+            table_resource={},
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            table_id=TEST_TABLE_ID,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+
+        operator.execute(context=MagicMock())
+        result = operator.get_openlineage_facets_on_complete(None)
+        assert not result.run_facets
+        assert not result.job_facets
+        assert not result.inputs
+        assert len(result.outputs) == 1
+        assert result.outputs[0].namespace == BIGQUERY_NAMESPACE
+        assert result.outputs[0].name == f"{TEST_GCP_PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}"
+        assert result.outputs[0].facets == {
+            "schema": SchemaDatasetFacet(
+                fields=[
+                    SchemaDatasetFacetFields(name="field1", type="STRING", description="field1 description"),
+                    SchemaDatasetFacetFields(name="field2", type="INTEGER"),
+                ]
+            ),
+            "documentation": DocumentationDatasetFacet(description="Table description."),
+        }
+
 
 class TestBigQueryUpdateTableSchemaOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
@@ -605,6 +651,59 @@ class TestBigQueryUpdateTableSchemaOperator:
             table_id=TEST_TABLE_ID,
             project_id=TEST_GCP_PROJECT_ID,
         )
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_get_openlineage_facets_on_complete(self, mock_hook):
+        table_resource = {
+            "tableReference": {
+                "projectId": TEST_GCP_PROJECT_ID,
+                "datasetId": TEST_DATASET,
+                "tableId": TEST_TABLE_ID,
+            },
+            "description": "Table description.",
+            "schema": {
+                "fields": [
+                    {"name": "field1", "type": "STRING", "description": "field1 description"},
+                    {"name": "field2", "type": "INTEGER"},
+                ]
+            },
+        }
+        mock_hook.return_value.update_table_schema.return_value = table_resource
+        schema_field_updates = [
+            {
+                "name": "emp_name",
+                "description": "Name of employee",
+            }
+        ]
+
+        operator = BigQueryUpdateTableSchemaOperator(
+            schema_fields_updates=schema_field_updates,
+            include_policy_tags=False,
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            table_id=TEST_TABLE_ID,
+            project_id=TEST_GCP_PROJECT_ID,
+            location=TEST_DATASET_LOCATION,
+            impersonation_chain=["service-account@myproject.iam.gserviceaccount.com"],
+        )
+        operator.execute(context=MagicMock())
+
+        result = operator.get_openlineage_facets_on_complete(None)
+        assert not result.run_facets
+        assert not result.job_facets
+        assert not result.inputs
+        assert len(result.outputs) == 1
+        assert result.outputs[0].namespace == BIGQUERY_NAMESPACE
+        assert result.outputs[0].name == f"{TEST_GCP_PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}"
+        assert result.outputs[0].facets == {
+            "schema": SchemaDatasetFacet(
+                fields=[
+                    SchemaDatasetFacetFields(name="field1", type="STRING", description="field1 description"),
+                    SchemaDatasetFacetFields(name="field2", type="INTEGER"),
+                ]
+            ),
+            "documentation": DocumentationDatasetFacet(description="Table description."),
+        }
 
 
 class TestBigQueryUpdateDatasetOperator:
@@ -889,6 +988,33 @@ class TestBigQueryTableDeleteOperator:
             table_id=deletion_dataset_table, not_found_ok=ignore_if_missing
         )
 
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_get_openlineage_facets_on_complete(self, mock_hook):
+        mock_hook.return_value.project_id = "default_project_id"
+        operator = BigQueryDeleteTableOperator(
+            task_id=TASK_ID,
+            deletion_dataset_table=f"{TEST_DATASET}.{TEST_TABLE_ID}",
+            ignore_if_missing=True,
+        )
+
+        operator.execute(None)
+        result = operator.get_openlineage_facets_on_complete(None)
+        assert not result.run_facets
+        assert not result.job_facets
+        assert not result.outputs
+        assert len(result.inputs) == 1
+        assert result.inputs[0].namespace == BIGQUERY_NAMESPACE
+        assert result.inputs[0].name == f"default_project_id.{TEST_DATASET}.{TEST_TABLE_ID}"
+        assert result.inputs[0].facets == {
+            "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
+                lifecycleStateChange=LifecycleStateChange.DROP.value,
+                previousIdentifier=PreviousIdentifier(
+                    namespace=BIGQUERY_NAMESPACE,
+                    name=f"default_project_id.{TEST_DATASET}.{TEST_TABLE_ID}",
+                ),
+            )
+        }
+
 
 class TestBigQueryGetDatasetTablesOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
@@ -940,6 +1066,48 @@ class TestBigQueryUpsertTableOperator:
         mock_hook.return_value.run_table_upsert.assert_called_once_with(
             dataset_id=TEST_DATASET, project_id=TEST_GCP_PROJECT_ID, table_resource=TEST_TABLE_RESOURCES
         )
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_get_openlineage_facets_on_complete(self, mock_hook):
+        table_resource = {
+            "tableReference": {
+                "projectId": TEST_GCP_PROJECT_ID,
+                "datasetId": TEST_DATASET,
+                "tableId": TEST_TABLE_ID,
+            },
+            "description": "Table description.",
+            "schema": {
+                "fields": [
+                    {"name": "field1", "type": "STRING", "description": "field1 description"},
+                    {"name": "field2", "type": "INTEGER"},
+                ]
+            },
+        }
+        mock_hook.return_value.run_table_upsert.return_value = table_resource
+        operator = BigQueryUpsertTableOperator(
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            table_resource=TEST_TABLE_RESOURCES,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+        operator.execute(context=MagicMock())
+
+        result = operator.get_openlineage_facets_on_complete(None)
+        assert not result.run_facets
+        assert not result.job_facets
+        assert not result.inputs
+        assert len(result.outputs) == 1
+        assert result.outputs[0].namespace == BIGQUERY_NAMESPACE
+        assert result.outputs[0].name == f"{TEST_GCP_PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}"
+        assert result.outputs[0].facets == {
+            "schema": SchemaDatasetFacet(
+                fields=[
+                    SchemaDatasetFacetFields(name="field1", type="STRING", description="field1 description"),
+                    SchemaDatasetFacetFields(name="field2", type="INTEGER"),
+                ]
+            ),
+            "documentation": DocumentationDatasetFacet(description="Table description."),
+        }
 
 
 class TestBigQueryInsertJobOperator:

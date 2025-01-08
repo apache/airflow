@@ -50,7 +50,6 @@ const TaskInstanceTooltip = ({ children, taskInstance }: Props) => (
       },
       placement: "bottom-start",
     }}
-    showArrow
   >
     {children}
   </Tooltip>
