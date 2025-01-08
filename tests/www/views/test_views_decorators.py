@@ -62,6 +62,7 @@ def xcom_dag(dagbag):
 def dagruns(bash_dag, xcom_dag):
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     bash_dagrun = bash_dag.create_dagrun(
+        run_id="test_bash",
         run_type=DagRunType.SCHEDULED,
         logical_date=EXAMPLE_DAG_DEFAULT_DATE,
         data_interval=(EXAMPLE_DAG_DEFAULT_DATE, EXAMPLE_DAG_DEFAULT_DATE),
@@ -71,6 +72,7 @@ def dagruns(bash_dag, xcom_dag):
     )
 
     xcom_dagrun = xcom_dag.create_dagrun(
+        run_id="test_xcom",
         run_type=DagRunType.SCHEDULED,
         logical_date=EXAMPLE_DAG_DEFAULT_DATE,
         data_interval=(EXAMPLE_DAG_DEFAULT_DATE, EXAMPLE_DAG_DEFAULT_DATE),
