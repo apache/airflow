@@ -226,9 +226,7 @@ export const DagsList = () => {
           <Heading py={3} size="md">
             {pluralize("Dag", data.total_entries)}
           </Heading>
-          {display === "card" ? (
-            <SortSelect handleSortChange={handleSortChange} orderBy={orderBy} />
-          ) : undefined}
+          <SortSelect handleSortChange={handleSortChange} orderBy={orderBy} />
         </HStack>
       </VStack>
       <ToggleTableDisplay display={display} setDisplay={setDisplay} />
