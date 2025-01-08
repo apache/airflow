@@ -21,9 +21,9 @@ from typing import NamedTuple
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
-from airflow.api_connexion.parameters import validate_istimezone
 from airflow.providers.fab.auth_manager.models import User
 from airflow.providers.fab.auth_manager.schemas.role_and_permission_schema import RoleSchema
+from airflow.providers.fab.www.api_connexion.parameters import validate_istimezone
 
 
 class UserCollectionItemSchema(SQLAlchemySchema):
