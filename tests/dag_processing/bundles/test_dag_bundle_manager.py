@@ -30,6 +30,7 @@ from airflow.exceptions import AirflowConfigException
 from airflow.models.dagbundle import DagBundleModel
 from airflow.utils.session import create_session
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dag_bundles
 
 
@@ -156,3 +157,13 @@ def test_sync_bundles_to_db(clear_db):
         manager = DagBundlesManager()
         manager.sync_bundles_to_db()
     assert _get_bundle_names_and_active() == [("dags-folder", False), ("my-test-bundle", True)]
+
+
+@conf_vars({("dag_bundles", "backends"): json.dumps(BASIC_BUNDLE_CONFIG)})
+@pytest.mark.parametrize("version", [None, "hello"])
+def test_view_url(version):
+    """Test that view_url calls the bundle's view_url method."""
+    bundle_manager = DagBundlesManager()
+    with patch.object(BaseDagBundle, "view_url") as view_url_mock:
+        bundle_manager.view_url("my-test-bundle", version=version)
+    view_url_mock.assert_called_once_with(version=version)

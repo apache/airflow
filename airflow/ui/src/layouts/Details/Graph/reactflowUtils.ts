@@ -19,20 +19,22 @@
 import type { Node as FlowNodeType, Edge as FlowEdgeType } from "@xyflow/react";
 import type { ElkExtendedEdge } from "elkjs";
 
-import type { NodeResponse } from "openapi/requests/types.gen";
+import type { GridTaskInstanceSummary, NodeResponse } from "openapi/requests/types.gen";
 
 import type { LayoutNode } from "./useGraphLayout";
 
 export type CustomNodeProps = {
   childCount?: number;
+  depth?: number;
   height?: number;
-  isActive?: boolean;
   isGroup?: boolean;
   isMapped?: boolean;
   isOpen?: boolean;
+  isSelected?: boolean;
   label: string;
   operator?: string | null;
   setupTeardownType?: NodeResponse["setup_teardown_type"];
+  taskInstance?: GridTaskInstanceSummary;
   type: string;
   width?: number;
 };
@@ -41,12 +43,14 @@ type NodeType = FlowNodeType<CustomNodeProps>;
 
 type FlattenNodesProps = {
   children?: Array<LayoutNode>;
+  level?: number;
   parent?: NodeType;
 };
 
 // Generate a flattened list of nodes for react-flow to render
 export const flattenGraph = ({
   children,
+  level = 0,
   parent,
 }: FlattenNodesProps): {
   edges: Array<ElkExtendedEdge>;
@@ -64,7 +68,7 @@ export const flattenGraph = ({
     const x = (parent?.position.x ?? 0) + (node.x ?? 0);
     const y = (parent?.position.y ?? 0) + (node.y ?? 0);
     const newNode = {
-      data: node,
+      data: { ...node, depth: level },
       id: node.id,
       position: {
         x,
@@ -107,6 +111,7 @@ export const flattenGraph = ({
     if (node.children) {
       const { edges: childEdges, nodes: childNodes } = flattenGraph({
         children: node.children as Array<LayoutNode>,
+        level: level + 1,
         parent: newNode,
       });
 

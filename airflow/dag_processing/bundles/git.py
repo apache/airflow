@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
 from git import Repo
 from git.exc import BadName
@@ -126,3 +127,31 @@ class GitDagBundle(BaseDagBundle):
 
         self.bare_repo.remotes.origin.fetch("+refs/heads/*:refs/heads/*")
         self.repo.remotes.origin.pull()
+
+    def _convert_git_ssh_url_to_https(self) -> str:
+        if not self.repo_url.startswith("git@"):
+            raise ValueError(f"Invalid git SSH URL: {self.repo_url}")
+        parts = self.repo_url.split(":")
+        domain = parts[0].replace("git@", "https://")
+        repo_path = parts[1].replace(".git", "")
+        return f"{domain}/{repo_path}"
+
+    def view_url(self, version: str | None = None) -> str | None:
+        if not version:
+            return None
+        url = self.repo_url
+        if url.startswith("git@"):
+            url = self._convert_git_ssh_url_to_https()
+        parsed_url = urlparse(url)
+        host = parsed_url.hostname
+        if not host:
+            return None
+        host_patterns = {
+            "github.com": f"{url}/tree/{version}",
+            "gitlab.com": f"{url}/-/tree/{version}",
+            "bitbucket.org": f"{url}/src/{version}",
+        }
+        for allowed_host, template in host_patterns.items():
+            if host == allowed_host or host.endswith(f".{allowed_host}"):
+                return template
+        return None
