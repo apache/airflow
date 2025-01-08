@@ -2789,6 +2789,23 @@ export const useConnectionServiceTestConnection = <
     ...options,
   });
 /**
+ * Create Default Connections
+ * Create default connections.
+ * @returns void Successful Response
+ * @throws ApiError
+ */
+export const useConnectionServiceCreateDefaultConnections = <
+  TData = Common.ConnectionServiceCreateDefaultConnectionsMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<UseMutationOptions<TData, TError, void, TContext>, "mutationFn">,
+) =>
+  useMutation<TData, TError, void, TContext>({
+    mutationFn: () => ConnectionService.createDefaultConnections() as unknown as Promise<TData>,
+    ...options,
+  });
+/**
  * Clear Dag Run
  * @param data The data for the request.
  * @param data.dagId

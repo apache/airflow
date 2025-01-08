@@ -1631,6 +1631,8 @@ export type TestConnectionData = {
 
 export type TestConnectionResponse = ConnectionTestResponse;
 
+export type CreateDefaultConnectionsResponse = void;
+
 export type GetDagRunData = {
   dagId: string;
   dagRunId: string;
@@ -3041,6 +3043,24 @@ export type $OpenApiTs = {
          * Validation Error
          */
         422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/connections/defaults": {
+    post: {
+      res: {
+        /**
+         * Successful Response
+         */
+        204: void;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
       };
     };
   };

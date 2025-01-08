@@ -1045,3 +1045,16 @@ class TestConnection(TestConnectionEndpoint):
             "detail": "Testing connections is disabled in Airflow configuration. "
             "Contact your deployment admin to enable it."
         }
+
+
+class TestCreateDefaultConnections(TestConnectionEndpoint):
+    def test_should_respond_204(self, test_client):
+        response = test_client.post("/public/connections/defaults")
+        assert response.status_code == 204
+        assert response.content == b""
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.connections.db_create_default_connections")
+    def test_should_call_db_create_default_connections(self, mock_db_create_default_connections, test_client):
+        response = test_client.post("/public/connections/defaults")
+        assert response.status_code == 204
+        mock_db_create_default_connections.assert_called_once()
