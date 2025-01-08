@@ -21,6 +21,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AsyncSelect } from "chakra-react-select";
 import type { OptionsOrGroups, GroupBase, OnChangeValue } from "chakra-react-select";
 import debounce from "debounce-promise";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 
 import { UseDagServiceGetDagsKeyFn } from "openapi/queries";
@@ -34,7 +35,11 @@ export type Option = {
   value: string;
 };
 
-export const SearchDags = () => {
+export const SearchDags = ({
+  setIsOpen,
+}: {
+  readonly setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
+}) => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const SEARCH_LIMIT = 10;
@@ -43,6 +48,7 @@ export const SearchDags = () => {
     const selected = newValue as Option;
 
     if (newValue) {
+      setIsOpen(false);
       navigate(`/dags/${selected.value}`);
     }
   };
@@ -78,7 +84,7 @@ export const SearchDags = () => {
   const searchDagDebounced = debounce(searchDag, 300);
 
   return (
-    <Field.Root width={400}>
+    <Field.Root>
       <AsyncSelect
         backspaceRemovesValue={true}
         components={{ DropdownIndicator }}

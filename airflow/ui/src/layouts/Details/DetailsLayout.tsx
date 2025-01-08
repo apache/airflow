@@ -23,7 +23,7 @@ import { Outlet, Link as RouterLink, useParams, useSearchParams } from "react-ro
 
 import type { DAGResponse } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { SearchDags } from "src/components/SearchDags";
+import { SearchDagsButton } from "src/components/SearchDagsButton";
 import { ProgressBar } from "src/components/ui";
 import { Toaster } from "src/components/ui";
 import { OpenGroupsProvider } from "src/context/openGroups";
@@ -61,7 +61,7 @@ export const DetailsLayout = ({ children, dag, error, isLoading, tabs }: Props) 
               Back to all dags
             </RouterLink>
           </Button>
-          <SearchDags />
+          <SearchDagsButton />
         </HStack>
         <Toaster />
         {children}
