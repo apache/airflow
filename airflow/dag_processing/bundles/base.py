@@ -82,3 +82,11 @@ class BaseDagBundle(ABC):
     @abstractmethod
     def refresh(self) -> None:
         """Retrieve the latest version of the files in the bundle."""
+
+    def view_url(self, version: str | None = None) -> str | None:
+        """
+        URL to view the bundle.
+
+        :param version: Version to view
+        :return: URL to view the bundle
+        """
