@@ -38,6 +38,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.configuration import conf
 from airflow.models import Connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
+from airflow.utils.db import create_default_connections as db_create_default_connections
 from airflow.utils.strings import get_random_string
 
 connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
@@ -262,3 +263,14 @@ def test_connection(
         return ConnectionTestResponse.model_validate({"status": test_status, "message": test_message})
     finally:
         os.environ.pop(conn_env_var, None)
+
+
+@connections_router.post(
+    "/defaults",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def create_default_connections(
+    session: SessionDep,
+):
+    """Create default connections."""
+    db_create_default_connections(session)

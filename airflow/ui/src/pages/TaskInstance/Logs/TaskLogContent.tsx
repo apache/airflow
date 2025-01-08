@@ -16,19 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
-import type { NodeProps, Node as NodeType } from "@xyflow/react";
+import { Box, Code, Skeleton, VStack } from "@chakra-ui/react";
+import type { ReactNode } from "react";
 
-import { NodeWrapper } from "./NodeWrapper";
-import type { CustomNodeProps } from "./reactflowUtils";
+import { ErrorAlert } from "src/components/ErrorAlert";
+import { ProgressBar } from "src/components/ui";
 
-export const JoinNode = ({ data }: NodeProps<NodeType<CustomNodeProps, "join">>) => (
-  <NodeWrapper>
-    <Box
-      bg="border.inverted"
-      borderRadius={`${data.width}px`}
-      height={`${data.height}px`}
-      width={`${data.width}px`}
-    />
-  </NodeWrapper>
+type Props = {
+  readonly error: unknown;
+  readonly isLoading: boolean;
+  readonly logError: unknown;
+  readonly parsedLogs: ReactNode;
+  readonly wrap: boolean;
+};
+
+export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }: Props) => (
+  <Box>
+    <ErrorAlert error={error ?? logError} />
+    <Skeleton />
+    <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
+    <Code overflow="auto" py={3} textWrap={wrap ? "pre" : "nowrap"}>
+      <VStack alignItems="flex-start">{parsedLogs}</VStack>
+    </Code>
+  </Box>
 );

@@ -16,19 +16,5 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
-import type { NodeProps, Node as NodeType } from "@xyflow/react";
 
-import { NodeWrapper } from "./NodeWrapper";
-import type { CustomNodeProps } from "./reactflowUtils";
-
-export const JoinNode = ({ data }: NodeProps<NodeType<CustomNodeProps, "join">>) => (
-  <NodeWrapper>
-    <Box
-      bg="border.inverted"
-      borderRadius={`${data.width}px`}
-      height={`${data.height}px`}
-      width={`${data.width}px`}
-    />
-  </NodeWrapper>
-);
+export * from "./Logs";

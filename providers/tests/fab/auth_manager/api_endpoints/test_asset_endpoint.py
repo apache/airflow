@@ -21,7 +21,7 @@ from collections.abc import Generator
 import pytest
 import time_machine
 
-from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
+from airflow.providers.fab.www.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.security import permissions
 from airflow.utils import timezone
 
