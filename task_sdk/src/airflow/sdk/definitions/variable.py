@@ -23,7 +23,6 @@ import attrs
 
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.context import _get_variable
-from airflow.sdk.types import NOTSET
 
 
 @attrs.define
@@ -43,7 +42,7 @@ class Variable:
     description: str | None = None
 
     @classmethod
-    def get(cls, key: str, default: Any = NOTSET) -> Any:
+    def get(cls, key: str, default: Any = None) -> Any:
         try:
             return _get_variable(key).value
         except AirflowRuntimeError as e:
