@@ -91,6 +91,7 @@ operators:
   - integration-name: Common SQL
     python-modules:
       - airflow.providers.common.sql.operators.sql
+      - airflow.providers.common.sql.operators.generic_transfer
 
 dialects:
   - dialect-type: default
