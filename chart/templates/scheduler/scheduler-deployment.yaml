@@ -264,6 +264,7 @@ spec:
           {{- if .Values.scheduler.logGroomerSidecar.args }}
           args: {{- tpl (toYaml .Values.scheduler.logGroomerSidecar.args) . | nindent 12 }}
           {{- end }}
+          envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           {{- if .Values.scheduler.logGroomerSidecar.retentionDays }}
           env:
             - name: AIRFLOW__LOG_RETENTION_DAYS
