@@ -28,6 +28,7 @@ from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.security import requires_access_custom_view
 from airflow.api_fastapi.app import get_auth_manager
+from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 from airflow.providers.fab.auth_manager.models import Action, Role
 from airflow.providers.fab.auth_manager.schemas.role_and_permission_schema import (
     ActionCollection,
@@ -36,11 +37,11 @@ from airflow.providers.fab.auth_manager.schemas.role_and_permission_schema impor
     role_collection_schema,
     role_schema,
 )
-from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.security import permissions
 
 if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse, UpdateMask
+    from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
 
 def _check_action_and_resource(sm: FabAirflowSecurityManagerOverride, perms: list[tuple[str, str]]) -> None:
@@ -59,7 +60,7 @@ def _check_action_and_resource(sm: FabAirflowSecurityManagerOverride, perms: lis
 @requires_access_custom_view("GET", permissions.RESOURCE_ROLE)
 def get_role(*, role_name: str) -> APIResponse:
     """Get role."""
-    security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
+    security_manager = cast(FabAuthManager, get_auth_manager()).security_manager
     role = security_manager.find_role(name=role_name)
     if not role:
         raise NotFound(title="Role not found", detail=f"Role with name {role_name!r} was not found")
@@ -70,7 +71,7 @@ def get_role(*, role_name: str) -> APIResponse:
 @format_parameters({"limit": check_limit})
 def get_roles(*, order_by: str = "name", limit: int, offset: int | None = None) -> APIResponse:
     """Get roles."""
-    security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
+    security_manager = cast(FabAuthManager, get_auth_manager()).security_manager
     session = security_manager.get_session
     total_entries = session.scalars(select(func.count(Role.id))).one()
     direction = desc if order_by.startswith("-") else asc
@@ -98,7 +99,7 @@ def get_roles(*, order_by: str = "name", limit: int, offset: int | None = None) 
 @format_parameters({"limit": check_limit})
 def get_permissions(*, limit: int, offset: int | None = None) -> APIResponse:
     """Get permissions."""
-    security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
+    security_manager = cast(FabAuthManager, get_auth_manager()).security_manager
     session = security_manager.get_session
     total_entries = session.scalars(select(func.count(Action.id))).one()
     query = select(Action)
@@ -109,7 +110,7 @@ def get_permissions(*, limit: int, offset: int | None = None) -> APIResponse:
 @requires_access_custom_view("DELETE", permissions.RESOURCE_ROLE)
 def delete_role(*, role_name: str) -> APIResponse:
     """Delete a role."""
-    security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
+    security_manager = cast(FabAuthManager, get_auth_manager()).security_manager
 
     role = security_manager.find_role(name=role_name)
     if not role:
@@ -121,7 +122,7 @@ def delete_role(*, role_name: str) -> APIResponse:
 @requires_access_custom_view("PUT", permissions.RESOURCE_ROLE)
 def patch_role(*, role_name: str, update_mask: UpdateMask = None) -> APIResponse:
     """Update a role."""
-    security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
+    security_manager = cast(FabAuthManager, get_auth_manager()).security_manager
     body = request.json
     try:
         data = role_schema.load(body)
@@ -154,7 +155,7 @@ def patch_role(*, role_name: str, update_mask: UpdateMask = None) -> APIResponse
 @requires_access_custom_view("POST", permissions.RESOURCE_ROLE)
 def post_role() -> APIResponse:
     """Create a new role."""
-    security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
+    security_manager = cast(FabAuthManager, get_auth_manager()).security_manager
     body = request.json
     try:
         data = role_schema.load(body)

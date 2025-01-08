@@ -23,8 +23,8 @@ import pytest
 import airflow
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
-from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
-from airflow.www.session import AirflowDatabaseSessionInterface
+from airflow.providers.fab.www.extensions.init_appbuilder import AirflowAppBuilder
+from airflow.providers.fab.www.session import AirflowDatabaseSessionInterface
 
 from tests_common.test_utils.compat import ignore_provider_compatibility_error
 from tests_common.test_utils.config import conf_vars

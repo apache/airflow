@@ -27,6 +27,12 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.api_fastapi.common.db.common import SessionDep
     from airflow.api_fastapi.common.router import AirflowRouter
     from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+
+    # In Airflow 3 with AIP-72 we get workload addressed by ExecuteTask
+    from airflow.executors.workloads import ExecuteTask
+
+    def parse_command(command: str) -> ExecuteTask:
+        return ExecuteTask.model_validate_json(command)
 else:
     # Mock the external dependnecies
     from typing import Callable
@@ -118,3 +124,12 @@ else:
                 return func
 
             return decorator
+
+    # In Airflow 3 with AIP-72 we get workload addressed by ExecuteTask
+    # But in Airflow 2.10 it is a command line array
+    ExecuteTask = list[str]  # type: ignore[no-redef,assignment,misc]
+
+    def parse_command(command: str) -> ExecuteTask:
+        from ast import literal_eval
+
+        return literal_eval(command)
