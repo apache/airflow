@@ -23,12 +23,12 @@ from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
 
 import tenacity
-
 from airflow.providers.microsoft.azure.hooks.powerbi import (
     PowerBIDatasetRefreshException,
     PowerBIDatasetRefreshStatus,
     PowerBIHook,
 )
+
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
@@ -115,8 +115,8 @@ class PowerBITrigger(BaseTrigger):
             reraise=True,
             retry=tenacity.retry_if_exception_type(PowerBIDatasetRefreshException),
         )
-        async def fetch_refresh_status() -> str:
-            """Fetch the current status of the dataset refresh."""
+        async def fetch_refresh_status_and_error() -> tuple[str, str]:
+            """Fetch the current status and error of the dataset refresh."""
             refresh_details = await self.hook.get_refresh_details_by_refresh_id(
                 dataset_id=self.dataset_id,
                 group_id=self.group_id,
