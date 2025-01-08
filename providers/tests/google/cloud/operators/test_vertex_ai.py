@@ -1533,6 +1533,7 @@ class TestVertexAICreateAutoMLForecastingTrainingJobOperator:
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
             parent_model=VERSIONED_TEST_PARENT_MODEL,
+            holiday_regions=TEST_TRAINING_DATA_HOLIDAY_REGIONS,
         )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.return_value.create_auto_ml_forecasting_training_job.assert_called_once_with(
