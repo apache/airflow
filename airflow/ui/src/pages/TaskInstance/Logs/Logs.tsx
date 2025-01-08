@@ -16,16 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Code, HStack, Skeleton, VStack } from "@chakra-ui/react";
+import { Box, Heading } from "@chakra-ui/react";
 import { useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
-import { ErrorAlert } from "src/components/ErrorAlert";
-import { TaskTrySelect } from "src/components/TaskTrySelect";
-import { Button, ProgressBar } from "src/components/ui";
+import { Dialog } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig";
 import { useLogs } from "src/queries/useLogs";
+
+import { TaskLogContent } from "./TaskLogContent";
+import { TaskLogHeader } from "./TaskLogHeader";
 
 export const Logs = () => {
   const { dagId = "", runId = "", taskId = "" } = useParams();
@@ -60,8 +61,14 @@ export const Logs = () => {
   const defaultWrap = Boolean(useConfig("default_wrap"));
 
   const [wrap, setWrap] = useState(defaultWrap);
+  const [fullscreen, setFullscreen] = useState(false);
 
   const toggleWrap = () => setWrap(!wrap);
+  const toggleFullscreen = () => setFullscreen(!fullscreen);
+
+  const onOpenChange = () => {
+    setFullscreen(false);
+  };
 
   const {
     data,
@@ -77,26 +84,49 @@ export const Logs = () => {
 
   return (
     <Box p={2}>
-      <HStack justifyContent="space-between" mb={2}>
-        {taskInstance === undefined || tryNumber === undefined || taskInstance.try_number <= 1 ? (
-          <div />
-        ) : (
-          <TaskTrySelect
-            onSelectTryNumber={onSelectTryNumber}
-            selectedTryNumber={tryNumber}
-            taskInstance={taskInstance}
-          />
-        )}
-        <Button aria-label={wrap ? "Unwrap" : "Wrap"} bg="bg.panel" onClick={toggleWrap} variant="outline">
-          {wrap ? "Unwrap" : "Wrap"}
-        </Button>
-      </HStack>
-      <ErrorAlert error={error ?? logError} />
-      <Skeleton />
-      <ProgressBar size="xs" visibility={isLoading || isLoadingLogs ? "visible" : "hidden"} />
-      <Code overflow="auto" py={3} textWrap={wrap ? "pre" : "nowrap"}>
-        <VStack alignItems="flex-start">{data.parsedLogs}</VStack>
-      </Code>
+      <TaskLogHeader
+        onSelectTryNumber={onSelectTryNumber}
+        taskInstance={taskInstance}
+        toggleFullscreen={toggleFullscreen}
+        toggleWrap={toggleWrap}
+        tryNumber={tryNumber}
+        wrap={wrap}
+      />
+      <TaskLogContent
+        error={error}
+        isLoading={isLoading || isLoadingLogs}
+        logError={logError}
+        parsedLogs={data.parsedLogs}
+        wrap={wrap}
+      />
+      <Dialog.Root onOpenChange={onOpenChange} open={fullscreen} scrollBehavior="inside" size="full">
+        <Dialog.Content backdrop>
+          <Dialog.Header>
+            <Heading size="xl">{taskId}</Heading>
+            <TaskLogHeader
+              isFullscreen
+              onSelectTryNumber={onSelectTryNumber}
+              taskInstance={taskInstance}
+              toggleFullscreen={toggleFullscreen}
+              toggleWrap={toggleWrap}
+              tryNumber={tryNumber}
+              wrap={wrap}
+            />
+          </Dialog.Header>
+
+          <Dialog.CloseTrigger />
+
+          <Dialog.Body>
+            <TaskLogContent
+              error={error}
+              isLoading={isLoading || isLoadingLogs}
+              logError={logError}
+              parsedLogs={data.parsedLogs}
+              wrap={wrap}
+            />
+          </Dialog.Body>
+        </Dialog.Content>
+      </Dialog.Root>
     </Box>
   );
 };
