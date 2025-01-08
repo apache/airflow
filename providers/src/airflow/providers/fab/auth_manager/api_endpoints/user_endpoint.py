@@ -37,7 +37,7 @@ from airflow.providers.fab.auth_manager.schemas.user_schema import (
 from airflow.providers.fab.www.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound, Unknown
 from airflow.providers.fab.www.api_connexion.parameters import check_limit, format_parameters
 from airflow.providers.fab.www.api_connexion.security import requires_access_custom_view
-from airflow.security import permissions
+from airflow.providers.fab.www.security import permissions
 
 if TYPE_CHECKING:
     from airflow.providers.fab.auth_manager.models import Role

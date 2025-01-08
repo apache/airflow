@@ -23,7 +23,7 @@ from flask_appbuilder.security.views import (
 )
 from flask_babel import lazy_gettext
 
-from airflow.security import permissions
+from airflow.providers.fab.www.security import permissions
 
 
 class ActionModelView(PermissionModelView):
