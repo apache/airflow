@@ -28,7 +28,7 @@ from flask_appbuilder.security.views import (
     UserRemoteUserModelView,
 )
 
-from airflow.security import permissions
+from airflow.providers.fab.www.security import permissions
 
 
 class MultiResourceUserMixin:
