@@ -71,7 +71,7 @@ const columns = (isMapped?: boolean): Array<ColumnDef<TaskInstanceResponse>> => 
   {
     accessorKey: "try_number",
     enableSorting: false,
-    header: "Try Number",
+    header: "Attempt",
   },
   {
     cell: ({ row: { original } }) => `${getDuration(original.start_date, original.end_date)}s`,

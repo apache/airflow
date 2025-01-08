@@ -88,7 +88,7 @@ const eventsColumn = (
   {
     accessorKey: "try_number",
     enableSorting: false,
-    header: "Try Number",
+    header: "Attempt",
     meta: {
       skeletonWidth: 10,
     },

@@ -45,7 +45,7 @@ const TaskInstanceTooltip = ({ children, positioning, taskInstance, ...rest }: P
           <Text>
             End Date: <Time datetime={taskInstance.end_date} />
           </Text>
-          {taskInstance.try_number > 1 && <Text>Try Number: {taskInstance.try_number}</Text>}
+          {taskInstance.try_number > 1 && <Text>Attempt: {taskInstance.try_number}</Text>}
           {"duration" in taskInstance ? (
             <Text>Duration: {taskInstance.duration?.toFixed(2) ?? 0}s</Text>
           ) : undefined}

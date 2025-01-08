@@ -68,7 +68,7 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
   {
     accessorKey: "try_number",
     enableSorting: false,
-    header: "Try Number",
+    header: "Attempt",
   },
   {
     accessorKey: "operator",

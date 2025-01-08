@@ -53,7 +53,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
       {taskInstance.map_index > -1 ? (
         <Stat label="Map Index">{taskInstance.rendered_map_index ?? taskInstance.map_index}</Stat>
       ) : undefined}
-      {taskInstance.try_number > 1 ? <Stat label="Try Number">{taskInstance.try_number}</Stat> : undefined}
+      {taskInstance.try_number > 1 ? <Stat label="Attempt">{taskInstance.try_number}</Stat> : undefined}
       <Stat label="Start">
         <Time datetime={taskInstance.start_date} />
       </Stat>

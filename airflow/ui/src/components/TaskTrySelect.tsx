@@ -68,7 +68,7 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
 
   return (
     <VStack alignItems="flex-start" gap={1} my={3}>
-      <Heading size="md">Task Tries</Heading>
+      <Heading size="md">Attempts</Heading>
       {showDropdown ? (
         <Select.Root
           collection={tryOptions}
@@ -84,7 +84,7 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
           width="200px"
         >
           <Select.Trigger>
-            <Select.ValueText placeholder="Task Try">
+            <Select.ValueText placeholder="Attempt">
               {(
                 items: Array<{
                   task_instance: TaskInstanceHistoryResponse;
