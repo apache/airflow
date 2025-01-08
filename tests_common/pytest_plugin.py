@@ -889,7 +889,10 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 "session": self.session,
                 **kwargs,
             }
+
             run_type = kwargs.get("run_type", DagRunType.MANUAL)
+            if not isinstance(run_type, DagRunType):
+                run_type = DagRunType(run_type)
 
             if logical_date is None:
                 if run_type == DagRunType.MANUAL:
@@ -912,7 +915,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                     kwargs["run_id"] = "test"
                 else:
                     kwargs["run_id"] = dag.timetable.generate_run_id(
-                        run_type=kwargs["run_type"],
+                        run_type=run_type,
                         logical_date=logical_date,
                         data_interval=data_interval,
                     )
