@@ -16,14 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { FlexibleFormElementProps } from ".";
-import { Switch } from "../ui";
+import type { ParamSchema } from "src/queries/useDagParams";
 
-export const FlexibleFormFieldBool = ({ name, param }: FlexibleFormElementProps) => (
-  <Switch
-    colorPalette="blue"
-    defaultChecked={Boolean(param.value)}
-    id={`element_${name}`}
-    name={`element_${name}`}
-  />
-);
+import type { FlexibleFormElementProps } from ".";
+import { Hidden } from "./Hidden";
+import { NormalRow } from "./NormalRow";
+
+const isHidden = (fieldSchema: ParamSchema) => Boolean(fieldSchema.const);
+
+/** Generates a form row */
+export const Row = ({ key, name, param }: FlexibleFormElementProps) =>
+  isHidden(param.schema) ? (
+    <Hidden key={key} name={name} param={param} />
+  ) : (
+    <NormalRow key={key} name={name} param={param} />
+  );

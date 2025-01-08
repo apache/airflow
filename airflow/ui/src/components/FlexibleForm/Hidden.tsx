@@ -16,17 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Input } from "@chakra-ui/react";
+import { VisuallyHidden } from "@chakra-ui/react";
 
 import type { FlexibleFormElementProps } from ".";
 
-export const FlexibleFormFieldDate = ({ name, param }: FlexibleFormElementProps) => (
-  <Input
-    defaultValue={typeof param.value === "string" ? param.value : undefined}
-    id={`element_${name}`}
-    name={`element_${name}`}
-    placeholder="yyyy-mm-dd"
-    size="sm"
-    type="date"
-  />
+/** Render a "const" field where user can not change data as hidden */
+export const Hidden = ({ name, param }: FlexibleFormElementProps) => (
+  <VisuallyHidden asChild>
+    <input id={`element_${name}`} name={`element_${name}`} type="hidden" value={String(param.value)} />
+  </VisuallyHidden>
 );

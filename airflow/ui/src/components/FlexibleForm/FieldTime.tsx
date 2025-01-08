@@ -20,7 +20,7 @@ import { Input } from "@chakra-ui/react";
 
 import type { FlexibleFormElementProps } from ".";
 
-export const FlexibleFormFieldTime = ({ name, param }: FlexibleFormElementProps) => (
+export const FieldTime = ({ name, param }: FlexibleFormElementProps) => (
   <Input
     defaultValue={typeof param.value === "string" ? param.value : undefined}
     id={`element_${name}`}

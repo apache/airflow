@@ -16,16 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Textarea } from "@chakra-ui/react";
-
 import type { FlexibleFormElementProps } from ".";
+import { NumberInputField, NumberInputRoot } from "../ui/NumberInput";
 
-export const FlexibleFormFieldMultilineText = ({ name, param }: FlexibleFormElementProps) => (
-  <Textarea
-    defaultValue={typeof param.value === "string" ? param.value : String(param.value)}
+export const FieldNumber = ({ name, param }: FlexibleFormElementProps) => (
+  <NumberInputRoot
+    allowMouseWheel
+    defaultValue={String(param.value)}
     id={`element_${name}`}
+    max={param.schema.maximum ?? undefined}
+    min={param.schema.minimum ?? undefined}
     name={`element_${name}`}
-    rows={6}
     size="sm"
-  />
+  >
+    <NumberInputField />
+  </NumberInputRoot>
 );

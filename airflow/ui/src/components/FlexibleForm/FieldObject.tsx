@@ -24,7 +24,7 @@ import { useColorMode } from "src/context/colorMode";
 
 import type { FlexibleFormElementProps } from ".";
 
-export const FlexibleFormFieldAdvancedArray = ({ name, param }: FlexibleFormElementProps) => {
+export const FieldObject = ({ name, param }: FlexibleFormElementProps) => {
   const { colorMode } = useColorMode();
 
   return (

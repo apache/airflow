@@ -21,7 +21,7 @@ import { Stack, StackSeparator } from "@chakra-ui/react";
 import type { DagParamsSpec, ParamSpec } from "src/queries/useDagParams";
 
 import { Accordion, Alert } from "../ui";
-import { FlexibleFormRow } from "./FlexibleFormRow";
+import { Row } from "./Row";
 
 type FlexibleFormProps = {
   readonly params: DagParamsSpec;
@@ -48,7 +48,7 @@ const FlexibleForm = ({ params }: FlexibleFormProps) => {
         {Object.entries(params)
           .filter(([, param]) => typeof param.schema.section !== "string")
           .map(([name, param]) => (
-            <FlexibleFormRow key={name} name={name} param={param} />
+            <Row key={name} name={name} param={param} />
           ))}
       </Stack>
       {Object.entries(params)
@@ -77,7 +77,7 @@ const FlexibleForm = ({ params }: FlexibleFormProps) => {
                       {Object.entries(params)
                         .filter(([, param]) => param.schema.section === currentSection)
                         .map(([name, param]) => (
-                          <FlexibleFormRow key={name} name={name} param={param} />
+                          <Row key={name} name={name} param={param} />
                         ))}
                     </Stack>
                   </Accordion.ItemContent>

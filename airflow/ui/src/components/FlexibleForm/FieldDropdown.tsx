@@ -31,7 +31,7 @@ const labelLookup = (key: string, valuesDisplay: Record<string, string> | null):
   return key;
 };
 
-export const FlexibleFormFieldDropdown = ({ name, param }: FlexibleFormElementProps) => {
+export const FieldDropdown = ({ name, param }: FlexibleFormElementProps) => {
   const selectOptions = createListCollection({
     items:
       param.schema.enum?.map((value) => ({

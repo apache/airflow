@@ -19,18 +19,18 @@
 import type { ParamSchema, ParamSpec } from "src/queries/useDagParams";
 
 import type { FlexibleFormElementProps } from ".";
-import { FlexibleFormFieldAdvancedArray } from "./FlexibleFormFieldAdvancedArray";
-import { FlexibleFormFieldBool } from "./FlexibleFormFieldBool";
-import { FlexibleFormFieldDate } from "./FlexibleFormFieldDate";
-import { FlexibleFormFieldDateTime } from "./FlexibleFormFieldDateTime";
-import { FlexibleFormFieldDropdown } from "./FlexibleFormFieldDropdown";
-import { FlexibleFormFieldMultiSelect } from "./FlexibleFormFieldMultiSelect";
-import { FlexibleFormFieldMultilineText } from "./FlexibleFormFieldMultilineText";
-import { FlexibleFormFieldNumber } from "./FlexibleFormFieldNumber";
-import { FlexibleFormFieldObject } from "./FlexibleFormFieldObject";
-import { FlexibleFormFieldString } from "./FlexibleFormFieldString";
-import { FlexibleFormFieldStringArray } from "./FlexibleFormFieldStringArray";
-import { FlexibleFormFieldTime } from "./FlexibleFormFieldTime";
+import { FieldAdvancedArray } from "./FieldAdvancedArray";
+import { FieldBool } from "./FieldBool";
+import { FieldDate } from "./FieldDate";
+import { FieldDateTime } from "./FieldDateTime";
+import { FieldDropdown } from "./FieldDropdown";
+import { FieldMultiSelect } from "./FieldMultiSelect";
+import { FieldMultilineText } from "./FieldMultilineText";
+import { FieldNumber } from "./FieldNumber";
+import { FieldObject } from "./FieldObject";
+import { FieldString } from "./FieldString";
+import { FieldStringArray } from "./FieldStringArray";
+import { FieldTime } from "./FieldTime";
 
 const inferType = (param: ParamSpec) => {
   if (Boolean(param.schema.type)) {
@@ -88,33 +88,33 @@ const isFieldStringArray = (fieldType: string, fieldSchema: ParamSchema) =>
 const isFieldTime = (fieldType: string, fieldSchema: ParamSchema) =>
   fieldType === "string" && fieldSchema.format === "date";
 
-export const FlexibleFormSelectElement = ({ key, name, param }: FlexibleFormElementProps) => {
+export const SelectElement = ({ key, name, param }: FlexibleFormElementProps) => {
   // FUTURE: Add support for other types as described in AIP-68 via Plugins
   const fieldType = inferType(param);
 
   if (isFieldBool(fieldType)) {
-    return <FlexibleFormFieldBool key={key} name={name} param={param} />;
+    return <FieldBool key={key} name={name} param={param} />;
   } else if (isFieldDateTime(fieldType, param.schema)) {
-    return <FlexibleFormFieldDateTime key={key} name={name} param={param} />;
+    return <FieldDateTime key={key} name={name} param={param} />;
   } else if (isFieldDate(fieldType, param.schema)) {
-    return <FlexibleFormFieldDate key={key} name={name} param={param} />;
+    return <FieldDate key={key} name={name} param={param} />;
   } else if (isFieldTime(fieldType, param.schema)) {
-    return <FlexibleFormFieldTime key={key} name={name} param={param} />;
+    return <FieldTime key={key} name={name} param={param} />;
   } else if (isFieldDropdown(fieldType, param.schema)) {
-    return <FlexibleFormFieldDropdown key={key} name={name} param={param} />;
+    return <FieldDropdown key={key} name={name} param={param} />;
   } else if (isFieldMultiSelect(fieldType, param.schema)) {
-    return <FlexibleFormFieldMultiSelect key={key} name={name} param={param} />;
+    return <FieldMultiSelect key={key} name={name} param={param} />;
   } else if (isFieldStringArray(fieldType, param.schema)) {
-    return <FlexibleFormFieldStringArray key={key} name={name} param={param} />;
+    return <FieldStringArray key={key} name={name} param={param} />;
   } else if (isFieldAdvancedArray(fieldType, param.schema)) {
-    return <FlexibleFormFieldAdvancedArray key={key} name={name} param={param} />;
+    return <FieldAdvancedArray key={key} name={name} param={param} />;
   } else if (isFieldObject(fieldType)) {
-    return <FlexibleFormFieldObject key={key} name={name} param={param} />;
+    return <FieldObject key={key} name={name} param={param} />;
   } else if (isFieldNumber(fieldType)) {
-    return <FlexibleFormFieldNumber key={key} name={name} param={param} />;
+    return <FieldNumber key={key} name={name} param={param} />;
   } else if (isFieldMultilineText(fieldType, param.schema)) {
-    return <FlexibleFormFieldMultilineText key={key} name={name} param={param} />;
+    return <FieldMultilineText key={key} name={name} param={param} />;
   } else {
-    return <FlexibleFormFieldString key={key} name={name} param={param} />;
+    return <FieldString key={key} name={name} param={param} />;
   }
 };

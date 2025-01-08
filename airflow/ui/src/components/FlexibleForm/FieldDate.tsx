@@ -16,19 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { FlexibleFormElementProps } from ".";
-import { NumberInputField, NumberInputRoot } from "../ui/NumberInput";
+import { Input } from "@chakra-ui/react";
 
-export const FlexibleFormFieldNumber = ({ name, param }: FlexibleFormElementProps) => (
-  <NumberInputRoot
-    allowMouseWheel
-    defaultValue={String(param.value)}
+import type { FlexibleFormElementProps } from ".";
+
+export const FieldDate = ({ name, param }: FlexibleFormElementProps) => (
+  <Input
+    defaultValue={typeof param.value === "string" ? param.value : undefined}
     id={`element_${name}`}
-    max={param.schema.maximum ?? undefined}
-    min={param.schema.minimum ?? undefined}
     name={`element_${name}`}
+    placeholder="yyyy-mm-dd"
     size="sm"
-  >
-    <NumberInputField />
-  </NumberInputRoot>
+    type="date"
+  />
 );

@@ -16,13 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { VisuallyHidden } from "@chakra-ui/react";
-
 import type { FlexibleFormElementProps } from ".";
+import { Switch } from "../ui";
 
-/** Render a "const" field where user can not change data as hidden */
-export const FlexibleFormHidden = ({ name, param }: FlexibleFormElementProps) => (
-  <VisuallyHidden asChild>
-    <input id={`element_${name}`} name={`element_${name}`} type="hidden" value={String(param.value)} />
-  </VisuallyHidden>
+export const FieldBool = ({ name, param }: FlexibleFormElementProps) => (
+  <Switch
+    colorPalette="blue"
+    defaultChecked={Boolean(param.value)}
+    id={`element_${name}`}
+    name={`element_${name}`}
+  />
 );

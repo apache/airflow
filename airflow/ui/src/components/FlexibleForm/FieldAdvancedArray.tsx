@@ -16,30 +16,37 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Input } from "@chakra-ui/react";
+import { json } from "@codemirror/lang-json";
+import { githubLight, githubDark } from "@uiw/codemirror-themes-all";
+import CodeMirror from "@uiw/react-codemirror";
+
+import { useColorMode } from "src/context/colorMode";
 
 import type { FlexibleFormElementProps } from ".";
 
-export const FlexibleFormFieldString = ({ name, param }: FlexibleFormElementProps) => (
-  <>
-    <Input
-      defaultValue={String(param.value)}
+export const FieldAdvancedArray = ({ name, param }: FlexibleFormElementProps) => {
+  const { colorMode } = useColorMode();
+
+  return (
+    <CodeMirror
+      basicSetup={{
+        autocompletion: true,
+        bracketMatching: true,
+        foldGutter: true,
+        lineNumbers: true,
+      }}
+      extensions={[json()]}
+      height="200px"
       id={`element_${name}`}
-      list={param.schema.examples ? `list_${name}` : undefined}
-      maxLength={param.schema.maxLength ?? undefined}
-      minLength={param.schema.minLength ?? undefined}
-      name={`element_${name}`}
-      placeholder={param.schema.examples ? "Start typing to see proposal values." : undefined}
-      size="sm"
+      style={{
+        border: "1px solid #CBD5E0",
+        borderRadius: "8px",
+        outline: "none",
+        padding: "2px",
+        width: "100%",
+      }}
+      theme={colorMode === "dark" ? githubDark : githubLight}
+      value={JSON.stringify(param.value, undefined, 2)}
     />
-    {param.schema.examples ? (
-      <datalist id={`list_${name}`}>
-        {param.schema.examples.map((example) => (
-          <option key={example} value={example}>
-            {example}
-          </option>
-        ))}
-      </datalist>
-    ) : undefined}
-  </>
-);
+  );
+};

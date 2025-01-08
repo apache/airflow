@@ -16,18 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { ParamSchema } from "src/queries/useDagParams";
+import { Textarea } from "@chakra-ui/react";
 
 import type { FlexibleFormElementProps } from ".";
-import { FlexibleFormHidden } from "./FlexibleFormHidden";
-import { FlexibleFormNormalRow } from "./FlexibleFormNormalRow";
 
-const isHidden = (fieldSchema: ParamSchema) => Boolean(fieldSchema.const);
-
-/** Generates a form row */
-export const FlexibleFormRow = ({ key, name, param }: FlexibleFormElementProps) =>
-  isHidden(param.schema) ? (
-    <FlexibleFormHidden key={key} name={name} param={param} />
-  ) : (
-    <FlexibleFormNormalRow key={key} name={name} param={param} />
-  );
+export const FieldStringArray = ({ name, param }: FlexibleFormElementProps) => (
+  <Textarea
+    defaultValue={
+      Array.isArray(param.value) ? (param.value as Array<string>).join("\n") : String(param.value)
+    }
+    id={`element_${name}`}
+    name={`element_${name}`}
+    rows={6}
+    size="sm"
+  />
+);

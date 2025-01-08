@@ -23,7 +23,7 @@ import remarkGfm from "remark-gfm";
 import type { ParamSpec } from "src/queries/useDagParams";
 
 import type { FlexibleFormElementProps } from ".";
-import { FlexibleFormSelectElement } from "./FlexibleFormSelectElement";
+import { SelectElement } from "./SelectElement";
 
 const isRequired = (param: ParamSpec) =>
   // The field is required if the schema type is defined.
@@ -32,7 +32,7 @@ const isRequired = (param: ParamSpec) =>
   Boolean(param.schema.type) && (!Array.isArray(param.schema.type) || !param.schema.type.includes("null"));
 
 /** Render a normal form row with a field that is auto-selected */
-export const FlexibleFormNormalRow = ({ key, name, param }: FlexibleFormElementProps) => (
+export const NormalRow = ({ key, name, param }: FlexibleFormElementProps) => (
   <Field.Root orientation="horizontal" required={isRequired(param)}>
     <Stack css={{ "flex-basis": "30%" }}>
       <Field.Label css={{ "flex-basis": "0" }} fontSize="md">
@@ -40,7 +40,7 @@ export const FlexibleFormNormalRow = ({ key, name, param }: FlexibleFormElementP
       </Field.Label>
     </Stack>
     <Stack css={{ "flex-basis": "70%" }}>
-      <FlexibleFormSelectElement key={key} name={name} param={param} />
+      <SelectElement key={key} name={name} param={param} />
       <Field.HelperText>
         {param.description ?? <Markdown remarkPlugins={[remarkGfm]}>{param.schema.description_md}</Markdown>}
       </Field.HelperText>

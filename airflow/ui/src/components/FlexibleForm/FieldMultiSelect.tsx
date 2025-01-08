@@ -29,7 +29,7 @@ const labelLookup = (key: string, valuesDisplay: Record<string, string> | null):
   return key;
 };
 
-export const FlexibleFormFieldMultiSelect = ({ name, param }: FlexibleFormElementProps) => {
+export const FieldMultiSelect = ({ name, param }: FlexibleFormElementProps) => {
   const [selectedOptions, setSelectedOptions] = useState(
     Array.isArray(param.value)
       ? (param.value as Array<string>).map((value) => ({

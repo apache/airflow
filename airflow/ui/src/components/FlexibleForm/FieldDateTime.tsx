@@ -16,18 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Textarea } from "@chakra-ui/react";
+import { Input } from "@chakra-ui/react";
 
 import type { FlexibleFormElementProps } from ".";
 
-export const FlexibleFormFieldStringArray = ({ name, param }: FlexibleFormElementProps) => (
-  <Textarea
-    defaultValue={
-      Array.isArray(param.value) ? (param.value as Array<string>).join("\n") : String(param.value)
-    }
+export const FieldDateTime = ({ name, param }: FlexibleFormElementProps) => (
+  <Input
+    defaultValue={typeof param.value === "string" ? param.value : undefined}
     id={`element_${name}`}
     name={`element_${name}`}
-    rows={6}
+    placeholder="yyyy-mm-ddThh:mm"
     size="sm"
+    type="datetime-local"
   />
 );
