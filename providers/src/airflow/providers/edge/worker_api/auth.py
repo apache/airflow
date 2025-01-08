@@ -112,4 +112,7 @@ def jwt_token_authorization_rest(
     request: Request, authorization: str = Header(description="JWT Authorization Token")
 ):
     """Check if the JWT token is correct for REST API requests."""
-    jwt_token_authorization(request.url.path, authorization)
+    PREFIX = "/edge_worker/v1/"
+    path = request.url.path
+    method_path = path[path.find(PREFIX) + len(PREFIX) :] if PREFIX in path else path
+    jwt_token_authorization(method_path, authorization)

@@ -31,9 +31,8 @@ from airflow.logging_config import configure_logging
 from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
 from airflow.providers.fab.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.providers.fab.www.extensions.init_manifest_files import configure_manifest_files
-from airflow.providers.fab.www.extensions.init_security import init_xframe_protection
+from airflow.providers.fab.www.extensions.init_security import init_api_auth, init_xframe_protection
 from airflow.providers.fab.www.extensions.init_views import init_error_handlers, init_plugins
-from airflow.www.extensions.init_security import init_api_auth
 
 app: Flask | None = None
 
