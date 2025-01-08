@@ -1069,7 +1069,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         with pytest.raises(
             AirflowException,
             match="Current context was requested but no context was found! "
-            "Are you running within an airflow task?",
+            "Are you running within an Airflow task?",
         ):
             self.run_as_task(f, return_ti=True, use_airflow_context=False)
 
@@ -1890,7 +1890,7 @@ class TestBranchExternalPythonOperator(BaseTestBranchPythonVirtualenvOperator):
 
 class TestCurrentContext:
     def test_current_context_no_context_raise(self):
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             get_current_context()
 
     def test_current_context_roundtrip(self):
@@ -1904,7 +1904,7 @@ class TestCurrentContext:
 
         with set_current_context(example_context):
             pass
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             get_current_context()
 
     def test_nested_context(self):
