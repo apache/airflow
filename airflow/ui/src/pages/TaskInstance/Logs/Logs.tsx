@@ -16,17 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Code, Skeleton, VStack, Heading } from "@chakra-ui/react";
+import { Box, Heading } from "@chakra-ui/react";
 import { useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
-import { ErrorAlert } from "src/components/ErrorAlert";
-import { TaskLogHeader } from "src/components/TaskLogHeader";
 import { Dialog } from "src/components/ui";
-import { ProgressBar } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig";
 import { useLogs } from "src/queries/useLogs";
+
+import { TaskLogContent } from "./TaskLogContent";
+import { TaskLogHeader } from "./TaskLogHeader";
 
 export const Logs = () => {
   const { dagId = "", runId = "", taskId = "" } = useParams();
@@ -92,12 +92,13 @@ export const Logs = () => {
         tryNumber={tryNumber}
         wrap={wrap}
       />
-      <ErrorAlert error={error ?? logError} />
-      <Skeleton />
-      <ProgressBar size="xs" visibility={isLoading || isLoadingLogs ? "visible" : "hidden"} />
-      <Code overflow="auto" py={3} textWrap={wrap ? "pre" : "nowrap"}>
-        <VStack alignItems="flex-start">{data.parsedLogs}</VStack>
-      </Code>
+      <TaskLogContent
+        error={error}
+        isLoading={isLoading || isLoadingLogs}
+        logError={logError}
+        parsedLogs={data.parsedLogs}
+        wrap={wrap}
+      />
       <Dialog.Root onOpenChange={onOpenChange} open={fullscreen} scrollBehavior="inside" size="full">
         <Dialog.Content backdrop>
           <Dialog.Header>
@@ -116,12 +117,13 @@ export const Logs = () => {
           <Dialog.CloseTrigger />
 
           <Dialog.Body>
-            <ErrorAlert error={error ?? logError} />
-            <Skeleton />
-            <ProgressBar size="xs" visibility={isLoading || isLoadingLogs ? "visible" : "hidden"} />
-            <Code overflow="auto" py={3} textWrap={wrap ? "pre" : "nowrap"}>
-              <VStack alignItems="flex-start">{data.parsedLogs}</VStack>
-            </Code>
+            <TaskLogContent
+              error={error}
+              isLoading={isLoading || isLoadingLogs}
+              logError={logError}
+              parsedLogs={data.parsedLogs}
+              wrap={wrap}
+            />
           </Dialog.Body>
         </Dialog.Content>
       </Dialog.Root>
