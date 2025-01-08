@@ -42,13 +42,13 @@ const columns: Array<ColumnDef<ProviderResponse>> = [
   },
   {
     accessorKey: "version",
-    cell: ({ row: { original } }) => (original.version),
+    cell: ({ row: { original } }) => original.version,
     header: () => "Version",
   },
   {
     accessorKey: "description",
     cell: ({ row: { original } }) => {
-      const urlRegex = /http(s)?:\/\/[\w.-]+(\.?:[\w.-]+)*([/?#][\w\-._~:/?#[\]@!$&'()*+,;=.%]*)?/g;
+      const urlRegex = /http(s)?:\/\/[\w.-]+(\.?:[\w.-]+)*([#/?][\w!#$%&'()*+,./:;=?@[\]~-]*)?/gu;
       const urls = original.description.match(urlRegex);
       const cleanText = original.description.replaceAll(/\n(?:and)?/gu, " ").split(" ");
 
