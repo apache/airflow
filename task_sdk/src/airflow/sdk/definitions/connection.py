@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import logging
-from contextlib import suppress
 from json import JSONDecodeError
 
 import attrs
@@ -59,28 +58,13 @@ class Connection:
     def get_hook(self): ...
 
     @property
-    def extra_dejson(self, nested: bool = False) -> dict:
-        """
-        Deserialize extra property to JSON.
-
-        :param nested: Determines whether nested structures are also deserialized into JSON (default False).
-        """
-        extra_json = {}
-
+    def extra_dejson(self) -> dict:
+        """Deserialize `extra` property to JSON."""
+        extra = {}
         if self.extra:
             try:
-                if nested:
-                    for key, value in json.loads(self.extra).items():
-                        extra_json[key] = value
-                        if isinstance(value, str):
-                            with suppress(JSONDecodeError):
-                                extra_json[key] = json.loads(value)
-                else:
-                    extra_json = json.loads(self.extra)
+                extra = json.loads(self.extra)
             except JSONDecodeError:
-                log.exception("Failed parsing the json for conn_id %s", self.conn_id)
-
-            # TODO: Mask sensitive keys from this list
-            # mask_secret(extra)
-
-        return extra_json
+                log.exception("Failed to deserialize extra property `extra`, returning empty dictionary")
+        # TODO: Mask sensitive keys from this list or revisit if it will be done in server
+        return extra

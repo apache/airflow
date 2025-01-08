@@ -16,21 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Text } from "@chakra-ui/react";
-import { FiCalendar } from "react-icons/fi";
+import { Box, Code, Skeleton, VStack } from "@chakra-ui/react";
+import type { ReactNode } from "react";
 
-import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
-import { Tooltip } from "src/components/ui";
+import { ErrorAlert } from "src/components/ErrorAlert";
+import { ProgressBar } from "src/components/ui";
 
 type Props = {
-  readonly dag: DAGWithLatestDagRunsResponse;
+  readonly error: unknown;
+  readonly isLoading: boolean;
+  readonly logError: unknown;
+  readonly parsedLogs: ReactNode;
+  readonly wrap: boolean;
 };
 
-export const Schedule = ({ dag }: Props) =>
-  Boolean(dag.timetable_summary) && dag.timetable_description !== "Never, external triggers only" ? (
-    <Tooltip content={dag.timetable_description}>
-      <Text fontSize="sm">
-        <FiCalendar style={{ display: "inline" }} /> {dag.timetable_summary}
-      </Text>
-    </Tooltip>
-  ) : undefined;
+export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }: Props) => (
+  <Box>
+    <ErrorAlert error={error ?? logError} />
+    <Skeleton />
+    <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
+    <Code overflow="auto" py={3} textWrap={wrap ? "pre" : "nowrap"}>
+      <VStack alignItems="flex-start">{parsedLogs}</VStack>
+    </Code>
+  </Box>
+);

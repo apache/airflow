@@ -16,21 +16,5 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Text } from "@chakra-ui/react";
-import { FiCalendar } from "react-icons/fi";
 
-import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
-import { Tooltip } from "src/components/ui";
-
-type Props = {
-  readonly dag: DAGWithLatestDagRunsResponse;
-};
-
-export const Schedule = ({ dag }: Props) =>
-  Boolean(dag.timetable_summary) && dag.timetable_description !== "Never, external triggers only" ? (
-    <Tooltip content={dag.timetable_description}>
-      <Text fontSize="sm">
-        <FiCalendar style={{ display: "inline" }} /> {dag.timetable_summary}
-      </Text>
-    </Tooltip>
-  ) : undefined;
+export * from "./Logs";
