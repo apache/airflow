@@ -86,6 +86,7 @@ export const SearchDags = ({
         defaultOptions
         filterOption={undefined}
         loadOptions={searchDagDebounced}
+        menuIsOpen
         onChange={onSelect}
         placeholder="Search Dags"
         value={null} // null is required https://github.com/JedWatson/react-select/issues/3066

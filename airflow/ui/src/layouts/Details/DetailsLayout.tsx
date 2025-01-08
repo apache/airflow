@@ -23,7 +23,7 @@ import { Outlet, Link as RouterLink, useParams, useSearchParams } from "react-ro
 
 import type { DAGResponse } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { SearchDagsButton } from "src/components/SearchDagsButton";
+import { SearchDagsButton } from "src/components/SearchDags";
 import { ProgressBar } from "src/components/ui";
 import { Toaster } from "src/components/ui";
 import { OpenGroupsProvider } from "src/context/openGroups";
