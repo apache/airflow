@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import io
 import itertools
+import json
 import logging
 import multiprocessing
 import os
@@ -43,6 +44,7 @@ from uuid6 import uuid7
 
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.manager import (
     DagFileInfo,
     DagFileProcessorAgent,
@@ -53,6 +55,7 @@ from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.models import DAG, DagBag, DagModel, DbCallbackRequest
 from airflow.models.asset import TaskOutletAssetReference
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import timezone
@@ -106,9 +109,6 @@ class TestDagFileProcessorManager:
         clear_db_callbacks()
         clear_db_import_errors()
 
-    def run_processor_manager_one_loop(self, manager: DagFileProcessorManager) -> None:
-        manager.run()
-
     def mock_processor(self) -> DagFileProcessorProcess:
         proc = MagicMock()
         proc.create_time.return_value = time.time()
@@ -142,7 +142,7 @@ class TestDagFileProcessorManager:
             )
 
             with create_session() as session:
-                self.run_processor_manager_one_loop(manager)
+                manager.run()
 
                 import_errors = session.query(ParseImportError).all()
                 assert len(import_errors) == 1
@@ -150,7 +150,7 @@ class TestDagFileProcessorManager:
                 path_to_parse.unlink()
 
                 # Rerun the parser once the dag file has been removed
-                self.run_processor_manager_one_loop(manager)
+                manager.run()
                 import_errors = session.query(ParseImportError).all()
 
                 assert len(import_errors) == 0
@@ -160,7 +160,7 @@ class TestDagFileProcessorManager:
     def test_max_runs_when_no_files(self, tmp_path):
         with conf_vars({("core", "dags_folder"): str(tmp_path)}):
             manager = DagFileProcessorManager(max_runs=1)
-            self.run_processor_manager_one_loop(manager)
+            manager.run()
 
         # TODO: AIP-66 no asserts?
 
@@ -594,7 +594,7 @@ class TestDagFileProcessorManager:
 
         with configure_testing_dag_bundle(tmp_path):
             manager = DagFileProcessorManager(max_runs=1)
-            self.run_processor_manager_one_loop(manager)
+            manager.run()
 
         last_runtime = manager._file_stats[os.fspath(path_to_parse)].last_duration
         statsd_timing_mock.assert_has_calls(
@@ -682,7 +682,7 @@ class TestDagFileProcessorManager:
             manager = DagFileProcessorManager(max_runs=1, standalone_dag_processor=True)
 
             with create_session() as session:
-                self.run_processor_manager_one_loop(manager)
+                manager.run()
                 assert session.query(DbCallbackRequest).count() == 0
 
     @conf_vars(
@@ -710,11 +710,11 @@ class TestDagFileProcessorManager:
             manager = DagFileProcessorManager(max_runs=1)
 
             with create_session() as session:
-                self.run_processor_manager_one_loop(manager)
+                manager.run()
                 assert session.query(DbCallbackRequest).count() == 3
 
             with create_session() as session:
-                self.run_processor_manager_one_loop(manager)
+                manager.run()
                 assert session.query(DbCallbackRequest).count() == 1
 
     @conf_vars(
@@ -737,7 +737,7 @@ class TestDagFileProcessorManager:
 
         with configure_testing_dag_bundle(tmp_path):
             manager = DagFileProcessorManager(max_runs=1)
-            self.run_processor_manager_one_loop(manager)
+            manager.run()
 
         # Verify no callbacks removed from database.
         with create_session() as session:
@@ -822,12 +822,89 @@ class TestDagFileProcessorManager:
                 max_runs=1,
                 processor_timeout=365 * 86_400,
             )
-            self.run_processor_manager_one_loop(manager)
+            manager.run()
 
         dag_model = session.get(DagModel, ("dag_with_skip_task"))
         assert dag_model.task_outlet_asset_references == [
             TaskOutletAssetReference(asset_id=mock.ANY, dag_id="dag_with_skip_task", task_id="skip_task")
         ]
+
+    def test_bundles_are_refreshed(self):
+        config = [
+            {
+                "name": "bundleone",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"local_folder": "/dev/null", "refresh_interval": 1},
+            },
+            {
+                "name": "bundletwo",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"local_folder": "/dev/null", "refresh_interval": 1},
+            },
+        ]
+
+        bundleone = MagicMock()
+        bundleone.name = "bundleone"
+        bundleone.refresh_interval = 0
+        bundleone.get_current_version.return_value = None
+        bundletwo = MagicMock()
+        bundletwo.name = "bundletwo"
+        bundletwo.refresh_interval = 300
+        bundletwo.get_current_version.return_value = None
+
+        with conf_vars({("dag_bundles", "backends"): json.dumps(config)}):
+            DagBundlesManager().sync_bundles_to_db()
+            with mock.patch(
+                "airflow.dag_processing.bundles.manager.DagBundlesManager"
+            ) as mock_bundle_manager:
+                mock_bundle_manager.return_value._bundle_config = {"bundleone": None, "bundletwo": None}
+                mock_bundle_manager.return_value.get_all_dag_bundles.return_value = [bundleone, bundletwo]
+                manager = DagFileProcessorManager(max_runs=1)
+                manager.run()
+                bundleone.refresh.assert_called_once()
+                bundletwo.refresh.assert_called_once()
+
+                # Now, we should only refresh bundleone, as haven't hit the refresh_interval for bundletwo
+                bundleone.reset_mock()
+                bundletwo.reset_mock()
+                manager.run()
+                bundleone.refresh.assert_called_once()
+                bundletwo.refresh.assert_not_called()
+
+                # however, if the version doesn't match, we should still refresh
+                bundletwo.reset_mock()
+                bundletwo.get_current_version.return_value = "123"
+                manager.run()
+                bundletwo.refresh.assert_called_once()
+
+    def test_bundles_versions_are_stored(self):
+        config = [
+            {
+                "name": "mybundle",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"local_folder": "/dev/null", "refresh_interval": 1},
+            },
+        ]
+
+        mybundle = MagicMock()
+        mybundle.name = "bundleone"
+        mybundle.refresh_interval = 0
+        mybundle.supports_versioning = True
+        mybundle.get_current_version.return_value = "123"
+
+        with conf_vars({("dag_bundles", "backends"): json.dumps(config)}):
+            DagBundlesManager().sync_bundles_to_db()
+            with mock.patch(
+                "airflow.dag_processing.bundles.manager.DagBundlesManager"
+            ) as mock_bundle_manager:
+                mock_bundle_manager.return_value._bundle_config = {"bundleone": None}
+                mock_bundle_manager.return_value.get_all_dag_bundles.return_value = [mybundle]
+                manager = DagFileProcessorManager(max_runs=1)
+                manager.run()
+
+        with create_session() as session:
+            model = session.get(DagBundleModel, "bundleone")
+            assert model.latest_version == "123"
 
 
 class TestDagFileProcessorAgent:

@@ -656,41 +656,48 @@ class DagFileProcessorManager:
             # TODO: AIP-66 test to make sure we get a fresh record from the db and it's not cached
             with create_session() as session:
                 bundle_model = session.get(DagBundleModel, bundle.name)
-            elapsed_time_since_refresh = (
-                now - (bundle_model.last_refreshed or timezone.utc_epoch())
-            ).total_seconds()
-            current_version = bundle.get_current_version()
-            if (
-                not elapsed_time_since_refresh > bundle.refresh_interval
-            ) and bundle_model.latest_version == current_version:
-                self.log.info("Not time to refresh %s", bundle.name)
-                continue
-
-            try:
-                bundle.refresh()
-            except Exception:
-                self.log.exception("Error refreshing bundle %s", bundle.name)
-                continue
-            bundle_model.last_refreshed = now
-
-            new_version = bundle.get_current_version()
-            if bundle.supports_versioning:
-                if current_version == new_version:
-                    self.log.debug("Bundle %s version not changed after refresh", bundle.name)
+                elapsed_time_since_refresh = (
+                    now - (bundle_model.last_refreshed or timezone.utc_epoch())
+                ).total_seconds()
+                current_version = bundle.get_current_version()
+                if (
+                    not elapsed_time_since_refresh > bundle.refresh_interval
+                ) and bundle_model.latest_version == current_version:
+                    self.log.info("Not time to refresh %s", bundle.name)
                     continue
-                self.log.info("Version changed for %s, new version: %s", bundle.name, new_version)
+
+                try:
+                    bundle.refresh()
+                except Exception:
+                    self.log.exception("Error refreshing bundle %s", bundle.name)
+                    continue
+
+                bundle_model.last_refreshed = now
+
+                new_version = bundle.get_current_version()
+                if bundle.supports_versioning:
+                    # We can short-circuit the rest of the refresh if the version hasn't changed
+                    # and we've already fully "refreshed" this bundle before in this dag processor.
+                    if current_version == new_version and bundle.name in self._bundle_versions:
+                        self.log.debug("Bundle %s version not changed after refresh", bundle.name)
+                        continue
+
+                    bundle_model.latest_version = new_version
+
+                    self.log.info("Version changed for %s, new version: %s", bundle.name, new_version)
+
             bundle_file_paths = self._find_files_in_bundle(bundle)
 
-            new_file_paths = [f for f in self._file_paths if f.bundle_name != bundle_model.name]
+            new_file_paths = [f for f in self._file_paths if f.bundle_name != bundle.name]
             new_file_paths.extend(
-                DagFileInfo(path=path, bundle_name=bundle_model.name) for path in bundle_file_paths
+                DagFileInfo(path=path, bundle_name=bundle.name) for path in bundle_file_paths
             )
             self.set_file_paths(new_file_paths)
 
             self.deactivate_deleted_dags(bundle_file_paths)
             self.clear_nonexistent_import_errors()
 
-            self._bundle_versions[bundle_model.name] = bundle.get_current_version()
+            self._bundle_versions[bundle.name] = bundle.get_current_version()
 
     def _find_files_in_bundle(self, bundle: BaseDagBundle) -> list[str]:
         """Refresh file paths from bundle dir."""
