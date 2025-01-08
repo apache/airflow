@@ -236,7 +236,7 @@ def create_backfill_dry_run(
             reprocess_behavior=body.reprocess_behavior,
             dry_run=True,
         )
-        backfills = [DryRunBackfillResponse(logical_date=logical_date) for logical_date in backfills_dry_run]
+        backfills = [DryRunBackfillResponse(logical_date=d) for d in backfills_dry_run]
 
         return DryRunBackfillCollectionResponse(backfills=backfills, total_entries=len(backfills_dry_run))
 

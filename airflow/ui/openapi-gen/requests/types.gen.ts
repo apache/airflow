@@ -638,7 +638,7 @@ export type DagTagResponse = {
 export type DagWarningType = "asset conflict" | "non-existent pool";
 
 /**
- * Serializer for responses in dry-run mode for backfill operations.
+ * Backfill collection serializer for responses in dry-run mode.
  */
 export type DryRunBackfillCollectionResponse = {
   backfills: Array<DryRunBackfillResponse>;
@@ -646,7 +646,7 @@ export type DryRunBackfillCollectionResponse = {
 };
 
 /**
- * Data model for run information during a backfill operation.
+ * Backfill serializer for responses in dry-run mode.
  */
 export type DryRunBackfillResponse = {
   logical_date: string;

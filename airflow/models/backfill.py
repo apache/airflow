@@ -44,8 +44,7 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from datetime import datetime
-
-    from typing_extensions import Literal
+    from typing import Literal
 
 
 log = logging.getLogger(__name__)
@@ -192,18 +191,14 @@ def _create_backfill_dag_run(
             select(DagRun)
             .join(
                 dag_run_ranked,
-                (DagRun.logical_date == dag_run_ranked.c.logical_date)
-                & (
-                    (DagRun.start_date == dag_run_ranked.c.start_date)
-                    | ((DagRun.start_date.is_(None)) & (dag_run_ranked.c.start_date.is_(None)))
-                )
-                & (DagRun.dag_id == dag_run_ranked.c.dag_id),
+                DagRun.logical_date == dag_run_ranked.c.logical_date
+                and DagRun.start_date == dag_run_ranked.c.start_date
+                and DagRun.dag_id == dag_run_ranked.c.dag_id,
+                isouter=True,
             )
             .where(dag_run_ranked.c.row_number == 1)
         ).all()
     }
-
-    print(existing_dag_runs)
 
     for info in dagrun_infos:
         backfill_sort_ordinal += 1
@@ -397,7 +392,7 @@ def _create_backfill(
         if not dag_model:
             raise RuntimeError(f"Dag {dag_id} not found")
 
-        backfill_response = _create_backfill_dag_run(
+        logical_dates = _create_backfill_dag_run(
             dag=dag,
             dagrun_info_list=dagrun_info_list,
             backfill_id=backfill_id,
@@ -407,4 +402,4 @@ def _create_backfill(
             dry_run=dry_run,
         )
 
-    return br if not dry_run else backfill_response
+    return br if not dry_run else logical_dates

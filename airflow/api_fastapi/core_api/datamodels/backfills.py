@@ -59,13 +59,13 @@ class BackfillCollectionResponse(BaseModel):
 
 
 class DryRunBackfillResponse(BaseModel):
-    """Data model for run information during a backfill operation."""
+    """Backfill serializer for responses in dry-run mode."""
 
     logical_date: datetime
 
 
 class DryRunBackfillCollectionResponse(BaseModel):
-    """Serializer for responses in dry-run mode for backfill operations."""
+    """Backfill collection serializer for responses in dry-run mode."""
 
     backfills: list[DryRunBackfillResponse]
     total_entries: int

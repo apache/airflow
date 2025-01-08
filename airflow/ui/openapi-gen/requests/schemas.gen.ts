@@ -2657,8 +2657,7 @@ export const $DryRunBackfillCollectionResponse = {
   type: "object",
   required: ["backfills", "total_entries"],
   title: "DryRunBackfillCollectionResponse",
-  description:
-    "Serializer for responses in dry-run mode for backfill operations.",
+  description: "Backfill collection serializer for responses in dry-run mode.",
 } as const;
 
 export const $DryRunBackfillResponse = {
@@ -2672,7 +2671,7 @@ export const $DryRunBackfillResponse = {
   type: "object",
   required: ["logical_date"],
   title: "DryRunBackfillResponse",
-  description: "Data model for run information during a backfill operation.",
+  description: "Backfill serializer for responses in dry-run mode.",
 } as const;
 
 export const $EdgeResponse = {
