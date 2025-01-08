@@ -208,7 +208,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
                         field.onChange(validateAndPrettifyJson(field.value));
                       }}
                       style={{
-                        border: "1px solid #CBD5E0",
+                        border: "1px solid var(--chakra-colors-border)",
                         borderRadius: "8px",
                         outline: "none",
                         padding: "2px",

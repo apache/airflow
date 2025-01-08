@@ -39,7 +39,7 @@ export const FieldAdvancedArray = ({ name, param }: FlexibleFormElementProps) =>
       height="200px"
       id={`element_${name}`}
       style={{
-        border: "1px solid #CBD5E0",
+        border: "1px solid var(--chakra-colors-border)",
         borderRadius: "8px",
         outline: "none",
         padding: "2px",
