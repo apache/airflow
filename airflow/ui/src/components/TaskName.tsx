@@ -16,22 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { type LinkProps, Link, Text } from "@chakra-ui/react";
+import { Text, type TextProps } from "@chakra-ui/react";
 import type { CSSProperties } from "react";
 import { FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
-import { useParams, useSearchParams, Link as RouterLink } from "react-router-dom";
 
 import type { NodeResponse } from "openapi/requests/types.gen";
 
-type Props = {
-  readonly id: string;
+export type TaskNameProps = {
   readonly isGroup?: boolean;
   readonly isMapped?: boolean;
   readonly isOpen?: boolean;
   readonly isZoomedOut?: boolean;
   readonly label: string;
   readonly setupTeardownType?: NodeResponse["setup_teardown_type"];
-} & LinkProps;
+} & TextProps;
 
 const iconStyle: CSSProperties = {
   display: "inline",
@@ -40,7 +38,6 @@ const iconStyle: CSSProperties = {
 };
 
 export const TaskName = ({
-  id,
   isGroup = false,
   isMapped = false,
   isOpen = false,
@@ -48,35 +45,24 @@ export const TaskName = ({
   label,
   setupTeardownType,
   ...rest
-}: Props) => {
-  const { dagId = "", runId, taskId } = useParams();
-  const [searchParams] = useSearchParams();
-
+}: TaskNameProps) => {
   // We don't have a task group details page to link to
   if (isGroup) {
     return (
-      <Text fontSize="md" fontWeight="bold">
+      <Text fontSize="md" fontWeight="bold" {...rest}>
         {label}
       </Text>
     );
   }
 
   return (
-    <Link asChild data-testid={id} fontSize={isZoomedOut ? "lg" : "md"} fontWeight="bold" {...rest}>
-      <RouterLink
-        to={{
-          // Do not include runId if there is no selected run, clicking a second time will deselect a task id
-          pathname: `/dags/${dagId}/${runId === undefined ? "" : `runs/${runId}/`}${taskId === id ? "" : `tasks/${id}`}`,
-          search: searchParams.toString(),
-        }}
-      >
-        {label}
-        {isMapped ? " [ ]" : undefined}
-        {setupTeardownType === "setup" && <FiArrowUpRight size={isZoomedOut ? 24 : 15} style={iconStyle} />}
-        {setupTeardownType === "teardown" && (
-          <FiArrowDownRight size={isZoomedOut ? 24 : 15} style={iconStyle} />
-        )}
-      </RouterLink>
-    </Link>
+    <Text fontSize={isZoomedOut ? "lg" : "md"} fontWeight="bold" {...rest}>
+      {label}
+      {isMapped ? " [ ]" : undefined}
+      {setupTeardownType === "setup" && <FiArrowUpRight size={isZoomedOut ? 24 : 15} style={iconStyle} />}
+      {setupTeardownType === "teardown" && (
+        <FiArrowDownRight size={isZoomedOut ? 24 : 15} style={iconStyle} />
+      )}
+    </Text>
   );
 };
