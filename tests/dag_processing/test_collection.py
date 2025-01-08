@@ -522,3 +522,10 @@ class TestUpdateDagParsingResults:
         # Since the dag existed before, it should not follow the pause flag upon creation
         orm_dag = session.get(DagModel, ("dag_paused",))
         assert orm_dag.is_paused is False
+
+    def test_bundle_name_and_version_are_stored(self, testing_dag_bundle, session):
+        dag = DAG("mydag", schedule=None)
+        update_dag_parsing_results_in_db("testing", "1.0", [self.dag_to_lazy_serdag(dag)], {}, set(), session)
+        orm_dag = session.get(DagModel, "mydag")
+        assert orm_dag.bundle_name == "testing"
+        assert orm_dag.latest_bundle_version == "1.0"
