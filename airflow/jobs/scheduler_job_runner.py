@@ -650,7 +650,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Has a real queue_activity implemented
             if executor.queue_workload.__func__ is not BaseExecutor.queue_workload:  # type: ignore[attr-defined]
                 workload = workloads.ExecuteTask.make(ti)
-                executor.queue_workload(workload)
+                executor.queue_workload(workload, session=session)
                 continue
 
             command = ti.command_as_list(

@@ -108,7 +108,7 @@ class EdgeExecutor(BaseExecutor):
         executor_config: Any | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
-        """Execute asynchronously."""
+        """Execute asynchronously. Airflow 2.10 entry point to execute a task."""
         # Use of a temponary trick to get task instance, will be changed with Airflow 3.0.0
         # code works together with _process_tasks overwrite to get task instance.
         task_instance = self.edge_queued_tasks[key][3]  # TaskInstance in fourth element
@@ -126,6 +126,34 @@ class EdgeExecutor(BaseExecutor):
                 queue=queue or DEFAULT_QUEUE,
                 concurrency_slots=task_instance.pool_slots,
                 command=str(command),
+            )
+        )
+
+    @provide_session
+    def queue_workload(
+        self,
+        workload: Any,  # Note actually "airflow.executors.workloads.All" but not existing in Airflow 2.10
+        session: Session = NEW_SESSION,
+    ) -> None:
+        """Put new workload to queue. Airflow 3 entry point to execute a task."""
+        from airflow.executors import workloads
+
+        if not isinstance(workload, workloads.ExecuteTask):
+            raise TypeError(f"Don't know how to queue workload of type {type(workload).__name__}")
+
+        task_instance = workload.ti
+        key = task_instance.key
+        session.add(
+            EdgeJobModel(
+                dag_id=key.dag_id,
+                task_id=key.task_id,
+                run_id=key.run_id,
+                map_index=key.map_index,
+                try_number=key.try_number,
+                state=TaskInstanceState.QUEUED,
+                queue=DEFAULT_QUEUE,  # TODO Queues to be added once implemented in AIP-72
+                concurrency_slots=1,  # TODO Pool slots to be added once implemented in AIP-72
+                command=workload.model_dump_json(),
             )
         )
 

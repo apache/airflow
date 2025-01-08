@@ -746,6 +746,9 @@ class TestRuntimeTaskInstance:
             extra='{"extra_key": "extra_value"}',
         )
 
+        dejson_from_conn = conn_from_context.extra_dejson
+        assert dejson_from_conn == {"extra_key": "extra_value"}
+
     def test_template_render(self, mocked_parse, make_ti_context):
         task = BaseOperator(task_id="test_template_render_task")
 

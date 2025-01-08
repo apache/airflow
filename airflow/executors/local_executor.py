@@ -37,9 +37,12 @@ from setproctitle import setproctitle
 
 from airflow import settings
 from airflow.executors.base_executor import PARALLELISM, BaseExecutor
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from airflow.executors import workloads
 
     TaskInstanceStateType = tuple[workloads.TaskInstance, TaskInstanceState, Optional[Exception]]
@@ -239,7 +242,8 @@ class LocalExecutor(BaseExecutor):
     def terminate(self):
         """Terminate the executor is not doing anything."""
 
-    def queue_workload(self, workload: workloads.All):
+    @provide_session
+    def queue_workload(self, workload: workloads.All, session: Session = NEW_SESSION):
         self.activity_queue.put(workload)
         with self._unread_messages:
             self._unread_messages.value += 1
