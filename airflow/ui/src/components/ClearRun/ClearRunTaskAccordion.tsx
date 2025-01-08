@@ -20,7 +20,6 @@ import { Box, Editable, Text, VStack } from "@chakra-ui/react";
 import { Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { ChangeEvent } from "react";
-import Markdown from "react-markdown";
 import { Link as RouterLink } from "react-router-dom";
 
 import type {
@@ -29,11 +28,11 @@ import type {
   TaskInstanceResponse,
 } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
+import ReactMarkdown from "src/components/ReactMarkdown";
 import { Status, Tooltip } from "src/components/ui";
+import { Accordion } from "src/components/ui";
 import { getTaskInstanceLink } from "src/utils/links";
 import { trimText } from "src/utils/trimTextFn";
-
-import { Accordion } from "../ui";
 
 const columns: Array<ColumnDef<TaskInstanceResponse>> = [
   {
@@ -116,6 +115,7 @@ const ClearRunTasksAccordion = ({ affectedTasks, note, setNote }: Props) => (
           value={note ?? ""}
         >
           <Editable.Preview
+            _hover={{ backgroundColor: "transparent" }}
             alignItems="flex-start"
             as={VStack}
             gap="0"
@@ -124,7 +124,7 @@ const ClearRunTasksAccordion = ({ affectedTasks, note, setNote }: Props) => (
             width="100%"
           >
             {Boolean(note) ? (
-              <Markdown>{note}</Markdown>
+              <ReactMarkdown>{note}</ReactMarkdown>
             ) : (
               <Text color="gray" opacity={0.6}>
                 Add a note...
