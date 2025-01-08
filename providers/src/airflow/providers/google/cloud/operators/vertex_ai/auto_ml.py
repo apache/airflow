@@ -238,6 +238,7 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             sync=self.sync,
             window_stride_length=self.window_stride_length,
             window_max_count=self.window_max_count,
+            holiday_regions=self.holiday_regions,
         )
 
         if model:
