@@ -568,11 +568,17 @@ class DagBag(LoggingMixin):
 
         # Ensure dag_folder is a str -- it may have been a pathlib.Path
         dag_folder = correct_maybe_zipped(str(dag_folder))
-        for filepath in list_py_file_paths(
-            dag_folder,
-            safe_mode=safe_mode,
-            include_examples=include_examples,
-        ):
+
+        files_to_parse = list_py_file_paths(dag_folder, safe_mode=safe_mode)
+
+        if include_examples:
+            from airflow import example_dags
+
+            example_dag_folder = next(iter(example_dags.__path__))
+
+            files_to_parse.extend(list_py_file_paths(example_dag_folder, safe_mode=safe_mode))
+
+        for filepath in files_to_parse:
             try:
                 file_parse_start_dttm = timezone.utcnow()
                 found_dags = self.process_file(filepath, only_if_updated=only_if_updated, safe_mode=safe_mode)
