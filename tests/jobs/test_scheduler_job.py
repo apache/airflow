@@ -107,6 +107,7 @@ PERF_DAGS_FOLDER = os.path.join(ROOT_FOLDER, "tests", "test_utils", "perf", "dag
 ELASTIC_DAG_FILE = os.path.join(PERF_DAGS_FOLDER, "elastic_dag.py")
 
 TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
+EXAMPLE_DAGS_FOLDER = airflow.example_dags.__path__[0]
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 DEFAULT_LOGICAL_DATE = timezone.coerce_datetime(DEFAULT_DATE)
 TRY_NUMBER = 1
@@ -117,12 +118,6 @@ def disable_load_example():
     with conf_vars({("core", "load_examples"): "false"}):
         with env_vars({"AIRFLOW__CORE__LOAD_EXAMPLES": "false"}):
             yield
-
-
-@pytest.fixture
-def load_examples():
-    with conf_vars({("core", "load_examples"): "True"}):
-        yield
 
 
 # Patch the MockExecutor into the dict of known executors in the Loader
@@ -3562,21 +3557,7 @@ class TestSchedulerJob:
                 if file_name.endswith((".py", ".zip")):
                     if file_name not in ignored_files:
                         expected_files.add(f"{root}/{file_name}")
-        for file_path in list_py_file_paths(TEST_DAG_FOLDER, include_examples=False):
-            detected_files.add(file_path)
-        assert detected_files == expected_files
-
-        ignored_files = {
-            "helper.py",
-        }
-        example_dag_folder = airflow.example_dags.__path__[0]
-        for root, _, files in os.walk(example_dag_folder):
-            for file_name in files:
-                if file_name.endswith((".py", ".zip")):
-                    if file_name not in ["__init__.py"] and file_name not in ignored_files:
-                        expected_files.add(os.path.join(root, file_name))
-        detected_files.clear()
-        for file_path in list_py_file_paths(TEST_DAG_FOLDER, include_examples=True):
+        for file_path in list_py_file_paths(TEST_DAG_FOLDER):
             detected_files.add(file_path)
         assert detected_files == expected_files
 
@@ -5662,9 +5643,9 @@ class TestSchedulerJob:
             self.job_runner._find_and_purge_zombies()
         executor.callback_sink.send.assert_not_called()
 
-    def test_find_and_purge_zombies(self, load_examples, session, testing_dag_bundle):
-        dagbag = DagBag(TEST_DAG_FOLDER, read_dags_from_db=False)
-
+    def test_find_and_purge_zombies(self, session, testing_dag_bundle):
+        dagfile = os.path.join(EXAMPLE_DAGS_FOLDER, "example_branch_operator.py")
+        dagbag = DagBag(dagfile)
         dag = dagbag.get_dag("example_branch_operator")
         DAG.bulk_write_to_db("testing", None, [dag])
         data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
@@ -5718,68 +5699,70 @@ class TestSchedulerJob:
         assert callback_request.ti.run_id == ti.run_id
         assert callback_request.ti.map_index == ti.map_index
 
-    def test_zombie_message(self, load_examples, testing_dag_bundle):
+    def test_zombie_message(self, testing_dag_bundle, session):
         """
         Check that the zombie message comes out as expected
         """
 
         dagbag = DagBag(TEST_DAG_FOLDER, read_dags_from_db=False)
-        with create_session() as session:
-            session.query(Job).delete()
-            dag = dagbag.get_dag("example_branch_operator")
-            DAG.bulk_write_to_db("testing", None, [dag])
+        dagfile = os.path.join(EXAMPLE_DAGS_FOLDER, "example_branch_operator.py")
+        dagbag = DagBag(dagfile)
+        dag = dagbag.get_dag("example_branch_operator")
+        DAG.bulk_write_to_db("testing", None, [dag])
 
-            data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
-            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-            dag_run = dag.create_dagrun(
-                state=DagRunState.RUNNING,
-                logical_date=DEFAULT_DATE,
-                run_type=DagRunType.SCHEDULED,
-                session=session,
-                data_interval=data_interval,
-                **triggered_by_kwargs,
-            )
+        session.query(Job).delete()
 
-            scheduler_job = Job(executor=MockExecutor())
-            self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
-            self.job_runner.processor_agent = mock.MagicMock()
+        data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        dag_run = dag.create_dagrun(
+            state=DagRunState.RUNNING,
+            logical_date=DEFAULT_DATE,
+            run_type=DagRunType.SCHEDULED,
+            session=session,
+            data_interval=data_interval,
+            **triggered_by_kwargs,
+        )
 
-            # We will provision 2 tasks so we can check we only find zombies from this scheduler
-            tasks_to_setup = ["branching", "run_this_first"]
+        scheduler_job = Job(executor=MockExecutor())
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+        self.job_runner.processor_agent = mock.MagicMock()
 
-            for task_id in tasks_to_setup:
-                task = dag.get_task(task_id=task_id)
-                ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING)
-                ti.queued_by_job_id = 999
+        # We will provision 2 tasks so we can check we only find zombies from this scheduler
+        tasks_to_setup = ["branching", "run_this_first"]
 
-                session.add(ti)
-                session.flush()
+        for task_id in tasks_to_setup:
+            task = dag.get_task(task_id=task_id)
+            ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING)
+            ti.queued_by_job_id = 999
 
-            assert task.task_id == "run_this_first"  # Make sure we have the task/ti we expect
-
-            ti.queued_by_job_id = scheduler_job.id
+            session.add(ti)
             session.flush()
 
-            zombie_message = self.job_runner._generate_zombie_message_details(ti)
-            assert zombie_message == {
-                "DAG Id": "example_branch_operator",
-                "Task Id": "run_this_first",
-                "Run Id": "scheduled__2016-01-01T00:00:00+00:00",
-            }
+        assert task.task_id == "run_this_first"  # Make sure we have the task/ti we expect
 
-            ti.hostname = "10.10.10.10"
-            ti.map_index = 2
-            ti.external_executor_id = "abcdefg"
+        ti.queued_by_job_id = scheduler_job.id
+        session.flush()
 
-            zombie_message = self.job_runner._generate_zombie_message_details(ti)
-            assert zombie_message == {
-                "DAG Id": "example_branch_operator",
-                "Task Id": "run_this_first",
-                "Run Id": "scheduled__2016-01-01T00:00:00+00:00",
-                "Hostname": "10.10.10.10",
-                "Map Index": 2,
-                "External Executor Id": "abcdefg",
-            }
+        zombie_message = self.job_runner._generate_zombie_message_details(ti)
+        assert zombie_message == {
+            "DAG Id": "example_branch_operator",
+            "Task Id": "run_this_first",
+            "Run Id": "scheduled__2016-01-01T00:00:00+00:00",
+        }
+
+        ti.hostname = "10.10.10.10"
+        ti.map_index = 2
+        ti.external_executor_id = "abcdefg"
+
+        zombie_message = self.job_runner._generate_zombie_message_details(ti)
+        assert zombie_message == {
+            "DAG Id": "example_branch_operator",
+            "Task Id": "run_this_first",
+            "Run Id": "scheduled__2016-01-01T00:00:00+00:00",
+            "Hostname": "10.10.10.10",
+            "Map Index": 2,
+            "External Executor Id": "abcdefg",
+        }
 
     def test_find_zombies_handle_failure_callbacks_are_correctly_passed_to_dag_processor(
         self, testing_dag_bundle
