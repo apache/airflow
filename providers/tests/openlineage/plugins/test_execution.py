@@ -37,6 +37,7 @@ from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
@@ -73,6 +74,9 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
     @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Test requires Airflow 2.10+")
     @pytest.mark.usefixtures("reset_logging_config")
     class TestOpenLineageExecution:
+        def teardown_method(self):
+            clear_db_runs()
+
         @pytest.fixture(autouse=True)
         def clean_listener_manager(self):
             get_listener_manager().clear()
