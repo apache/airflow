@@ -126,7 +126,8 @@ export const TaskInstances = () => {
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-start_date";
-  const filteredState = searchParams.get(STATE_PARAM);
+  const filteredState = searchParams.getAll(STATE_PARAM);
+  const hasFilteredState = filteredState.length > 0;
   const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
 
   const [taskDisplayNamePattern, setTaskDisplayNamePattern] = useState(
@@ -135,12 +136,13 @@ export const TaskInstances = () => {
 
   const handleStateChange = useCallback(
     ({ value }: SelectValueChangeDetails<string>) => {
-      const [val] = value;
+      const [val, ...rest] = value;
 
-      if (val === undefined || val === "all") {
+      if ((val === undefined || val === "all") && rest.length === 0) {
         searchParams.delete(STATE_PARAM);
       } else {
-        searchParams.set(STATE_PARAM, val);
+        searchParams.delete(STATE_PARAM);
+        value.filter((state) => state !== "all").map((state) => searchParams.append(STATE_PARAM, state));
       }
       setTableURLState({
         pagination: { ...pagination, pageIndex: 0 },
@@ -172,7 +174,7 @@ export const TaskInstances = () => {
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
-      state: filteredState === null ? undefined : [filteredState],
+      state: hasFilteredState ? filteredState : undefined,
       taskDisplayNamePattern: Boolean(taskDisplayNamePattern) ? taskDisplayNamePattern : undefined,
     },
     undefined,
@@ -185,16 +187,27 @@ export const TaskInstances = () => {
         <Select.Root
           collection={stateOptions}
           maxW="250px"
+          multiple
           onValueChange={handleStateChange}
-          value={[filteredState ?? "all"]}
+          value={hasFilteredState ? filteredState : ["all"]}
         >
-          <Select.Trigger clearable colorPalette="blue" isActive={Boolean(filteredState)}>
+          <Select.Trigger
+            {...(hasFilteredState ? { clearable: true } : {})}
+            colorPalette="blue"
+            isActive={Boolean(filteredState)}
+          >
             <Select.ValueText>
               {() =>
-                filteredState === null ? (
-                  "All States"
+                hasFilteredState ? (
+                  <HStack gap="10px">
+                    {filteredState.map((state) => (
+                      <Status key={state} state={state as TaskInstanceState}>
+                        {capitalize(state)}
+                      </Status>
+                    ))}
+                  </HStack>
                 ) : (
-                  <Status state={filteredState as TaskInstanceState}>{capitalize(filteredState)}</Status>
+                  "All States"
                 )
               }
             </Select.ValueText>
