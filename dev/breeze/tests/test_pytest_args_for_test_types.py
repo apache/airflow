@@ -127,7 +127,6 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
                 "tests/security",
                 "tests/sensors",
                 "tests/task",
-                "tests/template",
                 "tests/testconfig",
                 "tests/timetables",
             ],

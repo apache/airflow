@@ -63,7 +63,7 @@ export const Header = ({
       <SimpleGrid columns={4} gap={4} my={2}>
         <Stat label="Schedule">
           {Boolean(dag?.timetable_summary) ? (
-            <Tooltip content={dag?.timetable_description} showArrow>
+            <Tooltip content={dag?.timetable_description}>
               <Text fontSize="sm">
                 <FiCalendar style={{ display: "inline" }} /> {dag?.timetable_summary}
               </Text>
