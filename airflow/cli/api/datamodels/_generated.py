@@ -73,6 +73,10 @@ class BaseInfoResponse(BaseModel):
     status: Annotated[Optional[str], Field(title="Status")] = None
 
 
+class BodyImportVariables(BaseModel):
+    file: Annotated[bytes, Field(title="File")]
+
+
 class ClearTaskInstancesBody(BaseModel):
     """
     Request body for Clear Task Instances endpoint.
@@ -83,7 +87,7 @@ class ClearTaskInstancesBody(BaseModel):
     end_date: Annotated[Optional[datetime], Field(title="End Date")] = None
     only_failed: Annotated[Optional[bool], Field(title="Only Failed")] = True
     only_running: Annotated[Optional[bool], Field(title="Only Running")] = False
-    reset_dag_runs: Annotated[Optional[bool], Field(title="Reset Dag Runs")] = False
+    reset_dag_runs: Annotated[Optional[bool], Field(title="Reset Dag Runs")] = True
     task_ids: Annotated[Optional[list[str]], Field(title="Task Ids")] = None
     dag_run_id: Annotated[Optional[str], Field(title="Dag Run Id")] = None
     include_upstream: Annotated[Optional[bool], Field(title="Include Upstream")] = False
@@ -136,6 +140,7 @@ class ConnectionBulkBody(BaseModel):
     """
 
     connections: Annotated[list[ConnectionBody], Field(title="Connections")]
+    overwrite: Annotated[Optional[bool], Field(title="Overwrite")] = False
 
 
 class ConnectionResponse(BaseModel):
@@ -468,6 +473,7 @@ class PoolPostBulkBody(BaseModel):
     """
 
     pools: Annotated[list[PoolPostBody], Field(title="Pools")]
+    overwrite: Annotated[Optional[bool], Field(title="Overwrite")] = False
 
 
 class PoolResponse(BaseModel):
@@ -669,7 +675,7 @@ class VariableBody(BaseModel):
     """
 
     key: Annotated[str, Field(max_length=250, title="Key")]
-    value: Annotated[Optional[str], Field(title="Value")] = None
+    value: Annotated[str, Field(title="Value")]
     description: Annotated[Optional[str], Field(title="Description")] = None
 
 
@@ -679,9 +685,19 @@ class VariableResponse(BaseModel):
     """
 
     key: Annotated[str, Field(title="Key")]
-    value: Annotated[Optional[str], Field(title="Value")] = None
+    value: Annotated[str, Field(title="Value")]
     description: Annotated[Optional[str], Field(title="Description")] = None
     is_encrypted: Annotated[bool, Field(title="Is Encrypted")]
+
+
+class VariablesImportResponse(BaseModel):
+    """
+    Import Variables serializer for responses.
+    """
+
+    created_variable_keys: Annotated[list[str], Field(title="Created Variable Keys")]
+    import_count: Annotated[int, Field(title="Import Count")]
+    created_count: Annotated[int, Field(title="Created Count")]
 
 
 class VersionInfo(BaseModel):

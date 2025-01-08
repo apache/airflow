@@ -107,9 +107,11 @@ def _connection_to_dict(conn: Connection) -> dict:
     }
 
 
-def create_default_connections(args):
-    # TODO: Implement similar behaviour in API and include it into operation
-    pass
+@provide_cli_api_client
+def create_default_connections(args, cli_api_client=NEW_CLI_API_CLIENT):
+    """Create default connections."""
+    cli_api_client.connections.create_defaults()
+    print("Default connections have been created.")
 
 
 def _response_to_connection(response: ConnectionResponse) -> Connection:
@@ -372,7 +374,9 @@ def _import_helper(file_path: str, overwrite: bool, cli_api_client: Client) -> N
             )
         )
 
-    cli_api_client.connections.create_bulk(ConnectionBulkBody(connections=connections_to_create))
+    cli_api_client.connections.create_bulk(
+        ConnectionBulkBody(connections=connections_to_create, overwrite=overwrite)
+    )
     for conn_id in connections:
         print(f"Imported connection {conn_id}")
 

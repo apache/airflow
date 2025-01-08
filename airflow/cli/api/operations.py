@@ -113,7 +113,8 @@ def _check_flag_and_exit_if_server_response_error(func):
                 return _exit_if_server_response_error(response=func(self, *args, **kwargs))
             else:
                 return func(self, *args, **kwargs)
-        except httpx.ConnectError:
+        except httpx.ConnectError as e:
+            rich.print(f"error: {e}")
             rich.print(f"[bold red]{SERVER_CONNECTION_REFUSED_ERROR}[/bold red]")
             sys.exit(1)
 
@@ -284,15 +285,28 @@ class ConnectionsOperations(BaseOperations):
             return e
 
     def create_bulk(
-        self, connections: ConnectionBulkBody
+        self, connections: ConnectionBulkBody, overwrite: bool = False
     ) -> ConnectionCollectionResponse | ServerResponseError:
         """Create multiple connections."""
         try:
-            self.response = self.client.post("connections/bulk", json=connections.model_dump())
+            self.response = self.client.put("connections/bulk", json=connections.model_dump())
             return ConnectionCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             log.error(
                 "Connection already exists",
+                detail=e,
+                status_code=e.response.status_code,
+            )
+            return e
+
+    def create_defaults(self) -> None | ServerResponseError:
+        """Create default connections."""
+        try:
+            self.response = self.client.post("connections/defaults")
+            return None
+        except ServerResponseError as e:
+            log.error(
+                "Failed to create default connections",
                 detail=e,
                 status_code=e.response.status_code,
             )
@@ -513,7 +527,7 @@ class PoolsOperations(BaseOperations):
     def create_bulk(self, pools: PoolPostBulkBody) -> PoolCollectionResponse | ServerResponseError:
         """Create multiple pools."""
         try:
-            self.response = self.client.post("pools/bulk", json=pools.model_dump())
+            self.response = self.client.put("pools/bulk", json=pools.model_dump())
             return PoolCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             log.error(
