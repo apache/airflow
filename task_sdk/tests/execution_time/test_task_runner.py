@@ -41,10 +41,12 @@ from airflow.sdk.execution_time.comms import (
     DeferTask,
     GetConnection,
     GetVariable,
+    GetXCom,
     SetRenderedFields,
     StartupDetails,
     TaskState,
     VariableResult,
+    XComResult,
 )
 from airflow.sdk.execution_time.context import ConnectionAccessor, MacrosAccessor, VariableAccessor
 from airflow.sdk.execution_time.task_runner import (
@@ -732,6 +734,37 @@ class TestRuntimeTaskInstance:
         mock_supervisor_comms.get_message.assert_called_once_with()
 
         assert var_from_context == Variable(key="test_key", value=expected_value)
+
+    def test_xcom_pull(self, create_runtime_ti, mock_supervisor_comms, spy_agency):
+        """Test that a task pulls the expected XCom value if it exists."""
+
+        task_id = "push_task"
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                value = context["ti"].xcom_pull(task_ids=task_id, key="key")
+                print(f"Pulled XCom Value: {value}")
+
+        task = CustomOperator(task_id="pull_task")
+
+        runtime_ti = create_runtime_ti(task=task)
+
+        mock_supervisor_comms.get_message.return_value = XComResult(key="key", value='"value"')
+
+        spy_agency.spy_on(runtime_ti.xcom_pull, call_original=True)
+
+        run(runtime_ti, log=mock.MagicMock())
+
+        mock_supervisor_comms.send_request.assert_any_call(
+            log=mock.ANY,
+            msg=GetXCom(
+                key="key",
+                dag_id="test_dag",
+                run_id="test_run",
+                task_id=task_id,
+                map_index=None,
+            ),
+        )
 
 
 class TestXComAfterTaskExecution:
