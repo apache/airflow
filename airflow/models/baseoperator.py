@@ -273,7 +273,7 @@ else:
         params: collections.abc.MutableMapping | None = None,
         **kwargs,
     ):
-        from airflow.sdk.definitions.contextmanager import DagContext, TaskGroupContext
+        from airflow.sdk.definitions._internal.contextmanager import DagContext, TaskGroupContext
 
         validate_mapping_kwargs(operator_class, "partial", kwargs)
 
