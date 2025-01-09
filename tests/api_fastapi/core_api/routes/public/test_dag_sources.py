@@ -28,7 +28,7 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
 
-from tests_common.test_utils.db import clear_db_dags, parse_and_sync_to_db
+from tests_common.test_utils.db import clear_db_dags
 
 pytestmark = pytest.mark.db_test
 
@@ -36,13 +36,14 @@ API_PREFIX = "/public/dagSources"
 
 # Example bash operator located here: airflow/example_dags/example_bash_operator.py
 EXAMPLE_DAG_FILE = os.path.join("airflow", "example_dags", "example_bash_operator.py")
-TEST_DAG_ID = "example_bash_operator"
+TEST_DAG_ID = "latest_only"
 
 
 @pytest.fixture
 def test_dag():
-    parse_and_sync_to_db(EXAMPLE_DAG_FILE, include_examples=False)
-    return DagBag(read_dags_from_db=True).get_dag(TEST_DAG_ID)
+    dagbag = DagBag(include_examples=True)
+    dagbag.sync_to_db()
+    return dagbag.dags[TEST_DAG_ID]
 
 
 class TestGetDAGSource:
@@ -130,7 +131,9 @@ class TestGetDAGSource:
                 "version_number": 2,
             }
 
-    def test_should_respond_406_unsupport_mime_type(self, test_client, test_dag):
+    def test_should_respond_406_unsupport_mime_type(self, test_client):
+        dagbag = DagBag(include_examples=True)
+        dagbag.sync_to_db()
         response = test_client.get(
             f"{API_PREFIX}/{TEST_DAG_ID}",
             headers={"Accept": "text/html"},

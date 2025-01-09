@@ -49,16 +49,8 @@ pytestmark = pytest.mark.db_test
 # To move it to a shared module.
 def make_example_dags(module):
     """Loads DAGs from a module for test."""
-    from airflow.models.dagbundle import DagBundleModel
-    from airflow.utils.session import create_session
-
-    with create_session() as session:
-        if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
-            testing = DagBundleModel(name="testing")
-            session.add(testing)
-
     dagbag = DagBag(module.__path__[0])
-    DAG.bulk_write_to_db("testing", None, dagbag.dags.values())
+    DAG.bulk_write_to_db(dagbag.dags.values())
     return dagbag.dags
 
 
@@ -185,13 +177,13 @@ class TestSerializedDagModel:
         # assert only the latest SDM is returned
         assert len(sdags) != len(serialized_dags2)
 
-    def test_bulk_sync_to_db(self, testing_dag_bundle):
+    def test_bulk_sync_to_db(self):
         dags = [
             DAG("dag_1", schedule=None),
             DAG("dag_2", schedule=None),
             DAG("dag_3", schedule=None),
         ]
-        DAG.bulk_write_to_db("testing", None, dags)
+        DAG.bulk_write_to_db(dags)
         # we also write to dag_version and dag_code tables
         # in dag_version.
         with assert_queries_count(24):
