@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-09T07:48:13.723185
+# This constraints file was automatically generated on 2025-01-09T13:55:47.231784
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -100,7 +100,7 @@ azure-cosmos==4.9.0
 azure-datalake-store==0.0.53
 azure-identity==1.19.0
 azure-keyvault-secrets==4.9.0
-azure-kusto-data==4.6.2
+azure-kusto-data==4.6.3
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==10.3.0
 azure-mgmt-core==1.5.0
@@ -457,7 +457,7 @@ pyasn1_modules==0.4.0
 pycountry==24.6.1
 pycparser==2.22
 pycryptodome==3.21.0
-pydantic==2.10.4
+pydantic==2.10.5
 pydantic_core==2.27.2
 pydata-google-auth==1.9.0
 pydot==1.4.2
