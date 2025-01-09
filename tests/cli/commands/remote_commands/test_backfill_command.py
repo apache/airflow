@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import argparse
-import os
 from datetime import datetime
 from unittest import mock
 
@@ -27,10 +26,11 @@ import pytest
 
 import airflow.cli.commands.remote_commands.backfill_command
 from airflow.cli import cli_parser
+from airflow.models import DagBag
 from airflow.models.backfill import ReprocessBehavior
 from airflow.utils import timezone
 
-from tests_common.test_utils.db import clear_db_backfills, clear_db_dags, clear_db_runs, parse_and_sync_to_db
+from tests_common.test_utils.db import clear_db_backfills, clear_db_dags, clear_db_runs
 
 DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1), timezone=timezone.utc)
 if pendulum.__version__.startswith("3"):
@@ -48,7 +48,8 @@ class TestCliBackfill:
 
     @classmethod
     def setup_class(cls):
-        parse_and_sync_to_db(os.devnull, include_examples=True)
+        cls.dagbag = DagBag(include_examples=True)
+        cls.dagbag.sync_to_db()
         cls.parser = cli_parser.get_parser()
 
     @classmethod

@@ -68,9 +68,7 @@ from tests_common.test_utils.db import clear_db_dag_bundles
 )
 def test_parse_bundle_config(value, expected):
     """Test that bundle_configs are read from configuration."""
-    envs = {"AIRFLOW__CORE__LOAD_EXAMPLES": "False"}
-    if value:
-        envs["AIRFLOW__DAG_BUNDLES__BACKENDS"] = value
+    envs = {"AIRFLOW__DAG_BUNDLES__BACKENDS": value} if value else {}
     cm = nullcontext()
     exp_fail = False
     if isinstance(expected, str):
@@ -135,7 +133,6 @@ def clear_db():
 
 
 @pytest.mark.db_test
-@conf_vars({("core", "LOAD_EXAMPLES"): "False"})
 def test_sync_bundles_to_db(clear_db):
     def _get_bundle_names_and_active():
         with create_session() as session:
@@ -170,14 +167,3 @@ def test_view_url(version):
     with patch.object(BaseDagBundle, "view_url") as view_url_mock:
         bundle_manager.view_url("my-test-bundle", version=version)
     view_url_mock.assert_called_once_with(version=version)
-
-
-def test_example_dags_bundle_added():
-    manager = DagBundlesManager()
-    manager.parse_config()
-    assert "example_dags" in manager._bundle_config
-
-    with conf_vars({("core", "LOAD_EXAMPLES"): "False"}):
-        manager = DagBundlesManager()
-        manager.parse_config()
-        assert "example_dags" not in manager._bundle_config
