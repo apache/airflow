@@ -44,6 +44,7 @@ from airflow.models.backfill import (
     Backfill,
     BackfillDagRun,
     _create_backfill,
+    _do_dry_run,
 )
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
@@ -225,23 +226,13 @@ def create_backfill_dry_run(
     from_date = timezone.coerce_datetime(body.from_date)
     to_date = timezone.coerce_datetime(body.to_date)
 
-    try:
-        backfills_dry_run = _create_backfill(
-            dag_id=body.dag_id,
-            from_date=from_date,
-            to_date=to_date,
-            max_active_runs=body.max_active_runs,
-            reverse=body.run_backwards,
-            dag_run_conf=body.dag_run_conf,
-            reprocess_behavior=body.reprocess_behavior,
-            dry_run=True,
-        )
-        backfills = [DryRunBackfillResponse(logical_date=d) for d in backfills_dry_run]
+    backfills_dry_run = _do_dry_run(
+        dag_id=body.dag_id,
+        from_date=from_date,
+        to_date=to_date,
+        reverse=body.run_backwards,
+        reprocess_behavior=body.reprocess_behavior,
+    )
+    backfills = [DryRunBackfillResponse(logical_date=d) for d in backfills_dry_run]
 
-        return DryRunBackfillCollectionResponse(backfills=backfills, total_entries=len(backfills_dry_run))
-
-    except AlreadyRunningBackfill:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="There is already a running backfill for the dag",
-        )
+    return DryRunBackfillCollectionResponse(backfills=backfills, total_entries=len(backfills_dry_run))
