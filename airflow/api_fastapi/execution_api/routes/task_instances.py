@@ -39,6 +39,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TIStateUpdate,
     TITerminalStatePayload,
 )
+from airflow.models import XCom
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, _update_rtif
 from airflow.models.taskreschedule import TaskReschedule
@@ -143,6 +144,25 @@ def ti_run(
 
         if not dr:
             raise ValueError(f"DagRun with dag_id={dag_id} and run_id={run_id} not found.")
+
+        # Clear XCom data for the task instance since we are certain it is executing
+        # However, do not clear it for deferral
+        task_instance = select(TI.dag_id, TI.task_id, TI.run_id, TI.map_index, TI.next_method).where(
+            TI.id == ti_id_str
+        )
+        (dag_id, task_id, run_id, map_index, next_method) = session.execute(task_instance).one()
+
+        if not next_method:
+            if map_index < 0:
+                map_index = None
+            log.info("Clearing xcom data for task id: %s", ti_id_str)
+            XCom.clear(
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+                map_index=map_index,
+                session=session,
+            )
 
         return TIRunContext(
             dag_run=DagRun.model_validate(dr, from_attributes=True),
