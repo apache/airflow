@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 
 import pytest
 from sqlalchemy import select
@@ -25,15 +26,19 @@ from airflow.models import DagBag
 from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.utils.session import provide_session
 
-from tests_common.test_utils.db import clear_db_dag_parsing_requests, parse_and_sync_to_db
+from tests_common.test_utils.db import clear_db_dag_parsing_requests
 
 pytestmark = pytest.mark.db_test
+
+if TYPE_CHECKING:
+    from airflow.models.dag import DAG
 
 
 class TestDagParsingEndpoint:
     ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
     EXAMPLE_DAG_FILE = os.path.join("airflow", "example_dags", "example_bash_operator.py")
-    TEST_DAG_ID = "example_bash_operator"
+    EXAMPLE_DAG_ID = "example_bash_operator"
+    TEST_DAG_ID = "latest_only"
     NOT_READABLE_DAG_ID = "latest_only_with_trigger"
     TEST_MULTIPLE_DAGS_ID = "asset_produces_1"
 
@@ -50,9 +55,9 @@ class TestDagParsingEndpoint:
         self.clear_db()
 
     def test_201_and_400_requests(self, url_safe_serializer, session, test_client):
-        parse_and_sync_to_db(self.EXAMPLE_DAG_FILE)
-        dagbag = DagBag(read_dags_from_db=True)
-        test_dag = dagbag.get_dag(self.TEST_DAG_ID)
+        dagbag = DagBag(dag_folder=self.EXAMPLE_DAG_FILE)
+        dagbag.sync_to_db()
+        test_dag: DAG = dagbag.dags[self.TEST_DAG_ID]
 
         url = f"/public/parseDagFile/{url_safe_serializer.dumps(test_dag.fileloc)}"
         response = test_client.put(url, headers={"Accept": "application/json"})
