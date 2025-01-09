@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
+from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.auth.managers.models.base_user import BaseUser
 from airflow.auth.managers.models.resource_details import (
     ConnectionDetails,
@@ -34,6 +34,7 @@ from airflow.exceptions import AirflowException
 if TYPE_CHECKING:
     from flask_appbuilder.menu import MenuItem
 
+    from airflow.auth.managers.base_auth_manager import ResourceMethod
     from airflow.auth.managers.models.resource_details import (
         AccessView,
         AssetDetails,
