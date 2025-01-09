@@ -108,10 +108,9 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
     Instead of cloning the repository every time, we clone the repository once into a bare repo from the source
     and then do a clone for each version from there.
 
-    :param repo_url: URL of the git repository
     :param tracking_ref: Branch or tag for this DAG bundle
     :param subdir: Subdirectory within the repository where the DAGs are stored (Optional)
-    :param git_conn_id: Connection ID for SSH connection to the repository (Optional)
+    :param git_conn_id: Connection ID for SSH/token based connection to the repository (Optional)
     """
 
     supports_versioning = True
@@ -157,13 +156,12 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
     def initialize(self) -> None:
         if not self.repo_url:
             raise AirflowException(f"Connection {self.git_conn_id} doesn't have a git_repo_url")
-        if isinstance(self.repo_url, os.PathLike):
-            self._initialize()
-        elif not self.repo_url.startswith("git@") or not self.repo_url.endswith(".git"):
+        if self.repo_url.startswith("git@") or not self.repo_url.endswith(".git"):
             raise AirflowException(
                 f"Invalid git URL: {self.repo_url}. URL must start with git@ and end with .git"
             )
-        elif self.repo_url.startswith("git@"):
+
+        if self.repo_url.startswith("git@"):
             with self.hook.get_conn():
                 self._initialize()
         else:

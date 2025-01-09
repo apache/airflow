@@ -176,7 +176,7 @@ def _create_customized_form_field_behaviours_schema_validator():
 
 def _check_builtin_provider_prefix(provider_package: str, class_name: str) -> bool:
     if "bundles" in provider_package:
-        # TODO: remove this when this package is moved to providers directory
+        # TODO: AIP-66: remove this when this package is moved to providers directory
         return True
     if provider_package.startswith("apache-airflow"):
         provider_path = provider_package[len("apache-") :].replace("-", ".")
@@ -679,7 +679,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     self._add_provider_info_from_local_source_files_on_path(path)
             except Exception as e:
                 log.warning("Error when loading 'provider.yaml' files from %s airflow sources: %s", path, e)
-        # TODO: Remove this when the package is moved to providers
+        # TODO: AIP-66: Remove this when the package is moved to providers
         self._add_provider_info_from_local_source_files_on_path("airflow/dag_processing")
 
     def _add_provider_info_from_local_source_files_on_path(self, path) -> None:
