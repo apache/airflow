@@ -192,4 +192,12 @@ config:
         type: boolean
         default: "False"
         example: ~
-        version_added: 1.15.0
+        version_added: 2.0.0
+      spark_inject_transport_info:
+        description: |
+          Automatically inject OpenLineage's transport information into Spark application properties
+          for supported Operators.
+        type: boolean
+        default: "False"
+        example: ~
+        version_added: 2.1.0
