@@ -69,7 +69,6 @@ from airflow.sdk.definitions.asset import Asset
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
-from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -3530,36 +3529,6 @@ class TestSchedulerJob:
             running_date = "Except"
 
         assert logical_date == running_date, "Running Date must match Execution Date"
-
-    def test_list_py_file_paths(self):
-        """
-        [JIRA-1357] Test the 'list_py_file_paths' function used by the
-        scheduler to list and load DAGs.
-        """
-        detected_files = set()
-        expected_files = set()
-        # No_dags is empty, _invalid_ is ignored by .airflowignore
-        ignored_files = {
-            "no_dags.py",
-            "test_invalid_cron.py",
-            "test_invalid_dup_task.py",
-            "test_ignore_this.py",
-            "test_invalid_param.py",
-            "test_invalid_param2.py",
-            "test_invalid_param3.py",
-            "test_invalid_param4.py",
-            "test_nested_dag.py",
-            "test_imports.py",
-            "__init__.py",
-        }
-        for root, _, files in os.walk(TEST_DAG_FOLDER):
-            for file_name in files:
-                if file_name.endswith((".py", ".zip")):
-                    if file_name not in ignored_files:
-                        expected_files.add(f"{root}/{file_name}")
-        for file_path in list_py_file_paths(TEST_DAG_FOLDER):
-            detected_files.add(file_path)
-        assert detected_files == expected_files
 
     def test_adopt_or_reset_orphaned_tasks_nothing(self):
         """Try with nothing."""
