@@ -34,7 +34,7 @@ from sqlalchemy.orm import Session, joinedload
 from starlette.middleware.wsgi import WSGIMiddleware
 
 from airflow import __version__ as airflow_version
-from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
+from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.auth.managers.models.resource_details import (
     AccessView,
     ConfigurationDetails,
@@ -94,6 +94,7 @@ from airflow.utils.yaml import safe_load
 from airflow.version import version
 
 if TYPE_CHECKING:
+    from airflow.auth.managers.base_auth_manager import ResourceMethod
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.cli.cli_config import (
         CLICommand,
