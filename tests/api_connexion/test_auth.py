@@ -27,7 +27,11 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools
 from tests.test_utils.www import client_with_login
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = [
+    pytest.mark.db_test,
+    pytest.mark.skip_if_database_isolation_mode,
+    pytest.mark.filterwarnings("default::airflow.exceptions.RemovedInAirflow3Warning"),
+]
 
 
 class BaseTestAuth:

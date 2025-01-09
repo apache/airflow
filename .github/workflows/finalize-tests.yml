@@ -28,10 +28,6 @@ on:  # yamllint disable-line rule:truthy
         description: "The array of labels (in json form) determining self-hosted runners."
         required: true
         type: string
-      image-tag:
-        description: "Tag to set for the image"
-        required: true
-        type: string
       python-versions:
         description: "JSON-formatted array of Python versions to test"
         required: true
@@ -52,16 +48,16 @@ on:  # yamllint disable-line rule:truthy
         description: "Which version of python should be used by default"
         required: true
         type: string
-      in-workflow-build:
-        description: "Whether the build is executed as part of the workflow (true/false)"
-        required: true
-        type: string
       upgrade-to-newer-dependencies:
         description: "Whether to upgrade to newer dependencies (true/false)"
         required: true
         type: string
       docker-cache:
         description: "Docker cache specification to build the image (registry, local, disabled)."
+        required: true
+        type: string
+      disable-airflow-repo-cache:
+        description: "Disable airflow repo cache read from main."
         required: true
         type: string
       include-success-outputs:
@@ -72,6 +68,16 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether this is a canary run (true/false)"
         required: true
         type: string
+      use-uv:
+        description: "Whether to use uv to build the image (true/false)"
+        required: true
+        type: string
+      debug-resources:
+        description: "Whether to debug resources or not (true/false)"
+        required: true
+        type: string
+permissions:
+  contents: read
 jobs:
   update-constraints:
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
@@ -83,7 +89,6 @@ jobs:
     env:
       DEBUG_RESOURCES: ${{ inputs.debug-resources}}
       PYTHON_VERSIONS: ${{ inputs.python-versions-list-as-string }}
-      IMAGE_TAG: ${{ inputs.image-tag }}
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
@@ -145,9 +150,10 @@ jobs:
       python-versions: ${{ inputs.python-versions }}
       branch: ${{ inputs.branch }}
       constraints-branch: ${{ inputs.constraints-branch }}
-      use-uv: ${{ needs.build-info.outputs.force-pip && 'false' || 'true' }}
+      use-uv: ${{ inputs.use-uv }}
       include-success-outputs: ${{ inputs.include-success-outputs }}
       docker-cache: ${{ inputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
     if: inputs.canary-run == 'true'
 
   #  push-buildx-cache-to-github-registry-arm:
@@ -187,10 +193,14 @@ jobs:
           persist-credentials: false
       - name: "Cleanup docker"
         run: ./scripts/ci/cleanup_docker.sh
-      - name: "Download all artifacts from the current build"
+      - name: "Free up disk space"
+        shell: bash
+        run: ./scripts/tools/free_up_disk_space.sh
+      - name: "Download all test warning artifacts from the current build"
         uses: actions/download-artifact@v4
         with:
           path: ./artifacts
+          pattern: test-warnings-*
       - name: "Setup python"
         uses: actions/setup-python@v5
         with:

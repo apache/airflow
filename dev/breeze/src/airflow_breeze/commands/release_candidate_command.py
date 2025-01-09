@@ -27,7 +27,6 @@ from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DIST_DIR, OUT_DIR
-from airflow_breeze.utils.python_versions import check_python_version
 from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_deterministically
 from airflow_breeze.utils.run_utils import run_command
 
@@ -35,7 +34,7 @@ CI = os.environ.get("CI")
 RUNNING_IN_CI = True if CI else False
 
 
-def merge_pr(version_branch, sync_branch):
+def merge_pr(version_branch):
     if confirm_action("Do you want to merge the Sync PR?"):
         run_command(
             [
@@ -52,7 +51,7 @@ def merge_pr(version_branch, sync_branch):
             check=True,
         )
         run_command(
-            ["git", "merge", "--ff-only", f"{sync_branch}"],
+            ["git", "merge", "--ff-only", f"v{version_branch}-test"],
             dry_run_override=RUNNING_IN_CI,
             check=True,
         )
@@ -273,7 +272,7 @@ def push_packages_to_pypi(version):
             "Install it with the appropriate constraint file, adapt python version: "
             f"pip install apache-airflow=={version} --constraint "
             f"https://raw.githubusercontent.com/apache/airflow/"
-            f"constraints-{version}/constraints-3.8.txt"
+            f"constraints-{version}/constraints-3.9.txt"
         )
         confirm_action(
             "I have tested the package I uploaded to PyPI. "
@@ -364,10 +363,8 @@ def prepare_airflow_tarball(version: str):
 @click.option(
     "--github-token", help="GitHub token to use in generating issue for testing of release candidate"
 )
-@click.option("--sync-branch", required=True, help="The branch to sync to the stable branch")
 @option_answer
-def publish_release_candidate(version, previous_version, github_token, sync_branch):
-    check_python_version()
+def publish_release_candidate(version, previous_version, github_token):
     from packaging.version import Version
 
     airflow_version = Version(version)
@@ -395,7 +392,6 @@ def publish_release_candidate(version, previous_version, github_token, sync_bran
     console_print(f"version_branch: {version_branch}")
     console_print(f"version_without_rc: {version_without_rc}")
     console_print(f"airflow_repo_root: {airflow_repo_root}")
-    console_print(f"sync_branch: {sync_branch}")
     console_print()
     console_print("Below are your git remotes. We will push to origin:")
     run_command(["git", "remote", "-v"], dry_run_override=RUNNING_IN_CI)
@@ -404,7 +400,7 @@ def publish_release_candidate(version, previous_version, github_token, sync_bran
     # Final confirmation
     confirm_action("Pushes will be made to origin. Do you want to continue?", abort=True)
     # Merge the sync PR
-    merge_pr(version_branch, sync_branch)
+    merge_pr(version_branch)
     #
     # # Tag & clean the repo
     git_tag(version)

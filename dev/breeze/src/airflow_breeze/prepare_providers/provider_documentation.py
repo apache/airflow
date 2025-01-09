@@ -21,6 +21,7 @@ import difflib
 import os
 import random
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -44,11 +45,12 @@ from airflow_breeze.utils.packages import (
     clear_cache_for_provider_metadata,
     get_provider_details,
     get_provider_jinja_context,
-    get_source_package_path,
+    get_provider_yaml,
     refresh_provider_metadata_from_yaml_file,
     refresh_provider_metadata_with_provider_id,
     render_template,
 )
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_verbose
 from airflow_breeze.utils.versions import get_version_tag
@@ -153,6 +155,7 @@ class ClassifiedChanges:
         self.misc: list[Change] = []
         self.features: list[Change] = []
         self.breaking_changes: list[Change] = []
+        self.docs: list[Change] = []
         self.other: list[Change] = []
 
 
@@ -186,11 +189,14 @@ TYPE_OF_CHANGE_DESCRIPTION = {
 }
 
 
-def _get_git_log_command(from_commit: str | None = None, to_commit: str | None = None) -> list[str]:
+def _get_git_log_command(
+    folder_paths: list[Path] | None = None, from_commit: str | None = None, to_commit: str | None = None
+) -> list[str]:
     """Get git command to run for the current repo from the current folder.
 
     The current directory should always be the package folder.
 
+    :param folder_paths: list of folder paths to check for changes
     :param from_commit: if present - base commit from which to start the log from
     :param to_commit: if present - final commit which should be the start of the log
     :return: git command to run
@@ -207,7 +213,8 @@ def _get_git_log_command(from_commit: str | None = None, to_commit: str | None =
         git_cmd.append(from_commit)
     elif to_commit:
         raise ValueError("It makes no sense to specify to_commit without from_commit.")
-    git_cmd.extend(["--", "."])
+    folders = [folder_path.as_posix() for folder_path in folder_paths] if folder_paths else ["."]
+    git_cmd.extend(["--", *folders])
     return git_cmd
 
 
@@ -307,18 +314,25 @@ def _get_all_changes_for_package(
         get_console().print(f"[info]Checking if tag '{current_tag_no_suffix}' exist.")
     result = run_command(
         ["git", "rev-parse", current_tag_no_suffix],
-        cwd=provider_details.source_provider_package_path,
+        cwd=AIRFLOW_SOURCES_ROOT,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         check=False,
     )
+    providers_folder_paths_for_git_commit_retrieval = [
+        provider_details.root_provider_path,
+    ]
     if not reapply_templates_only and result.returncode == 0:
         if get_verbose():
             get_console().print(f"[info]The tag {current_tag_no_suffix} exists.")
         # The tag already exists
         result = run_command(
-            _get_git_log_command(f"{HTTPS_REMOTE}/{base_branch}", current_tag_no_suffix),
-            cwd=provider_details.source_provider_package_path,
+            _get_git_log_command(
+                providers_folder_paths_for_git_commit_retrieval,
+                f"{HTTPS_REMOTE}/{base_branch}",
+                current_tag_no_suffix,
+            ),
+            cwd=AIRFLOW_SOURCES_ROOT,
             capture_output=True,
             text=True,
             check=True,
@@ -326,15 +340,24 @@ def _get_all_changes_for_package(
         changes = result.stdout.strip()
         if changes:
             provider_details = get_provider_details(provider_package_id)
-            doc_only_change_file = (
-                provider_details.source_provider_package_path / ".latest-doc-only-change.txt"
-            )
+            if provider_details.is_new_structure:
+                doc_only_change_file = (
+                    provider_details.root_provider_path / "docs" / ".latest-doc-only-change.txt"
+                )
+            else:
+                doc_only_change_file = (
+                    provider_details.base_provider_package_path / ".latest-doc-only-change.txt"
+                )
             if doc_only_change_file.exists():
                 last_doc_only_hash = doc_only_change_file.read_text().strip()
                 try:
                     result = run_command(
-                        _get_git_log_command(f"{HTTPS_REMOTE}/{base_branch}", last_doc_only_hash),
-                        cwd=provider_details.source_provider_package_path,
+                        _get_git_log_command(
+                            providers_folder_paths_for_git_commit_retrieval,
+                            f"{HTTPS_REMOTE}/{base_branch}",
+                            last_doc_only_hash,
+                        ),
+                        cwd=AIRFLOW_SOURCES_ROOT,
                         capture_output=True,
                         text=True,
                         check=True,
@@ -387,8 +410,10 @@ def _get_all_changes_for_package(
     for version in provider_details.versions[1:]:
         version_tag = get_version_tag(version, provider_package_id)
         result = run_command(
-            _get_git_log_command(next_version_tag, version_tag),
-            cwd=provider_details.source_provider_package_path,
+            _get_git_log_command(
+                providers_folder_paths_for_git_commit_retrieval, next_version_tag, version_tag
+            ),
+            cwd=AIRFLOW_SOURCES_ROOT,
             capture_output=True,
             text=True,
             check=True,
@@ -402,8 +427,8 @@ def _get_all_changes_for_package(
         next_version_tag = version_tag
         current_version = version
     result = run_command(
-        _get_git_log_command(next_version_tag),
-        cwd=provider_details.source_provider_package_path,
+        _get_git_log_command(providers_folder_paths_for_git_commit_retrieval, next_version_tag),
+        cwd=provider_details.root_provider_path,
         capture_output=True,
         text=True,
         check=True,
@@ -430,7 +455,7 @@ def _ask_the_user_for_the_type_of_changes(non_interactive: bool) -> TypeOfChange
     display_answers = "/".join(type_of_changes_array) + "/q"
     while True:
         get_console().print(
-            "[warning]Type of change (b)ugfix, (f)eature, (x)breaking "
+            "[warning]Type of change (d)ocumentation, (b)ugfix, (f)eature, (x)breaking "
             f"change, (m)misc, (s)kip, (q)uit [{display_answers}]?[/] ",
             end="",
         )
@@ -456,23 +481,30 @@ def _mark_latest_changes_as_documentation_only(
         f"[special]Marking last change: {latest_change.short_hash} and all above "
         f"changes since the last release as doc-only changes!"
     )
-    (provider_details.source_provider_package_path / ".latest-doc-only-change.txt").write_text(
-        latest_change.full_hash + "\n"
-    )
+    if provider_details.is_new_structure:
+        latest_doc_onl_change_file = (
+            provider_details.root_provider_path / "docs" / ".latest-doc-only-change.txt"
+        )
+    else:
+        latest_doc_onl_change_file = (
+            provider_details.base_provider_package_path / ".latest-doc-only-change.txt"
+        )
+
+    latest_doc_onl_change_file.write_text(latest_change.full_hash + "\n")
     raise PrepareReleaseDocsChangesOnlyException()
 
 
 def _update_version_in_provider_yaml(
-    provider_package_id: str,
+    provider_id: str,
     type_of_change: TypeOfChange,
 ) -> tuple[bool, bool, str]:
     """
     Updates provider version based on the type of change selected by the user
     :param type_of_change: type of change selected
-    :param provider_package_id: provider package
+    :param provider_id: provider package
     :return: tuple of two bools: (with_breaking_change, maybe_with_new_features, original_text)
     """
-    provider_details = get_provider_details(provider_package_id)
+    provider_details = get_provider_details(provider_id)
     version = provider_details.versions[0]
     v = semver.VersionInfo.parse(version)
     with_breaking_changes = False
@@ -487,7 +519,9 @@ def _update_version_in_provider_yaml(
         maybe_with_new_features = True
     elif type_of_change == TypeOfChange.BUGFIX:
         v = v.bump_patch()
-    provider_yaml_path = get_source_package_path(provider_package_id) / "provider.yaml"
+    elif type_of_change == TypeOfChange.MISC:
+        v = v.bump_patch()
+    provider_yaml_path, is_new_structure = get_provider_yaml(provider_id)
     original_provider_yaml_content = provider_yaml_path.read_text()
     new_provider_yaml_content = re.sub(
         r"^versions:", f"versions:\n  - {v}", original_provider_yaml_content, 1, re.MULTILINE
@@ -498,27 +532,27 @@ def _update_version_in_provider_yaml(
 
 
 def _update_source_date_epoch_in_provider_yaml(
-    provider_package_id: str,
+    provider_id: str,
 ) -> None:
     """
     Updates source date epoch in provider yaml that then can be used to generate reproducible packages.
 
-    :param provider_package_id: provider package
+    :param provider_id: provider package
     """
-    provider_yaml_path = get_source_package_path(provider_package_id) / "provider.yaml"
+    provider_yaml_path, is_new_structure = get_provider_yaml(provider_id)
     original_text = provider_yaml_path.read_text()
     source_date_epoch = int(time())
     new_text = re.sub(
         r"source-date-epoch: [0-9]*", f"source-date-epoch: {source_date_epoch}", original_text, 1
     )
     provider_yaml_path.write_text(new_text)
-    refresh_provider_metadata_with_provider_id(provider_package_id)
+    refresh_provider_metadata_with_provider_id(provider_id)
     get_console().print(f"[special]Updated source-date-epoch to {source_date_epoch}\n")
 
 
 def _verify_changelog_exists(package: str) -> Path:
     provider_details = get_provider_details(package)
-    changelog_path = Path(provider_details.source_provider_package_path) / "CHANGELOG.rst"
+    changelog_path = Path(provider_details.root_provider_path) / "CHANGELOG.rst"
     if not os.path.isfile(changelog_path):
         get_console().print(f"\n[error]ERROR: Missing {changelog_path}[/]\n")
         get_console().print("[info]Please add the file with initial content:")
@@ -772,10 +806,15 @@ def update_release_notes(
                 f"[special]{TYPE_OF_CHANGE_DESCRIPTION[type_of_change]}"
             )
             get_console().print()
-            if type_of_change in [TypeOfChange.BUGFIX, TypeOfChange.FEATURE, TypeOfChange.BREAKING_CHANGE]:
+            if type_of_change in [
+                TypeOfChange.BUGFIX,
+                TypeOfChange.FEATURE,
+                TypeOfChange.BREAKING_CHANGE,
+                TypeOfChange.MISC,
+            ]:
                 with_breaking_changes, maybe_with_new_features, original_provider_yaml_content = (
                     _update_version_in_provider_yaml(
-                        provider_package_id=provider_package_id, type_of_change=type_of_change
+                        provider_id=provider_package_id, type_of_change=type_of_change
                     )
                 )
                 _update_source_date_epoch_in_provider_yaml(provider_package_id)
@@ -801,9 +840,10 @@ def update_release_notes(
     if answer == Answer.NO:
         if original_provider_yaml_content is not None:
             # Restore original content of the provider.yaml
-            (get_source_package_path(provider_package_id) / "provider.yaml").write_text(
-                original_provider_yaml_content
-            )
+            (
+                (AIRFLOW_SOURCES_ROOT / "airflow" / "providers").joinpath(*provider_package_id.split("."))
+                / "provider.yaml"
+            ).write_text(original_provider_yaml_content)
             clear_cache_for_provider_metadata(provider_package_id)
 
         type_of_change = _ask_the_user_for_the_type_of_changes(non_interactive=False)
@@ -816,9 +856,14 @@ def update_release_notes(
         get_console().print()
         if type_of_change == TypeOfChange.DOCUMENTATION:
             _mark_latest_changes_as_documentation_only(provider_package_id, list_of_list_of_changes)
-        elif type_of_change in [TypeOfChange.BUGFIX, TypeOfChange.FEATURE, TypeOfChange.BREAKING_CHANGE]:
+        elif type_of_change in [
+            TypeOfChange.BUGFIX,
+            TypeOfChange.FEATURE,
+            TypeOfChange.BREAKING_CHANGE,
+            TypeOfChange.MISC,
+        ]:
             with_breaking_changes, maybe_with_new_features, _ = _update_version_in_provider_yaml(
-                provider_package_id=provider_package_id,
+                provider_id=provider_package_id,
                 type_of_change=type_of_change,
             )
             _update_source_date_epoch_in_provider_yaml(provider_package_id)
@@ -910,6 +955,8 @@ def _get_changes_classified(
             classified_changes.features.append(change)
         elif type_of_change == TypeOfChange.BREAKING_CHANGE and with_breaking_changes:
             classified_changes.breaking_changes.append(change)
+        elif type_of_change == TypeOfChange.DOCUMENTATION:
+            classified_changes.docs.append(change)
         else:
             classified_changes.other.append(change)
     return classified_changes
@@ -1022,7 +1069,7 @@ def get_provider_documentation_jinja_context(
     jinja_context["MAYBE_WITH_NEW_FEATURES"] = maybe_with_new_features
 
     jinja_context["ADDITIONAL_INFO"] = (
-        _get_additional_package_info(provider_package_path=provider_details.source_provider_package_path),
+        _get_additional_package_info(provider_package_path=provider_details.root_provider_path),
     )
     return jinja_context
 
@@ -1042,6 +1089,7 @@ def update_changelog(
     :param reapply_templates_only: only reapply templates, no changelog generation
     :param with_breaking_changes: whether there are any breaking changes
     :param maybe_with_new_features: whether there are any new features
+    :param only_min_version_update: whether to only update the min version
     """
     provider_details = get_provider_details(package_id)
     jinja_context = get_provider_documentation_jinja_context(
@@ -1076,9 +1124,63 @@ def update_changelog(
     _update_index_rst(jinja_context, package_id, provider_details.documentation_provider_package_path)
 
 
-def _generate_init_py_file_for_provider(
+def _generate_get_provider_info_py(context, provider_details):
+    get_provider_info_content = black_format(
+        render_template(
+            template_name="get_provider_info",
+            context=context,
+            extension=".py",
+            autoescape=False,
+            keep_trailing_newline=True,
+        )
+    )
+    get_provider_info_path = provider_details.base_provider_package_path / "get_provider_info.py"
+    get_provider_info_path.write_text(get_provider_info_content)
+    get_console().print(
+        f"[info]Generated {get_provider_info_path} for the {provider_details.provider_id} provider\n"
+    )
+
+
+def _generate_readme_rst(context, provider_details):
+    get_provider_readme_content = render_template(
+        template_name="PROVIDER_README",
+        context=context,
+        extension=".rst",
+        keep_trailing_newline=True,
+    )
+    get_provider_readme_path = provider_details.root_provider_path / "README.rst"
+    get_provider_readme_path.write_text(get_provider_readme_content)
+    get_console().print(
+        f"[info]Generated {get_provider_readme_path} for the {provider_details.provider_id} provider\n"
+    )
+
+
+def _generate_pyproject(context, provider_details):
+    get_pyproject_toml_path = provider_details.root_provider_path / "pyproject.toml"
+    try:
+        import tomllib
+    except ImportError:
+        import tomli as tomllib
+    old_toml_content = tomllib.loads(get_pyproject_toml_path.read_text())
+    old_dependencies = old_toml_content["project"]["dependencies"]
+    install_requirements = "".join(f'\n    "{ir}",' for ir in old_dependencies)
+    context["INSTALL_REQUIREMENTS"] = install_requirements
+    get_pyproject_toml_content = render_template(
+        template_name="pyproject",
+        context=context,
+        extension=".toml",
+        autoescape=False,
+        keep_trailing_newline=True,
+    )
+    get_pyproject_toml_path.write_text(get_pyproject_toml_content)
+    get_console().print(
+        f"[info]Generated {get_pyproject_toml_path} for the {provider_details.provider_id} provider\n"
+    )
+
+
+def _generate_build_files_for_provider(
     context: dict[str, Any],
-    target_path: Path,
+    provider_details: ProviderPackageDetails,
 ):
     init_py_content = black_format(
         render_template(
@@ -1088,8 +1190,14 @@ def _generate_init_py_file_for_provider(
             keep_trailing_newline=True,
         )
     )
-    init_py_path = target_path / "__init__.py"
+    init_py_path = provider_details.base_provider_package_path / "__init__.py"
     init_py_path.write_text(init_py_content)
+    # TODO(potiuk) - remove this if when we move all providers to new structure
+    if provider_details.is_new_structure:
+        _generate_get_provider_info_py(context, provider_details)
+        _generate_readme_rst(context, provider_details)
+        _generate_pyproject(context, provider_details)
+        shutil.copy(AIRFLOW_SOURCES_ROOT / "LICENSE", provider_details.base_provider_package_path / "LICENSE")
 
 
 def _replace_min_airflow_version_in_provider_yaml(
@@ -1107,7 +1215,7 @@ def _replace_min_airflow_version_in_provider_yaml(
     refresh_provider_metadata_from_yaml_file(provider_yaml_path)
 
 
-def update_min_airflow_version(
+def update_min_airflow_version_and_build_files(
     provider_package_id: str, with_breaking_changes: bool, maybe_with_new_features: bool
 ):
     """Updates min airflow version in provider yaml and __init__.py
@@ -1125,10 +1233,10 @@ def update_min_airflow_version(
         with_breaking_changes=with_breaking_changes,
         maybe_with_new_features=maybe_with_new_features,
     )
-    _generate_init_py_file_for_provider(
+    _generate_build_files_for_provider(
         context=jinja_context,
-        target_path=provider_details.source_provider_package_path,
+        provider_details=provider_details,
     )
     _replace_min_airflow_version_in_provider_yaml(
-        context=jinja_context, target_path=provider_details.source_provider_package_path
+        context=jinja_context, target_path=provider_details.root_provider_path
     )

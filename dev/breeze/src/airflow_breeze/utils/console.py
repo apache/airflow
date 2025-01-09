@@ -23,11 +23,12 @@ from __future__ import annotations
 
 import os
 from enum import Enum
-from functools import lru_cache
 from typing import NamedTuple, TextIO
 
 from rich.console import Console
 from rich.theme import Theme
+
+from airflow_breeze.utils.functools_cache import clearable_cache
 
 recording_width = os.environ.get("RECORD_BREEZE_WIDTH")
 recording_file = os.environ.get("RECORD_BREEZE_OUTPUT_FILE")
@@ -83,14 +84,14 @@ class Output(NamedTuple):
 
     @property
     def file(self) -> TextIO:
-        return open(self.file_name, "a+t")
+        return open(self.file_name, "a+")
 
     @property
     def escaped_title(self) -> str:
         return self.title.replace("[", "\\[")
 
 
-@lru_cache(maxsize=None)
+@clearable_cache
 def get_console(output: Output | None = None) -> Console:
     return Console(
         force_terminal=True,
@@ -102,7 +103,7 @@ def get_console(output: Output | None = None) -> Console:
     )
 
 
-@lru_cache(maxsize=None)
+@clearable_cache
 def get_stderr_console(output: Output | None = None) -> Console:
     return Console(
         force_terminal=True,

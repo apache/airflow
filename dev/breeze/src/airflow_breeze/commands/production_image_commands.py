@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import sys
 from copy import deepcopy
+from pathlib import Path
 
 import click
 
@@ -36,10 +37,12 @@ from airflow_breeze.commands.common_image_options import (
     option_debian_version,
     option_dev_apt_command,
     option_dev_apt_deps,
+    option_disable_airflow_repo_cache,
     option_docker_cache,
-    option_image_tag_for_building,
-    option_image_tag_for_pulling,
-    option_image_tag_for_verifying,
+    option_from_pr,
+    option_from_run,
+    option_github_token_for_images,
+    option_image_file_dir,
     option_install_mysql_client_type,
     option_platform_multiple,
     option_prepare_buildx_cache,
@@ -48,7 +51,7 @@ from airflow_breeze.commands.common_image_options import (
     option_python_image,
     option_runtime_apt_command,
     option_runtime_apt_deps,
-    option_tag_as_latest,
+    option_skip_image_file_deletion,
     option_verify,
     option_wait_for_image,
 )
@@ -64,6 +67,7 @@ from airflow_breeze.commands.common_options import (
     option_image_name,
     option_include_success_outputs,
     option_parallelism,
+    option_platform_single,
     option_python,
     option_python_versions,
     option_run_in_parallel,
@@ -92,7 +96,8 @@ from airflow_breeze.utils.docker_command_utils import (
     prepare_docker_build_command,
     warm_up_docker_builder,
 )
-from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel, tag_image_as_latest
+from airflow_breeze.utils.github import download_artifact_from_pr, download_artifact_from_run_id
+from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel
 from airflow_breeze.utils.parallel import (
     DockerBuildxProgressMatcher,
     ShowLastLineProgressMatcher,
@@ -150,6 +155,25 @@ def prepare_for_building_prod_image(params: BuildProdParams):
     check_docker_context_files(params.install_packages_from_context)
 
 
+option_prod_image_file_to_save = click.option(
+    "--image-file",
+    required=False,
+    type=click.Path(exists=False, dir_okay=False, writable=True, path_type=Path),
+    envvar="IMAGE_FILE",
+    help="Optional file to save the image to.",
+)
+
+option_prod_image_file_to_load = click.option(
+    "--image-file",
+    required=False,
+    type=click.Path(dir_okay=False, readable=True, path_type=Path, resolve_path=True),
+    envvar="IMAGE_FILE",
+    help="Optional file name to load the image from - name must follow the convention:"
+    "`prod-image-save-{escaped_platform}-*-{python_version}.tar` where escaped_platform is one of "
+    "linux_amd64 or linux_arm64.",
+)
+
+
 @click.group(
     cls=BreezeGroup, name="prod-image", help="Tools that developers can use to manually manage PROD images"
 )
@@ -193,11 +217,6 @@ def prod_image():
 @click.option("--disable-mssql-client-installation", help="Do not install MsSQl client.", is_flag=True)
 @click.option("--disable-postgres-client-installation", help="Do not install Postgres client.", is_flag=True)
 @click.option(
-    "--disable-airflow-repo-cache",
-    help="Disable cache from Airflow repository during building.",
-    is_flag=True,
-)
-@click.option(
     "--install-airflow-reference",
     help="Install Airflow using GitHub tag or branch.",
 )
@@ -222,12 +241,12 @@ def prod_image():
 @option_debug_resources
 @option_dev_apt_command
 @option_dev_apt_deps
+@option_disable_airflow_repo_cache
 @option_docker_cache
 @option_docker_host
 @option_dry_run
 @option_github_repository
 @option_github_token
-@option_image_tag_for_building
 @option_include_success_outputs
 @option_install_mysql_client_type
 @option_parallelism
@@ -241,7 +260,6 @@ def prod_image():
 @option_runtime_apt_command
 @option_runtime_apt_deps
 @option_skip_cleanup
-@option_tag_as_latest
 @option_use_uv_default_disabled
 @option_uv_http_timeout
 @option_verbose
@@ -276,7 +294,6 @@ def build(
     docker_host: str | None,
     github_repository: str,
     github_token: str | None,
-    image_tag: str,
     include_success_outputs,
     install_airflow_reference: str | None,
     install_airflow_version: str | None,
@@ -294,7 +311,6 @@ def build(
     runtime_apt_command: str | None,
     runtime_apt_deps: str | None,
     skip_cleanup: bool,
-    tag_as_latest: bool,
     use_constraints_for_context_packages: bool,
     use_uv: bool,
     uv_http_timeout: int,
@@ -345,7 +361,6 @@ def build(
         docker_cache=docker_cache,
         github_repository=github_repository,
         github_token=github_token,
-        image_tag=image_tag,
         install_airflow_reference=install_airflow_reference,
         install_airflow_version=install_airflow_version,
         install_mysql_client_type=install_mysql_client_type,
@@ -357,7 +372,6 @@ def build(
         python_image=python_image,
         runtime_apt_command=runtime_apt_command,
         runtime_apt_deps=runtime_apt_deps,
-        tag_as_latest=tag_as_latest,
         use_constraints_for_context_packages=use_constraints_for_context_packages,
         use_uv=use_uv,
         uv_http_timeout=uv_http_timeout,
@@ -412,9 +426,7 @@ def build(
 @option_include_success_outputs
 @option_python_versions
 @option_github_token
-@option_image_tag_for_pulling
 @option_wait_for_image
-@option_tag_as_latest
 @option_verify
 @option_github_repository
 @option_verbose
@@ -429,9 +441,7 @@ def pull_prod_image(
     include_success_outputs,
     python_versions: str,
     github_token: str,
-    image_tag: str,
     wait_for_image: bool,
-    tag_as_latest: bool,
     verify: bool,
     github_repository: str,
     extra_pytest_args: tuple,
@@ -443,7 +453,6 @@ def pull_prod_image(
         python_version_list = get_python_version_list(python_versions)
         prod_image_params_list = [
             BuildProdParams(
-                image_tag=image_tag,
                 python=python,
                 github_repository=github_repository,
                 github_token=github_token,
@@ -459,18 +468,16 @@ def pull_prod_image(
             python_version_list=python_version_list,
             verify=verify,
             wait_for_image=wait_for_image,
-            tag_as_latest=tag_as_latest,
             extra_pytest_args=extra_pytest_args if extra_pytest_args is not None else (),
         )
     else:
         image_params = BuildProdParams(
-            image_tag=image_tag, python=python, github_repository=github_repository, github_token=github_token
+            python=python, github_repository=github_repository, github_token=github_token
         )
         return_code, info = run_pull_image(
             image_params=image_params,
             output=None,
             wait_for_image=wait_for_image,
-            tag_as_latest=tag_as_latest,
             poll_time_seconds=10.0,
         )
         if return_code != 0:
@@ -499,7 +506,7 @@ def run_verify_in_parallel(
                 pool.apply_async(
                     verify_an_image,
                     kwds={
-                        "image_name": image_params.airflow_image_name_with_tag,
+                        "image_name": image_params.airflow_image_name,
                         "image_type": "PROD",
                         "slim_image": False,
                         "extra_pytest_args": extra_pytest_args,
@@ -532,7 +539,6 @@ def run_verify_in_parallel(
 @click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
 @option_python
 @option_python_versions
-@option_image_tag_for_verifying
 @option_image_name
 @option_pull
 @option_github_repository
@@ -549,7 +555,6 @@ def verify(
     python_versions: str,
     github_repository: str,
     image_name: str,
-    image_tag: str | None,
     pull: bool,
     slim_image: bool,
     github_token: str,
@@ -572,7 +577,6 @@ def verify(
         base_build_params = BuildProdParams(
             python=python,
             github_repository=github_repository,
-            image_tag=image_tag,
         )
         python_version_list = get_python_version_list(python_versions)
         params_list: list[BuildProdParams] = []
@@ -593,11 +597,10 @@ def verify(
         if image_name is None:
             build_params = BuildProdParams(
                 python=python,
-                image_tag=image_tag,
                 github_repository=github_repository,
                 github_token=github_token,
             )
-            image_name = build_params.airflow_image_name_with_tag
+            image_name = build_params.airflow_image_name
         if pull:
             check_remote_ghcr_io_commands()
             command_to_run = ["docker", "pull", image_name]
@@ -611,6 +614,109 @@ def verify(
             slim_image=slim_image,
         )
         sys.exit(return_code)
+
+
+@prod_image.command(name="save")
+@option_github_repository
+@option_image_file_dir
+@option_platform_single
+@option_prod_image_file_to_save
+@option_python
+@option_verbose
+@option_dry_run
+def save(
+    python: str,
+    platform: str,
+    github_repository: str,
+    image_file: Path | None,
+    image_file_dir: Path,
+):
+    """Save PROD image to a file."""
+    perform_environment_checks()
+    image_name = BuildProdParams(
+        python=python,
+        github_repository=github_repository,
+    ).airflow_image_name
+    with ci_group("Buildx disk usage"):
+        run_command(["docker", "buildx", "du", "--verbose"], check=False)
+    escaped_platform = platform.replace("/", "_")
+    if not image_file:
+        image_file_to_store = image_file_dir / f"prod-image-save-{escaped_platform}-{python}.tar"
+    elif image_file.is_absolute():
+        image_file_to_store = image_file
+    else:
+        image_file_to_store = image_file_dir / image_file
+    get_console().print(f"[info]Saving Python PROD image {image_name} to {image_file_to_store}[/]")
+    result = run_command(
+        ["docker", "image", "save", "-o", image_file_to_store.as_posix(), image_name], check=False
+    )
+    if result.returncode != 0:
+        get_console().print(f"[error]Error when saving image: {result.stdout}[/]")
+        sys.exit(result.returncode)
+
+
+@prod_image.command(name="load")
+@option_dry_run
+@option_from_run
+@option_from_pr
+@option_github_repository
+@option_github_token_for_images
+@option_image_file_dir
+@option_platform_single
+@option_prod_image_file_to_save
+@option_python
+@option_skip_image_file_deletion
+@option_verbose
+def load(
+    from_run: str | None,
+    from_pr: str | None,
+    github_repository: str,
+    github_token: str,
+    image_file: Path | None,
+    image_file_dir: Path,
+    platform: str,
+    python: str,
+    skip_image_file_deletion: bool,
+):
+    """Load PROD image from a file."""
+    perform_environment_checks()
+    escaped_platform = platform.replace("/", "_")
+
+    if not image_file:
+        image_file_to_load = image_file_dir / f"prod-image-save-{escaped_platform}-{python}.tar"
+    elif image_file.is_absolute() or image_file.exists():
+        image_file_to_load = image_file
+    else:
+        image_file_to_load = image_file_dir / image_file
+    if from_run:
+        download_artifact_from_run_id(from_run, image_file_to_load, github_repository, github_token)
+    elif from_pr:
+        download_artifact_from_pr(from_pr, image_file_to_load, github_repository, github_token)
+
+    if not image_file_to_load.exists():
+        get_console().print(f"[error]The image {image_file_to_load} does not exist.[/]")
+        sys.exit(1)
+    if not image_file_to_load.name.endswith(f"-{python}.tar"):
+        get_console().print(
+            f"[error]The image file {image_file_to_load} does not end with '-{python}.tar'. Exiting.[/]"
+        )
+        sys.exit(1)
+    if not image_file_to_load.name.startswith(f"prod-image-save-{escaped_platform}"):
+        get_console().print(
+            f"[error]The image file {image_file_to_load} does not start with 'prod-image-save-{escaped_platform}'"
+            f". Exiting.[/]"
+        )
+        sys.exit(1)
+    get_console().print(f"[info]Loading Python PROD image from {image_file_to_load}[/]")
+    result = run_command(["docker", "image", "load", "-i", image_file_to_load.as_posix()], check=False)
+    if result.returncode != 0:
+        get_console().print(f"[error]Error when loading image: {result.stdout}[/]")
+        sys.exit(result.returncode)
+    if not skip_image_file_deletion:
+        get_console().print(f"[info]Deleting image file {image_file_to_load}[/]")
+        image_file_to_load.unlink()
+    if get_verbose():
+        run_command(["docker", "images", "-a"])
 
 
 def clean_docker_context_files():
@@ -708,6 +814,4 @@ def run_build_production_image(
             text=True,
             output=output,
         )
-        if build_command_result.returncode == 0 and prod_image_params.tag_as_latest:
-            build_command_result = tag_image_as_latest(image_params=prod_image_params, output=output)
     return build_command_result.returncode, f"Image build: {param_description}"

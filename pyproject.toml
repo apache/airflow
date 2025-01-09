@@ -22,13 +22,13 @@
 # The dependencies can be automatically upgraded by running:
 # pre-commit run --hook-stage manual update-build-dependencies --all-files
 requires = [
-    "GitPython==3.1.43",
-    "gitdb==4.0.11",
+    "GitPython==3.1.44",
+    "gitdb==4.0.12",
     "hatchling==1.27.0",
     "packaging==24.2",
     "pathspec==0.12.1",
     "pluggy==1.5.0",
-    "smmap==5.0.1",
+    "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
     "trove-classifiers==2024.10.21.16",
 ]
@@ -154,45 +154,11 @@ Homepage = "https://airflow.apache.org/"
 "Release Notes" = "https://airflow.apache.org/docs/apache-airflow/stable/release_notes.html"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
 "Source Code" = "https://github.com/apache/airflow"
-Twitter = "https://twitter.com/ApacheAirflow"
+X = "https://x.com/ApacheAirflow"
+LinkedIn = "https://www.linkedin.com/company/apache-airflow/"
+Mastodon = "https://fosstodon.org/@airflow"
+Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
 YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
-
-[tool.hatch.envs.default]
-python = "3.8"
-platforms = ["linux", "macos"]
-description = "Default environment with Python 3.8 for maximum compatibility"
-features = []
-
-[tool.hatch.envs.airflow-38]
-python = "3.8"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.8. No devel installed."
-features = []
-
-[tool.hatch.envs.airflow-39]
-python = "3.9"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.9. No devel installed."
-features = []
-
-[tool.hatch.envs.airflow-310]
-python = "3.10"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.10. No devel installed."
-features = []
-
-[tool.hatch.envs.airflow-311]
-python = "3.11"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.11. No devel installed"
-features = []
-
-[tool.hatch.envs.airflow-312]
-python = "3.12"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.12. No devel installed"
-features = []
-
 
 [tool.hatch.version]
 path = "airflow/__init__.py"
@@ -263,7 +229,7 @@ extend-select = [
     "UP", # Pyupgrade
     "ASYNC", # subset of flake8-async rules
     "ISC",  # Checks for implicit literal string concatenation (auto-fixable)
-    "TCH", # Rules around TYPE_CHECKING blocks
+    "TC", # Rules around TYPE_CHECKING blocks
     "G", # flake8-logging-format rules
     "LOG", # flake8-logging rules, most of them autofixable
     "PT", # flake8-pytest-style rules
@@ -309,9 +275,7 @@ ignore = [
     "D214",
     "D215",
     "E731", # Do not assign a lambda expression, use a def
-    "TCH003", # Do not move imports from stdlib to TYPE_CHECKING block
-    "PT004", # Fixture does not return anything, add leading underscore
-    "PT005", # Fixture returns a value, remove leading underscore
+    "TC003", # Do not move imports from stdlib to TYPE_CHECKING block
     "PT006", # Wrong type of names in @pytest.mark.parametrize
     "PT007", # Wrong type of values in @pytest.mark.parametrize
     "PT011", # pytest.raises() is too broad, set the match parameter
@@ -332,6 +296,7 @@ ignore = [
     "COM812",
     "COM819",
     "E501", # Formatted code may exceed the line length, leading to line-too-long (E501) errors.
+    "ASYNC110", # TODO: Use `anyio.Event` instead of awaiting `anyio.sleep` in a `while` loop
 ]
 unfixable = [
     # PT022 replace empty `yield` to empty `return`. Might be fixed with a combination of PLR1711
@@ -557,6 +522,9 @@ python_files = [
 testpaths = [
     "tests",
 ]
+
+asyncio_default_fixture_loop_scope = "function"
+
 # Keep temporary directories (created by `tmp_path`) for 2 recent runs only failed tests.
 tmp_path_retention_count = "2"
 tmp_path_retention_policy = "failed"

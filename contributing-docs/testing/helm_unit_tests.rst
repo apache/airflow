@@ -25,8 +25,7 @@ add them in ``helm_tests``.
 
 .. code-block:: python
 
-    class TestBaseChartTest:
-        ...
+    class TestBaseChartTest: ...
 
 To render the chart create a YAML string with the nested dictionary of options you wish to test. You can then
 use our ``render_chart`` function to render the object of interest into a testable Python dictionary. Once the chart

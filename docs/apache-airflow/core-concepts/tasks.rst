@@ -210,13 +210,11 @@ Examples of ``sla_miss_callback`` function signature:
 
 .. code-block:: python
 
-    def my_sla_miss_callback(dag, task_list, blocking_task_list, slas, blocking_tis):
-        ...
+    def my_sla_miss_callback(dag, task_list, blocking_task_list, slas, blocking_tis): ...
 
 .. code-block:: python
 
-    def my_sla_miss_callback(*args):
-        ...
+    def my_sla_miss_callback(*args): ...
 
 Example DAG:
 

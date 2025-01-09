@@ -16,12 +16,21 @@
 # under the License.
 #
 ---
-name: 'Prepare breeze && current python image'
-description: 'Installs breeze and pulls current python image'
+name: 'Prepare breeze && current image (CI or PROD)'
+description: 'Installs breeze and recreates current python image from artifact'
 inputs:
-  pull-image-type:
-    description: 'Which image to pull'
-    default: CI
+  python:
+    description: 'Python version for image to prepare'
+    required: true
+  image-type:
+    description: 'Which image type to prepare (ci/prod)'
+    default: "ci"
+  platform:
+    description: 'Platform for the build - linux/amd64 or linux/arm64'
+    required: true
+  use-uv:
+    description: 'Whether to use uv'
+    required: true
 outputs:
   host-python-version:
     description: Python version used in host
@@ -29,17 +38,30 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - name: "Cleanup docker"
+      run: ./scripts/ci/cleanup_docker.sh
+      shell: bash
     - name: "Install Breeze"
       uses: ./.github/actions/breeze
+      with:
+        use-uv: ${{ inputs.use-uv }}
       id: breeze
-    - name: Login to ghcr.io
+    - name: Check free space
+      run: df -H
       shell: bash
-      run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-    - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG }}
+    - name: Make /mnt/ directory writeable
+      run: sudo chown -R ${USER} /mnt
       shell: bash
-      run: breeze ci-image pull --tag-as-latest
-      if: inputs.pull-image-type == 'CI'
-    - name: Pull PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG }}
+    - name: "Restore ${{ inputs.image-type }} docker image ${{ inputs.platform }}:${{ inputs.python }}"
+      uses: apache/infrastructure-actions/stash/restore@c94b890bbedc2fc61466d28e6bd9966bc6c6643c
+      with:
+        key: ${{ inputs.image-type }}-image-save-${{ inputs.platform }}-${{ inputs.python }}
+        path: "/mnt/"
+    - name: "Load ${{ inputs.image-type }} image ${{ inputs.platform }}:${{ inputs.python }}"
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        PYTHON: ${{ inputs.python }}
+        IMAGE_TYPE: ${{ inputs.image-type }}
+      run: >
+        breeze ${IMAGE_TYPE}-image load --platform "${PLATFORM}" --python "${PYTHON}" --image-file-dir "/mnt"
       shell: bash
-      run: breeze prod-image pull --tag-as-latest
-      if: inputs.pull-image-type == 'PROD'

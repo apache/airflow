@@ -44,7 +44,6 @@ class BuildProdParams(CommonBuildParams):
     airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     cleanup_context: bool = False
     airflow_extras: str = field(default_factory=get_airflow_extras)
-    disable_airflow_repo_cache: bool = False
     disable_mssql_client_installation: bool = False
     disable_mysql_client_installation: bool = False
     disable_postgres_client_installation: bool = False
@@ -63,6 +62,18 @@ class BuildProdParams(CommonBuildParams):
             return self.install_airflow_version
         else:
             return self._get_version_with_suffix()
+
+    @property
+    def airflow_semver_version(self) -> str:
+        """The airflow version in SemVer compatible form"""
+        from packaging.version import Version
+
+        pyVer = Version(self.airflow_version)
+
+        ver = pyVer.base_version
+        # if (dev := pyVer.dev) is not None:
+        #     ver += f"-dev.{dev}"
+        return ver
 
     @property
     def image_type(self) -> str:
@@ -187,10 +198,6 @@ class BuildProdParams(CommonBuildParams):
         return extra_build_flags
 
     @property
-    def airflow_pre_cached_pip_packages(self) -> str:
-        return "false" if self.disable_airflow_repo_cache else "true"
-
-    @property
     def install_mssql_client(self) -> str:
         return "false" if self.disable_mssql_client_installation else "true"
 
@@ -219,7 +226,6 @@ class BuildProdParams(CommonBuildParams):
         self._req_arg("AIRFLOW_IMAGE_DATE_CREATED", self.airflow_image_date_created)
         self._req_arg("AIRFLOW_IMAGE_README_URL", self.airflow_image_readme_url)
         self._req_arg("AIRFLOW_IMAGE_REPOSITORY", self.airflow_image_repository)
-        self._req_arg("AIRFLOW_PRE_CACHED_PIP_PACKAGES", self.airflow_pre_cached_pip_packages)
         self._opt_arg("AIRFLOW_USE_UV", self.use_uv)
         if self.use_uv:
             from airflow_breeze.utils.uv_utils import get_uv_timeout

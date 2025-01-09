@@ -22,10 +22,11 @@ import json
 import os
 import subprocess
 import sys
+from collections.abc import Iterable
 from enum import Enum
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Iterable, NamedTuple
+from typing import Any, NamedTuple
 
 from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -34,21 +35,23 @@ from airflow_breeze.global_constants import (
     REGULAR_DOC_PACKAGES,
 )
 from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_PROVIDERS_ROOT,
+    AIRFLOW_ORIGINAL_PROVIDERS_DIR,
+    AIRFLOW_PROVIDERS_DIR,
+    AIRFLOW_SOURCES_ROOT,
     BREEZE_SOURCES_ROOT,
-    DOCS_ROOT,
-    GENERATED_PROVIDER_PACKAGES_DIR,
     PROVIDER_DEPENDENCIES_JSON_FILE_PATH,
 )
 from airflow_breeze.utils.publish_docs_helpers import (
-    _load_schema,
-    get_provider_yaml_paths,
+    NEW_PROVIDER_DATA_SCHEMA_PATH,
+    OLD_PROVIDER_DATA_SCHEMA_PATH,
 )
 from airflow_breeze.utils.run_utils import run_command
+from airflow_breeze.utils.version_utils import remove_local_version_suffix
 from airflow_breeze.utils.versions import get_version_tag, strip_leading_zeros_from_version
 
-MIN_AIRFLOW_VERSION = "2.7.0"
+MIN_AIRFLOW_VERSION = "2.9.0"
 HTTPS_REMOTE = "apache-https-for-providers"
 
 LONG_PROVIDERS_PREFIX = "apache-airflow-providers-"
@@ -70,10 +73,13 @@ class PluginInfo(NamedTuple):
 
 class ProviderPackageDetails(NamedTuple):
     provider_id: str
+    provider_yaml_path: Path
+    is_new_structure: bool
     source_date_epoch: int
     full_package_name: str
     pypi_package_name: str
-    source_provider_package_path: Path
+    root_provider_path: Path
+    base_provider_package_path: Path
     documentation_provider_package_path: Path
     changelog_path: Path
     provider_description: str
@@ -118,32 +124,40 @@ class PipRequirements(NamedTuple):
         return cls(package=package, version_required=version_required.strip())
 
 
+@clearable_cache
+def old_provider_yaml_schema() -> dict[str, Any]:
+    with open(OLD_PROVIDER_DATA_SCHEMA_PATH) as schema_file:
+        return json.load(schema_file)
+
+
+@clearable_cache
+def new_provider_yaml_schema() -> dict[str, Any]:
+    with open(NEW_PROVIDER_DATA_SCHEMA_PATH) as schema_file:
+        return json.load(schema_file)
+
+
 PROVIDER_METADATA: dict[str, dict[str, Any]] = {}
 
 
 def refresh_provider_metadata_from_yaml_file(provider_yaml_path: Path):
-    import yaml
-
-    schema = _load_schema()
+    schema = old_provider_yaml_schema()
     with open(provider_yaml_path) as yaml_file:
-        provider = yaml.safe_load(yaml_file)
-    try:
-        import jsonschema
+        import yaml
 
-        try:
-            jsonschema.validate(provider, schema=schema)
-        except jsonschema.ValidationError as ex:
-            msg = f"Unable to parse: {provider_yaml_path}. Original error {type(ex).__name__}: {ex}"
-            raise RuntimeError(msg)
-    except ImportError:
-        # we only validate the schema if jsonschema is available. This is needed for autocomplete
-        # to not fail with import error if jsonschema is not installed
-        pass
-    PROVIDER_METADATA[get_short_package_name(provider["package-name"])] = provider
+        provider_yaml_content = yaml.safe_load(yaml_file)
+    import jsonschema
+
+    try:
+        jsonschema.validate(provider_yaml_content, schema=schema)
+    except jsonschema.ValidationError as ex:
+        msg = f"Unable to parse: {provider_yaml_path}. Original error {type(ex).__name__}: {ex}"
+        raise RuntimeError(msg)
+    provider_id = get_short_package_name(provider_yaml_content["package-name"])
+    PROVIDER_METADATA[provider_id] = provider_yaml_content
 
 
 def refresh_provider_metadata_with_provider_id(provider_id: str):
-    provider_yaml_path = get_source_package_path(provider_id) / "provider.yaml"
+    provider_yaml_path, _ = get_provider_yaml(provider_id)
     refresh_provider_metadata_from_yaml_file(provider_yaml_path)
 
 
@@ -152,7 +166,31 @@ def clear_cache_for_provider_metadata(provider_id: str):
     refresh_provider_metadata_with_provider_id(provider_id)
 
 
-@lru_cache(maxsize=1)
+@clearable_cache
+def get_all_provider_yaml_paths() -> list[Path]:
+    """Returns list of provider.yaml files"""
+    return sorted(list(AIRFLOW_PROVIDERS_DIR.glob("**/provider.yaml")))
+
+
+def get_provider_id_from_path(file_path: Path) -> str | None:
+    """
+    Get the provider id from the path of the file it belongs to.
+    """
+    for parent in file_path.parents:
+        # This works fine for both new and old providers structure - because we moved provider.yaml to
+        # the top-level of the provider and this code finding "providers"  will find the "providers" package
+        # in old structure and "providers" directory in new structure - in both cases we can determine
+        # the provider id from the relative folders
+        if (parent / "provider.yaml").exists():
+            for providers_root_candidate in parent.parents:
+                if providers_root_candidate.name == "providers":
+                    return parent.relative_to(providers_root_candidate).as_posix().replace("/", ".")
+            else:
+                return None
+    return None
+
+
+@clearable_cache
 def get_provider_packages_metadata() -> dict[str, dict[str, Any]]:
     """
     Load all data from providers files
@@ -163,7 +201,7 @@ def get_provider_packages_metadata() -> dict[str, dict[str, Any]]:
     if PROVIDER_METADATA:
         return PROVIDER_METADATA
 
-    for provider_yaml_path in get_provider_yaml_paths():
+    for provider_yaml_path in get_all_provider_yaml_paths():
         refresh_provider_metadata_from_yaml_file(provider_yaml_path)
     return PROVIDER_METADATA
 
@@ -380,16 +418,10 @@ def find_matching_long_package_names(
     )
 
 
-def get_source_package_path(provider_id: str) -> Path:
-    return AIRFLOW_PROVIDERS_ROOT.joinpath(*provider_id.split("."))
-
-
-def get_documentation_package_path(provider_id: str) -> Path:
-    return DOCS_ROOT / f"apache-airflow-providers-{provider_id.replace('.', '-')}"
-
-
-def get_target_root_for_copied_provider_sources(provider_id: str) -> Path:
-    return GENERATED_PROVIDER_PACKAGES_DIR.joinpath(*provider_id.split("."))
+# We should not remove those old/original package paths as they are used to get changes
+# When documentation is generated
+def get_original_source_package_path(provider_id: str) -> Path:
+    return AIRFLOW_ORIGINAL_PROVIDERS_DIR.joinpath(*provider_id.split("."))
 
 
 def get_pip_package_name(provider_id: str) -> str:
@@ -413,7 +445,9 @@ def get_dist_package_name_prefix(provider_id: str) -> str:
 
 
 def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
-    if install_clause.startswith("apache-airflow") and ">=" in install_clause and version_suffix:
+    # Need to resolve a version suffix based on PyPi versions, but can ignore local version suffix.
+    pypi_version_suffix = remove_local_version_suffix(version_suffix)
+    if pypi_version_suffix and install_clause.startswith("apache-airflow") and ">=" in install_clause:
         # Applies version suffix to the apache-airflow and provider package dependencies to make
         # sure that pre-release versions have correct limits - this address the issue with how
         # pip handles pre-release versions when packages are pre-release and refer to each other - we
@@ -422,6 +456,8 @@ def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
         # For example `apache-airflow-providers-fab==2.0.0.dev0` should refer to
         # `apache-airflow>=2.9.0.dev0` and not `apache-airflow>=2.9.0` because both packages are
         # released together and >= 2.9.0 is not correct reference for 2.9.0.dev0 version of Airflow.
+        # This assumes a local release, one where the suffix starts with a plus sign, uses the last
+        # version of the dependency, so it is not necessary to add the suffix to the dependency.
         prefix, version = install_clause.split(">=")
         # If version has a upper limit (e.g. ">=2.10.0,<3.0"), we need to cut this off not to fail
         if "," in version:
@@ -430,9 +466,9 @@ def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
 
         base_version = Version(version).base_version
         # always use `pre-release`+ `0` as the version suffix
-        version_suffix = version_suffix.rstrip("0123456789") + "0"
+        pypi_version_suffix = pypi_version_suffix.rstrip("0123456789") + "0"
 
-        target_version = Version(str(base_version) + "." + version_suffix)
+        target_version = Version(str(base_version) + "." + pypi_version_suffix)
         return prefix + ">=" + str(target_version)
     return install_clause
 
@@ -462,14 +498,36 @@ def get_package_extras(provider_id: str, version_suffix: str) -> dict[str, list[
 
     :param provider_id: id of the package
     """
+
     if provider_id == "providers":
         return {}
     if provider_id in get_removed_provider_ids():
         return {}
+
+    from packaging.requirements import Requirement
+
+    deps_list = list(
+        map(
+            lambda x: Requirement(x).name,
+            PROVIDER_DEPENDENCIES.get(provider_id)["deps"],
+        )
+    )
+    deps = list(filter(lambda x: x.startswith("apache-airflow-providers"), deps_list))
     extras_dict: dict[str, list[str]] = {
         module: [get_pip_package_name(module)]
         for module in PROVIDER_DEPENDENCIES.get(provider_id)["cross-providers-deps"]
     }
+
+    to_pop_extras = []
+    # remove the keys from extras_dict if the provider is already a required dependency
+    for k, v in extras_dict.items():
+        if v and v[0] in deps:
+            to_pop_extras.append(k)
+
+    for k in to_pop_extras:
+        get_console().print(f"[warning]Removing {k} from extras as it is already a required dependency")
+        del extras_dict[k]
+
     provider_yaml_dict = get_provider_packages_metadata().get(provider_id)
     additional_extras = provider_yaml_dict.get("additional-extras") if provider_yaml_dict else None
     if additional_extras:
@@ -493,6 +551,25 @@ def get_package_extras(provider_id: str, version_suffix: str) -> dict[str, list[
     return extras_dict
 
 
+def get_provider_yaml(provider_id: str) -> tuple[Path, bool]:
+    new_structure_provider_path = AIRFLOW_PROVIDERS_DIR / provider_id.replace(".", "/") / "provider.yaml"
+    if new_structure_provider_path.exists():
+        return new_structure_provider_path, True
+    else:
+        return (
+            AIRFLOW_SOURCES_ROOT / "airflow" / "providers" / provider_id.replace(".", "/") / "provider.yaml",
+            False,
+        )
+
+
+def load_pyproject_toml(pyproject_toml_file_path: Path) -> dict[str, Any]:
+    try:
+        import tomllib
+    except ImportError:
+        import tomli as tomllib
+    return tomllib.loads(pyproject_toml_file_path.read_text())
+
+
 def get_provider_details(provider_id: str) -> ProviderPackageDetails:
     provider_info = get_provider_packages_metadata().get(provider_id)
     if not provider_info:
@@ -508,18 +585,27 @@ def get_provider_details(provider_id: str) -> ProviderPackageDetails:
                     class_name=class_name,
                 )
             )
+    provider_yaml_path, is_new_structure = get_provider_yaml(provider_id)
+    dependencies = provider_info["dependencies"]
+    root_provider_path = (AIRFLOW_SOURCES_ROOT / "airflow" / "providers").joinpath(*provider_id.split("."))
+    changelog_path = root_provider_path / "CHANGELOG.rst"
+    base_provider_package_path = root_provider_path
+    pypi_name = f"apache-airflow-providers-{provider_id.replace('.', '-')}"
     return ProviderPackageDetails(
         provider_id=provider_id,
+        provider_yaml_path=provider_yaml_path,
+        is_new_structure=is_new_structure,
         source_date_epoch=provider_info["source-date-epoch"],
         full_package_name=f"airflow.providers.{provider_id}",
-        pypi_package_name=f"apache-airflow-providers-{provider_id.replace('.', '-')}",
-        source_provider_package_path=get_source_package_path(provider_id),
-        documentation_provider_package_path=get_documentation_package_path(provider_id),
-        changelog_path=get_source_package_path(provider_id) / "CHANGELOG.rst",
+        pypi_package_name=pypi_name,
+        root_provider_path=root_provider_path,
+        base_provider_package_path=base_provider_package_path,
+        changelog_path=changelog_path,
+        documentation_provider_package_path=AIRFLOW_SOURCES_ROOT / "docs" / pypi_name,
         provider_description=provider_info["description"],
-        dependencies=provider_info["dependencies"],
+        dependencies=dependencies,
         versions=provider_info["versions"],
-        excluded_python_versions=provider_info.get("excluded-python-versions") or [],
+        excluded_python_versions=provider_info.get("excluded-python-versions", []),
         plugins=plugins,
         removed=provider_info["state"] == "removed",
     )
@@ -542,7 +628,7 @@ def get_min_airflow_version(provider_id: str) -> str:
 
 
 def get_python_requires(provider_id: str) -> str:
-    python_requires = "~=3.8"
+    python_requires = "~=3.9"
     provider_details = get_provider_details(provider_id=provider_id)
     for p in provider_details.excluded_python_versions:
         python_requires += f", !={p}"
@@ -582,6 +668,27 @@ def get_cross_provider_dependent_packages(provider_package_id: str) -> list[str]
     return PROVIDER_DEPENDENCIES[provider_package_id]["cross-providers-deps"]
 
 
+def format_version_suffix(version_suffix: str) -> str:
+    """
+    Formats the version suffix by adding a dot prefix unless it is a local prefix. If no version suffix is
+    passed in, an empty string is returned.
+
+    Args:
+        version_suffix (str): The version suffix to be formatted.
+
+    Returns:
+        str: The formatted version suffix.
+
+    """
+    if version_suffix:
+        if version_suffix[0] == "." or version_suffix[0] == "+":
+            return version_suffix
+        else:
+            return f".{version_suffix}"
+    else:
+        return ""
+
+
 def get_provider_jinja_context(
     provider_id: str,
     current_release_version: str,
@@ -601,7 +708,7 @@ def get_provider_jinja_context(
         "FULL_PACKAGE_NAME": provider_details.full_package_name,
         "RELEASE": current_release_version,
         "RELEASE_NO_LEADING_ZEROS": release_version_no_leading_zeros,
-        "VERSION_SUFFIX": f".{version_suffix}" if version_suffix else "",
+        "VERSION_SUFFIX": format_version_suffix(version_suffix),
         "PIP_REQUIREMENTS": get_provider_requirements(provider_details.provider_id),
         "PROVIDER_DESCRIPTION": provider_details.provider_description,
         "INSTALL_REQUIREMENTS": get_install_requirements(
@@ -611,7 +718,7 @@ def get_provider_jinja_context(
             provider_id=provider_details.provider_id, version_suffix=version_suffix
         ),
         "CHANGELOG_RELATIVE_PATH": os.path.relpath(
-            provider_details.source_provider_package_path,
+            provider_details.root_provider_path,
             provider_details.documentation_provider_package_path,
         ),
         "CHANGELOG": changelog,
@@ -746,7 +853,7 @@ def tag_exists_for_provider(provider_id: str, current_tag: str) -> bool:
     provider_details = get_provider_details(provider_id)
     result = run_command(
         ["git", "rev-parse", current_tag],
-        cwd=provider_details.source_provider_package_path,
+        cwd=provider_details.root_provider_path,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         check=False,

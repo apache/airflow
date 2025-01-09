@@ -531,7 +531,6 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self.initialize_providers_list()
         self._discover_dataset_uri_resources()
 
-    @provider_info_cache("hook_lineage_writers")
     @provider_info_cache("taskflow_decorators")
     def initialize_providers_taskflow_decorator(self):
         """Lazy initialization of providers hooks."""

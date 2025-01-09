@@ -20,11 +20,13 @@ default_language_version:
   python: python3
   node: 22.2.0
 minimum_pre_commit_version: '3.2.0'
+exclude: ^.*/.*_vendor/
 repos:
   - repo: meta
     hooks:
       - id: identity
-        name: Print input to the static check hooks for troubleshooting
+        name: Print checked files
+        description: Print input to the static check hooks for troubleshooting
       - id: check-hooks-apply
         name: Check if all hooks apply to the repository
   - repo: https://github.com/thlorenz/doctoc.git
@@ -34,7 +36,6 @@ repos:
         name: Add TOC for Markdown and RST files
         files:
           ^README\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$|^.github/.*\.md|^tests/system/README.md$
-        exclude: ^.*/.*_vendor/
         args:
           - "--maxlevel"
           - "2"
@@ -46,8 +47,7 @@ repos:
         files: \.sql$
         exclude: |
           (?x)
-          ^\.github/|
-          ^.*/.*_vendor/
+          ^\.github/
         args:
           - --comment-style
           - "/*||*/"
@@ -56,7 +56,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all RST files
-        exclude: ^\.github/.*$|^.*/.*_vendor/|newsfragments/.*\.rst$
+        exclude: ^\.github/.*$|newsfragments/.*\.rst$
         args:
           - --comment-style
           - "||"
@@ -65,9 +65,9 @@ repos:
           - --fuzzy-match-generates-todo
         files: \.rst$
       - id: insert-license
-        name: Add license for all CSS/JS/JSX/PUML/TS/TSX files
+        name: Add license for CSS/JS/JSX/PUML/TS/TSX
         files: \.(css|jsx?|puml|tsx?)$
-        exclude: ^\.github/.*$|^.*/.*_vendor/
+        exclude: ^\.github/.*$|^airflow/www/static/js/types/api-generated.ts$|ui/openapi-gen/
         args:
           - --comment-style
           - "/*!| *| */"
@@ -77,7 +77,7 @@ repos:
       - id: insert-license
         name: Add license for all JINJA template files
         files: ^airflow/www/templates/.*\.html$
-        exclude: ^\.github/.*$|^.*/.*_vendor/
+        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "{#||#}"
@@ -86,7 +86,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all Shell files
-        exclude: ^\.github/.*$|^.*/.*_vendor/|^dev/breeze/autocomplete/.*$
+        exclude: ^\.github/.*$|^dev/breeze/autocomplete/.*$
         files: \.bash$|\.sh$
         args:
           - --comment-style
@@ -96,7 +96,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all toml files
-        exclude: ^\.github/.*$|^.*/.*_vendor/|^dev/breeze/autocomplete/.*$
+        exclude: ^\.github/.*$|^dev/breeze/autocomplete/.*$
         files: \.toml$
         args:
           - --comment-style
@@ -106,7 +106,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all Python files
-        exclude: ^\.github/.*$|^.*/.*_vendor/
+        exclude: ^\.github/.*$
         files: \.py$|\.pyi$
         args:
           - --comment-style
@@ -116,7 +116,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all XML files
-        exclude: ^\.github/.*$|^.*/.*_vendor/
+        exclude: ^\.github/.*$
         files: \.xml$
         args:
           - --comment-style
@@ -135,7 +135,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all YAML files except Helm templates
-        exclude: ^\.github/.*$|^.*/.*_vendor/|^chart/templates/.*|.*/reproducible_build.yaml$
+        exclude: ^\.github/.*$|^chart/templates/.*|.*/reproducible_build.yaml$|^.*/pnpm-lock.yaml$
         types: [yaml]
         files: \.ya?ml$
         args:
@@ -147,7 +147,7 @@ repos:
       - id: insert-license
         name: Add license for all Markdown files
         files: \.md$
-        exclude: PROVIDER_CHANGES.*\.md$|^.*/.*_vendor/
+        exclude: PROVIDER_CHANGES.*\.md$
         args:
           - --comment-style
           - "<!--|| -->"
@@ -156,7 +156,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all other files
-        exclude: ^\.github/.*$|^.*/.*_vendor/
+        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "|#|"
@@ -173,14 +173,6 @@ repos:
         language: python
         additional_dependencies: ['rich>=12.4.4']
         require_serial: true
-      - id: update-common-sql-api-stubs
-        name: Check and update common.sql API stubs
-        entry: ./scripts/ci/pre_commit/update_common_sql_api_stubs.py
-        language: python
-        files: ^scripts/ci/pre_commit/update_common_sql_api\.py|^airflow/providers/common/sql/.*\.pyi?$
-        additional_dependencies: ['rich>=12.4.4', 'mypy==1.9.0', 'black==23.10.0', 'jinja2']
-        pass_filenames: false
-        require_serial: true
       - id: update-black-version
         name: Update black versions everywhere (manual)
         entry: ./scripts/ci/pre_commit/update_black_version.py
@@ -190,21 +182,12 @@ repos:
         additional_dependencies: ['pyyaml']
         pass_filenames: false
         require_serial: true
-      - id: update-build-dependencies
-        name: Update build-dependencies to latest (manual)
-        entry: ./scripts/ci/pre_commit/update_build_dependencies.py
+      - id: update-installers-and-pre-commit
+        name: Update installers and pre-commit to latest (manual)
+        entry: ./scripts/ci/pre_commit/update_installers_and_pre_commit.py
         stages: ['manual']
         language: python
-        files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/update_build_dependencies.py$
-        pass_filenames: false
-        require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
-      - id: update-installers
-        name: Update installers to latest (manual)
-        entry: ./scripts/ci/pre_commit/update_installers.py
-        stages: ['manual']
-        language: python
-        files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/update_installers.py$
+        files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/update_installers_and_pre_commit.py$
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['pyyaml', 'rich>=12.4.4', 'requests']
@@ -217,65 +200,45 @@ repos:
         files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/update_build_dependencies.py$
         pass_filenames: false
         require_serial: true
-      - id: check-taskinstance-tis-attrs
-        name: Check that TI and TIS have the same attributes
-        entry: ./scripts/ci/pre_commit/check_ti_vs_tis_attributes.py
-        language: python
-        additional_dependencies: ['rich>=12.4.4']
-        files: ^airflow/models/taskinstance.py$|^airflow/models/taskinstancehistory.py$
-        pass_filenames: false
-        require_serial: true
-      - id: check-deferrable-default
-        name: Check and fix default value of default_deferrable
-        language: python
-        entry: ./scripts/ci/pre_commit/check_deferrable_default.py
-        pass_filenames: false
-        additional_dependencies: ["libcst>=1.1.0"]
-        files: ^airflow/.*/sensors/.*\.py$|^airflow/.*/operators/.*\.py$
   - repo: https://github.com/asottile/blacken-docs
-    rev: 1.18.0
+    rev: 1.19.1
     hooks:
       - id: blacken-docs
-        name: Run black on Python code blocks in documentation files
+        name: Run black on docs
         args:
           - --line-length=110
-          - --target-version=py37
-          - --target-version=py38
           - --target-version=py39
           - --target-version=py310
+          - --target-version=py311
+          - --target-version=py312
         alias: blacken-docs
-        additional_dependencies: [black==23.10.0]
+        additional_dependencies: [black==24.10.0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v5.0.0
     hooks:
       - id: check-merge-conflict
         name: Check that merge conflicts are not being committed
       - id: debug-statements
         name: Detect accidentally committed debug statements
       - id: check-builtin-literals
-        name: Require literal syntax when initializing builtin types
-        exclude: ^.*/.*_vendor/
+        name: Require literal syntax when initializing builtins
       - id: detect-private-key
         name: Detect if private key is added to the repository
         exclude: ^docs/apache-airflow-providers-ssh/connections/ssh.rst$
       - id: end-of-file-fixer
         name: Make sure that there is an empty line at the end
-        exclude: ^.*/.*_vendor/|^docs/apache-airflow/img/.*\.dot|^docs/apache-airflow/img/.*\.sha256
+        exclude: ^docs/apache-airflow/img/.*\.dot|^docs/apache-airflow/img/.*\.sha256
       - id: mixed-line-ending
         name: Detect if mixed line ending is used (\r vs. \r\n)
-        exclude: ^.*/.*_vendor/
       - id: check-executables-have-shebangs
         name: Check that executables have shebang
-        exclude: ^.*/.*_vendor/
       - id: check-xml
         name: Check XML files with xmllint
-        exclude: ^.*/.*_vendor/
       - id: trailing-whitespace
         name: Remove trailing whitespace at end of line
-        exclude: ^.*/.*_vendor/|^docs/apache-airflow/img/.*\.dot|^dev/breeze/doc/images/output.*$
+        exclude: ^docs/apache-airflow/img/.*\.dot|^dev/breeze/doc/images/output.*$
       - id: fix-encoding-pragma
         name: Remove encoding header from Python files
-        exclude: ^.*/.*_vendor/
         args:
           - --remove
       - id: pretty-format-json
@@ -292,10 +255,8 @@ repos:
     hooks:
       - id: rst-backticks
         name: Check if RST files use double backticks for code
-        exclude: ^.*/.*_vendor/
       - id: python-no-log-warn
         name: Check if there are no deprecate log warn
-        exclude: ^.*/.*_vendor/
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.35.1
     hooks:
@@ -303,15 +264,12 @@ repos:
         name: Check YAML files with yamllint
         entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
-        exclude: ^.*airflow\.template\.yaml$|^.*init_git_sync\.template\.yaml$|^.*/.*_vendor/|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml$|^\.pre-commit-config\.yaml$|^.*/reproducible_build.yaml$
+        exclude: ^.*airflow\.template\.yaml$|^.*init_git_sync\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml$|^\.pre-commit-config\.yaml$|^.*/reproducible_build.yaml$|^.*pnpm-lock\.yaml$
   - repo: https://github.com/ikamensh/flynt
     rev: '1.0.1'
     hooks:
       - id: flynt
         name: Run flynt string format converter for Python
-        exclude: |
-          (?x)
-          ^.*/.*_vendor/
         args:
          # If flynt detects too long text it ignores it. So we set a very large limit to make it easy
          # to split the text by hand. Too long lines are detected by flake8 (below),
@@ -322,17 +280,27 @@ repos:
     rev: v2.3.0
     hooks:
       - id: codespell
-        name: Run codespell to check for common misspellings in files
+        name: Run codespell
+        description: Run codespell to check for common misspellings in files
         entry: bash -c 'echo "If you think that this failure is an error, consider adding the word(s)
           to the codespell dictionary at docs/spelling_wordlist.txt.
           The word(s) should be in lowercase." && exec codespell "$@"' --
         language: python
         types: [text]
-        exclude: ^.*/.*_vendor/|^airflow/www/static/css/material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$
+        exclude: material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$|^.*pnpm-lock\.yaml$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=airflow/providers/*/*.rst,airflow/www/*.log,docs/*/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
           - --exclude-file=.codespellignorelines
+  - repo: https://github.com/woodruffw/zizmor-pre-commit
+    rev: v1.0.0
+    hooks:
+      - id: zizmor
+        name: Run zizmor to check for github workflow syntax errors
+        types: [yaml]
+        files: \.github/workflows/.*$|\.github/actions/.*$
+        require_serial: true
+        entry: zizmor
   - repo: local
     # Note that this is the 2nd "local" repo group in the .pre-commit-config.yaml file. This is because
     # we try to minimise the number of passes that must happen in order to apply some of the changes
@@ -342,13 +310,6 @@ repos:
     # changes quickly - especially when we want the early modifications from the first local group
     # to be applied before the non-local pre-commits are run
     hooks:
-      - id: validate-operators-init
-        name: Prevent templated field logic checks in operators' __init__
-        language: python
-        entry: ./scripts/ci/pre_commit/validate_operators_init.py
-        pass_filenames: true
-        files: ^airflow/providers/.*/(operators|transfers|sensors)/.*\.py$
-        additional_dependencies: [ 'rich>=12.4.4' ]
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
@@ -357,24 +318,24 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ["ruff==0.5.5"]
-        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
+        additional_dependencies: ["ruff==0.8.1"]
+        exclude: ^tests/dags/test_imports.py|^performance/tests/test_.*.py
       - id: ruff-format
-        name: Run 'ruff format' for extremely fast Python formatting
+        name: Run 'ruff format'
         description: "Run 'ruff format' for extremely fast Python formatting"
         entry: ./scripts/ci/pre_commit/ruff_format.py
         language: python
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ["ruff==0.5.5"]
-        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^airflow/contrib/
+        additional_dependencies: ["ruff==0.8.1"]
+        exclude: ^tests/dags/test_imports.py$
       - id: replace-bad-characters
         name: Replace bad characters
         entry: ./scripts/ci/pre_commit/replace_bad_characters.py
         language: python
         types: [file, text]
-        exclude: ^.*/.*_vendor/|^clients/gen/go\.sh$|^\.gitmodules$
+        exclude: ^clients/gen/go\.sh$|^\.gitmodules$
         additional_dependencies: ['rich>=12.4.4']
       - id: lint-openapi
         name: Lint OpenAPI using spectral
@@ -410,36 +371,6 @@ repos:
         exclude: ^airflow/openlineage/
         entry: ./scripts/ci/pre_commit/check_common_compat_used_for_openlineage.py
         additional_dependencies: ['rich>=12.4.4']
-      - id: check-airflow-providers-bug-report-template
-        name: Check airflow-bug-report provider list is sorted/unique
-        language: python
-        files: ^.github/ISSUE_TEMPLATE/airflow_providers_bug_report\.yml$
-        require_serial: true
-        entry: ./scripts/ci/pre_commit/check_airflow_bug_report_template.py
-        additional_dependencies: ['rich>=12.4.4', 'pyyaml']
-      - id: check-cncf-k8s-only-for-executors
-        name: Check cncf.kubernetes imports used for executors only
-        language: python
-        files: ^airflow/.*\.py$
-        require_serial: true
-        exclude: ^airflow/kubernetes/|^airflow/providers/
-        entry: ./scripts/ci/pre_commit/check_cncf_k8s_used_for_k8s_executor_only.py
-        additional_dependencies: ['rich>=12.4.4']
-      - id: check-airflow-provider-compatibility
-        name: Check compatibility of Providers with Airflow
-        entry: ./scripts/ci/pre_commit/check_provider_airflow_compatibility.py
-        language: python
-        pass_filenames: true
-        files: ^airflow/providers/.*\.py$
-        additional_dependencies: ['rich>=12.4.4']
-      - id: check-google-re2-as-dependency
-        name: Check google-re2 is declared as dependency when needed
-        entry: ./scripts/ci/pre_commit/check_google_re2_imports.py
-        language: python
-        pass_filenames: true
-        require_serial: true
-        files: ^airflow/providers/.*\.py$
-        additional_dependencies: ['rich>=12.4.4']
       - id: update-local-yml-file
         name: Update mounts in the local yml file
         entry: ./scripts/ci/pre_commit/local_yml_mounts.py
@@ -447,12 +378,6 @@ repos:
         files: ^dev/breeze/src/airflow_breeze/utils/docker_command_utils\.py$|^scripts/ci/docker_compose/local\.yml$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4']
-      - id: check-sql-dependency-common-data-structure
-        name: Check dependency of SQL Providers with common data structure
-        entry: ./scripts/ci/pre_commit/check_common_sql_dependency.py
-        language: python
-        files: ^airflow/providers/.*/hooks/.*\.py$
-        additional_dependencies: ['rich>=12.4.4', 'pyyaml', 'packaging']
       - id: update-providers-dependencies
         name: Update dependencies for provider packages
         entry: ./scripts/ci/pre_commit/update_providers_dependencies.py
@@ -475,13 +400,6 @@ repos:
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/check_order_hatch_build.py
         additional_dependencies: ['rich>=12.4.4', 'hatchling==1.27.0']
-      - id: update-extras
-        name: Update extras in documentation
-        entry: ./scripts/ci/pre_commit/insert_extras.py
-        language: python
-        files: ^contributing-docs/12_airflow_dependencies_and_extras.rst$|^INSTALL$|^airflow/providers/.*/provider\.yaml$|^Dockerfile.*
-        pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.27.0']
       - id: check-extras-order
         name: Check order of extras in Dockerfile
         entry: ./scripts/ci/pre_commit/check_order_dockerfile_extras.py
@@ -503,19 +421,8 @@ repos:
         files: ^docs/apache-airflow/installation/supported-versions\.rst$|^scripts/ci/pre_commit/supported_versions\.py$|^README\.md$
         pass_filenames: false
         additional_dependencies: ['tabulate']
-      - id: check-revision-heads-map
-        name: Check that the REVISION_HEADS_MAP is up-to-date
-        language: python
-        entry: ./scripts/ci/pre_commit/version_heads_map.py
-        pass_filenames: false
-        files: >
-          (?x)
-          ^scripts/ci/pre_commit/version_heads_map\.py$|
-          ^airflow/migrations/versions/.*$|^airflow/migrations/versions|
-          ^airflow/utils/db.py$
-        additional_dependencies: ['packaging','google-re2']
       - id: update-version
-        name: Update version to the latest version in the documentation
+        name: Update versions in docs
         entry: ./scripts/ci/pre_commit/update_versions.py
         language: python
         files: ^docs|^airflow/__init__.py$
@@ -528,7 +435,7 @@ repos:
         pass_filenames: true
         files: \.py$
       - id: check-links-to-example-dags-do-not-use-hardcoded-versions
-        name: Verify example dags do not use hard-coded version numbers
+        name: Verify no hard-coded version in example dags
         description: The links to example dags should use |version| as version specification
         language: pygrep
         entry: >
@@ -622,13 +529,13 @@ repos:
           ^airflow/providers/opsgenie/hooks/opsgenie.py$|
           ^airflow/providers/redis/provider.yaml$|
           ^airflow/serialization/serialized_objects.py$|
+          ^airflow/ui/pnpm-lock.yaml$|
           ^airflow/utils/db.py$|
           ^airflow/utils/trigger_rule.py$|
           ^airflow/www/static/css/bootstrap-theme.css$|
           ^airflow/www/static/js/types/api-generated.ts$|
           ^airflow/www/templates/appbuilder/flash.html$|
           ^chart/values.schema.json$|
-          ^.*/.*_vendor/|
           ^dev/|
           ^docs/README.rst$|
           ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store.rst$|
@@ -641,28 +548,21 @@ repos:
           ^docs/apache-airflow-providers-cncf-kubernetes/operators.rst$|
           ^docs/conf.py$|
           ^docs/exts/removemarktransform.py$|
+          ^newsfragments/41761.significant.rst$|
           ^scripts/ci/pre_commit/vendor_k8s_json_schema.py$|
+          ^scripts/ci/docker-compose/integration-keycloak.yml$|
+          ^scripts/ci/docker-compose/keycloak/keycloak-entrypoint.sh$|
           ^tests/|
+          ^providers/tests/|
           ^.pre-commit-config\.yaml$|
           ^.*CHANGELOG\.(rst|txt)$|
           ^.*RELEASE_NOTES\.rst$|
           ^contributing-docs/03_contributors_quick_start.rst$|
           ^.*\.(png|gif|jp[e]?g|tgz|lock)$|
-          git
-      - id: check-base-operator-partial-arguments
-        name: Check BaseOperator and partial() arguments
-        language: python
-        entry: ./scripts/ci/pre_commit/base_operator_partial_arguments.py
-        pass_filenames: false
-        files: ^airflow/models/(?:base|mapped)operator\.py$
-      - id: check-init-decorator-arguments
-        name: Check model __init__ and decorator arguments are in sync
-        language: python
-        entry: ./scripts/ci/pre_commit/sync_init_decorator.py
-        pass_filenames: false
-        files: ^airflow/models/dag\.py$|^airflow/(?:decorators|utils)/task_group\.py$
+          git|
+          ^newsfragments/43349\.significant\.rst$
       - id: check-template-context-variable-in-sync
-        name: Check all template context variable references are in sync
+        name: Sync template context variable refs
         language: python
         entry: ./scripts/ci/pre_commit/template_context_key_sync.py
         files: ^airflow/models/taskinstance\.py$|^airflow/utils/context\.pyi?$|^docs/apache-airflow/templates-ref\.rst$
@@ -730,33 +630,28 @@ repos:
         pass_filenames: true
       - id: check-provide-create-sessions-imports
         language: pygrep
-        name: Check provide_session and create_session imports
-        description: provide_session and create_session should be imported from airflow.utils.session
-          to avoid import cycles.
-        entry: "from airflow\\.utils\\.db import.* (provide_session|create_session)"
+        name: Check session util imports
+        description: NEW_SESSION, provide_session, and create_session should be imported from airflow.utils.session to avoid import cycles.
+        entry: "from airflow\\.utils\\.db import.* (NEW_SESSION|provide_session|create_session)"
         files: \.py$
-        exclude: ^.*/.*_vendor/
         pass_filenames: true
       - id: check-incorrect-use-of-LoggingMixin
         language: pygrep
         name: Make sure LoggingMixin is not used alone
         entry: "LoggingMixin\\(\\)"
         files: \.py$
-        exclude: ^.*/.*_vendor/
         pass_filenames: true
       - id: check-daysago-import-from-utils
         language: pygrep
-        name: Make sure days_ago is imported from airflow.utils.dates
+        name: days_ago imported from airflow.utils.dates
         entry: "(airflow\\.){0,1}utils\\.dates\\.days_ago"
         files: \.py$
-        exclude: ^.*/.*_vendor/
         pass_filenames: true
       - id: check-start-date-not-used-in-defaults
         language: pygrep
-        name: start_date not to be defined in default_args in example_dags
+        name: start_date not in default_args
         entry: "default_args\\s*=\\s*{\\s*(\"|')start_date(\"|')|(\"|')start_date(\"|'):"
         files: \.*example_dags.*\.py$
-        exclude: ^.*/.*_vendor/
         pass_filenames: true
       - id: check-apache-license-rat
         name: Check if licenses are OK for Apache
@@ -778,7 +673,7 @@ repos:
         entry: ./scripts/ci/pre_commit/boring_cyborg.py
         pass_filenames: false
         require_serial: true
-        additional_dependencies: ['pyyaml', 'termcolor==1.1.0', 'wcmatch==8.2']
+        additional_dependencies: ['pyyaml', 'termcolor==2.5.0', 'wcmatch==8.2']
       - id: update-in-the-wild-to-be-sorted
         name: Sort INTHEWILD.md alphabetically
         entry: ./scripts/ci/pre_commit/sort_in_the_wild.py
@@ -787,14 +682,14 @@ repos:
         pass_filenames: false
         require_serial: true
       - id: update-installed-providers-to-be-sorted
-        name: Sort alphabetically and uniquify installed_providers.txt
+        name: Sort and uniquify installed_providers.txt
         entry: ./scripts/ci/pre_commit/sort_installed_providers.py
         language: python
         files: ^\.pre-commit-config\.yaml$|^.*_installed_providers\.txt$
         pass_filenames: false
         require_serial: true
       - id: update-spelling-wordlist-to-be-sorted
-        name: Sort alphabetically and uniquify spelling_wordlist.txt
+        name: Sort spelling_wordlist.txt
         entry: ./scripts/ci/pre_commit/sort_spelling_wordlist.py
         language: python
         files: ^\.pre-commit-config\.yaml$|^docs/spelling_wordlist\.txt$
@@ -855,12 +750,6 @@ repos:
         entry: ./scripts/ci/pre_commit/compile_www_assets_dev.py
         pass_filenames: false
         additional_dependencies: ['yarn@1.22.21']
-      - id: check-providers-init-file-missing
-        name: Provider init file is missing
-        pass_filenames: false
-        always_run: true
-        entry: ./scripts/ci/pre_commit/check_providers_init.py
-        language: python
       - id: check-providers-subpackages-init-file-exist
         name: Provider subpackage init files are there
         pass_filenames: false
@@ -872,10 +761,10 @@ repos:
         name: Validate hook IDs & names and sync with docs
         entry: ./scripts/ci/pre_commit/check_pre_commit_hooks.py
         args:
-          - --max-length=60
+          - --max-length=53
         language: python
         files: ^\.pre-commit-config\.yaml$|^scripts/ci/pre_commit/check_pre_commit_hooks\.py$
-        additional_dependencies: ['pyyaml', 'jinja2', 'black==23.10.0', 'tabulate', 'rich>=12.4.4']
+        additional_dependencies: ['pyyaml', 'jinja2', 'black==24.10.0', 'tabulate', 'rich>=12.4.4']
         require_serial: true
         pass_filenames: false
       - id: check-integrations-list-consistent
@@ -883,7 +772,7 @@ repos:
         entry: ./scripts/ci/pre_commit/check_integrations_list.py
         language: python
         files: ^scripts/ci/docker-compose/integration-.*\.yml$|^contributing-docs/testing/integration_tests.rst$
-        additional_dependencies: ['black==23.10.0', 'tabulate', 'rich>=12.4.4', 'pyyaml']
+        additional_dependencies: ['black==24.10.0', 'tabulate', 'rich>=12.4.4', 'pyyaml']
         require_serial: true
         pass_filenames: false
       - id: update-breeze-readme-config-hash
@@ -902,29 +791,14 @@ repos:
         pass_filenames: false
         require_serial: true
       - id: check-breeze-top-dependencies-limited
-        name: Breeze should have small number of top-level dependencies
+        name: Check top-level breeze deps
+        description: Breeze should have small number of top-level dependencies
         language: python
         entry: ./scripts/tools/check_if_limited_dependencies.py
         files: ^dev/breeze/.*$
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['click', 'rich>=12.4.4', 'pyyaml']
-      - id: check-tests-in-the-right-folders
-        name: Check if tests are in the right folders
-        entry: ./scripts/ci/pre_commit/check_tests_in_right_folders.py
-        language: python
-        files: ^tests/.*\.py
-        pass_filenames: true
-        require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
-      - id: check-system-tests-present
-        name: Check if system tests have required segments of code
-        entry: ./scripts/ci/pre_commit/check_system_tests.py
-        language: python
-        files: ^tests/system/.*/example_[^/]*\.py$
-        exclude: ^tests/system/providers/google/cloud/bigquery/example_bigquery_queries\.py$
-        pass_filenames: true
-        additional_dependencies: ['rich>=12.4.4']
       - id: generate-pypi-readme
         name: Generate PyPI README
         entry: ./scripts/ci/pre_commit/generate_pypi_readme.py
@@ -940,7 +814,7 @@ repos:
         files: \.(md|mdown|markdown)$
         additional_dependencies: ['markdownlint-cli@0.38.0']
       - id: lint-json-schema
-        name: Lint JSON Schema files with JSON Schema
+        name: Lint JSON Schema files
         entry: ./scripts/ci/pre_commit/json_schema.py
         args:
           - --spec-file
@@ -948,11 +822,10 @@ repos:
         language: python
         pass_filenames: true
         files: .*\.schema\.json$
-        exclude: ^.*/.*_vendor/
         require_serial: true
-        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==6.0.2', 'requests==2.32.3']
       - id: lint-json-schema
-        name: Lint NodePort Service with JSON Schema
+        name: Lint NodePort Service
         entry: ./scripts/ci/pre_commit/json_schema.py
         args:
           - --spec-url
@@ -961,9 +834,9 @@ repos:
         pass_filenames: true
         files: ^scripts/ci/kubernetes/nodeport\.yaml$
         require_serial: true
-        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==6.0.2', 'requests==2.32.3']
       - id: lint-json-schema
-        name: Lint Docker compose files with JSON Schema
+        name: Lint Docker compose files
         entry: ./scripts/ci/pre_commit/json_schema.py
         args:
           - --spec-url
@@ -976,9 +849,9 @@ repos:
           ^scripts/ci/docker-compose/grafana/.|
           ^scripts/ci/docker-compose/.+-config\.ya?ml
         require_serial: true
-        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==6.0.2', 'requests==2.32.3']
       - id: lint-json-schema
-        name: Lint chart/values.schema.json file with JSON Schema
+        name: Lint chart/values.schema.json
         entry: ./scripts/ci/pre_commit/json_schema.py
         args:
           - --spec-file
@@ -988,15 +861,15 @@ repos:
         pass_filenames: false
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         require_serial: true
-        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==6.0.2', 'requests==2.32.3']
       - id: update-vendored-in-k8s-json-schema
         name: Vendor k8s definitions into values.schema.json
         entry: ./scripts/ci/pre_commit/vendor_k8s_json_schema.py
         language: python
         files: ^chart/values\.schema\.json$
-        additional_dependencies: ['requests==2.25.0']
+        additional_dependencies: ['requests==2.32.3']
       - id: lint-json-schema
-        name: Lint chart/values.yaml file with JSON Schema
+        name: Lint chart/values.yaml
         entry: ./scripts/ci/pre_commit/json_schema.py
         args:
           - --enforce-defaults
@@ -1007,9 +880,9 @@ repos:
         pass_filenames: false
         files: ^chart/values\.yaml$|^chart/values\.schema\.json$
         require_serial: true
-        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==6.0.2', 'requests==2.32.3']
       - id: lint-json-schema
-        name: Lint config_templates/config.yml file with JSON Schema
+        name: Lint config_templates/config.yml
         entry: ./scripts/ci/pre_commit/json_schema.py
         args:
           - --spec-file
@@ -1018,9 +891,10 @@ repos:
         pass_filenames: true
         files: ^airflow/config_templates/config\.yml$
         require_serial: true
-        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==6.0.2', 'requests==2.32.3']
       - id: check-persist-credentials-disabled-in-github-workflows
-        name: Check that workflow files have persist-credentials disabled
+        name: Check persistent creds in workflow files
+        description: Check that workflow files have persist-credentials disabled
         entry: ./scripts/ci/pre_commit/checkout_no_credentials.py
         language: python
         pass_filenames: true
@@ -1032,22 +906,7 @@ repos:
         language: python
         pass_filenames: true
         files: \.py$
-        exclude: ^.*/.*_vendor/
         additional_dependencies: ['rich>=12.4.4']
-      - id: check-compat-cache-on-methods
-        name: Check that compat cache do not use on class methods
-        entry: ./scripts/ci/pre_commit/compat_cache_on_methods.py
-        language: python
-        pass_filenames: true
-        files: ^airflow/.*\.py$
-        exclude: ^.*/.*_vendor/
-      - id: check-code-deprecations
-        name: Check deprecations categories in decorators
-        entry: ./scripts/ci/pre_commit/check_deprecations.py
-        language: python
-        pass_filenames: true
-        files: ^airflow/.*\.py$
-        exclude: ^.*/.*_vendor/
       - id: lint-chart-schema
         name: Lint chart/values.schema.json file
         entry: ./scripts/ci/pre_commit/chart_schema.py
@@ -1084,7 +943,8 @@ repos:
         # This is fast, so not too much downside
         always_run: true
       - id: update-breeze-cmd-output
-        name: Update output of breeze commands in Breeze documentation
+        name: Update breeze docs
+        description: Update output of breeze commands in Breeze documentation
         entry: ./scripts/ci/pre_commit/breeze_cmd_line.py
         language: python
         files: >
@@ -1096,28 +956,12 @@ repos:
         require_serial: true
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4']
-      - id: check-example-dags-urls
-        name: Check that example dags url include provider versions
-        entry: ./scripts/ci/pre_commit/update_example_dags_paths.py
-        language: python
-        pass_filenames: true
-        files: ^docs/.*example-dags\.rst$|^docs/.*index\.rst$
-        additional_dependencies: ['rich>=12.4.4', 'pyyaml']
-        always_run: true
-      - id: check-system-tests-tocs
-        name: Check that system tests is properly added
-        entry: ./scripts/ci/pre_commit/check_system_tests_hidden_in_index.py
-        language: python
-        pass_filenames: true
-        files: ^docs/apache-airflow-providers-[^/]*/index\.rst$
-        additional_dependencies: ['rich>=12.4.4', 'pyyaml']
       - id: check-lazy-logging
         name: Check that all logging methods are lazy
         entry: ./scripts/ci/pre_commit/check_lazy_logging.py
         language: python
         pass_filenames: true
         files: \.py$
-        exclude: ^.*/.*_vendor/
         additional_dependencies: ['rich>=12.4.4', 'astor']
       - id: create-missing-init-py-files-tests
         name: Create missing init.py files in tests
@@ -1127,15 +971,17 @@ repos:
         pass_filenames: false
         files: ^tests/.*\.py$
       - id: ts-compile-format-lint-www
-        name: TS types generation / ESLint / Prettier against UI files
+        name: Compile / format / lint WWW
+        description: TS types generation / ESLint / Prettier against UI files
         language: node
         'types_or': [javascript, ts, tsx, yaml, css, json]
         files: ^airflow/www/static/(js|css)/|^airflow/api_connexion/openapi/v1\.yaml$
-        entry: ./scripts/ci/pre_commit/www_lint.py
+        entry: ./scripts/ci/pre_commit/lint_www.py
         additional_dependencies: ['yarn@1.22.21', "openapi-typescript@>=6.7.4"]
         pass_filenames: false
       - id: check-tests-unittest-testcase
-        name: Check that unit tests do not inherit from unittest.TestCase
+        name: Unit tests do not inherit from unittest.TestCase
+        description: Check that unit tests do not inherit from unittest.TestCase
         entry: ./scripts/ci/pre_commit/unittest_testcase.py
         language: python
         pass_filenames: true
@@ -1243,20 +1089,20 @@ repos:
       - id: mypy-airflow
         name: Run mypy for airflow
         language: python
-        entry: ./scripts/ci/pre_commit/mypy.py --namespace-packages
+        entry: ./scripts/ci/pre_commit/mypy.py
         files: \.py$
         exclude: ^.*/.*_vendor/|^airflow/migrations|^airflow/providers|^dev|^scripts|^docs|^provider_packages|^tests/providers|^tests/system/providers|^tests/dags/test_imports.py|^clients/python/test_.*\.py
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: mypy-airflow
-        stages: [ 'manual' ]
+        stages: ['manual']
         name: Run mypy for airflow (manual)
         language: python
         entry: ./scripts/ci/pre_commit/mypy_folder.py airflow
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
-        additional_dependencies: [ 'rich>=12.4.4' ]
+        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-providers
         name: Run mypy for providers
         language: python
@@ -1269,7 +1115,7 @@ repos:
         stages: ['manual']
         name: Run mypy for providers (manual)
         language: python
-        entry: ./scripts/ci/pre_commit/mypy_folder.py airflow/providers
+        entry: ./scripts/ci/pre_commit/mypy_folder.py providers/src/airflow/providers
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
