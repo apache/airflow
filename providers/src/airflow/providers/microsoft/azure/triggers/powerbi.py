@@ -23,12 +23,12 @@ from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
 
 import tenacity
+
 from airflow.providers.microsoft.azure.hooks.powerbi import (
     PowerBIDatasetRefreshException,
     PowerBIDatasetRefreshStatus,
     PowerBIHook,
 )
-
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
@@ -49,6 +49,7 @@ class PowerBITrigger(BaseTrigger):
         You can pass an enum named APIVersion which has 2 possible members v1 and beta,
         or you can pass a string as `v1.0` or `beta`.
     :param dataset_id: The dataset Id to refresh.
+    :param dataset_refresh_id: The dataset refresh Id
     :param group_id: The workspace Id where dataset is located.
     :param end_time: Time in seconds when trigger should stop polling.
     :param check_interval: Time in seconds to wait between each poll.
@@ -61,6 +62,7 @@ class PowerBITrigger(BaseTrigger):
         dataset_id: str,
         group_id: str,
         timeout: float = 60 * 60 * 24 * 7,
+        dataset_refresh_id: str | None = None,
         proxies: dict | None = None,
         api_version: APIVersion | str | None = None,
         check_interval: int = 60,
@@ -69,6 +71,7 @@ class PowerBITrigger(BaseTrigger):
         super().__init__()
         self.hook = PowerBIHook(conn_id=conn_id, proxies=proxies, api_version=api_version, timeout=timeout)
         self.dataset_id = dataset_id
+        self.dataset_refresh_id = dataset_refresh_id
         self.timeout = timeout
         self.group_id = group_id
         self.check_interval = check_interval
@@ -83,6 +86,7 @@ class PowerBITrigger(BaseTrigger):
                 "proxies": self.proxies,
                 "api_version": self.api_version,
                 "dataset_id": self.dataset_id,
+                "dataset_refresh_id": self.dataset_refresh_id,
                 "group_id": self.group_id,
                 "timeout": self.timeout,
                 "check_interval": self.check_interval,
@@ -104,25 +108,39 @@ class PowerBITrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make async connection to the PowerBI and polls for the dataset refresh status."""
-        self.dataset_refresh_id = await self.hook.trigger_dataset_refresh(
-            dataset_id=self.dataset_id,
-            group_id=self.group_id,
-        )
+        if not self.dataset_refresh_id:
+            dataset_refresh_id = await self.hook.trigger_dataset_refresh(
+                dataset_id=self.dataset_id,
+                group_id=self.group_id,
+            )
+            self.log.info("Triggered dataset refresh %s", dataset_refresh_id)
+            yield TriggerEvent(
+                {
+                    "status": "success",
+                    "dataset_refresh_status": None,
+                    "message": f"The dataset refresh {self.dataset_refresh_id} has been triggered.",
+                    "dataset_refresh_id": dataset_refresh_id,
+                }
+            )
+            return
 
         @tenacity.retry(
             stop=tenacity.stop_after_attempt(3),
-            wait=tenacity.wait_exponential(multiplier=1, min=3, max=60),
+            wait=tenacity.wait_exponential(min=5, multiplier=2),
             reraise=True,
             retry=tenacity.retry_if_exception_type(PowerBIDatasetRefreshException),
         )
         async def fetch_refresh_status_and_error() -> tuple[str, str]:
             """Fetch the current status and error of the dataset refresh."""
-            refresh_details = await self.hook.get_refresh_details_by_refresh_id(
-                dataset_id=self.dataset_id,
-                group_id=self.group_id,
-                refresh_id=self.dataset_refresh_id,
-            )
-            return refresh_details["status"], refresh_details["error"]
+            if self.dataset_refresh_id:
+                refresh_details = await self.hook.get_refresh_details_by_refresh_id(
+                    dataset_id=self.dataset_id,
+                    group_id=self.group_id,
+                    refresh_id=self.dataset_refresh_id,
+                )
+                return refresh_details["status"], refresh_details["error"]
+            else:
+                raise Exception("Dataset refresh Id is missing.")
 
         try:
             dataset_refresh_status, dataset_refresh_error = await fetch_refresh_status_and_error()
