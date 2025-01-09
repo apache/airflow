@@ -293,9 +293,9 @@ def test_dag_autocomplete_success(client_all_dags):
             "dag_display_name": None,
         },
         {"name": "example_setup_teardown_taskflow", "type": "dag", "dag_display_name": None},
-        {"name": "test_mapped_taskflow", "type": "dag", "dag_display_name": None},
         {"name": "tutorial_taskflow_api", "type": "dag", "dag_display_name": None},
         {"name": "tutorial_taskflow_api_virtualenv", "type": "dag", "dag_display_name": None},
+        {"name": "tutorial_taskflow_templates", "type": "dag", "dag_display_name": None},
     ]
 
     assert resp.json == expected
