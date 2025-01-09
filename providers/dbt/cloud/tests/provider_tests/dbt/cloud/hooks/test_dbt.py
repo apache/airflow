@@ -19,9 +19,10 @@ from __future__ import annotations
 import json
 from datetime import timedelta
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
+from requests.models import Response
 
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
@@ -47,11 +48,47 @@ SINGLE_TENANT_DOMAIN = "single.tenant.getdbt.com"
 EXTRA_PROXIES = {"proxies": {"https": "http://myproxy:1234"}}
 TOKEN = "token"
 PROJECT_ID = 33333
+PROJECT_NAME = "project_name"
+ENVIRONMENT_ID = 44444
+ENVIRONMENT_NAME = "environment_name"
 JOB_ID = 4444
+JOB_NAME = "job_name"
 RUN_ID = 5555
 
 BASE_URL = "https://cloud.getdbt.com/"
 SINGLE_TENANT_URL = "https://single.tenant.getdbt.com/"
+
+DEFAULT_LIST_PROJECTS_RESPONSE = {
+    "data": [
+        {
+            "id": PROJECT_ID,
+            "name": PROJECT_NAME,
+        }
+    ]
+}
+DEFAULT_LIST_ENVIRONMENTS_RESPONSE = {
+    "data": [
+        {
+            "id": ENVIRONMENT_ID,
+            "name": ENVIRONMENT_NAME,
+        }
+    ]
+}
+DEFAULT_LIST_JOBS_RESPONSE = {
+    "data": [
+        {
+            "id": JOB_ID,
+            "name": JOB_NAME,
+        }
+    ]
+}
+EMPTY_RESPONSE = {"data": []}
+
+
+def mock_response_json(response: dict):
+    run_response = MagicMock(**response, spec=Response)
+    run_response.json.return_value = response
+    return run_response
 
 
 class TestDbtCloudJobRunStatus:
@@ -276,6 +313,48 @@ class TestDbtCloudHook:
     )
     @patch.object(DbtCloudHook, "run")
     @patch.object(DbtCloudHook, "_paginate")
+    def test_list_environments(self, mock_http_run, mock_paginate, conn_id, account_id):
+        hook = DbtCloudHook(conn_id)
+        hook.list_environments(project_id=PROJECT_ID, account_id=account_id)
+
+        assert hook.method == "GET"
+
+        _account_id = account_id or DEFAULT_ACCOUNT_ID
+        hook.run.assert_not_called()
+        hook._paginate.assert_called_once_with(
+            endpoint=f"api/v3/accounts/{_account_id}/projects/{PROJECT_ID}/environments/",
+            payload=None,
+            proxies=None,
+        )
+
+    @pytest.mark.parametrize(
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        ids=["default_account", "explicit_account"],
+    )
+    @patch.object(DbtCloudHook, "run")
+    @patch.object(DbtCloudHook, "_paginate")
+    def test_get_environment(self, mock_http_run, mock_paginate, conn_id, account_id):
+        hook = DbtCloudHook(conn_id)
+        hook.get_environment(project_id=PROJECT_ID, environment_id=ENVIRONMENT_ID, account_id=account_id)
+
+        assert hook.method == "GET"
+
+        _account_id = account_id or DEFAULT_ACCOUNT_ID
+        hook.run.assert_called_once_with(
+            endpoint=f"api/v3/accounts/{_account_id}/projects/{PROJECT_ID}/environments/{ENVIRONMENT_ID}/",
+            data=None,
+            extra_options=None,
+        )
+        hook._paginate.assert_not_called()
+
+    @pytest.mark.parametrize(
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        ids=["default_account", "explicit_account"],
+    )
+    @patch.object(DbtCloudHook, "run")
+    @patch.object(DbtCloudHook, "_paginate")
     def test_list_jobs(self, mock_http_run, mock_paginate, conn_id, account_id):
         hook = DbtCloudHook(conn_id)
         hook.list_jobs(account_id=account_id)
@@ -329,6 +408,66 @@ class TestDbtCloudHook:
             endpoint=f"api/v2/accounts/{_account_id}/jobs/{JOB_ID}", data=None, extra_options=None
         )
         hook._paginate.assert_not_called()
+
+    @patch.object(DbtCloudHook, "list_jobs", return_value=[mock_response_json(DEFAULT_LIST_JOBS_RESPONSE)])
+    @patch.object(
+        DbtCloudHook,
+        "list_environments",
+        return_value=[mock_response_json(DEFAULT_LIST_ENVIRONMENTS_RESPONSE)],
+    )
+    @patch.object(
+        DbtCloudHook, "list_projects", return_value=[mock_response_json(DEFAULT_LIST_PROJECTS_RESPONSE)]
+    )
+    def test_get_job_by_name_returns_response(
+        self, mock_list_projects, mock_list_environments, mock_list_jobs
+    ):
+        hook = DbtCloudHook(ACCOUNT_ID_CONN)
+        response = hook.get_job_by_name(
+            project_name=PROJECT_NAME,
+            environment_name=ENVIRONMENT_NAME,
+            job_name=JOB_NAME,
+            account_id=None,
+        )
+
+        assert isinstance(response, Response)
+
+    @pytest.mark.parametrize(
+        argnames="project_name, environment_name, job_name",
+        argvalues=[
+            ("dummy_name", ENVIRONMENT_NAME, JOB_NAME),
+            (PROJECT_NAME, "dummy_name", JOB_NAME),
+            (PROJECT_NAME, ENVIRONMENT_NAME, JOB_NAME.upper()),
+            (None, ENVIRONMENT_NAME, JOB_NAME),
+            (PROJECT_NAME, "", JOB_NAME),
+            ("", "", ""),
+        ],
+    )
+    @patch.object(DbtCloudHook, "list_jobs", return_value=[mock_response_json(EMPTY_RESPONSE)])
+    @patch.object(
+        DbtCloudHook,
+        "list_environments",
+        return_value=[mock_response_json(DEFAULT_LIST_ENVIRONMENTS_RESPONSE)],
+    )
+    @patch.object(
+        DbtCloudHook, "list_projects", return_value=[mock_response_json(DEFAULT_LIST_PROJECTS_RESPONSE)]
+    )
+    def test_get_job_by_incorrect_name_raises_exception(
+        self,
+        mock_list_projects,
+        mock_list_environments,
+        mock_list_jobs,
+        project_name,
+        environment_name,
+        job_name,
+    ):
+        hook = DbtCloudHook(ACCOUNT_ID_CONN)
+        with pytest.raises(AirflowException, match="Found 0"):
+            hook.get_job_by_name(
+                project_name=project_name,
+                environment_name=environment_name,
+                job_name=job_name,
+                account_id=None,
+            )
 
     @pytest.mark.parametrize(
         argnames="conn_id, account_id",
