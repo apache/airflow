@@ -122,11 +122,11 @@ export const DataTable = <TData,>({
       <ProgressBar size="xs" visibility={Boolean(isFetching) && !Boolean(isLoading) ? "visible" : "hidden"} />
       <Toaster />
       {errorMessage}
-      {display === "table" && hasRows ? <TableList table={table} /> : undefined}
-      {display === "card" && cardDef !== undefined && hasRows ? (
+      {hasRows && display === "table" ? <TableList table={table} /> : undefined}
+      {hasRows && display === "card" && cardDef !== undefined ? (
         <CardList cardDef={cardDef} isLoading={isLoading} table={table} />
       ) : undefined}
-      {!Boolean(isLoading) && !hasRows && <Text pt={1}>{noRowsMessage ?? `No ${modelName}s found.`}</Text>}
+      {!hasRows && !Boolean(isLoading) && <Text pt={1}>{noRowsMessage ?? `No ${modelName}s found.`}</Text>}
       {hasRows ? (
         <Pagination.Root
           count={table.getRowCount()}
