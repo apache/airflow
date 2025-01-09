@@ -99,7 +99,7 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
   },
 ];
 
-const stateOptions = createListCollection({
+const stateOptions = createListCollection<{ label: string; value: TaskInstanceState | "all" | "none" }>({
   items: [
     { label: "All States", value: "all" },
     { label: "Scheduled", value: "scheduled" },
@@ -114,6 +114,7 @@ const stateOptions = createListCollection({
     { label: "Skipped", value: "skipped" },
     { label: "Deferred", value: "deferred" },
     { label: "Removed", value: "removed" },
+    { label: "No Status", value: "none" },
   ],
 });
 
@@ -159,12 +160,12 @@ export const TaskInstances = () => {
     } else {
       searchParams.delete(NAME_PATTERN_PARAM);
     }
-    setSearchParams(searchParams);
     setTableURLState({
       pagination: { ...pagination, pageIndex: 0 },
       sorting,
     });
     setTaskDisplayNamePattern(value);
+    setSearchParams(searchParams);
   };
 
   const { data, error, isFetching, isLoading } = useTaskInstanceServiceGetTaskInstances(
@@ -202,7 +203,7 @@ export const TaskInstances = () => {
                   <HStack gap="10px">
                     {filteredState.map((state) => (
                       <Status key={state} state={state as TaskInstanceState}>
-                        {capitalize(state)}
+                        {state === "none" ? "No Status" : capitalize(state)}
                       </Status>
                     ))}
                   </HStack>
