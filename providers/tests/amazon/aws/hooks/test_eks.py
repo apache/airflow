@@ -1283,13 +1283,11 @@ class TestEksHook:
             }
 
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.RequestSigner")
-    @mock.patch("airflow.providers.amazon.aws.hooks.eks.StsHook")
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn")
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_session")
-    def test_fetch_access_token_for_cluster(self, mock_get_session, mock_conn, mock_sts_hook, mock_signer):
+    def test_fetch_access_token_for_cluster(self, mock_get_session, mock_conn, mock_signer):
         mock_signer.return_value.generate_presigned_url.return_value = "http://example.com"
         mock_get_session.return_value.region_name = "us-east-1"
-        mock_sts_hook.return_value.conn_client_meta.endpoint_url = "https://sts.us-east-1.amazonaws.com"
         hook = EksHook()
         token = hook.fetch_access_token_for_cluster(eks_cluster_name="test-cluster")
         mock_signer.assert_called_once_with(
