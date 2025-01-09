@@ -56,7 +56,7 @@ class BotoTaskSchema(Schema):
     last_status = fields.String(data_key="lastStatus", required=True)
     desired_status = fields.String(data_key="desiredStatus", required=True)
     containers = fields.List(fields.Nested(BotoContainerSchema), required=True)
-    started_at = fields.Field(data_key="startedAt")
+    started_at = fields.Raw(data_key="startedAt")
     stopped_reason = fields.String(data_key="stoppedReason")
 
     @post_load
