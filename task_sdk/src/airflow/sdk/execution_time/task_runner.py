@@ -44,13 +44,21 @@ from airflow.sdk.execution_time.comms import (
     ToTask,
     XComResult,
 )
-from airflow.sdk.execution_time.context import ConnectionAccessor, MacrosAccessor, VariableAccessor
+from airflow.sdk.execution_time.context import (
+    ConnectionAccessor,
+    MacrosAccessor,
+    VariableAccessor,
+    set_current_context,
+)
 
 if TYPE_CHECKING:
     import jinja2
     from structlog.typing import FilteringBoundLogger as Logger
 
 
+# TODO: Move this entire class into a separate file:
+#  `airflow/sdk/execution_time/task_instance.py`
+#   or `airflow/sdk/execution_time/runtime_ti.py`
 class RuntimeTaskInstance(TaskInstance):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -426,37 +434,18 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         # TODO: Get a real context object
         ti.task = ti.task.prepare_for_execution()
         context = ti.get_template_context()
-        jinja_env = ti.task.dag.get_template_env()
-        ti.task = ti.render_templates(context=context, jinja_env=jinja_env)
+        with set_current_context(context):
+            jinja_env = ti.task.dag.get_template_env()
+            ti.task = ti.render_templates(context=context, jinja_env=jinja_env)
+            result = _execute_task(context, ti.task)
+
+        _push_xcom_if_needed(result, ti)
 
         # TODO: Get things from _execute_task_with_callbacks
         #   - Clearing XCom
-        #   - Setting Current Context (set_current_context)
-        #   - Render Templates
         #   - Update RTIF
         #   - Pre Execute
         #   etc
-
-        result = None
-        if ti.task.execution_timeout:
-            # TODO: handle timeout in case of deferral
-            from airflow.utils.timeout import timeout
-
-            timeout_seconds = ti.task.execution_timeout.total_seconds()
-            try:
-                # It's possible we're already timed out, so fast-fail if true
-                if timeout_seconds <= 0:
-                    raise AirflowTaskTimeout()
-                # Run task in timeout wrapper
-                with timeout(timeout_seconds):
-                    result = ti.task.execute(context)  # type: ignore[attr-defined]
-            except AirflowTaskTimeout:
-                # TODO: handle on kill callback here
-                raise
-        else:
-            result = ti.task.execute(context)  # type: ignore[attr-defined]
-
-        _push_xcom_if_needed(result, ti)
         msg = TaskState(state=TerminalTIState.SUCCESS, end_date=datetime.now(tz=timezone.utc))
     except TaskDeferred as defer:
         classpath, trigger_kwargs = defer.trigger.serialize()
@@ -522,6 +511,30 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         msg = TaskState(state=TerminalTIState.FAILED, end_date=datetime.now(tz=timezone.utc))
     if msg:
         SUPERVISOR_COMMS.send_request(msg=msg, log=log)
+
+
+def _execute_task(context: Mapping[str, Any], task: BaseOperator):
+    """Execute Task (optionally with a Timeout) and push Xcom results."""
+    from airflow.exceptions import AirflowTaskTimeout
+
+    if task.execution_timeout:
+        # TODO: handle timeout in case of deferral
+        from airflow.utils.timeout import timeout
+
+        timeout_seconds = task.execution_timeout.total_seconds()
+        try:
+            # It's possible we're already timed out, so fast-fail if true
+            if timeout_seconds <= 0:
+                raise AirflowTaskTimeout()
+            # Run task in timeout wrapper
+            with timeout(timeout_seconds):
+                result = task.execute(context)  # type: ignore[attr-defined]
+        except AirflowTaskTimeout:
+            # TODO: handle on kill callback here
+            raise
+    else:
+        result = task.execute(context)  # type: ignore[attr-defined]
+    return result
 
 
 def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance):

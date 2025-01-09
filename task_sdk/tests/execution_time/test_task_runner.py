@@ -66,40 +66,6 @@ def get_inline_dag(dag_id: str, task: BaseOperator) -> DAG:
     return dag
 
 
-@pytest.fixture
-def mocked_parse(spy_agency):
-    """
-    Fixture to set up an inline DAG and use it in a stubbed `parse` function. Use this fixture if you
-    want to isolate and test `parse` or `run` logic without having to define a DAG file.
-
-    This fixture returns a helper function `set_dag` that:
-    1. Creates an in line DAG with the given `dag_id` and `task` (limited to one task)
-    2. Constructs a `RuntimeTaskInstance` based on the provided `StartupDetails` and task.
-    3. Stubs the `parse` function using `spy_agency`, to return the mocked `RuntimeTaskInstance`.
-
-    After adding the fixture in your test function signature, you can use it like this ::
-
-            mocked_parse(
-                StartupDetails(
-                    ti=TaskInstance(id=uuid7(), task_id="hello", dag_id="super_basic_run", run_id="c", try_number=1),
-                    file="",
-                    requests_fd=0,
-                ),
-                "example_dag_id",
-                CustomOperator(task_id="hello"),
-            )
-    """
-
-    def set_dag(what: StartupDetails, dag_id: str, task: BaseOperator) -> RuntimeTaskInstance:
-        dag = get_inline_dag(dag_id, task)
-        t = dag.task_dict[task.task_id]
-        ti = RuntimeTaskInstance.model_construct(**what.ti.model_dump(exclude_unset=True), task=t)
-        spy_agency.spy_on(parse, call_fake=lambda _: ti)
-        return ti
-
-    return set_dag
-
-
 class CustomOperator(BaseOperator):
     def execute(self, context):
         task_id = context["task_instance"].task_id
@@ -557,6 +523,32 @@ def test_startup_and_run_dag_with_templated_fields(
 
     run(ti, log=mock.MagicMock())
     assert ti.task.bash_command == rendered_command
+
+
+def test_get_context_in_task(create_runtime_ti, time_machine, mock_supervisor_comms):
+    """Test that the `get_current_context` & `set_current_context` work correctly."""
+
+    class MyContextAssertOperator(BaseOperator):
+        def execute(self, context):
+            from airflow.sdk import get_current_context
+
+            # Ensure the context returned by get_current_context is the same as the
+            # context passed to the operator
+            assert context == get_current_context()
+
+    task = MyContextAssertOperator(task_id="assert_context")
+
+    ti = create_runtime_ti(task=task)
+
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
+
+    run(ti, log=mock.MagicMock())
+
+    # Ensure the task is Successful
+    mock_supervisor_comms.send_request.assert_called_once_with(
+        msg=TaskState(state=TerminalTIState.SUCCESS, end_date=instant), log=mock.ANY
+    )
 
 
 @pytest.mark.parametrize(

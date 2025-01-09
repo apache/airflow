@@ -43,14 +43,10 @@ from airflow.exceptions import (
 )
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
-from airflow.models.taskinstance import _CURRENT_CONTEXT
 from airflow.models.variable import Variable
 from airflow.operators.branch import BranchMixIn
 from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv, write_python_script
-from airflow.providers.standard.version_compat import (
-    AIRFLOW_V_2_10_PLUS,
-    AIRFLOW_V_3_0_PLUS,
-)
+from airflow.providers.standard.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 from airflow.utils import hashlib_wrapper
 from airflow.utils.context import context_copy_partial, context_merge
 from airflow.utils.file import get_unique_dag_module_name
@@ -1122,7 +1118,7 @@ class BranchExternalPythonOperator(ExternalPythonOperator, BranchMixIn):
         return self.do_branch(context, super().execute(context))
 
 
-def get_current_context() -> Context:
+def get_current_context() -> Mapping[str, Any]:
     """
     Retrieve the execution context dictionary without altering user method's signature.
 
@@ -1149,9 +1145,22 @@ def get_current_context() -> Context:
     Current context will only have value if this method was called after an operator
     was starting to execute.
     """
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.sdk import get_current_context
+
+        return get_current_context()
+    else:
+        return _get_current_context()
+
+
+def _get_current_context() -> Mapping[str, Any]:
+    # Airflow 2.x
+    # TODO: To be removed when Airflow 2 support is dropped
+    from airflow.models.taskinstance import _CURRENT_CONTEXT
+
     if not _CURRENT_CONTEXT:
-        raise AirflowException(
+        raise RuntimeError(
             "Current context was requested but no context was found! "
-            "Are you running within an airflow task?"
+            "Are you running within an Airflow task?"
         )
     return _CURRENT_CONTEXT[-1]
