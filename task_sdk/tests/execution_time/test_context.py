@@ -19,7 +19,10 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from airflow.sdk.definitions.connection import Connection
+from airflow.sdk.definitions.contextmanager import get_current_context
 from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse, VariableResult
@@ -28,6 +31,7 @@ from airflow.sdk.execution_time.context import (
     VariableAccessor,
     _convert_connection_result_conn,
     _convert_variable_result_to_variable,
+    set_current_context,
 )
 
 
@@ -206,3 +210,41 @@ class TestVariableAccessor:
 
         var = accessor.get("nonexistent_var_key", default_var=default_var)
         assert var == default_var
+
+
+class TestCurrentContext:
+    def test_current_context_roundtrip(self):
+        example_context = {"Hello": "World"}
+
+        with set_current_context(example_context):
+            assert get_current_context() == example_context
+
+    def test_context_removed_after_exit(self):
+        example_context = {"Hello": "World"}
+
+        with set_current_context(example_context):
+            pass
+        with pytest.raises(RuntimeError):
+            get_current_context()
+
+    def test_nested_context(self):
+        """
+        Nested execution context should be supported in case the user uses multiple context managers.
+        Each time the execute method of an operator is called, we set a new 'current' context.
+        This test verifies that no matter how many contexts are entered - order is preserved
+        """
+        max_stack_depth = 15
+        ctx_list = []
+        for i in range(max_stack_depth):
+            # Create all contexts in ascending order
+            new_context = {"ContextId": i}
+            # Like 15 nested with statements
+            ctx_obj = set_current_context(new_context)
+            ctx_obj.__enter__()
+            ctx_list.append(ctx_obj)
+        for i in reversed(range(max_stack_depth)):
+            # Iterate over contexts in reverse order - stack is LIFO
+            ctx = get_current_context()
+            assert ctx["ContextId"] == i
+            # End of with statement
+            ctx_list[i].__exit__(None, None, None)
