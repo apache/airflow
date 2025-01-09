@@ -22,6 +22,7 @@ from copy import deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
+from unittest.mock import Mock
 from urllib.parse import urlsplit
 
 import pytest
@@ -1288,6 +1289,9 @@ class TestEksHook:
     def test_fetch_access_token_for_cluster(self, mock_get_session, mock_conn, mock_signer):
         mock_signer.return_value.generate_presigned_url.return_value = "http://example.com"
         mock_get_session.return_value.region_name = "us-east-1"
+        client = Mock()
+        client.meta.endpoint_url = "https://sts.us-east-1.amazonaws.com"
+        mock_get_session.return_value.client.return_value = client
         hook = EksHook()
         token = hook.fetch_access_token_for_cluster(eks_cluster_name="test-cluster")
         mock_signer.assert_called_once_with(

@@ -86,12 +86,12 @@ def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: 
 
 
 if TYPE_CHECKING:
+    from typing import Literal
     from urllib.parse import SplitResult
 
     from airflow.decorators.base import TaskDecorator
     from airflow.hooks.base import BaseHook
     from airflow.sdk.definitions.asset import Asset
-    from airflow.typing_compat import Literal
 
 
 class LazyDictWithCache(MutableMapping):
@@ -201,7 +201,7 @@ class ProviderInfo:
 
     version: str
     data: dict
-    package_or_source: Literal["source"] | Literal["package"]
+    package_or_source: Literal["source", "package"]
 
     def __post_init__(self):
         if self.package_or_source not in ("source", "package"):

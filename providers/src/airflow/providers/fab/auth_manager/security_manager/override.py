@@ -107,15 +107,15 @@ from airflow.providers.fab.auth_manager.views.user_edit import (
     CustomUserInfoEditView,
 )
 from airflow.providers.fab.auth_manager.views.user_stats import CustomUserStatsChartView
+from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security_manager import AirflowSecurityManagerV2
 from airflow.providers.fab.www.session import (
     AirflowDatabaseSessionInterface as FabAirflowDatabaseSessionInterface,
 )
-from airflow.security import permissions
 from airflow.www.session import AirflowDatabaseSessionInterface
 
 if TYPE_CHECKING:
-    from airflow.security.permissions import RESOURCE_ASSET
+    from airflow.providers.fab.www.security.permissions import RESOURCE_ASSET
 else:
     from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
 
