@@ -23,6 +23,6 @@ import type { FlexibleFormElementProps } from ".";
 /** Render a "const" field where user can not change data as hidden */
 export const Hidden = ({ name, param }: FlexibleFormElementProps) => (
   <VisuallyHidden asChild>
-    <input id={`element_${name}`} name={`element_${name}`} type="hidden" value={String(param.value)} />
+    <input id={`element_${name}`} name={`element_${name}`} type="hidden" value={String(param.value ?? "")} />
   </VisuallyHidden>
 );

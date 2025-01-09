@@ -30,6 +30,7 @@ const labelLookup = (key: string, valuesDisplay: Record<string, string> | null):
 
   return key;
 };
+const enumTypes = ["string", "number", "integer"];
 
 export const FieldDropdown = ({ name, param }: FlexibleFormElementProps) => {
   const selectOptions = createListCollection({
@@ -44,7 +45,7 @@ export const FieldDropdown = ({ name, param }: FlexibleFormElementProps) => {
   return (
     <Select.Root
       collection={selectOptions}
-      defaultValue={[String(param.value)]}
+      defaultValue={enumTypes.includes(typeof param.value) ? [String(param.value)] : undefined}
       id={`element_${name}`}
       name={`element_${name}`}
       ref={contentRef}

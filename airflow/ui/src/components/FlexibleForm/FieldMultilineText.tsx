@@ -22,7 +22,7 @@ import type { FlexibleFormElementProps } from ".";
 
 export const FieldMultilineText = ({ name, param }: FlexibleFormElementProps) => (
   <Textarea
-    defaultValue={typeof param.value === "string" ? param.value : String(param.value)}
+    defaultValue={String(param.value ?? "")}
     id={`element_${name}`}
     name={`element_${name}`}
     rows={6}

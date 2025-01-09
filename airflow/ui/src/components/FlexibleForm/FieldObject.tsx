@@ -46,7 +46,7 @@ export const FieldObject = ({ name, param }: FlexibleFormElementProps) => {
         width: "100%",
       }}
       theme={colorMode === "dark" ? githubDark : githubLight}
-      value={JSON.stringify(param.value, undefined, 2)}
+      value={JSON.stringify(param.value ?? {}, undefined, 2)}
     />
   );
 };

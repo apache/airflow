@@ -22,7 +22,7 @@ import { NumberInputField, NumberInputRoot } from "../ui/NumberInput";
 export const FieldNumber = ({ name, param }: FlexibleFormElementProps) => (
   <NumberInputRoot
     allowMouseWheel
-    defaultValue={String(param.value)}
+    defaultValue={String(param.value ?? "")}
     id={`element_${name}`}
     max={param.schema.maximum ?? undefined}
     min={param.schema.minimum ?? undefined}
