@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.dbt.cloud.hooks.dbt import (
     DbtCloudHook,
@@ -57,7 +58,10 @@ class DbtCloudRunJobOperator(BaseOperator):
         :ref:`howto/operator:DbtCloudRunJobOperator`
 
     :param dbt_cloud_conn_id: The connection ID for connecting to dbt Cloud.
-    :param job_id: The ID of a dbt Cloud job.
+    :param job_id: The ID of a dbt Cloud job. Required if project_name, environment_name, and job_name are not provided.
+    :param project_name: Optional. The name of a dbt Cloud project. Used only if ``job_id`` is None.
+    :param environment_name: Optional. The name of a dbt Cloud environment. Used only if ``job_id`` is None.
+    :param job_name: Optional. The name of a dbt Cloud job. Used only if ``job_id`` is None.
     :param account_id: Optional. The ID of a dbt Cloud account.
     :param trigger_reason: Optional. Description of the reason to trigger the job.
         Defaults to "Triggered via Apache Airflow by task <task_id> in the <dag_id> DAG."
@@ -86,6 +90,9 @@ class DbtCloudRunJobOperator(BaseOperator):
     template_fields = (
         "dbt_cloud_conn_id",
         "job_id",
+        "project_name",
+        "environment_name",
+        "job_name",
         "account_id",
         "trigger_reason",
         "steps_override",
@@ -99,7 +106,10 @@ class DbtCloudRunJobOperator(BaseOperator):
         self,
         *,
         dbt_cloud_conn_id: str = DbtCloudHook.default_conn_name,
-        job_id: int,
+        job_id: int | None = None,
+        project_name: str | None = None,
+        environment_name: str | None = None,
+        job_name: str | None = None,
         account_id: int | None = None,
         trigger_reason: str | None = None,
         steps_override: list[str] | None = None,
@@ -117,6 +127,9 @@ class DbtCloudRunJobOperator(BaseOperator):
         self.dbt_cloud_conn_id = dbt_cloud_conn_id
         self.account_id = account_id
         self.job_id = job_id
+        self.project_name = project_name
+        self.environment_name = environment_name
+        self.job_name = job_name
         self.trigger_reason = trigger_reason
         self.steps_override = steps_override
         self.schema_override = schema_override
@@ -134,6 +147,18 @@ class DbtCloudRunJobOperator(BaseOperator):
             self.trigger_reason = (
                 f"Triggered via Apache Airflow by task {self.task_id!r} in the {self.dag.dag_id} DAG."
             )
+
+        if self.job_id is None:
+            if not all([self.project_name, self.environment_name, self.job_name]):
+                raise AirflowException(
+                    "Either job_id or project_name, environment_name, and job_name must be provided."
+                )
+            self.job_id = self.hook.get_job_by_name(
+                account_id=self.account_id,
+                project_name=self.project_name,
+                environment_name=self.environment_name,
+                job_name=self.job_name,
+            ).json()["data"]["id"]
 
         non_terminal_runs = None
         if self.reuse_existing_run:
