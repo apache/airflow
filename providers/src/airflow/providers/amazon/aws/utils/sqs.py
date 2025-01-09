@@ -14,20 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+#
 from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import jsonpath_ng
 import jsonpath_ng.ext
-from typing_extensions import Literal
+
+if TYPE_CHECKING:
+    from typing import Literal
+
+    MessageFilteringType = Literal["literal", "jsonpath", "jsonpath-ext"]
 
 log = logging.getLogger(__name__)
-
-
-MessageFilteringType = Literal["literal", "jsonpath", "jsonpath-ext"]
 
 
 def process_response(
