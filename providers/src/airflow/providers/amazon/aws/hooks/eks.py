@@ -32,7 +32,6 @@ from botocore.exceptions import ClientError
 from botocore.signers import RequestSigner
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.aws.hooks.sts import StsHook
 from airflow.utils import yaml
 from airflow.utils.json import AirflowJsonEncoder
 
@@ -613,7 +612,8 @@ class EksHook(AwsBaseHook):
     def fetch_access_token_for_cluster(self, eks_cluster_name: str) -> str:
         session = self.get_session()
         service_id = self.conn.meta.service_model.service_id
-        sts_url = f"{StsHook().conn_client_meta.endpoint_url}/?Action=GetCallerIdentity&Version=2011-06-15"
+        sts_client = session.client("sts")
+        sts_url = f"{sts_client.meta.endpoint_url}/?Action=GetCallerIdentity&Version=2011-06-15"
 
         signer = RequestSigner(
             service_id=service_id,
