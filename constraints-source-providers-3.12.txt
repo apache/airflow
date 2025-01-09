@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-08T19:49:57.655471
+# This constraints file was automatically generated on 2025-01-09T02:28:27.799483
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -217,7 +217,7 @@ google-cloud-automl==2.15.0
 google-cloud-batch==0.17.33
 google-cloud-bigquery-datatransfer==3.18.0
 google-cloud-bigquery==3.27.0
-google-cloud-bigtable==2.27.0
+google-cloud-bigtable==2.28.0
 google-cloud-build==3.28.0
 google-cloud-compute==1.23.0
 google-cloud-container==2.55.0
@@ -336,7 +336,7 @@ lz4==4.3.3
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.1.1
 marshmallow-sqlalchemy==0.28.2
-marshmallow==3.23.3
+marshmallow==3.24.2
 matplotlib-inline==0.1.7
 mdit-py-plugins==0.4.2
 mdurl==0.1.2
@@ -362,7 +362,7 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.1.0
 mypy-boto3-appflow==1.35.93
-mypy-boto3-rds==1.35.93
+mypy-boto3-rds==1.35.95
 mypy-boto3-redshift-data==1.35.93
 mypy-boto3-s3==1.35.93
 mypy-extensions==1.0.0

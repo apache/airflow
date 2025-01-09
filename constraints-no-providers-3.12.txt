@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-08T19:54:28.844552
+# This constraints file was automatically generated on 2025-01-09T02:32:53.466269
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -108,7 +108,7 @@ lockfile==0.12.2
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.1.1
 marshmallow-sqlalchemy==0.28.2
-marshmallow==3.23.3
+marshmallow==3.24.2
 mdit-py-plugins==0.4.2
 mdurl==0.1.2
 methodtools==0.4.7
@@ -134,7 +134,7 @@ plyvel==1.5.1
 prison==0.2.1
 prometheus_client==0.21.1
 propcache==0.2.1
-protobuf==5.29.2
+protobuf==5.29.3
 psutil==6.1.1
 pure-sasl==0.6.2
 pyasn1==0.6.1
