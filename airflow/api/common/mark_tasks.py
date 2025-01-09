@@ -280,10 +280,6 @@ def set_dag_run_state_to_failed(
     if not run_id:
         raise ValueError(f"Invalid dag_run_id: {run_id}")
 
-    # Mark the dag run to failed.
-    if commit:
-        _set_dag_run_state(dag.dag_id, run_id, DagRunState.FAILED, session)
-
     running_states = (
         TaskInstanceState.RUNNING,
         TaskInstanceState.DEFERRED,
@@ -292,7 +288,7 @@ def set_dag_run_state_to_failed(
 
     # Mark only RUNNING task instances.
     task_ids = [task.task_id for task in dag.tasks]
-    tis = session.scalars(
+    running_tis: list[TaskInstance] = session.scalars(
         select(TaskInstance).where(
             TaskInstance.dag_id == dag.dag_id,
             TaskInstance.run_id == run_id,
@@ -301,16 +297,17 @@ def set_dag_run_state_to_failed(
         )
     )
 
-    task_ids_of_running_tis = [task_instance.task_id for task_instance in tis]
+    # Do not kill teardown tasks
+    task_ids_of_running_tis = [ti.task_id for ti in running_tis if not dag.task_dict[ti.task_id].is_teardown]
 
-    tasks = []
+    running_tasks = []
     for task in dag.tasks:
         if task.task_id in task_ids_of_running_tis:
             task.dag = dag
-            tasks.append(task)
+            running_tasks.append(task)
 
     # Mark non-finished tasks as SKIPPED.
-    tis = session.scalars(
+    pending_tis: list[TaskInstance] = session.scalars(
         select(TaskInstance).filter(
             TaskInstance.dag_id == dag.dag_id,
             TaskInstance.run_id == run_id,
@@ -324,12 +321,19 @@ def set_dag_run_state_to_failed(
         )
     ).all()
 
+    # Do not skip teardown tasks
+    pending_tis = [ti for ti in pending_tis if not dag.task_dict[ti.task_id].is_teardown]
+
     if commit:
-        for ti in tis:
+        for ti in pending_tis:
             ti.set_state(TaskInstanceState.SKIPPED)
 
-    return tis + set_state(
-        tasks=tasks,
+        # Mark the dag run to failed if there is no pending teardown (else this would not be scheduled later).
+        if not any(dag.task_dict[ti.task_id].is_teardown for ti in (running_tis + pending_tis)):
+            _set_dag_run_state(dag.dag_id, run_id, DagRunState.FAILED, session)
+
+    return pending_tis + set_state(
+        tasks=running_tasks,
         run_id=run_id,
         state=TaskInstanceState.FAILED,
         commit=commit,
