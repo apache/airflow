@@ -55,8 +55,6 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
     TaskInstanceCollectionResponse,
     TaskInstanceHistoryCollectionResponse,
     TaskInstanceHistoryResponse,
-    TaskInstanceReferenceCollectionResponse,
-    TaskInstanceReferenceResponse,
     TaskInstanceResponse,
     TaskInstancesBatchBody,
 )
@@ -550,7 +548,7 @@ def post_clear_task_instances(
     request: Request,
     body: ClearTaskInstancesBody,
     session: SessionDep,
-) -> TaskInstanceReferenceCollectionResponse:
+) -> TaskInstanceCollectionResponse:
     """Clear task instances."""
     dag = request.app.state.dag_bag.get_dag(dag_id)
     if not dag:
@@ -597,6 +595,7 @@ def post_clear_task_instances(
         dry_run=True,
         task_ids=task_ids,
         dag_bag=request.app.state.dag_bag,
+        session=session,
         **body.model_dump(
             include={
                 "start_date",
@@ -615,9 +614,9 @@ def post_clear_task_instances(
             DagRunState.QUEUED if reset_dag_runs else False,
         )
 
-    return TaskInstanceReferenceCollectionResponse(
+    return TaskInstanceCollectionResponse(
         task_instances=[
-            TaskInstanceReferenceResponse.model_validate(
+            TaskInstanceResponse.model_validate(
                 ti,
                 from_attributes=True,
             )
