@@ -258,7 +258,9 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "deepdiff>=8.1.1",
         "jmespath>=0.7.0",
         "kgb>=7.0.0",
-        "pytest-asyncio>=0.23.6,!=0.25.1",
+        # We need to adjust all our tests to work with "proper" handiing of the async loops in pytest-asyncio
+        # Implemented in Pytest-asyncio 0.25.1 and 0.25.2. See: https://github.com/apache/airflow/issues/45355
+        "pytest-asyncio>=0.23.6,<0.25.1",
         "pytest-cov>=4.1.0",
         "pytest-custom-exit-code>=0.3.0",
         "pytest-icdiff>=0.9",
@@ -400,9 +402,6 @@ DEPENDENCIES = [
     "markdown-it-py>=2.1.0",
     "markupsafe>=1.1.1",
     "marshmallow-oneofschema>=2.0.1",
-    # Marshmallow 3.24.0 introduced a breaking changes
-    # https://github.com/marshmallow-code/marshmallow/blob/dev/CHANGELOG.rst#3240-2025-01-06
-    "marshmallow==3.23.3",
     "mdit-py-plugins>=0.3.0",
     "methodtools>=0.4.7",
     "opentelemetry-api>=1.24.0",

@@ -18,41 +18,52 @@
  */
 import { Box, Text } from "@chakra-ui/react";
 
-import type { TaskInstanceHistoryResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
+import type {
+  TaskInstanceHistoryResponse,
+  TaskInstanceResponse,
+  GridTaskInstanceSummary,
+} from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip, type TooltipProps } from "src/components/ui";
 
 type Props = {
-  readonly taskInstance: TaskInstanceHistoryResponse | TaskInstanceResponse;
+  readonly taskInstance?: GridTaskInstanceSummary | TaskInstanceHistoryResponse | TaskInstanceResponse;
 } & Omit<TooltipProps, "content">;
 
-const TaskInstanceTooltip = ({ children, taskInstance }: Props) => (
-  <Tooltip
-    content={
-      <Box>
-        <Text>Run ID: {taskInstance.dag_run_id}</Text>
-        <Text>
-          Start Date: <Time datetime={taskInstance.start_date} />
-        </Text>
-        <Text>
-          End Date: <Time datetime={taskInstance.end_date} />
-        </Text>
-        {taskInstance.try_number > 1 && <Text>Try Number: {taskInstance.try_number}</Text>}
-        <Text>Duration: {taskInstance.duration?.toFixed(2) ?? 0}s</Text>
-        <Text>State: {taskInstance.state}</Text>
-      </Box>
-    }
-    key={taskInstance.dag_run_id}
-    positioning={{
-      offset: {
-        crossAxis: 5,
-        mainAxis: 5,
-      },
-      placement: "bottom-start",
-    }}
-  >
-    {children}
-  </Tooltip>
-);
+const TaskInstanceTooltip = ({ children, positioning, taskInstance, ...rest }: Props) =>
+  taskInstance === undefined ? (
+    children
+  ) : (
+    <Tooltip
+      {...rest}
+      content={
+        <Box>
+          {"dag_run_id" in taskInstance ? <Text>Run ID: {taskInstance.dag_run_id}</Text> : undefined}
+          <Text>
+            Start Date: <Time datetime={taskInstance.start_date} />
+          </Text>
+          <Text>
+            End Date: <Time datetime={taskInstance.end_date} />
+          </Text>
+          {taskInstance.try_number > 1 && <Text>Try Number: {taskInstance.try_number}</Text>}
+          {"duration" in taskInstance ? (
+            <Text>Duration: {taskInstance.duration?.toFixed(2) ?? 0}s</Text>
+          ) : undefined}
+        </Box>
+      }
+      key={taskInstance.task_id}
+      portalled
+      positioning={{
+        offset: {
+          crossAxis: 5,
+          mainAxis: 5,
+        },
+        placement: "bottom-start",
+        ...positioning,
+      }}
+    >
+      {children}
+    </Tooltip>
+  );
 
 export default TaskInstanceTooltip;

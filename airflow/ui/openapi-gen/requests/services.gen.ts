@@ -70,6 +70,7 @@ import type {
   PutConnectionsResponse,
   TestConnectionData,
   TestConnectionResponse,
+  CreateDefaultConnectionsResponse,
   GetDagRunData,
   GetDagRunResponse,
   DeleteDagRunData,
@@ -1153,6 +1154,23 @@ export class ConnectionService {
         401: "Unauthorized",
         403: "Forbidden",
         422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Create Default Connections
+   * Create default connections.
+   * @returns void Successful Response
+   * @throws ApiError
+   */
+  public static createDefaultConnections(): CancelablePromise<CreateDefaultConnectionsResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/connections/defaults",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
       },
     });
   }

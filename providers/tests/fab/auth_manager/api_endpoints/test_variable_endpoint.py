@@ -19,7 +19,7 @@ from __future__ import annotations
 import pytest
 
 from airflow.models import Variable
-from airflow.security import permissions
+from airflow.providers.fab.www.security import permissions
 
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
 from tests_common.test_utils.db import clear_db_variables

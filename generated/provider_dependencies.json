@@ -628,7 +628,7 @@
   "google": {
     "deps": [
       "PyOpenSSL>=23.0.0",
-      "apache-airflow-providers-common-compat>=1.3.0",
+      "apache-airflow-providers-common-compat>=1.4.0",
       "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.9.0",
       "asgiref>=3.5.2",
@@ -970,7 +970,7 @@
   },
   "openlineage": {
     "deps": [
-      "apache-airflow-providers-common-compat>=1.3.0",
+      "apache-airflow-providers-common-compat>=1.4.0",
       "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.9.0",
       "attrs>=22.2",

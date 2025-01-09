@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Button, Heading, HStack } from "@chakra-ui/react";
+import { useRef } from "react";
 import { FaChartGantt } from "react-icons/fa6";
 import { FiGrid } from "react-icons/fi";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
@@ -26,11 +27,12 @@ import { DagIcon } from "src/assets/DagIcon";
 import { Dialog } from "src/components/ui";
 import { capitalize } from "src/utils";
 
+import { DagRunSelect } from "./DagRunSelect";
 import { Gantt } from "./Gantt";
 import { Graph } from "./Graph";
 import { Grid } from "./Grid";
 
-type TriggerDAGModalProps = {
+type DAGVizModalProps = {
   dagDisplayName?: DAGResponse["dag_display_name"];
   dagId?: DAGResponse["dag_id"];
   onClose: () => void;
@@ -43,16 +45,17 @@ const visualizationOptions = [
     icon: <FaChartGantt height={5} width={5} />,
     value: "gantt",
   },
+  { component: <Grid />, icon: <FiGrid height={5} width={5} />, value: "grid" },
   {
     component: <Graph />,
     icon: <DagIcon height={5} width={5} />,
     value: "graph",
   },
-  { component: <Grid />, icon: <FiGrid height={5} width={5} />, value: "grid" },
 ];
 
-export const DagVizModal: React.FC<TriggerDAGModalProps> = ({ dagDisplayName, dagId, onClose, open }) => {
+export const DagVizModal: React.FC<DAGVizModalProps> = ({ dagDisplayName, dagId, onClose, open }) => {
   const [searchParams] = useSearchParams();
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const activeViz = searchParams.get("modal") ?? "graph";
   const params = new URLSearchParams(searchParams);
@@ -60,9 +63,9 @@ export const DagVizModal: React.FC<TriggerDAGModalProps> = ({ dagDisplayName, da
   params.delete("modal");
 
   return (
-    <Dialog.Root onOpenChange={onClose} open={open} size="full">
-      <Dialog.Content backdrop>
-        <Dialog.Header bg="blue.muted">
+    <Dialog.Root motionPreset="none" onOpenChange={onClose} open={open} size="full">
+      <Dialog.Content backdrop ref={contentRef}>
+        <Dialog.Header bg="blue.muted" pr={16}>
           <HStack>
             <Heading mr={3} size="xl">
               {dagDisplayName ?? dagId}
@@ -85,6 +88,7 @@ export const DagVizModal: React.FC<TriggerDAGModalProps> = ({ dagDisplayName, da
                 </Button>
               </RouterLink>
             ))}
+            <DagRunSelect ref={contentRef} />
           </HStack>
           <Dialog.CloseTrigger closeButtonProps={{ size: "xl" }} />
         </Dialog.Header>
