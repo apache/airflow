@@ -27,8 +27,8 @@ from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
     VariableAccessor,
     _convert_connection_result_conn,
-    _convert_variable_result_to_variable,
 )
+from airflow.sdk.execution_time.variable import _convert_variable_result_to_variable
 
 
 def test_convert_connection_result_conn():
