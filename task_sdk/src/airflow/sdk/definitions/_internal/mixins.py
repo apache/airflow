@@ -108,7 +108,7 @@ class DependencyMixin:
 
     @classmethod
     def _iter_references(cls, obj: Any) -> Iterable[tuple[DependencyMixin, str]]:
-        from airflow.sdk.definitions.abstractoperator import AbstractOperator
+        from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 
         if isinstance(obj, AbstractOperator):
             yield obj, "operator"

@@ -22,8 +22,8 @@ from datetime import datetime, timezone
 import jinja2
 import pytest
 
+from airflow.sdk.definitions._internal.templater import LiteralValue, SandboxedEnvironment, Templater
 from airflow.sdk.definitions.dag import DAG
-from airflow.sdk.definitions.templater import LiteralValue, SandboxedEnvironment, Templater
 
 
 class TestTemplater:

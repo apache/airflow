@@ -16,13 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Any
 
-if TYPE_CHECKING:
-    from airflow.typing_compat import TypeAlias
+from airflow.sdk.definitions._internal.templater import LiteralValue
 
-import airflow.sdk.definitions._internal.mixins
-import airflow.sdk.definitions._internal.node
 
-DependencyMixin: TypeAlias = airflow.sdk.definitions._internal.mixins.DependencyMixin
-DAGNode: TypeAlias = airflow.sdk.definitions._internal.node.DAGNode
+def literal(value: Any) -> LiteralValue:
+    """
+    Wrap a value to ensure it is rendered as-is without applying Jinja templating to its contents.
+
+    Designed for use in an operator's template field.
+
+    :param value: The value to be rendered without templating
+    """
+    return LiteralValue(value)

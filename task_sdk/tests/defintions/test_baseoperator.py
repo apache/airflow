@@ -29,7 +29,7 @@ import pytest
 
 from airflow.sdk.definitions.baseoperator import BaseOperator, BaseOperatorMeta
 from airflow.sdk.definitions.dag import DAG
-from airflow.sdk.definitions.templater import literal
+from airflow.sdk.definitions.template import literal
 from airflow.task.priority_strategy import _DownstreamPriorityWeightStrategy, _UpstreamPriorityWeightStrategy
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
@@ -492,7 +492,7 @@ class TestBaseOperator:
         with pytest.raises(jinja2.exceptions.TemplateSyntaxError):
             task.render_template("{{ invalid expression }}", {})
 
-    @mock.patch("airflow.sdk.definitions.templater.SandboxedEnvironment", autospec=True)
+    @mock.patch("airflow.sdk.definitions._internal.templater.SandboxedEnvironment", autospec=True)
     def test_jinja_env_creation(self, mock_jinja_env):
         """Verify if a Jinja environment is created only once when templating."""
         task = MockOperator(task_id="op1", arg1="{{ foo }}", arg2="{{ bar }}")

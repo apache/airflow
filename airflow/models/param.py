@@ -24,7 +24,7 @@ from collections.abc import ItemsView, Iterable, Mapping, MutableMapping, Values
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.exceptions import AirflowException, ParamValidationError
-from airflow.sdk.definitions.mixins import ResolveMixin
+from airflow.sdk.definitions._internal.mixins import ResolveMixin
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
