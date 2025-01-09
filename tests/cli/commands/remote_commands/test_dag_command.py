@@ -79,7 +79,6 @@ class TestCliDags:
     def setup_method(self):
         clear_db_runs()  # clean-up all dag run before start each test
 
-    @pytest.mark.skip("AIP-66: reserialize is not implemented yet")
     def test_reserialize(self, session):
         # Assert that there are serialized Dags
         serialized_dags_before_command = session.query(SerializedDagModel).all()
@@ -99,7 +98,6 @@ class TestCliDags:
         dag_version_after_command = session.query(DagVersion).all()
         assert len(dag_version_after_command)
 
-    @pytest.mark.skip("AIP-66: reserialize is not implemented yet")
     def test_reserialize_should_support_subdir_argument(self, session):
         # Run clear of serialized dags
         session.query(DagVersion).delete()
@@ -108,20 +106,13 @@ class TestCliDags:
         serialized_dags_after_clear = session.query(SerializedDagModel).all()
         assert len(serialized_dags_after_clear) == 0
 
-        # Serialize manually
-        dag_path = self.dagbag.dags["example_bash_operator"].fileloc
-        # Set default value of include_examples parameter to false
-        dagbag_default = list(DagBag.__init__.__defaults__)
-        dagbag_default[1] = False
-        with mock.patch(
-            "airflow.cli.commands.remote_commands.dag_command.DagBag.__init__.__defaults__",
-            tuple(dagbag_default),
-        ):
-            dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize", "--subdir", dag_path]))
+        dag_command.dag_reserialize(
+            self.parser.parse_args(["dags", "reserialize", "--bundle-name", "dags-folder"])
+        )
 
         # Check serialized DAG are back
         serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
-        assert len(serialized_dags_after_reserialize) == 1  # Serialized DAG back
+        assert len(serialized_dags_after_reserialize)  # Serialized DAG back
 
     def test_show_dag_dependencies_print(self):
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
