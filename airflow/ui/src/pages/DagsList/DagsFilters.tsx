@@ -81,11 +81,11 @@ export const DagsFilters = () => {
       } else {
         searchParams.set(PAUSED_PARAM, val);
       }
-      setSearchParams(searchParams);
       setTableURLState({
         pagination: { ...pagination, pageIndex: 0 },
         sorting,
       });
+      setSearchParams(searchParams);
     },
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
@@ -97,11 +97,11 @@ export const DagsFilters = () => {
       } else {
         searchParams.set(LAST_DAG_RUN_STATE_PARAM, value);
       }
-      setSearchParams(searchParams);
       setTableURLState({
         pagination: { ...pagination, pageIndex: 0 },
         sorting,
       });
+      setSearchParams(searchParams);
     },
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
