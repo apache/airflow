@@ -82,6 +82,17 @@ via the ``additional_run_config`` dictionary.
     :start-after: [START howto_operator_dbt_cloud_run_job_async]
     :end-before: [END howto_operator_dbt_cloud_run_job_async]
 
+You can also trigger a dbt Cloud job without providing the ``job_id``. Instead, you can identify the job
+by providing the ``project_name``, ``environment_name``, and ``job_name``.
+Please note that it will only work if the above three parameters uniquely identify a job in your account
+(i.e. you cannot have two jobs with the same name in the same project and environment).
+
+.. exampleinclude:: /../../providers/tests/system/dbt/cloud/example_dbt_cloud.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dbt_cloud_run_job_without_job_id]
+    :end-before: [END howto_operator_dbt_cloud_run_job_without_job_id]
+
 .. _howto/operator:DbtCloudJobRunSensor:
 
 Poll for status of a dbt Cloud Job run
