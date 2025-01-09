@@ -313,7 +313,7 @@ class _VaultClient(LoggingMixin):
         import time
         import json
         import googleapiclient
-      
+
         with open(self.gcp_key_path, 'r') as f:
             creds = json.load(f)
             service_account = creds['client_email']
@@ -342,15 +342,7 @@ class _VaultClient(LoggingMixin):
                 role=self.role_id,
                 jwt=jwt,
                 mount_point=self.auth_mount_point)
-            _client.auth.gcp.login(
-                role=self.role_id,
-                jwt=jwt,
-                mount_point=self.auth_mount_point)
         else:
-            _client.auth.gcp.login(
-                role=self.role_id,
-                jwt=jwt)
-
             _client.auth.gcp.login(
                 role=self.role_id,
                 jwt=jwt)
