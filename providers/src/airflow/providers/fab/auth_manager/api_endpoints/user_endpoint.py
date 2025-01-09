@@ -25,9 +25,6 @@ from marshmallow import ValidationError
 from sqlalchemy import asc, desc, func, select
 from werkzeug.security import generate_password_hash
 
-from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound, Unknown
-from airflow.api_connexion.parameters import check_limit, format_parameters
-from airflow.api_connexion.security import requires_access_custom_view
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 from airflow.providers.fab.auth_manager.models import User
@@ -37,11 +34,14 @@ from airflow.providers.fab.auth_manager.schemas.user_schema import (
     user_collection_schema,
     user_schema,
 )
-from airflow.security import permissions
+from airflow.providers.fab.www.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound, Unknown
+from airflow.providers.fab.www.api_connexion.parameters import check_limit, format_parameters
+from airflow.providers.fab.www.api_connexion.security import requires_access_custom_view
+from airflow.providers.fab.www.security import permissions
 
 if TYPE_CHECKING:
-    from airflow.api_connexion.types import APIResponse, UpdateMask
     from airflow.providers.fab.auth_manager.models import Role
+    from airflow.providers.fab.www.api_connexion.types import APIResponse, UpdateMask
 
 
 @requires_access_custom_view("GET", permissions.RESOURCE_USER)

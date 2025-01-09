@@ -108,6 +108,7 @@ from airflow.models.xcom import LazyXComSelectSequence, XCom
 from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
 from airflow.sdk.definitions.templater import SandboxedEnvironment
+from airflow.sdk.execution_time.context import _CURRENT_CONTEXT
 from airflow.sentry import Sentry
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
@@ -142,7 +143,6 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 
 TR = TaskReschedule
 
-_CURRENT_CONTEXT: list[Context] = []
 log = logging.getLogger(__name__)
 
 

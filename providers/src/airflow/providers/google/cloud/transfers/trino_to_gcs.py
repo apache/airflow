@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
@@ -25,6 +26,8 @@ from airflow.providers.trino.hooks.trino import TrinoHook
 if TYPE_CHECKING:
     from trino.client import TrinoResult
     from trino.dbapi import Cursor as TrinoCursor
+
+    from airflow.providers.openlineage.extractors import OperatorLineage
 
 
 class _TrinoToGCSTrinoCursorAdapter:
@@ -181,10 +184,13 @@ class TrinoToGCSOperator(BaseSQLToGCSOperator):
         super().__init__(**kwargs)
         self.trino_conn_id = trino_conn_id
 
+    @cached_property
+    def db_hook(self) -> TrinoHook:
+        return TrinoHook(trino_conn_id=self.trino_conn_id)
+
     def query(self):
         """Query trino and returns a cursor to the results."""
-        trino = TrinoHook(trino_conn_id=self.trino_conn_id)
-        conn = trino.get_conn()
+        conn = self.db_hook.get_conn()
         cursor = conn.cursor()
         self.log.info("Executing: %s", self.sql)
         cursor.execute(self.sql)
@@ -207,3 +213,20 @@ class TrinoToGCSOperator(BaseSQLToGCSOperator):
         :param schema_type: BigQuery data type
         """
         return value
+
+    def get_openlineage_facets_on_start(self) -> OperatorLineage | None:
+        from airflow.providers.common.compat.openlineage.facet import SQLJobFacet
+        from airflow.providers.common.compat.openlineage.utils.sql import get_openlineage_facets_with_sql
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        sql_parsing_result = get_openlineage_facets_with_sql(
+            hook=self.db_hook,
+            sql=self.sql,
+            conn_id=self.trino_conn_id,
+            database=None,
+        )
+        gcs_output_datasets = self._get_openlineage_output_datasets()
+        if sql_parsing_result:
+            sql_parsing_result.outputs = gcs_output_datasets
+            return sql_parsing_result
+        return OperatorLineage(outputs=gcs_output_datasets, job_facets={"sql": SQLJobFacet(self.sql)})

@@ -34,6 +34,7 @@ from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 
 if TYPE_CHECKING:
+    from airflow.providers.common.compat.openlineage.facet import OutputDataset
     from airflow.utils.context import Context
 
 
@@ -151,6 +152,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         self.partition_columns = partition_columns
         self.write_on_empty = write_on_empty
         self.parquet_row_group_size = parquet_row_group_size
+        self._uploaded_file_names: list[str] = []
 
     def execute(self, context: Context):
         if self.partition_columns:
@@ -501,3 +503,16 @@ class BaseSQLToGCSOperator(BaseOperator):
             gzip=self.gzip if is_data_file else False,
             metadata=metadata,
         )
+        self._uploaded_file_names.append(object_name)
+
+    def _get_openlineage_output_datasets(self) -> list[OutputDataset]:
+        """Retrieve OpenLineage output datasets."""
+        from airflow.providers.common.compat.openlineage.facet import OutputDataset
+        from airflow.providers.google.cloud.openlineage.utils import extract_ds_name_from_gcs_path
+
+        return [
+            OutputDataset(
+                namespace=f"gs://{self.bucket}",
+                name=extract_ds_name_from_gcs_path(self.filename.split("{}", maxsplit=1)[0]),
+            )
+        ]
