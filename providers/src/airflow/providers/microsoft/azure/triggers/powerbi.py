@@ -114,15 +114,26 @@ class PowerBITrigger(BaseTrigger):
                 group_id=self.group_id,
             )
             self.log.info("Triggered dataset refresh %s", dataset_refresh_id)
-            yield TriggerEvent(
-                {
-                    "status": "success",
-                    "dataset_refresh_status": None,
-                    "message": f"The dataset refresh {self.dataset_refresh_id} has been triggered.",
-                    "dataset_refresh_id": dataset_refresh_id,
-                }
-            )
-            return
+            if dataset_refresh_id:
+                yield TriggerEvent(
+                    {
+                        "status": "success",
+                        "dataset_refresh_status": None,
+                        "message": f"The dataset refresh {dataset_refresh_id} has been triggered.",
+                        "dataset_refresh_id": dataset_refresh_id,
+                    }
+                )
+                return
+            else:
+                yield TriggerEvent(
+                    {
+                        "status": "error",
+                        "dataset_refresh_status": None,
+                        "message": "Failed to trigger the dataset refresh.",
+                        "dataset_refresh_id": None,
+                    }
+                )
+                return
 
         @tenacity.retry(
             stop=tenacity.stop_after_attempt(3),
@@ -140,7 +151,7 @@ class PowerBITrigger(BaseTrigger):
                 )
                 return refresh_details["status"], refresh_details["error"]
             else:
-                raise Exception("Dataset refresh Id is missing.")
+                raise PowerBIDatasetRefreshException("Dataset refresh Id is missing.")
 
         try:
             dataset_refresh_status, dataset_refresh_error = await fetch_refresh_status_and_error()

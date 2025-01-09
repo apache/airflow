@@ -49,6 +49,7 @@ def powerbi_trigger(timeout=TIMEOUT, check_interval=CHECK_INTERVAL) -> PowerBITr
         proxies=None,
         api_version=API_VERSION,
         dataset_id=DATASET_ID,
+        dataset_refresh_id=DATASET_REFRESH_ID,
         group_id=GROUP_ID,
         check_interval=check_interval,
         wait_for_termination=True,
@@ -65,6 +66,7 @@ class TestPowerBITrigger:
             proxies=None,
             api_version=API_VERSION,
             dataset_id=DATASET_ID,
+            dataset_refresh_id=DATASET_REFRESH_ID,
             group_id=GROUP_ID,
             check_interval=CHECK_INTERVAL,
             wait_for_termination=True,
@@ -76,6 +78,7 @@ class TestPowerBITrigger:
         assert kwargs == {
             "conn_id": POWERBI_CONN_ID,
             "dataset_id": DATASET_ID,
+            "dataset_refresh_id": DATASET_REFRESH_ID,
             "timeout": TIMEOUT,
             "group_id": GROUP_ID,
             "proxies": None,
@@ -130,12 +133,31 @@ class TestPowerBITrigger:
         assert expected == actual
 
     @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.trigger_dataset_refresh")
+    async def test_powerbi_trigger_run_trigger_refresh(self, mock_trigger_dataset_refresh, powerbi_trigger):
+        """Assert event is triggered upon successful new refresh trigger."""
+        powerbi_trigger.dataset_refresh_id = None
+        mock_trigger_dataset_refresh.return_value = DATASET_REFRESH_ID
+
+        task = [i async for i in powerbi_trigger.run()]
+        response = TriggerEvent(
+            {
+                "status": "success",
+                "dataset_refresh_status": None,
+                "message": f"The dataset refresh {DATASET_REFRESH_ID} has been triggered.",
+                "dataset_refresh_id": DATASET_REFRESH_ID,
+            }
+        )
+        assert len(task) == 1
+        assert response in task
+
+    @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.trigger_dataset_refresh")
     async def test_powerbi_trigger_run_completed(
         self, mock_trigger_dataset_refresh, mock_get_refresh_details_by_refresh_id, powerbi_trigger
     ):
-        """Assert event is triggered upon successful dataset refresh."""
+        """Assert event is triggered upon successful dataset refresh completion."""
         mock_get_refresh_details_by_refresh_id.return_value = {
             "status": PowerBIDatasetRefreshStatus.COMPLETED,
             "error": None,
@@ -203,6 +225,7 @@ class TestPowerBITrigger:
             response = TriggerEvent(
                 {
                     "status": "error",
+                    "dataset_refresh_status": None,
                     "message": "An error occurred: Test exception",
                     "dataset_refresh_id": DATASET_REFRESH_ID,
                 }
@@ -260,7 +283,7 @@ class TestPowerBITrigger:
             {
                 "status": "error",
                 "dataset_refresh_status": None,
-                "message": "An error occurred: Test exception for no dataset_refresh_id",
+                "message": "Failed to trigger the dataset refresh.",
                 "dataset_refresh_id": None,
             }
         )
