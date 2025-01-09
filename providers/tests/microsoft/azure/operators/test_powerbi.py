@@ -95,6 +95,7 @@ class TestPowerBIDatasetRefreshOperator(Base):
             operator.execute(context)
 
         assert isinstance(exc.value.trigger, PowerBITrigger)
+        assert exc.value.trigger.dataset_refresh_id is None
 
     @mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection)
     def test_powerbi_operator_async_get_refresh_status_success(self, connection):
@@ -104,7 +105,6 @@ class TestPowerBIDatasetRefreshOperator(Base):
         )
         context = {"ti": MagicMock()}
         context["ti"].task_id = TASK_ID
-        context["ti"].xcom_pull = MagicMock(return_value=NEW_REFRESH_REQUEST_ID)
 
         with pytest.raises(TaskDeferred) as exc:
             operator.get_refresh_status(
@@ -113,9 +113,8 @@ class TestPowerBIDatasetRefreshOperator(Base):
             )
 
         assert isinstance(exc.value.trigger, PowerBITrigger)
-
+        assert exc.value.trigger.dataset_refresh_id is NEW_REFRESH_REQUEST_ID
         assert context["ti"].xcom_push.call_count == 1
-        assert context["ti"].xcom_pull.call_count == 1
 
     def test_powerbi_operator_async_execute_complete_success(self):
         """Assert that execute_complete log success message"""

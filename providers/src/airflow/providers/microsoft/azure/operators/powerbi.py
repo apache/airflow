@@ -118,21 +118,19 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
             )
 
     def get_refresh_status(self, context: Context, event: dict[str, str] | None = None):
-        """Push the refresh Id to XCom then runs the Triggers to wait for refresh completion."""
+        """Push the refresh Id to XCom then runs the Trigger to wait for refresh completion."""
         if event:
             if event["status"] == "error":
                 raise AirflowException(event["message"])
 
+            dataset_refresh_id = event["dataset_refresh_id"]
+
+        if dataset_refresh_id:
             self.xcom_push(
                 context=context,
                 key=f"{context['ti'].task_id}.powerbi_dataset_refresh_Id",
-                value=event["dataset_refresh_id"],
+                value=dataset_refresh_id,
             )
-
-        dataset_refresh_id = self.xcom_pull(
-            context=context, key=f"{context['ti'].task_id}.powerbi_dataset_refresh_Id"
-        )
-        if dataset_refresh_id:
             self.defer(
                 trigger=PowerBITrigger(
                     conn_id=self.conn_id,

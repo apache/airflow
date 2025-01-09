@@ -49,7 +49,7 @@ class PowerBITrigger(BaseTrigger):
         You can pass an enum named APIVersion which has 2 possible members v1 and beta,
         or you can pass a string as `v1.0` or `beta`.
     :param dataset_id: The dataset Id to refresh.
-    :param dataset_refresh_id: The dataset refresh Id
+    :param dataset_refresh_id: The dataset refresh Id to poll for the status, if not provided a new refresh will be triggered.
     :param group_id: The workspace Id where dataset is located.
     :param end_time: Time in seconds when trigger should stop polling.
     :param check_interval: Time in seconds to wait between each poll.
@@ -109,12 +109,14 @@ class PowerBITrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make async connection to the PowerBI and polls for the dataset refresh status."""
         if not self.dataset_refresh_id:
+            # Trigger the dataset refresh
             dataset_refresh_id = await self.hook.trigger_dataset_refresh(
                 dataset_id=self.dataset_id,
                 group_id=self.group_id,
             )
-            self.log.info("Triggered dataset refresh %s", dataset_refresh_id)
+
             if dataset_refresh_id:
+                self.log.info("Triggered dataset refresh %s", dataset_refresh_id)
                 yield TriggerEvent(
                     {
                         "status": "success",
@@ -135,6 +137,7 @@ class PowerBITrigger(BaseTrigger):
                 )
                 return
 
+        # The dataset refresh is already triggered. Poll for the dataset refresh status.
         @tenacity.retry(
             stop=tenacity.stop_after_attempt(3),
             wait=tenacity.wait_exponential(min=5, multiplier=2),
