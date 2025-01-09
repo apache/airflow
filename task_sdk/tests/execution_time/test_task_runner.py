@@ -33,7 +33,7 @@ from airflow.exceptions import (
     AirflowSkipException,
     AirflowTaskTerminated,
 )
-from airflow.sdk import DAG, BaseOperator, Connection
+from airflow.sdk import DAG, BaseOperator, Connection, get_current_context
 from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
 from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.execution_time.comms import (
@@ -450,8 +450,6 @@ def test_get_context_in_task(create_runtime_ti, time_machine, mock_supervisor_co
 
     class MyContextAssertOperator(BaseOperator):
         def execute(self, context):
-            from airflow.sdk import get_current_context
-
             # Ensure the context returned by get_current_context is the same as the
             # context passed to the operator
             assert context == get_current_context()

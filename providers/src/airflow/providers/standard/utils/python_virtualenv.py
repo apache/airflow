@@ -28,7 +28,7 @@ import jinja2
 from jinja2 import select_autoescape
 
 from airflow.configuration import conf
-from airflow.sdk.definitions.templater import NativeEnvironment
+from airflow.sdk.definitions._internal.templater import NativeEnvironment
 from airflow.utils.process_utils import execute_in_subprocess
 
 

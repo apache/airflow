@@ -35,7 +35,7 @@ __version__ = "1.0.0.dev1"
 if TYPE_CHECKING:
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.connection import Connection
-    from airflow.sdk.definitions.contextmanager import get_current_context
+    from airflow.sdk.definitions.context import get_current_context
     from airflow.sdk.definitions.dag import DAG, dag
     from airflow.sdk.definitions.edges import EdgeModifier, Label
     from airflow.sdk.definitions.taskgroup import TaskGroup
@@ -49,7 +49,7 @@ __lazy_imports: dict[str, str] = {
     "Label": ".definitions.edges",
     "Connection": ".definitions.connection",
     "Variable": ".definitions.variable",
-    "get_current_context": ".definitions.contextmanager",
+    "get_current_context": ".definitions.context",
 }
 
 

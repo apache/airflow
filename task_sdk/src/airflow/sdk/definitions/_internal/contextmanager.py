@@ -28,7 +28,7 @@ from airflow.sdk.definitions.taskgroup import TaskGroup
 
 T = TypeVar("T")
 
-__all__ = ["DagContext", "TaskGroupContext", "get_current_context"]
+__all__ = ["DagContext", "TaskGroupContext"]
 
 # This is a global variable that stores the current Task context.
 # It is used to push the Context dictionary when Task starts execution
@@ -37,33 +37,7 @@ __all__ = ["DagContext", "TaskGroupContext", "get_current_context"]
 _CURRENT_CONTEXT: list[Mapping[str, Any]] = []
 
 
-def get_current_context() -> Mapping[str, Any]:
-    """
-    Retrieve the execution context dictionary without altering user method's signature.
-
-    This is the simplest method of retrieving the execution context dictionary.
-
-    **Old style:**
-
-    .. code:: python
-
-        def my_task(**context):
-            ti = context["ti"]
-
-    **New style:**
-
-    .. code:: python
-
-        from airflow.providers.standard.operators.python import get_current_context
-
-
-        def my_task():
-            context = get_current_context()
-            ti = context["ti"]
-
-    Current context will only have value if this method was called after an operator
-    was starting to execute.
-    """
+def _get_current_context() -> Mapping[str, Any]:
     if not _CURRENT_CONTEXT:
         raise RuntimeError(
             "Current context was requested but no context was found! Are you running within an Airflow task?"
