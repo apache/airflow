@@ -55,6 +55,11 @@ def _parse_file_entrypoint():
     import structlog
 
     # Parse DAG file, send JSON back up!
+    global COMMS_DECODER
+    COMMS_DECODER = task_runner.CommsDecoder[ToChild, ToParent](
+        input=sys.stdin,
+        decoder=TypeAdapter[ToChild](ToChild),
+    )
     msg = COMMS_DECODER.get_message()
     COMMS_DECODER.request_socket = os.fdopen(msg.requests_fd, "wb", buffering=0)
 
@@ -207,11 +212,6 @@ class DagFileProcessorProcess(WatchedSubprocess):
         target: Callable[[], None] = _parse_file_entrypoint,
         **kwargs,
     ) -> Self:
-        global COMMS_DECODER
-        COMMS_DECODER = task_runner.CommsDecoder[ToChild, ToParent](
-            input=sys.stdin,
-            decoder=TypeAdapter[ToChild](ToChild),
-        )
         return super().start(path, callbacks, target=target, client=None, **kwargs)  # type:ignore[arg-type]
 
     def _on_child_started(  # type: ignore[override]
