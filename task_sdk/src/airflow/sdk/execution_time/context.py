@@ -21,12 +21,12 @@ from typing import TYPE_CHECKING, Any
 import structlog
 
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.execution_time.variable import _get_variable
 from airflow.sdk.types import NOTSET
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.connection import Connection
-    from airflow.sdk.definitions.variable import Variable
-    from airflow.sdk.execution_time.comms import ConnectionResult, VariableResult
+    from airflow.sdk.execution_time.comms import ConnectionResult
 
 
 def _convert_connection_result_conn(conn_result: ConnectionResult) -> Connection:
@@ -34,16 +34,6 @@ def _convert_connection_result_conn(conn_result: ConnectionResult) -> Connection
 
     # `by_alias=True` is used to convert the `schema` field to `schema_` in the Connection model
     return Connection(**conn_result.model_dump(exclude={"type"}, by_alias=True))
-
-
-def _convert_variable_result_to_variable(var_result: VariableResult, deserialize_json: bool) -> Variable:
-    from airflow.sdk.definitions.variable import Variable
-
-    if deserialize_json:
-        import json
-
-        var_result.value = json.loads(var_result.value)  # type: ignore
-    return Variable(**var_result.model_dump(exclude={"type"}))
 
 
 def _get_connection(conn_id: str) -> Connection:
@@ -64,32 +54,6 @@ def _get_connection(conn_id: str) -> Connection:
     if TYPE_CHECKING:
         assert isinstance(msg, ConnectionResult)
     return _convert_connection_result_conn(msg)
-
-
-def _get_variable(key: str, deserialize_json: bool = False) -> Variable:
-    # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
-    #   or `airflow.sdk.execution_time.variable`
-    #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
-    #   will make that module depend on Task SDK, which is not ideal because we intend to
-    #   keep Task SDK as a separate package than execution time mods.
-    from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable
-
-    try:
-        # We check the hypothesis if the request for variable came from task.
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS as COMMS  # type: ignore
-    except ImportError:
-        # If not, hypothesis is false and this request is from dag level.
-        from airflow.dag_processing.processor import COMMS_DECODER as COMMS  # type: ignore
-
-    log = structlog.get_logger(logger_name="task")
-    COMMS.send_request(log=log, msg=GetVariable(key=key))
-    msg = COMMS.get_message()
-    if isinstance(msg, ErrorResponse):
-        raise AirflowRuntimeError(msg)
-
-    if TYPE_CHECKING:
-        assert isinstance(msg, VariableResult)
-    return _convert_variable_result_to_variable(msg, deserialize_json)
 
 
 class ConnectionAccessor:

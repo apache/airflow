@@ -22,7 +22,7 @@ from typing import Any
 import attrs
 
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
-from airflow.sdk.execution_time.context import _get_variable
+from airflow.sdk.execution_time.variable import _get_variable
 
 
 @attrs.define
