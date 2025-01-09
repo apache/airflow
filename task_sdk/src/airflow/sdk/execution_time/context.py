@@ -16,10 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
+from collections.abc import Generator, Mapping
 from typing import TYPE_CHECKING, Any
 
 import structlog
 
+from airflow.sdk.definitions.contextmanager import _CURRENT_CONTEXT
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.types import NOTSET
 
@@ -27,6 +30,8 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.variable import Variable
     from airflow.sdk.execution_time.comms import ConnectionResult, VariableResult
+
+log = structlog.get_logger(logger_name="task")
 
 
 def _convert_connection_result_conn(conn_result: ConnectionResult) -> Connection:
@@ -55,7 +60,6 @@ def _get_connection(conn_id: str) -> Connection:
     from airflow.sdk.execution_time.comms import ErrorResponse, GetConnection
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    log = structlog.get_logger(logger_name="task")
     SUPERVISOR_COMMS.send_request(log=log, msg=GetConnection(conn_id=conn_id))
     msg = SUPERVISOR_COMMS.get_message()
     if isinstance(msg, ErrorResponse):
@@ -75,7 +79,6 @@ def _get_variable(key: str, deserialize_json: bool) -> Variable:
     from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    log = structlog.get_logger(logger_name="task")
     SUPERVISOR_COMMS.send_request(log=log, msg=GetVariable(key=key))
     msg = SUPERVISOR_COMMS.get_message()
     if isinstance(msg, ErrorResponse):
@@ -157,3 +160,23 @@ class MacrosAccessor:
         if not isinstance(other, MacrosAccessor):
             return False
         return True
+
+
+@contextlib.contextmanager
+def set_current_context(context: Mapping[str, Any]) -> Generator[Mapping[str, Any], None, None]:
+    """
+    Set the current execution context to the provided context object.
+
+    This method should be called once per Task execution, before calling operator.execute.
+    """
+    _CURRENT_CONTEXT.append(context)
+    try:
+        yield context
+    finally:
+        expected_state = _CURRENT_CONTEXT.pop()
+        if expected_state != context:
+            log.warning(
+                "Current context is not equal to the state at context stack.",
+                expected=context,
+                got=expected_state,
+            )
