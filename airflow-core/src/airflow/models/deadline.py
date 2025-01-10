@@ -16,21 +16,27 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
-from typing import TYPE_CHECKING
+import logging
+import sys
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import TYPE_CHECKING, Callable
 
 import sqlalchemy_jsonfield
 import uuid6
-from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy import Column, ForeignKey, Index, Integer, String
 from sqlalchemy_utils import UUIDType
 
 from airflow.models.base import Base, StringID
 from airflow.settings import json
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
+log = logging.getLogger(__name__)
 
 
 class Deadline(Base, LoggingMixin):
@@ -45,7 +51,7 @@ class Deadline(Base, LoggingMixin):
     dagrun_id = Column(Integer, ForeignKey("dag_run.id", ondelete="CASCADE"))
 
     # The time after which the Deadline has passed and the callback should be triggered.
-    deadline = Column(DateTime, nullable=False)
+    deadline = Column(UtcDateTime, nullable=False)
     # The Callback to be called when the Deadline has passed.
     callback = Column(String(500), nullable=False)
     # Serialized kwargs to pass to the callback.
@@ -90,3 +96,77 @@ class Deadline(Base, LoggingMixin):
     def add_deadline(cls, deadline: Deadline, session: Session = NEW_SESSION):
         """Add the provided deadline to the table."""
         session.add(deadline)
+
+
+class DeadlineTrigger(Enum):
+    """
+    Store the calculation methods for the various Deadline Alert triggers.
+
+    TODO:  PLEASE NOTE This class is a placeholder and will be expanded in the next PR.
+
+    ------
+    Usage:
+    ------
+
+    Example use when defining a deadline in a DAG:
+
+    DAG(
+        dag_id='dag_with_deadline',
+        deadline=DeadlineAlert(
+            trigger=DeadlineTrigger.DAGRUN_LOGICAL_DATE,
+            interval=timedelta(hours=1),
+            callback=hello_callback,
+        )
+    )
+
+    To parse the deadline trigger later we will use something like:
+
+    dag.deadline.trigger.evaluate_with(dag_id=dag.dag_id)
+    """
+
+    DAGRUN_LOGICAL_DATE = "dagrun_logical_date"
+
+
+class DeadlineAlert(LoggingMixin):
+    """Store Deadline values needed to calculate the need-by timestamp and the callback information."""
+
+    def __init__(
+        self,
+        trigger: DeadlineTrigger,
+        interval: timedelta,
+        callback: Callable | str,
+        callback_kwargs: dict | None = None,
+    ):
+        super().__init__()
+        self.trigger = trigger
+        self.interval = interval
+        self.callback_kwargs = callback_kwargs
+        self.callback = self.get_callback_path(callback)
+
+    @staticmethod
+    def get_callback_path(_callback: str | Callable) -> str:
+        if callable(_callback):
+            # Get the reference path to the callable in the form `airflow.models.deadline.get_from_db`
+            return f"{_callback.__module__}.{_callback.__qualname__}"
+
+        # Check if the dotpath can resolve to a callable; store it or raise a ValueError
+        try:
+            _callback_module, _callback_name = _callback.rsplit(".", 1)
+            getattr(sys.modules[_callback_module], _callback_name)
+            return _callback
+        except (KeyError, AttributeError):
+            # KeyError if the path is not valid
+            # AttributeError if the provided value can't be rsplit
+            raise ValueError("callback is not a path to a callable")
+
+    def serialize_deadline_alert(self):
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        return BaseSerialization.serialize(
+            {
+                "trigger": self.trigger,
+                "interval": self.interval,
+                "callback": self.callback,
+                "callback_kwargs": self.callback_kwargs,
+            }
+        )
