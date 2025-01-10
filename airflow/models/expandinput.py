@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, Union
 
 import attr
 
-from airflow.sdk.definitions.mixins import ResolveMixin
+from airflow.sdk.definitions._internal.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:

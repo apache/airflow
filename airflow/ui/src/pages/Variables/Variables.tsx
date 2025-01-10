@@ -138,11 +138,11 @@ export const Variables = () => {
     } else {
       searchParams.delete(NAME_PATTERN_PARAM);
     }
-    setSearchParams(searchParams);
     setTableURLState({
       pagination: { ...pagination, pageIndex: 0 },
       sorting,
     });
+    setSearchParams(searchParams);
     setVariableKeyPattern(value);
   };
 
