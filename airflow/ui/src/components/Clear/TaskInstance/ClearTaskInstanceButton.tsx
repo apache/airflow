@@ -20,18 +20,18 @@ import { Box, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
 import { FiRefreshCw } from "react-icons/fi";
 
-import type { DAGRunResponse, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
-import { useClearDagRun } from "src/queries/useClearRun";
+import type { TaskInstanceCollectionResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
+import ActionButton from "src/components/ui/ActionButton";
+import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 
-import ActionButton from "../ui/ActionButton";
-import ClearRunDialog from "./ClearRunDialog";
+import ClearTaskInstanceDialog from "./ClearTaskInstanceDialog";
 
 type Props = {
-  readonly dagRun: DAGRunResponse;
+  readonly taskInstance: TaskInstanceResponse;
   readonly withText?: boolean;
 };
 
-const ClearRunButton = ({ dagRun, withText = true }: Props) => {
+const ClearTaskInstanceButton = ({ taskInstance, withText = true }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
 
   const [affectedTasks, setAffectedTasks] = useState<TaskInstanceCollectionResponse>({
@@ -39,10 +39,10 @@ const ClearRunButton = ({ dagRun, withText = true }: Props) => {
     total_entries: 0,
   });
 
-  const dagId = dagRun.dag_id;
-  const dagRunId = dagRun.dag_run_id;
+  const dagId = taskInstance.dag_id;
+  const dagRunId = taskInstance.dag_run_id;
 
-  const { isPending, mutate } = useClearDagRun({
+  const { isPending, mutate } = useClearTaskInstances({
     dagId,
     dagRunId,
     onSuccessConfirm: onClose,
@@ -52,23 +52,23 @@ const ClearRunButton = ({ dagRun, withText = true }: Props) => {
   return (
     <Box>
       <ActionButton
-        actionName="Clear Dag Run"
+        actionName="Clear Task Instance"
         icon={<FiRefreshCw />}
         onClick={onOpen}
-        text="Clear Run"
+        text="Clear Task Instance"
         withText={withText}
       />
 
-      <ClearRunDialog
+      <ClearTaskInstanceDialog
         affectedTasks={affectedTasks}
-        dagRun={dagRun}
         isPending={isPending}
         mutate={mutate}
         onClose={onClose}
         open={open}
+        taskInstance={taskInstance}
       />
     </Box>
   );
 };
 
-export default ClearRunButton;
+export default ClearTaskInstanceButton;

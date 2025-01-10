@@ -25,11 +25,11 @@ import type {
   TaskInstanceCollectionResponse,
   TaskInstanceResponse,
 } from "openapi/requests/types.gen";
+import Time from "src/components/Time";
 import { Button, Dialog } from "src/components/ui";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
 
-import Time from "../Time";
-import ClearTaskInstanceAccordion from "./ClearTaskInstanceAccordion";
+import ClearAccordion from "../ClearAccordion";
 
 type Props = {
   readonly affectedTasks: TaskInstanceCollectionResponse;
@@ -156,7 +156,7 @@ const ClearTaskInstanceDialog = ({
               </Button>
             </Group>
           </Flex>
-          <ClearTaskInstanceAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
+          <ClearAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
           <Flex justifyContent="end" mt={3}>
             <Button
               colorPalette="blue"

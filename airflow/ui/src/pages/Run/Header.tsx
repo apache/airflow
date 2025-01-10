@@ -21,7 +21,7 @@ import { FiBarChart } from "react-icons/fi";
 import { MdOutlineModeComment } from "react-icons/md";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
-import ClearRunButton from "src/components/Clear";
+import { ClearRunButton } from "src/components/Clear";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { Stat } from "src/components/Stat";
 import Time from "src/components/Time";

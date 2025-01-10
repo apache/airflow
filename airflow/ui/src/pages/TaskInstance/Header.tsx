@@ -20,7 +20,7 @@ import { Box, Flex, Heading, HStack, SimpleGrid, Text } from "@chakra-ui/react";
 import { MdOutlineModeComment, MdOutlineTask } from "react-icons/md";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
-import ClearTaskInstanceButton from "src/components/Clear/ClearTaskInstanceButton";
+import { ClearTaskInstanceButton } from "src/components/Clear";
 import { Stat } from "src/components/Stat";
 import Time from "src/components/Time";
 import { Status } from "src/components/ui";

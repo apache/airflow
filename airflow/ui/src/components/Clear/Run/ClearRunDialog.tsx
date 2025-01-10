@@ -26,10 +26,10 @@ import type {
   TaskInstanceCollectionResponse,
 } from "openapi/requests/types.gen";
 import { Button, Dialog } from "src/components/ui";
+import SegmentedControl from "src/components/ui/SegmentedControl";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
 
-import SegmentedControl from "../ui/SegmentedControl";
-import ClearRunAccordion from "./ClearRunAccordion";
+import ClearAccordion from "../ClearAccordion";
 
 type Props = {
   readonly affectedTasks: TaskInstanceCollectionResponse;
@@ -109,7 +109,7 @@ const ClearRunDialog = ({ affectedTasks, dagRun, isPending, mutate, onClose, ope
               value={onlyFailed ? "only_failed" : "existing_tasks"}
             />
           </Flex>
-          <ClearRunAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
+          <ClearAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
           <Flex justifyContent="end" mt={3}>
             <Button
               colorPalette="blue"

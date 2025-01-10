@@ -31,7 +31,7 @@ import { useParams, Link as RouterLink, useSearchParams } from "react-router-dom
 
 import { useDagRunServiceGetDagRuns } from "openapi/queries";
 import type { DAGRunResponse, DagRunState } from "openapi/requests/types.gen";
-import ClearRunButton from "src/components/Clear/ClearRunButton";
+import { ClearRunButton } from "src/components/Clear";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
