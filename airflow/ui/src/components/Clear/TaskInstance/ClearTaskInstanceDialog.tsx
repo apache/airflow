@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Group, Heading, VStack } from "@chakra-ui/react";
+import { Flex, Heading, VStack } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { FiRefreshCw } from "react-icons/fi";
 
@@ -27,6 +27,7 @@ import type {
 } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Button, Dialog } from "src/components/ui";
+import SegmentedControl from "src/components/ui/SegmentedControl";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
 
 import ClearAccordion from "../ClearAccordion";
@@ -53,20 +54,13 @@ const ClearTaskInstanceDialog = ({
   const taskId = taskInstance.task_id;
   const mapIndex = taskInstance.map_index;
 
-  const [onlyFailed, setOnlyFailed] = useState(false);
-  const onToggleOnlyFailed = () => setOnlyFailed((state) => !state);
+  const [selectedOptions, setSelectedOptions] = useState<Array<string>>([]);
 
-  const [past, setPast] = useState(false);
-  const onTogglePast = () => setPast((state) => !state);
-
-  const [future, setFuture] = useState(false);
-  const onToggleFuture = () => setFuture((state) => !state);
-
-  const [upstream, setUpstream] = useState(false);
-  const onToggleUpstream = () => setUpstream((state) => !state);
-
-  const [downstream, setDownstream] = useState(false);
-  const onToggleDownstream = () => setDownstream((state) => !state);
+  const onlyFailed = selectedOptions.includes("onlyFailed");
+  const past = selectedOptions.includes("past");
+  const future = selectedOptions.includes("future");
+  const upstream = selectedOptions.includes("upstream");
+  const downstream = selectedOptions.includes("downstream");
 
   const [note, setNote] = useState<string | null>(taskInstance.note);
   const { isPending: isPendingPatchDagRun, mutate: mutatePatchTaskInstance } = usePatchTaskInstance({
@@ -108,53 +102,17 @@ const ClearTaskInstanceDialog = ({
 
         <Dialog.Body width="full">
           <Flex justifyContent="center">
-            <Group backgroundColor="bg.muted" borderRadius={8} colorPalette="gray" mb={3} p={1}>
-              <Button
-                _hover={{ backgroundColor: "bg.panel" }}
-                bg={past ? "bg.panel" : undefined}
-                onClick={onTogglePast}
-                size="md"
-                variant="ghost"
-              >
-                Past
-              </Button>
-              <Button
-                _hover={{ backgroundColor: "bg.panel" }}
-                bg={future ? "bg.panel" : undefined}
-                onClick={onToggleFuture}
-                size="md"
-                variant="ghost"
-              >
-                Future
-              </Button>
-              <Button
-                _hover={{ backgroundColor: "bg.panel" }}
-                bg={upstream ? "bg.panel" : undefined}
-                onClick={onToggleUpstream}
-                size="md"
-                variant="ghost"
-              >
-                Upstream
-              </Button>
-              <Button
-                _hover={{ backgroundColor: "bg.panel" }}
-                bg={downstream ? "bg.panel" : undefined}
-                onClick={onToggleDownstream}
-                size="md"
-                variant="ghost"
-              >
-                Downstream
-              </Button>
-              <Button
-                _hover={{ backgroundColor: "bg.panel" }}
-                bg={onlyFailed ? "bg.panel" : undefined}
-                onClick={onToggleOnlyFailed}
-                size="md"
-                variant="ghost"
-              >
-                Only failed
-              </Button>
-            </Group>
+            <SegmentedControl
+              multiple
+              onChange={setSelectedOptions}
+              options={[
+                { label: "Past", value: "past" },
+                { label: "Future", value: "future" },
+                { label: "Upstream", value: "upstream" },
+                { label: "Downstream", value: "downstream" },
+                { label: "Only Failed", value: "onlyFailed" },
+              ]}
+            />
           </Flex>
           <ClearAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
           <Flex justifyContent="end" mt={3}>

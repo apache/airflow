@@ -49,7 +49,9 @@ type Props = {
 };
 
 const ClearRunDialog = ({ affectedTasks, dagRun, isPending, mutate, onClose, open }: Props) => {
-  const [onlyFailed, setOnlyFailed] = useState(false);
+  const [selectedOptions, setSelectedOptions] = useState<Array<string>>([]);
+
+  const onlyFailed = selectedOptions.includes("onlyFailed");
 
   const dagId = dagRun.dag_id;
   const dagRunId = dagRun.dag_run_id;
@@ -64,20 +66,6 @@ const ClearRunDialog = ({ affectedTasks, dagRun, isPending, mutate, onClose, ope
       requestBody: { dry_run: true, only_failed: onlyFailed },
     });
   }, [dagId, dagRunId, mutate, onlyFailed]);
-
-  const onChange = (value: string) => {
-    switch (value) {
-      case "existing_tasks":
-        setOnlyFailed(false);
-        break;
-      case "only_failed":
-        setOnlyFailed(true);
-        break;
-      default:
-        // TODO: Handle this `new_tasks` case
-        break;
-    }
-  };
 
   return (
     <Dialog.Root onOpenChange={onClose} open={open} size="xl">
@@ -95,18 +83,17 @@ const ClearRunDialog = ({ affectedTasks, dagRun, isPending, mutate, onClose, ope
         <Dialog.Body width="full">
           <Flex justifyContent="center">
             <SegmentedControl
-              mb={3}
-              onValueChange={onChange}
+              defaultValues={["existingTasks"]}
+              onChange={setSelectedOptions}
               options={[
-                { label: "Clear existing tasks", value: "existing_tasks" },
-                { label: "Clear only failed tasks", value: "only_failed" },
+                { label: "Clear existing tasks", value: "existingTasks" },
+                { label: "Clear only failed tasks", value: "onlyFailed" },
                 {
                   disabled: true,
                   label: "Queue up new tasks",
                   value: "new_tasks",
                 },
               ]}
-              value={onlyFailed ? "only_failed" : "existing_tasks"}
             />
           </Flex>
           <ClearAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
