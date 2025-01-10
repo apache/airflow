@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-31T20:32:03.734637
+# This constraints file was automatically generated on 2025-01-10T07:49:37.755693
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -39,13 +39,13 @@ Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
 Flask-Caching==2.3.0
 Flask-JWT-Extended==4.7.1
-Flask-Limiter==3.9.2
+Flask-Limiter==3.10.0
 Flask-Login==0.6.3
 Flask-SQLAlchemy==2.5.1
 Flask-Session==0.5.0
 Flask-WTF==1.2.2
 Flask==2.2.5
-GitPython==3.1.43
+GitPython==3.1.44
 JayDeBeApi==1.2.3
 Jinja2==3.1.5
 Mako==1.3.8
@@ -58,7 +58,7 @@ PyJWT==2.10.1
 PyMySQL==1.1.1
 PyNaCl==1.5.0
 PyYAML==6.0.2
-Pygments==2.18.0
+Pygments==2.19.1
 SQLAlchemy-JSONField==1.0.2
 SQLAlchemy-Utils==0.41.2
 SQLAlchemy==1.4.54
@@ -68,7 +68,7 @@ WTForms==3.2.1
 Werkzeug==2.2.3
 adal==1.2.7
 adlfs==2024.12.0
-aiobotocore==2.16.1
+aiobotocore==2.17.0
 aiofiles==23.2.1
 aiohappyeyeballs==2.4.4
 aiohttp==3.11.11
@@ -96,7 +96,7 @@ analytics-python==1.2.9
 annotated-types==0.7.0
 ansicolors==1.1.8
 anyascii==0.3.2
-anyio==4.7.0
+anyio==4.8.0
 apache-airflow-providers-airbyte==5.0.0
 apache-airflow-providers-alibaba==3.0.0
 apache-airflow-providers-amazon==9.2.0
@@ -134,7 +134,7 @@ apache-airflow-providers-discord==3.9.0
 apache-airflow-providers-docker==4.0.0
 apache-airflow-providers-elasticsearch==6.0.0
 apache-airflow-providers-exasol==4.7.0
-apache-airflow-providers-fab==1.5.1
+apache-airflow-providers-fab==1.5.2
 apache-airflow-providers-facebook==3.7.0
 apache-airflow-providers-ftp==3.12.0
 apache-airflow-providers-github==2.8.0
@@ -190,8 +190,8 @@ apache-airflow-providers-yandex==4.0.0
 apache-airflow-providers-ydb==2.1.0
 apache-airflow-providers-zendesk==4.9.0
 apache-beam==2.61.0
-apispec==6.8.0
-apprise==1.9.1
+apispec==6.8.1
+apprise==1.9.2
 argcomplete==3.5.3
 asana==3.2.3
 asgiref==3.8.1
@@ -213,7 +213,7 @@ azure-cosmos==4.9.0
 azure-datalake-store==0.0.53
 azure-identity==1.19.0
 azure-keyvault-secrets==4.9.0
-azure-kusto-data==4.6.1
+azure-kusto-data==4.6.3
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==10.3.0
 azure-mgmt-core==1.5.0
@@ -240,8 +240,8 @@ billiard==4.2.1
 bitarray==3.0.0
 black==24.10.0
 blinker==1.9.0
-boto3==1.35.88
-botocore==1.35.88
+boto3==1.35.93
+botocore==1.35.93
 cachelib==0.9.0
 cachetools==5.5.0
 cassandra-driver==3.29.2
@@ -250,7 +250,7 @@ celery==5.4.0
 certifi==2024.12.14
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.22.3
+cfn-lint==1.22.4
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.1
@@ -267,7 +267,7 @@ cohere==4.57
 colorama==0.4.6
 colorlog==6.9.0
 comm==0.2.2
-confluent-kafka==2.7.0
+confluent-kafka==2.8.0
 connexion==2.14.2
 coverage==7.6.10
 crcmod==1.7
@@ -275,14 +275,14 @@ cron-descriptor==1.4.5
 croniter==6.0.0
 cryptography==42.0.8
 curlify==2.2.1
-databricks-sql-connector==3.7.0
+databricks-sql-connector==3.7.1
 dataclasses-json==0.6.7
 datadog==0.50.2
 db-dtypes==1.3.1
 debugpy==1.8.11
 decorator==5.1.1
 defusedxml==0.7.1
-deltalake==0.22.3
+deltalake==0.23.2
 diagrams==0.24.1
 dill==0.3.1.1
 distlib==0.3.9
@@ -293,7 +293,7 @@ docopt==0.6.2
 docstring_parser==0.16
 docutils==0.16
 duckdb==1.1.3
-elastic-transport==8.15.1
+elastic-transport==8.17.0
 elasticsearch==8.17.0
 email_validator==2.2.0
 entrypoints==0.4
@@ -318,23 +318,23 @@ gcloud-aio-storage==9.3.0
 gcsfs==2024.12.0
 geomet==0.2.1.post1
 gevent==24.11.1
-gitdb==4.0.11
+gitdb==4.0.12
 google-ads==25.1.0
 google-analytics-admin==0.23.3
 google-api-core==2.24.0
-google-api-python-client==2.156.0
+google-api-python-client==2.158.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.37.0
-google-cloud-aiplatform==1.75.0
+google-cloud-aiplatform==1.76.0
 google-cloud-alloydb==0.4.1
 google-cloud-appengine-logging==1.5.0
 google-cloud-audit-log==0.3.0
 google-cloud-automl==2.15.0
-google-cloud-batch==0.17.32
+google-cloud-batch==0.17.33
 google-cloud-bigquery-datatransfer==3.18.0
 google-cloud-bigquery==3.20.1
-google-cloud-bigtable==2.27.0
+google-cloud-bigtable==2.28.0
 google-cloud-build==3.28.0
 google-cloud-compute==1.23.0
 google-cloud-container==2.55.0
@@ -342,7 +342,7 @@ google-cloud-core==2.4.1
 google-cloud-datacatalog==3.24.1
 google-cloud-dataflow-client==0.8.15
 google-cloud-dataform==0.5.14
-google-cloud-dataplex==2.5.0
+google-cloud-dataplex==2.6.0
 google-cloud-dataproc-metastore==1.17.0
 google-cloud-dataproc==5.16.0
 google-cloud-dlp==3.26.0
@@ -350,16 +350,16 @@ google-cloud-kms==3.2.1
 google-cloud-language==2.16.0
 google-cloud-logging==3.11.3
 google-cloud-memcache==1.11.0
-google-cloud-monitoring==2.24.0
+google-cloud-monitoring==2.25.0
 google-cloud-orchestration-airflow==1.16.0
 google-cloud-os-login==2.16.0
-google-cloud-pubsub==2.27.1
+google-cloud-pubsub==2.27.2
 google-cloud-redis==2.17.0
 google-cloud-resource-manager==1.14.0
 google-cloud-run==0.10.14
 google-cloud-secret-manager==2.22.0
 google-cloud-spanner==3.51.0
-google-cloud-speech==2.29.0
+google-cloud-speech==2.30.0
 google-cloud-storage-transfer==1.15.0
 google-cloud-storage==2.19.0
 google-cloud-tasks==2.18.0
@@ -375,7 +375,7 @@ googleapis-common-protos==1.66.0
 graphql-core==3.2.5
 graphviz==0.20.3
 greenlet==3.1.1
-grpc-google-iam-v1==0.13.1
+grpc-google-iam-v1==0.14.0
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
 grpcio-health-checking==1.62.3
@@ -401,7 +401,7 @@ hyperlink==21.0.0
 ibm-cloud-sdk-core==3.20.3
 ibmcloudant==0.9.1
 icdiff==2.0.7
-identify==2.6.4
+identify==2.6.5
 idna==3.10
 ijson==3.3.0
 imagesize==1.4.1
@@ -446,7 +446,7 @@ kubernetes_asyncio==30.1.0
 kylinpy==2.8.4
 lazy-object-proxy==1.10.0
 ldap3==2.9.1
-limits==3.14.1
+limits==4.0.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
 looker-sdk==24.20.0
@@ -455,7 +455,7 @@ lz4==4.3.3
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.1.1
 marshmallow-sqlalchemy==0.28.2
-marshmallow==3.23.2
+marshmallow==3.25.0
 matplotlib-inline==0.1.7
 mdit-py-plugins==0.4.2
 mdurl==0.1.2
@@ -478,10 +478,10 @@ msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.1.0
-mypy-boto3-appflow==1.35.39
-mypy-boto3-rds==1.35.89
-mypy-boto3-redshift-data==1.35.51
-mypy-boto3-s3==1.35.81
+mypy-boto3-appflow==1.35.93
+mypy-boto3-rds==1.35.95
+mypy-boto3-redshift-data==1.35.93
+mypy-boto3-s3==1.35.93
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.1.0
@@ -496,7 +496,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.58.1
+openai==1.59.6
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.26.0
@@ -516,10 +516,10 @@ opentelemetry-semantic-conventions==0.48b0
 opsgenie-sdk==2.1.5
 oracledb==2.5.1
 ordered-set==4.1.0
-orjson==3.10.13
+orjson==3.10.14
 oss2==2.19.1
 packaging==24.2
-pandas-gbq==0.26.0
+pandas-gbq==0.26.1
 pandas-stubs==2.2.3.241126
 pandas==2.1.4
 papermill==2.6.0
@@ -568,7 +568,7 @@ pyasn1_modules==0.4.0
 pycountry==24.6.1
 pycparser==2.22
 pycryptodome==3.21.0
-pydantic==2.10.4
+pydantic==2.10.5
 pydantic_core==2.27.2
 pydata-google-auth==1.9.0
 pydot==1.4.2
@@ -581,11 +581,11 @@ pykerberos==1.2.4
 pymongo==4.10.1
 pymssql==2.3.2
 pyodbc==5.2.0
-pyparsing==3.2.0
+pyparsing==3.2.1
 pypsrp==0.8.1
 pyspark==3.5.4
 pyspnego==0.11.2
-pytest-asyncio==0.25.0
+pytest-asyncio==0.25.2
 pytest-cov==6.0.0
 pytest-custom-exit-code==0.3.0
 pytest-icdiff==0.9
@@ -604,7 +604,7 @@ python-jenkins==1.8.2
 python-ldap==3.4.4
 python-nvd3==0.16.0
 python-slugify==8.0.4
-python-telegram-bot==21.9
+python-telegram-bot==21.10
 python3-saml==1.16.0
 pytz==2024.2
 pywinrm==0.5.0
@@ -648,7 +648,7 @@ simple-salesforce==1.12.6
 six==1.17.0
 slack_sdk==3.34.0
 smbprotocol==1.15.0
-smmap==5.0.1
+smmap==5.0.2
 sniffio==1.3.1
 snowballstemmer==2.2.0
 snowflake-connector-python==3.12.4
@@ -686,10 +686,10 @@ statsd==4.0.1
 std-uritemplate==2.0.1
 strictyaml==1.7.3
 sympy==1.13.3
-tableauserverclient==0.34
+tableauserverclient==0.35
 tabulate==0.9.0
 tenacity==9.0.0
-teradatasql==20.0.0.21
+teradatasql==20.0.0.22
 teradatasqlalchemy==20.0.0.3
 termcolor==2.5.0
 text-unidecode==1.3
@@ -704,7 +704,7 @@ towncrier==24.8.0
 tqdm==4.67.1
 traitlets==5.14.3
 trino==0.331.0
-trove-classifiers==2024.10.21.16
+trove-classifiers==2025.1.7.14
 twine==6.0.1
 types-Deprecated==1.2.15.20241117
 types-Markdown==3.7.0.20241204
@@ -723,7 +723,7 @@ types-python-slugify==8.0.2.20240310
 types-pytz==2024.2.0.20241221
 types-redis==4.6.0.20241004
 types-requests==2.32.0.20241016
-types-setuptools==75.6.0.20241223
+types-setuptools==75.8.0.20250110
 types-tabulate==0.9.0.20241207
 types-termcolor==1.1.6.2
 types-toml==0.10.8.20240310
@@ -740,7 +740,7 @@ uv==0.5.11
 validators==0.34.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==20.28.0
+virtualenv==20.28.1
 watchtower==3.3.1
 wcwidth==0.2.13
 weaviate-client==4.9.6
