@@ -116,8 +116,9 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether this is a prod-image build (true/false)"
         required: true
         type: string
+permissions:
+  contents: read
 jobs:
-
   build-prod-packages:
     name: "Build Airflow and provider packages"
     timeout-minutes: 10
