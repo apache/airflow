@@ -96,6 +96,8 @@ on:  # yamllint disable-line rule:truthy
         description: "Disable airflow repo cache read from main."
         required: true
         type: string
+permissions:
+  contents: read
 jobs:
   build-ci-images:
     strategy:
