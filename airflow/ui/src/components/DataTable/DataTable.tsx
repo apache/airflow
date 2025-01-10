@@ -115,33 +115,34 @@ export const DataTable = <TData,>({
   const { rows } = table.getRowModel();
 
   const display = displayMode === "card" && Boolean(cardDef) ? "card" : "table";
+  const hasRows = rows.length > 0;
 
   return (
     <>
       <ProgressBar size="xs" visibility={Boolean(isFetching) && !Boolean(isLoading) ? "visible" : "hidden"} />
       <Toaster />
       {errorMessage}
-      {display === "table" && <TableList table={table} />}
-      {display === "card" && cardDef !== undefined && (
+      {hasRows && display === "table" ? <TableList table={table} /> : undefined}
+      {hasRows && display === "card" && cardDef !== undefined ? (
         <CardList cardDef={cardDef} isLoading={isLoading} table={table} />
-      )}
-      {!Boolean(isLoading) && !rows.length && (
-        <Text pt={1}>{noRowsMessage ?? `No ${modelName}s found.`}</Text>
-      )}
-      <Pagination.Root
-        count={table.getRowCount()}
-        my={2}
-        onPageChange={(page) => table.setPageIndex(page.page - 1)}
-        page={table.getState().pagination.pageIndex + 1}
-        pageSize={table.getState().pagination.pageSize}
-        siblingCount={1}
-      >
-        <HStack>
-          <Pagination.PrevTrigger data-testid="prev" />
-          <Pagination.Items />
-          <Pagination.NextTrigger data-testid="next" />
-        </HStack>
-      </Pagination.Root>
+      ) : undefined}
+      {!hasRows && !Boolean(isLoading) && <Text pt={1}>{noRowsMessage ?? `No ${modelName}s found.`}</Text>}
+      {hasRows ? (
+        <Pagination.Root
+          count={table.getRowCount()}
+          my={2}
+          onPageChange={(page) => table.setPageIndex(page.page - 1)}
+          page={table.getState().pagination.pageIndex + 1}
+          pageSize={table.getState().pagination.pageSize}
+          siblingCount={1}
+        >
+          <HStack>
+            <Pagination.PrevTrigger data-testid="prev" />
+            <Pagination.Items />
+            <Pagination.NextTrigger data-testid="next" />
+          </HStack>
+        </Pagination.Root>
+      ) : undefined}
     </>
   );
 };
