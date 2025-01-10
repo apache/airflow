@@ -27,17 +27,17 @@ Accepted
 
 ## Context
 
-This ADR describes the proposition why we wanted to introduce dialects in the DBAPIHook as we experienced
-that the _insert_statement_format and _replace_statement_format string formatting properties used by the
-insert_rows method in the DbApiHook where lacking in some cases as the number of parameters passed to the
+This ADR describes the proposition why we wanted to introduce dialects in the ``DBAPIHook`` as we experienced
+that the ``_insert_statement_format`` and ``_replace_statement_format`` string formatting properties used by the
+``insert_rows`` method in the ``DbApiHook`` where lacking in some cases as the number of parameters passed to the
 string format are hard-coded and aren't always sufficient when using different database through the
 generic JBDC and ODBC connection types.
 
 That's why we wanted a generic approach in which the code isn't tied to a specific database hook.
 
-For example when using MsSQL through ODBC instead of the native MsSqlHook, you won't have the merge into
+For example when using MsSQL through ODBC instead of the native ``MsSqlHook``, you won't have the merge into
 (e.g. replace) functionality for MSSQL when using the ODBC connection type as that one was only available in
-the native MsSqlHook.
+the native ``MsSqlHook``.
 
 That's where the notion of dialects come into play and allow us to benefit of the same functionalities
 independently of which connection type you want to use (ODBC/JDBC or native if available) for a specific
@@ -47,8 +47,8 @@ database.
 ## Decision
 
 We decided the introduce the notion of dialects which allows us to implement database specific functionalities
-independently of the used connection type (e.g. hook).  That way when using for example the insert_rows method on
-the DbApiHook for as well ODBC as JDBC as native connection types, it will always be possible to use the replace
+independently of the used connection type (e.g. hook).  That way when using for example the ``insert_rows`` method on
+the ``DbApiHook`` for as well ODBC as JDBC as native connection types, it will always be possible to use the replace
 into (e.g. merge into) functionality as that won't be tied to a specific implementation with a Hook an thus the
 connection type.
 
