@@ -798,7 +798,7 @@ def test_resolve_application_file_real_file(
             from airflow.template.templater import LiteralValue
         except ImportError:
             # Airflow 3.0+
-            from airflow.sdk.definitions.templater import LiteralValue
+            from airflow.sdk.definitions._internal.templater import LiteralValue
 
         application_file = LiteralValue(application_file)
     else:
@@ -828,7 +828,7 @@ def test_resolve_application_file_real_file_not_exists(create_task_instance_of_o
         from airflow.template.templater import LiteralValue
     except ImportError:
         # Airflow 3.0+
-        from airflow.sdk.definitions.templater import LiteralValue
+        from airflow.sdk.definitions._internal.templater import LiteralValue
 
     ti = create_task_instance_of_operator(
         SparkKubernetesOperator,

@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
-    from airflow.sdk.definitions.node import DAGNode
+    from airflow.sdk.definitions._internal.node import DAGNode
 
 # The key used by SkipMixin to store XCom data.
 XCOM_SKIPMIXIN_KEY = "skipmixin_key"
