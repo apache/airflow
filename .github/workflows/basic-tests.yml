@@ -60,6 +60,8 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uv in the image"
         required: true
         type: string
+permissions:
+  contents: read
 jobs:
   run-breeze-tests:
     timeout-minutes: 10
