@@ -176,6 +176,9 @@ class GCSToBigQueryOperator(BaseOperator):
         current description is provided, the job will fail.
     :param deferrable: Run operator in the deferrable mode
     :param force_delete: Force the destination table to be deleted if it already exists.
+    :param insert_null_for_missing_columns: If set to True, BigQuery will allow missing columns in the source file
+        and automatically insert NULL values for them instead of raising a schema compatibility error.
+
     """
 
     template_fields: Sequence[str] = (
@@ -234,9 +237,11 @@ class GCSToBigQueryOperator(BaseOperator):
         reattach_states: set[str] | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
         force_delete: bool = False,
+        insert_null_for_missing_columns: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        self.insert_null_for_missing_columns = insert_null_for_missing_columns
         self.hook: BigQueryHook | None = None
         self.configuration: dict[str, Any] = {}
 
@@ -629,6 +634,12 @@ class GCSToBigQueryOperator(BaseOperator):
         self.time_partitioning = self._cleanse_time_partitioning(
             self.destination_project_dataset_table, self.time_partitioning
         )
+        if self.insert_null_for_missing_columns:
+            self.log.info("Enabling 'allowMissingFields': Missing columns will be populated with NULL.")
+            self.configuration["load"]["allowMissingFields"] = True
+
+        if self.schema_fields:
+            self.configuration["load"]["schema"] = {"fields": self.schema_fields}
         if self.time_partitioning:
             self.configuration["load"].update({"timePartitioning": self.time_partitioning})
 
