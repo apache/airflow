@@ -82,7 +82,7 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
     header: "Duration",
   },
   {
-    accessorKey: "clear_task_instance",
+    accessorKey: "actions",
     cell: ({ row }) => (
       <Flex justifyContent="end">
         <ClearTaskInstanceButton taskInstance={row.original} withText={false} />
@@ -90,6 +90,9 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
     ),
     enableSorting: false,
     header: "",
+    meta: {
+      skeletonWidth: 10,
+    },
   },
 ];
 

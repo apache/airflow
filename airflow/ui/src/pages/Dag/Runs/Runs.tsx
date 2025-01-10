@@ -88,7 +88,7 @@ const columns: Array<ColumnDef<DAGRunResponse>> = [
     header: "Duration",
   },
   {
-    accessorKey: "clear_dag_run",
+    accessorKey: "actions",
     cell: ({ row }) => (
       <Flex justifyContent="end">
         <ClearRunButton dagRun={row.original} withText={false} />
@@ -96,6 +96,9 @@ const columns: Array<ColumnDef<DAGRunResponse>> = [
     ),
     enableSorting: false,
     header: "",
+    meta: {
+      skeletonWidth: 10,
+    },
   },
 ];
 
