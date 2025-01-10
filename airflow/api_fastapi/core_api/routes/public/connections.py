@@ -19,7 +19,7 @@ from __future__ import annotations
 import os
 from typing import Annotated, cast
 
-from fastapi import Depends, HTTPException, Query, status
+from fastapi import Depends, HTTPException, Query, Response, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import select
@@ -38,6 +38,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.configuration import conf
 from airflow.models import Connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
+from airflow.utils.db import create_default_connections as db_create_default_connections
 from airflow.utils.strings import get_random_string
 
 connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
@@ -121,7 +122,9 @@ def get_connections(
 @connections_router.post(
     "",
     status_code=status.HTTP_201_CREATED,
-    responses=create_openapi_http_exception_doc([status.HTTP_409_CONFLICT]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_409_CONFLICT]
+    ),  # handled by global exception handler
 )
 def post_connection(
     post_body: ConnectionBody,
@@ -133,18 +136,48 @@ def post_connection(
     return connection
 
 
-@connections_router.post(
+@connections_router.put(
     "/bulk",
-    status_code=status.HTTP_201_CREATED,
-    responses=create_openapi_http_exception_doc([status.HTTP_409_CONFLICT]),
+    responses={
+        **create_openapi_http_exception_doc([status.HTTP_409_CONFLICT]),
+        status.HTTP_201_CREATED: {
+            "description": "Created",
+            "model": ConnectionCollectionResponse,
+        },
+        status.HTTP_200_OK: {
+            "description": "Created with overwrite",
+            "model": ConnectionCollectionResponse,
+        },
+    },
 )
-def post_connections(
+def put_connections(
+    response: Response,
     post_body: ConnectionBulkBody,
     session: SessionDep,
 ) -> ConnectionCollectionResponse:
     """Create connection entry."""
-    connections = [Connection(**body.model_dump(by_alias=True)) for body in post_body.connections]
-    session.add_all(connections)
+    response.status_code = status.HTTP_201_CREATED if not post_body.overwrite else status.HTTP_200_OK
+    connections: list[Connection]
+    if not post_body.overwrite:
+        connections = [Connection(**body.model_dump(by_alias=True)) for body in post_body.connections]
+        session.add_all(connections)
+    else:
+        connection_ids = [conn.connection_id for conn in post_body.connections]
+        existed_connections = session.execute(
+            select(Connection).filter(Connection.conn_id.in_(connection_ids))
+        ).scalars()
+        existed_connections_dict = {conn.conn_id: conn for conn in existed_connections}
+        connections = []
+        # if conn_id exists, update the corresponding connection, else add a new connection
+        for body in post_body.connections:
+            if body.connection_id in existed_connections_dict:
+                connection = existed_connections_dict[body.connection_id]
+                for key, val in body.model_dump(by_alias=True).items():
+                    setattr(connection, key, val)
+                connections.append(connection)
+            else:
+                connections.append(Connection(**body.model_dump(by_alias=True)))
+        session.add_all(connections)
     return ConnectionCollectionResponse(
         connections=cast(list[ConnectionResponse], connections),
         total_entries=len(connections),
@@ -230,3 +263,14 @@ def test_connection(
         return ConnectionTestResponse.model_validate({"status": test_status, "message": test_message})
     finally:
         os.environ.pop(conn_env_var, None)
+
+
+@connections_router.post(
+    "/defaults",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def create_default_connections(
+    session: SessionDep,
+):
+    """Create default connections."""
+    db_create_default_connections(session)

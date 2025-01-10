@@ -360,8 +360,6 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-breeze-readme-config-hash                          | Update Breeze README.md with config files hash         |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| update-build-dependencies                                 | Update build-dependencies to latest (manual)           |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-chart-dependencies                                 | Update chart dependencies to latest (manual)           |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-common-sql-api-stubs                               | Check and update common.sql API stubs                  |         |
@@ -376,7 +374,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-installed-providers-to-be-sorted                   | Sort and uniquify installed_providers.txt              |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| update-installers                                         | Update installers to latest (manual)                   |         |
+| update-installers-and-pre-commit                          | Update installers and pre-commit to latest (manual)    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-local-yml-file                                     | Update mounts in the local yml file                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -401,6 +399,8 @@ require Breeze Docker image to be built locally.
 | validate-operators-init                                   | No templated field logic checks in operator __init__   |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | yamllint                                                  | Check YAML files with yamllint                         |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| zizmor                                                    | Run zizmor to check for github workflow syntax errors  |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 
   .. END AUTO-GENERATED STATIC CHECK LIST

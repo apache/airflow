@@ -72,7 +72,7 @@ from airflow.utils.types import NOTSET, DagRunType
 
 from tests_common.test_utils import AIRFLOW_MAIN_FOLDER
 from tests_common.test_utils.db import clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS, AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
@@ -892,9 +892,8 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             "ti",
             "var",  # Accessor for Variable; var->json and var->value.
             "conn",  # Accessor for Connection.
+            "map_index_template",
         }
-        if AIRFLOW_V_2_9_PLUS:
-            intentionally_excluded_context_keys.add("map_index_template")
         if AIRFLOW_V_2_10_PLUS:
             intentionally_excluded_context_keys |= {
                 "inlet_events",
@@ -925,6 +924,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
                 "next_execution_date",
                 "prev_execution_date",
                 "prev_execution_date_success",
+                "conf",
             }
         else:
             declared_keys.remove("triggering_asset_events")
@@ -1066,20 +1066,12 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             get_current_context()
             return []
 
-        if AIRFLOW_V_2_9_PLUS:
-            with pytest.raises(
-                AirflowException,
-                match="Current context was requested but no context was found! "
-                "Are you running within an airflow task?",
-            ):
-                self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=False)
-        else:
-            with pytest.raises(
-                AirflowException,
-                match="Current context was requested but no context was found! "
-                "Are you running within an airflow task?",
-            ):
-                self.run_as_task(f, return_ti=True, use_airflow_context=False)
+        with pytest.raises(
+            AirflowException,
+            match="Current context was requested but no context was found! "
+            "Are you running within an Airflow task?",
+        ):
+            self.run_as_task(f, return_ti=True, use_airflow_context=False)
 
     def test_current_context_airflow_not_found_error(self):
         airflow_flag: dict[str, bool] = {"expect_airflow": False}
@@ -1898,7 +1890,7 @@ class TestBranchExternalPythonOperator(BaseTestBranchPythonVirtualenvOperator):
 
 class TestCurrentContext:
     def test_current_context_no_context_raise(self):
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             get_current_context()
 
     def test_current_context_roundtrip(self):
@@ -1912,7 +1904,7 @@ class TestCurrentContext:
 
         with set_current_context(example_context):
             pass
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             get_current_context()
 
     def test_nested_context(self):

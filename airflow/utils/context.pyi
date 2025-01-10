@@ -32,7 +32,6 @@ from typing import Any, overload
 from pendulum import DateTime
 from sqlalchemy.orm import Session
 
-from airflow.configuration import AirflowConfigParser
 from airflow.models.asset import AssetEvent
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
@@ -100,7 +99,6 @@ class InletEventsAccessors(Mapping[Asset | AssetAlias, InletEventsAccessor]):
 # * KNOWN_CONTEXT_KEYS in airflow/utils/context.py
 # * Table in docs/apache-airflow/templates-ref.rst
 class Context(TypedDict, total=False):
-    conf: AirflowConfigParser
     conn: Any
     dag: DAG
     dag_run: DagRun | DagRunPydantic
@@ -145,7 +143,7 @@ def context_merge(context: Context, additions: Mapping[str, Any], **kwargs: Any)
 def context_merge(context: Context, additions: Iterable[tuple[str, Any]], **kwargs: Any) -> None: ...
 @overload
 def context_merge(context: Context, **kwargs: Any) -> None: ...
-def context_update_for_unmapped(context: Context, task: BaseOperator) -> None: ...
+def context_update_for_unmapped(context: Mapping[str, Any], task: BaseOperator) -> None: ...
 def context_copy_partial(source: Context, keys: Container[str]) -> Context: ...
 def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]: ...
 def context_get_outlet_events(context: Context) -> OutletEventAccessors: ...

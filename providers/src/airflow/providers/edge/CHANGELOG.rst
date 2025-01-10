@@ -27,6 +27,31 @@
 Changelog
 ---------
 
+0.10.0pre0
+..........
+
+Feature
+~~~~~~~
+
+* ``Support Task execution interface (AIP-72) in Airflow 3. Experimental with ongoing development as AIP-72 is also under development.``
+
+0.9.7pre0
+.........
+
+Misc
+~~~~
+
+* ``Make API retries configurable via ENV. Connection loss is sustained for 5min by default.``
+* ``Align retry handling logic and tooling with Task SDK, via retryhttp.``
+
+0.9.6pre0
+.........
+
+Misc
+~~~~
+
+* ``Replace null value in log file chunk with question mark to fix exception by pushing log into DB.``
+
 0.9.5pre0
 .........
 

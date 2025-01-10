@@ -301,3 +301,50 @@ class TestSFTPToGCSOperator:
                 ),
             ]
         )
+
+    @pytest.mark.parametrize(
+        "source_object, destination_path, expected_source, expected_destination",
+        [
+            ("folder/test_object.txt", "dest/dir", "folder/test_object.txt", "dest"),
+            ("folder/test_object.txt", "dest/dir/", "folder/test_object.txt", "dest/dir"),
+            ("folder/test_object.txt", "/", "folder/test_object.txt", "/"),
+            (
+                "folder/test_object.txt",
+                "dest/dir/dest_object.txt",
+                "folder/test_object.txt",
+                "dest/dir/dest_object.txt",
+            ),
+            ("folder/test_object*.txt", "dest/dir", "folder", "dest"),
+            ("folder/test_object/*", "/", "folder/test_object", "/"),
+            ("folder/test_object*", "/", "folder", "/"),
+            ("folder/test_object/*", None, "folder/test_object", "/"),
+            ("*", "/", "/", "/"),
+            ("/*", "/", "/", "/"),
+            ("/*", "dest/dir", "/", "dest"),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
+    def test_get_openlineage_facets(
+        self, sftp_hook_mock, source_object, destination_path, expected_source, expected_destination
+    ):
+        sftp_hook_mock.return_value.remote_host = "11.222.33.44"
+        sftp_hook_mock.return_value.port = 22
+        operator = SFTPToGCSOperator(
+            task_id=TASK_ID,
+            source_path=source_object,
+            destination_path=destination_path,
+            destination_bucket=TEST_BUCKET,
+            move_object=False,
+            gcp_conn_id=GCP_CONN_ID,
+            sftp_conn_id=SFTP_CONN_ID,
+        )
+
+        result = operator.get_openlineage_facets_on_start()
+        assert not result.run_facets
+        assert not result.job_facets
+        assert len(result.inputs) == 1
+        assert len(result.outputs) == 1
+        assert result.inputs[0].namespace == "file://11.222.33.44:22"
+        assert result.inputs[0].name == expected_source
+        assert result.outputs[0].namespace == f"gs://{TEST_BUCKET}"
+        assert result.outputs[0].name == expected_destination

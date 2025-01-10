@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from flask_appbuilder.security.views import RoleModelView
 
-from airflow.security import permissions
+from airflow.providers.fab.www.security import permissions
 
 
 class CustomRoleModelView(RoleModelView):

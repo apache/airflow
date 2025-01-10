@@ -213,9 +213,12 @@ function determine_airflow_to_use() {
             echo
             echo "${COLOR_BLUE}Uninstalling all packages first${COLOR_RESET}"
             echo
-            pip freeze | grep -ve "^-e" | grep -ve "^#" | grep -ve "^uv" | xargs pip uninstall -y --root-user-action ignore
+            # shellcheck disable=SC2086
+            ${PACKAGING_TOOL_CMD} freeze | grep -ve "^-e" | grep -ve "^#" | grep -ve "^uv" | \
+                xargs ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS}
             # Now install rich ad click first to use the installation script
-            uv pip install rich rich-click click --python "/usr/local/bin/python" \
+            # shellcheck disable=SC2086
+            ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} rich rich-click click --python "/usr/local/bin/python" \
                 --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
         fi
         python "${IN_CONTAINER_DIR}/install_airflow_and_providers.py"
@@ -225,23 +228,8 @@ function determine_airflow_to_use() {
         python "${IN_CONTAINER_DIR}/install_devel_deps.py" \
            --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
         # Some packages might leave legacy typing module which causes test issues
-        pip uninstall -y typing || true
-        # We need to install `eval-type-backport` to avoid problems with Pydantic 2.10.+ released in
-        # November 2024 for python 3.8 and 3.9. While Pydantic 2.10.0/2.10.1 completely broke Airflow 2
-        # installation and Pydantic 2.10.2 fixed the issue for past versions of Airflow, there are still
-        # Some Typing constructs that are not handled well by Pydantic and in case Pydantic fails with
-        # those errors, it will STILL fall back to `eval-type-backport` to handle those cases (if
-        # if `eval-type-backport` is installed. Therefore - until we have Airflow 2.10.3 for backwards
-        # compatibility tests and we attempt to install "edge" provider that might use such breaking
-        # constructs, we need to install `eval-type-backport` to avoid problems with Pydantic 2.10.2+
-        # as well. As soon as we move to Airflow 2.10.4, we can remove this workaround because Airflow
-        # 2.10.4 adds "eval-type-backport" as a dependency and it will be installed automatically.
-        if [[ ${PYTHON_MAJOR_MINOR_VERSION} == "3.8" || ${PYTHON_MAJOR_MINOR_VERSION} == "3.9" ]]; then
-            echo
-            echo "${COLOR_BLUE}Installing eval-type-backport for Python ${PYTHON_MAJOR_MINOR_VERSION} to workaround Pydantic 2.10.0/2.10.1 issue with new typing style.${COLOR_RESET}"
-            echo
-            pip install eval-type-backport>=0.2.0
-        fi
+        # shellcheck disable=SC2086
+        ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} typing || true
         if [[ ${LINK_PROVIDERS_TO_AIRFLOW_PACKAGE=} == "true" ]]; then
             echo
             echo "${COLOR_BLUE}Linking providers to airflow package as we are using them from mounted sources.${COLOR_RESET}"

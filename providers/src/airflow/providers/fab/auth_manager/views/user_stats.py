@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from flask_appbuilder.security.views import UserStatsChartView
 
-from airflow.security import permissions
+from airflow.providers.fab.www.security import permissions
 
 
 class CustomUserStatsChartView(UserStatsChartView):

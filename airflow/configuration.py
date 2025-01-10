@@ -187,7 +187,7 @@ class AirflowConfigParser(ConfigParser):
 
     This is a subclass of ConfigParser that supports defaults and deprecated options.
 
-    The defaults are stored in the ``_default_values ConfigParser. The configuration description keeps
+    The defaults are stored in the ``_default_values``. The configuration description keeps
     description of all the options available in Airflow (description follow config.yaml.schema).
 
     :param default_config: default configuration (in the form of ini file).
@@ -515,6 +515,8 @@ class AirflowConfigParser(ConfigParser):
         if example is not None and include_examples:
             if extra_spacing:
                 file.write("#\n")
+            example_lines = example.splitlines()
+            example = "\n# ".join(example_lines)
             file.write(f"# Example: {option} = {example}\n")
             needs_separation = True
         if include_sources and sources_dict:
@@ -553,6 +555,8 @@ class AirflowConfigParser(ConfigParser):
             file.write(f"# {option} = \n")
         else:
             if comment_out_everything:
+                value_lines = value.splitlines()
+                value = "\n# ".join(value_lines)
                 file.write(f"# {option} = {value}\n")
             else:
                 file.write(f"{option} = {value}\n")

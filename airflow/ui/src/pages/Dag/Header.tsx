@@ -19,17 +19,14 @@
 import { Box, Flex, Heading, HStack, SimpleGrid, Text } from "@chakra-ui/react";
 import { FiCalendar } from "react-icons/fi";
 
-import type {
-  DAGDetailsResponse,
-  DAGRunResponse,
-} from "openapi/requests/types.gen";
+import type { DAGDetailsResponse, DAGRunResponse } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
 import DagRunInfo from "src/components/DagRunInfo";
 import DocumentationModal from "src/components/DocumentationModal";
 import ParseDag from "src/components/ParseDag";
 import { Stat } from "src/components/Stat";
 import { TogglePause } from "src/components/TogglePause";
-import TriggerDAGTextButton from "src/components/TriggerDag/TriggerDAGTextButton";
+import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
 import { Tooltip } from "src/components/ui";
 
 import { DagTags } from "../DagsList/DagTags";
@@ -50,21 +47,15 @@ export const Header = ({
           <DagIcon height={8} width={8} />
           <Heading size="lg">{dag?.dag_display_name ?? dagId}</Heading>
           {dag !== undefined && (
-            <TogglePause
-              dagDisplayName={dag.dag_display_name}
-              dagId={dag.dag_id}
-              isPaused={dag.is_paused}
-            />
+            <TogglePause dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} isPaused={dag.is_paused} />
           )}
         </HStack>
         <Flex>
           {dag ? (
             <HStack>
-              {dag.doc_md === null ? undefined : (
-                <DocumentationModal docMd={dag.doc_md} docType="Dag" />
-              )}
+              {dag.doc_md === null ? undefined : <DocumentationModal docMd={dag.doc_md} docType="Dag" />}
               <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />
-              <TriggerDAGTextButton dag={dag} />
+              <TriggerDAGButton dag={dag} />
             </HStack>
           ) : undefined}
         </Flex>
@@ -72,10 +63,9 @@ export const Header = ({
       <SimpleGrid columns={4} gap={4} my={2}>
         <Stat label="Schedule">
           {Boolean(dag?.timetable_summary) ? (
-            <Tooltip content={dag?.timetable_description} showArrow>
+            <Tooltip content={dag?.timetable_description}>
               <Text fontSize="sm">
-                <FiCalendar style={{ display: "inline" }} />{" "}
-                {dag?.timetable_summary}
+                <FiCalendar style={{ display: "inline" }} /> {dag?.timetable_summary}
               </Text>
             </Tooltip>
           ) : undefined}

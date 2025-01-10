@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import hashlib
 from datetime import datetime, timedelta
 from typing import Any
 from unittest import mock
@@ -2216,8 +2217,9 @@ class TestDatabricksNotebookOperator:
 
         task_json = operator._convert_to_databricks_workflow_task(relevant_upstreams)
 
+        task_key = hashlib.md5(b"example_dag__test_task").hexdigest()
         expected_json = {
-            "task_key": "example_dag__test_task",
+            "task_key": task_key,
             "depends_on": [],
             "timeout_seconds": 0,
             "email_notifications": {},
@@ -2317,3 +2319,27 @@ class TestDatabricksTaskOperator:
 
         assert operator.task_config == task_config
         assert task_base_json == task_config
+
+    def test_generate_databricks_task_key(self):
+        task_config = {}
+        operator = DatabricksTaskOperator(
+            task_id="test_task",
+            databricks_conn_id="test_conn_id",
+            task_config=task_config,
+        )
+
+        task_key = f"{operator.dag_id}__{operator.task_id}".encode()
+        expected_task_key = hashlib.md5(task_key).hexdigest()
+        assert expected_task_key == operator.databricks_task_key
+
+    def test_user_databricks_task_key(self):
+        task_config = {}
+        operator = DatabricksTaskOperator(
+            task_id="test_task",
+            databricks_conn_id="test_conn_id",
+            databricks_task_key="test_task_key",
+            task_config=task_config,
+        )
+        expected_task_key = "test_task_key"
+
+        assert expected_task_key == operator.databricks_task_key

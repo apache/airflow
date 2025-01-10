@@ -27,8 +27,15 @@
 Changelog
 ---------
 
-main
-....
+2.0.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
 
 .. warning::
   All deprecated classes, parameters and features have been removed from the {provider_name} provider package.
@@ -40,6 +47,18 @@ main
     * Parameter ``notify_type`` cannot be None. It is not set to NotifyType.INFO as default.
     * Parameter ``body_format`` cannot be None. It is not set to NotifyFormat.TEXT as default.
     * Parameter ``tag`` cannot be None. It is not set to MATCH_ALL_TAG as default.
+
+* ``Remove Provider Deprecations in Apprise (#44764)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
 
 1.4.1
 .....

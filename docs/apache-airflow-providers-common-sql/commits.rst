@@ -35,14 +35,34 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.21.0
+......
+
+Latest change: 2024-12-19
+
+=================================================================================================  ===========  ================================================================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================================================================================================
+`35b927fe17 <https://github.com/apache/airflow/commit/35b927fe177065dad0e00c49d72b494e58b27ca8>`_  2024-12-19   ``Update path of example dags in docs (#45069)``
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`ad3d02205f <https://github.com/apache/airflow/commit/ad3d02205f26d7e60f42fcf7bade2831b4697d43>`_  2024-12-14   ``Fix static checks in common SQL hooks (#44930)``
+`bb259eaa67 <https://github.com/apache/airflow/commit/bb259eaa670240ead9bb9964e9f0b0e19f0f5cde>`_  2024-12-09   ``Added output_processor parameter to SQLQueryOperator and fixed bug with return_single_query_results handler when None is passed as split_statements (#44781)``
+`f76883c95d <https://github.com/apache/airflow/commit/f76883c95d3894e9c6cd2fa736d0c4579c4b82b4>`_  2024-12-09   ``Added documentation for the SqlThresholdCheckOperator (#44787)``
+`2688d7ce6f <https://github.com/apache/airflow/commit/2688d7ce6ff29190e4e51ce2aa28dcbf9a467866>`_  2024-12-05   ``Remove Provider Deprecations in Common SQL (#44645)``
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`7a2fae0eef <https://github.com/apache/airflow/commit/7a2fae0eeffa6041fb84af01f62489d6fe2d34d9>`_  2024-11-19   ``Moved common SQL handler methods of common-sql-provider into dedicated module (#43747)``
+`4dfae23532 <https://github.com/apache/airflow/commit/4dfae23532d26ed838069c49d48f28c185e954c6>`_  2024-11-15   ``Update DAG example links in multiple providers documents (#44034)``
+=================================================================================================  ===========  ================================================================================================================================================================
+
 1.20.0
 ......
 
-Latest change: 2024-11-13
+Latest change: 2024-11-14
 
 =================================================================================================  ===========  ========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
 `e7194dff6a <https://github.com/apache/airflow/commit/e7194dff6a816bf3a721cbf579ceac19c11cd111>`_  2024-11-13   ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
 `d8c7d28411 <https://github.com/apache/airflow/commit/d8c7d28411bea04ae5771fc1e2973d92eb0a144e>`_  2024-10-30   ``Start porting DAG definition code to the Task SDK (#43076)``
 =================================================================================================  ===========  ========================================================================================

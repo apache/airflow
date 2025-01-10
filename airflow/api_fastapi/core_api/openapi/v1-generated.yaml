@@ -218,14 +218,6 @@ paths:
         schema:
           type: string
           title: Dag Id
-      - name: root
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Root
       - name: include_upstream
         in: query
         required: false
@@ -240,6 +232,14 @@ paths:
           type: boolean
           default: false
           title: Include Downstream
+      - name: root
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Root
       - name: external_dependencies
         in: query
         required: false
@@ -319,6 +319,122 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BackfillCollectionResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/grid/{dag_id}:
+    get:
+      tags:
+      - Grid
+      summary: Grid Data
+      description: Return grid data.
+      operationId: grid_data
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: include_upstream
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Include Upstream
+      - name: include_downstream
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Include Downstream
+      - name: logical_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Logical Date Gte
+      - name: logical_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Logical Date Lte
+      - name: root
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Root
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: run_type
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Run Type
+      - name: state
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: State
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 100
+          title: Limit
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: id
+          title: Order By
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GridResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -1622,12 +1738,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
   /public/connections/bulk:
-    post:
+    put:
       tags:
       - Connection
-      summary: Post Connections
+      summary: Put Connections
       description: Create connection entry.
-      operationId: post_connections
+      operationId: put_connections
       requestBody:
         content:
           application/json:
@@ -1635,8 +1751,8 @@ paths:
               $ref: '#/components/schemas/ConnectionBulkBody'
         required: true
       responses:
-        '201':
-          description: Successful Response
+        '200':
+          description: Created with overwrite
           content:
             application/json:
               schema:
@@ -1659,6 +1775,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionCollectionResponse'
         '422':
           description: Validation Error
           content:
@@ -1712,6 +1834,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/connections/defaults:
+    post:
+      tags:
+      - Connection
+      summary: Create Default Connections
+      description: Create default connections.
+      operationId: create_default_connections
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
   /public/dags/{dag_id}/dagRuns/{dag_run_id}:
     get:
       tags:
@@ -3877,12 +4021,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
   /public/pools/bulk:
-    post:
+    put:
       tags:
       - Pool
-      summary: Post Pools
+      summary: Put Pools
       description: Create multiple pools.
-      operationId: post_pools
+      operationId: put_pools
       requestBody:
         content:
           application/json:
@@ -3891,7 +4035,7 @@ paths:
         required: true
       responses:
         '201':
-          description: Successful Response
+          description: Created
           content:
             application/json:
               schema:
@@ -3914,6 +4058,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+        '200':
+          description: Created with overwriting
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolCollectionResponse'
         '422':
           description: Validation Error
           content:
@@ -4299,6 +4449,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -4899,6 +5055,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -5729,12 +5891,80 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/variables/import:
+    post:
+      tags:
+      - Variable
+      summary: Import Variables
+      description: Import variables from a JSON file.
+      operationId: import_variables
+      parameters:
+      - name: action_if_exists
+        in: query
+        required: false
+        schema:
+          enum:
+          - overwrite
+          - fail
+          - skip
+          type: string
+          default: fail
+          title: Action If Exists
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_import_variables'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VariablesImportResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unprocessable Entity
   /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}:
     get:
       tags:
@@ -6313,6 +6543,16 @@ components:
       - status
       title: BaseInfoResponse
       description: Base info serializer for responses.
+    Body_import_variables:
+      properties:
+        file:
+          type: string
+          format: binary
+          title: File
+      type: object
+      required:
+      - file
+      title: Body_import_variables
     ClearTaskInstancesBody:
       properties:
         dry_run:
@@ -6342,7 +6582,7 @@ components:
         reset_dag_runs:
           type: boolean
           title: Reset Dag Runs
-          default: false
+          default: true
         task_ids:
           anyOf:
           - items:
@@ -6567,6 +6807,12 @@ components:
             $ref: '#/components/schemas/ConnectionBody'
           type: array
           title: Connections
+        overwrite:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Overwrite
+          default: false
       type: object
       required:
       - connections
@@ -7048,6 +7294,10 @@ components:
           type: boolean
           title: Dry Run
           default: true
+        only_failed:
+          type: boolean
+          title: Only Failed
+          default: false
       type: object
       title: DAGRunClearBody
       description: DAG Run serializer for clear endpoint body.
@@ -7093,9 +7343,7 @@ components:
     DAGRunResponse:
       properties:
         dag_run_id:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Run Id
         dag_id:
           type: string
@@ -7734,6 +7982,11 @@ components:
         target_id:
           type: string
           title: Target Id
+        is_source_asset:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Source Asset
       type: object
       required:
       - source_id
@@ -7851,6 +8104,146 @@ components:
       - name
       title: FastAPIAppResponse
       description: Serializer for Plugin FastAPI App responses.
+    GridDAGRunwithTIs:
+      properties:
+        dag_run_id:
+          type: string
+          title: Dag Run Id
+        queued_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Queued At
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        state:
+          $ref: '#/components/schemas/DagRunState'
+        run_type:
+          $ref: '#/components/schemas/DagRunType'
+        data_interval_start:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Data Interval Start
+        data_interval_end:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Data Interval End
+        version_number:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Version Number
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+        task_instances:
+          items:
+            $ref: '#/components/schemas/GridTaskInstanceSummary'
+          type: array
+          title: Task Instances
+      type: object
+      required:
+      - dag_run_id
+      - queued_at
+      - start_date
+      - end_date
+      - state
+      - run_type
+      - data_interval_start
+      - data_interval_end
+      - version_number
+      - note
+      - task_instances
+      title: GridDAGRunwithTIs
+      description: DAG Run model for the Grid UI.
+    GridResponse:
+      properties:
+        dag_runs:
+          items:
+            $ref: '#/components/schemas/GridDAGRunwithTIs'
+          type: array
+          title: Dag Runs
+      type: object
+      required:
+      - dag_runs
+      title: GridResponse
+      description: Response model for the Grid UI.
+    GridTaskInstanceSummary:
+      properties:
+        task_id:
+          type: string
+          title: Task Id
+        try_number:
+          type: integer
+          title: Try Number
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        queued_dttm:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Queued Dttm
+        child_states:
+          anyOf:
+          - additionalProperties:
+              type: integer
+            type: object
+          - type: 'null'
+          title: Child States
+        task_count:
+          type: integer
+          title: Task Count
+        state:
+          anyOf:
+          - $ref: '#/components/schemas/TaskInstanceState'
+          - type: 'null'
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+      type: object
+      required:
+      - task_id
+      - try_number
+      - start_date
+      - end_date
+      - queued_dttm
+      - child_states
+      - task_count
+      - state
+      - note
+      title: GridTaskInstanceSummary
+      description: Task Instance Summary model for the Grid UI.
     HTTPExceptionResponse:
       properties:
         detail:
@@ -8079,6 +8472,14 @@ components:
           - type: string
           - type: 'null'
           title: Operator
+        asset_condition_type:
+          anyOf:
+          - type: string
+            enum:
+            - or-gate
+            - and-gate
+          - type: 'null'
+          title: Asset Condition Type
       type: object
       required:
       - id
@@ -8284,6 +8685,12 @@ components:
             $ref: '#/components/schemas/PoolPostBody'
           type: array
           title: Pools
+        overwrite:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Overwrite
+          default: false
       type: object
       required:
       - pools
@@ -9372,11 +9779,10 @@ components:
       properties:
         key:
           type: string
+          maxLength: 250
           title: Key
         value:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Value
         description:
           anyOf:
@@ -9411,22 +9817,44 @@ components:
           type: string
           title: Key
         value:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Value
         description:
           anyOf:
           - type: string
           - type: 'null'
           title: Description
+        is_encrypted:
+          type: boolean
+          title: Is Encrypted
       type: object
       required:
       - key
       - value
       - description
+      - is_encrypted
       title: VariableResponse
       description: Variable serializer for responses.
+    VariablesImportResponse:
+      properties:
+        created_variable_keys:
+          items:
+            type: string
+          type: array
+          title: Created Variable Keys
+        import_count:
+          type: integer
+          title: Import Count
+        created_count:
+          type: integer
+          title: Created Count
+      type: object
+      required:
+      - created_variable_keys
+      - import_count
+      - created_count
+      title: VariablesImportResponse
+      description: Import Variables serializer for responses.
     VersionInfo:
       properties:
         version:
@@ -9481,6 +9909,9 @@ components:
         dag_id:
           type: string
           title: Dag Id
+        run_id:
+          type: string
+          title: Run Id
       type: object
       required:
       - key
@@ -9489,6 +9920,7 @@ components:
       - map_index
       - task_id
       - dag_id
+      - run_id
       title: XComResponse
       description: Serializer for a xcom item.
     XComResponseNative:
@@ -9513,6 +9945,9 @@ components:
         dag_id:
           type: string
           title: Dag Id
+        run_id:
+          type: string
+          title: Run Id
         value:
           title: Value
       type: object
@@ -9523,6 +9958,7 @@ components:
       - map_index
       - task_id
       - dag_id
+      - run_id
       - value
       title: XComResponseNative
       description: XCom response serializer with native return type.
@@ -9548,6 +9984,9 @@ components:
         dag_id:
           type: string
           title: Dag Id
+        run_id:
+          type: string
+          title: Run Id
         value:
           anyOf:
           - type: string
@@ -9561,6 +10000,7 @@ components:
       - map_index
       - task_id
       - dag_id
+      - run_id
       - value
       title: XComResponseString
       description: XCom response serializer with string return type.

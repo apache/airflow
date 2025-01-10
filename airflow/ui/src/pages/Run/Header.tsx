@@ -17,15 +17,16 @@
  * under the License.
  */
 import { Box, Flex, Heading, HStack, SimpleGrid, Text } from "@chakra-ui/react";
-import dayjs from "dayjs";
 import { FiBarChart } from "react-icons/fi";
 import { MdOutlineModeComment } from "react-icons/md";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
+import ClearRunButton from "src/components/ClearRun";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { Stat } from "src/components/Stat";
 import Time from "src/components/Time";
 import { Status } from "src/components/ui";
+import { getDuration } from "src/utils";
 
 export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => (
   <Box borderColor="border" borderRadius={8} borderWidth={1} p={2}>
@@ -40,6 +41,9 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => (
         <Flex>
           <div />
         </Flex>
+      </HStack>
+      <HStack>
+        <ClearRunButton dagRun={dagRun} />
       </HStack>
     </Flex>
     {dagRun.note === null || dagRun.note.length === 0 ? undefined : (
@@ -63,13 +67,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => (
       <Stat label="End">
         <Time datetime={dagRun.end_date} />
       </Stat>
-      <Stat label="Duration">
-        {dayjs
-          .duration(dayjs(dagRun.end_date).diff(dagRun.start_date))
-          .asSeconds()
-          .toFixed(2)}
-        s
-      </Stat>
+      <Stat label="Duration">{getDuration(dagRun.start_date, dagRun.end_date)}s</Stat>
     </SimpleGrid>
   </Box>
 );

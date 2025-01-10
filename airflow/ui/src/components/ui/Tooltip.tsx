@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Tooltip as ChakraTooltip, Portal } from "@chakra-ui/react";
-import { forwardRef } from "react";
+import * as React from "react";
 
 export type TooltipProps = {
   content: React.ReactNode;
@@ -28,39 +28,37 @@ export type TooltipProps = {
   showArrow?: boolean;
 } & ChakraTooltip.RootProps;
 
-export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(
-  (props, ref) => {
-    const {
-      children,
-      content,
-      contentProps,
-      disabled,
-      portalled,
-      portalRef,
-      showArrow,
-      ...rest
-    } = props;
+export const Tooltip = React.forwardRef<HTMLDivElement, TooltipProps>((props, ref) => {
+  const {
+    children,
+    content,
+    contentProps,
+    disabled,
+    portalled,
+    portalRef,
+    showArrow = true,
+    ...rest
+  } = props;
 
-    if (disabled) {
-      return children;
-    }
+  if (disabled) {
+    return children;
+  }
 
-    return (
-      <ChakraTooltip.Root closeDelay={100} openDelay={100} {...rest}>
-        <ChakraTooltip.Trigger asChild>{children}</ChakraTooltip.Trigger>
-        <Portal container={portalRef} disabled={!portalled}>
-          <ChakraTooltip.Positioner>
-            <ChakraTooltip.Content ref={ref} {...contentProps}>
-              {showArrow ? (
-                <ChakraTooltip.Arrow>
-                  <ChakraTooltip.ArrowTip />
-                </ChakraTooltip.Arrow>
-              ) : undefined}
-              {content}
-            </ChakraTooltip.Content>
-          </ChakraTooltip.Positioner>
-        </Portal>
-      </ChakraTooltip.Root>
-    );
-  },
-);
+  return (
+    <ChakraTooltip.Root {...rest}>
+      <ChakraTooltip.Trigger asChild>{children}</ChakraTooltip.Trigger>
+      <Portal container={portalRef} disabled={!portalled}>
+        <ChakraTooltip.Positioner>
+          <ChakraTooltip.Content ref={ref} {...contentProps}>
+            {showArrow ? (
+              <ChakraTooltip.Arrow>
+                <ChakraTooltip.ArrowTip />
+              </ChakraTooltip.Arrow>
+            ) : undefined}
+            {content}
+          </ChakraTooltip.Content>
+        </ChakraTooltip.Positioner>
+      </Portal>
+    </ChakraTooltip.Root>
+  );
+});

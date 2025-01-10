@@ -49,9 +49,13 @@ jobs:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          use-uv: "true"
       - name: "Get information about the Workflow"
         id: source-run-info
         run: breeze ci get-workflow-info 2>> ${GITHUB_OUTPUT}
+        env:
+          SKIP_BREEZE_SELF_UPGRADE_CHECK: "true"
       - name: Selective checks
         id: selective-checks
         env:
@@ -69,7 +73,7 @@ jobs:
       matrix:
         # Override automatic language detection by changing the below list
         # Supported options are ['csharp', 'cpp', 'go', 'java', 'javascript', 'python']
-        language: ['python', 'javascript']
+        language: ['python', 'javascript', 'actions']
     permissions:
       actions: read
       contents: read
@@ -81,6 +85,7 @@ jobs:
         with:
           persist-credentials: false
         if: |
+          matrix.language == 'actions' ||
           matrix.language == 'python' && needs.selective-checks.outputs.needs-python-scans == 'true' ||
           matrix.language == 'javascript' && needs.selective-checks.outputs.needs-javascript-scans == 'true'
 
@@ -94,6 +99,7 @@ jobs:
           # Prefix the list here with "+" to use these queries and those in the config file.
           # queries: ./path/to/local/query, your-org/your-repo/queries@main
         if: |
+          matrix.language == 'actions' ||
           matrix.language == 'python' && needs.selective-checks.outputs.needs-python-scans == 'true' ||
           matrix.language == 'javascript' && needs.selective-checks.outputs.needs-javascript-scans == 'true'
 
@@ -102,11 +108,13 @@ jobs:
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
         if: |
+          matrix.language == 'actions' ||
           matrix.language == 'python' && needs.selective-checks.outputs.needs-python-scans == 'true' ||
           matrix.language == 'javascript' && needs.selective-checks.outputs.needs-javascript-scans == 'true'
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         if: |
+          matrix.language == 'actions' ||
           matrix.language == 'python' && needs.selective-checks.outputs.needs-python-scans == 'true' ||
           matrix.language == 'javascript' && needs.selective-checks.outputs.needs-javascript-scans == 'true'

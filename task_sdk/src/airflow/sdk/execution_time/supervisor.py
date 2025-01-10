@@ -32,7 +32,17 @@ from contextlib import suppress
 from datetime import datetime, timezone
 from http import HTTPStatus
 from socket import socket, socketpair
-from typing import TYPE_CHECKING, BinaryIO, Callable, ClassVar, Literal, NoReturn, TextIO, cast, overload
+from typing import (
+    TYPE_CHECKING,
+    BinaryIO,
+    Callable,
+    ClassVar,
+    Literal,
+    NoReturn,
+    TextIO,
+    cast,
+    overload,
+)
 from uuid import UUID
 
 import attrs
@@ -44,20 +54,27 @@ from pydantic import TypeAdapter
 
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
+    ConnectionResponse,
     IntermediateTIState,
     TaskInstance,
     TerminalTIState,
+    VariableResponse,
 )
 from airflow.sdk.execution_time.comms import (
+    ConnectionResult,
     DeferTask,
     GetConnection,
     GetVariable,
     GetXCom,
     PutVariable,
+    RescheduleTask,
+    SetRenderedFields,
     SetXCom,
     StartupDetails,
     TaskState,
     ToSupervisor,
+    VariableResult,
+    XComResult,
 )
 
 if TYPE_CHECKING:
@@ -77,6 +94,11 @@ HEARTBEAT_THRESHOLD: int = 30
 # Don't heartbeat more often than this
 MIN_HEARTBEAT_INTERVAL: int = 5
 MAX_FAILED_HEARTBEATS: int = 3
+
+# These are the task instance states that require some additional information to transition into.
+# "Directly" here means that the PATCH API calls to transition into these states are
+# made from _handle_request() itself and don't have to come all the way to wait().
+STATES_SENT_DIRECTLY = [IntermediateTIState.DEFERRED, IntermediateTIState.UP_FOR_RESCHEDULE]
 
 
 @overload
@@ -273,6 +295,7 @@ class WatchedSubprocess:
     client: Client
 
     _process: psutil.Process
+    _num_open_sockets: int = 4
     _exit_code: int | None = attrs.field(default=None, init=False)
     _terminal_state: str | None = attrs.field(default=None, init=False)
     _final_state: str | None = attrs.field(default=None, init=False)
@@ -334,7 +357,7 @@ class WatchedSubprocess:
         cls._close_unused_sockets(child_stdin, child_stdout, child_stderr, child_comms, child_logs)
 
         proc = cls(
-            id=constructor_kwargs.get("id") or getattr(what, "id"),
+            id=constructor_kwargs.pop("id", None) or getattr(what, "id"),
             pid=pid,
             stdin=feed_stdin,
             process=psutil.Process(pid),
@@ -374,16 +397,25 @@ class WatchedSubprocess:
         self.selector.register(
             logs,
             selectors.EVENT_READ,
-            make_buffered_socket_reader(process_log_messages_from_subprocess(logger)),
+            make_buffered_socket_reader(
+                process_log_messages_from_subprocess(logger), on_close=self._on_socket_closed
+            ),
         )
         self.selector.register(
-            requests, selectors.EVENT_READ, make_buffered_socket_reader(self.handle_requests(log))
+            requests,
+            selectors.EVENT_READ,
+            make_buffered_socket_reader(self.handle_requests(log), on_close=self._on_socket_closed),
         )
 
-    @staticmethod
-    def _create_socket_handler(logger, channel, log_level=logging.INFO) -> Callable[[socket], bool]:
+    def _create_socket_handler(self, logger, channel, log_level=logging.INFO) -> Callable[[socket], bool]:
         """Create a socket handler that forwards logs to a logger."""
-        return make_buffered_socket_reader(forward_to_log(logger.bind(chan=channel), level=log_level))
+        return make_buffered_socket_reader(
+            forward_to_log(logger.bind(chan=channel), level=log_level), on_close=self._on_socket_closed
+        )
+
+    def _on_socket_closed(self):
+        # We want to keep servicing this process until we've read up to EOF from all the sockets.
+        self._num_open_sockets -= 1
 
     @staticmethod
     def _close_unused_sockets(*sockets):
@@ -397,7 +429,7 @@ class WatchedSubprocess:
             # We've forked, but the task won't start doing anything until we send it the StartupDetails
             # message. But before we do that, we need to tell the server it's started (so it has the chance to
             # tell us "no, stop!" for any reason)
-            self.client.task_instances.start(ti.id, self.pid, datetime.now(tz=timezone.utc))
+            ti_context = self.client.task_instances.start(ti.id, self.pid, datetime.now(tz=timezone.utc))
             self._last_successful_heartbeat = time.monotonic()
         except Exception:
             # On any error kill that subprocess!
@@ -408,6 +440,7 @@ class WatchedSubprocess:
             ti=ti,
             file=os.fspath(path),
             requests_fd=requests_fd,
+            ti_context=ti_context,
         )
 
         # Send the message to tell the process what it needs to execute
@@ -490,11 +523,11 @@ class WatchedSubprocess:
         # If it hasn't, assume it's failed
         self._exit_code = self._exit_code if self._exit_code is not None else 1
 
-        # If the process has finished in a terminal state, update the state of the TaskInstance
-        # to reflect the final state of the process.
-        # For states like `deferred`, the process will exit with 0, but the state will be updated
+        # If the process has finished non-directly patched state (directly means deferred, reschedule, etc.),
+        # update the state of the TaskInstance to reflect the final state of the process.
+        # For states like `deferred`, `up_for_reschedule`, the process will exit with 0, but the state will be updated
         # by the subprocess in the `handle_requests` method.
-        if self.final_state in TerminalTIState:
+        if self.final_state not in STATES_SENT_DIRECTLY:
             self.client.task_instances.finish(
                 id=self.id, state=self.final_state, when=datetime.now(tz=timezone.utc)
             )
@@ -510,7 +543,7 @@ class WatchedSubprocess:
         - Processes events triggered on the monitored file objects, such as data availability or EOF.
         - Sends heartbeats to ensure the process is alive and checks if the subprocess has exited.
         """
-        while self._exit_code is None or len(self.selector.get_map()):
+        while self._exit_code is None or self._num_open_sockets > 0:
             last_heartbeat_ago = time.monotonic() - self._last_successful_heartbeat
             # Monitor the task to see if it's done. Wait in a syscall (`select`) for as long as possible
             # so we notice the subprocess finishing as quick as we can.
@@ -680,30 +713,42 @@ class WatchedSubprocess:
 
             self._handle_request(msg, log)
 
-    def _handle_request(self, msg, log):
+    def _handle_request(self, msg: ToSupervisor, log: FilteringBoundLogger):
+        log.debug("Received message from task runner", msg=msg)
         resp = None
         if isinstance(msg, TaskState):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
         elif isinstance(msg, GetConnection):
             conn = self.client.connections.get(msg.conn_id)
-            resp = conn.model_dump_json(exclude_unset=True).encode()
+            if isinstance(conn, ConnectionResponse):
+                conn_result = ConnectionResult.from_conn_response(conn)
+                resp = conn_result.model_dump_json(exclude_unset=True).encode()
+            else:
+                resp = conn.model_dump_json().encode()
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
-            resp = var.model_dump_json(exclude_unset=True).encode()
+            if isinstance(var, VariableResponse):
+                var_result = VariableResult.from_variable_response(var)
+                resp = var_result.model_dump_json(exclude_unset=True).encode()
+            else:
+                resp = var.model_dump_json().encode()
         elif isinstance(msg, GetXCom):
             xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
-            resp = xcom.model_dump_json(exclude_unset=True).encode()
+            xcom_result = XComResult.from_xcom_response(xcom)
+            resp = xcom_result.model_dump_json().encode()
         elif isinstance(msg, DeferTask):
             self._terminal_state = IntermediateTIState.DEFERRED
             self.client.task_instances.defer(self.id, msg)
-            resp = None
+        elif isinstance(msg, RescheduleTask):
+            self._terminal_state = IntermediateTIState.UP_FOR_RESCHEDULE
+            self.client.task_instances.reschedule(self.id, msg)
         elif isinstance(msg, SetXCom):
             self.client.xcoms.set(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.value, msg.map_index)
-            resp = None
         elif isinstance(msg, PutVariable):
             self.client.variables.set(msg.key, msg.value, msg.description)
-            resp = None
+        elif isinstance(msg, SetRenderedFields):
+            self.client.task_instances.set_rtif(self.id, msg.rendered_fields)
         else:
             log.error("Unhandled request", msg=msg)
             return
@@ -718,7 +763,9 @@ class WatchedSubprocess:
 # This returns a callback suitable for attaching to a `selector` that reads in to a buffer, and yields lines
 # to a (sync) generator
 def make_buffered_socket_reader(
-    gen: Generator[None, bytes, None], buffer_size: int = 4096
+    gen: Generator[None, bytes, None],
+    on_close: Callable,
+    buffer_size: int = 4096,
 ) -> Callable[[socket], bool]:
     buffer = bytearray()  # This will hold our accumulated binary data
     read_buffer = bytearray(buffer_size)  # Temporary buffer for each read
@@ -736,6 +783,7 @@ def make_buffered_socket_reader(
             if len(buffer):
                 gen.send(buffer)
             # Tell loop to close this selector
+            on_close()
             return False
 
         buffer.extend(read_buffer[:n_received])

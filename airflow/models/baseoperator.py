@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import collections.abc
 import contextlib
-import copy
 import functools
 import logging
 from collections.abc import Collection, Iterable, Sequence
@@ -101,7 +100,6 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 if TYPE_CHECKING:
     from types import ClassMethodDescriptorType
 
-    import jinja2  # Slow import.
     from sqlalchemy.orm import Session
 
     from airflow.models.abstractoperator import TaskStateChangeCallback
@@ -275,7 +273,7 @@ else:
         params: collections.abc.MutableMapping | None = None,
         **kwargs,
     ):
-        from airflow.sdk.definitions.contextmanager import DagContext, TaskGroupContext
+        from airflow.sdk.definitions._internal.contextmanager import DagContext, TaskGroupContext
 
         validate_mapping_kwargs(operator_class, "partial", kwargs)
 
@@ -709,12 +707,6 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
     extended/overridden by subclasses.
     """
 
-    def prepare_for_execution(self) -> BaseOperator:
-        """Lock task for execution to disable custom action in ``__setattr__`` and return a copy."""
-        other = copy.copy(self)
-        other._lock_for_execution = True
-        return other
-
     @prepare_lineage
     def pre_execute(self, context: Any):
         """Execute right before self.execute() is called."""
@@ -750,23 +742,6 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
             context_get_outlet_events(context),
             logger=self.log,
         ).run(context, result)
-
-    def render_template_fields(
-        self,
-        context: Context,
-        jinja_env: jinja2.Environment | None = None,
-    ) -> None:
-        """
-        Template all attributes listed in *self.template_fields*.
-
-        This mutates the attributes in-place and is irreversible.
-
-        :param context: Context dict with values to apply on content.
-        :param jinja_env: Jinja's environment to use for rendering.
-        """
-        if not jinja_env:
-            jinja_env = self.get_template_env()
-        self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
 
     @provide_session
     def clear(

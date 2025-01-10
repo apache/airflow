@@ -61,10 +61,7 @@ const DagRunInfo = ({
             </Text>
           ) : undefined}
           {Boolean(startDate) ? (
-            <Text>
-              Duration:{" "}
-              {dayjs.duration(dayjs(endDate).diff(startDate)).asSeconds()}s
-            </Text>
+            <Text>Duration: {dayjs.duration(dayjs(endDate).diff(startDate)).asSeconds()}s</Text>
           ) : undefined}
           <Text>
             Data Interval Start: <Time datetime={dataIntervalStart} />
@@ -74,13 +71,10 @@ const DagRunInfo = ({
           </Text>
         </VStack>
       }
-      showArrow
     >
       <HStack fontSize="sm">
         <Time datetime={dataIntervalStart} showTooltip={false} />
-        {state === undefined ? undefined : (
-          <Status state={state}>{state}</Status>
-        )}
+        {state === undefined ? undefined : <Status state={state}>{state}</Status>}
       </HStack>
     </Tooltip>
   ) : undefined;

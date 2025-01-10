@@ -262,7 +262,6 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-constraints-mode",
                 "--chicken-egg-providers",
                 "--github-repository",
-                "--image-tag",
                 "--python",
                 "--use-uv",
             ],
