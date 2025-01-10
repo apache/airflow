@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import datetime
 import inspect
-from collections.abc import Iterable, Iterator, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -30,7 +30,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.expandinput import NotFullyPopulated
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator as TaskSDKAbstractOperator
-from airflow.utils.context import Context
+from airflow.sdk.definitions.context import Context
 from airflow.utils.db import exists_query
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.setup_teardown import SetupTeardownContext
@@ -512,7 +512,7 @@ class AbstractOperator(LoggingMixin, TaskSDKAbstractOperator):
 
     def render_template_fields(
         self,
-        context: Mapping[str, Any],
+        context: Context,
         jinja_env: jinja2.Environment | None = None,
     ) -> None:
         """

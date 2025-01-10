@@ -52,7 +52,7 @@ class LatestOnlyOperator(BaseBranchOperator):
             self.log.info("Externally triggered DAG_Run: allowing execution to proceed.")
             return list(context["task"].get_direct_relative_ids(upstream=False))
 
-        dag: DAG = context["dag"]
+        dag: DAG = context["dag"]  # type: ignore[assignment]
         next_info = dag.next_dagrun_info(dag.get_run_data_interval(dag_run), restricted=False)
         now = pendulum.now("UTC")
 

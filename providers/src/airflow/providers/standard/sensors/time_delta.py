@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from time import sleep
 from typing import TYPE_CHECKING, Any, NoReturn
 
@@ -58,8 +58,12 @@ class TimeDeltaSensor(BaseSensorOperator):
         self.delta = delta
 
     def poke(self, context: Context):
-        target_dttm = context["data_interval_end"]
-        target_dttm += self.delta
+        data_interval_end = context["data_interval_end"]
+
+        if not isinstance(data_interval_end, datetime):
+            raise ValueError("`data_interval_end` returned non-datetime object")
+
+        target_dttm: datetime = data_interval_end + self.delta
         self.log.info("Checking if the time (%s) has come", target_dttm)
         return timezone.utcnow() > target_dttm
 
@@ -84,8 +88,13 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
         self.end_from_trigger = end_from_trigger
 
     def execute(self, context: Context) -> bool | NoReturn:
-        target_dttm = context["data_interval_end"]
-        target_dttm += self.delta
+        data_interval_end = context["data_interval_end"]
+
+        if not isinstance(data_interval_end, datetime):
+            raise ValueError("`data_interval_end` returned non-datetime object")
+
+        target_dttm: datetime = data_interval_end + self.delta
+
         if timezone.utcnow() > target_dttm:
             # If the target datetime is in the past, return immediately
             return True

@@ -29,7 +29,7 @@ from airflow.utils.dag_parsing_context import (
 from airflow.utils.timezone import datetime
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk.definitions.context import Context
 
 
 class DagWithParsingContext(EmptyOperator):

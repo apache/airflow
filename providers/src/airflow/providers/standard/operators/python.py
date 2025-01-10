@@ -298,7 +298,8 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
         self.log.info("Skipping downstream tasks")
         if AIRFLOW_V_3_0_PLUS:
             self.skip(
-                dag_run=dag_run,
+                dag_id=dag_run.dag_id,
+                run_id=dag_run.run_id,
                 tasks=to_skip,
                 map_index=context["ti"].map_index,
             )
