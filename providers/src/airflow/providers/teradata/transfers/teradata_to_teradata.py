@@ -91,7 +91,7 @@ class TeradataToTeradataOperator(BaseOperator):
             rows_total = 0
             if len(target_fields) != 0:
                 for rows in iter(lambda: cursor.fetchmany(self.rows_chunk), []):
-                    dest_hook.bulk_insert_rows(
+                    dest_hook.insert_rows(
                         self.destination_table,
                         rows,
                         target_fields=target_fields,

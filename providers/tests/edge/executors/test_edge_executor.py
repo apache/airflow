@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -31,6 +32,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -41,30 +43,45 @@ class TestEdgeExecutor:
         with create_session() as session:
             session.query(EdgeJobModel).delete()
 
-    def test_execute_async_bad_command(self):
-        executor = EdgeExecutor()
-        with pytest.raises(ValueError):
-            executor.execute_async(
-                TaskInstanceKey(
-                    dag_id="test_dag", run_id="test_run", task_id="test_task", map_index=-1, try_number=1
-                ),
-                command=["hello", "world"],
-            )
-
-    def test_execute_async_ok_command(self):
-        executor = EdgeExecutor()
-        executor.execute_async(
-            TaskInstanceKey(
-                dag_id="test_dag", run_id="test_run", task_id="test_task", map_index=-1, try_number=1
-            ),
-            command=["airflow", "tasks", "run", "hello", "world"],
+    def get_test_executor(self, pool_slots=1):
+        key = TaskInstanceKey(
+            dag_id="test_dag", run_id="test_run", task_id="test_task", map_index=-1, try_number=1
         )
+        ti = MagicMock()
+        ti.pool_slots = pool_slots
+        ti.dag_run.dag_id = key.dag_id
+        ti.dag_run.run_id = key.run_id
+        ti.dag_run.start_date = datetime(2021, 1, 1)
+        executor = EdgeExecutor()
+        executor.queued_tasks = {key: [None, None, None, ti]}
+
+        return (executor, key)
+
+    def test__process_tasks_bad_command(self):
+        executor, key = self.get_test_executor()
+        task_tuple = (key, ["hello", "world"], None, None)
+        with pytest.raises(ValueError):
+            executor._process_tasks([task_tuple])
+
+    @pytest.mark.parametrize(
+        "pool_slots, expected_concurrency",
+        [
+            pytest.param(1, 1, id="default_pool_size"),
+            pytest.param(5, 5, id="increased_pool_size"),
+        ],
+    )
+    def test__process_tasks_ok_command(self, pool_slots, expected_concurrency):
+        executor, key = self.get_test_executor(pool_slots=pool_slots)
+        task_tuple = (key, ["airflow", "tasks", "run", "hello", "world"], None, None)
+        executor._process_tasks([task_tuple])
+
         with create_session() as session:
             jobs: list[EdgeJobModel] = session.query(EdgeJobModel).all()
         assert len(jobs) == 1
         assert jobs[0].dag_id == "test_dag"
         assert jobs[0].run_id == "test_run"
         assert jobs[0].task_id == "test_task"
+        assert jobs[0].concurrency_slots == expected_concurrency
 
     def test_sync_orphaned_tasks(self):
         executor = EdgeExecutor()
@@ -91,6 +108,7 @@ class TestEdgeExecutor:
                         state=state,
                         queue="default",
                         command="dummy",
+                        concurrency_slots=1,
                         last_update=last_update,
                     )
                 )
@@ -102,7 +120,7 @@ class TestEdgeExecutor:
             jobs = session.query(EdgeJobModel).all()
             assert len(jobs) == 1
             assert jobs[0].task_id == "started_running_orphaned"
-            assert jobs[0].task_id == "started_running_orphaned"
+            assert jobs[0].state == TaskInstanceState.REMOVED
 
     @patch("airflow.providers.edge.executors.edge_executor.EdgeExecutor.running_state")
     @patch("airflow.providers.edge.executors.edge_executor.EdgeExecutor.success")
@@ -134,6 +152,7 @@ class TestEdgeExecutor:
                         try_number=1,
                         state=state,
                         queue="default",
+                        concurrency_slots=1,
                         command="dummy",
                         last_update=last_update,
                     )
@@ -174,6 +193,7 @@ class TestEdgeExecutor:
                     map_index=-1,
                     try_number=1,
                     state=state,
+                    concurrency_slots=1,
                     queue="default",
                     command="dummy",
                     last_update=timezone.utcnow(),
@@ -246,3 +266,43 @@ class TestEdgeExecutor:
                     assert worker.state == EdgeWorkerState.UNKNOWN
                 else:
                     assert worker.state == EdgeWorkerState.IDLE
+
+    def test_execute_async(self):
+        executor, key = self.get_test_executor()
+
+        # Need to apply "trick" which is used to pass pool_slots
+        executor.edge_queued_tasks = deepcopy(executor.queued_tasks)
+
+        executor.execute_async(key=key, command=["airflow", "tasks", "run", "hello", "world"])
+
+        with create_session() as session:
+            jobs = session.query(EdgeJobModel).all()
+            assert len(jobs) == 1
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="API only available in Airflow 3.0+")
+    def test_queue_workload(self):
+        from airflow.executors.workloads import ExecuteTask, TaskInstance
+
+        executor = self.get_test_executor()[0]
+
+        with pytest.raises(TypeError):
+            # Does not like the Airflow 2.10 type of workload
+            executor.queue_workload(command=["airflow", "tasks", "run", "hello", "world"])
+
+        workload = ExecuteTask(
+            token="dummy",
+            ti=TaskInstance(
+                id="4d828a62-a417-4936-a7a6-2b3fabacecab",
+                task_id="dummy",
+                dag_id="dummy",
+                run_id="dummy",
+                try_number=1,
+            ),
+            dag_path="dummy.py",
+            log_path="dummy.log",
+        )
+        executor.queue_workload(workload=workload)
+
+        with create_session() as session:
+            jobs = session.query(EdgeJobModel).all()
+            assert len(jobs) == 1

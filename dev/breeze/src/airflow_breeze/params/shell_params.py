@@ -145,7 +145,6 @@ class ShellParams:
     chicken_egg_providers: str = ""
     clean_airflow_installation: bool = False
     collect_only: bool = False
-    database_isolation: bool = False
     db_reset: bool = False
     default_constraints_branch: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     dev_mode: bool = False
@@ -165,7 +164,6 @@ class ShellParams:
     github_actions: str = os.environ.get("GITHUB_ACTIONS", "false")
     github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     github_token: str = os.environ.get("GITHUB_TOKEN", "")
-    image_tag: str | None = None
     include_mypy_volume: bool = False
     install_airflow_version: str = ""
     install_airflow_python_client: bool = False
@@ -260,11 +258,6 @@ class ShellParams:
         return image
 
     @cached_property
-    def airflow_image_name_with_tag(self) -> str:
-        image = self.airflow_image_name
-        return image if not self.image_tag else image + f":{self.image_tag}"
-
-    @cached_property
     def airflow_image_kubernetes(self) -> str:
         image = f"{self.airflow_base_image_name}/{self.airflow_branch}/kubernetes/python{self.python}"
         return image
@@ -299,7 +292,7 @@ class ShellParams:
         if get_verbose():
             get_console().print(f"[info]Use {self.image_type} image[/]")
             get_console().print(f"[info]Branch Name: {self.airflow_branch}[/]")
-            get_console().print(f"[info]Docker Image: {self.airflow_image_name_with_tag}[/]")
+            get_console().print(f"[info]Docker Image: {self.airflow_image_name}[/]")
             get_console().print(f"[info]Airflow source version:{self.airflow_version}[/]")
             get_console().print(f"[info]Python Version: {self.python}[/]")
             get_console().print(f"[info]Backend: {self.backend} {self.backend_version}[/]")
@@ -504,11 +497,9 @@ class ShellParams:
 
         _env: dict[str, str] = {}
         _set_var(_env, "AIRFLOW_CI_IMAGE", self.airflow_image_name)
-        _set_var(_env, "AIRFLOW_CI_IMAGE_WITH_TAG", self.airflow_image_name_with_tag)
         _set_var(_env, "AIRFLOW_CONSTRAINTS_LOCATION", self.airflow_constraints_location)
         _set_var(_env, "AIRFLOW_CONSTRAINTS_MODE", self.airflow_constraints_mode)
         _set_var(_env, "AIRFLOW_CONSTRAINTS_REFERENCE", self.airflow_constraints_reference)
-        _set_var(_env, "AIRFLOW_ENABLE_AIP_44", None, "true")
         _set_var(_env, "AIRFLOW_ENV", "development")
         _set_var(_env, "AIRFLOW_EXTRAS", self.airflow_extras)
         _set_var(_env, "AIRFLOW_SKIP_CONSTRAINTS", self.airflow_skip_constraints)
@@ -521,6 +512,17 @@ class ShellParams:
                 _env, "AIRFLOW__CORE__EXECUTOR", "airflow.providers.edge.executors.edge_executor.EdgeExecutor"
             )
             _set_var(_env, "AIRFLOW__EDGE__API_ENABLED", "true")
+
+            # For testing Edge Worker on Windows... Default Run ID is having a colon (":") from the time which is
+            # made into the log path template, which then fails to be used in Windows. So we replace it with a dash
+            _set_var(
+                _env,
+                "AIRFLOW__LOGGING__LOG_FILENAME_TEMPLATE",
+                "dag_id={{ ti.dag_id }}/run_id={{ ti.run_id|replace(':', '-') }}/task_id={{ ti.task_id }}/"
+                "{% if ti.map_index >= 0 %}map_index={{ ti.map_index }}/{% endif %}"
+                "attempt={{ try_number|default(ti.try_number) }}.log",
+            )
+
             # Dev Airflow 3 runs API on FastAPI transitional
             port = 9091
             if self.use_airflow_version and self.use_airflow_version.startswith("2."):
@@ -545,7 +547,6 @@ class ShellParams:
         _set_var(_env, "COLLECT_ONLY", self.collect_only)
         _set_var(_env, "COMMIT_SHA", None, commit_sha())
         _set_var(_env, "COMPOSE_FILE", self.compose_file)
-        _set_var(_env, "DATABASE_ISOLATION", self.database_isolation)
         _set_var(_env, "DB_RESET", self.db_reset)
         _set_var(_env, "DEFAULT_BRANCH", self.airflow_branch)
         _set_var(_env, "DEFAULT_CONSTRAINTS_BRANCH", self.default_constraints_branch)

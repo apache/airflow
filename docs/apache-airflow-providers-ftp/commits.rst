@@ -35,16 +35,33 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.12.0
+......
+
+Latest change: 2024-12-19
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`35b927fe17 <https://github.com/apache/airflow/commit/35b927fe177065dad0e00c49d72b494e58b27ca8>`_  2024-12-19   ``Update path of example dags in docs (#45069)``
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`4dfae23532 <https://github.com/apache/airflow/commit/4dfae23532d26ed838069c49d48f28c185e954c6>`_  2024-11-15   ``Update DAG example links in multiple providers documents (#44034)``
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  ========================================================================================
+
 3.11.1
 ......
 
-Latest change: 2024-08-25
+Latest change: 2024-09-21
 
-=================================================================================================  ===========  ===================================
+=================================================================================================  ===========  =======================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ===================================
+=================================================================================================  ===========  =======================================================
+`7628d47d04 <https://github.com/apache/airflow/commit/7628d47d0481966d9a9b25dfd4870b7a6797ebbf>`_  2024-09-21   ``Prepare docs for Sep 1st wave of providers (#42387)``
 `00e5976bde <https://github.com/apache/airflow/commit/00e5976bde0f4a5e41c5cd25f111084e159f9c23>`_  2024-08-25   ``remove soft_fail part2 (#41727)``
-=================================================================================================  ===========  ===================================
+=================================================================================================  ===========  =======================================================
 
 3.11.0
 ......
@@ -160,6 +177,8 @@ Latest change: 2023-11-08
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================
 `1b059c57d6 <https://github.com/apache/airflow/commit/1b059c57d6d57d198463e5388138bee8a08591b1>`_  2023-11-08   ``Prepare docs 1st wave of Providers November 2023 (#35537)``
+`706878ec35 <https://github.com/apache/airflow/commit/706878ec354cf867440c367a95c85753c19e54de>`_  2023-11-04   ``Remove empty lines in generated changelog (#35436)``
+`052e26ad47 <https://github.com/apache/airflow/commit/052e26ad473a9d50f0b96456ed094f2087ee4434>`_  2023-11-04   ``Change security.rst to use includes in providers (#35435)``
 `63cc915cd3 <https://github.com/apache/airflow/commit/63cc915cd38a5034df6bf9c618e12f8690eeade0>`_  2023-10-31   ``Switch from Black to Ruff formatter (#35287)``
 `ff30dcc1e1 <https://github.com/apache/airflow/commit/ff30dcc1e18abf267e4381bcc64a247da3c9af35>`_  2023-10-31   ``FTPHook methods should not change working directory (#35105)``
 `d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
@@ -218,6 +237,7 @@ Commit                                                                          
 =================================================================================================  ===========  ==================================================================================
 `60677b0ba3 <https://github.com/apache/airflow/commit/60677b0ba3c9e81595ec2aa3d4be2737e5b32054>`_  2023-08-05   ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
 `e1dd9b5cd2 <https://github.com/apache/airflow/commit/e1dd9b5cd2c5b19aec152f097709c7de02c42f34>`_  2023-07-30   ``openlineage, ftp: add OpenLineage support for FTPFileTransferOperator (#31354)``
+`73b90c48b1 <https://github.com/apache/airflow/commit/73b90c48b1933b49086d34176527947bd727ec85>`_  2023-07-21   ``Allow configuration to be contributed by providers (#32604)``
 `225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
 `3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
 `cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
@@ -276,6 +296,7 @@ Latest change: 2023-02-08
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================
 `ce6ae2457e <https://github.com/apache/airflow/commit/ce6ae2457ef3d9f44f0086b58026909170bbf22a>`_  2023-02-08   ``Prepare docs for Feb 2023 wave of Providers (#29379)``
+`1fbfd312d9 <https://github.com/apache/airflow/commit/1fbfd312d9d7e28e66f6ba5274421a96560fb7ba>`_  2023-01-24   ``Fix ftp example broken docs link (#29134)``
 `2b7071c600 <https://github.com/apache/airflow/commit/2b7071c60022b3c483406839d3c0ef734db5daad>`_  2023-01-21   ``FTP operator has logic in __init__ (#29073)``
 =================================================================================================  ===========  ========================================================
 
@@ -284,13 +305,15 @@ Commit                                                                          
 
 Latest change: 2023-01-02
 
-=================================================================================================  ===========  ========================================================
+=================================================================================================  ===========  ============================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ========================================================
+=================================================================================================  ===========  ============================================================
 `5246c009c5 <https://github.com/apache/airflow/commit/5246c009c557b4f6bdf1cd62bf9b89a2da63f630>`_  2023-01-02   ``Prepare docs for Jan 2023 wave of Providers (#28651)``
+`10c5361df6 <https://github.com/apache/airflow/commit/10c5361df60cfca17baf0de59127301fc6fafa69>`_  2023-01-01   ``Improve check for system tests TOC in providers (#28666)``
 `0e349d80bb <https://github.com/apache/airflow/commit/0e349d80bb329300b45875cdff8f8fc52141e82b>`_  2022-12-28   ``Add FTPSFileTransmitOperator (#28318)``
+`3cd70ffee9 <https://github.com/apache/airflow/commit/3cd70ffee974c9f345aabb3a365dde4dbcdd84a4>`_  2022-12-06   ``Fix link to example dags to contain |version| (#28179)``
 `39f501d4f4 <https://github.com/apache/airflow/commit/39f501d4f4e87635c80d97bb599daf61096d23b8>`_  2022-12-06   ``Add 'FTPFileTransmitOperator' (#26974)``
-=================================================================================================  ===========  ========================================================
+=================================================================================================  ===========  ============================================================
 
 3.2.0
 .....
@@ -316,6 +339,7 @@ Commit                                                                          
 =================================================================================================  ===========  ==================================================================
 `d2459a241b <https://github.com/apache/airflow/commit/d2459a241b54d596ebdb9d81637400279fff4f2d>`_  2022-07-13   ``Add documentation for July 2022 Provider's release (#25030)``
 `64412ee867 <https://github.com/apache/airflow/commit/64412ee867fe0918cc3b616b3fb0b72dcd88125c>`_  2022-07-07   ``Add blocksize arg for ftp hook (#24860)``
+`96b01a8012 <https://github.com/apache/airflow/commit/96b01a8012d164df7c24c460149d3b79ecad3901>`_  2022-07-05   ``Remove "bad characters" from our codebase (#24841)``
 `0de31bd73a <https://github.com/apache/airflow/commit/0de31bd73a8f41dded2907f0dee59dfa6c1ed7a1>`_  2022-06-29   ``Move provider dependencies to inside provider folders (#24672)``
 `510a6bab45 <https://github.com/apache/airflow/commit/510a6bab4595cce8bd5b1447db957309d70f35d9>`_  2022-06-28   ``Remove 'hook-class-names' from provider.yaml (#24702)``
 =================================================================================================  ===========  ==================================================================
@@ -373,6 +397,9 @@ Commit                                                                          
 `97496ba2b4 <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
 `d56e7b56bb <https://github.com/apache/airflow/commit/d56e7b56bb9827daaf8890557147fd10bdf72a7e>`_  2021-12-30   ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
 `a0821235fb <https://github.com/apache/airflow/commit/a0821235fb6877a471973295fe42283ef452abf6>`_  2021-12-30   ``Use typed Context EVERYWHERE (#20565)``
+`43de625d42 <https://github.com/apache/airflow/commit/43de625d4246af7014f64941f8effb09997731cb>`_  2021-12-01   ``Correctly capitalize names and abbreviations in docs (#19908)``
+`1cb456cba1 <https://github.com/apache/airflow/commit/1cb456cba1099198bbdba50c2d1ad79664be8ce6>`_  2021-09-12   ``Add official download page for providers (#18187)``
+`046f02e5a7 <https://github.com/apache/airflow/commit/046f02e5a7097a6e6c928c28196b38b37e776916>`_  2021-09-09   ``fix misspelling (#18121)``
 =================================================================================================  ===========  ==========================================================================
 
 2.0.1
@@ -428,16 +455,17 @@ Commit                                                                          
 
 Latest change: 2021-02-04
 
-=================================================================================================  ===========  ========================================================
+=================================================================================================  ===========  =========================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ========================================================
+=================================================================================================  ===========  =========================================================
 `88bdcfa0df <https://github.com/apache/airflow/commit/88bdcfa0df5bcb4c489486e05826544b428c8f43>`_  2021-02-04   ``Prepare to release a new wave of providers. (#14013)``
 `ac2f72c98d <https://github.com/apache/airflow/commit/ac2f72c98dc0821b33721054588adbf2bb53bb0b>`_  2021-02-01   ``Implement provider versioning tools (#13767)``
 `a9ac2b040b <https://github.com/apache/airflow/commit/a9ac2b040b64de1aa5d9c2b9def33334e36a8d22>`_  2021-01-23   ``Switch to f-strings using flynt. (#13732)``
 `3fd5ef3555 <https://github.com/apache/airflow/commit/3fd5ef355556cf0ad7896bb570bbe4b2eabbf46e>`_  2021-01-21   ``Add missing logos for integrations (#13717)``
 `295d66f914 <https://github.com/apache/airflow/commit/295d66f91446a69610576d040ba687b38f1c5d0a>`_  2020-12-30   ``Fix Grammar in PIP warning (#13380)``
 `6cf76d7ac0 <https://github.com/apache/airflow/commit/6cf76d7ac01270930de7f105fb26428763ee1d4e>`_  2020-12-18   ``Fix typo in pip upgrade command :( (#13148)``
-=================================================================================================  ===========  ========================================================
+`f6448b4e48 <https://github.com/apache/airflow/commit/f6448b4e482fd96339ae65c26d08e6a2bdb51aaf>`_  2020-12-15   ``Add link to PyPI Repository to provider docs (#13064)``
+=================================================================================================  ===========  =========================================================
 
 1.0.0
 .....

@@ -142,7 +142,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "statsd>=3.3.0",
     ],
     "uv": [
-        "uv>=0.5.3",
+        "uv>=0.5.14",
     ],
 }
 
@@ -150,9 +150,7 @@ DOC_EXTRAS: dict[str, list[str]] = {
     "doc": [
         "astroid>=2.12.3,<3.0",
         "checksumdir>=1.2.0",
-        # click 8.1.4 and 8.1.5 generate mypy errors due to typing issue in the upstream package:
-        # https://github.com/pallets/click/issues/2558
-        "click>=8.0,!=8.1.4,!=8.1.5",
+        "click>=8.1.8",
         # Docutils 0.17.0 converts generated <div class="section"> into <section> and breaks our doc formatting
         # By adding a lot of whitespace separation. This limit can be lifted when we update our doc to handle
         # <section> tags for sections
@@ -248,7 +246,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
     ],
     "devel-static-checks": [
         "black>=23.12.0",
-        "ruff==0.8.0",
+        "ruff==0.8.1",
         "yamllint>=1.33.0",
     ],
     "devel-tests": [
@@ -257,9 +255,12 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "beautifulsoup4>=4.7.1",
         # Coverage 7.4.0 added experimental support for Python 3.12 PEP669 which we use in Airflow
         "coverage>=7.4.0",
+        "deepdiff>=8.1.1",
         "jmespath>=0.7.0",
         "kgb>=7.0.0",
-        "pytest-asyncio>=0.23.6",
+        # We need to adjust all our tests to work with "proper" handiing of the async loops in pytest-asyncio
+        # Implemented in Pytest-asyncio 0.25.1 and 0.25.2. See: https://github.com/apache/airflow/issues/45355
+        "pytest-asyncio>=0.23.6,<0.25.1",
         "pytest-cov>=4.1.0",
         "pytest-custom-exit-code>=0.3.0",
         "pytest-icdiff>=0.9",
@@ -267,6 +268,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "pytest-mock>=3.12.0",
         "pytest-rerunfailures>=13.0",
         "pytest-timeouts>=1.2.1",
+        "pytest-unordered>=0.6.1",
         "pytest-xdist>=3.5.0",
         "pytest>=8.2,<9",
         "requests_mock>=1.11.0",
@@ -346,10 +348,6 @@ BUNDLE_EXTRAS: dict[str, list[str]] = {
     ],
 }
 
-# When you remove a dependency from the list, you should also make sure to add the dependency to be removed
-# in the scripts/docker/install_airflow_dependencies_from_branch_tip.sh script DEPENDENCIES_TO_REMOVE
-# in order to make sure the dependency is not installed in the CI image build process from the main
-# of Airflow branch. After your PR is merged, you should remove it from the list there.
 DEPENDENCIES = [
     # Alembic is important to handle our migrations in predictable and performant way. It is developed
     # together with SQLAlchemy. Our experience with Alembic is that it very stable in minor version
@@ -415,7 +413,9 @@ DEPENDENCIES = [
     "pluggy>=1.5.0",
     "psutil>=5.8.0",
     "pydantic>=2.10.2",
-    "pygments>=2.0.1",
+    # Pygments 2.19.0 improperly renders .ini files with dictionaries as values
+    # See https://github.com/pygments/pygments/issues/2834
+    "pygments>=2.0.1,!=2.19.0",
     "pyjwt>=2.0.0",
     "python-daemon>=3.0.0",
     "python-dateutil>=2.7.0",

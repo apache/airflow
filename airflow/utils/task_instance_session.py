@@ -23,8 +23,6 @@ import traceback
 from typing import TYPE_CHECKING
 
 from airflow import settings
-from airflow.api_internal.internal_api_call import InternalApiConfig
-from airflow.settings import TracebackSession
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -37,9 +35,6 @@ log = logging.getLogger(__name__)
 def get_current_task_instance_session() -> Session:
     global __current_task_instance_session
     if not __current_task_instance_session:
-        if InternalApiConfig.get_use_internal_api():
-            __current_task_instance_session = TracebackSession()
-            return __current_task_instance_session
         log.warning("No task session set for this task. Continuing but this likely causes a resource leak.")
         log.warning("Please report this and stacktrace below to https://github.com/apache/airflow/issues")
         for filename, line_number, name, line in traceback.extract_stack():
@@ -52,9 +47,6 @@ def get_current_task_instance_session() -> Session:
 
 @contextlib.contextmanager
 def set_current_task_instance_session(session: Session):
-    if InternalApiConfig.get_use_internal_api():
-        yield
-        return
     global __current_task_instance_session
     if __current_task_instance_session:
         raise RuntimeError(

@@ -25,8 +25,8 @@ The purpose of this guide is to define tasks involving interactions with the MSS
 Use the :class:`SQLExecuteQueryOperator <airflow.providers.common.sql.operators.sql>` to execute
 SQL commands in MSSQL database.
 
-.. warning::
-    Previously, MsSqlOperator was used to perform this kind of operation. But at the moment MsSqlOperator is deprecated and will be removed in future versions of the provider. Please consider to switch to SQLExecuteQueryOperator as soon as possible.
+.. note::
+    Previously, ``MsSqlOperator`` was used to perform this kind of operation. Please use ``SQLExecuteQueryOperator`` instead.
 
 Common Database Operations with SQLExecuteQueryOperator
 -------------------------------------------------------

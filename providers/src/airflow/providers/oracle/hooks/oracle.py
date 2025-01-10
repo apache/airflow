@@ -23,7 +23,6 @@ from datetime import datetime
 
 import oracledb
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 PARAM_TYPES = {bool, float, int, str}
@@ -197,14 +196,6 @@ class OracleHook(DbApiHook):
                     dsn += f":{conn.port}"
                 if service_name:
                     dsn += f"/{service_name}"
-                elif conn.schema:
-                    warnings.warn(
-                        """Using conn.schema to pass the Oracle Service Name is deprecated.
-                        Please use conn.extra.service_name instead.""",
-                        AirflowProviderDeprecationWarning,
-                        stacklevel=2,
-                    )
-                    dsn += f"/{conn.schema}"
             conn_config["dsn"] = dsn
 
         if "events" in conn.extra_dejson:

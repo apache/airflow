@@ -22,9 +22,10 @@ description: |
     `Apache Spark <https://spark.apache.org/>`__
 
 state: ready
-source-date-epoch: 1731569377
+source-date-epoch: 1734528589
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 5.0.0
   - 4.11.3
   - 4.11.2
   - 4.11.1
@@ -65,7 +66,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.8.0
+  - apache-airflow>=2.9.0
   - pyspark>=3.1.3
   - grpcio-status>=1.59.0
 

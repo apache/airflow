@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import uuid
 from unittest import mock
 from unittest.mock import PropertyMock
@@ -30,7 +31,13 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.cosmos import AzureCosmosDBHook
 
+pytestmark = pytest.mark.db_test
+
 MODULE = "airflow.providers.microsoft.azure.hooks.cosmos"
+
+if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
+    # Handle collection of the test by non-db case
+    Connection = mock.MagicMock()  # type: ignore[misc]
 
 
 class TestAzureCosmosDbHook:

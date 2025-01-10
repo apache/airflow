@@ -23,15 +23,13 @@ type ItemGroupProps = {
   label: React.ReactNode;
 } & ChakraSelect.ItemGroupProps;
 
-export const ItemGroup = forwardRef<HTMLDivElement, ItemGroupProps>(
-  (props, ref) => {
-    const { children, label, ...rest } = props;
+export const ItemGroup = forwardRef<HTMLDivElement, ItemGroupProps>((props, ref) => {
+  const { children, label, ...rest } = props;
 
-    return (
-      <ChakraSelect.ItemGroup {...rest} ref={ref}>
-        <ChakraSelect.ItemGroupLabel>{label}</ChakraSelect.ItemGroupLabel>
-        {children}
-      </ChakraSelect.ItemGroup>
-    );
-  },
-);
+  return (
+    <ChakraSelect.ItemGroup {...rest} ref={ref}>
+      <ChakraSelect.ItemGroupLabel>{label}</ChakraSelect.ItemGroupLabel>
+      {children}
+    </ChakraSelect.ItemGroup>
+  );
+});

@@ -27,6 +27,44 @@
 Changelog
 ---------
 
+5.0.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the sftp provider package.
+  The following breaking changes were introduced:
+
+  * Removed deprecated ``ssh_hook`` parameter from ``SFTPOperator``. Use ``sftp_hook`` instead.
+  * Removed deprecated ``ssh_hook`` parameter from ``SFTPHook``.
+  * Removed deprecated ``ftp_conn_id`` parameter from ``SFTPHook``. Use ``ssh_conn_id`` instead.
+
+* ``Remove deprecations from SFTP Provider (#44740)``
+
+Features
+~~~~~~~~
+
+* ``feat: retrieve sftp file attrs onces instead multiple time (#44625)``
+* ``Add host_proxy_cmd parameter to SSHHook and SFTPHook (#44565)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+   * ``Prepare docs for Nov 1st wave of providers (#44011)``
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+
 4.11.1
 ......
 

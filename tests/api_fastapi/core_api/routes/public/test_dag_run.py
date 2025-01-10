@@ -89,6 +89,8 @@ def setup(request, dag_maker, session=None):
         start_date=START_DATE1,
     ):
         task1 = EmptyOperator(task_id="task_1")
+        task2 = EmptyOperator(task_id="task_2")
+
     dag_run1 = dag_maker.create_dagrun(
         run_id=DAG1_RUN1_ID,
         state=DAG1_RUN1_STATE,
@@ -99,17 +101,28 @@ def setup(request, dag_maker, session=None):
 
     dag_run1.note = (DAG1_RUN1_NOTE, 1)
 
-    ti1 = dag_run1.get_task_instance(task_id="task_1")
-    ti1.task = task1
-    ti1.state = State.SUCCESS
+    for task in [task1, task2]:
+        ti = dag_run1.get_task_instance(task_id=task.task_id)
+        ti.task = task
+        ti.state = State.SUCCESS
 
-    dag_maker.create_dagrun(
+        session.merge(ti)
+
+    dag_run2 = dag_maker.create_dagrun(
         run_id=DAG1_RUN2_ID,
         state=DAG1_RUN2_STATE,
         run_type=DAG1_RUN2_RUN_TYPE,
         triggered_by=DAG1_RUN2_TRIGGERED_BY,
         logical_date=LOGICAL_DATE2,
     )
+
+    ti1 = dag_run2.get_task_instance(task_id=task1.task_id)
+    ti1.task = task1
+    ti1.state = State.SUCCESS
+
+    ti2 = dag_run2.get_task_instance(task_id=task2.task_id)
+    ti2.task = task2
+    ti2.state = State.FAILED
 
     with dag_maker(DAG2_ID, schedule=None, start_date=START_DATE2, params=DAG2_PARAM):
         EmptyOperator(task_id="task_2")
@@ -132,6 +145,7 @@ def setup(request, dag_maker, session=None):
     dag_maker.dag_model
     dag_maker.dag_model.has_task_concurrency_limits = True
     session.merge(ti1)
+    session.merge(ti2)
     session.merge(dag_maker.dag_model)
     session.commit()
 
@@ -204,9 +218,9 @@ class TestGetDagRuns:
             "end_date": from_datetime_to_zulu(run.end_date),
             "data_interval_start": from_datetime_to_zulu_without_ms(run.data_interval_start),
             "data_interval_end": from_datetime_to_zulu_without_ms(run.data_interval_end),
-            "last_scheduling_decision": from_datetime_to_zulu(run.last_scheduling_decision)
-            if run.last_scheduling_decision
-            else None,
+            "last_scheduling_decision": (
+                from_datetime_to_zulu(run.last_scheduling_decision) if run.last_scheduling_decision else None
+            ),
             "run_type": run.run_type,
             "state": run.state,
             "external_trigger": run.external_trigger,
@@ -492,9 +506,11 @@ class TestListDagRunsBatch:
             "end_date": from_datetime_to_zulu(run.end_date),
             "data_interval_start": from_datetime_to_zulu_without_ms(run.data_interval_start),
             "data_interval_end": from_datetime_to_zulu_without_ms(run.data_interval_end),
-            "last_scheduling_decision": from_datetime_to_zulu_without_ms(run.last_scheduling_decision)
-            if run.last_scheduling_decision
-            else None,
+            "last_scheduling_decision": (
+                from_datetime_to_zulu_without_ms(run.last_scheduling_decision)
+                if run.last_scheduling_decision
+                else None
+            ),
             "run_type": run.run_type,
             "state": run.state,
             "external_trigger": run.external_trigger,
@@ -616,7 +632,7 @@ class TestListDagRunsBatch:
                 ],
             ),
             (
-                {"page_limit": -1, "offset": 1},
+                {"page_limit": -1, "page_offset": 1},
                 [
                     {
                         "type": "greater_than_equal",
@@ -887,7 +903,8 @@ class TestPatchDagRun:
                 {"note": "new_note2", "state": "failed"},
                 200,
             ),
-            ({"update_mask": ["note"]}, {}, {"state": "success", "note": None}, 200),
+            ({"update_mask": ["note"]}, {}, {"state": "success", "note": "test_note"}, 200),
+            ({"update_mask": ["note"]}, {"note": None}, {"state": "success", "note": None}, 200),
             (
                 {"update_mask": ["random"]},
                 {"state": DagRunState.FAILED},
@@ -941,7 +958,7 @@ class TestDeleteDagRun:
 
 class TestGetDagRunAssetTriggerEvents:
     def test_should_respond_200(self, test_client, dag_maker, session):
-        asset1 = Asset(uri="ds1")
+        asset1 = Asset(name="ds1", uri="file:///da1")
 
         with dag_maker(dag_id="source_dag", start_date=START_DATE1, session=session):
             EmptyOperator(task_id="task", outlets=[asset1])
@@ -975,7 +992,6 @@ class TestGetDagRunAssetTriggerEvents:
                 {
                     "timestamp": from_datetime_to_zulu(event.timestamp),
                     "asset_id": asset1_id,
-                    "uri": asset1.uri,
                     "extra": {},
                     "id": event.id,
                     "source_dag_id": ti.dag_id,
@@ -1006,8 +1022,8 @@ class TestGetDagRunAssetTriggerEvents:
         )
         assert response.status_code == 404
         assert (
-            "The DagRun with dag_id: `invalid-id` and run_id: `invalid-run-id` was not found"
-            == response.json()["detail"]
+            response.json()["detail"]
+            == "The DagRun with dag_id: `invalid-id` and run_id: `invalid-run-id` was not found"
         )
 
 
@@ -1024,16 +1040,21 @@ class TestClearDagRun:
         assert body["state"] == "queued"
 
     @pytest.mark.parametrize(
-        "body",
-        [{"dry_run": True}, {}],
+        "body, dag_run_id, expected_state",
+        [
+            [{"dry_run": True}, DAG1_RUN1_ID, ["success", "success"]],
+            [{}, DAG1_RUN1_ID, ["success", "success"]],
+            [{}, DAG1_RUN2_ID, ["success", "failed"]],
+            [{"only_failed": True}, DAG1_RUN2_ID, ["failed"]],
+        ],
     )
-    def test_clear_dag_run_dry_run(self, test_client, session, body):
-        response = test_client.post(f"/public/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear", json=body)
+    def test_clear_dag_run_dry_run(self, test_client, session, body, dag_run_id, expected_state):
+        response = test_client.post(f"/public/dags/{DAG1_ID}/dagRuns/{dag_run_id}/clear", json=body)
         assert response.status_code == 200
         body = response.json()
-        assert body["total_entries"] == 1
-        for each in body["task_instances"]:
-            assert each["state"] == "success"
+        assert body["total_entries"] == len(expected_state)
+        for index, each in enumerate(sorted(body["task_instances"], key=lambda x: x["task_id"])):
+            assert each["state"] == expected_state[index]
         dag_run = session.scalar(select(DagRun).filter_by(dag_id=DAG1_ID, run_id=DAG1_RUN1_ID))
         assert dag_run.state == DAG1_RUN1_STATE
 
@@ -1353,4 +1374,6 @@ class TestTriggerDagRun:
     def test_response_409(self, test_client):
         response = test_client.post(f"/public/dags/{DAG1_ID}/dagRuns", json={"dag_run_id": DAG1_RUN1_ID})
         assert response.status_code == 409
-        assert response.json()["detail"] == "Unique constraint violation"
+        response_json = response.json()
+        assert "detail" in response_json
+        assert list(response_json["detail"].keys()) == ["reason", "statement", "orig_error"]

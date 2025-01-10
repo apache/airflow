@@ -92,6 +92,24 @@ core:
       type: string
       example: ~
       default: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
+    simple_auth_manager_users:
+      description: |
+        The list of users and their associated role in simple auth manager. If the simple auth manager is
+        used in your environment, this list controls who can access the environment.
+
+        List of user-role delimited with a space. Each user-role is a comma delimited couple of username and
+        role. Roles are predefined in simple auth managers: viewer, user, op, admin.
+      version_added: 3.0.0
+      type: string
+      example: "bob:admin,peter:viewer"
+      default: "admin:admin"
+    simple_auth_manager_all_admins:
+      description: |
+        Whether to disable authentication and allow everyone as admin in the environment.
+      version_added: 3.0.0
+      type: string
+      example: ~
+      default: "False"
     parallelism:
       description: |
         This defines the maximum number of task instances that can run concurrently per scheduler in
@@ -908,7 +926,7 @@ logging:
       is_template: true
       default: "dag_id={{ ti.dag_id }}/run_id={{ ti.run_id }}/task_id={{ ti.task_id }}/\
                {%% if ti.map_index >= 0 %%}map_index={{ ti.map_index }}/{%% endif %%}\
-               attempt={{ try_number }}.log"
+               attempt={{ try_number|default(ti.try_number) }}.log"
     log_processor_filename_template:
       description: |
         Formatting for how airflow generates file names for log
@@ -2654,3 +2672,42 @@ usage_data_collection:
       example: ~
       default: "True"
       see_also: ":ref:`Usage data collection FAQ <usage-data-collection>`"
+dag_bundles:
+  description: |
+    Configuration for the DAG bundles. This allows Airflow to load DAGs from different sources.
+
+  options:
+    backends:
+      description: |
+        List of backend configs.  Must supply name, classpath, and kwargs for each backend.
+
+        By default, ``refresh_interval`` is set to ``[scheduler] dag_dir_list_interval``, but that can
+        also be overridden in kwargs if desired.
+
+        The default is the dags folder dag bundle.
+
+        Note: As shown below, you can split your json config over multiple lines by indenting.
+        See configparser documentation for an example:
+        https://docs.python.org/3/library/configparser.html#supported-ini-file-structure.
+      version_added: 3.0.0
+      type: string
+      example: >
+        [
+            {
+                "name": "my-git-repo",
+                "classpath": "airflow.dag_processing.bundles.git.GitDagBundle",
+                "kwargs": {
+                    "subdir": "dags",
+                    "repo_url": "git@github.com:example.com/my-dags.git",
+                    "tracking_ref": "main",
+                    "refresh_interval": 0
+            }
+            ]
+      default: >
+        [
+            {{
+              "name": "dags-folder",
+              "classpath": "airflow.dag_processing.bundles.dagfolder.DagsFolderDagBundle",
+              "kwargs": {{}}
+            }}
+            ]

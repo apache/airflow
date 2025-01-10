@@ -25,14 +25,13 @@ from typing import TYPE_CHECKING, Any, Callable, Union, overload
 
 from sqlalchemy import func, or_, select
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.exceptions import AirflowException, XComNotFound
 from airflow.models import MappedOperator, TaskInstance
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.taskmixin import DependencyMixin
-from airflow.sdk.types import NOTSET, ArgNotSet
+from airflow.sdk.definitions._internal.mixins import ResolveMixin
+from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 from airflow.utils.db import exists_query
-from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.state import State
@@ -45,7 +44,6 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.dag import DAG
-    from airflow.utils.context import Context
     from airflow.utils.edgemodifier import EdgeModifier
 
 # Callable objects contained by MapXComArg. We only accept callables from
@@ -207,8 +205,9 @@ class XComArg(ResolveMixin, DependencyMixin):
         """
         raise NotImplementedError()
 
-    @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
+    def resolve(
+        self, context: Mapping[str, Any], session: Session | None = None, *, include_xcom: bool = True
+    ) -> Any:
         """
         Pull XCom value.
 
@@ -230,53 +229,6 @@ class XComArg(ResolveMixin, DependencyMixin):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         SetupTeardownContext.set_work_task_roots_and_leaves()
-
-
-@internal_api_call
-@provide_session
-def _get_task_map_length(
-    *,
-    dag_id: str,
-    task_id: str,
-    run_id: str,
-    is_mapped: bool,
-    session: Session = NEW_SESSION,
-) -> int | None:
-    from airflow.models.taskinstance import TaskInstance
-    from airflow.models.taskmap import TaskMap
-    from airflow.models.xcom import XCom
-
-    if is_mapped:
-        unfinished_ti_exists = exists_query(
-            TaskInstance.dag_id == dag_id,
-            TaskInstance.run_id == run_id,
-            TaskInstance.task_id == task_id,
-            # Special NULL treatment is needed because 'state' can be NULL.
-            # The "IN" part would produce "NULL NOT IN ..." and eventually
-            # "NULl = NULL", which is a big no-no in SQL.
-            or_(
-                TaskInstance.state.is_(None),
-                TaskInstance.state.in_(s.value for s in State.unfinished if s is not None),
-            ),
-            session=session,
-        )
-        if unfinished_ti_exists:
-            return None  # Not all of the expanded tis are done yet.
-        query = select(func.count(XCom.map_index)).where(
-            XCom.dag_id == dag_id,
-            XCom.run_id == run_id,
-            XCom.task_id == task_id,
-            XCom.map_index >= 0,
-            XCom.key == XCOM_RETURN_KEY,
-        )
-    else:
-        query = select(TaskMap.length).where(
-            TaskMap.dag_id == dag_id,
-            TaskMap.run_id == run_id,
-            TaskMap.task_id == task_id,
-            TaskMap.map_index < 0,
-        )
-    return session.scalar(query)
 
 
 class PlainXComArg(XComArg):
@@ -428,16 +380,51 @@ class PlainXComArg(XComArg):
         return super().concat(*others)
 
     def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
-        return _get_task_map_length(
-            dag_id=self.operator.dag_id,
-            task_id=self.operator.task_id,
-            is_mapped=isinstance(self.operator, MappedOperator),
-            run_id=run_id,
-            session=session,
-        )
+        from airflow.models.taskinstance import TaskInstance
+        from airflow.models.taskmap import TaskMap
+        from airflow.models.xcom import XCom
 
+        dag_id = self.operator.dag_id
+        task_id = self.operator.task_id
+        is_mapped = isinstance(self.operator, MappedOperator)
+
+        if is_mapped:
+            unfinished_ti_exists = exists_query(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.run_id == run_id,
+                TaskInstance.task_id == task_id,
+                # Special NULL treatment is needed because 'state' can be NULL.
+                # The "IN" part would produce "NULL NOT IN ..." and eventually
+                # "NULl = NULL", which is a big no-no in SQL.
+                or_(
+                    TaskInstance.state.is_(None),
+                    TaskInstance.state.in_(s.value for s in State.unfinished if s is not None),
+                ),
+                session=session,
+            )
+            if unfinished_ti_exists:
+                return None  # Not all of the expanded tis are done yet.
+            query = select(func.count(XCom.map_index)).where(
+                XCom.dag_id == dag_id,
+                XCom.run_id == run_id,
+                XCom.task_id == task_id,
+                XCom.map_index >= 0,
+                XCom.key == XCOM_RETURN_KEY,
+            )
+        else:
+            query = select(TaskMap.length).where(
+                TaskMap.dag_id == dag_id,
+                TaskMap.run_id == run_id,
+                TaskMap.task_id == task_id,
+                TaskMap.map_index < 0,
+            )
+        return session.scalar(query)
+
+    # TODO: Task-SDK: Remove session argument once everything is ported over to Task SDK
     @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
+    def resolve(
+        self, context: Mapping[str, Any], session: Session = NEW_SESSION, *, include_xcom: bool = True
+    ) -> Any:
         ti = context["ti"]
         if TYPE_CHECKING:
             assert isinstance(ti, TaskInstance)
@@ -447,12 +434,12 @@ class PlainXComArg(XComArg):
             context["expanded_ti_count"],
             session=session,
         )
+
         result = ti.xcom_pull(
             task_ids=task_id,
             map_indexes=map_indexes,
             key=self.key,
             default=NOTSET,
-            session=session,
         )
         if not isinstance(result, ArgNotSet):
             return result
@@ -551,7 +538,9 @@ class MapXComArg(XComArg):
         return self.arg.get_task_map_length(run_id, session=session)
 
     @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
+    def resolve(
+        self, context: Mapping[str, Any], session: Session = NEW_SESSION, *, include_xcom: bool = True
+    ) -> Any:
         value = self.arg.resolve(context, session=session, include_xcom=include_xcom)
         if not isinstance(value, (Sequence, dict)):
             raise ValueError(f"XCom map expects sequence or dict, not {type(value).__name__}")
@@ -632,7 +621,9 @@ class ZipXComArg(XComArg):
         return max(ready_lengths)
 
     @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
+    def resolve(
+        self, context: Mapping[str, Any], session: Session = NEW_SESSION, *, include_xcom: bool = True
+    ) -> Any:
         values = [arg.resolve(context, session=session, include_xcom=include_xcom) for arg in self.args]
         for value in values:
             if not isinstance(value, (Sequence, dict)):
@@ -707,7 +698,9 @@ class ConcatXComArg(XComArg):
         return sum(ready_lengths)
 
     @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
+    def resolve(
+        self, context: Mapping[str, Any], session: Session = NEW_SESSION, *, include_xcom: bool = True
+    ) -> Any:
         values = [arg.resolve(context, session=session, include_xcom=include_xcom) for arg in self.args]
         for value in values:
             if not isinstance(value, (Sequence, dict)):

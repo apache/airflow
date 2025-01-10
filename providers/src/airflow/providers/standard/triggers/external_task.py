@@ -25,7 +25,7 @@ from sqlalchemy import func
 
 from airflow.models import DagRun
 from airflow.providers.standard.utils.sensor_helper import _get_count
-from airflow.providers.standard.utils.version_references import AIRFLOW_V_3_0_PLUS
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.session import NEW_SESSION, provide_session
 

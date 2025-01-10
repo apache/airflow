@@ -42,6 +42,7 @@ from sqlalchemy import (
     not_,
     or_,
     text,
+    tuple_,
     update,
 )
 from sqlalchemy.exc import IntegrityError
@@ -52,7 +53,6 @@ from sqlalchemy.sql.functions import coalesce
 from sqlalchemy_utils import UUIDType
 
 from airflow import settings
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
@@ -75,7 +75,7 @@ from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, tuple_in_condition, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, DagRunTriggeredByType, DagRunType
 
@@ -86,9 +86,6 @@ if TYPE_CHECKING:
 
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
-    from airflow.serialization.pydantic.dag_run import DagRunPydantic
-    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
-    from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
     from airflow.typing_compat import Literal
     from airflow.utils.types import ArgNotSet
 
@@ -611,7 +608,6 @@ class DagRun(Base, LoggingMixin):
         return DagRunType(run_type).generate_run_id(logical_date)
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def fetch_task_instances(
         dag_id: str | None = None,
@@ -648,7 +644,6 @@ class DagRun(Base, LoggingMixin):
             tis = tis.where(TI.task_id.in_(task_ids))
         return session.scalars(tis).all()
 
-    @internal_api_call
     def _check_last_n_dagruns_failed(self, dag_id, max_consecutive_failed_dag_runs, session):
         """Check if last N dags failed."""
         dag_runs = (
@@ -719,7 +714,7 @@ class DagRun(Base, LoggingMixin):
         session: Session = NEW_SESSION,
         *,
         map_index: int = -1,
-    ) -> TI | TaskInstancePydantic | None:
+    ) -> TI | None:
         """
         Return the task instance specified by task_id for this dag run.
 
@@ -735,7 +730,6 @@ class DagRun(Base, LoggingMixin):
         )
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def fetch_task_instance(
         dag_id: str,
@@ -743,7 +737,7 @@ class DagRun(Base, LoggingMixin):
         task_id: str,
         session: Session = NEW_SESSION,
         map_index: int = -1,
-    ) -> TI | TaskInstancePydantic | None:
+    ) -> TI | None:
         """
         Return the task instance specified by task_id for this dag run.
 
@@ -768,10 +762,9 @@ class DagRun(Base, LoggingMixin):
         return self.dag
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def get_previous_dagrun(
-        dag_run: DagRun | DagRunPydantic, state: DagRunState | None = None, session: Session = NEW_SESSION
+        dag_run: DagRun, state: DagRunState | None = None, session: Session = NEW_SESSION
     ) -> DagRun | None:
         """
         Return the previous DagRun, if there is one.
@@ -789,7 +782,6 @@ class DagRun(Base, LoggingMixin):
         return session.scalar(select(DagRun).where(*filters).order_by(DagRun.logical_date.desc()).limit(1))
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def get_previous_scheduled_dagrun(
         dag_run_id: int,
@@ -910,15 +902,11 @@ class DagRun(Base, LoggingMixin):
             if execute_callbacks:
                 dag.handle_callback(self, success=False, reason="task_failure", session=session)
             elif dag.has_on_failure_callback:
-                from airflow.models.dag import DagModel
-
-                dag_model = DagModel.get_dagmodel(dag.dag_id, session)
                 callback = DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
                     run_id=self.run_id,
                     is_failure_callback=True,
-                    processor_subdir=None if dag_model is None else dag_model.processor_subdir,
                     msg="task_failure",
                 )
 
@@ -941,15 +929,11 @@ class DagRun(Base, LoggingMixin):
             if execute_callbacks:
                 dag.handle_callback(self, success=True, reason="success", session=session)
             elif dag.has_on_success_callback:
-                from airflow.models.dag import DagModel
-
-                dag_model = DagModel.get_dagmodel(dag.dag_id, session)
                 callback = DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
                     run_id=self.run_id,
                     is_failure_callback=False,
-                    processor_subdir=None if dag_model is None else dag_model.processor_subdir,
                     msg="success",
                 )
 
@@ -962,15 +946,11 @@ class DagRun(Base, LoggingMixin):
             if execute_callbacks:
                 dag.handle_callback(self, success=False, reason="all_tasks_deadlocked", session=session)
             elif dag.has_on_failure_callback:
-                from airflow.models.dag import DagModel
-
-                dag_model = DagModel.get_dagmodel(dag.dag_id, session)
                 callback = DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
                     run_id=self.run_id,
                     is_failure_callback=True,
-                    processor_subdir=None if dag_model is None else dag_model.processor_subdir,
                     msg="all_tasks_deadlocked",
                 )
 
@@ -1665,7 +1645,7 @@ class DagRun(Base, LoggingMixin):
                     .where(
                         TI.dag_id == self.dag_id,
                         TI.run_id == self.run_id,
-                        tuple_in_condition((TI.task_id, TI.map_index), schedulable_ti_ids_chunk),
+                        tuple_(TI.task_id, TI.map_index).in_(schedulable_ti_ids_chunk),
                     )
                     .values(
                         state=TaskInstanceState.SCHEDULED,
@@ -1689,7 +1669,7 @@ class DagRun(Base, LoggingMixin):
                     .where(
                         TI.dag_id == self.dag_id,
                         TI.run_id == self.run_id,
-                        tuple_in_condition((TI.task_id, TI.map_index), dummy_ti_ids_chunk),
+                        tuple_(TI.task_id, TI.map_index).in_(dummy_ti_ids_chunk),
                     )
                     .values(
                         state=TaskInstanceState.SUCCESS,
@@ -1706,15 +1686,12 @@ class DagRun(Base, LoggingMixin):
         return count
 
     @provide_session
-    def get_log_template(self, *, session: Session = NEW_SESSION) -> LogTemplate | LogTemplatePydantic:
+    def get_log_template(self, *, session: Session = NEW_SESSION) -> LogTemplate:
         return DagRun._get_log_template(log_template_id=self.log_template_id, session=session)
 
     @staticmethod
-    @internal_api_call
     @provide_session
-    def _get_log_template(
-        log_template_id: int | None, session: Session = NEW_SESSION
-    ) -> LogTemplate | LogTemplatePydantic:
+    def _get_log_template(log_template_id: int | None, session: Session = NEW_SESSION) -> LogTemplate:
         template: LogTemplate | None
         if log_template_id is None:  # DagRun created before LogTemplate introduction.
             template = session.scalar(select(LogTemplate).order_by(LogTemplate.id).limit(1))

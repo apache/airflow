@@ -145,7 +145,7 @@ ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "pre-commit", "docker-compose"]
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.28.13", "v1.29.8", "v1.30.4", "v1.31.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.28.15", "v1.29.12", "v1.30.8", "v1.31.4", "v1.32.0"]
 
 LOCAL_EXECUTOR = "LocalExecutor"
 KUBERNETES_EXECUTOR = "KubernetesExecutor"
@@ -208,7 +208,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "24.3.1"
-UV_VERSION = "0.5.4"
+UV_VERSION = "0.5.14"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -421,6 +421,7 @@ AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
     "2.10.1": ["3.8", "3.9", "3.10", "3.11", "3.12"],
     "2.10.2": ["3.8", "3.9", "3.10", "3.11", "3.12"],
     "2.10.3": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.10.4": ["3.8", "3.9", "3.10", "3.11", "3.12"],
 }
 
 DB_RESET = False
@@ -544,7 +545,6 @@ FILES_FOR_REBUILD_CHECK = [
     "scripts/docker/common.sh",
     "scripts/docker/install_additional_dependencies.sh",
     "scripts/docker/install_airflow.sh",
-    "scripts/docker/install_airflow_dependencies_from_branch_tip.sh",
     "scripts/docker/install_from_docker_context_files.sh",
     "scripts/docker/install_mysql.sh",
 ]
@@ -555,8 +555,8 @@ CURRENT_EXECUTORS = [KUBERNETES_EXECUTOR]
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = "v0.24.0"
-HELM_VERSION = "v3.15.3"
+KIND_VERSION = "v0.26.0"
+HELM_VERSION = "v3.16.4"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
 USE_AIRFLOW_VERSION = None
@@ -607,16 +607,10 @@ DEFAULT_EXTRAS = [
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
-CHICKEN_EGG_PROVIDERS = " ".join(["standard amazon common.sql"])
+CHICKEN_EGG_PROVIDERS = " ".join(["common.compat", "cncf.kubernetes"])
 
 
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
-    {
-        "python-version": "3.9",
-        "airflow-version": "2.8.4",
-        "remove-providers": "cloudant fab edge",
-        "run-tests": "true",
-    },
     {
         "python-version": "3.9",
         "airflow-version": "2.9.3",
@@ -625,7 +619,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.9",
-        "airflow-version": "2.10.3",
+        "airflow-version": "2.10.4",
         "remove-providers": "cloudant fab",
         "run-tests": "true",
     },

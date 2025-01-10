@@ -21,17 +21,19 @@ from typing import Annotated, Literal, cast
 
 import pendulum
 from fastapi import Depends, HTTPException, Query, Request, status
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_failed,
     set_dag_run_state_to_queued,
     set_dag_run_state_to_success,
 )
-from airflow.api_fastapi.common.db.common import get_session, paginated_select
+from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
-    DagIdsFilter,
+    FilterOptionEnum,
+    FilterParam,
     LimitFilter,
     OffsetFilter,
     QueryDagRunStateFilter,
@@ -76,9 +78,7 @@ dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
         ]
     ),
 )
-def get_dag_run(
-    dag_id: str, dag_run_id: str, session: Annotated[Session, Depends(get_session)]
-) -> DAGRunResponse:
+def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep) -> DAGRunResponse:
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
     if dag_run is None:
         raise HTTPException(
@@ -99,7 +99,7 @@ def get_dag_run(
         ]
     ),
 )
-def delete_dag_run(dag_id: str, dag_run_id: str, session: Annotated[Session, Depends(get_session)]):
+def delete_dag_run(dag_id: str, dag_run_id: str, session: SessionDep):
     """Delete a DAG Run entry."""
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
 
@@ -125,7 +125,7 @@ def patch_dag_run(
     dag_id: str,
     dag_run_id: str,
     patch_body: DAGRunPatchBody,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     request: Request,
     update_mask: list[str] | None = Query(None),
 ) -> DAGRunResponse:
@@ -142,10 +142,17 @@ def patch_dag_run(
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 
+    fields_to_update = patch_body.model_fields_set
+
     if update_mask:
-        data = patch_body.model_dump(include=set(update_mask))
+        fields_to_update = fields_to_update.intersection(update_mask)
+        data = patch_body.model_dump(include=fields_to_update, by_alias=True)
     else:
-        data = patch_body.model_dump()
+        try:
+            DAGRunPatchBody(**patch_body.model_dump())
+        except ValidationError as e:
+            raise RequestValidationError(errors=e.errors())
+        data = patch_body.model_dump(by_alias=True)
 
     for attr_name, attr_value in data.items():
         if attr_name == "state":
@@ -180,7 +187,7 @@ def patch_dag_run(
     ),
 )
 def get_upstream_asset_events(
-    dag_id: str, dag_run_id: str, session: Annotated[Session, Depends(get_session)]
+    dag_id: str, dag_run_id: str, session: SessionDep
 ) -> AssetEventCollectionResponse:
     """If dag run is asset-triggered, return the asset events that triggered it."""
     dag_run: DagRun | None = session.scalar(
@@ -209,7 +216,7 @@ def clear_dag_run(
     dag_run_id: str,
     body: DAGRunClearBody,
     request: Request,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> TaskInstanceCollectionResponse | DAGRunResponse:
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
     if dag_run is None:
@@ -227,7 +234,7 @@ def clear_dag_run(
             start_date=start_date,
             end_date=end_date,
             task_ids=None,
-            only_failed=False,
+            only_failed=body.only_failed,
             dry_run=True,
             session=session,
         )
@@ -238,10 +245,10 @@ def clear_dag_run(
         )
     else:
         dag.clear(
-            start_date=dag_run.start_date,
-            end_date=dag_run.end_date,
+            start_date=start_date,
+            end_date=end_date,
             task_ids=None,
-            only_failed=False,
+            only_failed=body.only_failed,
             session=session,
         )
         dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
@@ -279,7 +286,7 @@ def get_dag_runs(
             ).dynamic_depends(default="id")
         ),
     ],
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     request: Request,
 ) -> DAGRunCollectionResponse:
     """
@@ -322,7 +329,7 @@ def get_dag_runs(
     ),
 )
 def trigger_dag_run(
-    dag_id, body: TriggerDAGRunPostBody, request: Request, session: Annotated[Session, Depends(get_session)]
+    dag_id, body: TriggerDAGRunPostBody, request: Request, session: SessionDep
 ) -> DAGRunResponse:
     """Trigger a DAG."""
     dm = session.scalar(select(DagModel).where(DagModel.is_active, DagModel.dag_id == dag_id).limit(1))
@@ -374,10 +381,10 @@ def trigger_dag_run(
 
 @dag_run_router.post("/list", responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]))
 def get_list_dag_runs_batch(
-    dag_id: Literal["~"], body: DAGRunsBatchBody, session: Annotated[Session, Depends(get_session)]
+    dag_id: Literal["~"], body: DAGRunsBatchBody, session: SessionDep
 ) -> DAGRunCollectionResponse:
     """Get a list of DAG Runs."""
-    dag_ids = DagIdsFilter(DagRun, body.dag_ids)
+    dag_ids = FilterParam(DagRun.dag_id, body.dag_ids, FilterOptionEnum.IN)
     logical_date = RangeFilter(
         Range(lower_bound=body.logical_date_gte, upper_bound=body.logical_date_lte),
         attribute=DagRun.logical_date,
@@ -390,8 +397,7 @@ def get_list_dag_runs_batch(
         Range(lower_bound=body.end_date_gte, upper_bound=body.end_date_lte),
         attribute=DagRun.end_date,
     )
-
-    state = QueryDagRunStateFilter(body.states)
+    state = FilterParam(DagRun.state, body.states, FilterOptionEnum.ANY_EQUAL)
 
     offset = OffsetFilter(body.page_offset)
     limit = LimitFilter(body.page_limit)

@@ -70,10 +70,10 @@ from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import TaskGroup
+from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
+from airflow.sdk.definitions._internal.templater import NativeEnvironment, SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
-from airflow.sdk.definitions.contextmanager import TaskGroupContext
 from airflow.security import permissions
-from airflow.templates import NativeEnvironment, SandboxedEnvironment
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import (
     AssetTriggeredTimetable,
@@ -96,7 +96,6 @@ from tests.plugins.priority_weight_strategy import (
     TestPriorityWeightStrategyPlugin,
 )
 from tests_common.test_utils.asserts import assert_queries_count
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
@@ -107,6 +106,7 @@ from tests_common.test_utils.db import (
 from tests_common.test_utils.mapping import expand_mapped_task
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
 from tests_common.test_utils.timetables import cron_timetable, delta_timetable
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -114,7 +114,7 @@ if AIRFLOW_V_3_0_PLUS:
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
 
@@ -358,22 +358,35 @@ class TestDag:
         session.merge(ti4)
         session.commit()
 
-        assert 0 == DAG.get_num_task_instances(test_dag_id, task_ids=["fakename"], session=session)
-        assert 4 == DAG.get_num_task_instances(test_dag_id, task_ids=[test_task_id], session=session)
-        assert 4 == DAG.get_num_task_instances(
-            test_dag_id, task_ids=["fakename", test_task_id], session=session
+        assert DAG.get_num_task_instances(test_dag_id, task_ids=["fakename"], session=session) == 0
+        assert DAG.get_num_task_instances(test_dag_id, task_ids=[test_task_id], session=session) == 4
+        assert (
+            DAG.get_num_task_instances(test_dag_id, task_ids=["fakename", test_task_id], session=session) == 4
         )
-        assert 1 == DAG.get_num_task_instances(
-            test_dag_id, task_ids=[test_task_id], states=[None], session=session
+        assert (
+            DAG.get_num_task_instances(test_dag_id, task_ids=[test_task_id], states=[None], session=session)
+            == 1
         )
-        assert 2 == DAG.get_num_task_instances(
-            test_dag_id, task_ids=[test_task_id], states=[State.RUNNING], session=session
+        assert (
+            DAG.get_num_task_instances(
+                test_dag_id, task_ids=[test_task_id], states=[State.RUNNING], session=session
+            )
+            == 2
         )
-        assert 3 == DAG.get_num_task_instances(
-            test_dag_id, task_ids=[test_task_id], states=[None, State.RUNNING], session=session
+        assert (
+            DAG.get_num_task_instances(
+                test_dag_id, task_ids=[test_task_id], states=[None, State.RUNNING], session=session
+            )
+            == 3
         )
-        assert 4 == DAG.get_num_task_instances(
-            test_dag_id, task_ids=[test_task_id], states=[None, State.QUEUED, State.RUNNING], session=session
+        assert (
+            DAG.get_num_task_instances(
+                test_dag_id,
+                task_ids=[test_task_id],
+                states=[None, State.QUEUED, State.RUNNING],
+                session=session,
+            )
+            == 4
         )
         session.close()
 
@@ -617,7 +630,7 @@ class TestDag:
             for i in range(4)
         ]
 
-        with assert_queries_count(5):
+        with assert_queries_count(6):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
@@ -634,14 +647,14 @@ class TestDag:
                 assert row[0] is not None
 
         # Re-sync should do fewer queries
-        with assert_queries_count(8):
+        with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
-        with assert_queries_count(8):
+        with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
         # Adding tags
         for dag in dags:
             dag.tags.add("test-dag2")
-        with assert_queries_count(9):
+        with assert_queries_count(10):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
@@ -660,7 +673,7 @@ class TestDag:
         # Removing tags
         for dag in dags:
             dag.tags.remove("test-dag")
-        with assert_queries_count(9):
+        with assert_queries_count(10):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
@@ -679,7 +692,7 @@ class TestDag:
         # Removing all tags
         for dag in dags:
             dag.tags = set()
-        with assert_queries_count(9):
+        with assert_queries_count(10):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
@@ -700,7 +713,7 @@ class TestDag:
             for i in range(1)
         ]
 
-        with assert_queries_count(5):
+        with assert_queries_count(6):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0"} == {row[0] for row in session.query(DagModel.dag_id).all()}
@@ -727,7 +740,7 @@ class TestDag:
             for i in range(4)
         ]
 
-        with assert_queries_count(5):
+        with assert_queries_count(6):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
@@ -744,9 +757,9 @@ class TestDag:
                 assert row[0] is not None
 
         # Re-sync should do fewer queries
-        with assert_queries_count(8):
+        with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
-        with assert_queries_count(8):
+        with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
 
     @pytest.mark.parametrize("interval", [None, "@daily"])
@@ -844,15 +857,24 @@ class TestDag:
         """
         dag_id1 = "test_asset_dag1"
         dag_id2 = "test_asset_dag2"
+
         task_id = "test_asset_task"
+
         uri1 = "s3://asset/1"
-        a1 = Asset(uri1, extra={"not": "used"})
-        a2 = Asset("s3://asset/2")
-        a3 = Asset("s3://asset/3")
+        a1 = Asset(uri=uri1, name="test_asset_1", extra={"not": "used"}, group="test-group")
+        a2 = Asset(uri="s3://asset/2", name="test_asset_2", group="test-group")
+        a3 = Asset(uri="s3://asset/3", name="test_asset-3", group="test-group")
+
         dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=[a1])
         EmptyOperator(task_id=task_id, dag=dag1, outlets=[a2, a3])
+
         dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE, schedule=None)
-        EmptyOperator(task_id=task_id, dag=dag2, outlets=[Asset(uri1, extra={"should": "be used"})])
+        EmptyOperator(
+            task_id=task_id,
+            dag=dag2,
+            outlets=[Asset(uri=uri1, name="test_asset_1", extra={"should": "be used"}, group="test-group")],
+        )
+
         session = settings.Session()
         dag1.clear()
         DAG.bulk_write_to_db([dag1, dag2], session=session)
@@ -921,10 +943,10 @@ class TestDag:
         """
         # Create four assets - two that have references and two that are unreferenced and marked as
         # orphans
-        asset1 = Asset(uri="ds1")
-        asset2 = Asset(uri="ds2")
-        asset3 = Asset(uri="ds3")
-        asset4 = Asset(uri="ds4")
+        asset1 = Asset(uri="test://asset1", name="asset1", group="test-group")
+        asset2 = Asset(uri="test://asset2", name="asset2", group="test-group")
+        asset3 = Asset(uri="test://asset3", name="asset3", group="test-group")
+        asset4 = Asset(uri="test://asset4", name="asset4", group="test-group")
 
         dag1 = DAG(dag_id="assets-1", start_date=DEFAULT_DATE, schedule=[asset1])
         BashOperator(dag=dag1, task_id="task", bash_command="echo 1", outlets=[asset3])
@@ -972,54 +994,6 @@ class TestDag:
         assert asset_alias_2_orm.name == "asset_alias_2"
         assert asset_alias_3_orm.name == "asset_alias_3"
         assert len(stored_asset_alias_models) == 3
-
-    def test_sync_to_db(self):
-        dag = DAG("dag", start_date=DEFAULT_DATE, schedule=None)
-        with dag:
-            EmptyOperator(task_id="task", owner="owner1")
-            EmptyOperator(task_id="task2", owner="owner2")
-        session = settings.Session()
-        dag.sync_to_db(session=session)
-
-        orm_dag = session.query(DagModel).filter(DagModel.dag_id == "dag").one()
-        assert set(orm_dag.owners.split(", ")) == {"owner1", "owner2"}
-        assert orm_dag.is_active
-        assert orm_dag.default_view is not None
-        assert orm_dag.default_view == conf.get("webserver", "dag_default_view").lower()
-        assert orm_dag.safe_dag_id == "dag"
-        session.close()
-
-    def test_sync_to_db_default_view(self):
-        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_view="graph")
-        with dag:
-            EmptyOperator(task_id="task", owner="owner1")
-        session = settings.Session()
-        dag.sync_to_db(session=session)
-
-        orm_dag = session.query(DagModel).filter(DagModel.dag_id == "dag").one()
-        assert orm_dag.default_view is not None
-        assert orm_dag.default_view == "graph"
-        session.close()
-
-    def test_existing_dag_is_paused_upon_creation(self):
-        dag = DAG("dag_paused", schedule=None)
-        dag.sync_to_db()
-        assert not dag.get_is_paused()
-
-        dag = DAG("dag_paused", schedule=None, is_paused_upon_creation=True)
-        dag.sync_to_db()
-        # Since the dag existed before, it should not follow the pause flag upon creation
-        assert not dag.get_is_paused()
-
-    def test_new_dag_is_paused_upon_creation(self):
-        dag = DAG("new_nonexisting_dag", schedule=None, is_paused_upon_creation=True)
-        session = settings.Session()
-        dag.sync_to_db(session=session)
-
-        orm_dag = session.query(DagModel).filter(DagModel.dag_id == "new_nonexisting_dag").one()
-        # Since the dag didn't exist before, it should follow the pause flag upon creation
-        assert orm_dag.is_paused
-        session.close()
 
     @mock.patch.dict(
         os.environ,
@@ -1074,31 +1048,20 @@ class TestDag:
         dag.clear()
         self._clean_up(dag_id)
 
-    def test_existing_dag_default_view(self):
-        with create_session() as session:
-            session.add(DagModel(dag_id="dag_default_view_old", default_view=None))
-            session.commit()
-            orm_dag = session.query(DagModel).filter(DagModel.dag_id == "dag_default_view_old").one()
-        assert orm_dag.default_view is None
-        assert orm_dag.get_default_view() == conf.get("webserver", "dag_default_view").lower()
-
     def test_dag_is_deactivated_upon_dagfile_deletion(self):
         dag_id = "old_existing_dag"
         dag_fileloc = "/usr/local/airflow/dags/non_existing_path.py"
         dag = DAG(dag_id, schedule=None, is_paused_upon_creation=True)
         dag.fileloc = dag_fileloc
         session = settings.Session()
-        dag.sync_to_db(session=session, processor_subdir="/usr/local/airflow/dags/")
+        dag.sync_to_db(session=session)
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
 
         assert orm_dag.is_active
         assert orm_dag.fileloc == dag_fileloc
 
-        DagModel.deactivate_deleted_dags(
-            list_py_file_paths(settings.DAGS_FOLDER),
-            processor_subdir="/usr/local/airflow/dags/",
-        )
+        DagModel.deactivate_deleted_dags(list_py_file_paths(settings.DAGS_FOLDER))
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
         assert not orm_dag.is_active
@@ -1135,11 +1098,11 @@ class TestDag:
         assert dag_run is not None
         assert dag.dag_id == dag_run.dag_id
         assert dag_run.run_id is not None
-        assert "" != dag_run.run_id
+        assert dag_run.run_id != ""
         assert (
-            TEST_DATE == dag_run.logical_date
+            dag_run.logical_date == TEST_DATE
         ), f"dag_run.logical_date did not match expectation: {dag_run.logical_date}"
-        assert State.RUNNING == dag_run.state
+        assert dag_run.state == State.RUNNING
         assert not dag_run.external_trigger
         dag.clear()
         self._clean_up(dag_id)
@@ -1394,8 +1357,11 @@ class TestDag:
         assert dag.timetable.description == interval_description
 
     def test_timetable_and_description_from_asset(self):
-        dag = DAG("test_schedule_interval_arg", schedule=[Asset(uri="hello")], start_date=TEST_DATE)
-        assert dag.timetable == AssetTriggeredTimetable(Asset(uri="hello"))
+        uri = "test://asset"
+        dag = DAG(
+            "test_schedule_interval_arg", schedule=[Asset(uri=uri, group="test-group")], start_date=TEST_DATE
+        )
+        assert dag.timetable == AssetTriggeredTimetable(Asset(uri=uri, group="test-group"))
         assert dag.timetable.description == "Triggered by assets"
 
     @pytest.mark.parametrize(
@@ -2160,7 +2126,7 @@ class TestDagModel:
         session.close()
 
     def test_dags_needing_dagruns_assets(self, dag_maker, session):
-        asset = Asset(uri="hello")
+        asset = Asset(uri="test://asset", group="test-group")
         with dag_maker(
             session=session,
             dag_id="my_dag",
@@ -2225,7 +2191,6 @@ class TestDagModel:
 
         # add queue records so we'll need a run
         dag_model = dag_maker.dag_model
-        asset_model: AssetModel = dag_model.schedule_assets[0]
         session.add(AssetDagRunQueue(asset_id=asset_model.id, target_dag_id=dag_model.dag_id))
         session.flush()
         query, _ = DagModel.dags_needing_dagruns(session)
@@ -2248,6 +2213,34 @@ class TestDagModel:
         query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
         assert dag_models == [dag_model]
+
+    @pytest.mark.parametrize("ref", [Asset.ref(name="1"), Asset.ref(uri="s3://bucket/assets/1")])
+    @pytest.mark.want_activate_assets
+    @pytest.mark.need_serialized_dag
+    def test_dags_needing_dagruns_asset_refs(self, dag_maker, session, ref):
+        asset = Asset(name="1", uri="s3://bucket/assets/1")
+
+        with dag_maker(dag_id="producer", schedule=None, session=session):
+            op = EmptyOperator(task_id="op", outlets=asset)
+
+        dr: DagRun = dag_maker.create_dagrun()
+
+        with dag_maker(dag_id="consumer", schedule=ref, max_active_runs=1):
+            pass
+
+        # Nothing from the upstream yet, no runs needed.
+        assert session.scalars(select(AssetDagRunQueue.target_dag_id)).all() == []
+        query, _ = DagModel.dags_needing_dagruns(session)
+        assert query.all() == []
+
+        # Upstream triggered, now we need a run.
+        ti = dr.get_task_instance("op")
+        ti.refresh_from_task(op)
+        ti.run()
+
+        assert session.scalars(select(AssetDagRunQueue.target_dag_id)).all() == ["consumer"]
+        query, _ = DagModel.dags_needing_dagruns(session)
+        assert [dm.dag_id for dm in query] == ["consumer"]
 
     def test_max_active_runs_not_none(self):
         dag = DAG(
@@ -2392,8 +2385,8 @@ class TestDagModel:
 
     @pytest.mark.need_serialized_dag
     def test_dags_needing_dagruns_asset_triggered_dag_info_queued_times(self, session, dag_maker):
-        asset1 = Asset(uri="ds1")
-        asset2 = Asset(uri="ds2")
+        asset1 = Asset(uri="test://asset1", group="test-group")
+        asset2 = Asset(uri="test://asset2", name="test_asset_2", group="test-group")
 
         for dag_id, asset in [("assets-1", asset1), ("assets-2", asset2)]:
             with dag_maker(dag_id=dag_id, start_date=timezone.utcnow(), session=session):
@@ -2432,7 +2425,7 @@ class TestDagModel:
         session.flush()
 
         query, asset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
-        assert 1 == len(asset_triggered_dag_info)
+        assert len(asset_triggered_dag_info) == 1
         assert dag.dag_id in asset_triggered_dag_info
         first_queued_time, last_queued_time = asset_triggered_dag_info[dag.dag_id]
         assert first_queued_time == DEFAULT_DATE
@@ -2442,12 +2435,17 @@ class TestDagModel:
         dag = DAG(
             dag_id="test_dag_asset_expression",
             schedule=AssetAny(
-                Asset("s3://dag1/output_1.txt", extra={"hi": "bye"}),
+                Asset(uri="s3://dag1/output_1.txt", extra={"hi": "bye"}, group="test-group"),
                 AssetAll(
-                    Asset("s3://dag2/output_1.txt", extra={"hi": "bye"}),
-                    Asset("s3://dag3/output_3.txt", extra={"hi": "bye"}),
+                    Asset(
+                        uri="s3://dag2/output_1.txt",
+                        name="test_asset_2",
+                        extra={"hi": "bye"},
+                        group="test-group",
+                    ),
+                    Asset("s3://dag3/output_3.txt", extra={"hi": "bye"}, group="test-group"),
                 ),
-                AssetAlias(name="test_name"),
+                AssetAlias(name="test_name", group="test-group"),
             ),
             start_date=datetime.datetime.min,
         )
@@ -2456,9 +2454,32 @@ class TestDagModel:
         expression = session.scalars(select(DagModel.asset_expression).filter_by(dag_id=dag.dag_id)).one()
         assert expression == {
             "any": [
-                "s3://dag1/output_1.txt",
-                {"all": ["s3://dag2/output_1.txt", "s3://dag3/output_3.txt"]},
-                {"alias": "test_name"},
+                {
+                    "asset": {
+                        "uri": "s3://dag1/output_1.txt",
+                        "name": "s3://dag1/output_1.txt",
+                        "group": "test-group",
+                    }
+                },
+                {
+                    "all": [
+                        {
+                            "asset": {
+                                "uri": "s3://dag2/output_1.txt",
+                                "name": "test_asset_2",
+                                "group": "test-group",
+                            }
+                        },
+                        {
+                            "asset": {
+                                "uri": "s3://dag3/output_3.txt",
+                                "name": "s3://dag3/output_3.txt",
+                                "group": "test-group",
+                            }
+                        },
+                    ]
+                },
+                {"alias": {"name": "test_name", "group": "test-group"}},
             ]
         }
 
@@ -3013,9 +3034,9 @@ def test__time_restriction(dag_maker, dag_date, tasks_date, restrict):
 
 @pytest.mark.need_serialized_dag
 def test_get_asset_triggered_next_run_info(dag_maker, clear_assets):
-    asset1 = Asset(uri="ds1")
-    asset2 = Asset(uri="ds2")
-    asset3 = Asset(uri="ds3")
+    asset1 = Asset(uri="test://asset1", name="test_asset1", group="test-group")
+    asset2 = Asset(uri="test://asset2", group="test-group")
+    asset3 = Asset(uri="test://asset3", group="test-group")
     with dag_maker(dag_id="assets-1", schedule=[asset2]):
         pass
     dag1 = dag_maker.dag

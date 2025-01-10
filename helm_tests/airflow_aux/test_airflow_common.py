@@ -99,7 +99,7 @@ class TestAirflowCommon:
             ],
         )
 
-        assert 3 == len(docs)
+        assert len(docs) == 3
         for doc in docs:
             assert expected_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", doc)
 
@@ -164,7 +164,7 @@ class TestAirflowCommon:
             ],
         )
 
-        assert 7 == len(k8s_objects)
+        assert len(k8s_objects) == 7
 
         for k8s_object in k8s_objects:
             if k8s_object["kind"] == "CronJob":
@@ -225,7 +225,7 @@ class TestAirflowCommon:
             ],
         )
 
-        assert 12 == len(k8s_objects)
+        assert len(k8s_objects) == 12
 
         for k8s_object in k8s_objects:
             if k8s_object["kind"] == "CronJob":
@@ -233,17 +233,20 @@ class TestAirflowCommon:
             else:
                 podSpec = jmespath.search("spec.template.spec", k8s_object)
 
-            assert "foo" == jmespath.search(
-                "affinity.nodeAffinity."
-                "requiredDuringSchedulingIgnoredDuringExecution."
-                "nodeSelectorTerms[0]."
-                "matchExpressions[0]."
-                "key",
-                podSpec,
+            assert (
+                jmespath.search(
+                    "affinity.nodeAffinity."
+                    "requiredDuringSchedulingIgnoredDuringExecution."
+                    "nodeSelectorTerms[0]."
+                    "matchExpressions[0]."
+                    "key",
+                    podSpec,
+                )
+                == "foo"
             )
-            assert "user-node" == jmespath.search("nodeSelector.type", podSpec)
-            assert "static-pods" == jmespath.search("tolerations[0].key", podSpec)
-            assert "foo" == jmespath.search("topologySpreadConstraints[0].topologyKey", podSpec)
+            assert jmespath.search("nodeSelector.type", podSpec) == "user-node"
+            assert jmespath.search("tolerations[0].key", podSpec) == "static-pods"
+            assert jmespath.search("topologySpreadConstraints[0].topologyKey", podSpec) == "foo"
 
     @pytest.mark.parametrize(
         "expected_image,tag,digest",
@@ -318,7 +321,10 @@ class TestAirflowCommon:
                     "AIRFLOW__CORE__SQL_ALCHEMY_CONN": False,
                     "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": False,
                     "AIRFLOW__WEBSERVER__SECRET_KEY": False,
+                    # the following vars only appear if remote logging is set, so disabling them in this test is kind of a no-op
                     "AIRFLOW__ELASTICSEARCH__HOST": False,
+                    "AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST": False,
+                    "AIRFLOW__OPENSEARCH__HOST": False,
                 },
             },
             show_only=[
@@ -384,7 +390,7 @@ class TestAirflowCommon:
                 "templates/dag-processor/dag-processor-deployment.yaml",
             ],
         )
-        assert 5 == len(docs)
+        assert len(docs) == 5
         expected_mount = {
             "subPath": "airflow.cfg",
             "name": "config",
@@ -424,7 +430,7 @@ class TestAirflowCommon:
             ],
         )
 
-        assert 10 == len(docs)
+        assert len(docs) == 10
         for doc in docs:
             component = doc["metadata"]["labels"]["component"]
             if component == "airflow-cleanup-pods":

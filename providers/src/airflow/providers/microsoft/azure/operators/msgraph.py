@@ -280,7 +280,7 @@ class MSGraphAsyncOperator(BaseOperator):
             if top and odata_count:
                 if len(response.get("value", [])) == top and context:
                     results = operator.pull_xcom(context=context)
-                    skip = sum(map(lambda result: len(result["value"]), results)) + top if results else top
+                    skip = sum([len(result["value"]) for result in results]) + top if results else top  # type: ignore
                     query_parameters["$skip"] = skip
                     return operator.url, query_parameters
         return response.get("@odata.nextLink"), operator.query_parameters

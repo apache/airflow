@@ -182,7 +182,6 @@ class TestXComArgRuntime:
         dag.test()
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 @pytest.mark.parametrize(
     "fillvalue, expected_results",
     [

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.providers.arangodb.operators.arangodb import AQLOperator
+from airflow.providers.arangodb.operators.arangodb import AQLOperator, ArangoDBCollectionOperator
 
 
 class TestAQLOperator:
@@ -29,3 +29,21 @@ class TestAQLOperator:
         op.execute(mock.MagicMock())
         mock_hook.assert_called_once_with(arangodb_conn_id="arangodb_default")
         mock_hook.return_value.query.assert_called_once_with(arangodb_query)
+
+
+class TestArangoDBCollectionOperator:
+    @mock.patch("airflow.providers.arangodb.operators.arangodb.ArangoDBHook")
+    def test_insert_documents(self, mock_hook):
+        documents_to_insert = [{"_key": "lola", "first": "Lola", "last": "Martin"}]
+        op = ArangoDBCollectionOperator(
+            task_id="insert_task",
+            collection_name="students",
+            documents_to_insert=documents_to_insert,
+            documents_to_update=None,
+            documents_to_replace=None,
+            documents_to_delete=None,
+            delete_collection=False,
+        )
+        op.execute(mock.MagicMock())
+        mock_hook.assert_called_once_with(arangodb_conn_id="arangodb_default")
+        mock_hook.return_value.insert_documents.assert_called_once_with("students", documents_to_insert)

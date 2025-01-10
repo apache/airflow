@@ -21,17 +21,21 @@ import os
 from collections.abc import Generator
 from contextlib import contextmanager
 from functools import cache
+from os.path import isabs
 from typing import TYPE_CHECKING
 
 from flask import Flask
+from sqlalchemy.engine import make_url
 
 import airflow
 from airflow.configuration import conf
-from airflow.www.extensions.init_appbuilder import init_appbuilder
-from airflow.www.extensions.init_views import init_plugins
+from airflow.exceptions import AirflowConfigException
+from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
+from airflow.providers.fab.www.extensions.init_session import init_airflow_session_interface
+from airflow.providers.fab.www.extensions.init_views import init_plugins
 
 if TYPE_CHECKING:
-    from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
+    from airflow.providers.fab.www.extensions.init_appbuilder import AirflowAppBuilder
 
 
 @cache
@@ -39,6 +43,7 @@ def _return_appbuilder(app: Flask) -> AirflowAppBuilder:
     """Return an appbuilder instance for the given app."""
     init_appbuilder(app)
     init_plugins(app)
+    init_airflow_session_interface(app)
     return app.appbuilder  # type: ignore[attr-defined]
 
 
@@ -50,4 +55,12 @@ def get_application_builder() -> Generator[AirflowAppBuilder, None, None]:
     with flask_app.app_context():
         # Enable customizations in webserver_config.py to be applied via Flask.current_app.
         flask_app.config.from_pyfile(webserver_config, silent=True)
+        flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
+        url = make_url(flask_app.config["SQLALCHEMY_DATABASE_URI"])
+        if url.drivername == "sqlite" and url.database and not isabs(url.database):
+            raise AirflowConfigException(
+                f'Cannot use relative path: `{conf.get("database", "SQL_ALCHEMY_CONN")}` to connect to sqlite. '
+                "Please use absolute path such as `sqlite:////tmp/airflow.db`."
+            )
+        flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
         yield _return_appbuilder(flask_app)

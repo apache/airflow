@@ -130,7 +130,7 @@ Add chicken-egg-provider to compatibility checks
 ................................................
 
 Providers that have "min-airflow-version" set to the new, upcoming versions should be excluded in
-all previous versions of compatibility check matrix in ``BASE_PROVIDERS_COMPATIBILITY_CHECKS`` in
+all previous versions of compatibility check matrix in ``PROVIDERS_COMPATIBILITY_TESTS_MATRIX`` in
 ``src/airflow_breeze/global_constants.py``. Please add it to all previous versions
 
 Add chicken-egg-provider to constraint generation
@@ -433,6 +433,31 @@ the compatibility checks should be updated when min airflow version is updated.
 Details on how this should be done are described in
 `Provider policies <https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDER_PACKAGES.md>`_
 
+Conditional provider variants
+=============================
+
+Sometimes providers need to have different variants for different versions of Airflow. This is done by:
+
+* copying ``version_compat.py`` from one of the providers that already have conditional variants to
+  the root package of the provider you are working on
+
+* importing the ``AIRFLOW_V_X_Y_PLUS`` that you need from that imported ``version_compat.py`` file.
+
+The main reasons we are doing it in this way:
+
+* checking version >= in Python has a non-obvious problem that the pre-release version is always considered
+  lower than the final version. This is why we are using ``AIRFLOW_V_X_Y_PLUS`` to check for the version
+  that is greater or equal to the version we are checking against - because we want the RC candidates
+  to be considered as equal to the final version (because those RC candidates already contain the feature
+  that is added in the final version).
+* We do not want to add dependencies to another provider (say ``common.compat``) without strong need
+* Even if the code is duplicated, it is just one ``version_compat.py`` file that is wholly copied
+  and it is not a big deal to maintain it.
+* There is a potential risk of one provider importing the same ``AIRFLOW_V_X_Y_PLUS`` from another provider
+  (and introduce accidental dependency) or from test code (which should not happen), but we are preventing it
+  via pre-commit check ``check-imports-in-providers`` that will fail if the
+  ``version_compat`` module is imported from another provider or from test code.
+
 Releasing pre-installed providers for the first time
 ====================================================
 
@@ -445,6 +470,18 @@ You need to add ``--include-not-ready-providers`` if you want to add them to the
 considered by the release management commands.
 
 As soon as the provider is released, you should update the provider to ``state: ready``.
+
+Releasing providers for past releases
+=====================================
+
+Sometimes we might want to release provider for previous MAJOR when new release is already
+released (or bumped in main). This is done by releasing them from ``providers-<PROVIDER>/vX-Y`` branch
+- for example ``providers-fab/v1-5`` can be used to release the ``1.5.2`` when ``2.0.0`` is already being
+released or voted on.
+
+The release process looks like usual, the only difference is that the specific branch is used to release
+the provider and update all documentation, the changes and cherry-picking should be targeting that
+branch.
 
 Suspending providers
 ====================

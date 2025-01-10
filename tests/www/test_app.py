@@ -33,7 +33,7 @@ from airflow.www import app as application
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 class TestApp:
@@ -85,7 +85,7 @@ class TestApp:
 
         response = Response.from_app(app, environ)
 
-        assert b"success" == response.get_data()
+        assert response.get_data() == b"success"
         assert response.status_code == 200
 
     @dont_initialize_flask_app_submodules
@@ -121,7 +121,7 @@ class TestApp:
 
         response = Response.from_app(app, environ)
 
-        assert b"success" == response.get_data()
+        assert response.get_data() == b"success"
         assert response.status_code == 200
 
     @dont_initialize_flask_app_submodules
@@ -169,7 +169,7 @@ class TestApp:
 
         response = Response.from_app(app, environ)
 
-        assert b"success" == response.get_data()
+        assert response.get_data() == b"success"
         assert response.status_code == 200
 
     @conf_vars(
@@ -215,7 +215,7 @@ class TestApp:
 
         response = Response.from_app(app, environ)
 
-        assert b"success" == response.get_data()
+        assert response.get_data() == b"success"
         assert response.status_code == 200
 
     @conf_vars(

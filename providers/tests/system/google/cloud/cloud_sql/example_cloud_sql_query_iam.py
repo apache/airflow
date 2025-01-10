@@ -65,6 +65,7 @@ CLOUD_SQL_INSTANCE_CREATE_BODY_TEMPLATE: dict[str, Any] = {
         "dataDiskSizeGb": 30,
         "pricingPlan": "PER_USE",
         "ipConfiguration": {},
+        "databaseFlags": [{"name": "cloudsql_iam_authentication", "value": "on"}],
     },
     # For using a different database version please check the link below.
     # https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1/SqlDatabaseVersion
@@ -119,7 +120,7 @@ def cloud_sql_instance_create_body(database_provider: dict[str, Any]) -> dict[st
 
 CLOUD_SQL_DATABASE_NAME = "test_db"
 CLOUD_SQL_USER = "test_user"
-CLOUD_IAM_SA = os.environ.get("CLOUD_IAM_SA", "test_iam_sa")
+CLOUD_IAM_SA = os.environ.get("SYSTEM_TESTS_CLOUDSQL_SA", "test_iam_sa")
 CLOUD_SQL_IP_ADDRESS = "127.0.0.1"
 CLOUD_SQL_PUBLIC_PORT = 5432
 

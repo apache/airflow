@@ -20,26 +20,23 @@ from __future__ import annotations
 import datetime
 import json
 import logging
-from collections.abc import Iterable
 from contextlib import suppress
 from functools import wraps
 from importlib import metadata
 from typing import TYPE_CHECKING, Any, Callable
 
 import attrs
-from deprecated import deprecated
 from openlineage.client.utils import RedactMixin
-from packaging.version import Version
 from sqlalchemy import exists
 
 from airflow import __version__ as AIRFLOW_VERSION
-from airflow.exceptions import (
-    AirflowProviderDeprecationWarning,
-)
 
 # TODO: move this maybe to Airflow's logic?
 from airflow.models import DAG, BaseOperator, DagRun, MappedOperator, TaskReschedule
-from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
+from airflow.providers.openlineage import (
+    __version__ as OPENLINEAGE_PROVIDER_VERSION,
+    conf,
+)
 from airflow.providers.openlineage.plugins.facets import (
     AirflowDagRunFacet,
     AirflowDebugRunFacet,
@@ -54,6 +51,7 @@ from airflow.providers.openlineage.utils.selective_enable import (
     is_dag_lineage_enabled,
     is_task_lineage_enabled,
 )
+from airflow.providers.openlineage.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.context import AirflowContextDeprecationWarning
@@ -74,16 +72,9 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.assets import Asset
     from airflow.utils.state import DagRunState, TaskInstanceState
 else:
-    # TODO: Remove this try-exception block after bumping common provider to 1.3.0
-    # This is due to common provider AssetDetails import error handling
     try:
         from airflow.providers.common.compat.assets import Asset
     except ImportError:
-        from packaging.version import Version
-
-        from airflow import __version__ as AIRFLOW_VERSION
-
-        AIRFLOW_V_3_0_PLUS = Version(Version(AIRFLOW_VERSION).base_version) >= Version("3.0.0")
         if AIRFLOW_V_3_0_PLUS:
             from airflow.sdk.definitions.asset import Asset
         else:
@@ -92,7 +83,6 @@ else:
 
 log = logging.getLogger(__name__)
 _NOMINAL_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
-IS_AIRFLOW_2_10_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.10.0")
 
 
 def try_import_from_string(string: str) -> Any:
@@ -719,23 +709,9 @@ def get_filtered_unknown_operator_keys(operator: BaseOperator) -> dict:
     return {attr: value for attr, value in operator.__dict__.items() if attr not in not_required_keys}
 
 
-@deprecated(
-    reason=(
-        "`airflow.providers.openlineage.utils.utils.normalize_sql` "
-        "has been deprecated and will be removed in future"
-    ),
-    category=AirflowProviderDeprecationWarning,
-)
-def normalize_sql(sql: str | Iterable[str]):
-    if isinstance(sql, str):
-        sql = [stmt for stmt in sql.split(";") if stmt != ""]
-    sql = [obj for stmt in sql for obj in stmt.split(";") if obj != ""]
-    return ";\n".join(sql)
-
-
 def should_use_external_connection(hook) -> bool:
     # If we're at Airflow 2.10, the execution is process-isolated, so we can safely run those again.
-    if not IS_AIRFLOW_2_10_OR_HIGHER:
+    if not AIRFLOW_V_2_10_PLUS:
         return hook.__class__.__name__ not in [
             "SnowflakeHook",
             "SnowflakeSqlApiHook",
@@ -751,12 +727,6 @@ def translate_airflow_asset(asset: Asset, lineage_context) -> OpenLineageDataset
     This function returns None if no URI normalizer is defined, no asset converter is found or
     some core Airflow changes are missing and ImportError is raised.
     """
-    # TODO: Remove version check block after bumping common provider to 1.3.0
-    from packaging.version import Version
-
-    from airflow import __version__ as AIRFLOW_VERSION
-
-    AIRFLOW_V_3_0_PLUS = Version(Version(AIRFLOW_VERSION).base_version) >= Version("3.0.0")
     if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk.definitions.asset import _get_normalized_scheme
     else:

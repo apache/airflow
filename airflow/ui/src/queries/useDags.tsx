@@ -16,18 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  useDagServiceGetDags,
-  useDagsServiceRecentDagRuns,
-} from "openapi/queries";
-import type { DagRunState } from "openapi/requests/types.gen";
+import { useDagServiceGetDags, useDagsServiceRecentDagRuns } from "openapi/queries";
+import type { DagRunState, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 
-const queryOptions = {
-  refetchOnMount: true,
-  refetchOnReconnect: false,
-  refetchOnWindowFocus: false,
-  staleTime: 5 * 60 * 1000,
-};
+export type DagWithLatest = {
+  last_run_start_date: string;
+} & DAGWithLatestDagRunsResponse;
 
 export const useDags = (
   searchParams: {
@@ -43,11 +37,7 @@ export const useDags = (
     tags?: Array<string>;
   } = {},
 ) => {
-  const { data, error, isFetching, isLoading } = useDagServiceGetDags(
-    searchParams,
-    undefined,
-    queryOptions,
-  );
+  const { data, error, isFetching, isLoading } = useDagServiceGetDags(searchParams);
 
   const { orderBy, ...runsParams } = searchParams;
   const {
@@ -55,25 +45,21 @@ export const useDags = (
     error: runsError,
     isFetching: isRunsFetching,
     isLoading: isRunsLoading,
-  } = useDagsServiceRecentDagRuns(
-    {
-      ...runsParams,
-      dagRunsLimit: 14,
-    },
-    undefined,
-    queryOptions,
-  );
+  } = useDagsServiceRecentDagRuns({
+    ...runsParams,
+    dagRunsLimit: 14,
+  });
 
   const dags = (data?.dags ?? []).map((dag) => {
-    const dagWithRuns = runsData?.dags.find(
-      (runsDag) => runsDag.dag_id === dag.dag_id,
-    );
+    const dagWithRuns = runsData?.dags.find((runsDag) => runsDag.dag_id === dag.dag_id);
 
-    // For dags with recent dag runs replace the dag data from useDagsServiceRecentDagRuns
-    // which might be stale with updated dag data from useDagServiceGetDags
-    return dagWithRuns
-      ? { ...dagWithRuns, ...dag }
-      : { ...dag, latest_dag_runs: [] };
+    return {
+      latest_dag_runs: [],
+      ...dagWithRuns,
+      ...dag,
+      // We need last_run_start_date to exist on the object in order for react-table sort to work correctly
+      last_run_start_date: "",
+    };
   });
 
   return {

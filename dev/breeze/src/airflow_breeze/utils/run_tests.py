@@ -106,7 +106,9 @@ def run_docker_compose_tests(
     env["DOCKER_IMAGE"] = image_name
     if skip_docker_compose_deletion:
         env["SKIP_DOCKER_COMPOSE_DELETION"] = "true"
-    with create_temp_venv(pip_version=PIP_VERSION, requirements_file=DOCKER_TESTS_REQUIREMENTS) as py_exe:
+    with create_temp_venv(
+        pip_version=PIP_VERSION, uv_version=UV_VERSION, requirements_file=DOCKER_TESTS_REQUIREMENTS
+    ) as py_exe:
         command_result = run_command(
             [py_exe, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
             env=env,
@@ -154,7 +156,7 @@ def get_excluded_provider_args(python_version: str) -> list[str]:
 
 TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
     "Always": ["tests/always"],
-    "API": ["tests/api", "tests/api_connexion", "tests/api_internal", "tests/api_fastapi"],
+    "API": ["tests/api", "tests/api_connexion", "tests/api_fastapi"],
     "CLI": ["tests/cli"],
     "Core": [
         "tests/core",

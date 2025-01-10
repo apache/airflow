@@ -184,6 +184,197 @@ Basic usage of the operator:
     :end-before: [END howto_operator_translate_automl_delete_dataset]
 
 
+.. _howto/operator:TranslateCreateModelOperator:
+
+TranslateCreateModelOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Create a native translation model using Cloud Translate API (Advanced V3).
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.translate.TranslateCreateModelOperator`
+
+Using the operator
+""""""""""""""""""
+
+Basic usage of the operator:
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/translate/example_translate_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_translate_automl_create_model]
+    :end-before: [END howto_operator_translate_automl_create_model]
+
+
+.. _howto/operator:TranslateModelsListOperator:
+
+TranslateModelsListOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Get list of native translation models using Cloud Translate API (Advanced V3).
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.translate.TranslateModelsListOperator`
+
+Using the operator
+""""""""""""""""""
+
+Basic usage of the operator:
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/translate/example_translate_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_translate_automl_list_models]
+    :end-before: [END howto_operator_translate_automl_list_models]
+
+
+.. _howto/operator:TranslateDeleteModelOperator:
+
+TranslateDeleteModelOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Delete a native translation model using Cloud Translate API (Advanced V3).
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.translate.TranslateDeleteModelOperator`
+
+Using the operator
+""""""""""""""""""
+
+Basic usage of the operator:
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/translate/example_translate_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_translate_automl_delete_model]
+    :end-before: [END howto_operator_translate_automl_delete_model]
+
+
+.. _howto/operator:TranslateDocumentOperator:
+
+TranslateDocumentOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^
+Translate Document using Cloud Translate API (Advanced V3).
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.translate.TranslateDocumentOperator`
+
+Using the operator
+""""""""""""""""""
+
+Basic usage of the operator:
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/translate/example_translate_document.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_translate_document]
+    :end-before: [END howto_operator_translate_document]
+
+
+.. _howto/operator:TranslateDocumentBatchOperator:
+
+TranslateDocumentBatchOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Translate Documents using Cloud Translate API (Advanced V3), by given input configs.
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.translate.TranslateDocumentBatchOperator`
+
+Using the operator
+""""""""""""""""""
+
+Basic usage of the operator:
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/translate/example_translate_document.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_translate_document_batch]
+    :end-before: [END howto_operator_translate_document_batch]
+
+
+.. _howto/operator:TranslateCreateGlossaryOperator:
+
+TranslateCreateGlossaryOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Create a translation glossary, using Cloud Translate API (Advanced V3).
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.translate.TranslateCreateGlossaryOperator`
+
+Using the operator
+""""""""""""""""""
+
+Basic usage of the operator:
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/translate/example_translate_glossary.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_translate_create_glossary]
+    :end-before: [END howto_operator_translate_create_glossary]
+
+
+.. _howto/operator:TranslateUpdateGlossaryOperator:
+
+TranslateUpdateGlossaryOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Updates translation glossary, using Cloud Translate API (Advanced V3).
+Only ``display_name`` and ``input_config`` fields available for update.
+By updating input_config - the glossary dictionary updates.
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.translate.TranslateUpdateGlossaryOperator`
+
+Using the operator
+""""""""""""""""""
+
+Basic usage of the operator:
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/translate/example_translate_glossary.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_translate_update_glossary]
+    :end-before: [END howto_operator_translate_update_glossary]
+
+
+.. _howto/operator:TranslateListGlossariesOperator:
+
+TranslateListGlossariesOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+List all available translation glossaries on the project.
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.translate.TranslateListGlossariesOperator`
+
+Using the operator
+""""""""""""""""""
+
+Basic usage of the operator:
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/translate/example_translate_glossary.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_translate_list_glossaries]
+    :end-before: [END howto_operator_translate_list_glossaries]
+
+
+.. _howto/operator:TranslateDeleteGlossaryOperator:
+
+TranslateDeleteGlossaryOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Delete the translation glossary resource.
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.translate.TranslateDeleteGlossaryOperator`
+
+Using the operator
+""""""""""""""""""
+
+Basic usage of the operator:
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/translate/example_translate_glossary.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_translate_delete_glossary]
+    :end-before: [END howto_operator_translate_delete_glossary]
+
+
 More information
 """"""""""""""""""
 See:

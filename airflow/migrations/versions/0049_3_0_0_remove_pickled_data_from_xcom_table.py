@@ -71,7 +71,7 @@ def upgrade():
     condition_templates = {
         "postgresql": "get_byte(value, 0) = 128",
         "mysql": "HEX(SUBSTRING(value, 1, 1)) = '80'",
-        "sqlite": "substr(value, 1, 1) = char(128)",
+        "sqlite": "hex(substr(value, 1, 1)) = '80'",
     }
 
     condition = condition_templates.get(dialect)
@@ -180,3 +180,5 @@ def downgrade():
 
         with op.batch_alter_table("xcom", schema=None) as batch_op:
             batch_op.drop_column("value_old")
+
+    op.execute(sa.text("DROP TABLE IF EXISTS _xcom_archive"))

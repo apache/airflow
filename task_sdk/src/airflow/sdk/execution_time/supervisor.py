@@ -27,12 +27,22 @@ import selectors
 import signal
 import sys
 import time
-import weakref
 from collections.abc import Generator
 from contextlib import suppress
 from datetime import datetime, timezone
+from http import HTTPStatus
 from socket import socket, socketpair
-from typing import TYPE_CHECKING, BinaryIO, Callable, ClassVar, Literal, NoReturn, TextIO, cast, overload
+from typing import (
+    TYPE_CHECKING,
+    BinaryIO,
+    Callable,
+    ClassVar,
+    Literal,
+    NoReturn,
+    TextIO,
+    cast,
+    overload,
+)
 from uuid import UUID
 
 import attrs
@@ -42,29 +52,53 @@ import psutil
 import structlog
 from pydantic import TypeAdapter
 
-from airflow.sdk.api.client import Client
-from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
+from airflow.sdk.api.client import Client, ServerResponseError
+from airflow.sdk.api.datamodels._generated import (
+    ConnectionResponse,
+    IntermediateTIState,
+    TaskInstance,
+    TerminalTIState,
+    VariableResponse,
+)
 from airflow.sdk.execution_time.comms import (
+    ConnectionResult,
+    DeferTask,
     GetConnection,
     GetVariable,
     GetXCom,
+    PutVariable,
+    RescheduleTask,
+    SetRenderedFields,
+    SetXCom,
     StartupDetails,
+    TaskState,
     ToSupervisor,
+    VariableResult,
+    XComResult,
 )
 
 if TYPE_CHECKING:
-    from structlog.typing import FilteringBoundLogger
+    from structlog.typing import FilteringBoundLogger, WrappedLogger
 
-    from airflow.sdk.api.datamodels.activities import ExecuteTaskActivity
+    from airflow.typing_compat import Self
+
 
 __all__ = ["WatchedSubprocess", "supervise"]
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="supervisor")
 
 # TODO: Pull this from config
-SLOWEST_HEARTBEAT_INTERVAL: int = 30
+#  (previously `[scheduler] local_task_job_heartbeat_sec` with the following as fallback if it is 0:
+#  `[scheduler] scheduler_zombie_task_threshold`)
+HEARTBEAT_THRESHOLD: int = 30
 # Don't heartbeat more often than this
-FASTEST_HEARTBEAT_INTERVAL: int = 5
+MIN_HEARTBEAT_INTERVAL: int = 5
+MAX_FAILED_HEARTBEATS: int = 3
+
+# These are the task instance states that require some additional information to transition into.
+# "Directly" here means that the PATCH API calls to transition into these states are
+# made from _handle_request() itself and don't have to come all the way to wait().
+STATES_SENT_DIRECTLY = [IntermediateTIState.DEFERRED, IntermediateTIState.UP_FOR_RESCHEDULE]
 
 
 @overload
@@ -252,7 +286,7 @@ def _fork_main(
 
 @attrs.define()
 class WatchedSubprocess:
-    ti_id: UUID
+    id: UUID
     pid: int
 
     stdin: BinaryIO
@@ -261,26 +295,37 @@ class WatchedSubprocess:
     client: Client
 
     _process: psutil.Process
-    _exit_code: int | None = None
-    _terminal_state: str | None = None
+    _num_open_sockets: int = 4
+    _exit_code: int | None = attrs.field(default=None, init=False)
+    _terminal_state: str | None = attrs.field(default=None, init=False)
+    _final_state: str | None = attrs.field(default=None, init=False)
 
-    _last_heartbeat: float = 0
+    _last_successful_heartbeat: float = attrs.field(default=0, init=False)
+    _last_heartbeat_attempt: float = attrs.field(default=0, init=False)
+
+    # After the failure of a heartbeat, we'll increment this counter. If it reaches `MAX_FAILED_HEARTBEATS`, we
+    # will kill the process. This is to handle temporary network issues etc. ensuring that the process
+    # does not hang around forever.
+    failed_heartbeats: int = attrs.field(default=0, init=False)
+
+    # Maximum possible time (in seconds) that task will have for execution of auxiliary processes
+    # like listeners after task is complete.
+    # TODO: This should come from airflow.cfg: [core] task_success_overtime
+    TASK_OVERTIME_THRESHOLD: ClassVar[float] = 20.0
+    _task_end_time_monotonic: float | None = attrs.field(default=None, init=False)
 
     selector: selectors.BaseSelector = attrs.field(factory=selectors.DefaultSelector)
-
-    procs: ClassVar[weakref.WeakValueDictionary[int, WatchedSubprocess]] = weakref.WeakValueDictionary()
-
-    def __attrs_post_init__(self):
-        self.procs[self.pid] = self
 
     @classmethod
     def start(
         cls,
         path: str | os.PathLike[str],
-        ti: TaskInstance,
+        what: TaskInstance,
         client: Client,
         target: Callable[[], None] = _subprocess_main,
-    ) -> WatchedSubprocess:
+        logger: FilteringBoundLogger | None = None,
+        **constructor_kwargs,
+    ) -> Self:
         """Fork and start a new subprocess to execute the given task."""
         # Create socketpairs/"pipes" to connect to the stdin and out from the subprocess
         child_stdin, feed_stdin = mkpipe(remote_read=True)
@@ -295,49 +340,53 @@ class WatchedSubprocess:
         if pid == 0:
             # Parent ends of the sockets are closed by the OS as they are set as non-inheritable
 
+            # Python GC should delete these for us, but lets make double sure that we don't keep anything
+            # around in the forked processes, especially things that might involve open files or sockets!
+            del path
+            del client
+            del what
+            del logger
+
             # Run the child entrypoint
             _fork_main(child_stdin, child_stdout, child_stderr, child_logs.fileno(), target)
 
+        requests_fd = child_comms.fileno()
+
+        # Close the remaining parent-end of the sockets we've passed to the child via fork. We still have the
+        # other end of the pair open
+        cls._close_unused_sockets(child_stdin, child_stdout, child_stderr, child_comms, child_logs)
+
         proc = cls(
-            ti_id=ti.id,
+            id=constructor_kwargs.pop("id", None) or getattr(what, "id"),
             pid=pid,
             stdin=feed_stdin,
             process=psutil.Process(pid),
             client=client,
+            **constructor_kwargs,
         )
 
-        # We've forked, but the task won't start until we send it the StartupDetails message. But before we do
-        # that, we need to tell the server it's started (so it has the chance to tell us "no, stop!" for any
-        # reason)
-        try:
-            client.task_instances.start(ti.id, pid, datetime.now(tz=timezone.utc))
-            proc._last_heartbeat = time.monotonic()
-        except Exception:
-            # On any error kill that subprocess!
-            proc.kill(signal.SIGKILL)
-            raise
-
+        logger = logger or cast("FilteringBoundLogger", structlog.get_logger(logger_name="task").bind())
         proc._register_pipe_readers(
-            stdout=read_stdout, stderr=read_stderr, requests=read_msgs, logs=read_logs
+            logger=logger,
+            stdout=read_stdout,
+            stderr=read_stderr,
+            requests=read_msgs,
+            logs=read_logs,
         )
-
-        # Close the remaining parent-end of the sockets we've passed to the child via fork. We still have the
-        # other end of the pair open
-        proc._close_unused_sockets(child_stdin, child_stdout, child_stderr, child_comms, child_logs)
 
         # Tell the task process what it needs to do!
-        proc._send_startup_message(ti, path, child_comms)
+        proc._on_child_started(what, path, requests_fd)
+
         return proc
 
-    def _register_pipe_readers(self, stdout: socket, stderr: socket, requests: socket, logs: socket):
+    def _register_pipe_readers(
+        self, logger: FilteringBoundLogger, stdout: socket, stderr: socket, requests: socket, logs: socket
+    ):
         """Register handlers for subprocess communication channels."""
         # self.selector is a way of registering a handler/callback to be called when the given IO channel has
         # activity to read on (https://www.man7.org/linux/man-pages/man2/select.2.html etc, but better
         # alternatives are used automatically) -- this is a way of having "event-based" code, but without
         # needing full async, to read and process output from each socket as it is received.
-
-        # TODO: Use logging providers to handle the chunked upload for us
-        logger: FilteringBoundLogger = structlog.get_logger(logger_name="task").bind()
 
         self.selector.register(stdout, selectors.EVENT_READ, self._create_socket_handler(logger, "stdout"))
         self.selector.register(
@@ -348,16 +397,25 @@ class WatchedSubprocess:
         self.selector.register(
             logs,
             selectors.EVENT_READ,
-            make_buffered_socket_reader(process_log_messages_from_subprocess(logger)),
+            make_buffered_socket_reader(
+                process_log_messages_from_subprocess(logger), on_close=self._on_socket_closed
+            ),
         )
         self.selector.register(
-            requests, selectors.EVENT_READ, make_buffered_socket_reader(self.handle_requests(log))
+            requests,
+            selectors.EVENT_READ,
+            make_buffered_socket_reader(self.handle_requests(log), on_close=self._on_socket_closed),
         )
 
-    @staticmethod
-    def _create_socket_handler(logger, channel, log_level=logging.INFO) -> Callable[[socket], bool]:
+    def _create_socket_handler(self, logger, channel, log_level=logging.INFO) -> Callable[[socket], bool]:
         """Create a socket handler that forwards logs to a logger."""
-        return make_buffered_socket_reader(forward_to_log(logger.bind(chan=channel), level=log_level))
+        return make_buffered_socket_reader(
+            forward_to_log(logger.bind(chan=channel), level=log_level), on_close=self._on_socket_closed
+        )
+
+    def _on_socket_closed(self):
+        # We want to keep servicing this process until we've read up to EOF from all the sockets.
+        self._num_open_sockets -= 1
 
     @staticmethod
     def _close_unused_sockets(*sockets):
@@ -365,25 +423,92 @@ class WatchedSubprocess:
         for sock in sockets:
             sock.close()
 
-    def _send_startup_message(self, ti: TaskInstance, path: str | os.PathLike[str], child_comms: socket):
+    def _on_child_started(self, ti: TaskInstance, path: str | os.PathLike[str], requests_fd: int):
         """Send startup message to the subprocess."""
-        msg = StartupDetails(
+        try:
+            # We've forked, but the task won't start doing anything until we send it the StartupDetails
+            # message. But before we do that, we need to tell the server it's started (so it has the chance to
+            # tell us "no, stop!" for any reason)
+            ti_context = self.client.task_instances.start(ti.id, self.pid, datetime.now(tz=timezone.utc))
+            self._last_successful_heartbeat = time.monotonic()
+        except Exception:
+            # On any error kill that subprocess!
+            self.kill(signal.SIGKILL)
+            raise
+
+        msg = StartupDetails.model_construct(
             ti=ti,
-            file=str(path),
-            requests_fd=child_comms.fileno(),
+            file=os.fspath(path),
+            requests_fd=requests_fd,
+            ti_context=ti_context,
         )
 
         # Send the message to tell the process what it needs to execute
         log.debug("Sending", msg=msg)
-        self.stdin.write(msg.model_dump_json().encode())
-        self.stdin.write(b"\n")
 
-    def kill(self, signal: signal.Signals = signal.SIGINT):
+        try:
+            self.stdin.write(msg.model_dump_json().encode())
+            self.stdin.write(b"\n")
+        except BrokenPipeError:
+            # Debug is fine, the process will have shown _something_ in it's last_chance exception handler
+            log.debug("Couldn't send startup message to Subprocess - it died very early", pid=self.pid)
+
+    def kill(
+        self,
+        signal_to_send: signal.Signals = signal.SIGINT,
+        escalation_delay: float = 5.0,
+        force: bool = False,
+    ):
+        """
+        Attempt to terminate the subprocess with a given signal.
+
+        If the process does not exit within `escalation_delay` seconds, escalate to SIGTERM and eventually SIGKILL if necessary.
+
+        :param signal_to_send: The signal to send initially (default is SIGINT).
+        :param escalation_delay: Time in seconds to wait before escalating to a stronger signal.
+        :param force: If True, ensure escalation through all signals without skipping.
+        """
         if self._exit_code is not None:
             return
 
-        with suppress(ProcessLookupError):
-            os.kill(self.pid, signal)
+        # Escalation sequence: SIGINT -> SIGTERM -> SIGKILL
+        escalation_path = [signal.SIGINT, signal.SIGTERM, signal.SIGKILL]
+
+        if force and signal_to_send in escalation_path:
+            # Start from `signal_to_send` and escalate to the end of the escalation path
+            escalation_path = escalation_path[escalation_path.index(signal_to_send) :]
+        else:
+            escalation_path = [signal_to_send]
+
+        for sig in escalation_path:
+            try:
+                self._process.send_signal(sig)
+
+                start = time.monotonic()
+                end = start + escalation_delay
+                now = start
+
+                while now < end:
+                    # Service subprocess events during the escalation delay. This will return as soon as it's
+                    # read from any of the sockets, so we need to re-run it if the process is still alive
+                    if (
+                        exit_code := self._service_subprocess(max_wait_time=end - now, raise_on_timeout=False)
+                    ) is not None:
+                        log.info("Process exited", pid=self.pid, exit_code=exit_code, signal=sig.name)
+                        return
+
+                    now = time.monotonic()
+
+                msg = "Process did not terminate in time"
+                if sig != escalation_path[-1]:
+                    msg += "; escalating"
+                log.warning(msg, pid=self.pid, signal=sig.name)
+            except psutil.NoSuchProcess:
+                log.debug("Process already terminated", pid=self.pid)
+                self._exit_code = -1
+                return
+
+        log.error("Failed to terminate process after full escalation", pid=self.pid)
 
     def wait(self) -> int:
         if self._exit_code is not None:
@@ -398,9 +523,14 @@ class WatchedSubprocess:
         # If it hasn't, assume it's failed
         self._exit_code = self._exit_code if self._exit_code is not None else 1
 
-        self.client.task_instances.finish(
-            id=self.ti_id, state=self.final_state, when=datetime.now(tz=timezone.utc)
-        )
+        # If the process has finished non-directly patched state (directly means deferred, reschedule, etc.),
+        # update the state of the TaskInstance to reflect the final state of the process.
+        # For states like `deferred`, `up_for_reschedule`, the process will exit with 0, but the state will be updated
+        # by the subprocess in the `handle_requests` method.
+        if self.final_state not in STATES_SENT_DIRECTLY:
+            self.client.task_instances.finish(
+                id=self.id, state=self.final_state, when=datetime.now(tz=timezone.utc)
+            )
         return self._exit_code
 
     def _monitor_subprocess(self):
@@ -409,64 +539,142 @@ class WatchedSubprocess:
 
         This function:
 
-        - Polls the subprocess for output
-        - Sends heartbeats to the client to keep the task alive
-        - Checks if the subprocess has exited
+        - Waits for activity on file objects (e.g., subprocess stdout, stderr, logs, requests) using the selector.
+        - Processes events triggered on the monitored file objects, such as data availability or EOF.
+        - Sends heartbeats to ensure the process is alive and checks if the subprocess has exited.
         """
-        # Until we have a selector for the process, don't poll for more than 10s, just in case it exists but
-        # doesn't produce any output
-        max_poll_interval = 10
-
-        while self._exit_code is None or len(self.selector.get_map()):
-            last_heartbeat_ago = time.monotonic() - self._last_heartbeat
+        while self._exit_code is None or self._num_open_sockets > 0:
+            last_heartbeat_ago = time.monotonic() - self._last_successful_heartbeat
             # Monitor the task to see if it's done. Wait in a syscall (`select`) for as long as possible
             # so we notice the subprocess finishing as quick as we can.
             max_wait_time = max(
                 0,  # Make sure this value is never negative,
                 min(
                     # Ensure we heartbeat _at most_ 75% through time the zombie threshold time
-                    SLOWEST_HEARTBEAT_INTERVAL - last_heartbeat_ago * 0.75,
-                    max_poll_interval,
+                    HEARTBEAT_THRESHOLD - last_heartbeat_ago * 0.75,
+                    MIN_HEARTBEAT_INTERVAL,
                 ),
             )
-            events = self.selector.select(timeout=max_wait_time)
-            for key, _ in events:
-                socket_handler = key.data
-                need_more = socket_handler(key.fileobj)
+            # Block until events are ready or the timeout is reached
+            # This listens for activity (e.g., subprocess output) on registered file objects
+            alive = self._service_subprocess(max_wait_time=max_wait_time) is None
 
-                if not need_more:
-                    self.selector.unregister(key.fileobj)
-                    key.fileobj.close()  # type: ignore[union-attr]
+            if alive:
+                # We don't need to heartbeat if the process has shutdown, as we are just finishing of reading the
+                # logs
+                self._send_heartbeat_if_needed()
 
-            self._check_subprocess_exit()
-            self._send_heartbeat_if_needed()
+                self._handle_process_overtime_if_needed()
 
-    def _check_subprocess_exit(self):
+    def _handle_process_overtime_if_needed(self):
+        """Handle termination of auxiliary processes if the task exceeds the configured overtime."""
+        # If the task has reached a terminal state, we can start monitoring the overtime
+        if not self._terminal_state:
+            return
+
+        if (
+            self._task_end_time_monotonic
+            and (time.monotonic() - self._task_end_time_monotonic) > self.TASK_OVERTIME_THRESHOLD
+        ):
+            log.warning("Workload success overtime reached; terminating process", ti_id=self.id)
+            self.kill(signal.SIGTERM, force=True)
+
+    def _service_subprocess(self, max_wait_time: float, raise_on_timeout: bool = False):
+        """
+        Service subprocess events by processing socket activity and checking for process exit.
+
+        This method:
+        - Waits for activity on the registered file objects (via `self.selector.select`).
+        - Processes any events triggered on these file objects.
+        - Checks if the subprocess has exited during the wait.
+
+        :param max_wait_time: Maximum time to block while waiting for events, in seconds.
+        :param raise_on_timeout: If True, raise an exception if the subprocess does not exit within the timeout.
+        :returns: The process exit code, or None if it's still alive
+        """
+        events = self.selector.select(timeout=max_wait_time)
+        for key, _ in events:
+            # Retrieve the handler responsible for processing this file object (e.g., stdout, stderr)
+            socket_handler = key.data
+
+            # Example of handler behavior:
+            # If the subprocess writes "Hello, World!" to stdout:
+            # - `socket_handler` reads and processes the message.
+            # - If EOF is reached, the handler returns False to signal no more reads are expected.
+            need_more = socket_handler(key.fileobj)
+
+            # If the handler signals that the file object is no longer needed (EOF, closed, etc.)
+            # unregister it from the selector to stop monitoring; `wait()` blocks until all selectors
+            # are removed.
+            if not need_more:
+                self.selector.unregister(key.fileobj)
+                key.fileobj.close()  # type: ignore[union-attr]
+
+        # Check if the subprocess has exited
+        return self._check_subprocess_exit(raise_on_timeout=raise_on_timeout)
+
+    def _check_subprocess_exit(self, raise_on_timeout: bool = False) -> int | None:
         """Check if the subprocess has exited."""
         if self._exit_code is None:
             try:
                 self._exit_code = self._process.wait(timeout=0)
-                log.debug("Task process exited", exit_code=self._exit_code)
+                log.debug("Workload process exited", exit_code=self._exit_code)
             except psutil.TimeoutExpired:
-                pass
+                if raise_on_timeout:
+                    raise
+        return self._exit_code
 
     def _send_heartbeat_if_needed(self):
         """Send a heartbeat to the client if heartbeat interval has passed."""
-        if time.monotonic() - self._last_heartbeat >= FASTEST_HEARTBEAT_INTERVAL:
-            try:
-                self.client.task_instances.heartbeat(self.ti_id, pid=self._process.pid)
-                self._last_heartbeat = time.monotonic()
-            except Exception:
-                log.warning("Failed to send heartbeat", exc_info=True)
-                # TODO: If we couldn't heartbeat for X times the interval, kill ourselves
-                pass
+        # Respect the minimum interval between heartbeat attempts
+        if (time.monotonic() - self._last_heartbeat_attempt) < MIN_HEARTBEAT_INTERVAL:
+            return
+
+        self._last_heartbeat_attempt = time.monotonic()
+        try:
+            self.client.task_instances.heartbeat(self.id, pid=self._process.pid)
+            # Update the last heartbeat time on success
+            self._last_successful_heartbeat = time.monotonic()
+
+            # Reset the counter on success
+            self.failed_heartbeats = 0
+        except ServerResponseError as e:
+            if e.response.status_code in {HTTPStatus.NOT_FOUND, HTTPStatus.CONFLICT}:
+                log.error(
+                    "Server indicated the task shouldn't be running anymore",
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                self.kill(signal.SIGTERM, force=True)
+            else:
+                # If we get any other error, we'll just log it and try again next time
+                self._handle_heartbeat_failures()
+        except Exception:
+            self._handle_heartbeat_failures()
+
+    def _handle_heartbeat_failures(self):
+        """Increment the failed heartbeats counter and kill the process if too many failures."""
+        self.failed_heartbeats += 1
+        log.warning(
+            "Failed to send heartbeat. Will be retried",
+            failed_heartbeats=self.failed_heartbeats,
+            ti_id=self.id,
+            max_retries=MAX_FAILED_HEARTBEATS,
+            exc_info=True,
+        )
+        # If we've failed to heartbeat too many times, kill the process
+        if self.failed_heartbeats >= MAX_FAILED_HEARTBEATS:
+            log.error(
+                "Too many failed heartbeats; terminating process", failed_heartbeats=self.failed_heartbeats
+            )
+            self.kill(signal.SIGTERM, force=True)
 
     @property
     def final_state(self):
         """
         The final state of the TaskInstance.
 
-        By default this will be derived from the exit code of the task
+        By default, this will be derived from the exit code of the task
         (0=success, failed otherwise) but can be changed by the subprocess
         sending a TaskState message, as long as the process exits with 0
 
@@ -477,7 +685,7 @@ class WatchedSubprocess:
         return TerminalTIState.FAILED
 
     def __rich_repr__(self):
-        yield "ti_id", self.ti_id
+        yield "id", self.id
         yield "pid", self.pid
         # only include this if it's not the default (third argument)
         yield "exit_code", self._exit_code, None
@@ -485,7 +693,7 @@ class WatchedSubprocess:
     __rich_repr__.angular = True  # type: ignore[attr-defined]
 
     def __repr__(self) -> str:
-        rep = f"<WatchedSubprocess ti_id={self.ti_id} pid={self.pid}"
+        rep = f"<WatchedSubprocess id={self.id} pid={self.pid}"
         if self._exit_code is not None:
             rep += f" exit_code={self._exit_code}"
         return rep + " >"
@@ -503,25 +711,49 @@ class WatchedSubprocess:
                 log.exception("Unable to decode message", line=line)
                 continue
 
-            # if isinstance(msg, TaskState):
-            #     self._terminal_state = msg.state
-            # elif isinstance(msg, ReadXCom):
-            #     resp = XComResponse(key="secret", value=True)
-            #     encoder.encode_into(resp, buffer)
-            #     self.stdin.write(buffer + b"\n")
-            if isinstance(msg, GetConnection):
-                conn = self.client.connections.get(msg.conn_id)
-                resp = conn.model_dump_json(exclude_unset=True).encode()
-            elif isinstance(msg, GetVariable):
-                var = self.client.variables.get(msg.key)
-                resp = var.model_dump_json(exclude_unset=True).encode()
-            elif isinstance(msg, GetXCom):
-                xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
-                resp = xcom.model_dump_json(exclude_unset=True).encode()
-            else:
-                log.error("Unhandled request", msg=msg)
-                continue
+            self._handle_request(msg, log)
 
+    def _handle_request(self, msg: ToSupervisor, log: FilteringBoundLogger):
+        log.debug("Received message from task runner", msg=msg)
+        resp = None
+        if isinstance(msg, TaskState):
+            self._terminal_state = msg.state
+            self._task_end_time_monotonic = time.monotonic()
+        elif isinstance(msg, GetConnection):
+            conn = self.client.connections.get(msg.conn_id)
+            if isinstance(conn, ConnectionResponse):
+                conn_result = ConnectionResult.from_conn_response(conn)
+                resp = conn_result.model_dump_json(exclude_unset=True).encode()
+            else:
+                resp = conn.model_dump_json().encode()
+        elif isinstance(msg, GetVariable):
+            var = self.client.variables.get(msg.key)
+            if isinstance(var, VariableResponse):
+                var_result = VariableResult.from_variable_response(var)
+                resp = var_result.model_dump_json(exclude_unset=True).encode()
+            else:
+                resp = var.model_dump_json().encode()
+        elif isinstance(msg, GetXCom):
+            xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
+            xcom_result = XComResult.from_xcom_response(xcom)
+            resp = xcom_result.model_dump_json().encode()
+        elif isinstance(msg, DeferTask):
+            self._terminal_state = IntermediateTIState.DEFERRED
+            self.client.task_instances.defer(self.id, msg)
+        elif isinstance(msg, RescheduleTask):
+            self._terminal_state = IntermediateTIState.UP_FOR_RESCHEDULE
+            self.client.task_instances.reschedule(self.id, msg)
+        elif isinstance(msg, SetXCom):
+            self.client.xcoms.set(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.value, msg.map_index)
+        elif isinstance(msg, PutVariable):
+            self.client.variables.set(msg.key, msg.value, msg.description)
+        elif isinstance(msg, SetRenderedFields):
+            self.client.task_instances.set_rtif(self.id, msg.rendered_fields)
+        else:
+            log.error("Unhandled request", msg=msg)
+            return
+
+        if resp:
             self.stdin.write(resp + b"\n")
 
 
@@ -531,7 +763,9 @@ class WatchedSubprocess:
 # This returns a callback suitable for attaching to a `selector` that reads in to a buffer, and yields lines
 # to a (sync) generator
 def make_buffered_socket_reader(
-    gen: Generator[None, bytes, None], buffer_size: int = 4096
+    gen: Generator[None, bytes, None],
+    on_close: Callable,
+    buffer_size: int = 4096,
 ) -> Callable[[socket], bool]:
     buffer = bytearray()  # This will hold our accumulated binary data
     read_buffer = bytearray(buffer_size)  # Temporary buffer for each read
@@ -549,17 +783,14 @@ def make_buffered_socket_reader(
             if len(buffer):
                 gen.send(buffer)
             # Tell loop to close this selector
+            on_close()
             return False
 
         buffer.extend(read_buffer[:n_received])
 
         # We could have read multiple lines in one go, yield them all
         while (newline_pos := buffer.find(b"\n")) != -1:
-            if TYPE_CHECKING:
-                # We send in a memoryvuew, but pretend it's a bytes, as Buffer is only in 3.12+
-                line = buffer[: newline_pos + 1]
-            else:
-                line = memoryview(buffer)[: newline_pos + 1]  # Include the newline character
+            line = buffer[: newline_pos + 1]
             gen.send(line)
             buffer = buffer[newline_pos + 1 :]  # Update the buffer with remaining data
 
@@ -612,27 +843,68 @@ def forward_to_log(target_log: FilteringBoundLogger, level: int) -> Generator[No
             target_log.log(level, msg)
 
 
-def supervise(activity: ExecuteTaskActivity, server: str | None = None, dry_run: bool = False) -> int:
+def supervise(
+    *,
+    ti: TaskInstance,
+    dag_path: str | os.PathLike[str],
+    token: str,
+    server: str | None = None,
+    dry_run: bool = False,
+    log_path: str | None = None,
+    client: Client | None = None,
+) -> int:
     """
     Run a single task execution to completion.
 
-    Returns the exit code of the process
+    :param ti: The task instance to run.
+    :param dag_path: The file path to the DAG.
+    :param token: Authentication token for the API client.
+    :param server: Base URL of the API server.
+    :param dry_run: If True, execute without actual task execution (simulate run).
+    :param log_path: Path to write logs, if required.
+    :param client: Optional preconfigured client for communication with the server (Mostly for tests).
+    :return: Exit code of the process.
     """
     # One or the other
-    if (server == "") ^ dry_run:
+    if not client and ((not server) ^ dry_run):
         raise ValueError(f"Can only specify one of {server=} or {dry_run=}")
 
-    if not activity.path:
-        raise ValueError("path filed of activity missing")
+    if not dag_path:
+        raise ValueError("dag_path is required")
 
-    limits = httpx.Limits(max_keepalive_connections=1, max_connections=10)
-    client = Client(base_url=server or "", limits=limits, dry_run=dry_run, token=activity.token)
+    if (str_path := os.fspath(dag_path)).startswith("DAGS_FOLDER/"):
+        from airflow.settings import DAGS_FOLDER
+
+        dag_path = str_path.replace("DAGS_FOLDER/", DAGS_FOLDER + "/", 1)
+
+    if not client:
+        limits = httpx.Limits(max_keepalive_connections=1, max_connections=10)
+        client = Client(base_url=server or "", limits=limits, dry_run=dry_run, token=token)
 
     start = time.monotonic()
 
-    process = WatchedSubprocess.start(activity.path, activity.ti, client=client)
+    # TODO: Use logging providers to handle the chunked upload for us etc.
+    logger: FilteringBoundLogger | None = None
+    if log_path:
+        # If we are told to write logs to a file, redirect the task logger to it.
+        from airflow.sdk.log import init_log_file, logging_processors
+
+        try:
+            log_file = init_log_file(log_path)
+        except OSError as e:
+            log.warning("OSError while changing ownership of the log file. ", e)
+
+        pretty_logs = False
+        if pretty_logs:
+            underlying_logger: WrappedLogger = structlog.WriteLogger(log_file.open("w", buffering=1))
+        else:
+            underlying_logger = structlog.BytesLogger(log_file.open("wb"))
+        processors = logging_processors(enable_pretty_log=pretty_logs)[0]
+        logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
+
+    process = WatchedSubprocess.start(dag_path, ti, client=client, logger=logger)
 
     exit_code = process.wait()
     end = time.monotonic()
-    log.debug("Task finished", exit_code=exit_code, duration=end - start)
+    log.info("Task finished", exit_code=exit_code, duration=end - start, final_state=process.final_state)
     return exit_code

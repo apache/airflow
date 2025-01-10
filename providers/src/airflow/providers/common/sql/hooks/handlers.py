@@ -19,7 +19,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 
-def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool):
+def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool | None):
     """
     Determine when results of single query only should be returned.
 
@@ -44,7 +44,9 @@ def return_single_query_results(sql: str | Iterable[str], return_last: bool, spl
     :param split_statements: whether to split string statements.
     :return: True if the hook should return single query results
     """
-    return isinstance(sql, str) and (return_last or not split_statements)
+    if split_statements is not None:
+        return isinstance(sql, str) and (return_last or not split_statements)
+    return isinstance(sql, str) and return_last
 
 
 def fetch_all_handler(cursor) -> list[tuple] | None:

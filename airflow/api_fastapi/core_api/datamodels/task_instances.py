@@ -167,7 +167,7 @@ class ClearTaskInstancesBody(BaseModel):
     end_date: AwareDatetime | None = None
     only_failed: bool = True
     only_running: bool = False
-    reset_dag_runs: bool = False
+    reset_dag_runs: bool = True
     task_ids: list[str] | None = None
     dag_run_id: str | None = None
     include_upstream: bool = False

@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import collections.abc
 import contextlib
-import copy
 import functools
 import logging
 from collections.abc import Collection, Iterable, Sequence
@@ -50,6 +49,7 @@ from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     TaskDeferralError,
+    TaskDeferralTimeout,
     TaskDeferred,
 )
 from airflow.lineage import apply_lineage, prepare_lineage
@@ -72,6 +72,7 @@ from airflow.models.base import _sentinel
 from airflow.models.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DependencyMixin
+from airflow.models.trigger import TRIGGER_FAIL_REPR, TriggerFailureReason
 from airflow.sdk.definitions.baseoperator import (
     BaseOperatorMeta as TaskSDKBaseOperatorMeta,
     get_merged_defaults,
@@ -99,7 +100,6 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 if TYPE_CHECKING:
     from types import ClassMethodDescriptorType
 
-    import jinja2  # Slow import.
     from sqlalchemy.orm import Session
 
     from airflow.models.abstractoperator import TaskStateChangeCallback
@@ -273,7 +273,7 @@ else:
         params: collections.abc.MutableMapping | None = None,
         **kwargs,
     ):
-        from airflow.sdk.definitions.contextmanager import DagContext, TaskGroupContext
+        from airflow.sdk.definitions._internal.contextmanager import DagContext, TaskGroupContext
 
         validate_mapping_kwargs(operator_class, "partial", kwargs)
 
@@ -362,6 +362,8 @@ class ExecutorSafeguard:
             sentinel = kwargs.pop(sentinel_key, None)
 
             if sentinel:
+                if not getattr(cls._sentinel, "callers", None):
+                    cls._sentinel.callers = {}
                 cls._sentinel.callers[sentinel_key] = sentinel
             else:
                 sentinel = cls._sentinel.callers.pop(f"{func.__qualname__.split('.')[0]}__sentinel", None)
@@ -699,12 +701,6 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
     extended/overridden by subclasses.
     """
 
-    def prepare_for_execution(self) -> BaseOperator:
-        """Lock task for execution to disable custom action in ``__setattr__`` and return a copy."""
-        other = copy.copy(self)
-        other._lock_for_execution = True
-        return other
-
     @prepare_lineage
     def pre_execute(self, context: Any):
         """Execute right before self.execute() is called."""
@@ -740,23 +736,6 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
             context_get_outlet_events(context),
             logger=self.log,
         ).run(context, result)
-
-    def render_template_fields(
-        self,
-        context: Context,
-        jinja_env: jinja2.Environment | None = None,
-    ) -> None:
-        """
-        Template all attributes listed in *self.template_fields*.
-
-        This mutates the attributes in-place and is irreversible.
-
-        :param context: Context dict with values to apply on content.
-        :param jinja_env: Jinja's environment to use for rendering.
-        """
-        if not jinja_env:
-            jinja_env = self.get_template_env()
-        self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
 
     @provide_session
     def clear(
@@ -973,7 +952,7 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
         trigger: BaseTrigger,
         method_name: str,
         kwargs: dict[str, Any] | None = None,
-        timeout: timedelta | None = None,
+        timeout: timedelta | int | float | None = None,
     ) -> NoReturn:
         """
         Mark this Operator "deferred", suspending its execution until the provided trigger fires an event.
@@ -990,12 +969,15 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
         """Call this method when a deferred task is resumed."""
         # __fail__ is a special signal value for next_method that indicates
         # this task was scheduled specifically to fail.
-        if next_method == "__fail__":
+        if next_method == TRIGGER_FAIL_REPR:
             next_kwargs = next_kwargs or {}
             traceback = next_kwargs.get("traceback")
             if traceback is not None:
                 self.log.error("Trigger failed:\n%s", "\n".join(traceback))
-            raise TaskDeferralError(next_kwargs.get("error", "Unknown"))
+            if (error := next_kwargs.get("error", "Unknown")) == TriggerFailureReason.TRIGGER_TIMEOUT:
+                raise TaskDeferralTimeout(error)
+            else:
+                raise TaskDeferralError(error)
         # Grab the callable off the Operator/Task and add in any kwargs
         execute_callable = getattr(self, next_method)
         if next_kwargs:
