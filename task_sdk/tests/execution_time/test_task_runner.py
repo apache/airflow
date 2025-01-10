@@ -735,14 +735,20 @@ class TestRuntimeTaskInstance:
 
         assert var_from_context == Variable(key="test_key", value=expected_value)
 
-    def test_xcom_pull(self, create_runtime_ti, mock_supervisor_comms, spy_agency):
+    @pytest.mark.parametrize(
+        "task_ids",
+        [
+            "push_task",
+            ["push_task1", "push_task2"],
+            {"push_task1", "push_task2"},
+        ],
+    )
+    def test_xcom_pull(self, create_runtime_ti, mock_supervisor_comms, spy_agency, task_ids):
         """Test that a task pulls the expected XCom value if it exists."""
-
-        task_id = "push_task"
 
         class CustomOperator(BaseOperator):
             def execute(self, context):
-                value = context["ti"].xcom_pull(task_ids=task_id, key="key")
+                value = context["ti"].xcom_pull(task_ids=task_ids, key="key")
                 print(f"Pulled XCom Value: {value}")
 
         task = CustomOperator(task_id="pull_task")
@@ -755,16 +761,20 @@ class TestRuntimeTaskInstance:
 
         run(runtime_ti, log=mock.MagicMock())
 
-        mock_supervisor_comms.send_request.assert_any_call(
-            log=mock.ANY,
-            msg=GetXCom(
-                key="key",
-                dag_id="test_dag",
-                run_id="test_run",
-                task_id=task_id,
-                map_index=None,
-            ),
-        )
+        if isinstance(task_ids, str):
+            task_ids = [task_ids]
+
+        for task_id in task_ids:
+            mock_supervisor_comms.send_request.assert_any_call(
+                log=mock.ANY,
+                msg=GetXCom(
+                    key="key",
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    task_id=task_id,
+                    map_index=None,
+                ),
+            )
 
 
 class TestXComAfterTaskExecution:

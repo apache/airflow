@@ -165,7 +165,7 @@ class RuntimeTaskInstance(TaskInstance):
 
     def xcom_pull(
         self,
-        task_ids: str | Iterable[str] | None = None,  # TODO: Simplify to a single task_id? (breaking change)
+        task_ids: str | Iterable[str] | None = None,
         dag_id: str | None = None,
         key: str = "return_value",  # TODO: Make this a constant (``XCOM_RETURN_KEY``)
         include_prior_dates: bool = False,  # TODO: Add support for this
@@ -213,11 +213,10 @@ class RuntimeTaskInstance(TaskInstance):
             run_id = self.run_id
 
         if task_ids is None:
+            # default to the current task if not provided
             task_ids = self.task_id
-        elif not isinstance(task_ids, str) and isinstance(task_ids, Iterable):
-            # TODO: Handle multiple task_ids or remove support
-            raise NotImplementedError("Multiple task_ids are not supported yet")
-
+        elif isinstance(task_ids, str):
+            task_ids = [task_ids]
         if map_indexes is None:
             map_indexes = self.map_index
         elif isinstance(map_indexes, Iterable):
@@ -225,28 +224,37 @@ class RuntimeTaskInstance(TaskInstance):
             raise NotImplementedError("Multiple map_indexes are not supported yet")
 
         log = structlog.get_logger(logger_name="task")
-        SUPERVISOR_COMMS.send_request(
-            log=log,
-            msg=GetXCom(
-                key=key,
-                dag_id=dag_id,
-                task_id=task_ids,
-                run_id=run_id,
-                map_index=map_indexes,
-            ),
-        )
 
-        msg = SUPERVISOR_COMMS.get_message()
-        if TYPE_CHECKING:
-            assert isinstance(msg, XComResult)
+        xcoms = []
+        for t in task_ids:
+            SUPERVISOR_COMMS.send_request(
+                log=log,
+                msg=GetXCom(
+                    key=key,
+                    dag_id=dag_id,
+                    task_id=t,
+                    run_id=run_id,
+                    map_index=map_indexes,
+                ),
+            )
 
-        if msg.value is not None:
-            from airflow.models.xcom import XCom
+            msg = SUPERVISOR_COMMS.get_message()
+            if not isinstance(msg, XComResult):
+                raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
 
-            # TODO: Move XCom serialization & deserialization to Task SDK
-            #   https://github.com/apache/airflow/issues/45231
-            return XCom.deserialize_value(msg)  # type: ignore[arg-type]
-        return default
+            if msg.value is not None:
+                from airflow.models.xcom import XCom
+
+                # TODO: Move XCom serialization & deserialization to Task SDK
+                #   https://github.com/apache/airflow/issues/45231
+                xcom = XCom.deserialize_value(msg)  # type: ignore[arg-type]
+                xcoms.append(xcom)
+            else:
+                xcoms.append(default)
+
+        if len(xcoms) == 1:
+            return xcoms[0]
+        return xcoms
 
     def xcom_push(self, key: str, value: Any):
         """
