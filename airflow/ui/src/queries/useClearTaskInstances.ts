@@ -21,7 +21,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   UseDagRunServiceGetDagRunKeyFn,
   useDagRunServiceGetDagRunsKey,
-  UseDagServiceGetDagDetailsKeyFn,
   UseTaskInstanceServiceGetTaskInstanceKeyFn,
   useTaskInstanceServiceGetTaskInstancesKey,
   useTaskInstanceServicePostClearTaskInstances,
@@ -76,7 +75,6 @@ export const useClearTaskInstances = ({
       const queryKeys = [
         [useTaskInstanceServiceGetTaskInstancesKey],
         ...taskInstanceKeys,
-        UseDagServiceGetDagDetailsKeyFn({ dagId }),
         UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
         [useDagRunServiceGetDagRunsKey],
       ];

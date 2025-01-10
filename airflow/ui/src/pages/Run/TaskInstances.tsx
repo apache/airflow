@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Link } from "@chakra-ui/react";
+import { Box, Flex, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Link as RouterLink, useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import ClearTaskInstanceButton from "src/components/ClearRun/ClearTaskInstanceButton";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -79,6 +80,16 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
   {
     cell: ({ row: { original } }) => `${getDuration(original.start_date, original.end_date)}s`,
     header: "Duration",
+  },
+  {
+    accessorKey: "clear_task_instance",
+    cell: ({ row }) => (
+      <Flex justifyContent="end">
+        <ClearTaskInstanceButton taskInstance={row.original} withText={false} />
+      </Flex>
+    ),
+    enableSorting: false,
+    header: "",
   },
 ];
 
