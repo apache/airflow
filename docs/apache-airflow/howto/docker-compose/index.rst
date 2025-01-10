@@ -373,13 +373,13 @@ Steps:
 .. code-block:: yaml
 
     airflow-python:
-    <<: *airflow-common
-    profiles:
-        - debug
-    environment:
-        <<: *airflow-common-env
-    user: "50000:0"
-    entrypoint: [ "/bin/bash", "-c" ]
+      <<: *airflow-common
+      profiles:
+          - debug
+      environment:
+          <<: *airflow-common-env
+      user: "50000:0"
+      entrypoint: [ "/bin/bash", "-c" ]
 
 .. note::
 
