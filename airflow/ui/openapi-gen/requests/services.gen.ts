@@ -185,6 +185,8 @@ import type {
   PostVariableResponse,
   ImportVariablesData,
   ImportVariablesResponse,
+  BulkVariablesData,
+  BulkVariablesResponse,
   ReparseDagFileData,
   ReparseDagFileResponse,
   GetHealthResponse,
@@ -3069,6 +3071,28 @@ export class VariableService {
         403: "Forbidden",
         409: "Conflict",
         422: "Unprocessable Entity",
+      },
+    });
+  }
+
+  /**
+   * Bulk Variables
+   * Bulk create, update, and delete variables.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns BulkVariableResponse Successful Response
+   * @throws ApiError
+   */
+  public static bulkVariables(data: BulkVariablesData): CancelablePromise<BulkVariablesResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/variables/",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        422: "Validation Error",
       },
     });
   }

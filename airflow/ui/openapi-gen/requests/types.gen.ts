@@ -143,6 +143,40 @@ export type Body_import_variables = {
 };
 
 /**
+ * Request body for bulk variable operations (create, update, delete).
+ */
+export type BulkVariableRequest = {
+  /**
+   * A list of variable actions to perform.
+   */
+  actions: Array<VariableActionCreate | VariableActionUpdate | VariableActionDelete>;
+};
+
+/**
+ * Response body for bulk variable operations.
+ */
+export type BulkVariableResponse = {
+  /**
+   * list of keys for successfully created variables.
+   */
+  created?: Array<string>;
+  /**
+   * list of keys for successfully updated variables.
+   */
+  updated?: Array<string>;
+  /**
+   * list of keys for successfully deleted variables.
+   */
+  deleted?: Array<string>;
+  /**
+   * list of error details for failed operations.
+   */
+  errors?: Array<{
+    [key: string]: unknown;
+  }>;
+};
+
+/**
  * Request body for Clear Task Instances endpoint.
  */
 export type ClearTaskInstancesBody = {
@@ -1256,6 +1290,46 @@ export type ValidationError = {
 };
 
 /**
+ * Request body for creating variables.
+ */
+export type VariableActionCreate = {
+  action?: "create";
+  /**
+   * A list of variables to be created.
+   */
+  variables: Array<VariableBody>;
+  action_if_exists?: "skip" | "overwrite" | "fail";
+};
+
+export type action_if_exists = "skip" | "overwrite" | "fail";
+
+/**
+ * Request body for deleting variables.
+ */
+export type VariableActionDelete = {
+  action?: "delete";
+  /**
+   * A list of variable keys to be deleted.
+   */
+  keys: Array<string>;
+  action_if_not_exists?: "skip" | "fail";
+};
+
+export type action_if_not_exists = "skip" | "fail";
+
+/**
+ * Request body for updating existing variables.
+ */
+export type VariableActionUpdate = {
+  action?: "update";
+  /**
+   * A list of variables to be updated.
+   */
+  variables: Array<VariableBody>;
+  action_if_not_exists?: "skip" | "fail";
+};
+
+/**
  * Variable serializer for bodies.
  */
 export type VariableBody = {
@@ -2146,6 +2220,12 @@ export type ImportVariablesData = {
 };
 
 export type ImportVariablesResponse = VariablesImportResponse;
+
+export type BulkVariablesData = {
+  requestBody: BulkVariableRequest;
+};
+
+export type BulkVariablesResponse = BulkVariableResponse;
 
 export type ReparseDagFileData = {
   fileToken: string;
@@ -4623,6 +4703,29 @@ export type $OpenApiTs = {
          * Unprocessable Entity
          */
         422: HTTPExceptionResponse;
+      };
+    };
+  };
+  "/public/variables/": {
+    patch: {
+      req: BulkVariablesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: BulkVariableResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
       };
     };
   };

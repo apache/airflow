@@ -33,6 +33,7 @@ import {
 import {
   BackfillPostBody,
   Body_import_variables,
+  BulkVariableRequest,
   ClearTaskInstancesBody,
   ConnectionBody,
   ConnectionBulkBody,
@@ -3771,6 +3772,43 @@ export const useVariableServicePatchVariable = <
   >({
     mutationFn: ({ requestBody, updateMask, variableKey }) =>
       VariableService.patchVariable({ requestBody, updateMask, variableKey }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Bulk Variables
+ * Bulk create, update, and delete variables.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns BulkVariableResponse Successful Response
+ * @throws ApiError
+ */
+export const useVariableServiceBulkVariables = <
+  TData = Common.VariableServiceBulkVariablesMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: BulkVariableRequest;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: BulkVariableRequest;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      VariableService.bulkVariables({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**

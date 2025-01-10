@@ -495,6 +495,73 @@ export const $Body_import_variables = {
   title: "Body_import_variables",
 } as const;
 
+export const $BulkVariableRequest = {
+  properties: {
+    actions: {
+      items: {
+        anyOf: [
+          {
+            $ref: "#/components/schemas/VariableActionCreate",
+          },
+          {
+            $ref: "#/components/schemas/VariableActionUpdate",
+          },
+          {
+            $ref: "#/components/schemas/VariableActionDelete",
+          },
+        ],
+      },
+      type: "array",
+      title: "Actions",
+      description: "A list of variable actions to perform.",
+    },
+  },
+  type: "object",
+  required: ["actions"],
+  title: "BulkVariableRequest",
+  description: "Request body for bulk variable operations (create, update, delete).",
+} as const;
+
+export const $BulkVariableResponse = {
+  properties: {
+    created: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Created",
+      description: "list of keys for successfully created variables.",
+    },
+    updated: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Updated",
+      description: "list of keys for successfully updated variables.",
+    },
+    deleted: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Deleted",
+      description: "list of keys for successfully deleted variables.",
+    },
+    errors: {
+      items: {
+        type: "object",
+      },
+      type: "array",
+      title: "Errors",
+      description: "list of error details for failed operations.",
+    },
+  },
+  type: "object",
+  title: "BulkVariableResponse",
+  description: "Response body for bulk variable operations.",
+} as const;
+
 export const $ClearTaskInstancesBody = {
   properties: {
     dry_run: {
@@ -5446,6 +5513,93 @@ export const $ValidationError = {
   type: "object",
   required: ["loc", "msg", "type"],
   title: "ValidationError",
+} as const;
+
+export const $VariableActionCreate = {
+  properties: {
+    action: {
+      type: "string",
+      const: "create",
+      title: "Action",
+      default: "create",
+    },
+    variables: {
+      items: {
+        $ref: "#/components/schemas/VariableBody",
+      },
+      type: "array",
+      title: "Variables",
+      description: "A list of variables to be created.",
+    },
+    action_if_exists: {
+      type: "string",
+      enum: ["skip", "overwrite", "fail"],
+      title: "Action If Exists",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["variables"],
+  title: "VariableActionCreate",
+  description: "Request body for creating variables.",
+} as const;
+
+export const $VariableActionDelete = {
+  properties: {
+    action: {
+      type: "string",
+      const: "delete",
+      title: "Action",
+      default: "delete",
+    },
+    keys: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Keys",
+      description: "A list of variable keys to be deleted.",
+    },
+    action_if_not_exists: {
+      type: "string",
+      enum: ["skip", "fail"],
+      title: "Action If Not Exists",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["keys"],
+  title: "VariableActionDelete",
+  description: "Request body for deleting variables.",
+} as const;
+
+export const $VariableActionUpdate = {
+  properties: {
+    action: {
+      type: "string",
+      const: "update",
+      title: "Action",
+      default: "update",
+    },
+    variables: {
+      items: {
+        $ref: "#/components/schemas/VariableBody",
+      },
+      type: "array",
+      title: "Variables",
+      description: "A list of variables to be updated.",
+    },
+    action_if_not_exists: {
+      type: "string",
+      enum: ["skip", "fail"],
+      title: "Action If Not Exists",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["variables"],
+  title: "VariableActionUpdate",
+  description: "Request body for updating existing variables.",
 } as const;
 
 export const $VariableBody = {

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+from typing import Literal, Union
 
 from pydantic import ConfigDict, Field, model_validator
 
@@ -73,3 +74,53 @@ class VariablesImportResponse(BaseModel):
     created_variable_keys: list[str]
     import_count: int
     created_count: int
+
+
+class VariableActionCreate(BaseModel):
+    """Request body for creating variables."""
+
+    action: Literal["create"] = "create"
+    variables: list[VariableBody] = Field(..., description="A list of variables to be created.")
+    action_if_exists: Literal["skip", "overwrite", "fail"] = "fail"
+
+
+class VariableActionUpdate(BaseModel):
+    """Request body for updating existing variables."""
+
+    action: Literal["update"] = "update"
+    variables: list[VariableBody] = Field(..., description="A list of variables to be updated.")
+    action_if_not_exists: Literal["skip", "fail"] = "fail"
+
+
+class VariableActionDelete(BaseModel):
+    """Request body for deleting variables."""
+
+    action: Literal["delete"] = "delete"
+    keys: list[str] = Field(..., description="A list of variable keys to be deleted.")
+    action_if_not_exists: Literal["skip", "fail"] = "fail"
+
+
+VariableAction = Union[VariableActionCreate, VariableActionUpdate, VariableActionDelete]
+
+
+class BulkVariableRequest(BaseModel):
+    """Request body for bulk variable operations (create, update, delete)."""
+
+    actions: list[VariableAction] = Field(..., description="A list of variable actions to perform.")
+
+
+class BulkVariableResponse(BaseModel):
+    """Response body for bulk variable operations."""
+
+    created: list[str] = Field(
+        default_factory=list, description="list of keys for successfully created variables."
+    )
+    updated: list[str] = Field(
+        default_factory=list, description="list of keys for successfully updated variables."
+    )
+    deleted: list[str] = Field(
+        default_factory=list, description="list of keys for successfully deleted variables."
+    )
+    errors: list[dict] = Field(
+        default_factory=list, description="list of error details for failed operations."
+    )

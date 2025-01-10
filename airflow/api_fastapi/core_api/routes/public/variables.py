@@ -33,6 +33,11 @@ from airflow.api_fastapi.common.parameters import (
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.variables import (
+    BulkVariableRequest,
+    BulkVariableResponse,
+    VariableActionCreate,
+    VariableActionDelete,
+    VariableActionUpdate,
     VariableBody,
     VariableCollectionResponse,
     VariableResponse,
@@ -235,3 +240,118 @@ def import_variables(
         import_count=len(import_keys),
         created_variable_keys=list(create_keys),
     )
+
+
+def handle_create(session, action: VariableActionCreate, results: BulkVariableResponse):
+    """Create new variables."""
+    existing_keys = {variable for variable in session.execute(select(Variable.key)).scalars()}
+    to_create_keys = {variable.key for variable in action.variables}
+    matched_keys = existing_keys & to_create_keys
+
+    try:
+        if action.action_if_exists == "fail" and matched_keys:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"The variables with these keys: {', '.join(matched_keys)} already exist.",
+            )
+        elif action.action_if_exists == "skip":
+            create_keys = to_create_keys - matched_keys
+        else:
+            create_keys = to_create_keys
+
+        for variable in action.variables:
+            if variable.key in create_keys:
+                Variable.set(
+                    key=variable.key, value=variable.value, description=variable.description, session=session
+                )
+                results.created.append(variable.key)
+
+    except HTTPException as e:
+        results.errors.append({"action": action.action, "error": f"{e.detail}", "status_code": e.status_code})
+
+
+def handle_update(session, action: VariableActionUpdate, results: BulkVariableResponse):
+    """Update existing variables."""
+    existing_keys = {variable for variable in session.execute(select(Variable.key)).scalars()}
+    to_update_keys = {variable.key for variable in action.variables}
+    matched_keys = existing_keys & to_update_keys
+    not_found_keys = to_update_keys - existing_keys
+
+    try:
+        if action.action_if_not_exists == "fail" and not_found_keys:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"The variables with these keys: {', '.join(not_found_keys)} were not found.",
+            )
+        elif action.action_if_not_exists == "skip":
+            update_keys = matched_keys
+        else:
+            update_keys = to_update_keys
+
+        for variable in action.variables:
+            if variable.key in update_keys:
+                old_variable = session.scalar(select(Variable).filter_by(key=variable.key).limit(1))
+                VariableBody(**variable.model_dump())
+                data = variable.model_dump(exclude={"key"}, by_alias=True)
+
+                for key, val in data.items():
+                    setattr(old_variable, key, val)
+                results.updated.append(variable.key)
+
+    except HTTPException as e:
+        results.errors.append({"action": action.action, "error": f"{e.detail}", "status_code": e.status_code})
+
+    except ValidationError as e:
+        results.errors.append({"action": action.action, "error": f"{e.errors()}"})
+
+
+def handle_delete(session, action: VariableActionDelete, results: BulkVariableResponse):
+    """Delete variables."""
+    existing_keys = {variable for variable in session.execute(select(Variable.key)).scalars()}
+    to_delete_keys = set(action.keys)
+    matched_keys = existing_keys & to_delete_keys
+    not_found_keys = to_delete_keys - existing_keys
+
+    try:
+        if action.action_if_not_exists == "fail" and not_found_keys:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"The variables with these keys: {', '.join(not_found_keys)} were not found.",
+            )
+        elif action.action_if_not_exists == "skip":
+            delete_keys = matched_keys
+        else:
+            delete_keys = to_delete_keys
+
+        for key in delete_keys:
+            existing_variable = session.scalar(select(Variable).where(Variable.key == key).limit(1))
+            if existing_variable:
+                session.delete(existing_variable)
+                results.deleted.append(key)
+
+    except HTTPException as e:
+        results.errors.append({"action": action.action, "error": f"{e.detail}", "status_code": e.status_code})
+
+
+@variables_router.patch("/")
+def bulk_variables(
+    request: BulkVariableRequest,
+    session: SessionDep,
+) -> BulkVariableResponse:
+    """Bulk create, update, and delete variables."""
+    results: BulkVariableResponse = BulkVariableResponse(created=[], updated=[], deleted=[], errors=[])
+
+    for action in request.actions:
+        if isinstance(action, VariableActionCreate):
+            handle_create(session, action, results)
+        elif isinstance(action, VariableActionUpdate):
+            handle_update(session, action, results)
+        elif isinstance(action, VariableActionDelete):
+            handle_delete(session, action, results)
+        else:
+            results["errors"].append(
+                {"action": str(action), "error": f"Invalid action type: {action.__class__.__name__}"}
+            )
+
+    session.commit()
+    return results
