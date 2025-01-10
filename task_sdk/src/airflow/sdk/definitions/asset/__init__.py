@@ -276,7 +276,11 @@ class Asset(os.PathLike, BaseAsset):
         factory=dict,
         converter=_set_extra_default,
     )
-    watchers: list[BaseTrigger] = attrs.field(
+    # This attribute serves double purpose. For a "normal" asset instance
+    # loaded from DAG, this holds the list of triggers used to monitor an external resource.
+    # For an asset recreated from a serialized DAG, however, this holds the serialized data of the list of
+    # triggers.
+    watchers: list[BaseTrigger] | list[dict] = attrs.field(
         factory=list,
     )
 
@@ -291,7 +295,7 @@ class Asset(os.PathLike, BaseAsset):
         *,
         group: str = ...,
         extra: dict | None = None,
-        watchers: list[BaseTrigger] = ...,
+        watchers: list[BaseTrigger] | list[dict] = ...,
     ) -> None:
         """Canonical; both name and uri are provided."""
 
@@ -302,7 +306,7 @@ class Asset(os.PathLike, BaseAsset):
         *,
         group: str = ...,
         extra: dict | None = None,
-        watchers: list[BaseTrigger] = ...,
+        watchers: list[BaseTrigger] | list[dict] = ...,
     ) -> None:
         """It's possible to only provide the name, either by keyword or as the only positional argument."""
 
@@ -313,7 +317,7 @@ class Asset(os.PathLike, BaseAsset):
         uri: str,
         group: str = ...,
         extra: dict | None = None,
-        watchers: list[BaseTrigger] = ...,
+        watchers: list[BaseTrigger] | list[dict] = ...,
     ) -> None:
         """It's possible to only provide the URI as a keyword argument."""
 
@@ -324,7 +328,7 @@ class Asset(os.PathLike, BaseAsset):
         *,
         group: str | None = None,
         extra: dict | None = None,
-        watchers: list[BaseTrigger] | None = None,
+        watchers: list[BaseTrigger] | list[dict] | None = None,
     ) -> None:
         if name is None and uri is None:
             raise TypeError("Asset() requires either 'name' or 'uri'")

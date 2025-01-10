@@ -124,6 +124,11 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         classpath, kwargs = self.serialize()
         return self.repr(classpath, kwargs)
 
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, BaseTrigger):
+            raise NotImplementedError
+        return self.__dict__ == other.__dict__
+
 
 class TriggerEvent:
     """

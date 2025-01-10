@@ -253,13 +253,26 @@ def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
     :meta private:
     """
     if isinstance(var, Asset):
-        return {
+
+        def _encode_trigger(trigger: BaseTrigger):
+            classpath, kwargs = trigger.serialize()
+            return {
+                "classpath": classpath,
+                "kwargs": kwargs,
+            }
+
+        asset = {
             "__type": DAT.ASSET,
             "name": var.name,
             "uri": var.uri,
             "group": var.group,
             "extra": var.extra,
         }
+
+        if len(var.watchers) > 0:
+            asset["watchers"] = [_encode_trigger(cast(BaseTrigger, trigger)) for trigger in var.watchers]
+
+        return asset
     if isinstance(var, AssetAlias):
         return {"__type": DAT.ASSET_ALIAS, "name": var.name, "group": var.group}
     if isinstance(var, AssetAll):
@@ -285,7 +298,13 @@ def decode_asset_condition(var: dict[str, Any]) -> BaseAsset:
     """
     dat = var["__type"]
     if dat == DAT.ASSET:
-        return Asset(name=var["name"], uri=var["uri"], group=var["group"], extra=var["extra"])
+        return Asset(
+            name=var["name"],
+            uri=var["uri"],
+            group=var["group"],
+            extra=var["extra"],
+            watchers=var["watchers"] if "watchers" in var else [],
+        )
     if dat == DAT.ASSET_ALL:
         return AssetAll(*(decode_asset_condition(x) for x in var["objects"]))
     if dat == DAT.ASSET_ANY:
