@@ -705,8 +705,8 @@ class TestHttpHook:
             assert isinstance(
                 session.adapters["https://"], type(custom_adapter)
             ), "Custom HTTPS adapter not correctly mounted"
-            
-     def test_airflow_dependency_version(self):
+
+    def test_airflow_dependency_version(self):
         if airflow_dependency_version() >= packaging.version.parse("2.10.0"):
             raise RuntimeError(
                 "The class ConnectionWithExtra can be removed from the HttpHook since the get_extra_dejson"
