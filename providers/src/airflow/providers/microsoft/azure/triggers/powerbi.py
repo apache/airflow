@@ -153,8 +153,8 @@ class PowerBITrigger(BaseTrigger):
                     refresh_id=self.dataset_refresh_id,
                 )
                 return refresh_details["status"], refresh_details["error"]
-            else:
-                raise PowerBIDatasetRefreshException("Dataset refresh Id is missing.")
+
+            raise PowerBIDatasetRefreshException("Dataset refresh Id is missing.")
 
         try:
             dataset_refresh_status, dataset_refresh_error = await fetch_refresh_status_and_error()

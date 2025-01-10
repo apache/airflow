@@ -220,20 +220,19 @@ class TestPowerBITrigger:
         mock_get_refresh_details_by_refresh_id.side_effect = PowerBIDatasetRefreshException("Test exception")
         mock_trigger_dataset_refresh.return_value = DATASET_REFRESH_ID
 
-        with mock.patch("tenacity.wait.wait_exponential.__call__") as mock_retry:
-            task = [i async for i in powerbi_trigger.run()]
-            response = TriggerEvent(
-                {
-                    "status": "error",
-                    "dataset_refresh_status": None,
-                    "message": "An error occurred: Test exception",
-                    "dataset_refresh_id": DATASET_REFRESH_ID,
-                }
-            )
-            assert len(task) == 1
-            assert response in task
-            assert mock_cancel_dataset_refresh.call_count == 1
-            assert mock_retry.call_count == 3
+        task = [i async for i in powerbi_trigger.run()]
+        response = TriggerEvent(
+            {
+                "status": "error",
+                "dataset_refresh_status": None,
+                "message": "An error occurred: Test exception",
+                "dataset_refresh_id": DATASET_REFRESH_ID,
+            }
+        )
+        assert mock_get_refresh_details_by_refresh_id.call_count == 3
+        assert len(task) == 1
+        assert response in task
+        assert mock_cancel_dataset_refresh.call_count == 1
 
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.cancel_dataset_refresh")
