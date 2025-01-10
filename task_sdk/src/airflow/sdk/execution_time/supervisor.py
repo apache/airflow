@@ -286,7 +286,7 @@ def _fork_main(
 
 @attrs.define()
 class WatchedSubprocess:
-    id: UUID | None
+    id: UUID
     pid: int
 
     stdin: BinaryIO
@@ -319,7 +319,7 @@ class WatchedSubprocess:
     @classmethod
     def start(
         cls,
-        id: UUID | None,
+        id: UUID,
         client: Client | None,
         target: Callable[[], None] = _subprocess_main,
         logger: FilteringBoundLogger | None = None,
