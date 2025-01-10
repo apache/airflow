@@ -95,7 +95,7 @@ def action_logging(func: T | None = None, event: str | None = None) -> T | Calla
                     user_display = get_auth_manager().get_user_display_name()
 
                 isAPIRequest = request.blueprint == "/api/v1"
-                hasJsonBody = "application/json" in request.headers.get("content-type") and request.json
+                hasJsonBody = "application/json" in request.headers.get("content-type", "") and request.json
 
                 fields_skip_logging = {
                     "csrf_token",
