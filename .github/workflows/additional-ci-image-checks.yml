@@ -84,6 +84,8 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uv to build the image (true/false)"
         required: true
         type: string
+permissions:
+  contents: read
 jobs:
   # Push early BuildX cache to GitHub Registry in Apache repository, This cache does not wait for all the
   # tests to complete - it is run very early in the build process for "main" merges in order to refresh
