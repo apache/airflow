@@ -346,7 +346,7 @@ html_static_path.append("sphinx_design/static/")  # Style overrides for the sphi
 # filename must be relative to the html_static_path, or a full URI with
 # scheme like http://example.org/script.js.
 if PACKAGE_NAME in ["apache-airflow", "helm-chart"]:
-    html_js_files = ["gh-jira-links.js"]
+    html_js_files = ["gh-jira-links.js", "redirects.js"]
 else:
     html_js_files = []
 if PACKAGE_NAME == "apache-airflow":
