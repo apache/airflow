@@ -21,29 +21,28 @@ import asyncio
 import json
 import warnings
 from contextlib import suppress
-from functools import cached_property
+from functools import cache
 from json import JSONDecodeError
-from logging import Logger
 from typing import TYPE_CHECKING, Any, Callable
+from urllib.parse import urlparse
 
 import aiohttp
 import requests
 import tenacity
 from aiohttp import ClientResponseError
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.hooks.base import BaseHook
+from airflow.utils.module_loading import import_string
 from asgiref.sync import sync_to_async
-from requests.auth import HTTPBasicAuth
+from requests.auth import HTTPBasicAuth, AuthBase
 from requests.models import DEFAULT_REDIRECT_LIMIT
 from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
-from airflow.compat.functools import cache
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.hooks.base import BaseHook
-from airflow.models import Connection
-from airflow.utils.log.secrets_masker import mask_secret
-from airflow.utils.module_loading import import_string
-
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
+    from requests.adapters import HTTPAdapter
+
+    from airflow.models import Connection
 
 
 DEFAULT_AUTH_TYPES = frozenset(
@@ -57,86 +56,51 @@ DEFAULT_AUTH_TYPES = frozenset(
 )
 
 
-@cache
-def get_auth_types() -> frozenset[str]:
+def _url_from_endpoint(base_url: str | None, endpoint: str | None) -> str:
+    """Combine base url with endpoint."""
+    if base_url and not base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
+        return f"{base_url}/{endpoint}"
+    return (base_url or "") + (endpoint or "")
+
+
+class HttpHook(BaseHook):
     """
-    Get comma-separated extra auth_types from airflow config.
+    Interact with HTTP servers.
 
-    Those auth_types can then be used in Connection configuration.
-    """
-    from airflow.configuration import conf
-
-    auth_types = DEFAULT_AUTH_TYPES.copy()
-    extra_auth_types = conf.get("http", "extra_auth_types", fallback=None)
-    if extra_auth_types:
-        auth_types |= frozenset({field.strip() for field in extra_auth_types.split(",")})
-    return auth_types
-
-
-class ConnectionWithExtra(Connection):
-    """
-    Patched Connection class added for backward compatibility.
-
-    Implements the `get_extra_dejson` method which was added in the Connection class in Airflow 2.10.0.
-    This patched class must be removed once the http provider depends on Airflow 2.10.0 or higher.
+    :param method: the API method to be called
+    :param http_conn_id: :ref:`http connection<howto/connection:http>` that has the base
+        API url i.e https://www.google.com/ and optional authentication credentials. Default
+        headers can also be specified in the Extra field in json format.
+    :param auth_type: The auth type for the service
+    :param adapter: An optional instance of `requests.adapters.HTTPAdapter` to mount for the session.
+    :param tcp_keep_alive: Enable TCP Keep Alive for the connection.
+    :param tcp_keep_alive_idle: The TCP Keep Alive Idle parameter (corresponds to ``socket.TCP_KEEPIDLE``).
+    :param tcp_keep_alive_count: The TCP Keep Alive count parameter (corresponds to ``socket.TCP_KEEPCNT``)
+    :param tcp_keep_alive_interval: The TCP Keep Alive interval parameter (corresponds to
+        ``socket.TCP_KEEPINTVL``)
+    :param auth_args: extra arguments used to initialize the auth_type if different than default HTTPBasicAuth
     """
 
-    def __init__(
-        self,
-        conn_id: str | None = None,
-        conn_type: str | None = None,
-        description: str | None = None,
-        host: str | None = None,
-        login: str | None = None,
-        password: str | None = None,
-        schema: str | None = None,
-        port: int | None = None,
-        extra: str | dict | None = None,
-        uri: str | None = None,
-    ):
-        super().__init__(conn_id, conn_type, description, host, login, password, schema, port, extra, uri)
+    conn_name_attr = "http_conn_id"
+    default_conn_name = "http_default"
+    conn_type = "http"
+    hook_name = "HTTP"
 
-    def get_extra_dejson(self, nested: bool = False) -> dict:
+    @classmethod
+    @cache
+    def get_auth_types(cls) -> frozenset[str]:
         """
-        Deserialize extra property to JSON.
+        Get comma-separated extra auth_types from airflow config.
 
-        :param nested: Determines whether nested structures are also deserialized into JSON (default False).
+        Those auth_types can then be used in Connection configuration.
         """
-        extra = {}
+        from airflow.configuration import conf
 
-        if self.extra:
-            try:
-                if nested:
-                    for key, value in json.loads(self.extra).items():
-                        extra[key] = value
-                        if isinstance(value, str):
-                            with suppress(JSONDecodeError):
-                                extra[key] = json.loads(value)
-                else:
-                    extra = json.loads(self.extra)
-            except JSONDecodeError:
-                self.log.exception("Failed parsing the json for conn_id %s", self.conn_id)
-
-            # Mask sensitive keys from this list
-            mask_secret(extra)
-
-        return extra
-
-
-class HttpHookMixin:
-    """
-    Common superclass for the HttpHook and HttpAsyncHook.
-
-    Implements methods to create a Connection.
-    """
-
-    http_conn_id: str
-    conn_type: str
-    base_url: str
-    auth_type: Any
-    default_auth_type = HTTPBasicAuth
-    get_connection: Callable
-    log: Logger
+        auth_types = DEFAULT_AUTH_TYPES.copy()
+        extra_auth_types = conf.get("http", "extra_auth_types", fallback=None)
+        if extra_auth_types:
+            auth_types |= frozenset({field.strip() for field in extra_auth_types.split(",")})
+        return auth_types
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
@@ -146,7 +110,7 @@ class HttpHookMixin:
         from wtforms.fields import BooleanField, SelectField, StringField, TextAreaField
 
         default_auth_type: str = ""
-        auth_types_choices = frozenset({default_auth_type}) | get_auth_types()
+        auth_types_choices = frozenset({default_auth_type}) | cls.get_auth_types()
 
         return {
             "timeout": StringField(lazy_gettext("Timeout"), widget=BS3TextFieldWidget()),
@@ -185,134 +149,74 @@ class HttpHookMixin:
             "relabeling": {},
         }
 
-    @cached_property
-    def connection(self) -> Connection:
-        """
-        Return a cached connection property.
+    def __init__(
+        self,
+        method: str = "POST",
+        http_conn_id: str = default_conn_name,
+        auth_type: Any = None,
+        tcp_keep_alive: bool = True,
+        tcp_keep_alive_idle: int = 120,
+        tcp_keep_alive_count: int = 20,
+        tcp_keep_alive_interval: int = 30,
+        adapter: HTTPAdapter | None = None,
+    ) -> None:
+        super().__init__()
+        self.http_conn_id = http_conn_id
+        self.method = method.upper()
+        self.base_url: str = ""
+        self._retry_obj: Callable[..., Any]
+        self.auth_type: Any = auth_type
 
-        This method calls the original get_connection method from the BaseHook and returns a patched version
-        of the Connection class which also has the `get_extra_dejson` method that has been added in Apache
-        Airflow since 2.10.0. Once the provider depends on Airflow version 2.10.0 or higher, this method and
-        the ConnectionWithExtra class can be removed.
-        """
-        conn = BaseHook.get_connection(conn_id=self.http_conn_id)
-
-        return ConnectionWithExtra(
-            conn_id=self.http_conn_id,
-            conn_type=conn.conn_type,
-            description=conn.description,
-            host=conn.host,
-            login=conn.login,
-            password=conn.password,
-            schema=conn.schema,
-            port=conn.port,
-            extra=conn.extra,
-        )
-
-    def load_connection_settings(self, *, headers: dict[Any, Any] | None = None) -> tuple[dict, Any, dict]:
-        """
-        Load and update the class with Connection Settings.
-
-        Load the settings from the Connection and update the class.
-        Returns the headers and auth which are later passed into a request.Session
-        (for the HttpHook) or an aiohttp.Session (for the HttpAsyncHook).
-        """
-        _headers = {}
-        _auth = None
-        _session_conf = {}
-
-        if self.http_conn_id:
-            conn = self.connection
-
-            if conn.host and "://" in conn.host:
-                self.base_url = conn.host
-            else:
-                # schema defaults to HTTP
-                schema = conn.schema if conn.schema else "http"
-                host = conn.host if conn.host else ""
-                self.base_url = f"{schema}://{host}"
-
-            if conn.port:
-                self.base_url += f":{conn.port}"
-
-            conn_extra: dict = self._parse_extra(conn_extra=conn.get_extra_dejson(nested=True))
-            _session_conf = conn_extra["session_conf"]
-            auth_args: list[str | None] = [conn.login, conn.password]
-            auth_kwargs: dict[str, Any] = conn_extra["auth_kwargs"]
-            auth_type: Any = self.auth_type or self._load_conn_auth_type(module_name=conn_extra["auth_type"])
-
-            self.log.debug("auth_type: %s", auth_type)
-
-            if auth_type:
-                if any(auth_args) or auth_kwargs:
-                    _auth = auth_type(*auth_args, **auth_kwargs)
-                elif conn.login:
-                    _auth = auth_type(conn.login, conn.password)
-                else:
-                    _auth = auth_type()
-
-            extra_headers = conn_extra["headers"]
-            if extra_headers:
-                try:
-                    _headers.update(extra_headers)
-                except TypeError:
-                    self.log.warning("Connection to %s has invalid extra field.", conn.host)
-        if headers:
-            _headers.update(headers)
-
-        self.log.debug("headers: %s", _headers)
-        self.log.debug("auth: %s", _auth)
-        self.log.debug("session_conf: %s", _session_conf)
-
-        return _headers, _auth, _session_conf
-
-    def _parse_extra(self, conn_extra: dict) -> dict:
-        """
-        Parse the settings from 'extra' into dict.
-
-        The "auth_kwargs" and "headers" data from TextAreaField are returned as
-        string via the 'extra' field. This method converts the data to dict.
-        """
-        extra = conn_extra.copy()
-        session_conf = {}
-        timeout = extra.pop(
-            "timeout", None
-        )  # ignore this as timeout is only accepted in request method of Session
-        if timeout is not None:
-            session_conf["timeout"] = timeout
-        allow_redirects = extra.pop(
-            "allow_redirects", None
-        )  # ignore this as only max_redirects is accepted in Session
-        if allow_redirects is not None:
-            session_conf["allow_redirects"] = allow_redirects
-        session_conf["proxies"] = extra.pop("proxies", extra.pop("proxy", {}))
-        session_conf["stream"] = extra.pop("stream", False)
-        session_conf["verify"] = extra.pop("verify", extra.pop("verify_ssl", True))
-        session_conf["trust_env"] = extra.pop("trust_env", True)
-        cert = extra.pop("cert", None)
-        if cert is not None:
-            session_conf["cert"] = cert
-        session_conf["max_redirects"] = extra.pop("max_redirects", DEFAULT_REDIRECT_LIMIT)
-        auth_type: str | None = extra.pop("auth_type", None)
-        auth_kwargs = extra.pop("auth_kwargs", {})
-        headers = extra.pop("headers", {})
-
-        if extra:
-            warnings.warn(
-                "Passing headers parameters directly in 'Extra' field is deprecated, and "
-                "will be removed in a future version of the Http provider. Use the 'Headers' "
-                "field instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
+        # If no adapter is provided, use TCPKeepAliveAdapter (default behavior)
+        self.adapter = adapter
+        if tcp_keep_alive and adapter is None:
+            self.keep_alive_adapter = TCPKeepAliveAdapter(
+                idle=tcp_keep_alive_idle,
+                count=tcp_keep_alive_count,
+                interval=tcp_keep_alive_interval,
             )
-            headers = {**extra, **headers}
+        else:
+            self.keep_alive_adapter = None
 
-        return {
-            "auth_type": auth_type,
-            "auth_kwargs": auth_kwargs,
-            "session_conf": session_conf,
-            "headers": headers,
-        }
+    # headers may be passed through directly or in the "extra" field in the connection
+    # definition
+    def get_conn(self, headers: dict[Any, Any] | None = None) -> requests.Session:
+        """
+        Create a Requests HTTP session.
+
+        :param headers: Additional headers to be passed through as a dictionary.
+        :return: A configured requests.Session object.
+        """
+        session = requests.Session()
+        connection = self.get_connection(self.http_conn_id)
+        self._set_base_url(connection)
+        session = self._configure_session_from_auth(session, connection)
+        if connection.extra:
+            session = self._configure_session_from_extra(session, connection)
+        session = self._configure_session_from_mount_adapters(session)
+        if headers:
+            session.headers.update(headers)
+        return session
+
+    def _set_base_url(self, connection: Connection) -> None:
+        host = connection.host or ""
+        schema = connection.schema or "http"
+        # RFC 3986 (https://www.rfc-editor.org/rfc/rfc3986.html#page-16)
+        if "://" in host:
+            self.base_url = host
+        else:
+            self.base_url = f"{schema}://{host}" if host else f"{schema}://"
+            if connection.port:
+                self.base_url = f"{self.base_url}:{connection.port}"
+        parsed = urlparse(self.base_url)
+        if not parsed.scheme:
+            raise ValueError(f"Invalid base URL: Missing scheme in {self.base_url}")
+
+    def _configure_session_from_auth(
+        self, session: requests.Session, connection: Connection
+    ) -> requests.Session:
+        session.auth = self._extract_auth(connection)
+        return session
 
     def _load_conn_auth_type(self, module_name: str | None) -> Any:
         """
@@ -322,7 +226,7 @@ class HttpHookMixin:
         This method protects against the execution of random modules.
         """
         if module_name:
-            if module_name in get_auth_types():
+            if module_name in self.get_auth_types():
                 try:
                     module = import_string(module_name)
                     self._is_auth_type_setup = True
@@ -338,101 +242,74 @@ class HttpHookMixin:
             )
         return None
 
-    def url_from_endpoint(self, endpoint: str | None) -> str:
-        """Combine base url with endpoint."""
-        if self.base_url and not self.base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
-            return self.base_url + "/" + endpoint
-        return (self.base_url or "") + (endpoint or "")
+    def _extract_auth(self, connection: Connection) -> AuthBase | None:
+        extra = connection.extra_dejson
+        auth_type: Any = self.auth_type or self._load_conn_auth_type(module_name=extra.get("auth_type"))
+        auth_kwargs = extra.get("auth_kwargs", {})
 
+        self.log.debug("auth_type: %s", auth_type)
+        self.log.debug("auth_kwargs: %s", auth_kwargs)
 
-class HttpHook(HttpHookMixin, BaseHook):
-    """
-    Interact with HTTP servers.
+        if auth_type:
+            auth_args: list[str | None] = [connection.login, connection.password]
 
-    To configure the auth_type, in addition to the `auth_type` parameter, you can also:
-        * set the `auth_type` parameter in the Connection settings.
-        * define extra parameters passed to the `auth_type` class via the `auth_kwargs`, in the Connection
-            settings. The class will be instantiated with those parameters.
+            self.log.debug("auth_args: %s", auth_args)
 
-    See :doc:`/connections/http` for full documentation.
+            if any(auth_args):
+                if auth_kwargs:
+                    _auth = auth_type(*auth_args, **auth_kwargs)
+                else:
+                    return auth_type(*auth_args)
+            else:
+                return auth_type()
+        return None
 
-    :param method: the API method to be called
-    :param http_conn_id: :ref:`http connection<howto/connection:http>` that has the base
-        API url i.e https://www.google.com/ and optional authentication credentials. Default
-        headers can also be specified in the Extra field in json format.
-    :param auth_type: The auth type for the service
-    :param tcp_keep_alive: Enable TCP Keep Alive for the connection.
-    :param tcp_keep_alive_idle: The TCP Keep Alive Idle parameter (corresponds to ``socket.TCP_KEEPIDLE``).
-    :param tcp_keep_alive_count: The TCP Keep Alive count parameter (corresponds to ``socket.TCP_KEEPCNT``)
-    :param tcp_keep_alive_interval: The TCP Keep Alive interval parameter (corresponds to
-        ``socket.TCP_KEEPINTVL``)
-    :param auth_args: extra arguments used to initialize the auth_type if different than default HTTPBasicAuth
-    """
+    def _configure_session_from_extra(
+        self, session: requests.Session, connection: Connection
+    ) -> requests.Session:
+        extra = connection.extra_dejson
+        extra.pop("timeout", None)
+        extra.pop("allow_redirects", None)
+        extra.pop("auth_type", None)
+        extra.pop("auth_kwargs", None)
+        headers = extra.pop("headers", {})
+        if isinstance(headers, str):
+            with suppress(JSONDecodeError):
+                headers = json.loads(headers)
+        session.proxies = extra.pop("proxies", extra.pop("proxy", {}))
+        session.stream = extra.pop("stream", False)
+        session.verify = extra.pop("verify", extra.pop("verify_ssl", True))
+        session.cert = extra.pop("cert", None)
+        session.max_redirects = extra.pop("max_redirects", DEFAULT_REDIRECT_LIMIT)
+        session.trust_env = extra.pop("trust_env", True)
 
-    conn_name_attr = "http_conn_id"
-    default_conn_name = "http_default"
-    conn_type = "http"
-    hook_name = "HTTP"
-
-    @classmethod
-    def get_connection_form_widgets(cls) -> dict[str, Any]:
-        return super().get_connection_form_widgets()
-
-    @classmethod
-    def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        return super().get_ui_field_behaviour()
-
-    def __init__(
-        self,
-        method: str = "POST",
-        http_conn_id: str = default_conn_name,
-        auth_type: Any = None,
-        tcp_keep_alive: bool = True,
-        tcp_keep_alive_idle: int = 120,
-        tcp_keep_alive_count: int = 20,
-        tcp_keep_alive_interval: int = 30,
-    ) -> None:
-        super().__init__()
-        self.http_conn_id = http_conn_id
-        self.method = method.upper()
-        self.base_url: str = ""
-        self._retry_obj: Callable[..., Any]
-        self.auth_type: Any = auth_type
-        self.tcp_keep_alive = tcp_keep_alive
-        self.keep_alive_idle = tcp_keep_alive_idle
-        self.keep_alive_count = tcp_keep_alive_count
-        self.keep_alive_interval = tcp_keep_alive_interval
-
-    # headers may be passed through directly or in the "extra" field in the connection
-    # definition
-    def get_conn(self, headers: dict[Any, Any] | None = None) -> requests.Session:
-        """
-        Create a Requests HTTP session.
-
-        :param headers: additional headers to be passed through as a dictionary.
-                        Note: Headers may also be passed in the "Headers" field in the Connection definition
-        """
-        headers, auth, session_conf = self.load_connection_settings(headers=headers)
-
-        session_conf.pop(
-            "timeout", None
-        )  # ignore this as timeout is only accepted in request method of Session
-        session_conf.pop("allow_redirects", None)  # ignore this as only max_redirects is accepted in Session
-
-        session = requests.Session()
-        session.auth = auth
-        session.proxies = session_conf["proxies"]
-        session.stream = session_conf["stream"]
-        session.verify = session_conf["verify"]
-        session.cert = session_conf.get("cert")
-        session.max_redirects = session_conf["max_redirects"]
-        session.trust_env = session_conf["trust_env"]
+        if extra:
+            warnings.warn(
+                "Passing headers parameters directly in 'Extra' field is deprecated, and "
+                "will be removed in a future version of the Http provider. Use the 'Headers' "
+                "field instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            headers = {**extra, **headers}
 
         try:
             session.headers.update(headers)
         except TypeError:
-            self.log.warning("Connection to %s has invalid extra field.", self.http_conn_id)
+            self.log.warning("Connection to %s has invalid extra field.", connection.host)
+        return session
 
+    def _configure_session_from_mount_adapters(self, session: requests.Session) -> requests.Session:
+        scheme = urlparse(self.base_url).scheme
+        if not scheme:
+            raise ValueError(
+                f"Cannot mount adapters: {self.base_url} does not include a valid scheme (http or https)."
+            )
+        if self.adapter:
+            session.mount(f"{scheme}://", self.adapter)
+        elif self.keep_alive_adapter:
+            session.mount("http://", self.keep_alive_adapter)
+            session.mount("https://", self.keep_alive_adapter)
         return session
 
     def run(
@@ -461,11 +338,6 @@ class HttpHook(HttpHookMixin, BaseHook):
 
         url = self.url_from_endpoint(endpoint)
 
-        if self.tcp_keep_alive:
-            keep_alive_adapter = TCPKeepAliveAdapter(
-                idle=self.keep_alive_idle, count=self.keep_alive_count, interval=self.keep_alive_interval
-            )
-            session.mount(url, keep_alive_adapter)
         if self.method == "GET":
             # GET uses params
             req = requests.Request(self.method, url, params=data, headers=headers, **request_kwargs)
@@ -565,6 +437,10 @@ class HttpHook(HttpHookMixin, BaseHook):
         # TODO: remove ignore type when https://github.com/jd/tenacity/issues/428 is resolved
         return self._retry_obj(self.run, *args, **kwargs)  # type: ignore
 
+    def url_from_endpoint(self, endpoint: str | None) -> str:
+        """Combine base url with endpoint."""
+        return _url_from_endpoint(base_url=self.base_url, endpoint=endpoint)
+
     def test_connection(self):
         """Test HTTP Connection."""
         try:
@@ -574,7 +450,7 @@ class HttpHook(HttpHookMixin, BaseHook):
             return False, str(e)
 
 
-class HttpAsyncHook(HttpHookMixin, BaseHook):
+class HttpAsyncHook(BaseHook):
     """
     Interact with HTTP servers asynchronously.
 
@@ -594,7 +470,7 @@ class HttpAsyncHook(HttpHookMixin, BaseHook):
         self,
         method: str = "POST",
         http_conn_id: str = default_conn_name,
-        auth_type: Any = None,
+        auth_type: Any = aiohttp.BasicAuth,
         retry_limit: int = 3,
         retry_delay: float = 1.0,
     ) -> None:
@@ -628,11 +504,38 @@ class HttpAsyncHook(HttpHookMixin, BaseHook):
             ``aiohttp.ClientSession().get(json=obj)``.
         """
         extra_options = extra_options or {}
-        _headers, auth, session_conf = await sync_to_async(self.load_connection_settings)(headers=headers)
-        session_conf = self._process_session_conf(session_conf)
-        session_conf.update(extra_options)
 
-        url = self.url_from_endpoint(endpoint)
+        # headers may be passed through directly or in the "extra" field in the connection
+        # definition
+        _headers = {}
+        auth = None
+
+        if self.http_conn_id:
+            conn = await sync_to_async(self.get_connection)(self.http_conn_id)
+
+            if conn.host and "://" in conn.host:
+                self.base_url = conn.host
+            else:
+                # schema defaults to HTTP
+                schema = conn.schema if conn.schema else "http"
+                host = conn.host if conn.host else ""
+                self.base_url = schema + "://" + host
+
+            if conn.port:
+                self.base_url += f":{conn.port}"
+            if conn.login:
+                auth = self.auth_type(conn.login, conn.password)
+            if conn.extra:
+                extra = self._process_extra_options_from_connection(conn=conn, extra_options=extra_options)
+
+                try:
+                    _headers.update(extra)
+                except TypeError:
+                    self.log.warning("Connection to %s has invalid extra field.", conn.host)
+        if headers:
+            _headers.update(headers)
+
+        url = _url_from_endpoint(self.base_url, endpoint)
 
         async with aiohttp.ClientSession() as session:
             if self.method == "GET":
@@ -684,17 +587,30 @@ class HttpAsyncHook(HttpHookMixin, BaseHook):
                 raise NotImplementedError  # should not reach this, but makes mypy happy
 
     @classmethod
-    def _process_session_conf(cls, session_conf: dict) -> dict:
-        session_conf.pop("stream", None)
-        session_conf.pop("cert", None)
-        proxies = session_conf.pop("proxies")
-        if proxies is not None:
-            session_conf["proxy"] = proxies
-        verify = session_conf.pop("verify")
-        if verify is not None:
-            session_conf["verify_ssl"] = verify
-        session_conf.pop("trust_env")
-        return session_conf
+    def _process_extra_options_from_connection(cls, conn: Connection, extra_options: dict) -> dict:
+        extra = conn.extra_dejson
+        extra.pop("stream", None)
+        extra.pop("cert", None)
+        proxies = extra.pop("proxies", extra.pop("proxy", None))
+        timeout = extra.pop("timeout", None)
+        verify_ssl = extra.pop("verify", extra.pop("verify_ssl", None))
+        allow_redirects = extra.pop("allow_redirects", None)
+        max_redirects = extra.pop("max_redirects", None)
+        trust_env = extra.pop("trust_env", None)
+
+        if proxies is not None and "proxy" not in extra_options:
+            extra_options["proxy"] = proxies
+        if timeout is not None and "timeout" not in extra_options:
+            extra_options["timeout"] = timeout
+        if verify_ssl is not None and "verify_ssl" not in extra_options:
+            extra_options["verify_ssl"] = verify_ssl
+        if allow_redirects is not None and "allow_redirects" not in extra_options:
+            extra_options["allow_redirects"] = allow_redirects
+        if max_redirects is not None and "max_redirects" not in extra_options:
+            extra_options["max_redirects"] = max_redirects
+        if trust_env is not None and "trust_env" not in extra_options:
+            extra_options["trust_env"] = trust_env
+        return extra
 
     def _retryable_error_async(self, exception: ClientResponseError) -> bool:
         """
@@ -713,5 +629,4 @@ class HttpAsyncHook(HttpHookMixin, BaseHook):
         if exception.status == 413:
             # don't retry for payload Too Large
             return False
-
         return exception.status >= 500

@@ -37,7 +37,7 @@ from requests.models import DEFAULT_REDIRECT_LIMIT
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.http import airflow_dependency_version
-from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook, get_auth_types
+from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
 
 DEFAULT_HEADERS_AS_STRING = '{\r\n "Content-Type": "application/json",\r\n  "X-Requested-By": "Airflow"\r\n}'
 DEFAULT_HEADERS = json.loads(DEFAULT_HEADERS_AS_STRING)
@@ -397,7 +397,7 @@ class TestHttpHook:
         assert hook.base_url == "http://"
 
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
-    @mock.patch("tests.providers.http.hooks.test_http.CustomAuthBase.__init__")
+    @mock.patch("providers.tests.http.hooks.test_http.CustomAuthBase.__init__")
     def test_connection_with_extra_header_and_auth_kwargs(self, auth, mock_get_connection):
         auth.return_value = None
         conn = Connection(
@@ -417,7 +417,7 @@ class TestHttpHook:
         assert "x-header" in session.headers
 
     def test_available_connection_auth_types(self):
-        auth_types = get_auth_types()
+        auth_types = HttpHook.get_auth_types()
         assert auth_types == frozenset(
             {
                 "requests.auth.HTTPBasicAuth",
@@ -441,18 +441,20 @@ class TestHttpHook:
         HttpHook().get_conn({})
         assert f"Skipping import of auth_type '{auth_type}'." in caplog.text
 
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_auth_types")
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
-    @mock.patch("tests.providers.http.hooks.test_http.CustomAuthBase.__init__")
-    def test_connection_with_extra_header_and_auth_type(self, auth, mock_get_connection):
+    @mock.patch("providers.tests.http.hooks.test_http.CustomAuthBase.__init__")
+    def test_connection_with_extra_header_and_auth_type(self, auth, mock_get_connection, mock_get_auth_types):
         auth.return_value = None
         conn = Connection(
             conn_id="http_default",
             conn_type="http",
             login="username",
             password="pass",
-            extra='{"headers": {"x-header": 0}, "auth_type": "tests.providers.http.hooks.test_http.CustomAuthBase"}',
+            extra='{"headers": {"x-header": 0}, "auth_type": "providers.tests.http.hooks.test_http.CustomAuthBase"}',
         )
         mock_get_connection.return_value = conn
+        mock_get_auth_types.return_value = frozenset(["providers.tests.http.hooks.test_http.CustomAuthBase"])
 
         session = HttpHook().get_conn({})
         auth.assert_called_once_with("username", "pass")
@@ -460,22 +462,26 @@ class TestHttpHook:
         assert "auth_type" not in session.headers
         assert "x-header" in session.headers
 
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_auth_types")
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
-    @mock.patch("tests.providers.http.hooks.test_http.CustomAuthBase.__init__")
-    def test_connection_with_extra_auth_type_and_no_credentials(self, auth, mock_get_connection):
+    @mock.patch("providers.tests.http.hooks.test_http.CustomAuthBase.__init__")
+    def test_connection_with_extra_auth_type_and_no_credentials(self, auth, mock_get_connection, mock_get_auth_types):
         auth.return_value = None
         conn = Connection(
             conn_id="http_default",
             conn_type="http",
-            extra='{"auth_type": "tests.providers.http.hooks.test_http.CustomAuthBase"}',
+            login="username",
+            password="secret",
+            extra='{"auth_type": "providers.tests.http.hooks.test_http.CustomAuthBase"}',
         )
         mock_get_connection.return_value = conn
+        mock_get_auth_types.return_value = frozenset(["providers.tests.http.hooks.test_http.CustomAuthBase"])
 
         HttpHook().get_conn({})
         auth.assert_called_once()
 
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
-    @mock.patch("tests.providers.http.hooks.test_http.CustomAuthBase.__init__")
+    @mock.patch("providers.tests.http.hooks.test_http.CustomAuthBase.__init__")
     def test_connection_with_string_headers_and_auth_kwargs(self, auth, mock_get_connection):
         """When passed via the UI, the 'headers' and 'auth_kwargs' fields' data is
         saved as string.
