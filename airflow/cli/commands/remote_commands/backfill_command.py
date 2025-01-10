@@ -25,6 +25,7 @@ from airflow.models.backfill import ReprocessBehavior, _create_backfill, _do_dry
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import sigint_handler
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+from airflow.utils.session import create_session
 
 
 @cli_utils.action_cli
@@ -53,13 +54,15 @@ def create_backfill(args) -> None:
         )
         for k, v in params.items():
             print(f"    - {k} = {v}")
-        logical_dates = _do_dry_run(
-            dag_id=args.dag_id,
-            from_date=args.from_date,
-            to_date=args.to_date,
-            reverse=args.reverse,
-            reprocess_behavior=args.reprocess_behavior,
-        )
+        with create_session() as session:
+            logical_dates = _do_dry_run(
+                dag_id=args.dag_id,
+                from_date=args.from_date,
+                to_date=args.to_date,
+                reverse=args.reverse,
+                reprocess_behavior=args.reprocess_behavior,
+                session=session,
+            )
         print("Logical dates to be attempted:")
         for d in logical_dates:
             print(f"    - {d}")

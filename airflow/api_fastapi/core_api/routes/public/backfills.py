@@ -222,6 +222,7 @@ def create_backfill(
 )
 def create_backfill_dry_run(
     body: BackfillPostBody,
+    session: SessionDep,
 ) -> DryRunBackfillCollectionResponse:
     from_date = timezone.coerce_datetime(body.from_date)
     to_date = timezone.coerce_datetime(body.to_date)
@@ -232,6 +233,7 @@ def create_backfill_dry_run(
         to_date=to_date,
         reverse=body.run_backwards,
         reprocess_behavior=body.reprocess_behavior,
+        session=session,
     )
     backfills = [DryRunBackfillResponse(logical_date=d) for d in backfills_dry_run]
 

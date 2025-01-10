@@ -194,32 +194,31 @@ def _validate_backfill_params(dag, reverse, reprocess_behavior: ReprocessBehavio
             )
 
 
-def _do_dry_run(*, dag_id, from_date, to_date, reverse, reprocess_behavior) -> list[datetime]:
+def _do_dry_run(*, dag_id, from_date, to_date, reverse, reprocess_behavior, session) -> list[datetime]:
     from airflow.models.serialized_dag import SerializedDagModel
 
-    with create_session() as session:
-        serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
-        dag = serdag.dag
-        _validate_backfill_params(dag, reverse, reprocess_behavior)
+    serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
+    dag = serdag.dag
+    _validate_backfill_params(dag, reverse, reprocess_behavior)
 
-        dagrun_info_list = _get_info_list(
-            dag=dag,
-            from_date=from_date,
-            to_date=to_date,
-            reverse=reverse,
+    dagrun_info_list = _get_info_list(
+        dag=dag,
+        from_date=from_date,
+        to_date=to_date,
+        reverse=reverse,
+    )
+    logical_dates = []
+    for info in dagrun_info_list:
+        dr = session.scalar(
+            statement=_get_latest_dag_run_row_query(info, session),
         )
-        logical_dates = []
-        for info in dagrun_info_list:
-            dr = session.scalar(
-                statement=_get_latest_dag_run_row_query(info, session),
-            )
-            if dr:
-                non_create_reason = _get_dag_run_no_create_reason(dr, reprocess_behavior)
-                if not non_create_reason:
-                    logical_dates.append(info.logical_date)
-            else:
+        if dr:
+            non_create_reason = _get_dag_run_no_create_reason(dr, reprocess_behavior)
+            if not non_create_reason:
                 logical_dates.append(info.logical_date)
-        return logical_dates
+        else:
+            logical_dates.append(info.logical_date)
+    return logical_dates
 
 
 def _create_backfill_dag_run(
