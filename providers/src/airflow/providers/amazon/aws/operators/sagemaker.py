@@ -165,7 +165,13 @@ class SageMakerBaseOperator(BaseOperator):
             if fail_if_exists:
                 raise AirflowException(f"A SageMaker {resource_type} with name {name} already exists.")
             else:
-                name = f"{proposed_name}-{time.time_ns()//1000000}"
+                timestamp = time.time_ns()//1000000
+                timestamp_length = len(timestamp)
+                name_length = len(name) 
+                if 63 > name_length + timestamp_length + 1: 
+                    name = f"{proposed_name}-{timestamp}"
+                else: 
+                    name = f"{proposed_name[:62 - name_length - timestamp_length]}-{timestamp}"
                 self.log.info("Changed %s name to '%s' to avoid collision.", resource_type, name)
         return name
 
