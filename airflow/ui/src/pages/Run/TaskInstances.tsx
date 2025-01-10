@@ -22,7 +22,7 @@ import { Link as RouterLink, useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
-import ClearTaskInstanceButton from "src/components/ClearRun/ClearTaskInstanceButton";
+import ClearTaskInstanceButton from "src/components/Clear/ClearTaskInstanceButton";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
