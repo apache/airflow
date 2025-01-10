@@ -98,15 +98,18 @@ class TestWatchedSubprocess:
 
         instant = tz.datetime(2024, 11, 7, 12, 34, 56, 78901)
         time_machine.move_to(instant, tick=False)
-
+        ti = TaskInstance(
+            id="4d828a62-a417-4936-a7a6-2b3fabacecab",
+            task_id="b",
+            dag_id="c",
+            run_id="d",
+            try_number=1,
+        )
         proc = WatchedSubprocess.start(
-            path=os.devnull,
-            what=TaskInstance(
-                id="4d828a62-a417-4936-a7a6-2b3fabacecab",
-                task_id="b",
-                dag_id="c",
-                run_id="d",
-                try_number=1,
+            id=ti.id,
+            on_child_started_kwargs=dict(
+                path=os.devnull,
+                ti=ti,
             ),
             client=MagicMock(spec=sdk_client.Client),
             target=subprocess_main,
@@ -166,14 +169,18 @@ class TestWatchedSubprocess:
             assert os.getpid() != main_pid
             os.kill(os.getpid(), signal.SIGKILL)
 
+        ti = TaskInstance(
+            id="4d828a62-a417-4936-a7a6-2b3fabacecab",
+            task_id="b",
+            dag_id="c",
+            run_id="d",
+            try_number=1,
+        )
         proc = WatchedSubprocess.start(
-            path=os.devnull,
-            what=TaskInstance(
-                id="4d828a62-a417-4936-a7a6-2b3fabacecab",
-                task_id="b",
-                dag_id="c",
-                run_id="d",
-                try_number=1,
+            id=ti.id,
+            on_child_started_kwargs=dict(
+                path=os.devnull,
+                ti=ti,
             ),
             client=MagicMock(spec=sdk_client.Client),
             target=subprocess_main,
@@ -189,14 +196,18 @@ class TestWatchedSubprocess:
             # or import error for instance - a very early exception
             raise RuntimeError("Fake syntax error")
 
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id="b",
+            dag_id="c",
+            run_id="d",
+            try_number=1,
+        )
         proc = WatchedSubprocess.start(
-            path=os.devnull,
-            what=TaskInstance(
-                id=uuid7(),
-                task_id="b",
-                dag_id="c",
-                run_id="d",
-                try_number=1,
+            id=ti.id,
+            on_child_started_kwargs=dict(
+                path=os.devnull,
+                ti=ti,
             ),
             client=MagicMock(spec=sdk_client.Client),
             target=subprocess_main,
@@ -225,14 +236,18 @@ class TestWatchedSubprocess:
 
         ti_id = uuid7()
         spy = spy_agency.spy_on(sdk_client.TaskInstanceOperations.heartbeat)
+        ti = TaskInstance(
+            id=ti_id,
+            task_id="b",
+            dag_id="c",
+            run_id="d",
+            try_number=1,
+        )
         proc = WatchedSubprocess.start(
-            path=os.devnull,
-            what=TaskInstance(
-                id=ti_id,
-                task_id="b",
-                dag_id="c",
-                run_id="d",
-                try_number=1,
+            id=ti.id,
+            on_child_started_kwargs=dict(
+                path=os.devnull,
+                ti=ti,
             ),
             client=sdk_client.Client(base_url="", dry_run=True, token=""),
             target=subprocess_main,
@@ -341,7 +356,14 @@ class TestWatchedSubprocess:
         client = make_client(transport=httpx.MockTransport(handle_request))
 
         with pytest.raises(ServerResponseError, match="Server returned error") as err:
-            WatchedSubprocess.start(path=os.devnull, what=ti, client=client)
+            WatchedSubprocess.start(
+                id=ti.id,
+                on_child_started_kwargs=dict(
+                    path=os.devnull,
+                    ti=ti,
+                ),
+                client=client,
+            )
 
         assert err.value.response.status_code == 409
         assert err.value.detail == {
@@ -394,9 +416,13 @@ class TestWatchedSubprocess:
             # Return a 204 for all other requests
             return httpx.Response(status_code=204)
 
+        ti = TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1)
         proc = WatchedSubprocess.start(
-            path=os.devnull,
-            what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
+            id=ti.id,
+            on_child_started_kwargs=dict(
+                path=os.devnull,
+                ti=ti,
+            ),
             client=make_client(transport=httpx.MockTransport(handle_request)),
             target=subprocess_main,
         )
@@ -661,10 +687,13 @@ class TestWatchedSubprocessKill:
             exit(5)
 
         ti_id = uuid7()
-
+        ti = TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1)
         proc = WatchedSubprocess.start(
-            path=os.devnull,
-            what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
+            id=ti.id,
+            on_child_started_kwargs=dict(
+                path=os.devnull,
+                ti=ti,
+            ),
             client=MagicMock(spec=sdk_client.Client),
             target=subprocess_main,
         )
