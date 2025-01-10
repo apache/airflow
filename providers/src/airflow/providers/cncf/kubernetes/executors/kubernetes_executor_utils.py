@@ -148,11 +148,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         # https://github.com/kubernetes-client/python/blob/v29.0.0/examples/watch/timeout-settings.md
         # and https://github.com/kubernetes-client/python/blob/v29.0.0/kubernetes/client/api_client.py#L336-L339
         if "_request_timeout" not in kwargs:
-            client_timeout = 30
-            kwargs["_request_timeout"] = client_timeout
+            kwargs["_request_timeout"] = 30
         if "timeout_seconds" not in kwargs:
-            server_conn_timeout = 3600
-            kwargs["timeout_seconds"] = server_conn_timeout
+            kwargs["timeout_seconds"] = 3600
 
         logical_date_key = get_logical_date_key()
         for event in self._pod_events(kube_client=kube_client, query_kwargs=kwargs):
