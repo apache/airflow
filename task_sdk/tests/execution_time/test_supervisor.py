@@ -52,7 +52,7 @@ from airflow.sdk.execution_time.comms import (
     VariableResult,
     XComResult,
 )
-from airflow.sdk.execution_time.supervisor import WatchedSubprocess, supervise
+from airflow.sdk.execution_time.supervisor import ActivitySubprocess, supervise
 from airflow.sdk.execution_time.task_runner import CommsDecoder
 from airflow.utils import timezone, timezone as tz
 
@@ -99,7 +99,7 @@ class TestWatchedSubprocess:
         instant = tz.datetime(2024, 11, 7, 12, 34, 56, 78901)
         time_machine.move_to(instant, tick=False)
 
-        proc = WatchedSubprocess.start(
+        proc = ActivitySubprocess.start(
             path=os.devnull,
             what=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
@@ -166,7 +166,7 @@ class TestWatchedSubprocess:
             assert os.getpid() != main_pid
             os.kill(os.getpid(), signal.SIGKILL)
 
-        proc = WatchedSubprocess.start(
+        proc = ActivitySubprocess.start(
             path=os.devnull,
             what=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
@@ -189,7 +189,7 @@ class TestWatchedSubprocess:
             # or import error for instance - a very early exception
             raise RuntimeError("Fake syntax error")
 
-        proc = WatchedSubprocess.start(
+        proc = ActivitySubprocess.start(
             path=os.devnull,
             what=TaskInstance(
                 id=uuid7(),
@@ -225,7 +225,7 @@ class TestWatchedSubprocess:
 
         ti_id = uuid7()
         spy = spy_agency.spy_on(sdk_client.TaskInstanceOperations.heartbeat)
-        proc = WatchedSubprocess.start(
+        proc = ActivitySubprocess.start(
             path=os.devnull,
             what=TaskInstance(
                 id=ti_id,
@@ -341,7 +341,7 @@ class TestWatchedSubprocess:
         client = make_client(transport=httpx.MockTransport(handle_request))
 
         with pytest.raises(ServerResponseError, match="Server returned error") as err:
-            WatchedSubprocess.start(path=os.devnull, what=ti, client=client)
+            ActivitySubprocess.start(path=os.devnull, what=ti, client=client)
 
         assert err.value.response.status_code == 409
         assert err.value.detail == {
@@ -394,7 +394,7 @@ class TestWatchedSubprocess:
             # Return a 204 for all other requests
             return httpx.Response(status_code=204)
 
-        proc = WatchedSubprocess.start(
+        proc = ActivitySubprocess.start(
             path=os.devnull,
             what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
             client=make_client(transport=httpx.MockTransport(handle_request)),
@@ -447,12 +447,13 @@ class TestWatchedSubprocess:
         # Patch the kill method at the class level so we can assert it was called with the correct signal
         mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
 
-        proc = WatchedSubprocess(
+        proc = ActivitySubprocess(
             id=TI_ID,
             pid=mock_process.pid,
             stdin=mocker.MagicMock(),
             client=client,
             process=mock_process,
+            requests_fd=-1,
         )
 
         time_now = tz.datetime(2024, 11, 28, 12, 0, 0)
@@ -533,14 +534,15 @@ class TestWatchedSubprocess:
         mocker.patch("time.monotonic", return_value=20.0)
 
         # Patch the task overtime threshold
-        monkeypatch.setattr(WatchedSubprocess, "TASK_OVERTIME_THRESHOLD", overtime_threshold)
+        monkeypatch.setattr(ActivitySubprocess, "TASK_OVERTIME_THRESHOLD", overtime_threshold)
 
-        mock_watched_subprocess = WatchedSubprocess(
+        mock_watched_subprocess = ActivitySubprocess(
             id=TI_ID,
             pid=12345,
             stdin=mocker.Mock(),
             process=mocker.Mock(),
             client=mocker.Mock(),
+            requests_fd=-1,
         )
 
         # Set the terminal state and task end datetime
@@ -572,12 +574,13 @@ class TestWatchedSubprocessKill:
 
     @pytest.fixture
     def watched_subprocess(self, mocker, mock_process):
-        proc = WatchedSubprocess(
+        proc = ActivitySubprocess(
             id=TI_ID,
             pid=12345,
             stdin=mocker.Mock(),
             client=mocker.Mock(),
             process=mock_process,
+            requests_fd=-1,
         )
         # Mock the selector
         mock_selector = mocker.Mock(spec=selectors.DefaultSelector)
@@ -662,7 +665,7 @@ class TestWatchedSubprocessKill:
 
         ti_id = uuid7()
 
-        proc = WatchedSubprocess.start(
+        proc = ActivitySubprocess.start(
             path=os.devnull,
             what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
             client=MagicMock(spec=sdk_client.Client),
@@ -753,12 +756,13 @@ class TestHandleRequest:
     @pytest.fixture
     def watched_subprocess(self, mocker):
         """Fixture to provide a WatchedSubprocess instance."""
-        return WatchedSubprocess(
+        return ActivitySubprocess(
             id=TI_ID,
             pid=12345,
             stdin=BytesIO(),
             client=mocker.Mock(),
             process=mocker.Mock(),
+            requests_fd=-1,
         )
 
     @pytest.mark.parametrize(
