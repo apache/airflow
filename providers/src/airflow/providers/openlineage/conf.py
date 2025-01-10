@@ -84,6 +84,12 @@ def spark_inject_parent_job_info() -> bool:
 
 
 @cache
+def spark_inject_transport_info() -> bool:
+    """[openlineage] spark_inject_transport_info."""
+    return conf.getboolean(_CONFIG_SECTION, "spark_inject_transport_info", fallback="False")
+
+
+@cache
 def custom_extractors() -> set[str]:
     """[openlineage] extractors."""
     option = conf.get(_CONFIG_SECTION, "extractors", fallback="")

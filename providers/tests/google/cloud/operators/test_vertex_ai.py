@@ -164,6 +164,7 @@ TEST_TRAINING_AVAILABLE_AT_FORECAST_COLUMNS: list[str] = []
 TEST_TRAINING_FORECAST_HORIZON = 10
 TEST_TRAINING_DATA_GRANULARITY_UNIT = "day"
 TEST_TRAINING_DATA_GRANULARITY_COUNT = 1
+TEST_TRAINING_DATA_HOLIDAY_REGIONS = ["US"]
 
 TEST_MODEL_ID = "test_model_id"
 TEST_MODEL_NAME = f"projects/{GCP_PROJECT}/locations/{GCP_LOCATION}/models/test_model_id"
@@ -1461,6 +1462,7 @@ class TestVertexAICreateAutoMLForecastingTrainingJobOperator:
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
             parent_model=TEST_PARENT_MODEL,
+            holiday_regions=TEST_TRAINING_DATA_HOLIDAY_REGIONS,
         )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
@@ -1506,6 +1508,7 @@ class TestVertexAICreateAutoMLForecastingTrainingJobOperator:
             model_version_description=None,
             window_stride_length=None,
             window_max_count=None,
+            holiday_regions=TEST_TRAINING_DATA_HOLIDAY_REGIONS,
         )
 
     @mock.patch("google.cloud.aiplatform.datasets.TimeSeriesDataset")
@@ -1530,6 +1533,7 @@ class TestVertexAICreateAutoMLForecastingTrainingJobOperator:
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
             parent_model=VERSIONED_TEST_PARENT_MODEL,
+            holiday_regions=TEST_TRAINING_DATA_HOLIDAY_REGIONS,
         )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.return_value.create_auto_ml_forecasting_training_job.assert_called_once_with(
@@ -1573,6 +1577,7 @@ class TestVertexAICreateAutoMLForecastingTrainingJobOperator:
             model_version_description=None,
             window_stride_length=None,
             window_max_count=None,
+            holiday_regions=TEST_TRAINING_DATA_HOLIDAY_REGIONS,
         )
 
 

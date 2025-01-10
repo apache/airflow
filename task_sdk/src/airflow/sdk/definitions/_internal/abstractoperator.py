@@ -31,9 +31,9 @@ from typing import (
     ClassVar,
 )
 
-from airflow.sdk.definitions.mixins import DependencyMixin
-from airflow.sdk.definitions.node import DAGNode
-from airflow.sdk.definitions.templater import Templater
+from airflow.sdk.definitions._internal.mixins import DependencyMixin
+from airflow.sdk.definitions._internal.node import DAGNode
+from airflow.sdk.definitions._internal.templater import Templater
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
