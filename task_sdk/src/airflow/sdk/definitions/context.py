@@ -17,23 +17,37 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
+from collections.abc import Mapping
+from typing import Any
 
-from airflow.sdk import get_current_context
+
+def get_current_context() -> Mapping[str, Any]:
+    """
+    Retrieve the execution context dictionary without altering user method's signature.
+
+    This is the simplest method of retrieving the execution context dictionary.
+
+    **Old style:**
+
+    .. code:: python
+
+        def my_task(**context):
+            ti = context["ti"]
+
+    **New style:**
+
+    .. code:: python
+
+        from airflow.sdk import get_current_context
 
 
-class TestCurrentContext:
-    def test_current_context_no_context_raise(self):
-        with pytest.raises(RuntimeError):
-            get_current_context()
+        def my_task():
+            context = get_current_context()
+            ti = context["ti"]
 
-    def test_get_current_context_with_context(self, monkeypatch):
-        mock_context = {"ti": "task_instance", "key": "value"}
-        monkeypatch.setattr("airflow.sdk.definitions.contextmanager._CURRENT_CONTEXT", [mock_context])
-        result = get_current_context()
-        assert result == mock_context
+    Current context will only have value if this method was called after an operator
+    was starting to execute.
+    """
+    from airflow.sdk.definitions._internal.contextmanager import _get_current_context
 
-    def test_get_current_context_without_context(self, monkeypatch):
-        monkeypatch.setattr("airflow.sdk.definitions.contextmanager._CURRENT_CONTEXT", [])
-        with pytest.raises(RuntimeError, match="Current context was requested but no context was found!"):
-            get_current_context()
+    return _get_current_context()

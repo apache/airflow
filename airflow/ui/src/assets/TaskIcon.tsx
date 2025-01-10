@@ -25,13 +25,7 @@ export const TaskIcon = createIcon({
   },
   displayName: "Task Icon",
   path: (
-    <g
-      clip-path="url(#a)"
-      stroke="currentColor"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      stroke-width="2"
-    >
+    <g clipPath="url(#a)" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2">
       <path d="m7.99967 10.6666c1.47276 0 2.66663-1.19392 2.66663-2.66668s-1.19387-2.66667-2.66663-2.66667c-1.47275 0-2.66666 1.19391-2.66666 2.66667s1.19391 2.66668 2.66666 2.66668z" />
       <path d="m.700195 8h3.966665" />
       <path d="m11.3398 8h3.9667" />

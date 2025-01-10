@@ -14,15 +14,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from airflow.sdk.definitions._internal.templater import Templater
+from airflow.sdk.definitions.template import literal
 
-if TYPE_CHECKING:
-    from airflow.typing_compat import TypeAlias
 
-import airflow.sdk.definitions._internal.mixins
-import airflow.sdk.definitions._internal.node
+def test_not_render_literal_value():
+    templater = Templater()
+    templater.template_ext = []
+    context = {}
+    content = literal("Hello {{ name }}")
 
-DependencyMixin: TypeAlias = airflow.sdk.definitions._internal.mixins.DependencyMixin
-DAGNode: TypeAlias = airflow.sdk.definitions._internal.node.DAGNode
+    rendered_content = templater.render_template(content, context)
+
+    assert rendered_content == "Hello {{ name }}"
+
+
+def test_not_render_file_literal_value():
+    templater = Templater()
+    templater.template_ext = [".txt"]
+    context = {}
+    content = literal("template_file.txt")
+
+    rendered_content = templater.render_template(content, context)
+
+    assert rendered_content == "template_file.txt"

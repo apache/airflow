@@ -29,7 +29,7 @@ from sqlalchemy import select
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.expandinput import NotFullyPopulated
-from airflow.sdk.definitions.abstractoperator import AbstractOperator as TaskSDKAbstractOperator
+from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator as TaskSDKAbstractOperator
 from airflow.utils.context import Context
 from airflow.utils.db import exists_query
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -48,8 +48,8 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG as SchedulerDAG
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.sdk.definitions._internal.node import DAGNode
     from airflow.sdk.definitions.baseoperator import BaseOperator
-    from airflow.sdk.definitions.node import DAGNode
     from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.triggers.base import StartTriggerArgs
     from airflow.utils.task_group import TaskGroup
