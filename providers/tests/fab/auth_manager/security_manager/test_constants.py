@@ -24,10 +24,10 @@ with ignore_provider_compatibility_error("2.9.0+", __file__):
 
 class TestFbSecurityManagerConstants:
     def test_existing_roles(self):
-        assert EXISTING_ROLES == {
+        assert {
             "Admin",
             "Viewer",
             "User",
             "Op",
             "Public",
-        }
+        } == EXISTING_ROLES

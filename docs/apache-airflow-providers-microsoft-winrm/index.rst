@@ -55,7 +55,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-microsoft-winrm/|version|/tests/system/providers/microsoft/winrm>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-microsoft-winrm/|version|/providers/tests/system/microsoft/winrm>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-microsoft-winrm/>
     Installing from sources <installing-providers-from-sources>
 
@@ -76,7 +76,7 @@ apache-airflow-providers-microsoft-winrm package
 `Windows Remote Management (WinRM) <https://docs.microsoft.com/windows/win32/winrm/portal>`__
 
 
-Release: 3.6.1
+Release: 3.7.0
 
 Provider package
 ----------------
@@ -94,11 +94,11 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.9.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.8.0``
+``apache-airflow``  ``>=2.9.0``
 ``pywinrm``         ``>=0.4``
 ==================  ==================

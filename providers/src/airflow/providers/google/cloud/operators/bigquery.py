@@ -23,12 +23,13 @@ import enum
 import json
 import re
 import warnings
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence, SupportsAbs
+from typing import TYPE_CHECKING, Any, SupportsAbs
 
 from google.api_core.exceptions import Conflict
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob, Row
-from google.cloud.bigquery.table import RowIterator
+from google.cloud.bigquery.table import RowIterator, Table, TableReference
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
@@ -42,8 +43,12 @@ from airflow.providers.common.sql.operators.sql import (  # type: ignore[attr-de
 )
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
-from airflow.providers.google.cloud.links.bigquery import BigQueryDatasetLink, BigQueryTableLink
-from airflow.providers.google.cloud.openlineage.mixins import _BigQueryOpenLineageMixin
+from airflow.providers.google.cloud.links.bigquery import (
+    BigQueryDatasetLink,
+    BigQueryJobDetailLink,
+    BigQueryTableLink,
+)
+from airflow.providers.google.cloud.openlineage.mixins import _BigQueryInsertJobOperatorOpenLineageMixin
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryCheckTrigger,
@@ -1334,6 +1339,7 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
         self.cluster_fields = cluster_fields
         self.table_resource = table_resource
         self.impersonation_chain = impersonation_chain
+        self._table: Table | None = None
         if exists_ok is not None:
             warnings.warn(
                 "`exists_ok` parameter is deprecated, please use `if_exists`",
@@ -1364,7 +1370,8 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
 
         try:
             self.log.info("Creating table")
-            table = bq_hook.create_empty_table(
+            # Save table as attribute for further use by OpenLineage
+            self._table = bq_hook.create_empty_table(
                 project_id=self.project_id,
                 dataset_id=self.dataset_id,
                 table_id=self.table_id,
@@ -1381,12 +1388,15 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
             persist_kwargs = {
                 "context": context,
                 "task_instance": self,
-                "project_id": table.to_api_repr()["tableReference"]["projectId"],
-                "dataset_id": table.to_api_repr()["tableReference"]["datasetId"],
-                "table_id": table.to_api_repr()["tableReference"]["tableId"],
+                "project_id": self._table.to_api_repr()["tableReference"]["projectId"],
+                "dataset_id": self._table.to_api_repr()["tableReference"]["datasetId"],
+                "table_id": self._table.to_api_repr()["tableReference"]["tableId"],
             }
             self.log.info(
-                "Table %s.%s.%s created successfully", table.project, table.dataset_id, table.table_id
+                "Table %s.%s.%s created successfully",
+                self._table.project,
+                self._table.dataset_id,
+                self._table.table_id,
             )
         except Conflict:
             error_msg = f"Table {self.dataset_id}.{self.table_id} already exists."
@@ -1405,6 +1415,27 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
                 raise AirflowSkipException(error_msg)
 
         BigQueryTableLink.persist(**persist_kwargs)
+
+    def get_openlineage_facets_on_complete(self, _):
+        """Implement _on_complete as we will use table resource returned by create method."""
+        from airflow.providers.common.compat.openlineage.facet import Dataset
+        from airflow.providers.google.cloud.openlineage.utils import (
+            BIGQUERY_NAMESPACE,
+            get_facets_from_bq_table,
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        if not self._table:
+            self.log.debug("OpenLineage did not find `self._table` attribute.")
+            return OperatorLineage()
+
+        output_dataset = Dataset(
+            namespace=BIGQUERY_NAMESPACE,
+            name=f"{self._table.project}.{self._table.dataset_id}.{self._table.table_id}",
+            facets=get_facets_from_bq_table(self._table),
+        )
+
+        return OperatorLineage(outputs=[output_dataset])
 
 
 class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
@@ -1623,6 +1654,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
         self.encryption_configuration = encryption_configuration
         self.location = location
         self.impersonation_chain = impersonation_chain
+        self._table: Table | None = None
 
     def execute(self, context: Context) -> None:
         bq_hook = BigQueryHook(
@@ -1631,15 +1663,16 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         if self.table_resource:
-            table = bq_hook.create_empty_table(
+            # Save table as attribute for further use by OpenLineage
+            self._table = bq_hook.create_empty_table(
                 table_resource=self.table_resource,
             )
             BigQueryTableLink.persist(
                 context=context,
                 task_instance=self,
-                dataset_id=table.to_api_repr()["tableReference"]["datasetId"],
-                project_id=table.to_api_repr()["tableReference"]["projectId"],
-                table_id=table.to_api_repr()["tableReference"]["tableId"],
+                dataset_id=self._table.dataset_id,
+                project_id=self._table.project,
+                table_id=self._table.table_id,
             )
             return
 
@@ -1690,17 +1723,33 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             "encryptionConfiguration": self.encryption_configuration,
         }
 
-        table = bq_hook.create_empty_table(
-            table_resource=table_resource,
-        )
+        # Save table as attribute for further use by OpenLineage
+        self._table = bq_hook.create_empty_table(table_resource=table_resource)
 
         BigQueryTableLink.persist(
             context=context,
             task_instance=self,
-            dataset_id=table.to_api_repr()["tableReference"]["datasetId"],
-            project_id=table.to_api_repr()["tableReference"]["projectId"],
-            table_id=table.to_api_repr()["tableReference"]["tableId"],
+            dataset_id=self._table.dataset_id,
+            project_id=self._table.project,
+            table_id=self._table.table_id,
         )
+
+    def get_openlineage_facets_on_complete(self, _):
+        """Implement _on_complete as we will use table resource returned by create method."""
+        from airflow.providers.common.compat.openlineage.facet import Dataset
+        from airflow.providers.google.cloud.openlineage.utils import (
+            BIGQUERY_NAMESPACE,
+            get_facets_from_bq_table,
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        output_dataset = Dataset(
+            namespace=BIGQUERY_NAMESPACE,
+            name=f"{self._table.project}.{self._table.dataset_id}.{self._table.table_id}",
+            facets=get_facets_from_bq_table(self._table),
+        )
+
+        return OperatorLineage(outputs=[output_dataset])
 
 
 class BigQueryDeleteDatasetOperator(GoogleCloudBaseOperator):
@@ -2089,6 +2138,7 @@ class BigQueryUpdateTableOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.table_resource = table_resource
         self.impersonation_chain = impersonation_chain
+        self._table: dict | None = None
         super().__init__(**kwargs)
 
     def execute(self, context: Context):
@@ -2097,7 +2147,8 @@ class BigQueryUpdateTableOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
-        table = bq_hook.update_table(
+        # Save table as attribute for further use by OpenLineage
+        self._table = bq_hook.update_table(
             table_resource=self.table_resource,
             fields=self.fields,
             dataset_id=self.dataset_id,
@@ -2108,12 +2159,30 @@ class BigQueryUpdateTableOperator(GoogleCloudBaseOperator):
         BigQueryTableLink.persist(
             context=context,
             task_instance=self,
-            dataset_id=table["tableReference"]["datasetId"],
-            project_id=table["tableReference"]["projectId"],
-            table_id=table["tableReference"]["tableId"],
+            dataset_id=self._table["tableReference"]["datasetId"],
+            project_id=self._table["tableReference"]["projectId"],
+            table_id=self._table["tableReference"]["tableId"],
         )
 
-        return table
+        return self._table
+
+    def get_openlineage_facets_on_complete(self, _):
+        """Implement _on_complete as we will use table resource returned by update method."""
+        from airflow.providers.common.compat.openlineage.facet import Dataset
+        from airflow.providers.google.cloud.openlineage.utils import (
+            BIGQUERY_NAMESPACE,
+            get_facets_from_bq_table,
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        table = Table.from_api_repr(self._table)
+        output_dataset = Dataset(
+            namespace=BIGQUERY_NAMESPACE,
+            name=f"{table.project}.{table.dataset_id}.{table.table_id}",
+            facets=get_facets_from_bq_table(table),
+        )
+
+        return OperatorLineage(outputs=[output_dataset])
 
 
 class BigQueryUpdateDatasetOperator(GoogleCloudBaseOperator):
@@ -2247,15 +2316,47 @@ class BigQueryDeleteTableOperator(GoogleCloudBaseOperator):
         self.ignore_if_missing = ignore_if_missing
         self.location = location
         self.impersonation_chain = impersonation_chain
+        self.hook: BigQueryHook | None = None
 
     def execute(self, context: Context) -> None:
         self.log.info("Deleting: %s", self.deletion_dataset_table)
-        hook = BigQueryHook(
+        # Save hook as attribute for further use by OpenLineage
+        self.hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
-        hook.delete_table(table_id=self.deletion_dataset_table, not_found_ok=self.ignore_if_missing)
+        self.hook.delete_table(table_id=self.deletion_dataset_table, not_found_ok=self.ignore_if_missing)
+
+    def get_openlineage_facets_on_complete(self, _):
+        """Implement _on_complete as we need default project_id from hook."""
+        from airflow.providers.common.compat.openlineage.facet import (
+            Dataset,
+            LifecycleStateChange,
+            LifecycleStateChangeDatasetFacet,
+            PreviousIdentifier,
+        )
+        from airflow.providers.google.cloud.openlineage.utils import BIGQUERY_NAMESPACE
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        bq_table_id = str(
+            TableReference.from_string(self.deletion_dataset_table, default_project=self.hook.project_id)
+        )
+        ds = Dataset(
+            namespace=BIGQUERY_NAMESPACE,
+            name=bq_table_id,
+            facets={
+                "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
+                    lifecycleStateChange=LifecycleStateChange.DROP.value,
+                    previousIdentifier=PreviousIdentifier(
+                        namespace=BIGQUERY_NAMESPACE,
+                        name=bq_table_id,
+                    ),
+                )
+            },
+        )
+
+        return OperatorLineage(inputs=[ds])
 
 
 class BigQueryUpsertTableOperator(GoogleCloudBaseOperator):
@@ -2314,6 +2415,7 @@ class BigQueryUpsertTableOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.location = location
         self.impersonation_chain = impersonation_chain
+        self._table: dict | None = None
 
     def execute(self, context: Context) -> None:
         self.log.info("Upserting Dataset: %s with table_resource: %s", self.dataset_id, self.table_resource)
@@ -2322,7 +2424,8 @@ class BigQueryUpsertTableOperator(GoogleCloudBaseOperator):
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
-        table = hook.run_table_upsert(
+        # Save table as attribute for further use by OpenLineage
+        self._table = hook.run_table_upsert(
             dataset_id=self.dataset_id,
             table_resource=self.table_resource,
             project_id=self.project_id,
@@ -2330,10 +2433,28 @@ class BigQueryUpsertTableOperator(GoogleCloudBaseOperator):
         BigQueryTableLink.persist(
             context=context,
             task_instance=self,
-            dataset_id=table["tableReference"]["datasetId"],
-            project_id=table["tableReference"]["projectId"],
-            table_id=table["tableReference"]["tableId"],
+            dataset_id=self._table["tableReference"]["datasetId"],
+            project_id=self._table["tableReference"]["projectId"],
+            table_id=self._table["tableReference"]["tableId"],
         )
+
+    def get_openlineage_facets_on_complete(self, _):
+        """Implement _on_complete as we will use table resource returned by upsert method."""
+        from airflow.providers.common.compat.openlineage.facet import Dataset
+        from airflow.providers.google.cloud.openlineage.utils import (
+            BIGQUERY_NAMESPACE,
+            get_facets_from_bq_table,
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        table = Table.from_api_repr(self._table)
+        output_dataset = Dataset(
+            namespace=BIGQUERY_NAMESPACE,
+            name=f"{table.project}.{table.dataset_id}.{table.table_id}",
+            facets=get_facets_from_bq_table(table),
+        )
+
+        return OperatorLineage(outputs=[output_dataset])
 
 
 class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
@@ -2422,6 +2543,7 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.location = location
+        self._table: dict | None = None
         super().__init__(**kwargs)
 
     def execute(self, context: Context):
@@ -2429,7 +2551,8 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain, location=self.location
         )
 
-        table = bq_hook.update_table_schema(
+        # Save table as attribute for further use by OpenLineage
+        self._table = bq_hook.update_table_schema(
             schema_fields_updates=self.schema_fields_updates,
             include_policy_tags=self.include_policy_tags,
             dataset_id=self.dataset_id,
@@ -2440,14 +2563,32 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
         BigQueryTableLink.persist(
             context=context,
             task_instance=self,
-            dataset_id=table["tableReference"]["datasetId"],
-            project_id=table["tableReference"]["projectId"],
-            table_id=table["tableReference"]["tableId"],
+            dataset_id=self._table["tableReference"]["datasetId"],
+            project_id=self._table["tableReference"]["projectId"],
+            table_id=self._table["tableReference"]["tableId"],
         )
-        return table
+        return self._table
+
+    def get_openlineage_facets_on_complete(self, _):
+        """Implement _on_complete as we will use table resource returned by update method."""
+        from airflow.providers.common.compat.openlineage.facet import Dataset
+        from airflow.providers.google.cloud.openlineage.utils import (
+            BIGQUERY_NAMESPACE,
+            get_facets_from_bq_table,
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        table = Table.from_api_repr(self._table)
+        output_dataset = Dataset(
+            namespace=BIGQUERY_NAMESPACE,
+            name=f"{table.project}.{table.dataset_id}.{table.table_id}",
+            facets=get_facets_from_bq_table(table),
+        )
+
+        return OperatorLineage(outputs=[output_dataset])
 
 
-class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMixin):
+class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOperatorOpenLineageMixin):
     """
     Execute a BigQuery job.
 
@@ -2514,7 +2655,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
     )
     template_fields_renderers = {"configuration": "json", "configuration.query.query": "sql"}
     ui_color = BigQueryUIColors.QUERY.value
-    operator_extra_links = (BigQueryTableLink(),)
+    operator_extra_links = (BigQueryTableLink(), BigQueryJobDetailLink())
 
     def __init__(
         self,
@@ -2592,10 +2733,16 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
             nowait=True,
         )
 
-    @staticmethod
-    def _handle_job_error(job: BigQueryJob | UnknownJob) -> None:
+    def _handle_job_error(self, job: BigQueryJob | UnknownJob) -> None:
+        self.log.info("Job %s is completed. Checking the job status", self.job_id)
+        # Log any transient errors encountered during the job execution
+        for error in job.errors or []:
+            self.log.error("BigQuery Job Error: %s", error)
         if job.error_result:
             raise AirflowException(f"BigQuery job {job.job_id} failed: {job.error_result}")
+        # Check the final state.
+        if job.state != "DONE":
+            raise AirflowException(f"Job failed with state: {job.state}")
 
     def execute(self, context: Any):
         hook = BigQueryHook(
@@ -2679,6 +2826,15 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
                 location=self.location,
             )
             context["ti"].xcom_push(key="job_id_path", value=job_id_path)
+
+        persist_kwargs = {
+            "context": context,
+            "task_instance": self,
+            "project_id": self.project_id,
+            "location": self.location,
+            "job_id": self.job_id,
+        }
+        BigQueryJobDetailLink.persist(**persist_kwargs)
 
         # Wait for the job to complete
         if not self.deferrable:

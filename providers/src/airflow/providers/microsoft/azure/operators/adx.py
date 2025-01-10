@@ -19,13 +19,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
-
-from deprecated.classic import deprecated
+from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
 
@@ -70,11 +68,6 @@ class AzureDataExplorerQueryOperator(BaseOperator):
     def hook(self) -> AzureDataExplorerHook:
         """Return new instance of AzureDataExplorerHook."""
         return AzureDataExplorerHook(self.azure_data_explorer_conn_id)
-
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
-    def get_hook(self) -> AzureDataExplorerHook:
-        """Return new instance of AzureDataExplorerHook."""
-        return self.hook
 
     def execute(self, context: Context) -> KustoResultTable | str:
         """

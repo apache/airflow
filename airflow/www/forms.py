@@ -20,8 +20,8 @@ from __future__ import annotations
 import datetime
 import json
 import operator
+from collections.abc import Iterator
 from functools import cache
-from typing import Iterator
 
 import pendulum
 from flask_appbuilder.fieldwidgets import (

@@ -18,13 +18,13 @@ from __future__ import annotations
 
 import abc
 import logging
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, AsyncIterator
+from typing import TYPE_CHECKING, Any
 
 from airflow.callbacks.callback_requests import TaskCallbackRequest
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
-from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
@@ -115,10 +115,14 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         and handle it appropriately (in async-compatible way).
         """
 
-    def __repr__(self) -> str:
-        classpath, kwargs = self.serialize()
+    @staticmethod
+    def repr(classpath: str, kwargs: dict[str, Any]):
         kwargs_str = ", ".join(f"{k}={v}" for k, v in kwargs.items())
         return f"<{classpath} {kwargs_str}>"
+
+    def __repr__(self) -> str:
+        classpath, kwargs = self.serialize()
+        return self.repr(classpath, kwargs)
 
 
 class TriggerEvent:
@@ -212,7 +216,7 @@ class BaseTaskEndEvent(TriggerEvent):
         if self.task_instance_state in (TaskInstanceState.SUCCESS, TaskInstanceState.FAILED):
             request = TaskCallbackRequest(
                 full_filepath=task_instance.dag_model.fileloc,
-                simple_task_instance=SimpleTaskInstance.from_ti(task_instance),
+                ti=task_instance,
                 task_callback_type=self.task_instance_state,
             )
             log.info("Sending callback: %s", request)

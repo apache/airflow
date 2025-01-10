@@ -173,7 +173,6 @@
         },
         "dag_display_name": { "type" : "string"},
         "description": { "type" : "string"},
-          "version_name": {"type":  "string"},
         "_concurrency": { "type" : "number"},
         "max_active_tasks": { "type" : "number"},
         "max_active_runs": { "type" : "number"},
@@ -311,6 +310,7 @@
       "type": "object",
       "required": [
         "_group_id",
+        "group_display_name",
         "prefix_group_id",
         "children",
         "tooltip",
@@ -323,6 +323,7 @@
       ],
       "properties": {
         "_group_id": {"anyOf": [{"type": "null"}, { "type": "string" }]},
+        "group_display_name": {"type": "string" },
         "is_mapped": { "type": "boolean" },
         "prefix_group_id": { "type": "boolean" },
         "children":  { "$ref": "#/definitions/dict" },

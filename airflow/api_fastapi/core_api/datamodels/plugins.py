@@ -19,8 +19,9 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, field_validator
+from pydantic import BeforeValidator, ConfigDict, field_validator
 
+from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.plugins_manager import AirflowPluginSource
 
 

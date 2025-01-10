@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Collection
 from http import HTTPStatus
-from typing import TYPE_CHECKING, Collection
+from typing import TYPE_CHECKING
 
 import pendulum
 from connexion import NoContent
@@ -58,6 +59,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     TaskInstanceReferenceCollection,
     task_instance_reference_collection_schema,
 )
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.exceptions import ParamValidationError
 from airflow.models import DagModel, DagRun
@@ -70,7 +72,6 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from airflow.www.decorators import action_logging
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -192,6 +193,7 @@ def _fetch_dag_runs(
     return session.scalars(query.offset(offset).limit(limit)).all(), total_entries
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.RUN)
 @format_parameters(
     {
@@ -263,6 +265,7 @@ def get_dag_runs(
         raise BadRequest("DAGRunCollectionSchema error", detail=str(e))
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.RUN)
 @provide_session
 def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
@@ -302,6 +305,7 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
     return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_runs, total_entries=total_entries))
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("POST", DagAccessEntity.RUN)
 @action_logging
 @provide_session

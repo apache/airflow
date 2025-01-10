@@ -302,7 +302,7 @@ class TestDagDetails(TestDagEndpoint):
             "description": None,
             "doc_md": "details",
             "end_date": None,
-            "fileloc": "/opt/airflow/tests/api_fastapi/core_api/routes/public/test_dags.py",
+            "fileloc": __file__,
             "file_token": file_token,
             "has_import_errors": False,
             "has_task_concurrency_limits": True,
@@ -363,7 +363,7 @@ class TestGetDag(TestDagEndpoint):
             "dag_id": dag_id,
             "dag_display_name": dag_display_name,
             "description": None,
-            "fileloc": "/opt/airflow/tests/api_fastapi/core_api/routes/public/test_dags.py",
+            "fileloc": __file__,
             "file_token": file_token,
             "is_paused": False,
             "is_active": True,
@@ -383,120 +383,6 @@ class TestGetDag(TestDagEndpoint):
             "last_parsed_time": last_parsed_time,
             "timetable_description": "Never, external triggers only",
             "has_import_errors": False,
-        }
-        assert res_json == expected
-
-
-class TestGetDagTags(TestDagEndpoint):
-    """Unit tests for Get DAG Tags."""
-
-    @pytest.mark.parametrize(
-        "query_params, expected_status_code, expected_dag_tags, expected_total_entries",
-        [
-            # test with offset, limit, and without any tag_name_pattern
-            (
-                {},
-                200,
-                [
-                    "example",
-                    "tag_1",
-                    "tag_2",
-                ],
-                3,
-            ),
-            (
-                {"offset": 1},
-                200,
-                [
-                    "tag_1",
-                    "tag_2",
-                ],
-                3,
-            ),
-            (
-                {"limit": 2},
-                200,
-                [
-                    "example",
-                    "tag_1",
-                ],
-                3,
-            ),
-            (
-                {"offset": 1, "limit": 2},
-                200,
-                [
-                    "tag_1",
-                    "tag_2",
-                ],
-                3,
-            ),
-            # test with tag_name_pattern
-            (
-                {"tag_name_pattern": "invalid"},
-                200,
-                [],
-                0,
-            ),
-            (
-                {"tag_name_pattern": "1"},
-                200,
-                ["tag_1"],
-                1,
-            ),
-            (
-                {"tag_name_pattern": "tag%"},
-                200,
-                ["tag_1", "tag_2"],
-                2,
-            ),
-            # test order_by
-            (
-                {"order_by": "-name"},
-                200,
-                ["tag_2", "tag_1", "example"],
-                3,
-            ),
-            # test all query params
-            (
-                {"tag_name_pattern": "t%", "order_by": "-name", "offset": 1, "limit": 1},
-                200,
-                ["tag_1"],
-                2,
-            ),
-            (
-                {"tag_name_pattern": "~", "offset": 1, "limit": 2},
-                200,
-                ["tag_1", "tag_2"],
-                3,
-            ),
-            # test invalid query params
-            (
-                {"order_by": "dag_id"},
-                400,
-                None,
-                None,
-            ),
-            (
-                {"order_by": "-dag_id"},
-                400,
-                None,
-                None,
-            ),
-        ],
-    )
-    def test_get_dag_tags(
-        self, test_client, query_params, expected_status_code, expected_dag_tags, expected_total_entries
-    ):
-        response = test_client.get("/public/dags/tags", params=query_params)
-        assert response.status_code == expected_status_code
-        if expected_status_code != 200:
-            return
-
-        res_json = response.json()
-        expected = {
-            "tags": expected_dag_tags,
-            "total_entries": expected_total_entries,
         }
         assert res_json == expected
 

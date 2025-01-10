@@ -44,7 +44,7 @@ from airflow.utils import timezone
 from airflow.version import version
 
 from providers.tests.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
-from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 GCS_STRING = "airflow.providers.google.cloud.hooks.gcs.{}"
@@ -424,8 +424,8 @@ class TestGCSHook:
         mock_copy.return_value = storage.Blob(
             name=destination_object_name, bucket=storage.Bucket(mock_service, destination_bucket_name)
         )
-        mock_service.return_value.bucket.side_effect = (
-            lambda name: source_bucket
+        mock_service.return_value.bucket.side_effect = lambda name: (
+            source_bucket
             if name == source_bucket_name
             else storage.Bucket(mock_service, destination_bucket_name)
         )
@@ -519,10 +519,8 @@ class TestGCSHook:
         blob = MagicMock(spec=storage.Blob)
         blob.rewrite = MagicMock(return_value=(None, None, None))
         dest_bucket.blob = MagicMock(return_value=blob)
-        mock_service.return_value.bucket.side_effect = (
-            lambda name: storage.Bucket(mock_service, source_bucket_name)
-            if name == source_bucket_name
-            else dest_bucket
+        mock_service.return_value.bucket.side_effect = lambda name: (
+            storage.Bucket(mock_service, source_bucket_name) if name == source_bucket_name else dest_bucket
         )
 
         self.gcs_hook.rewrite(

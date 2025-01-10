@@ -44,6 +44,27 @@ TASK_ID = "test-task-id"
 GCP_LOCATION = "global"
 GCP_PROJECT = "test-project"
 CLUSTER_CONFIG = {"test": "test"}
+VIRTUAL_CLUSTER_CONFIG = {
+    "kubernetes_cluster_config": {
+        "gke_cluster_config": {
+            "gke_cluster_target": "projects/project_id/locations/region/clusters/gke_cluster_name",
+            "node_pool_target": [
+                {
+                    "node_pool": "projects/project_id/locations/region/clusters/gke_cluster_name/nodePools/dp",
+                    "roles": ["DEFAULT"],
+                    "node_pool_config": {
+                        "config": {
+                            "preemptible": False,
+                            "machine_type": "e2-standard-4",
+                        }
+                    },
+                }
+            ],
+        },
+        "kubernetes_software_config": {"component_version": {"SPARK": "3"}},
+    },
+    "staging_bucket": "test-staging-bucket",
+}
 LABELS = {"test": "test"}
 CLUSTER_NAME = "cluster-name"
 CLUSTER = {
@@ -172,6 +193,36 @@ class TestDataprocHook:
             metadata=(),
             retry=DEFAULT,
             timeout=None,
+        )
+
+    @mock.patch(DATAPROC_STRING.format("DataprocHook._create_dataproc_cluster_with_gcloud"))
+    @mock.patch(DATAPROC_STRING.format("DataprocHook._build_gcloud_command"))
+    @mock.patch(DATAPROC_STRING.format("DataprocHook.provide_authorized_gcloud"))
+    @mock.patch(DATAPROC_STRING.format("subprocess.run"))
+    def test_create_cluster_with_virtual_cluster_config(
+        self,
+        mock_run,
+        mock_provide_authorized_gcloud,
+        mock_build_gcloud_command,
+        mock_create_dataproc_cluster_with_gcloud,
+    ):
+        self.hook.create_cluster(
+            project_id=GCP_PROJECT,
+            region=GCP_LOCATION,
+            cluster_name=CLUSTER_NAME,
+            cluster_config=CLUSTER_CONFIG,
+            virtual_cluster_config=VIRTUAL_CLUSTER_CONFIG,
+            labels=LABELS,
+        )
+        mock_build_gcloud_command.assert_called_once_with(
+            command=["gcloud", "dataproc", "clusters", "gke", "create", CLUSTER_NAME],
+            parameters={
+                "region": GCP_LOCATION,
+                "gke-cluster": "gke_cluster_name",
+                "spark-engine-version": "3",
+                "pools": "name=dp,roles=default,machineType=e2-standard-4,min=1,max=10",
+                "setup-workload-identity": None,
+            },
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_cluster_client"))
@@ -1033,7 +1084,7 @@ class TestDataProcJobBuilder:
         labels = {"key": "value"}
         self.builder.add_labels(labels)
         assert "key" in self.builder.job["job"]["labels"]
-        assert "value" == self.builder.job["job"]["labels"]["key"]
+        assert self.builder.job["job"]["labels"]["key"] == "value"
 
     def test_add_variables(self):
         variables = ["variable"]
@@ -1046,9 +1097,16 @@ class TestDataProcJobBuilder:
         assert args == self.builder.job["job"][self.job_type]["args"]
 
     def test_add_query(self):
-        query = ["query"]
-        self.builder.add_query(query)
-        assert {"queries": [query]} == self.builder.job["job"][self.job_type]["query_list"]
+        query1 = "query1"
+        self.builder.add_query(query1)
+        query2 = "query2"
+        self.builder.add_query(query2)
+        assert self.builder.job["job"][self.job_type]["query_list"] == {"queries": [query1, query2]}
+        new_queries = ["query3", "query4"]
+        self.builder.add_query(new_queries)
+        assert self.builder.job["job"][self.job_type]["query_list"] == {
+            "queries": [query1, query2] + new_queries
+        }
 
     def test_add_query_uri(self):
         query_uri = "query_uri"

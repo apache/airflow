@@ -39,7 +39,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--integration",
                 "--standalone-dag-processor",
-                "--database-isolation",
             ],
         },
         {
@@ -83,7 +82,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--integration",
                 "--standalone-dag-processor",
-                "--database-isolation",
+                "--start-webserver-with-examples",
             ],
         },
         {
@@ -126,7 +125,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--force-build",
                 "--platform",
-                "--image-tag",
                 "--github-repository",
                 "--builder",
                 "--use-uv",
@@ -160,6 +158,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--providers-skip-constraints",
                 "--use-airflow-version",
                 "--use-packages-from-dist",
+                "--install-airflow-python-client",
             ],
         },
         {
@@ -214,7 +213,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--platform",
                 "--integration",
                 "--standalone-dag-processor",
-                "--database-isolation",
                 "--load-example-dags",
                 "--load-default-connections",
             ],
@@ -255,7 +253,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Build CI image (before entering shell)",
             "options": [
                 "--force-build",
-                "--image-tag",
                 "--github-repository",
                 "--builder",
                 "--use-uv",
@@ -349,7 +346,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--skip-image-upgrade-check",
                 "--force-build",
-                "--image-tag",
                 "--github-repository",
                 "--builder",
             ],

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 def test_incorrect_endpoint_should_return_json(minimal_app_for_api):
@@ -31,9 +31,9 @@ def test_incorrect_endpoint_should_return_json(minimal_app_for_api):
 
     # Then we have parsable JSON as output
 
-    assert "Not Found" == resp.json["title"]
-    assert 404 == resp.json["status"]
-    assert 404 == resp.status_code
+    assert resp.json["title"] == "Not Found"
+    assert resp.json["status"] == 404
+    assert resp.status_code == 404
 
 
 def test_incorrect_endpoint_should_return_html(minimal_app_for_api):
@@ -60,9 +60,9 @@ def test_incorrect_method_should_return_json(minimal_app_for_api):
 
     # Then we have parsable JSON as output
 
-    assert "Method Not Allowed" == resp.json["title"]
-    assert 405 == resp.json["status"]
-    assert 405 == resp.status_code
+    assert resp.json["title"] == "Method Not Allowed"
+    assert resp.json["status"] == 405
+    assert resp.status_code == 405
 
 
 def test_incorrect_method_should_return_html(minimal_app_for_api):

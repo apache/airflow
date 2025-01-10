@@ -24,13 +24,12 @@ import os
 import shutil
 import sys
 import traceback
+from collections.abc import Iterator
 from tempfile import NamedTemporaryFile
-from typing import Iterator
 
 import requests
 import urllib3.exceptions
 from requests.adapters import DEFAULT_POOLSIZE
-from sphinx.util.inventory import InventoryFileReader
 
 from airflow.utils.helpers import partition
 from docs.exts.docs_build.docs_builder import get_available_providers_packages
@@ -73,7 +72,7 @@ def _fetch_file(session: requests.Session, package_name: str, url: str, path: st
         tf.flush()
         tf.seek(0, 0)
 
-        line = InventoryFileReader(tf).readline()
+        line = tf.readline().decode()
         if not line.startswith("# Sphinx inventory version"):
             print(f"{package_name}: Response contain unexpected Sphinx Inventory header: {line!r}.")
             return package_name, False

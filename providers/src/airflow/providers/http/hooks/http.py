@@ -295,9 +295,21 @@ class HttpHook(BaseHook):
 
         try:
             session.headers.update(headers)
-        except TypeError:
-            self.log.warning("Connection to %s has invalid extra field.", connection.host)
         return session
+
+    def _set_base_url(self, connection: Connection) -> None:
+        host = connection.host or ""
+        schema = connection.schema or "http"
+        # RFC 3986 (https://www.rfc-editor.org/rfc/rfc3986.html#page-16)
+        if "://" in host:
+            self.base_url = host
+        else:
+            self.base_url = f"{schema}://{host}" if host else f"{schema}://"
+            if connection.port:
+                self.base_url = f"{self.base_url}:{connection.port}"
+        parsed = urlparse(self.base_url)
+        if not parsed.scheme:
+            raise ValueError(f"Invalid base URL: Missing scheme in {self.base_url}")
 
     def _configure_session_from_mount_adapters(self, session: requests.Session) -> requests.Session:
         scheme = urlparse(self.base_url).scheme

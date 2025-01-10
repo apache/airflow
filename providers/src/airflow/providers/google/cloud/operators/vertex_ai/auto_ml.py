@@ -20,7 +20,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -144,6 +145,7 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         parent_model: str | None = None,
         window_stride_length: int | None = None,
         window_max_count: int | None = None,
+        holiday_regions: list[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -183,6 +185,7 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         self.budget_milli_node_hours = budget_milli_node_hours
         self.window_stride_length = window_stride_length
         self.window_max_count = window_max_count
+        self.holiday_regions = holiday_regions
 
     def execute(self, context: Context):
         self.hook = AutoMLHook(
@@ -235,6 +238,7 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             sync=self.sync,
             window_stride_length=self.window_stride_length,
             window_max_count=self.window_max_count,
+            holiday_regions=self.holiday_regions,
         )
 
         if model:

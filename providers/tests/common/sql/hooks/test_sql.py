@@ -18,9 +18,9 @@
 #
 from __future__ import annotations
 
+import inspect
 import logging
 import logging.config
-import warnings
 from unittest.mock import MagicMock
 
 import pytest
@@ -28,10 +28,12 @@ import pytest
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
-from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
+from airflow.providers.common.sql.dialects.dialect import Dialect
+from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, resolve_dialects
 from airflow.utils.session import provide_session
 
 from providers.tests.common.sql.test_utils import mock_hook
+from tests_common.test_utils.providers import get_provider_min_airflow_version
 
 TASK_ID = "sql-operator"
 HOST = "host"
@@ -239,23 +241,6 @@ class TestDbApiHook:
         assert err.value.args[0] == "List of SQL statements is empty"
 
     @pytest.mark.db_test
-    def test_make_common_data_structure_hook_has_deprecated_method(self):
-        """If hook implements ``_make_serializable`` warning should be raised on call."""
-        hook = mock_hook(DbApiHook)
-        hook._make_serializable = lambda result: result
-        with pytest.warns(
-            AirflowProviderDeprecationWarning, match="`_make_serializable` method is deprecated"
-        ):
-            hook._make_common_data_structure(["foo", "bar", "baz"])
-
-    @pytest.mark.db_test
-    def test_make_common_data_structure_no_deprecated_method(self):
-        """If hook not implements ``_make_serializable`` there is no warning should be raised on call."""
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", AirflowProviderDeprecationWarning)
-            mock_hook(DbApiHook)._make_common_data_structure(["foo", "bar", "baz"])
-
-    @pytest.mark.db_test
     def test_placeholder_config_from_extra(self):
         dbapi_hook = mock_hook(DbApiHook, conn_params={"extra": {"placeholder": "?"}})
         assert dbapi_hook.placeholder == "?"
@@ -277,3 +262,41 @@ class TestDbApiHook:
         for _ in range(10):
             assert dbapi_hook.placeholder == "%s"
         assert dbapi_hook.connection_invocations == 1
+
+    @pytest.mark.db_test
+    def test_dialect_name(self):
+        dbapi_hook = mock_hook(DbApiHook)
+        assert dbapi_hook.dialect_name == "default"
+
+    @pytest.mark.db_test
+    def test_dialect(self):
+        dbapi_hook = mock_hook(DbApiHook)
+        assert isinstance(dbapi_hook.dialect, Dialect)
+
+    @pytest.mark.db_test
+    def test_when_provider_min_airflow_version_is_3_0_or_higher_remove_obsolete_code(self):
+        """
+        Once this test starts failing due to the fact that the minimum Airflow version is now 3.0.0 or higher
+        for this provider, you should remove the obsolete code in the get_dialects method of the DbApiHook
+        and remove this test.  This test was added to make sure to not forget to remove the fallback code
+        for backward compatibility with Airflow 2.8.x which isn't need anymore once this provider depends on
+        Airflow 3.0.0 or higher.
+        """
+        min_airflow_version = get_provider_min_airflow_version("apache-airflow-providers-common-sql")
+
+        # Check if the current Airflow version is 3.0.0 or higher
+        if min_airflow_version[0] >= 3:
+            method_source = inspect.getsource(resolve_dialects)
+            raise AirflowProviderDeprecationWarning(
+                f"Check TODO's to remove obsolete code in resolve_dialects method:\n\r\n\r\t\t\t{method_source}"
+            )
+
+    @pytest.mark.db_test
+    def test_uri(self):
+        dbapi_hook = mock_hook(DbApiHook)
+        assert dbapi_hook.get_uri() == "//login:password@host:1234/schema"
+
+    @pytest.mark.db_test
+    def test_uri_with_schema(self):
+        dbapi_hook = mock_hook(DbApiHook, conn_params={"schema": "other_schema"})
+        assert dbapi_hook.get_uri() == "//login:password@host:1234/other_schema"

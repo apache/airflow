@@ -20,8 +20,9 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
 from airflow.exceptions import AirflowException

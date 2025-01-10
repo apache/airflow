@@ -18,11 +18,11 @@
 from __future__ import annotations
 
 import socket
-from functools import lru_cache
+from functools import cache
 
 
 # patched version of socket.getfqdn() - see https://github.com/python/cpython/issues/49254
-@lru_cache(maxsize=None)
+@cache
 def getfqdn(name=""):
     """
     Get fully qualified domain name from name.

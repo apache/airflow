@@ -27,6 +27,48 @@
 Changelog
 ---------
 
+4.0.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the SSH provider package.
+  The following breaking changes were introduced:
+
+  * Hooks
+     * Remove attribute ``timeout`` from ``airflow.providers.ssh.hooks.ssh.SSHHook``. Use parameter ``conn_timeout`` instead.
+     * The context manager of ``SSHHook`` is deprecated. Please use ``get_conn()`` as a context manager instead.
+     * ``SSHHook.create_tunnel()`` is deprecated, Please use ``get_tunnel()`` instead.
+       But please note that the order of the parameters have changed.
+  * operators
+     * The deprecated ``get_hook()`` method is removed in ``airflow.providers.ssh.operators.ssh.SSHOperator``. Please use ``hook`` attribute instead.
+     * Deprecated ``exec_ssh_client_command()`` method on SSHOperator is removed, call ``ssh_hook.exec_ssh_client_command()`` instead
+
+* ``Remove Provider Deprecations in SSH (#44544)``
+
+Features
+~~~~~~~~
+
+* ``Add host_proxy_cmd parameter to SSHHook and SFTPHook (#44565)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+* ``Remove XCom pickling (#43905)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Correct new changelog breaking changes header (#44659)``
+   * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+
 3.14.0
 ......
 

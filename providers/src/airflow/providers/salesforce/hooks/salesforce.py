@@ -26,8 +26,9 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Iterable
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Iterable, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from simple_salesforce import Salesforce, api
 

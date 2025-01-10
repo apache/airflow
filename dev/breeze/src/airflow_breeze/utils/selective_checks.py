@@ -31,7 +31,6 @@ from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONST
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
-    BASE_PROVIDERS_COMPATIBILITY_CHECKS,
     CHICKEN_EGG_PROVIDERS,
     COMMITTERS,
     CURRENT_KUBERNETES_VERSIONS,
@@ -45,6 +44,7 @@ from airflow_breeze.global_constants import (
     DISABLE_TESTABLE_INTEGRATIONS_FROM_CI,
     HELM_VERSION,
     KIND_VERSION,
+    PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     RUNS_ON_PUBLIC_RUNNER,
     RUNS_ON_SELF_HOSTED_ASF_RUNNER,
     RUNS_ON_SELF_HOSTED_RUNNER,
@@ -119,6 +119,7 @@ class FileGroupForCi(Enum):
     ALL_PROVIDER_YAML_FILES = "all_provider_yaml_files"
     ALL_DOCS_PYTHON_FILES = "all_docs_python_files"
     TESTS_UTILS_FILES = "test_utils_files"
+    ASSET_FILES = "asset_files"
 
 
 class AllProvidersSentinel:
@@ -253,6 +254,12 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^task_sdk/src/airflow/sdk/.*\.py$",
             r"^task_sdk/tests/.*\.py$",
         ],
+        FileGroupForCi.ASSET_FILES: [
+            r"^airflow/assets/",
+            r"^airflow/models/assets/",
+            r"^task_sdk/src/airflow/sdk/definitions/asset/",
+            r"^airflow/datasets/",
+        ],
     }
 )
 
@@ -284,11 +291,9 @@ TEST_TYPE_MATCHES = HashableDict(
         SelectiveCoreTestType.API: [
             r"^airflow/api/",
             r"^airflow/api_connexion/",
-            r"^airflow/api_internal/",
             r"^airflow/api_fastapi/",
             r"^tests/api/",
             r"^tests/api_connexion/",
-            r"^tests/api_internal/",
             r"^tests/api_fastapi/",
         ],
         SelectiveCoreTestType.CLI: [
@@ -321,30 +326,28 @@ TEST_TYPE_EXCLUDES = HashableDict({})
 
 def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
     file_path = AIRFLOW_SOURCES_ROOT / changed_file
-    # is_relative_to is only available in Python 3.9 - we should simplify this check when we are Python 3.9+
-    for provider_root in (TESTS_PROVIDERS_ROOT, SYSTEM_TESTS_PROVIDERS_ROOT, AIRFLOW_PROVIDERS_NS_PACKAGE):
-        try:
-            file_path.relative_to(provider_root)
-            relative_base_path = provider_root
+    # Check providers in SRC/SYSTEM_TESTS/TESTS/(optionally) DOCS
+    for provider_root in (SYSTEM_TESTS_PROVIDERS_ROOT, TESTS_PROVIDERS_ROOT, AIRFLOW_PROVIDERS_NS_PACKAGE):
+        if file_path.is_relative_to(provider_root):
+            provider_base_path = provider_root
             break
-        except ValueError:
-            pass
     else:
-        if include_docs:
-            try:
-                relative_path = file_path.relative_to(DOCS_DIR)
-                if relative_path.parts[0].startswith("apache-airflow-providers-"):
-                    return relative_path.parts[0].replace("apache-airflow-providers-", "").replace("-", ".")
-            except ValueError:
-                pass
+        if include_docs and file_path.is_relative_to(DOCS_DIR):
+            relative_path = file_path.relative_to(DOCS_DIR)
+            if relative_path.parts[0].startswith("apache-airflow-providers-"):
+                return relative_path.parts[0].replace("apache-airflow-providers-", "").replace("-", ".")
         return None
 
+    # Find if the path under src/system tests/tests belongs to provider or is a common code across
+    # multiple providers
     for parent_dir_path in file_path.parents:
-        if parent_dir_path == relative_base_path:
+        if parent_dir_path == provider_base_path:
+            # We have not found any provider specific path up to the root of the provider base folder
             break
-        relative_path = parent_dir_path.relative_to(relative_base_path)
+        relative_path = parent_dir_path.relative_to(provider_base_path)
+        # check if this path belongs to a specific provider
         if (AIRFLOW_PROVIDERS_NS_PACKAGE / relative_path / "provider.yaml").exists():
-            return str(parent_dir_path.relative_to(relative_base_path)).replace(os.sep, ".")
+            return str(parent_dir_path.relative_to(provider_base_path)).replace(os.sep, ".")
     # If we got here it means that some "common" files were modified. so we need to test all Providers
     return "Providers"
 
@@ -613,13 +616,17 @@ class SelectiveChecks:
         return " ".join(self.kubernetes_versions)
 
     @cached_property
-    def kubernetes_combos_list_as_string(self) -> str:
+    def kubernetes_combos(self) -> list[str]:
         python_version_array: list[str] = self.python_versions_list_as_string.split(" ")
         kubernetes_version_array: list[str] = self.kubernetes_versions_list_as_string.split(" ")
         combo_titles, short_combo_titles, combos = get_kubernetes_python_combos(
             kubernetes_version_array, python_version_array
         )
-        return " ".join(short_combo_titles)
+        return short_combo_titles
+
+    @cached_property
+    def kubernetes_combos_list_as_string(self) -> str:
+        return " ".join(self.kubernetes_combos)
 
     def _matching_files(
         self, match_group: FileGroupForCi, match_dict: HashableDict, exclude_dict: HashableDict
@@ -697,6 +704,10 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.API_TEST_FILES)
 
     @cached_property
+    def needs_ol_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.ASSET_FILES)
+
+    @cached_property
     def needs_api_codegen(self) -> bool:
         return self._should_be_run(FileGroupForCi.API_CODEGEN_FILES)
 
@@ -735,6 +746,8 @@ class SelectiveChecks:
 
     @cached_property
     def run_tests(self) -> bool:
+        if self._is_canary_run():
+            return True
         if self.only_new_ui_files:
             return False
         # we should run all test
@@ -843,14 +856,13 @@ class SelectiveChecks:
             )
         # sort according to predefined order
         sorted_candidate_test_types = sorted(candidate_test_types)
-        get_console().print("[warning]Selected test type candidates to run:[/]")
+        get_console().print("[warning]Selected core test type candidates to run:[/]")
         get_console().print(sorted_candidate_test_types)
         return sorted_candidate_test_types
 
     def _get_providers_test_types_to_run(self, split_to_individual_providers: bool = False) -> list[str]:
         if self._default_branch != "main":
             return []
-        affected_providers: AllProvidersSentinel | list[str] | None = ALL_PROVIDERS_SENTINEL
         if self.full_tests_needed:
             if split_to_individual_providers:
                 return list(providers_test_type())
@@ -860,7 +872,15 @@ class SelectiveChecks:
             all_providers_source_files = self._matching_files(
                 FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
             )
-            if len(all_providers_source_files) == 0 and not self.needs_api_tests:
+            assets_source_files = self._matching_files(
+                FileGroupForCi.ASSET_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+
+            if (
+                len(all_providers_source_files) == 0
+                and len(assets_source_files) == 0
+                and not self.needs_api_tests
+            ):
                 # IF API tests are needed, that will trigger extra provider checks
                 return []
             else:
@@ -868,18 +888,20 @@ class SelectiveChecks:
                     include_docs=False,
                 )
         candidate_test_types: set[str] = set()
-        if affected_providers and not isinstance(affected_providers, AllProvidersSentinel):
+        if isinstance(affected_providers, AllProvidersSentinel):
+            if split_to_individual_providers:
+                for provider in get_available_packages():
+                    candidate_test_types.add(f"Providers[{provider}]")
+            else:
+                candidate_test_types.add("Providers")
+        elif affected_providers:
             if split_to_individual_providers:
                 for provider in affected_providers:
                     candidate_test_types.add(f"Providers[{provider}]")
             else:
                 candidate_test_types.add(f"Providers[{','.join(sorted(affected_providers))}]")
-        elif split_to_individual_providers:
-            candidate_test_types.discard("Providers")
-            for provider in get_available_packages():
-                candidate_test_types.add(f"Providers[{provider}]")
         sorted_candidate_test_types = sorted(candidate_test_types)
-        get_console().print("[warning]Selected test type candidates to run:[/]")
+        get_console().print("[warning]Selected providers test type candidates to run:[/]")
         get_console().print(sorted_candidate_test_types)
         return sorted_candidate_test_types
 
@@ -1183,11 +1205,7 @@ class SelectiveChecks:
 
     @cached_property
     def docker_cache(self) -> str:
-        return (
-            "disabled"
-            if (self._github_event == GithubEvents.SCHEDULE or DISABLE_IMAGE_CACHE_LABEL in self._pr_labels)
-            else "registry"
-        )
+        return "disabled" if DISABLE_IMAGE_CACHE_LABEL in self._pr_labels else "registry"
 
     @cached_property
     def debug_resources(self) -> bool:
@@ -1308,10 +1326,10 @@ class SelectiveChecks:
         """
         return any(
             [
-                "amd" == label.lower()
-                or "amd64" == label.lower()
-                or "x64" == label.lower()
-                or "asf-runner" == label
+                label.lower() == "amd"
+                or label.lower() == "amd64"
+                or label.lower() == "x64"
+                or label == "asf-runner"
                 or ("ubuntu" in label and "arm" not in label.lower())
                 for label in json.loads(self.runs_on_as_json_public)
             ]
@@ -1328,7 +1346,7 @@ class SelectiveChecks:
         """
         return any(
             [
-                "arm" == label.lower() or "arm64" == label.lower() or "asf-arm" == label
+                label.lower() == "arm" or label.lower() == "arm64" or label == "asf-arm"
                 for label in json.loads(self.runs_on_as_json_public)
             ]
         )
@@ -1357,12 +1375,12 @@ class SelectiveChecks:
         return CHICKEN_EGG_PROVIDERS
 
     @cached_property
-    def providers_compatibility_checks(self) -> str:
-        """Provider compatibility input checks for the current run. Filter out python versions not built"""
+    def providers_compatibility_tests_matrix(self) -> str:
+        """Provider compatibility input matrix for the current run. Filter out python versions not built"""
         return json.dumps(
             [
                 check
-                for check in BASE_PROVIDERS_COMPATIBILITY_CHECKS
+                for check in PROVIDERS_COMPATIBILITY_TESTS_MATRIX
                 if check["python-version"] in self.python_versions
             ]
         )
@@ -1425,7 +1443,7 @@ class SelectiveChecks:
         return self._github_actor in COMMITTERS
 
     def _find_all_providers_affected(self, include_docs: bool) -> list[str] | AllProvidersSentinel | None:
-        all_providers: set[str] = set()
+        affected_providers: set[str] = set()
 
         all_providers_affected = False
         suspended_providers: set[str] = set()
@@ -1437,9 +1455,11 @@ class SelectiveChecks:
                 if provider not in DEPENDENCIES:
                     suspended_providers.add(provider)
                 else:
-                    all_providers.add(provider)
+                    affected_providers.add(provider)
         if self.needs_api_tests:
-            all_providers.add("fab")
+            affected_providers.add("fab")
+        if self.needs_ol_tests:
+            affected_providers.add("openlineage")
         if all_providers_affected:
             return ALL_PROVIDERS_SENTINEL
         if suspended_providers:
@@ -1471,13 +1491,14 @@ class SelectiveChecks:
                 get_console().print(
                     "[info]This PR had `allow suspended provider changes` label set so it will continue"
                 )
-        if not all_providers:
+        if not affected_providers:
             return None
-        for provider in list(all_providers):
-            all_providers.update(
+
+        for provider in list(affected_providers):
+            affected_providers.update(
                 get_related_providers(provider, upstream_dependencies=True, downstream_dependencies=True)
             )
-        return sorted(all_providers)
+        return sorted(affected_providers)
 
     def _is_canary_run(self):
         return (

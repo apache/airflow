@@ -26,8 +26,9 @@ import subprocess
 import tempfile
 import time
 import uuid
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException
@@ -57,7 +58,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :param archives: Archives that spark should unzip (and possibly tag with #ALIAS) into
         the application working directory.
     :param driver_class_path: Additional, driver-specific, classpath settings.
-    :param jars: Submit additional jars to upload and place them in executor classpath.
+    :param jars: Submit additional jars to upload and place them in driver and executor classpaths.
     :param java_class: the main class of the Java application
     :param packages: Comma-separated list of maven coordinates of jars to include on the
         driver and executor classpaths
@@ -518,9 +519,15 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
     def _resolve_kerberos_principal(self, principal: str | None) -> str:
         """Resolve kerberos principal."""
-        from airflow.security.kerberos import get_kerberos_principle
+        # todo: remove try/exception when min airflow version is 3.0
+        from airflow.security import kerberos
 
-        return get_kerberos_principle(principal)
+        try:
+            func = kerberos.get_kerberos_principal
+        except AttributeError:
+            # Fallback for older versions of Airflow
+            func = kerberos.get_kerberos_principle  # type: ignore[attr-defined]
+        return func(principal)
 
     def submit(self, application: str = "", **kwargs: Any) -> None:
         """

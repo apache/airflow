@@ -28,7 +28,8 @@ from __future__ import annotations
 import functools
 import inspect
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, Mapping, Sequence, TypeVar, overload
+from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, TypeVar, overload
 
 import attr
 
@@ -39,7 +40,7 @@ from airflow.models.expandinput import (
     MappedArgument,
 )
 from airflow.models.xcom_arg import XComArg
-from airflow.sdk.definitions.node import DAGNode
+from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.typing_compat import ParamSpec
 from airflow.utils.helpers import prevent_duplicates
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
@@ -188,6 +189,7 @@ def task_group(
     ui_color: str = "CornflowerBlue",
     ui_fgcolor: str = "#000",
     add_suffix_on_collision: bool = False,
+    group_display_name: str = "",
 ) -> Callable[[Callable[FParams, FReturn]], _TaskGroupFactory[FParams, FReturn]]: ...
 
 

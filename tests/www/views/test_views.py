@@ -41,9 +41,9 @@ from airflow.www.views import (
     get_value_from_path,
 )
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.www import check_content_in_response, check_content_not_in_response
 
 if AIRFLOW_V_3_0_PLUS:
@@ -84,7 +84,7 @@ def test_webserver_configuration_config_file(mock_webserver_config_global, admin
         conf = write_default_airflow_configuration_if_needed()
         write_webserver_configuration_if_needed(conf)
         initialize_config()
-        assert airflow.configuration.WEBSERVER_CONFIG == config_file
+        assert config_file == airflow.configuration.WEBSERVER_CONFIG
 
     assert os.path.isfile(config_file)
 

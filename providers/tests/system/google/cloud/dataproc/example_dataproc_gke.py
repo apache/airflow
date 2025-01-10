@@ -84,7 +84,7 @@ VIRTUAL_CLUSTER_CONFIG = {
                 }
             ],
         },
-        "kubernetes_software_config": {"component_version": {"SPARK": b"3"}},
+        "kubernetes_software_config": {"component_version": {"SPARK": "3"}},
     },
     "staging_bucket": "test-staging-bucket",
 }

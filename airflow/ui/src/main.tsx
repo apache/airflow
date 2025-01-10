@@ -17,8 +17,9 @@
  * under the License.
  */
 import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import axios, { type AxiosError } from "axios";
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
 
@@ -26,32 +27,17 @@ import { ColorModeProvider } from "src/context/colorMode";
 import { TimezoneProvider } from "src/context/timezone";
 import { router } from "src/router";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    mutations: {
-      retry: 1,
-      retryDelay: 500,
-    },
-    queries: {
-      initialDataUpdatedAt: new Date().setMinutes(-6), // make sure initial data is already expired
-      refetchOnMount: true, // Refetches stale queries, not "always"
-      refetchOnWindowFocus: false,
-      retry: 1,
-      retryDelay: 500,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-    },
-  },
-});
+import { queryClient } from "./queryClient";
 
 // redirect to login page if the API responds with unauthorized or forbidden errors
 axios.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    if (error.response?.status === 403 || error.response?.status === 401) {
+    if (error.response?.status === 401) {
       const params = new URLSearchParams();
 
       params.set("next", globalThis.location.href);
-      globalThis.location.replace(`/login?${params.toString()}`);
+      globalThis.location.replace(`${import.meta.env.VITE_LEGACY_API_URL}/login?${params.toString()}`);
     }
 
     return Promise.reject(error);
@@ -59,13 +45,15 @@ axios.interceptors.response.use(
 );
 
 createRoot(document.querySelector("#root") as HTMLDivElement).render(
-  <ChakraProvider value={defaultSystem}>
-    <ColorModeProvider>
-      <QueryClientProvider client={queryClient}>
-        <TimezoneProvider>
-          <RouterProvider router={router} />
-        </TimezoneProvider>
-      </QueryClientProvider>
-    </ColorModeProvider>
-  </ChakraProvider>,
+  <StrictMode>
+    <ChakraProvider value={defaultSystem}>
+      <ColorModeProvider>
+        <QueryClientProvider client={queryClient}>
+          <TimezoneProvider>
+            <RouterProvider router={router} />
+          </TimezoneProvider>
+        </QueryClientProvider>
+      </ColorModeProvider>
+    </ChakraProvider>
+  </StrictMode>,
 );

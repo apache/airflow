@@ -182,6 +182,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-hooks-apply                                         | Check if all hooks apply to the repository             |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-imports-in-providers                                | Check imports in providers                             |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-incorrect-use-of-LoggingMixin                       | Make sure LoggingMixin is not used alone               |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-init-decorator-arguments                            | Sync model __init__ and decorator arguments            |         |
@@ -208,7 +210,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-pre-commit-information-consistent                   | Validate hook IDs & names and sync with docs           |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| check-provide-create-sessions-imports                     | Check provide_session and create_session imports       |         |
+| check-provide-create-sessions-imports                     | Check session util imports                             |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-provider-docs-valid                                 | Validate provider doc files                            |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -358,8 +360,6 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-breeze-readme-config-hash                          | Update Breeze README.md with config files hash         |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| update-build-dependencies                                 | Update build-dependencies to latest (manual)           |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-chart-dependencies                                 | Update chart dependencies to latest (manual)           |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-common-sql-api-stubs                               | Check and update common.sql API stubs                  |         |
@@ -374,7 +374,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-installed-providers-to-be-sorted                   | Sort and uniquify installed_providers.txt              |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| update-installers                                         | Update installers to latest (manual)                   |         |
+| update-installers-and-pre-commit                          | Update installers and pre-commit to latest (manual)    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-local-yml-file                                     | Update mounts in the local yml file                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -383,6 +383,8 @@ require Breeze Docker image to be built locally.
 | update-openapi-spec-tags-to-be-sorted                     | Sort alphabetically openapi spec tags                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-providers-dependencies                             | Update dependencies for provider packages              |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| update-providers-init-py                                  | Update providers __init__.py files                     |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-reproducible-source-date-epoch                     | Update Source Date Epoch for reproducible builds       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -397,6 +399,8 @@ require Breeze Docker image to be built locally.
 | validate-operators-init                                   | No templated field logic checks in operator __init__   |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | yamllint                                                  | Check YAML files with yamllint                         |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| zizmor                                                    | Run zizmor to check for github workflow syntax errors  |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 
   .. END AUTO-GENERATED STATIC CHECK LIST

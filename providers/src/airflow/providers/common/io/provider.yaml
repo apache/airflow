@@ -22,9 +22,10 @@ description: |
   ``Common IO Provider``
 
 state: ready
-source-date-epoch: 1728484966
+source-date-epoch: 1734529505
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.5.0
   - 1.4.2
   - 1.4.1
   - 1.4.0
@@ -37,7 +38,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.8.0
+  - apache-airflow>=2.9.0
 
 integrations:
   - integration-name: Common IO

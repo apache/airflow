@@ -36,21 +36,21 @@ from airflow.exceptions import (
     DuplicateTaskIdFound,
     TaskAlreadyInTaskGroup,
 )
-from airflow.sdk.definitions.node import DAGNode
+from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
     from airflow.models.expandinput import ExpandInput
-    from airflow.sdk.definitions.abstractoperator import AbstractOperator
+    from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+    from airflow.sdk.definitions._internal.mixins import DependencyMixin
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.edges import EdgeModifier
-    from airflow.sdk.definitions.mixins import DependencyMixin
     from airflow.serialization.enums import DagAttributeTypes
 
 
 def _default_parent_group() -> TaskGroup | None:
-    from airflow.sdk.definitions.contextmanager import TaskGroupContext
+    from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 
     return TaskGroupContext.get_current()
 
@@ -65,7 +65,7 @@ def _parent_used_group_ids(tg: TaskGroup) -> set:
 # that it makes Mypy (1.9.0 and 1.13.0 tested) seem to entirely loose track that this is an Attrs class. So
 # we've gone with this and moved on with our lives, mypy is to much of a dark beast to battle over this.
 def _default_dag(instance: TaskGroup):
-    from airflow.sdk.definitions.contextmanager import DagContext
+    from airflow.sdk.definitions._internal.contextmanager import DagContext
 
     if (pg := instance.parent_group) is not None:
         return pg.dag
@@ -101,11 +101,13 @@ class TaskGroup(DAGNode):
     :param ui_fgcolor: The label color of the TaskGroup node when displayed in the UI
     :param add_suffix_on_collision: If this task group name already exists,
         automatically add `__1` etc suffixes
+    :param group_display_name: If set, this will be the display name for the TaskGroup node in the UI.
     """
 
     _group_id: str | None = attrs.field(
         validator=attrs.validators.optional(attrs.validators.instance_of(str))
     )
+    group_display_name: str = attrs.field(default="", validator=attrs.validators.instance_of(str))
     prefix_group_id: bool = attrs.field(default=True)
     parent_group: TaskGroup | None = attrs.field(factory=_default_parent_group)
     dag: DAG = attrs.field(default=attrs.Factory(_default_dag, takes_self=True))
@@ -146,7 +148,10 @@ class TaskGroup(DAGNode):
         if self.parent_group:
             self.parent_group.add(self)
             if self.parent_group.default_args:
-                self.default_args = {**self.parent_group.default_args, **self.default_args}
+                self.default_args = {
+                    **self.parent_group.default_args,
+                    **self.default_args,
+                }
 
         if self._group_id:
             self.used_group_ids.add(self.group_id)
@@ -175,7 +180,7 @@ class TaskGroup(DAGNode):
     @classmethod
     def create_root(cls, dag: DAG) -> TaskGroup:
         """Create a root TaskGroup with no group_id or parent."""
-        return cls(group_id=None, dag=dag)
+        return cls(group_id=None, dag=dag, parent_group=None)
 
     @property
     def node_id(self):
@@ -212,8 +217,8 @@ class TaskGroup(DAGNode):
 
         :meta private:
         """
-        from airflow.sdk.definitions.abstractoperator import AbstractOperator
-        from airflow.sdk.definitions.contextmanager import TaskGroupContext
+        from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+        from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 
         if TaskGroupContext.active:
             if task.task_group and task.task_group != self:
@@ -235,7 +240,9 @@ class TaskGroup(DAGNode):
             if self.dag:
                 if task.dag is not None and self.dag is not task.dag:
                     raise RuntimeError(
-                        "Cannot mix TaskGroups from different DAGs: %s and %s", self.dag, task.dag
+                        "Cannot mix TaskGroups from different DAGs: %s and %s",
+                        self.dag,
+                        task.dag,
                     )
                 task.dag = self.dag
             if task.children:
@@ -265,10 +272,13 @@ class TaskGroup(DAGNode):
     @property
     def label(self) -> str | None:
         """group_id excluding parent's group_id used as the node label in UI."""
-        return self._group_id
+        return self.group_display_name or self._group_id
 
     def update_relative(
-        self, other: DependencyMixin, upstream: bool = True, edge_modifier: EdgeModifier | None = None
+        self,
+        other: DependencyMixin,
+        upstream: bool = True,
+        edge_modifier: EdgeModifier | None = None,
     ) -> None:
         """
         Override TaskMixin.update_relative.
@@ -336,13 +346,13 @@ class TaskGroup(DAGNode):
                 task.set_downstream(task_or_task_list)
 
     def __enter__(self) -> TaskGroup:
-        from airflow.sdk.definitions.contextmanager import TaskGroupContext
+        from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 
         TaskGroupContext.push(self)
         return self
 
     def __exit__(self, _type, _value, _tb):
-        from airflow.sdk.definitions.contextmanager import TaskGroupContext
+        from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 
         TaskGroupContext.pop()
 
@@ -463,7 +473,10 @@ class TaskGroup(DAGNode):
         from airflow.serialization.enums import DagAttributeTypes
         from airflow.serialization.serialized_objects import TaskGroupSerialization
 
-        return DagAttributeTypes.TASK_GROUP, TaskGroupSerialization.serialize_task_group(self)
+        return (
+            DagAttributeTypes.TASK_GROUP,
+            TaskGroupSerialization.serialize_task_group(self),
+        )
 
     def hierarchical_alphabetical_sort(self):
         """
@@ -475,7 +488,8 @@ class TaskGroup(DAGNode):
         :return: list of tasks in hierarchical alphabetical order
         """
         return sorted(
-            self.children.values(), key=lambda node: (not isinstance(node, TaskGroup), node.node_id)
+            self.children.values(),
+            key=lambda node: (not isinstance(node, TaskGroup), node.node_id),
         )
 
     def topological_sort(self):
@@ -585,7 +599,9 @@ class MappedTaskGroup(TaskGroup):
 
         for child in self.children.values():
             if isinstance(child, AbstractOperator) and child.trigger_rule == TriggerRule.ALWAYS:
-                raise ValueError("Tasks in a mapped task group cannot have trigger_rule set to 'ALWAYS'")
+                raise ValueError(
+                    "Task-generated mapping within a mapped task group is not allowed with trigger rule 'always'"
+                )
             yield from self._iter_child(child)
 
     def iter_mapped_dependencies(self) -> Iterator[DAGNode]:
@@ -626,28 +642,28 @@ def task_group_to_dict(task_item_or_group):
     """Create a nested dict representation of this TaskGroup and its children used to construct the Graph."""
     from airflow.models.abstractoperator import AbstractOperator
     from airflow.models.mappedoperator import MappedOperator
+    from airflow.sensors.base import BaseSensorOperator
 
     if isinstance(task := task_item_or_group, AbstractOperator):
         setup_teardown_type = {}
         is_mapped = {}
+        node_type = {"type": "task"}
         if task.is_setup is True:
-            setup_teardown_type["setupTeardownType"] = "setup"
+            setup_teardown_type["setup_teardown_type"] = "setup"
         elif task.is_teardown is True:
-            setup_teardown_type["setupTeardownType"] = "teardown"
+            setup_teardown_type["setup_teardown_type"] = "teardown"
         if isinstance(task, MappedOperator):
-            is_mapped["isMapped"] = True
+            is_mapped["is_mapped"] = True
+        if isinstance(task, BaseSensorOperator):
+            node_type["type"] = "sensor"
         return {
             "id": task.task_id,
-            "value": {
-                "label": task.label,
-                "labelStyle": f"fill:{task.ui_fgcolor};",
-                "style": f"fill:{task.ui_color};",
-                "rx": 5,
-                "ry": 5,
-                **is_mapped,
-                **setup_teardown_type,
-            },
+            "label": task.label,
+            **is_mapped,
+            **setup_teardown_type,
+            **node_type,
         }
+
     task_group = task_item_or_group
     is_mapped = isinstance(task_group, MappedTaskGroup)
     children = [
@@ -655,43 +671,18 @@ def task_group_to_dict(task_item_or_group):
     ]
 
     if task_group.upstream_group_ids or task_group.upstream_task_ids:
-        children.append(
-            {
-                "id": task_group.upstream_join_id,
-                "value": {
-                    "label": "",
-                    "labelStyle": f"fill:{task_group.ui_fgcolor};",
-                    "style": f"fill:{task_group.ui_color};",
-                    "shape": "circle",
-                },
-            }
-        )
+        # This is the join node used to reduce the number of edges between two TaskGroup.
+        children.append({"id": task_group.upstream_join_id, "label": "", "type": "join"})
 
     if task_group.downstream_group_ids or task_group.downstream_task_ids:
         # This is the join node used to reduce the number of edges between two TaskGroup.
-        children.append(
-            {
-                "id": task_group.downstream_join_id,
-                "value": {
-                    "label": "",
-                    "labelStyle": f"fill:{task_group.ui_fgcolor};",
-                    "style": f"fill:{task_group.ui_color};",
-                    "shape": "circle",
-                },
-            }
-        )
+        children.append({"id": task_group.downstream_join_id, "label": "", "type": "join"})
 
     return {
         "id": task_group.group_id,
-        "value": {
-            "label": task_group.label,
-            "labelStyle": f"fill:{task_group.ui_fgcolor};",
-            "style": f"fill:{task_group.ui_color}",
-            "rx": 5,
-            "ry": 5,
-            "clusterLabelPos": "top",
-            "tooltip": task_group.tooltip,
-            "isMapped": is_mapped,
-        },
+        "label": task_group.label,
+        "tooltip": task_group.tooltip,
+        "is_mapped": is_mapped,
         "children": children,
+        "type": "task_group",
     }

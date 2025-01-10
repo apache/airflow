@@ -38,6 +38,7 @@ class TestKeda:
         [
             ("CeleryExecutor", True),
             ("CeleryKubernetesExecutor", True),
+            ("CeleryExecutor,KubernetesExecutor", True),
         ],
     )
     def test_keda_enabled(self, executor, is_created):
@@ -54,7 +55,9 @@ class TestKeda:
         else:
             assert docs == []
 
-    @pytest.mark.parametrize("executor", ["CeleryExecutor", "CeleryKubernetesExecutor"])
+    @pytest.mark.parametrize(
+        "executor", ["CeleryExecutor", "CeleryKubernetesExecutor", "CeleryExecutor,KubernetesExecutor"]
+    )
     def test_keda_advanced(self, executor):
         """Verify keda advanced config."""
         expected_advanced = {
@@ -88,7 +91,7 @@ class TestKeda:
             f"SELECT ceil(COUNT(*)::decimal / {concurrency}) "
             "FROM task_instance WHERE (state='running' OR state='queued')"
         )
-        if executor == "CeleryKubernetesExecutor":
+        if "CeleryKubernetesExecutor" in executor or "KubernetesExecutor" in executor:
             query += f" AND queue != '{queue or 'kubernetes'}'"
         return query
 
@@ -99,6 +102,8 @@ class TestKeda:
             ("CeleryExecutor", 16),
             ("CeleryKubernetesExecutor", 8),
             ("CeleryKubernetesExecutor", 16),
+            ("CeleryExecutor,KubernetesExecutor", 8),
+            ("CeleryExecutor,KubernetesExecutor", 16),
         ],
     )
     def test_keda_concurrency(self, executor, concurrency):
@@ -121,6 +126,8 @@ class TestKeda:
             ("CeleryExecutor", "my_queue", False),
             ("CeleryKubernetesExecutor", None, True),
             ("CeleryKubernetesExecutor", "my_queue", True),
+            ("CeleryExecutor,KubernetesExecutor", "None", False),
+            ("CeleryExecutor,KubernetesExecutor", "my_queue", True),
         ],
     )
     def test_keda_query_kubernetes_queue(self, executor, queue, should_filter):

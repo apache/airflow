@@ -146,27 +146,16 @@ class TestConf:
 
         assert conf.has_option("testsection", "testkey")
 
-        with mock.patch.dict(
-            "os.environ", AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__AIRFLOW__TESTSECTION__TESTKEY="nested"
-        ):
-            opt = conf.get("kubernetes_environment_variables", "AIRFLOW__TESTSECTION__TESTKEY")
-            assert opt == "nested"
-
-    @mock.patch.dict(
-        "os.environ", AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__AIRFLOW__TESTSECTION__TESTKEY="nested"
-    )
     @conf_vars({("core", "percent"): "with%%inside"})
     def test_conf_as_dict(self):
         cfg_dict = conf.as_dict()
 
         # test that configs are picked up
         assert cfg_dict["core"]["unit_test_mode"] == "True"
-
         assert cfg_dict["core"]["percent"] == "with%inside"
 
         # test env vars
         assert cfg_dict["testsection"]["testkey"] == "testvalue"
-        assert cfg_dict["kubernetes_environment_variables"]["AIRFLOW__TESTSECTION__TESTKEY"] == "nested"
 
     def test_conf_as_dict_source(self):
         # test display_source
@@ -224,18 +213,18 @@ key6 = value6
             ("test", "key2"),
             ("test", "key4"),
         }
-        assert "hello" == test_conf.get("test", "key1")
-        assert "cmd_result" == test_conf.get("test", "key2")
-        assert "airflow" == test_conf.get("test", "key3")
-        assert "key4_result" == test_conf.get("test", "key4")
-        assert "value6" == test_conf.get("another", "key6")
+        assert test_conf.get("test", "key1") == "hello"
+        assert test_conf.get("test", "key2") == "cmd_result"
+        assert test_conf.get("test", "key3") == "airflow"
+        assert test_conf.get("test", "key4") == "key4_result"
+        assert test_conf.get("another", "key6") == "value6"
 
-        assert "hello" == test_conf.get("test", "key1", fallback="fb")
-        assert "value6" == test_conf.get("another", "key6", fallback="fb")
-        assert "fb" == test_conf.get("another", "key7", fallback="fb")
+        assert test_conf.get("test", "key1", fallback="fb") == "hello"
+        assert test_conf.get("another", "key6", fallback="fb") == "value6"
+        assert test_conf.get("another", "key7", fallback="fb") == "fb"
         assert test_conf.getboolean("another", "key8_boolean", fallback="True") is True
-        assert 10 == test_conf.getint("another", "key8_int", fallback="10")
-        assert 1.0 == test_conf.getfloat("another", "key8_float", fallback="1")
+        assert test_conf.getint("another", "key8_int", fallback="10") == 10
+        assert test_conf.getfloat("another", "key8_float", fallback="1") == 1.0
 
         assert test_conf.has_option("test", "key1")
         assert test_conf.has_option("test", "key2")
@@ -245,14 +234,14 @@ key6 = value6
         assert test_conf.has_option("another", "key6")
 
         cfg_dict = test_conf.as_dict(display_sensitive=True)
-        assert "cmd_result" == cfg_dict["test"]["key2"]
+        assert cfg_dict["test"]["key2"] == "cmd_result"
         assert "key2_cmd" not in cfg_dict["test"]
 
         # If we exclude _cmds then we should still see the commands to run, not
         # their values
         cfg_dict = test_conf.as_dict(include_cmds=False, display_sensitive=True)
         assert "key4" not in cfg_dict["test"]
-        assert "printf key4_result" == cfg_dict["test"]["key4_cmd"]
+        assert cfg_dict["test"]["key4_cmd"] == "printf key4_result"
 
     def test_can_read_dot_section(self):
         test_config = """[test.abc]
@@ -315,7 +304,7 @@ sql_alchemy_conn = airflow
             ("test", "sql_alchemy_conn"),
         }
 
-        assert "sqlite:////Users/airflow/airflow/airflow.db" == test_conf.get("test", "sql_alchemy_conn")
+        assert test_conf.get("test", "sql_alchemy_conn") == "sqlite:////Users/airflow/airflow/airflow.db"
 
     def test_hidding_of_sensitive_config_values(self):
         test_config = """[test]
@@ -330,10 +319,10 @@ sql_alchemy_conn = airflow
             ("test", "sql_alchemy_conn"),
         }
 
-        assert "airflow" == test_conf.get("test", "sql_alchemy_conn")
+        assert test_conf.get("test", "sql_alchemy_conn") == "airflow"
         # Hide sensitive fields
         asdict = test_conf.as_dict(display_sensitive=False)
-        assert "< hidden >" == asdict["test"]["sql_alchemy_conn"]
+        assert asdict["test"]["sql_alchemy_conn"] == "< hidden >"
         # If display_sensitive is false, then include_cmd, include_env,include_secrets must all be True
         # This ensures that cmd and secrets env are hidden at the appropriate method and no surprises
         with pytest.raises(ValueError):
@@ -435,7 +424,7 @@ key2 = 1
         ):
             test_conf.getint("invalid", "key1")
         assert isinstance(test_conf.getint("valid", "key2"), int)
-        assert 1 == test_conf.getint("valid", "key2")
+        assert test_conf.getint("valid", "key2") == 1
 
     def test_getfloat(self):
         """Test AirflowConfigParser.getfloat"""
@@ -456,7 +445,7 @@ key2 = 1.23
         ):
             test_conf.getfloat("invalid", "key1")
         assert isinstance(test_conf.getfloat("valid", "key2"), float)
-        assert 1.23 == test_conf.getfloat("valid", "key2")
+        assert test_conf.getfloat("valid", "key2") == 1.23
 
     def test_getlist(self):
         """Test AirflowConfigParser.getlist"""
@@ -566,9 +555,9 @@ key2 = airflow
         test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
         test_conf.read_string(test_config)
 
-        assert "hello" == test_conf.get("test", "key1")
+        assert test_conf.get("test", "key1") == "hello"
         test_conf.remove_option("test", "key1", remove_default=False)
-        assert "awesome" == test_conf.get("test", "key1")
+        assert test_conf.get("test", "key1") == "awesome"
 
         test_conf.remove_option("test", "key2")
         assert not test_conf.has_option("test", "key2")
@@ -591,14 +580,14 @@ key3 = value3
         test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
         test_conf.read_string(test_config)
 
-        assert {"key1": "hello", "key2": "airflow"} == test_conf.getsection("test")
-        assert {
+        assert test_conf.getsection("test") == {"key1": "hello", "key2": "airflow"}
+        assert test_conf.getsection("testsection") == {
             "key3": "value3",
             "testkey": "testvalue",
             "testpercent": "with%percent",
-        } == test_conf.getsection("testsection")
+        }
 
-        assert {"key": "value"} == test_conf.getsection("new_section")
+        assert test_conf.getsection("new_section") == {"key": "value"}
 
         assert test_conf.getsection("non_existent_section") is None
 
@@ -610,22 +599,6 @@ key3 = value3
         monkeypatch.setenv("AIRFLOW__WEBSERVER__SECRET_KEY_CMD", str(cmd_file))
         content = conf.getsection("webserver")
         assert content["secret_key"] == "difficult_unpredictable_cat_password"
-
-    def test_kubernetes_environment_variables_section(self):
-        test_config = """
-[kubernetes_environment_variables]
-key1 = hello
-AIRFLOW_HOME = /root/airflow
-"""
-        test_config_default = """
-[kubernetes_environment_variables]
-"""
-        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
-        test_conf.read_string(test_config)
-
-        assert {"key1": "hello", "AIRFLOW_HOME": "/root/airflow"} == test_conf.getsection(
-            "kubernetes_environment_variables"
-        )
 
     @pytest.mark.parametrize(
         "key, type",
@@ -975,9 +948,14 @@ class TestDeprecatedConf:
     def test_deprecated_options_cmd(self):
         # Guarantee we have a deprecated setting, so we test the deprecation
         # lookup even if we remove this explicit fallback
-        with set_deprecated_options(
-            deprecated_options={("celery", "result_backend"): ("celery", "celery_result_backend", "2.0.0")}
-        ), set_sensitive_config_values(sensitive_config_values={("celery", "celery_result_backend")}):
+        with (
+            set_deprecated_options(
+                deprecated_options={
+                    ("celery", "result_backend"): ("celery", "celery_result_backend", "2.0.0")
+                }
+            ),
+            set_sensitive_config_values(sensitive_config_values={("celery", "celery_result_backend")}),
+        ):
             conf.remove_option("celery", "result_backend")
             with conf_vars({("celery", "celery_result_backend_cmd"): "/bin/echo 99"}):
                 with pytest.warns(DeprecationWarning):
@@ -1084,7 +1062,7 @@ sql_alchemy_conn=sqlite://test
                 ):
                     test_conf = make_config()
                     assert test_conf.get("core", "hostname_callable") == "CarrierPigeon"
-                    assert [] == warning
+                    assert warning == []
 
     @pytest.mark.parametrize(
         ("conf_dict", "environ", "expected"),
@@ -1553,7 +1531,7 @@ sql_alchemy_conn=sqlite://test
         airflow_cfg.remove_all_read_configurations()
         default_options = airflow_cfg.get_options_including_defaults("core")
         assert "hostname_callable" in default_options
-        assert "airflow.utils.net.getfqdn" == airflow_cfg.get("core", "hostname_callable")
+        assert airflow_cfg.get("core", "hostname_callable") == "airflow.utils.net.getfqdn"
         assert "test-key" not in default_options
         no_options = airflow_cfg.get_options_including_defaults("test-section")
         assert no_options == []
@@ -1561,15 +1539,15 @@ sql_alchemy_conn=sqlite://test
         airflow_cfg.set("test-section", "test-key", "test-value")
         test_section_options = airflow_cfg.get_options_including_defaults("test-section")
         assert "test-key" in test_section_options
-        assert "airflow.utils.net.getfqdn" == airflow_cfg.get("core", "hostname_callable")
+        assert airflow_cfg.get("core", "hostname_callable") == "airflow.utils.net.getfqdn"
         airflow_cfg.add_section("core")
         airflow_cfg.set("core", "new-test-key", "test-value")
         airflow_cfg.set("core", "hostname_callable", "test-fn")
         all_core_options_including_defaults = airflow_cfg.get_options_including_defaults("core")
         assert "new-test-key" in all_core_options_including_defaults
         assert "dags_folder" in all_core_options_including_defaults
-        assert "test-value" == airflow_cfg.get("core", "new-test-key")
-        assert "test-fn" == airflow_cfg.get("core", "hostname_callable")
+        assert airflow_cfg.get("core", "new-test-key") == "test-value"
+        assert airflow_cfg.get("core", "hostname_callable") == "test-fn"
         assert sum(1 for option in all_core_options_including_defaults if option == "hostname_callable") == 1
 
 
@@ -1584,6 +1562,7 @@ def test_sensitive_values():
         ("database", "sql_alchemy_conn"),
         ("core", "fernet_key"),
         ("core", "internal_api_secret_key"),
+        ("api", "auth_jwt_secret"),
         ("webserver", "secret_key"),
         ("secrets", "backend_kwargs"),
         ("sentry", "sentry_dsn"),

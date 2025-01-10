@@ -39,7 +39,7 @@ def _simple_producer(key, value) -> list[tuple[Any, Any]]:
     :param key: the key for the message
     :param value: the value for the message
     :return: The Key / Value pair for production via the operator
-    :rtype: List[Tuple[Any, Any]]
+    :rtype: list[tuple[Any, Any]]
     """
     return [(key, value)]
 

@@ -100,53 +100,79 @@ def make_dag_runs(dag_maker, session, time_machine):
 
 
 class TestHistoricalMetricsDataEndpoint:
+    @pytest.mark.parametrize(
+        "params, expected",
+        [
+            (
+                {"start_date": "2023-01-01T00:00", "end_date": "2023-08-02T00:00"},
+                {
+                    "dag_run_states": {"failed": 1, "queued": 0, "running": 1, "success": 1},
+                    "dag_run_types": {"backfill": 0, "asset_triggered": 1, "manual": 0, "scheduled": 2},
+                    "task_instance_states": {
+                        "deferred": 0,
+                        "failed": 2,
+                        "no_status": 2,
+                        "queued": 0,
+                        "removed": 0,
+                        "restarting": 0,
+                        "running": 0,
+                        "scheduled": 0,
+                        "skipped": 0,
+                        "success": 2,
+                        "up_for_reschedule": 0,
+                        "up_for_retry": 0,
+                        "upstream_failed": 0,
+                    },
+                },
+            ),
+            (
+                {"start_date": "2023-02-02T00:00", "end_date": "2023-06-02T00:00"},
+                {
+                    "dag_run_states": {"failed": 1, "queued": 0, "running": 0, "success": 0},
+                    "dag_run_types": {"backfill": 0, "asset_triggered": 1, "manual": 0, "scheduled": 0},
+                    "task_instance_states": {
+                        "deferred": 0,
+                        "failed": 2,
+                        "no_status": 0,
+                        "queued": 0,
+                        "removed": 0,
+                        "restarting": 0,
+                        "running": 0,
+                        "scheduled": 0,
+                        "skipped": 0,
+                        "success": 0,
+                        "up_for_reschedule": 0,
+                        "up_for_retry": 0,
+                        "upstream_failed": 0,
+                    },
+                },
+            ),
+            (
+                {"start_date": "2023-02-02T00:00"},
+                {
+                    "dag_run_states": {"failed": 1, "queued": 0, "running": 1, "success": 0},
+                    "dag_run_types": {"backfill": 0, "asset_triggered": 1, "manual": 0, "scheduled": 1},
+                    "task_instance_states": {
+                        "deferred": 0,
+                        "failed": 2,
+                        "no_status": 2,
+                        "queued": 0,
+                        "removed": 0,
+                        "restarting": 0,
+                        "running": 0,
+                        "scheduled": 0,
+                        "skipped": 0,
+                        "success": 0,
+                        "up_for_reschedule": 0,
+                        "up_for_retry": 0,
+                        "upstream_failed": 0,
+                    },
+                },
+            ),
+        ],
+    )
     @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_dag_runs")
-    def test_historical_metrics_data(self, test_client, time_machine):
-        params = {"start_date": "2023-01-01T00:00", "end_date": "2023-08-02T00:00"}
-        response = test_client.get("/ui/dashboard/historical_metrics_data", params=params)
-
-        assert response.status_code == 200
-        assert response.json() == {
-            "dag_run_states": {"failed": 1, "queued": 0, "running": 1, "success": 1},
-            "dag_run_types": {"backfill": 0, "asset_triggered": 1, "manual": 0, "scheduled": 2},
-            "task_instance_states": {
-                "deferred": 0,
-                "failed": 2,
-                "no_status": 2,
-                "queued": 0,
-                "removed": 0,
-                "restarting": 0,
-                "running": 0,
-                "scheduled": 0,
-                "skipped": 0,
-                "success": 2,
-                "up_for_reschedule": 0,
-                "up_for_retry": 0,
-                "upstream_failed": 0,
-            },
-        }
-
-    @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_dag_runs")
-    def test_historical_metrics_data_date_filters(self, test_client):
-        params = {"start_date": "2023-02-02T00:00", "end_date": "2023-06-02T00:00"}
+    def test_historical_metrics_data(self, test_client, params, expected):
         response = test_client.get("/ui/dashboard/historical_metrics_data", params=params)
         assert response.status_code == 200
-        assert response.json() == {
-            "dag_run_states": {"failed": 1, "queued": 0, "running": 0, "success": 0},
-            "dag_run_types": {"backfill": 0, "asset_triggered": 1, "manual": 0, "scheduled": 0},
-            "task_instance_states": {
-                "deferred": 0,
-                "failed": 2,
-                "no_status": 0,
-                "queued": 0,
-                "removed": 0,
-                "restarting": 0,
-                "running": 0,
-                "scheduled": 0,
-                "skipped": 0,
-                "success": 0,
-                "up_for_reschedule": 0,
-                "up_for_retry": 0,
-                "upstream_failed": 0,
-            },
-        }
+        assert response.json() == expected

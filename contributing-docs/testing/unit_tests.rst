@@ -338,10 +338,10 @@ If your test accesses the database but is not marked properly the Non-DB test in
 How to verify if DB test is correctly classified
 ................................................
 
-When you add if you want to see if your DB test is correctly classified, you can run the test or group
+If you want to see if your DB test is correctly classified, you can run the test or group
 of tests with ``--skip-db-tests`` flag.
 
-You can run the all (or subset of) test types if you want to make sure all ot the problems are fixed
+You can run the all (or subset of) test types if you want to make sure all of the problems are fixed
 
   .. code-block:: bash
 
@@ -358,6 +358,13 @@ For selected test types (example - the tests will run for Providers/API/CLI code
   .. code-block:: bash
 
      breeze testing providers-tests --skip-db-tests --parallel-test-types "Providers[google] Providers[amazon]"
+
+You can also enter interactive shell with ``--skip-db-tests`` flag and run the tests iteratively
+
+  .. code-block:: bash
+
+     breeze shell --skip-db-tests
+     > pytest tests/your_test.py
 
 
 How to make your test not depend on DB
@@ -458,8 +465,8 @@ Do this:
 Problems with Non-DB test collection
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Sometimes, even if whole module is marked as ``@pytest.mark.db_test`` even parsing the file and collecting
-tests will fail when ``--skip-db-tests`` is used because some of the imports od objects created in the
+Sometimes, even if the whole module is marked as ``@pytest.mark.db_test``, parsing the file and collecting
+tests will fail when ``--skip-db-tests`` is used because some of the imports or objects created in the
 module will read the database.
 
 Usually what helps is to move such initialization code to inside the tests or pytest fixtures (and pass
@@ -489,7 +496,6 @@ the test is marked as DB test:
                    TaskCallbackRequest(
                        full_filepath="filepath",
                        simple_task_instance=SimpleTaskInstance.from_ti(ti=TI),
-                       processor_subdir="/test_dir",
                        is_failure_callback=True,
                    ),
                    TaskCallbackRequest,
@@ -499,7 +505,6 @@ the test is marked as DB test:
                        full_filepath="filepath",
                        dag_id="fake_dag",
                        run_id="fake_run",
-                       processor_subdir="/test_dir",
                        is_failure_callback=False,
                    ),
                    DagCallbackRequest,
@@ -508,7 +513,6 @@ the test is marked as DB test:
                    SlaCallbackRequest(
                        full_filepath="filepath",
                        dag_id="fake_dag",
-                       processor_subdir="/test_dir",
                    ),
                    SlaCallbackRequest,
                ),
@@ -540,7 +544,6 @@ top level / parametrize to inside the test:
                       full_filepath="filepath",
                       dag_id="fake_dag",
                       run_id="fake_run",
-                      processor_subdir="/test_dir",
                       is_failure_callback=False,
                   ),
                   DagCallbackRequest,
@@ -549,7 +552,6 @@ top level / parametrize to inside the test:
                   SlaCallbackRequest(
                       full_filepath="filepath",
                       dag_id="fake_dag",
-                      processor_subdir="/test_dir",
                   ),
                   SlaCallbackRequest,
               ),
@@ -568,7 +570,6 @@ top level / parametrize to inside the test:
               input = TaskCallbackRequest(
                   full_filepath="filepath",
                   simple_task_instance=SimpleTaskInstance.from_ti(ti=ti),
-                  processor_subdir="/test_dir",
                   is_failure_callback=True,
               )
 
@@ -690,40 +691,6 @@ You can also use fixture to create object that needs database just like this.
     def test_as_json_from_connection(self, conn: Connection):
         conn = request.getfixturevalue(conn)
         ...
-
-Running tests with Database isolation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Running tests with DB isolation is a special case of tests that require ``internal-api`` component to be
-started in order to execute the tests. Only selected tests can be run with the database isolation
-(TODO: add the list) - they are simulating running untrusted components (dag file processor, triggerer,
-worker) running in an environment where there is no DB configuration and certain "internal_api" endpoints
-are used to communicate with the internal-api component (that can access the DB directly).
-
-In the ``database isolation mode`` the test code can access the DB and perform setup/teardown but the code
-directly from airflow package will fail if the database is accessed directly - all the DB calls should go
-through the internal API component.
-
-When you run ``breeze testing providers-tests --database-isolation`` - the internal API server will be started for
-you automatically:
-
-.. code-block:: shell
-
-   breeze testing providers-tests --database-isolation tests/dag_processing/
-
-However, when you want to run the tests interactively, you need to use ``breeze shell --database-isolation``
-command and either use ``tmux`` to split your terminal and run the internal API component in the second
-pane or run it after re-entering the shell with separate ``breeze exec`` command.
-
-.. code-block:: shell
-
-   breeze shell --database-isolation tests/dag_processing/
-   > tmux
-   > Ctrl-B "
-   > Panel 1: airflow internal-api
-   > Panel 2: pytest tests/dag_processing
-
-
 
 Running Unit tests
 ------------------
@@ -1063,7 +1030,7 @@ Our CI runs provider tests for providers with previous compatible airflow releas
 if the providers still work when installed for older airflow versions.
 
 The back-compatibility tests based on the configuration specified in the
-``BASE_PROVIDERS_COMPATIBILITY_CHECKS`` constant in the ``./dev/breeze/src/airflow_breeze/global_constants.py``
+``PROVIDERS_COMPATIBILITY_TESTS_MATRIX`` constant in the ``./dev/breeze/src/airflow_breeze/global_constants.py``
 file - where we specify:
 
 * Python version
@@ -1120,9 +1087,9 @@ directly to the container.
 Implementing compatibility for provider tests for older Airflow versions
 ........................................................................
 
-When you implement tests for providers, you should make sure that they are compatible with older
+When you implement tests for providers, you should make sure that they are compatible with older Airflow versions.
 
-Note that some of the tests if written without taking care about the compatibility, might not work with older
+Note that some of the tests, if written without taking care about the compatibility, might not work with older
 versions of Airflow - this is because of refactorings, renames, and tests relying on internals of Airflow that
 are not part of the public API. We deal with it in one of the following ways:
 
@@ -1137,16 +1104,16 @@ are not part of the public API. We deal with it in one of the following ways:
    you can add more if needed in a similar way.
 
 3) If only some tests are not compatible and use features that are available only in newer airflow version,
-   we can mark those tests with appropriate ``AIRFLOW_V_2_X_PLUS`` boolean constant defined in ``compat.py``
+   we can mark those tests with appropriate ``AIRFLOW_V_2_X_PLUS`` boolean constant defined in ``version_compat.py``
    For example:
 
 .. code-block:: python
 
-  from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
+  from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
 
 
-  @pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="The tests should be skipped for Airflow < 2.9")
-  def some_test_that_only_works_for_airflow_2_9_plus():
+  @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="The tests should be skipped for Airflow < 2.10")
+  def some_test_that_only_works_for_airflow_2_10_plus():
       pass
 
 4) Sometimes, the tests should only be run when airflow is installed from the sources in main.
@@ -1219,7 +1186,7 @@ Herr id how to reproduce it.
    breeze release-management generate-constraints --airflow-constraints-mode constraints-source-providers --answer yes
 
 4. Remove providers that are not compatible with Airflow version installed by default. You can look up
-   the incompatible providers in the ``BASE_PROVIDERS_COMPATIBILITY_CHECKS`` constant in the
+   the incompatible providers in the ``PROVIDERS_COMPATIBILITY_TESTS_MATRIX`` constant in the
    ``./dev/breeze/src/airflow_breeze/global_constants.py`` file.
 
 5. Enter breeze environment, installing selected airflow version and the provider packages prepared from main

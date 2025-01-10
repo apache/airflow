@@ -60,7 +60,7 @@ class KerberosMode(Enum):
     ONE_TIME = "one-time"
 
 
-def get_kerberos_principle(principal: str | None) -> str:
+def get_kerberos_principal(principal: str | None) -> str:
     """Retrieve Kerberos principal. Fallback to principal from Airflow configuration if not provided."""
     return principal or conf.get_mandatory_value("kerberos", "principal").replace("_HOST", get_hostname())
 
@@ -77,7 +77,7 @@ def renew_from_kt(principal: str | None, keytab: str, exit_on_fail: bool = True)
     # minutes to give ourselves a large renewal buffer.
     renewal_lifetime = f"{conf.getint('kerberos', 'reinit_frequency')}m"
 
-    cmd_principal = get_kerberos_principle(principal)
+    cmd_principal = get_kerberos_principal(principal)
     if conf.getboolean("kerberos", "forwardable"):
         forwardable = "-f"
     else:

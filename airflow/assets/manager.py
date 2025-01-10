@@ -20,11 +20,9 @@ from __future__ import annotations
 from collections.abc import Collection, Iterable
 from typing import TYPE_CHECKING
 
-from sqlalchemy import exc, select
+from sqlalchemy import exc, or_, select
 from sqlalchemy.orm import joinedload
 
-from airflow.api_internal.internal_api_call import internal_api_call
-from airflow.assets import Asset
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import (
@@ -33,7 +31,9 @@ from airflow.models.asset import (
     AssetEvent,
     AssetModel,
     DagScheduleAssetAliasReference,
+    DagScheduleAssetNameReference,
     DagScheduleAssetReference,
+    DagScheduleAssetUriReference,
 )
 from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.stats import Stats
@@ -42,9 +42,9 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
-    from airflow.assets import Asset, AssetAlias
     from airflow.models.dag import DagModel
     from airflow.models.taskinstance import TaskInstance
+    from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey
 
 
 class AssetManager(LoggingMixin):
@@ -88,28 +88,27 @@ class AssetManager(LoggingMixin):
     def _add_asset_alias_association(
         cls,
         alias_names: Collection[str],
-        asset: AssetModel,
+        asset_model: AssetModel,
         *,
         session: Session,
     ) -> None:
-        already_related = {m.name for m in asset.aliases}
+        already_related = {m.name for m in asset_model.aliases}
         existing_aliases = {
             m.name: m
             for m in session.scalars(select(AssetAliasModel).where(AssetAliasModel.name.in_(alias_names)))
         }
-        asset.aliases.extend(
+        asset_model.aliases.extend(
             existing_aliases.get(name, AssetAliasModel(name=name))
             for name in alias_names
             if name not in already_related
         )
 
     @classmethod
-    @internal_api_call
     def register_asset_change(
         cls,
         *,
         task_instance: TaskInstance | None = None,
-        asset: Asset,
+        asset: Asset | AssetModel | AssetUniqueKey,
         extra=None,
         aliases: Collection[AssetAlias] = (),
         source_alias_names: Iterable[str] | None = None,
@@ -122,10 +121,11 @@ class AssetManager(LoggingMixin):
         For local assets, look them up, record the asset event, queue dagruns, and broadcast
         the asset event
         """
-        # todo: add test so that all usages of internal_api_call are added to rpc endpoint
-        asset_model = session.scalar(
+        from airflow.models.dag import DagModel
+
+        asset_model: AssetModel | None = session.scalar(
             select(AssetModel)
-            .where(AssetModel.uri == asset.uri)
+            .where(AssetModel.name == asset.name, AssetModel.uri == asset.uri)
             .options(
                 joinedload(AssetModel.aliases),
                 joinedload(AssetModel.consuming_dags).joinedload(DagScheduleAssetReference.dag),
@@ -135,7 +135,9 @@ class AssetManager(LoggingMixin):
             cls.logger().warning("AssetModel %s not found", asset)
             return None
 
-        cls._add_asset_alias_association({alias.name for alias in aliases}, asset_model, session=session)
+        cls._add_asset_alias_association(
+            alias_names={alias.name for alias in aliases}, asset_model=asset_model, session=session
+        )
 
         event_kwargs = {
             "asset_id": asset_model.id,
@@ -156,6 +158,7 @@ class AssetManager(LoggingMixin):
         dags_to_queue_from_asset = {
             ref.dag for ref in asset_model.consuming_dags if ref.dag.is_active and not ref.dag.is_paused
         }
+
         dags_to_queue_from_asset_alias = set()
         if source_alias_names:
             asset_alias_models = session.scalars(
@@ -176,16 +179,27 @@ class AssetManager(LoggingMixin):
                     if alias_ref.dag.is_active and not alias_ref.dag.is_paused
                 }
 
-        dags_to_reparse = dags_to_queue_from_asset_alias - dags_to_queue_from_asset
-        if dags_to_reparse:
-            file_locs = {dag.fileloc for dag in dags_to_reparse}
-            cls._send_dag_priority_parsing_request(file_locs, session)
+        dags_to_queue_from_asset_ref = set(
+            session.scalars(
+                select(DagModel)
+                .join(DagModel.schedule_asset_name_references, isouter=True)
+                .join(DagModel.schedule_asset_uri_references, isouter=True)
+                .where(
+                    or_(
+                        DagScheduleAssetNameReference.name == asset.name,
+                        DagScheduleAssetUriReference.uri == asset.uri,
+                    )
+                )
+            )
+        )
 
-        cls.notify_asset_changed(asset=asset)
+        cls.notify_asset_changed(asset=asset_model.to_public())
 
         Stats.incr("asset.updates")
 
-        dags_to_queue = dags_to_queue_from_asset | dags_to_queue_from_asset_alias
+        dags_to_queue = (
+            dags_to_queue_from_asset | dags_to_queue_from_asset_alias | dags_to_queue_from_asset_ref
+        )
         cls._queue_dagruns(asset_id=asset_model.id, dags_to_queue=dags_to_queue, session=session)
         return asset_event
 

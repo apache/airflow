@@ -18,12 +18,10 @@
 
 from __future__ import annotations
 
-import functools
 import logging
 import os
 from typing import TYPE_CHECKING
 
-from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.exceptions import AirflowConfigException, UnknownExecutorException
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
@@ -49,11 +47,11 @@ if TYPE_CHECKING:
 # executor may have both so we need two lookup dicts.
 _alias_to_executors: dict[str, ExecutorName] = {}
 _module_to_executors: dict[str, ExecutorName] = {}
+# Used to lookup an ExecutorName via the team id.
+_team_id_to_executors: dict[str | None, ExecutorName] = {}
 _classname_to_executors: dict[str, ExecutorName] = {}
 # Used to cache the computed ExecutorNames so that we don't need to read/parse config more than once
 _executor_names: list[ExecutorName] = []
-# Used to cache executors so that we don't construct executor objects unnecessarily
-_loaded_executors: dict[ExecutorName, BaseExecutor] = {}
 
 
 class ExecutorLoader:
@@ -84,53 +82,69 @@ class ExecutorLoader:
         if _executor_names:
             return _executor_names
 
-        executor_names_raw = conf.get_mandatory_list_value("core", "EXECUTOR")
+        all_executor_names: list[tuple[None | str, list[str]]] = [
+            (None, conf.get_mandatory_list_value("core", "EXECUTOR"))
+        ]
+        all_executor_names.extend(cls._get_team_executor_configs())
 
         executor_names = []
-        for name in executor_names_raw:
-            if len(split_name := name.split(":")) == 1:
-                name = split_name[0]
-                # Check if this is an alias for a core airflow executor, module
-                # paths won't be provided by the user in that case.
-                if core_executor_module := cls.executors.get(name):
-                    executor_names.append(ExecutorName(alias=name, module_path=core_executor_module))
-                # A module path was provided
+        for team_id, executor_names_config in all_executor_names:
+            executor_names_per_team = []
+            for name in executor_names_config:
+                if len(split_name := name.split(":")) == 1:
+                    name = split_name[0]
+                    # Check if this is an alias for a core airflow executor, module
+                    # paths won't be provided by the user in that case.
+                    if core_executor_module := cls.executors.get(name):
+                        executor_names_per_team.append(
+                            ExecutorName(module_path=core_executor_module, alias=name, team_id=team_id)
+                        )
+                    # A module path was provided
+                    else:
+                        executor_names_per_team.append(
+                            ExecutorName(alias=None, module_path=name, team_id=team_id)
+                        )
+                # An alias was provided with the module path
+                elif len(split_name) == 2:
+                    # Ensure the user is not trying to override the existing aliases of any of the core
+                    # executors by providing an alias along with the existing core airflow executor alias
+                    # (e.g. my_local_exec_alias:LocalExecutor). Allowing this makes things unnecessarily
+                    # complicated. Multiple Executors of the same type will be supported by a future
+                    # multitenancy AIP.
+                    # The module component should always be a module path.
+                    module_path = split_name[1]
+                    if not module_path or module_path in CORE_EXECUTOR_NAMES or "." not in module_path:
+                        raise AirflowConfigException(
+                            "Incorrectly formatted executor configuration. Second portion of an executor "
+                            f"configuration must be a module path but received: {module_path}"
+                        )
+                    else:
+                        executor_names_per_team.append(
+                            ExecutorName(alias=split_name[0], module_path=split_name[1], team_id=team_id)
+                        )
                 else:
-                    executor_names.append(ExecutorName(alias=None, module_path=name))
-            # An alias was provided with the module path
-            elif len(split_name) == 2:
-                # Ensure the user is not trying to override the existing aliases of any of the core
-                # executors by providing an alias along with the existing core airflow executor alias
-                # (e.g. my_local_exec_alias:LocalExecutor). Allowing this makes things unnecessarily
-                # complicated. Multiple Executors of the same type will be supported by a future multitenancy
-                # AIP.
-                # The module component should always be a module path.
-                module_path = split_name[1]
-                if not module_path or module_path in CORE_EXECUTOR_NAMES or "." not in module_path:
-                    raise AirflowConfigException(
-                        "Incorrectly formatted executor configuration. Second portion of an executor "
-                        f"configuration must be a module path but received: {module_path}"
-                    )
-                else:
-                    executor_names.append(ExecutorName(alias=split_name[0], module_path=split_name[1]))
-            else:
-                raise AirflowConfigException(f"Incorrectly formatted executor configuration: {name}")
+                    raise AirflowConfigException(f"Incorrectly formatted executor configuration: {name}")
 
-        # As of now, we do not allow duplicate executors.
-        # Add all module paths to a set, since the actual code is what is unique
-        unique_modules = set([exec_name.module_path for exec_name in executor_names])
-        if len(unique_modules) < len(executor_names):
-            msg = (
-                "At least one executor was configured twice. Duplicate executors are not yet supported. "
-                "Please check your configuration again to correct the issue."
-            )
-            raise AirflowConfigException(msg)
+            # As of now, we do not allow duplicate executors (within teams).
+            # Add all module paths to a set, since the actual code is what is unique
+            unique_modules = set([exec_name.module_path for exec_name in executor_names_per_team])
+            if len(unique_modules) < len(executor_names_per_team):
+                msg = (
+                    "At least one executor was configured twice. Duplicate executors are not yet supported.\n"
+                    "Please check your configuration again to correct the issue."
+                )
+                raise AirflowConfigException(msg)
+
+            executor_names.extend(executor_names_per_team)
 
         # Populate some mappings for fast future lookups
         for executor_name in executor_names:
             # Executors will not always have aliases
             if executor_name.alias:
                 _alias_to_executors[executor_name.alias] = executor_name
+            # All executors will have a team id. It _may_ be None, for now that means it is a system
+            # level executor
+            _team_id_to_executors[executor_name.team_id] = executor_name
             # All executors will have a module path
             _module_to_executors[executor_name.module_path] = executor_name
             _classname_to_executors[executor_name.module_path.split(".")[-1]] = executor_name
@@ -138,6 +152,39 @@ class ExecutorLoader:
             _executor_names.append(executor_name)
 
         return executor_names
+
+    @classmethod
+    def block_use_of_multi_team(cls):
+        """
+        Raise an exception if the user tries to use multiple team based executors.
+
+        Before the feature is complete we do not want users to accidentally configure this.
+        This can be overridden by setting the AIRFLOW__DEV__MULTI_TEAM_MODE environment
+        variable to "enabled"
+        This check is built into a method so that it can be easily mocked in unit tests.
+        """
+        team_dev_mode: str | None = os.environ.get("AIRFLOW__DEV__MULTI_TEAM_MODE")
+        if not team_dev_mode or team_dev_mode != "enabled":
+            raise AirflowConfigException("Configuring multiple team based executors is not yet supported!")
+
+    @classmethod
+    def _get_team_executor_configs(cls) -> list[tuple[str, list[str]]]:
+        """
+        Return a list of executor configs to be loaded.
+
+        Each tuple contains the team id as the first element and the second element is the executor config
+        for that team (a list of executor names/modules/aliases).
+        """
+        from airflow.configuration import conf
+
+        team_config = conf.get("core", "multi_team_config_files", fallback=None)
+        configs = []
+        if team_config:
+            cls.block_use_of_multi_team()
+            for team in team_config.split(","):
+                (_, team_id) = team.split(":")
+                configs.append((team_id, conf.get_mandatory_list_value("core", "executor", team_id=team_id)))
+        return configs
 
     @classmethod
     def get_executor_names(cls) -> list[ExecutorName]:
@@ -166,28 +213,12 @@ class ExecutorLoader:
         return default_executor
 
     @classmethod
-    def set_default_executor(cls, executor: BaseExecutor) -> None:
-        """
-        Externally set an executor to be the default.
-
-        This is used in rare cases such as dag.test which allows, as a user convenience, to provide
-        the executor by cli/argument instead of Airflow configuration
-        """
-        exec_class_name = executor.__class__.__qualname__
-        exec_name = ExecutorName(f"{executor.__module__}.{exec_class_name}")
-
-        _module_to_executors[exec_name.module_path] = exec_name
-        _classname_to_executors[exec_class_name] = exec_name
-        _executor_names.insert(0, exec_name)
-        _loaded_executors[exec_name] = executor
-
-    @classmethod
     def init_executors(cls) -> list[BaseExecutor]:
         """Create a new instance of all configured executors if not cached already."""
         executor_names = cls._get_executor_names()
         loaded_executors = []
         for executor_name in executor_names:
-            loaded_executor = cls.load_executor(executor_name.module_path)
+            loaded_executor = cls.load_executor(executor_name)
             if executor_name.alias:
                 cls.executors[executor_name.alias] = executor_name.module_path
             else:
@@ -229,10 +260,6 @@ class ExecutorLoader:
         else:
             _executor_name = executor_name
 
-        # Check if the executor has been previously loaded. Avoid constructing a new object
-        if _executor_name in _loaded_executors:
-            return _loaded_executors[_executor_name]
-
         try:
             if _executor_name.alias == CELERY_KUBERNETES_EXECUTOR:
                 executor = cls.__load_celery_kubernetes_executor()
@@ -241,7 +268,10 @@ class ExecutorLoader:
             else:
                 executor_cls, import_source = cls.import_executor_cls(_executor_name)
                 log.debug("Loading executor %s from %s", _executor_name, import_source.value)
-                executor = executor_cls()
+                if _executor_name.team_id:
+                    executor = executor_cls(team_id=_executor_name.team_id)
+                else:
+                    executor = executor_cls()
 
         except ImportError as e:
             log.error(e)
@@ -255,77 +285,32 @@ class ExecutorLoader:
         # instance. This makes it easier for the Scheduler, Backfill, etc to
         # know how we refer to this executor.
         executor.name = _executor_name
-        # Cache this executor by name here, so we can look it up later if it is
-        # requested again, and not have to construct a new object
-        _loaded_executors[_executor_name] = executor
 
         return executor
 
     @classmethod
-    def import_executor_cls(
-        cls, executor_name: ExecutorName, validate: bool = True
-    ) -> tuple[type[BaseExecutor], ConnectorSource]:
+    def import_executor_cls(cls, executor_name: ExecutorName) -> tuple[type[BaseExecutor], ConnectorSource]:
         """
         Import the executor class.
 
         Supports the same formats as ExecutorLoader.load_executor.
 
         :param executor_name: Name of core executor or module path to executor.
-        :param validate: Whether or not to validate the executor before returning
 
         :return: executor class via executor_name and executor import source
         """
-
-        def _import_and_validate(path: str) -> type[BaseExecutor]:
-            executor = import_string(path)
-            if validate:
-                cls.validate_database_executor_compatibility(executor)
-            return executor
-
-        return _import_and_validate(executor_name.module_path), executor_name.connector_source
+        return import_string(executor_name.module_path), executor_name.connector_source
 
     @classmethod
-    def import_default_executor_cls(cls, validate: bool = True) -> tuple[type[BaseExecutor], ConnectorSource]:
+    def import_default_executor_cls(cls) -> tuple[type[BaseExecutor], ConnectorSource]:
         """
         Import the default executor class.
-
-        :param validate: Whether or not to validate the executor before returning
 
         :return: executor class and executor import source
         """
         executor_name = cls.get_default_executor_name()
-        executor, source = cls.import_executor_cls(executor_name, validate=validate)
+        executor, source = cls.import_executor_cls(executor_name)
         return executor, source
-
-    @classmethod
-    @functools.lru_cache(maxsize=None)
-    def validate_database_executor_compatibility(cls, executor: type[BaseExecutor]) -> None:
-        """
-        Validate database and executor compatibility.
-
-        Most of the databases work universally, but SQLite can only work with
-        single-threaded executors (e.g. Sequential).
-
-        This is NOT done in ``airflow.configuration`` (when configuration is
-        initialized) because loading the executor class is heavy work we want to
-        avoid unless needed.
-        """
-        # Single threaded executors can run with any backend.
-        if executor.is_single_threaded:
-            return
-
-        # This is set in tests when we want to be able to use SQLite.
-        if os.environ.get("_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK") == "1":
-            return
-
-        if InternalApiConfig.get_use_internal_api():
-            return
-
-        from airflow.settings import engine
-
-        # SQLite only works with single threaded executors
-        if engine.dialect.name == "sqlite":
-            raise AirflowConfigException(f"error: cannot use SQLite with the {executor.__name__}")
 
     @classmethod
     def __load_celery_kubernetes_executor(cls) -> BaseExecutor:

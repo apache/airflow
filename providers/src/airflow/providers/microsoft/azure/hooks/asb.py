@@ -17,7 +17,9 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable
+from uuid import uuid4
 
+from azure.core.exceptions import ResourceNotFoundError
 from azure.servicebus import (
     ServiceBusClient,
     ServiceBusMessage,
@@ -25,7 +27,14 @@ from azure.servicebus import (
     ServiceBusReceiver,
     ServiceBusSender,
 )
-from azure.servicebus.management import QueueProperties, ServiceBusAdministrationClient
+from azure.servicebus.management import (
+    AuthorizationRule,
+    CorrelationRuleFilter,
+    QueueProperties,
+    ServiceBusAdministrationClient,
+    SqlRuleFilter,
+    SubscriptionProperties,
+)
 
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
@@ -35,6 +44,8 @@ from airflow.providers.microsoft.azure.utils import (
 )
 
 if TYPE_CHECKING:
+    import datetime
+
     from azure.identity import DefaultAzureCredential
 
     from airflow.utils.context import Context
@@ -183,6 +194,226 @@ class AdminClientHook(BaseAzureServiceBusHook):
 
         with self.get_conn() as service_mgmt_conn:
             service_mgmt_conn.delete_queue(queue_name)
+
+    def create_topic(
+        self,
+        topic_name: str,
+        azure_service_bus_conn_id: str = "azure_service_bus_default",
+        default_message_time_to_live: datetime.timedelta | str | None = None,
+        max_size_in_megabytes: int | None = None,
+        requires_duplicate_detection: bool | None = None,
+        duplicate_detection_history_time_window: datetime.timedelta | str | None = None,
+        enable_batched_operations: bool | None = None,
+        size_in_bytes: int | None = None,
+        filtering_messages_before_publishing: bool | None = None,
+        authorization_rules: list[AuthorizationRule] | None = None,
+        support_ordering: bool | None = None,
+        auto_delete_on_idle: datetime.timedelta | str | None = None,
+        enable_partitioning: bool | None = None,
+        enable_express: bool | None = None,
+        user_metadata: str | None = None,
+        max_message_size_in_kilobytes: int | None = None,
+    ) -> str:
+        """
+        Create a topic by connecting to service Bus Admin client.
+
+        :param topic_name: Name of the topic.
+        :param default_message_time_to_live: ISO 8601 default message time span to live value. This is
+            the duration after which the message expires, starting from when the message is sent to Service
+            Bus. This is the default value used when TimeToLive is not set on a message itself.
+            Input value of either type ~datetime.timedelta or string in ISO 8601 duration format
+            like "PT300S" is accepted.
+        :param max_size_in_megabytes: The maximum size of the topic in megabytes, which is the size of
+            memory allocated for the topic.
+        :param requires_duplicate_detection: A value indicating if this topic requires duplicate
+            detection.
+        :param duplicate_detection_history_time_window: ISO 8601 time span structure that defines the
+            duration of the duplicate detection history. The default value is 10 minutes.
+            Input value of either type ~datetime.timedelta or string in ISO 8601 duration format
+            like "PT300S" is accepted.
+        :param enable_batched_operations: Value that indicates whether server-side batched operations
+            are enabled.
+        :param size_in_bytes: The size of the topic, in bytes.
+        :param filtering_messages_before_publishing: Filter messages before publishing.
+        :param authorization_rules: List of Authorization rules for resource.
+        :param support_ordering: A value that indicates whether the topic supports ordering.
+        :param auto_delete_on_idle: ISO 8601 time span idle interval after which the topic is
+            automatically deleted. The minimum duration is 5 minutes.
+            Input value of either type ~datetime.timedelta or string in ISO 8601 duration format
+            like "PT300S" is accepted.
+        :param enable_partitioning: A value that indicates whether the topic is to be partitioned
+            across multiple message brokers.
+        :param enable_express: A value that indicates whether Express Entities are enabled. An express
+            queue holds a message in memory temporarily before writing it to persistent storage.
+        :param user_metadata: Metadata associated with the topic.
+        :param max_message_size_in_kilobytes: The maximum size in kilobytes of message payload that
+            can be accepted by the queue. This feature is only available when using a Premium namespace
+            and Service Bus API version "2021-05" or higher.
+            The minimum allowed value is 1024 while the maximum allowed value is 102400. Default value is 1024.
+        """
+        if topic_name is None:
+            raise TypeError("Topic name cannot be None.")
+
+        with self.get_conn() as service_mgmt_conn:
+            try:
+                topic_properties = service_mgmt_conn.get_topic(topic_name)
+            except ResourceNotFoundError:
+                topic_properties = None
+            if topic_properties and topic_properties.name == topic_name:
+                self.log.info("Topic name already exists")
+                return topic_properties.name
+            topic = service_mgmt_conn.create_topic(
+                topic_name=topic_name,
+                default_message_time_to_live=default_message_time_to_live,
+                max_size_in_megabytes=max_size_in_megabytes,
+                requires_duplicate_detection=requires_duplicate_detection,
+                duplicate_detection_history_time_window=duplicate_detection_history_time_window,
+                enable_batched_operations=enable_batched_operations,
+                size_in_bytes=size_in_bytes,
+                filtering_messages_before_publishing=filtering_messages_before_publishing,
+                authorization_rules=authorization_rules,
+                support_ordering=support_ordering,
+                auto_delete_on_idle=auto_delete_on_idle,
+                enable_partitioning=enable_partitioning,
+                enable_express=enable_express,
+                user_metadata=user_metadata,
+                max_message_size_in_kilobytes=max_message_size_in_kilobytes,
+            )
+            self.log.info("Created Topic %s", topic.name)
+            return topic.name
+
+    def create_subscription(
+        self,
+        topic_name: str,
+        subscription_name: str,
+        lock_duration: datetime.timedelta | str | None = None,
+        requires_session: bool | None = None,
+        default_message_time_to_live: datetime.timedelta | str | None = None,
+        dead_lettering_on_message_expiration: bool | None = True,
+        dead_lettering_on_filter_evaluation_exceptions: bool | None = None,
+        max_delivery_count: int | None = 10,
+        enable_batched_operations: bool | None = True,
+        forward_to: str | None = None,
+        user_metadata: str | None = None,
+        forward_dead_lettered_messages_to: str | None = None,
+        auto_delete_on_idle: datetime.timedelta | str | None = None,
+        filter_rule: CorrelationRuleFilter | SqlRuleFilter | None = None,
+        filter_rule_name: str | None = None,
+    ) -> SubscriptionProperties:
+        """
+        Create a subscription with specified name on a topic and return the SubscriptionProperties for it.
+
+        An optional filter_rule can be provided to filter messages based on their properties. In particular,
+        the correlation ID filter can be used to pair up replies to requests.
+
+        :param topic_name: The topic that will own the to-be-created subscription.
+        :param subscription_name: Name of the subscription that need to be created
+        :param lock_duration: ISO 8601 time span duration of a peek-lock; that is, the amount of time that
+            the message is locked for other receivers. The maximum value for LockDuration is 5 minutes; the
+            default value is 1 minute. Input value of either type ~datetime.timedelta or string in ISO 8601
+            duration format like "PT300S" is accepted.
+        :param requires_session: A value that indicates whether the queue supports the concept of sessions.
+        :param default_message_time_to_live: ISO 8601 default message time span to live value. This is the
+            duration after which the message expires, starting from when the message is sent to
+            Service Bus. This is the default value used when TimeToLive is not set on a message itself.
+            Input value of either type ~datetime.timedelta or string in ISO 8601 duration
+            format like "PT300S" is accepted.
+        :param dead_lettering_on_message_expiration: A value that indicates whether this subscription has
+            dead letter support when a message expires.
+        :param dead_lettering_on_filter_evaluation_exceptions: A value that indicates whether this
+            subscription has dead letter support when a message expires.
+        :param max_delivery_count: The maximum delivery count. A message is automatically dead lettered
+            after this number of deliveries. Default value is 10.
+        :param enable_batched_operations: Value that indicates whether server-side batched
+            operations are enabled.
+        :param forward_to: The name of the recipient entity to which all the messages sent to the
+            subscription are forwarded to.
+        :param user_metadata: Metadata associated with the subscription. Maximum number of characters is 1024.
+        :param forward_dead_lettered_messages_to: The name of the recipient entity to which all the
+            messages sent to the subscription are forwarded to.
+        :param auto_delete_on_idle: ISO 8601 time Span idle interval after which the subscription is
+            automatically deleted. The minimum duration is 5 minutes. Input value of either
+            type ~datetime.timedelta or string in ISO 8601 duration format like "PT300S" is accepted.
+        :param filter_rule: Optional correlation or SQL rule filter to apply on the messages.
+        :param filter_rule_name: Optional rule name to use applying the rule filter to the subscription
+        :param azure_service_bus_conn_id: Reference to the
+            :ref:`Azure Service Bus connection<howto/connection:azure_service_bus>`.
+        """
+        if subscription_name is None:
+            raise TypeError("Subscription name cannot be None.")
+        if topic_name is None:
+            raise TypeError("Topic name cannot be None.")
+
+        with self.get_conn() as connection:
+            # create subscription with name
+            subscription = connection.create_subscription(
+                topic_name=topic_name,
+                subscription_name=subscription_name,
+                lock_duration=lock_duration,
+                requires_session=requires_session,
+                default_message_time_to_live=default_message_time_to_live,
+                dead_lettering_on_ßmessage_expiration=dead_lettering_on_message_expiration,
+                dead_lettering_on_filter_evaluation_exceptions=dead_lettering_on_filter_evaluation_exceptions,
+                max_delivery_count=max_delivery_count,
+                enable_batched_operations=enable_batched_operations,
+                forward_to=forward_to,
+                user_metadata=user_metadata,
+                forward_dead_lettered_messages_to=forward_dead_lettered_messages_to,
+                auto_delete_on_idle=auto_delete_on_idle,
+            )
+
+            if filter_rule:
+                # remove default rule (which accepts all messages)
+                try:
+                    connection.delete_rule(topic_name, subscription_name, "$Default")
+                except ResourceNotFoundError:
+                    # as long as it is gone :)
+                    self.log.debug("Could not find default rule '$Default' to delete; ignoring error.")
+
+                # add a rule to filter with the filter rule passed in
+                rule_name = filter_rule_name if filter_rule_name else "rule" + str(uuid4())
+                connection.create_rule(topic_name, subscription_name, rule_name, filter=filter_rule)
+                self.log.debug(
+                    "Created rule %s for subscription %s on topic %s",
+                    rule_name,
+                    subscription_name,
+                    topic_name,
+                )
+
+            return subscription
+
+    def update_subscription(
+        self,
+        topic_name: str,
+        subscription_name: str,
+        max_delivery_count: int | None = None,
+        dead_lettering_on_message_expiration: bool | None = None,
+        enable_batched_operations: bool | None = None,
+    ) -> None:
+        """
+        Update an Azure ServiceBus Topic Subscription under a ServiceBus Namespace.
+
+        :param topic_name: The topic that will own the to-be-created subscription.
+        :param subscription_name: Name of the subscription that need to be created.
+        :param max_delivery_count: The maximum delivery count. A message is automatically dead lettered
+            after this number of deliveries. Default value is 10.
+        :param dead_lettering_on_message_expiration: A value that indicates whether this subscription
+            has dead letter support when a message expires.
+        :param enable_batched_operations: Value that indicates whether server-side batched
+            operations are enabled.
+        """
+        with self.get_conn() as service_mgmt_conn:
+            subscription_prop = service_mgmt_conn.get_subscription(topic_name, subscription_name)
+            if max_delivery_count:
+                subscription_prop.max_delivery_count = max_delivery_count
+            if dead_lettering_on_message_expiration is not None:
+                subscription_prop.dead_lettering_on_message_expiration = dead_lettering_on_message_expiration
+            if enable_batched_operations is not None:
+                subscription_prop.enable_batched_operations = enable_batched_operations
+            # update by updating the properties in the model
+            service_mgmt_conn.update_subscription(topic_name, subscription_prop)
+            updated_subscription = service_mgmt_conn.get_subscription(topic_name, subscription_name)
+            self.log.info("Subscription Updated successfully %s", updated_subscription.name)
 
     def delete_subscription(self, subscription_name: str, topic_name: str) -> None:
         """

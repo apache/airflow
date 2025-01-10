@@ -20,7 +20,8 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import BadRequest, Conflict
 from google.cloud.bigquery import (
@@ -755,8 +756,6 @@ class GCSToBigQueryOperator(BaseOperator):
 
     def get_openlineage_facets_on_complete(self, task_instance):
         """Implement on_complete as we will include final BQ job id."""
-        from pathlib import Path
-
         from airflow.providers.common.compat.openlineage.facet import (
             Dataset,
             ExternalQueryRunFacet,
@@ -764,6 +763,8 @@ class GCSToBigQueryOperator(BaseOperator):
             SymlinksDatasetFacet,
         )
         from airflow.providers.google.cloud.openlineage.utils import (
+            WILDCARD,
+            extract_ds_name_from_gcs_path,
             get_facets_from_bq_table,
             get_identity_column_lineage_facet,
         )
@@ -784,41 +785,39 @@ class GCSToBigQueryOperator(BaseOperator):
         source_objects = (
             self.source_objects if isinstance(self.source_objects, list) else [self.source_objects]
         )
-        input_dataset_facets = {
-            "schema": output_dataset_facets["schema"],
-        }
+        input_dataset_facets = {}
+        if "schema" in output_dataset_facets:
+            input_dataset_facets["schema"] = output_dataset_facets["schema"]
+
         input_datasets = []
         for blob in sorted(source_objects):
             additional_facets = {}
 
-            if "*" in blob:
-                # If wildcard ("*") is used in gcs path, we want the name of dataset to be directory name,
-                # but we create a symlink to the full object path with wildcard.
+            if WILDCARD in blob:
+                # For path with wildcard we attach a symlink with unmodified path.
                 additional_facets = {
                     "symlink": SymlinksDatasetFacet(
                         identifiers=[Identifier(namespace=f"gs://{self.bucket}", name=blob, type="file")]
                     ),
                 }
-                blob = Path(blob).parent.as_posix()
-                if blob == ".":
-                    # blob path does not have leading slash, but we need root dataset name to be "/"
-                    blob = "/"
 
             dataset = Dataset(
                 namespace=f"gs://{self.bucket}",
-                name=blob,
+                name=extract_ds_name_from_gcs_path(blob),
                 facets=merge_dicts(input_dataset_facets, additional_facets),
             )
             input_datasets.append(dataset)
 
-        output_dataset_facets["columnLineage"] = get_identity_column_lineage_facet(
-            field_names=[field.name for field in table_object.schema], input_datasets=input_datasets
-        )
-
         output_dataset = Dataset(
             namespace="bigquery",
             name=str(table_object.reference),
-            facets=output_dataset_facets,
+            facets={
+                **output_dataset_facets,
+                **get_identity_column_lineage_facet(
+                    dest_field_names=[field.name for field in table_object.schema],
+                    input_datasets=input_datasets,
+                ),
+            },
         )
 
         run_facets = {}

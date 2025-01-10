@@ -29,7 +29,7 @@ from airflow.providers.apache.kylin.operators.kylin_cube import KylinCubeOperato
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 DEFAULT_DATE = timezone.datetime(2020, 1, 1)
 
@@ -188,8 +188,8 @@ class TestKylinCubeOperator:
         session.add(ti)
         session.commit()
         ti.render_templates()
-        assert "learn_kylin" == getattr(operator, "project")
-        assert "kylin_sales_cube" == getattr(operator, "cube")
-        assert "build" == getattr(operator, "command")
-        assert "1483200000000" == getattr(operator, "start_time")
-        assert "1483286400000" == getattr(operator, "end_time")
+        assert getattr(operator, "project") == "learn_kylin"
+        assert getattr(operator, "cube") == "kylin_sales_cube"
+        assert getattr(operator, "command") == "build"
+        assert getattr(operator, "start_time") == "1483200000000"
+        assert getattr(operator, "end_time") == "1483286400000"

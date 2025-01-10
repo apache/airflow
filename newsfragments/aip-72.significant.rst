@@ -27,3 +27,11 @@ As part of this change the following breaking changes have occurred:
 
   If you still need to use pickling, you can use a custom XCom backend that stores references in the metadata DB and
   the pickled data can be stored in a separate storage like S3.
+
+  The ``value`` field in the XCom table has been changed to a ``JSON`` type via DB migration. The XCom records that
+  contains pickled data are archived in the ``_xcom_archive`` table. You can safely drop this table if you don't need
+  the data anymore. To drop the table, you can use the following command or manually drop the table from the database.
+
+  .. code-block:: bash
+
+      airflow db drop-archived -t "_xcom_archive"

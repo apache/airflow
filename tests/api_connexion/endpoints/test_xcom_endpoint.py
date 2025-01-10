@@ -35,7 +35,7 @@ from tests_common.test_utils.api_connexion_utils import assert_401, create_user,
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 class CustomXCom(BaseXCom):
@@ -118,7 +118,7 @@ class TestGetXComEntry(TestXComEndpoint):
             f"/api/v1/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
             environ_overrides={"REMOTE_USER": "test"},
         )
-        assert 200 == response.status_code
+        assert response.status_code == 200
 
         current_data = response.json
         current_data["timestamp"] = "TIMESTAMP"
@@ -144,7 +144,7 @@ class TestGetXComEntry(TestXComEndpoint):
             f"/api/v1/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}?stringify=false",
             environ_overrides={"REMOTE_USER": "test"},
         )
-        assert 200 == response.status_code
+        assert response.status_code == 200
 
         current_data = response.json
         current_data["timestamp"] = "TIMESTAMP"
@@ -170,7 +170,7 @@ class TestGetXComEntry(TestXComEndpoint):
             f"/api/v1/dags/nonexistentdagid/dagRuns/{run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
             environ_overrides={"REMOTE_USER": "test"},
         )
-        assert 404 == response.status_code
+        assert response.status_code == 404
         assert response.json["title"] == "XCom entry not found"
 
     def test_should_raises_401_unauthenticated(self):
@@ -226,52 +226,67 @@ class TestGetXComEntry(TestXComEndpoint):
         )
 
     @pytest.mark.parametrize(
-        "allowed, query, expected_status_or_value",
+        "allowed, query, expected_status_or_value, key",
         [
             pytest.param(
                 True,
                 "?deserialize=true",
                 "real deserialized TEST_VALUE",
+                "key",
                 id="true",
             ),
             pytest.param(
                 False,
                 "?deserialize=true",
                 400,
+                "key",
                 id="disallowed",
             ),
             pytest.param(
                 True,
                 "?deserialize=false",
                 "orm deserialized TEST_VALUE",
+                "key",
                 id="false-irrelevant",
             ),
             pytest.param(
                 False,
                 "?deserialize=false",
                 "orm deserialized TEST_VALUE",
+                "key",
                 id="false",
             ),
             pytest.param(
                 True,
                 "",
                 "orm deserialized TEST_VALUE",
+                "key",
                 id="default-irrelevant",
             ),
             pytest.param(
                 False,
                 "",
                 "orm deserialized TEST_VALUE",
+                "key",
                 id="default",
+            ),
+            pytest.param(
+                False,
+                "",
+                "orm deserialized TEST_VALUE",
+                "key/with/slashes",
+                id="key-with-slashes",
             ),
         ],
     )
     @conf_vars({("core", "xcom_backend"): "tests.api_connexion.endpoints.test_xcom_endpoint.CustomXCom"})
-    def test_custom_xcom_deserialize(self, allowed: bool, query: str, expected_status_or_value: int | str):
+    def test_custom_xcom_deserialize(
+        self, allowed: bool, query: str, expected_status_or_value: int | str, key: str
+    ):
         XCom = resolve_xcom_backend()
-        self._create_xcom_entry("dag", "run", utcnow(), "task", "key", backend=XCom)
+        self._create_xcom_entry("dag", "run", utcnow(), "task", key, backend=XCom)
 
-        url = f"/api/v1/dags/dag/dagRuns/run/taskInstances/task/xcomEntries/key{query}"
+        url = f"/api/v1/dags/dag/dagRuns/run/taskInstances/task/xcomEntries/{key}{query}"
         with mock.patch("airflow.api_connexion.endpoints.xcom_endpoint.XCom", XCom):
             with conf_vars({("api", "enable_xcom_deserialize_support"): str(allowed)}):
                 response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
@@ -297,7 +312,7 @@ class TestGetXComEntries(TestXComEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
 
-        assert 200 == response.status_code
+        assert response.status_code == 200
         response_data = response.json
         for xcom_entry in response_data["xcom_entries"]:
             xcom_entry["timestamp"] = "TIMESTAMP"
@@ -344,7 +359,7 @@ class TestGetXComEntries(TestXComEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
 
-        assert 200 == response.status_code
+        assert response.status_code == 200
         response_data = response.json
         for xcom_entry in response_data["xcom_entries"]:
             xcom_entry["timestamp"] = "TIMESTAMP"
@@ -404,7 +419,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 environ_overrides={"REMOTE_USER": "test"},
             )
 
-            assert 200 == response.status_code
+            assert response.status_code == 200
             response_data = response.json
             for xcom_entry in response_data["xcom_entries"]:
                 xcom_entry["timestamp"] = "TIMESTAMP"
@@ -447,7 +462,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 environ_overrides={"REMOTE_USER": "test"},
             )
 
-            assert 200 == response.status_code
+            assert response.status_code == 200
             response_data = response.json
             for xcom_entry in response_data["xcom_entries"]:
                 xcom_entry["timestamp"] = "TIMESTAMP"
@@ -640,7 +655,7 @@ class TestPaginationGetXComEntries(TestXComEndpoint):
                 xcom = XCom(
                     dag_run_id=dagrun.id,
                     key=f"TEST_XCOM_KEY{i}",
-                    value=b"null",
+                    value="null",
                     run_id=self.run_id,
                     task_id=self.task_id,
                     dag_id=self.dag_id,

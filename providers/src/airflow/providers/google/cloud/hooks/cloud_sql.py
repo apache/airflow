@@ -33,11 +33,12 @@ import string
 import subprocess
 import time
 import uuid
+from collections.abc import Sequence
 from inspect import signature
 from pathlib import Path
 from subprocess import PIPE, Popen
 from tempfile import NamedTemporaryFile, _TemporaryFileWrapper, gettempdir
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 from urllib.parse import quote_plus
 
 import httpx
@@ -572,6 +573,8 @@ class CloudSqlProxyRunner(LoggingMixin):
         processor = os.uname().machine
         if processor == "x86_64":
             processor = "amd64"
+        elif processor == "aarch64":
+            processor = "arm64"
         if not self.sql_proxy_version:
             download_url = CLOUD_SQL_PROXY_DOWNLOAD_URL.format(system, processor)
         else:

@@ -41,6 +41,17 @@ from airflow_breeze.utils.virtualenv_utils import create_temp_venv
 DOCKER_TESTS_ROOT = AIRFLOW_SOURCES_ROOT / "docker_tests"
 DOCKER_TESTS_REQUIREMENTS = DOCKER_TESTS_ROOT / "requirements.txt"
 
+IGNORE_DB_INIT_FOR_TEST_GROUPS = [
+    GroupOfTests.HELM,
+    GroupOfTests.PYTHON_API_CLIENT,
+    GroupOfTests.SYSTEM,
+]
+
+IGNORE_WARNING_OUTPUT_FOR_TEST_GROUPS = [
+    GroupOfTests.HELM,
+    GroupOfTests.PYTHON_API_CLIENT,
+]
+
 
 def verify_an_image(
     image_name: str,
@@ -95,7 +106,9 @@ def run_docker_compose_tests(
     env["DOCKER_IMAGE"] = image_name
     if skip_docker_compose_deletion:
         env["SKIP_DOCKER_COMPOSE_DELETION"] = "true"
-    with create_temp_venv(pip_version=PIP_VERSION, requirements_file=DOCKER_TESTS_REQUIREMENTS) as py_exe:
+    with create_temp_venv(
+        pip_version=PIP_VERSION, uv_version=UV_VERSION, requirements_file=DOCKER_TESTS_REQUIREMENTS
+    ) as py_exe:
         command_result = run_command(
             [py_exe, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
             env=env,
@@ -143,7 +156,7 @@ def get_excluded_provider_args(python_version: str) -> list[str]:
 
 TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
     "Always": ["tests/always"],
-    "API": ["tests/api", "tests/api_connexion", "tests/api_internal", "tests/api_fastapi"],
+    "API": ["tests/api", "tests/api_connexion", "tests/api_fastapi"],
     "CLI": ["tests/cli"],
     "Core": [
         "tests/core",
@@ -162,6 +175,7 @@ TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
     "WWW": [
         "tests/www",
     ],
+    "OpenAPI": ["clients/python"],
 }
 
 
@@ -172,6 +186,7 @@ TEST_GROUP_TO_TEST_FOLDER: dict[GroupOfTests, str] = {
     GroupOfTests.HELM: "helm_tests",
     GroupOfTests.INTEGRATION_CORE: "tests/integration",
     GroupOfTests.INTEGRATION_PROVIDERS: "providers/tests/integration",
+    GroupOfTests.PYTHON_API_CLIENT: "clients/python",
 }
 
 
@@ -274,6 +289,8 @@ def convert_test_type_to_pytest_args(
             get_console().print(f"[error]Unknown test type for {GroupOfTests.PROVIDERS}: {test_type}[/]")
             sys.exit(1)
         return [TEST_GROUP_TO_TEST_FOLDER[test_group]]
+    if test_group == GroupOfTests.PYTHON_API_CLIENT:
+        return [TEST_GROUP_TO_TEST_FOLDER[test_group]]
     if test_group != GroupOfTests.CORE:
         get_console().print(f"[error]Only {GroupOfTests.CORE} should be allowed here[/]")
     test_dirs = TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS.get(test_type)
@@ -349,12 +366,13 @@ def generate_args_for_pytest(
         args.append(f"--ignore-glob={TEST_GROUP_TO_TEST_FOLDER[GroupOfTests.INTEGRATION_CORE]}/*")
     if test_group != GroupOfTests.INTEGRATION_PROVIDERS:
         args.append(f"--ignore-glob={TEST_GROUP_TO_TEST_FOLDER[GroupOfTests.INTEGRATION_PROVIDERS]}/*")
-    if test_group != GroupOfTests.HELM:
-        # do not produce warnings output for helm tests
+    if test_group not in IGNORE_WARNING_OUTPUT_FOR_TEST_GROUPS:
         args.append(f"--warning-output-path={warnings_file}")
         args.append(f"--ignore={TEST_GROUP_TO_TEST_FOLDER[GroupOfTests.HELM]}")
-    if test_group not in [GroupOfTests.HELM, GroupOfTests.SYSTEM]:
+    if test_group not in IGNORE_DB_INIT_FOR_TEST_GROUPS:
         args.append("--with-db-init")
+    if test_group == GroupOfTests.PYTHON_API_CLIENT:
+        args.append("--ignore-glob=clients/python/tmp/*")
     args.extend(get_suspended_provider_args())
     args.extend(get_excluded_provider_args(python_version))
     if use_xdist:

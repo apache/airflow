@@ -47,6 +47,14 @@ __deprecated_classes = {
     "time_delta": {
         "TimeDeltaSensor": "airflow.providers.standard.sensors.time_delta.TimeDeltaSensor",
         "TimeDeltaSensorAsync": "airflow.providers.standard.sensors.time_delta.TimeDeltaSensorAsync",
+    },
+    "filesystem": {
+        "FileSensor": "airflow.providers.standard.sensors.filesystem.FileSensor",
+    },
+    "external_task": {
+        "ExternalTaskSensor": "airflow.providers.standard.sensors.external_task.ExternalTaskSensor",
+        "ExternalTaskMarker": "airflow.providers.standard.sensors.external_task.ExternalTaskMarker",
+        "ExternalDagLink": "airflow.providers.standard.sensors.external_task.ExternalDagLink"
     }
 }
 add_deprecated_classes(__deprecated_classes, __name__)

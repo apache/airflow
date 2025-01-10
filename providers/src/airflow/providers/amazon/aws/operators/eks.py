@@ -20,9 +20,10 @@ from __future__ import annotations
 
 import logging
 from ast import literal_eval
+from collections.abc import Sequence
 from datetime import timedelta
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, List, Sequence, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from botocore.exceptions import ClientError, WaiterError
 
@@ -337,7 +338,7 @@ class EksCreateClusterOperator(BaseOperator):
             fargate_pod_execution_role_arn=self.fargate_pod_execution_role_arn,
             fargate_selectors=self.fargate_selectors,
             create_fargate_profile_kwargs=self.create_fargate_profile_kwargs,
-            subnets=cast(List[str], self.resources_vpc_config.get("subnetIds")),
+            subnets=cast(list[str], self.resources_vpc_config.get("subnetIds")),
         )
 
     def deferrable_create_cluster_next(self, context: Context, event: dict[str, Any] | None = None) -> None:
@@ -376,7 +377,7 @@ class EksCreateClusterOperator(BaseOperator):
                 fargate_pod_execution_role_arn=self.fargate_pod_execution_role_arn,
                 fargate_selectors=self.fargate_selectors,
                 create_fargate_profile_kwargs=self.create_fargate_profile_kwargs,
-                subnets=cast(List[str], self.resources_vpc_config.get("subnetIds")),
+                subnets=cast(list[str], self.resources_vpc_config.get("subnetIds")),
             )
             if self.compute == "fargate":
                 self.defer(

@@ -30,18 +30,11 @@ type Props = {
   readonly defaultValue: string;
   readonly groupProps?: InputGroupProps;
   readonly onChange: (value: string) => void;
+  readonly placeHolder: string;
 };
 
-export const SearchBar = ({
-  buttonProps,
-  defaultValue,
-  groupProps,
-  onChange,
-}: Props) => {
-  const handleSearchChange = useDebouncedCallback(
-    (val: string) => onChange(val),
-    debounceDelay,
-  );
+export const SearchBar = ({ buttonProps, defaultValue, groupProps, onChange, placeHolder }: Props) => {
+  const handleSearchChange = useDebouncedCallback((val: string) => onChange(val), debounceDelay);
 
   const [value, setValue] = useState(defaultValue);
 
@@ -68,13 +61,7 @@ export const SearchBar = ({
               size="xs"
             />
           ) : undefined}
-          <Button
-            fontWeight="normal"
-            height="1.75rem"
-            variant="ghost"
-            width={140}
-            {...buttonProps}
-          >
+          <Button fontWeight="normal" height="1.75rem" variant="ghost" width={140} {...buttonProps}>
             Advanced Search
           </Button>
         </>
@@ -84,7 +71,7 @@ export const SearchBar = ({
       <Input
         data-testid="search-dags"
         onChange={onSearchChange}
-        placeholder="Search Dags"
+        placeholder={placeHolder}
         pr={150}
         value={value}
       />

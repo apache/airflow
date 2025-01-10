@@ -131,11 +131,13 @@ class TestStreamLogWriter:
         log = StreamLogWriter(logger, 1)
 
         msg = "test_message"
-        log.write(msg)
+        length = log.write(msg)
 
+        assert length == len(msg)
         assert log._buffer == msg
 
-        log.write(" \n")
+        length = log.write(" \n")
+        assert length == 0
         logger.log.assert_called_once_with(1, msg)
 
         assert log._buffer == ""
@@ -168,7 +170,7 @@ class TestStreamLogWriter:
         logger.log = mock.MagicMock()
 
         log = StreamLogWriter(logger, 1)
-        assert log.encoding is None
+        assert log.encoding == "undefined"
 
     def test_iobase_compatibility(self):
         log = StreamLogWriter(None, 1)
@@ -176,6 +178,13 @@ class TestStreamLogWriter:
         assert not log.closed
         # has no specific effect
         log.close()
+
+    def test_textio_compatibility(self):
+        log = StreamLogWriter(logging.getLogger(__name__), 1)
+
+        # Make sure some common operations won't fail
+        assert "b" not in log.mode
+        assert isinstance(log.name, str)
 
 
 @pytest.mark.parametrize(["maintain_propagate"], [[SetContextPropagate.MAINTAIN_PROPAGATE], [None]])

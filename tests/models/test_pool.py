@@ -35,7 +35,7 @@ from tests_common.test_utils.db import (
     set_default_pool_slots,
 )
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
@@ -98,12 +98,12 @@ class TestPool:
         session.commit()
         session.close()
 
-        assert 3 == pool.open_slots()
-        assert 1 == pool.running_slots()
-        assert 1 == pool.queued_slots()
-        assert 2 == pool.occupied_slots()
-        assert 1 == pool.deferred_slots()
-        assert {
+        assert pool.open_slots() == 3
+        assert pool.running_slots() == 1
+        assert pool.queued_slots() == 1
+        assert pool.occupied_slots() == 2
+        assert pool.deferred_slots() == 1
+        assert pool.slots_stats() == {
             "default_pool": {
                 "open": 128,
                 "queued": 0,
@@ -120,7 +120,7 @@ class TestPool:
                 "scheduled": 0,
                 "total": 5,
             },
-        } == pool.slots_stats()
+        }
 
     def test_open_slots_including_deferred(self, dag_maker):
         pool = Pool(pool="test_pool", slots=5, include_deferred=True)
@@ -145,12 +145,12 @@ class TestPool:
         session.commit()
         session.close()
 
-        assert 3 == pool.open_slots()
-        assert 1 == pool.running_slots()
-        assert 0 == pool.queued_slots()
-        assert 1 == pool.deferred_slots()
-        assert 2 == pool.occupied_slots()
-        assert {
+        assert pool.open_slots() == 3
+        assert pool.running_slots() == 1
+        assert pool.queued_slots() == 0
+        assert pool.deferred_slots() == 1
+        assert pool.occupied_slots() == 2
+        assert pool.slots_stats() == {
             "default_pool": {
                 "open": 128,
                 "queued": 0,
@@ -167,7 +167,7 @@ class TestPool:
                 "scheduled": 0,
                 "total": 5,
             },
-        } == pool.slots_stats()
+        }
 
     def test_infinite_slots(self, dag_maker):
         pool = Pool(pool="test_pool", slots=-1, include_deferred=False)
@@ -194,10 +194,10 @@ class TestPool:
         session.close()
 
         assert float("inf") == pool.open_slots()
-        assert 1 == pool.running_slots()
-        assert 1 == pool.queued_slots()
-        assert 2 == pool.occupied_slots()
-        assert {
+        assert pool.running_slots() == 1
+        assert pool.queued_slots() == 1
+        assert pool.occupied_slots() == 2
+        assert pool.slots_stats() == {
             "default_pool": {
                 "open": 128,
                 "queued": 0,
@@ -214,11 +214,11 @@ class TestPool:
                 "scheduled": 0,
                 "deferred": 0,
             },
-        } == pool.slots_stats()
+        }
 
     def test_default_pool_open_slots(self, dag_maker):
         set_default_pool_slots(5)
-        assert 5 == Pool.get_default_pool().open_slots()
+        assert Pool.get_default_pool().open_slots() == 5
 
         with dag_maker(
             dag_id="test_default_pool_open_slots",
@@ -246,8 +246,8 @@ class TestPool:
         session.commit()
         session.close()
 
-        assert 2 == Pool.get_default_pool().open_slots()
-        assert {
+        assert Pool.get_default_pool().open_slots() == 2
+        assert Pool.slots_stats() == {
             "default_pool": {
                 "open": 2,
                 "queued": 2,
@@ -256,7 +256,7 @@ class TestPool:
                 "scheduled": 1,
                 "deferred": 0,
             }
-        } == Pool.slots_stats()
+        }
 
     def test_get_pool(self):
         self.add_pools()

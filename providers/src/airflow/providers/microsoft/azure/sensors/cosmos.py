@@ -17,7 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from airflow.providers.microsoft.azure.hooks.cosmos import AzureCosmosDBHook
 from airflow.sensors.base import BaseSensorOperator

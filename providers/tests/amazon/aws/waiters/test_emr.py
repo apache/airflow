@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 from unittest import mock
 
 import boto3

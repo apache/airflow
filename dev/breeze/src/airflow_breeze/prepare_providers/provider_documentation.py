@@ -154,6 +154,7 @@ class ClassifiedChanges:
         self.misc: list[Change] = []
         self.features: list[Change] = []
         self.breaking_changes: list[Change] = []
+        self.docs: list[Change] = []
         self.other: list[Change] = []
 
 
@@ -936,6 +937,8 @@ def _get_changes_classified(
             classified_changes.features.append(change)
         elif type_of_change == TypeOfChange.BREAKING_CHANGE and with_breaking_changes:
             classified_changes.breaking_changes.append(change)
+        elif type_of_change == TypeOfChange.DOCUMENTATION:
+            classified_changes.docs.append(change)
         else:
             classified_changes.other.append(change)
     return classified_changes
@@ -1068,6 +1071,7 @@ def update_changelog(
     :param reapply_templates_only: only reapply templates, no changelog generation
     :param with_breaking_changes: whether there are any breaking changes
     :param maybe_with_new_features: whether there are any new features
+    :param only_min_version_update: whether to only update the min version
     """
     provider_details = get_provider_details(package_id)
     jinja_context = get_provider_documentation_jinja_context(

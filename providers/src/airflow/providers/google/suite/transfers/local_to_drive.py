@@ -19,8 +19,9 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowFailException
 from airflow.models import BaseOperator

@@ -45,7 +45,6 @@ import re2
 from dateutil.relativedelta import relativedelta
 
 from airflow import settings
-from airflow.assets import Asset, AssetAlias, BaseAsset
 from airflow.exceptions import (
     DuplicateTaskIdFound,
     FailStopDagInvalidTriggerRule,
@@ -53,9 +52,10 @@ from airflow.exceptions import (
     TaskNotFound,
 )
 from airflow.models.param import DagParam, ParamsDict
-from airflow.sdk.definitions.abstractoperator import AbstractOperator
+from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+from airflow.sdk.definitions._internal.types import NOTSET
+from airflow.sdk.definitions.asset import AssetAll, BaseAsset
 from airflow.sdk.definitions.baseoperator import BaseOperator
-from airflow.sdk.types import NOTSET
 from airflow.timetables.base import Timetable
 from airflow.timetables.simple import (
     AssetTriggeredTimetable,
@@ -92,12 +92,7 @@ __all__ = [
 DagStateChangeCallback = Callable[[Context], None]
 ScheduleInterval = Union[None, str, timedelta, relativedelta]
 
-ScheduleArg = Union[
-    ScheduleInterval,
-    Timetable,
-    BaseAsset,
-    Collection[Union["Asset", "AssetAlias"]],
-]
+ScheduleArg = Union[ScheduleInterval, Timetable, BaseAsset, Collection[BaseAsset]]
 
 
 _DAG_HASH_ATTRS = frozenset(
@@ -355,10 +350,9 @@ class DAG:
         **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
         An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
     :param dag_display_name: The display name of the DAG which appears on the UI.
-    :param version_name: The version name of the DAG. This is used to identify the version of the DAG.
     """
 
-    __serialized_fields: ClassVar[frozenset[str] | None] = None
+    __serialized_fields: ClassVar[frozenset[str]]
 
     # Note: mypy gets very confused about the use of `@${attr}.default` for attrs without init=False -- and it
     # doesn't correctly track/notice that they have default values (it gives errors about `Missing positional
@@ -438,10 +432,6 @@ class DAG:
 
     has_on_success_callback: bool = attrs.field(init=False)
     has_on_failure_callback: bool = attrs.field(init=False)
-    version_name: str | None = attrs.field(
-        default=None,
-        validator=attrs.validators.optional(attrs.validators.instance_of(str)),
-    )
 
     def __attrs_post_init__(self):
         from airflow.utils import timezone
@@ -497,8 +487,6 @@ class DAG:
 
     @timetable.default
     def _default_timetable(instance: DAG):
-        from airflow.assets import AssetAll
-
         schedule = instance.schedule
         # TODO: Once
         # delattr(self, "schedule")
@@ -507,8 +495,11 @@ class DAG:
         elif isinstance(schedule, BaseAsset):
             return AssetTriggeredTimetable(schedule)
         elif isinstance(schedule, Collection) and not isinstance(schedule, str):
-            if not all(isinstance(x, (Asset, AssetAlias)) for x in schedule):
-                raise ValueError("All elements in 'schedule' should be assets or asset aliases")
+            if not all(isinstance(x, BaseAsset) for x in schedule):
+                raise ValueError(
+                    "All elements in 'schedule' should be either assets, "
+                    "asset references, or asset aliases"
+                )
             return AssetTriggeredTimetable(AssetAll(*schedule))
         else:
             return _create_timetable(schedule, instance.timezone)
@@ -557,9 +548,9 @@ class DAG:
     def __hash__(self):
         hash_components: list[Any] = [type(self)]
         for c in _DAG_HASH_ATTRS:
-            # task_ids returns a list and lists can't be hashed
-            if c == "task_ids":
-                val = tuple(self.task_dict)
+            # If it is a list, convert to tuple because lists can't be hashed
+            if isinstance(getattr(self, c, None), list):
+                val = tuple(getattr(self, c))
             else:
                 val = getattr(self, c, None)
             try:
@@ -570,13 +561,13 @@ class DAG:
         return hash(tuple(hash_components))
 
     def __enter__(self) -> Self:
-        from airflow.sdk.definitions.contextmanager import DagContext
+        from airflow.sdk.definitions._internal.contextmanager import DagContext
 
         DagContext.push(self)
         return self
 
     def __exit__(self, _type, _value, _tb):
-        from airflow.sdk.definitions.contextmanager import DagContext
+        from airflow.sdk.definitions._internal.contextmanager import DagContext
 
         _ = DagContext.pop()
 
@@ -665,7 +656,7 @@ class DAG:
 
     def get_template_env(self, *, force_sandboxed: bool = False) -> jinja2.Environment:
         """Build a Jinja2 environment."""
-        import airflow.templates
+        from airflow.sdk.definitions._internal.templater import NativeEnvironment, SandboxedEnvironment
 
         # Collect directories to search for template files
         searchpath = [self.folder]
@@ -683,9 +674,9 @@ class DAG:
             jinja_env_options.update(self.jinja_environment_kwargs)
         env: jinja2.Environment
         if self.render_template_as_native_obj and not force_sandboxed:
-            env = airflow.templates.NativeEnvironment(**jinja_env_options)
+            env = NativeEnvironment(**jinja_env_options)
         else:
-            env = airflow.templates.SandboxedEnvironment(**jinja_env_options)
+            env = SandboxedEnvironment(**jinja_env_options)
 
         # Add any user defined items. Safe to edit globals as long as no templates are rendered yet.
         # http://jinja.pocoo.org/docs/2.10/api/#jinja2.Environment.globals
@@ -901,7 +892,7 @@ class DAG:
         """
         # FailStopDagInvalidTriggerRule.check(dag=self, trigger_rule=task.trigger_rule)
 
-        from airflow.sdk.definitions.contextmanager import TaskGroupContext
+        from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 
         # if the task has no start date, assign it the same as the DAG
         if not task.start_date:
@@ -969,34 +960,6 @@ class DAG:
     @classmethod
     def get_serialized_fields(cls):
         """Stringified DAGs and operators contain exactly these fields."""
-        if not cls.__serialized_fields:
-            exclusion_list = {
-                "schedule_asset_references",
-                "schedule_asset_alias_references",
-                "task_outlet_asset_references",
-                "_old_context_manager_dags",
-                "safe_dag_id",
-                "last_loaded",
-                "user_defined_filters",
-                "user_defined_macros",
-                "partial",
-                "params",
-                "_log",
-                "task_dict",
-                "template_searchpath",
-                # "sla_miss_callback",
-                "on_success_callback",
-                "on_failure_callback",
-                "template_undefined",
-                "jinja_environment_kwargs",
-                # has_on_*_callback are only stored if the value is True, as the default is False
-                "has_on_success_callback",
-                "has_on_failure_callback",
-                "auto_register",
-                "fail_stop",
-                "schedule",
-            }
-            cls.__serialized_fields = frozenset(vars(DAG(dag_id="test", schedule=None))) - exclusion_list
         return cls.__serialized_fields
 
     def get_edge_info(self, upstream_task_id: str, downstream_task_id: str) -> EdgeInfoType:
@@ -1035,6 +998,34 @@ class DAG:
             )
 
 
+# Since we define all the attributes of the class with attrs, we can compute this statically at parse time
+DAG._DAG__serialized_fields = frozenset(a.name for a in attrs.fields(DAG)) - {  # type: ignore[attr-defined]
+    "schedule_asset_references",
+    "schedule_asset_alias_references",
+    "task_outlet_asset_references",
+    "_old_context_manager_dags",
+    "safe_dag_id",
+    "last_loaded",
+    "user_defined_filters",
+    "user_defined_macros",
+    "partial",
+    "params",
+    "_log",
+    "task_dict",
+    "template_searchpath",
+    # "sla_miss_callback",
+    "on_success_callback",
+    "on_failure_callback",
+    "template_undefined",
+    "jinja_environment_kwargs",
+    # has_on_*_callback are only stored if the value is True, as the default is False
+    "has_on_success_callback",
+    "has_on_failure_callback",
+    "auto_register",
+    "fail_stop",
+    "schedule",
+}
+
 if TYPE_CHECKING:
     # NOTE: Please keep the list of arguments in sync with DAG.__init__.
     # Only exception: dag_id here should have a default value, but not in DAG.
@@ -1069,7 +1060,6 @@ if TYPE_CHECKING:
         auto_register: bool = True,
         fail_stop: bool = False,
         dag_display_name: str | None = None,
-        version_name: str | None = None,
     ) -> Callable[[Callable], Callable[..., DAG]]:
         """
         Python dag decorator which wraps a function into an Airflow DAG.

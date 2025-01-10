@@ -21,7 +21,8 @@ import json
 import logging
 import textwrap
 import time
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import urlencode
 
 from flask import request, url_for
@@ -36,9 +37,10 @@ from markdown_it import MarkdownIt
 from markupsafe import Markup
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import delete, func, select, types
+from sqlalchemy import delete, func, select, tuple_, types
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
 from airflow.models.errors import ParseImportError
@@ -47,9 +49,7 @@ from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.json import WebEncoder
-from airflow.utils.sqlalchemy import tuple_in_condition
 from airflow.utils.state import State, TaskInstanceState
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
 
@@ -765,10 +765,8 @@ class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
         ),
         # FAB will try to create filters for extendedjson fields even though we
         # exclude them from all UI, so we add this here to make it ignore them.
-        (
-            "is_extendedjson",
-            [],
-        ),
+        ("is_extendedjson", []),
+        ("is_json", []),
         *fab_sqlafilters.SQLAFilterConverter.conversion_table,
     )
 
@@ -833,6 +831,17 @@ class CustomSQLAInterface(SQLAInterface):
             )
         return False
 
+    def is_json(self, col_name):
+        """Check if it is a JSON type."""
+        from sqlalchemy import JSON
+
+        if col_name in self.list_columns:
+            obj = self.list_columns[col_name].type
+            return (
+                isinstance(obj, JSON) or isinstance(obj, types.TypeDecorator) and isinstance(obj.impl, JSON)
+            )
+        return False
+
     def get_col_default(self, col_name: str) -> Any:
         if col_name not in self.list_columns:
             # Handle AssociationProxy etc, or anything that isn't a "real" column
@@ -857,12 +866,7 @@ class DagRunCustomSQLAInterface(CustomSQLAInterface):
 
     def delete_all(self, items: list[Model]) -> bool:
         self.session.execute(
-            delete(TI).where(
-                tuple_in_condition(
-                    (TI.dag_id, TI.run_id),
-                    ((x.dag_id, x.run_id) for x in items),
-                )
-            )
+            delete(TI).where(tuple_(TI.dag_id, TI.run_id).in_((x.dag_id, x.run_id) for x in items))
         )
         return super().delete_all(items)
 

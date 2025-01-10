@@ -4,4 +4,4 @@ Removed a set of deprecations in ``Connection`` from ``airflow.models``.
   a ValueError will be raised.
 - Removed utility method ``parse_netloc_to_hostname()``
 - Removed utility method ``parse_from_uri()``.
-- Removed utility method ``log_info()`` and ``log_debug``.
+- Removed utility method ``log_info()`` and ``debug_info()``.

@@ -35,6 +35,48 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+0.0.3
+.....
+
+Latest change: 2024-12-18
+
+=================================================================================================  ===========  ============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================================================
+`2a33da0246 <https://github.com/apache/airflow/commit/2a33da0246c811a98d5cdaf0af2bcca0dee8556a>`_  2024-12-18   ``Remove references to AIRFLOW_V_2_9_PLUS (#44987)``
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`8af1bbdf25 <https://github.com/apache/airflow/commit/8af1bbdf25e2650e617d456f729d1d4f46465524>`_  2024-12-12   ``Remove Pydanitc models introduced for AIP-44 (#44552)``
+`490b5e816b <https://github.com/apache/airflow/commit/490b5e816b804f338b0eb97f240ae874d4e15810>`_  2024-12-10   ``Consistent way of checking Airflow version in providers (#44686)``
+`e03265bb56 <https://github.com/apache/airflow/commit/e03265bb5613b8cfcaa2a42cf6369b1ba091ddf4>`_  2024-12-05   ``Correct new changelog breaking changes header (#44659)``
+`8ca061ddf5 <https://github.com/apache/airflow/commit/8ca061ddf5fb85c79b1212ca29112190ebb0aab5>`_  2024-12-03   ``Deferrable sensors can implement sensor timeout (#33718)``
+`74ff524a6d <https://github.com/apache/airflow/commit/74ff524a6d58f3c302368f0f06ca21d5146a69b8>`_  2024-12-02   ``Add missing changelog to breaking change for Standard provider breaking changes (#44581)``
+`c44690c1c8 <https://github.com/apache/airflow/commit/c44690c1c8bb1bf986af06f1c914460d55bc5a33>`_  2024-12-01   ``Remove Provider Deprecations in Standard (#44541)``
+`cbc287052e <https://github.com/apache/airflow/commit/cbc287052e7a8e92193988daa92054b561e5ef5d>`_  2024-12-01   ``Remove AIP-44 code from renderedtifields.py (#44546)``
+`62bac46822 <https://github.com/apache/airflow/commit/62bac46822551383d0ab3cd24e351ffae7a90147>`_  2024-12-01   ``Remove AIP-44 from taskinstance (#44540)``
+`57d109c8a6 <https://github.com/apache/airflow/commit/57d109c8a60196e99541ab56c7e1efcc61445a71>`_  2024-11-30   ``Move 'LatestOnlyOperator' operator to standard provider. (#44309)``
+`ab2bd2d4a9 <https://github.com/apache/airflow/commit/ab2bd2d4a9d5154f9d1e9e65d30c4716eca7c4b1>`_  2024-11-28   ``Add import compatibility check (#44458)``
+`e9f544cc3f <https://github.com/apache/airflow/commit/e9f544cc3fb1ac3d7709b3c54804dd6fdd510eca>`_  2024-11-28   ``Remove AIP-44 configuration from the code (#44454)``
+`0c30c4d9af <https://github.com/apache/airflow/commit/0c30c4d9af20add18675627c6341824fbdeb4d52>`_  2024-11-27   ``Move external task sensor to standard provider (#44288)``
+`4404e64247 <https://github.com/apache/airflow/commit/4404e64247daf37b350bc7cd835d397256507ad1>`_  2024-11-25   ``Move triggers to standard provider (#43608)``
+=================================================================================================  ===========  ============================================================================================
+
+0.0.2
+.....
+
+Latest change: 2024-11-24
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`f0da8eeab3 <https://github.com/apache/airflow/commit/f0da8eeab3efba4d4e43439db30a273bfd67c9f1>`_  2024-11-24   ``Prepare docs for Nov 2nd wave of ad hoc providers (#44321)``
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`d0f433b024 <https://github.com/apache/airflow/commit/d0f433b0245e910ec568aaf255f28499e296ffce>`_  2024-11-21   ``Fix TriggerDagRunOperator extra_link when trigger_dag_id is templated (#42810)``
+`f05ce08362 <https://github.com/apache/airflow/commit/f05ce083620aa1c1be34c1c8f9190286a3fe3532>`_  2024-11-20   ``Move 'TriggerDagRunOperator' to standard provider (#44053)``
+`36803b8bd9 <https://github.com/apache/airflow/commit/36803b8bd9a8b6786b89d54c50726c5b08f9d7ea>`_  2024-11-17   ``Move filesystem sensor to standard provider (#43890)``
+`b6c75d2cd6 <https://github.com/apache/airflow/commit/b6c75d2cd6ba459ba4134a32bd22be56309d0f91>`_  2024-11-17   ``update standard provider CHANGELOG.rst (#44110)``
+`123dadda0e <https://github.com/apache/airflow/commit/123dadda0e0648ef1412053d1743128333eecb63>`_  2024-11-15   ``Rename execution_date to logical_date across codebase (#43902)``
+=================================================================================================  ===========  ==================================================================================
+
 0.0.1
 .....
 
@@ -43,6 +85,7 @@ Latest change: 2024-11-14
 =================================================================================================  ===========  ================================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================================================================
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
 `2ef8438eec <https://github.com/apache/airflow/commit/2ef8438eecb35027601982bd00865acca737a5b3>`_  2024-11-14   ``move version imports to inside utils (#44018)``
 `e7194dff6a <https://github.com/apache/airflow/commit/e7194dff6a816bf3a721cbf579ceac19c11cd111>`_  2024-11-13   ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
 `f757b87581 <https://github.com/apache/airflow/commit/f757b87581d1ef7a298aabc77b0cfcc8b777cc11>`_  2024-11-11   ``update how to guide section with doc references (#43889)``

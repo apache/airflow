@@ -23,7 +23,7 @@ from sqlalchemy import select
 from airflow.models import Log
 from airflow.utils.session import provide_session
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 class TestSession:
@@ -58,9 +58,9 @@ class TestSession:
 
     @pytest.mark.asyncio
     async def test_async_session(self):
-        from airflow.settings import create_async_session
+        from airflow.settings import AsyncSession
 
-        session = create_async_session()
+        session = AsyncSession()
         session.add(Log(event="hihi1234"))
         await session.commit()
         my_special_log_event = await session.scalar(select(Log).where(Log.event == "hihi1234").limit(1))

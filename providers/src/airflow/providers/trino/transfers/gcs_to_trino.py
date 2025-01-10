@@ -21,8 +21,9 @@ from __future__ import annotations
 
 import csv
 import json
+from collections.abc import Iterable, Sequence
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Iterable, Sequence
+from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook

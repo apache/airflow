@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import re
 from copy import deepcopy
-from typing import TYPE_CHECKING, Pattern, Type, Union
+from re import Pattern
+from typing import TYPE_CHECKING, Union
 
 from providers.tests.amazon.aws.utils.eks_test_constants import (
     STATUS,
@@ -37,7 +38,7 @@ if TYPE_CHECKING:
 
     from airflow.providers.amazon.aws.hooks.eks import EksHook
 
-InputTypes = Union[Type[ClusterInputs], Type[NodegroupInputs], Type[FargateProfileInputs]]
+InputTypes = Union[type[ClusterInputs], type[NodegroupInputs], type[FargateProfileInputs]]
 
 
 def attributes_to_test(

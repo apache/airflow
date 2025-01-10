@@ -18,9 +18,10 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Iterable
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any
 
 import requests
 from pydruid.db import connect

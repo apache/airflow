@@ -328,7 +328,7 @@ class PineconeHook(BaseHook):
         :param include_values: Whether to include the vector values in the result.
         :param include_metadata: Indicates whether metadata is included in the response as well as the ids.
         :param sparse_vector: sparse values of the query vector. Expected to be either a SparseValues object or a dict
-         of the form: {'indices': List[int], 'values': List[float]}, where the lists each have the same length.
+         of the form: {'indices': list[int], 'values': list[float]}, where the lists each have the same length.
         """
         index = self.pinecone_client.Index(index_name)
         return index.query(

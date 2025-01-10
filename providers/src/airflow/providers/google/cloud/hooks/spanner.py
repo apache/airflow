@@ -19,7 +19,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, NamedTuple, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Callable, NamedTuple
 
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.cloud.spanner_v1.client import Client

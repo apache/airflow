@@ -17,13 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, Callable
 
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.standard.triggers import TimeDeltaTrigger
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.triggers.msgraph import MSGraphTrigger, ResponseSerializer
 from airflow.sensors.base import BaseSensorOperator
-from airflow.triggers.temporal import TimeDeltaTrigger
 
 if TYPE_CHECKING:
     from datetime import timedelta

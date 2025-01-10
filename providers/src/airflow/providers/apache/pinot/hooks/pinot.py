@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import os
 import subprocess
-from typing import TYPE_CHECKING, Any, Iterable, Mapping
+from collections.abc import Iterable, Mapping
+from typing import TYPE_CHECKING, Any
 
 from pinotdb import connect
 

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel
+from airflow.api_fastapi.core_api.base import BaseModel
 
 
 class XComResponse(BaseModel):

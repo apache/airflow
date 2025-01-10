@@ -35,14 +35,41 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.9.0
+.....
+
+Latest change: 2024-12-16
+
+=================================================================================================  ===========  ==========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================================
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`2b7015e5ff <https://github.com/apache/airflow/commit/2b7015e5ffea79b139b8811db3fa03b93cd6da4d>`_  2024-12-03   ``AIP-81 Move CLI Commands to directories according to Hybrid, Local and Remote (#44538)``
+`e9f544cc3f <https://github.com/apache/airflow/commit/e9f544cc3fb1ac3d7709b3c54804dd6fdd510eca>`_  2024-11-28   ``Remove AIP-44 configuration from the code (#44454)``
+=================================================================================================  ===========  ==========================================================================================
+
+3.8.5
+.....
+
+Latest change: 2024-11-24
+
+=================================================================================================  ===========  ====================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================
+`f0da8eeab3 <https://github.com/apache/airflow/commit/f0da8eeab3efba4d4e43439db30a273bfd67c9f1>`_  2024-11-24   ``Prepare docs for Nov 2nd wave of ad hoc providers (#44321)``
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`a41feeb5ae <https://github.com/apache/airflow/commit/a41feeb5aedad842be2b0f954e0be30c767dbc5e>`_  2024-11-15   ``Re-queue tassk when they are stuck in queued (#43520)``
+=================================================================================================  ===========  ====================================================================
+
 3.8.4
 .....
 
-Latest change: 2024-11-05
+Latest change: 2024-11-14
 
 =================================================================================================  ===========  ========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
 `b9b0614049 <https://github.com/apache/airflow/commit/b9b06140491d55878954b1a490c76ce7593b6357>`_  2024-11-05   ``AIP-72: Remove DAG pickling (#43667)``
 `06088a3abc <https://github.com/apache/airflow/commit/06088a3abcbb46533e74de360746db766d50cf66>`_  2024-10-31   ``Standard provider python operator (#42081)``
 `857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``

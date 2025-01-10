@@ -123,29 +123,6 @@ option_docker_cache = click.option(
     type=BetterChoice(ALLOWED_BUILD_CACHE),
     envvar="DOCKER_CACHE",
 )
-option_image_tag_for_pulling = click.option(
-    "-t",
-    "--image-tag",
-    help="Tag of the image which is used to pull the image.",
-    show_default=True,
-    default="latest",
-    envvar="IMAGE_TAG",
-)
-option_image_tag_for_building = click.option(
-    "--image-tag",
-    help="Tag the image after building it.",
-    show_default=True,
-    default="latest",
-    envvar="IMAGE_TAG",
-)
-option_image_tag_for_verifying = click.option(
-    "-t",
-    "--image-tag",
-    help="Tag of the image when verifying it.",
-    show_default=True,
-    default="latest",
-    envvar="IMAGE_TAG",
-)
 option_install_mysql_client_type = click.option(
     "--install-mysql-client-type",
     help="Which client to choose when installing.",
@@ -194,13 +171,6 @@ option_runtime_apt_deps = click.option(
     help="Apt runtime dependencies to use when building the images.",
     envvar="RUNTIME_APT_DEPS",
 )
-option_tag_as_latest = click.option(
-    "--tag-as-latest",
-    help="Tags the image as latest and update checksum of all files after pulling. "
-    "Useful when you build or pull image with --image-tag.",
-    is_flag=True,
-    envvar="TAG_AS_LATEST",
-)
 option_verify = click.option(
     "--verify",
     help="Verify image.",
@@ -212,4 +182,32 @@ option_wait_for_image = click.option(
     help="Wait until image is available.",
     is_flag=True,
     envvar="WAIT_FOR_IMAGE",
+)
+option_skip_image_file_deletion = click.option(
+    "--skip-image-file-deletion",
+    help="Skip image deletion after loading.",
+    is_flag=True,
+    envvar="SKIP_IMAGE_FILE_DELETION",
+)
+option_from_run = click.option(
+    "--from-run",
+    required=False,
+    default="",
+    envvar="FROM_RUN",
+    help="Optional run id of the github action run to load the image from.",
+)
+
+option_from_pr = click.option(
+    "--from-pr",
+    default="",
+    required=False,
+    envvar="FROM_PR",
+    help="Optional pr number of the github action job to load the image from. loads the image from the latest job.",
+)
+option_github_token_for_images = click.option(
+    "--github-token",
+    help="The token used to authenticate to GitHub. You can generate it with "
+    "https://github.com/settings/tokens/new?description=Read%20repo&scopes=public_repo",
+    envvar="GITHUB_TOKEN",
+    required=True,
 )

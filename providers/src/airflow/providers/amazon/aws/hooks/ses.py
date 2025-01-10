@@ -18,7 +18,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.utils.email import build_mime_message

@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import asyncio
 from collections import Counter
+from collections.abc import AsyncIterator
 from enum import IntEnum
 from functools import cached_property
-from typing import Any, AsyncIterator
+from typing import Any
 
 from botocore.exceptions import WaiterError
 

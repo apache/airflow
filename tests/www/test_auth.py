@@ -27,8 +27,6 @@ from airflow.models import Connection, Pool, Variable
 
 mock_call = Mock()
 
-pytestmark = pytest.mark.skip_if_database_isolation_mode
-
 
 @pytest.mark.parametrize(
     "decorator_name, is_authorized_method_name",

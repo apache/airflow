@@ -47,7 +47,6 @@ from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
-    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 
 class TaskInstanceHistory(Base):
@@ -96,7 +95,7 @@ class TaskInstanceHistory(Base):
 
     def __init__(
         self,
-        ti: TaskInstance | TaskInstancePydantic,
+        ti: TaskInstance,
         state: str | None = None,
     ):
         super().__init__()

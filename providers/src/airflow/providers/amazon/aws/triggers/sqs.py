@@ -17,15 +17,17 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, AsyncIterator, Collection
+from collections.abc import AsyncIterator, Collection
+from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
-from airflow.providers.amazon.aws.utils.sqs import MessageFilteringType, process_response
+from airflow.providers.amazon.aws.utils.sqs import process_response
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
+    from airflow.providers.amazon.aws.utils.sqs import MessageFilteringType
 
 
 class SqsSensorTrigger(BaseTrigger):

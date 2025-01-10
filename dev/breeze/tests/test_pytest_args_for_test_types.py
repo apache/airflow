@@ -51,7 +51,7 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
         (
             GroupOfTests.CORE,
             "API",
-            ["tests/api", "tests/api_connexion", "tests/api_internal", "tests/api_fastapi"],
+            ["tests/api", "tests/api_connexion", "tests/api_fastapi"],
         ),
         (
             GroupOfTests.CORE,
@@ -114,6 +114,7 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
                 "tests/cluster_policies",
                 "tests/config_templates",
                 "tests/dag_processing",
+                "tests/datasets",
                 "tests/decorators",
                 "tests/hooks",
                 "tests/io",
@@ -126,10 +127,8 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
                 "tests/security",
                 "tests/sensors",
                 "tests/task",
-                "tests/template",
                 "tests/testconfig",
                 "tests/timetables",
-                "tests/triggers",
             ],
         ),
         (
@@ -172,7 +171,7 @@ def test_pytest_args_for_missing_provider():
         (
             GroupOfTests.CORE,
             "API",
-            ["tests/api", "tests/api_connexion", "tests/api_internal", "tests/api_fastapi"],
+            ["tests/api", "tests/api_connexion", "tests/api_fastapi"],
         ),
         (
             GroupOfTests.CORE,
@@ -187,7 +186,6 @@ def test_pytest_args_for_missing_provider():
             [
                 "tests/api",
                 "tests/api_connexion",
-                "tests/api_internal",
                 "tests/api_fastapi",
                 "tests/cli",
             ],

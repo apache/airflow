@@ -21,7 +21,7 @@
 ## Airflow Flower Ingress
 #################################
 {{- if .Values.flower.enabled }}
-{{- if and (or .Values.ingress.flower.enabled .Values.ingress.enabled) (or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor")) }}
+{{- if and (or .Values.ingress.flower.enabled .Values.ingress.enabled) (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
 {{- $fullname := (include "airflow.fullname" .) }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress

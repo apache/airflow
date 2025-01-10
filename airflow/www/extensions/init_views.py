@@ -27,11 +27,11 @@ from connexion.exceptions import BadRequestProblem
 from flask import request
 
 from airflow.api_connexion.exceptions import common_error_handler
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.configuration import conf
 from airflow.security import permissions
 from airflow.utils.yaml import safe_load
 from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from flask import Flask
@@ -132,7 +132,7 @@ def init_plugins(app):
     """Integrate Flask and FAB with plugins."""
     from airflow import plugins_manager
 
-    plugins_manager.initialize_web_ui_plugins()
+    plugins_manager.initialize_flask_plugins()
 
     appbuilder = app.appbuilder
 

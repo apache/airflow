@@ -20,13 +20,13 @@
 from __future__ import annotations
 
 import time
-import warnings
-from typing import TYPE_CHECKING, Any, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 from airbyte_api.models import JobStatusEnum
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
 from airflow.providers.airbyte.triggers.airbyte import AirbyteSyncTrigger
 from airflow.sensors.base import BaseSensorOperator
@@ -60,20 +60,10 @@ class AirbyteJobSensor(BaseSensorOperator):
     ) -> None:
         if deferrable:
             if "poke_interval" not in kwargs:
-                # TODO: Remove once deprecated
-                if "polling_interval" in kwargs:
-                    kwargs["poke_interval"] = kwargs["polling_interval"]
-                    warnings.warn(
-                        "Argument `poll_interval` is deprecated and will be removed "
-                        "in a future release.  Please use `poke_interval` instead.",
-                        AirflowProviderDeprecationWarning,
-                        stacklevel=2,
-                    )
-                else:
-                    kwargs["poke_interval"] = 5
+                kwargs["poke_interval"] = 5
 
-                if "timeout" not in kwargs:
-                    kwargs["timeout"] = 60 * 60 * 24 * 7
+            if "timeout" not in kwargs:
+                kwargs["timeout"] = 60 * 60 * 24 * 7
 
         super().__init__(**kwargs)
         self.deferrable = deferrable

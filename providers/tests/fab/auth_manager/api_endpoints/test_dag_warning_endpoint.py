@@ -20,16 +20,15 @@ import pytest
 
 from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning
-from airflow.security import permissions
+from airflow.providers.fab.www.security import permissions
 from airflow.utils.session import create_session
 
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.db import clear_db_dag_warnings, clear_db_dags
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = [
     pytest.mark.db_test,
-    pytest.mark.skip_if_database_isolation_mode,
     pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3.0+"),
 ]
 

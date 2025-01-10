@@ -20,12 +20,15 @@ from contextlib import contextmanager
 from itertools import chain
 from typing import TYPE_CHECKING
 from unittest import mock
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 from flask import Flask, g
+from flask_appbuilder.menu import Menu
 
 from airflow.exceptions import AirflowConfigException, AirflowException
+
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user
 
 try:
     from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
@@ -40,7 +43,7 @@ with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
 from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
-from airflow.security.permissions import (
+from airflow.providers.fab.www.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
     ACTION_CAN_CREATE,
     ACTION_CAN_DELETE,
@@ -93,7 +96,9 @@ def flask_app():
 @pytest.fixture
 def auth_manager_with_appbuilder(flask_app):
     appbuilder = init_appbuilder(flask_app)
-    return FabAuthManager(appbuilder)
+    auth_manager = FabAuthManager()
+    auth_manager.appbuilder = appbuilder
+    return auth_manager
 
 
 @pytest.mark.db_test
@@ -140,6 +145,16 @@ class TestFabAuthManager:
         with minimal_app_for_auth_api.app_context():
             with user_set(minimal_app_for_auth_api, flask_g_user):
                 assert auth_manager.get_user() == flask_g_user
+
+    def test_deserialize_user(self, flask_app, auth_manager_with_appbuilder):
+        user = create_user(flask_app, "test")
+        result = auth_manager_with_appbuilder.deserialize_user({"id": user.id})
+        assert user == result
+
+    def test_serialize_user(self, flask_app, auth_manager_with_appbuilder):
+        user = create_user(flask_app, "test")
+        result = auth_manager_with_appbuilder.serialize_user(user)
+        assert result == {"id": user.id}
 
     @pytest.mark.db_test
     @mock.patch.object(FabAuthManager, "get_user")
@@ -338,11 +353,17 @@ class TestFabAuthManager:
         ],
     )
     def test_is_authorized_dag(
-        self, method, dag_access_entity, dag_details, user_permissions, expected_result, auth_manager
+        self,
+        method,
+        dag_access_entity,
+        dag_details,
+        user_permissions,
+        expected_result,
+        auth_manager_with_appbuilder,
     ):
         user = Mock()
         user.perms = user_permissions
-        result = auth_manager.is_authorized_dag(
+        result = auth_manager_with_appbuilder.is_authorized_dag(
             method=method, access_entity=dag_access_entity, details=dag_details, user=user
         )
         assert result == expected_result
@@ -453,6 +474,79 @@ class TestFabAuthManager:
         user.perms = user_permissions
         result = auth_manager.is_authorized_custom_view(method=method, resource_name=resource_name, user=user)
         assert result == expected_result
+
+    @patch.object(FabAuthManager, "security_manager")
+    def test_filter_permitted_menu_items(self, mock_security_manager, auth_manager):
+        mock_security_manager.has_access.side_effect = [True, False, True, True, False]
+
+        menu = Menu()
+        menu.add_link(
+            # These may not all be valid types, but it does let us check each attr is copied
+            name="item1",
+            href="h1",
+            icon="i1",
+            label="l1",
+            baseview="b1",
+            cond="c1",
+        )
+        menu.add_link("item2")
+        menu.add_link("item3")
+        menu.add_link("item3.1", category="item3")
+        menu.add_link("item3.2", category="item3")
+
+        result = auth_manager.filter_permitted_menu_items(menu.get_list())
+
+        assert len(result) == 2
+        assert result[0].name == "item1"
+        assert result[1].name == "item3"
+        assert len(result[1].childs) == 1
+        assert result[1].childs[0].name == "item3.1"
+        # check we've copied every attr
+        assert result[0].href == "h1"
+        assert result[0].icon == "i1"
+        assert result[0].label == "l1"
+        assert result[0].baseview == "b1"
+        assert result[0].cond == "c1"
+
+    @patch.object(FabAuthManager, "security_manager")
+    def test_filter_permitted_menu_items_twice(self, mock_security_manager, auth_manager):
+        mock_security_manager.has_access.side_effect = [
+            # 1st call
+            True,  # menu 1
+            False,  # menu 2
+            True,  # menu 3
+            True,  # Item 3.1
+            False,  # Item 3.2
+            # 2nd call
+            False,  # menu 1
+            True,  # menu 2
+            True,  # menu 3
+            False,  # Item 3.1
+            True,  # Item 3.2
+        ]
+
+        menu = Menu()
+        menu.add_link("item1")
+        menu.add_link("item2")
+        menu.add_link("item3")
+        menu.add_link("item3.1", category="item3")
+        menu.add_link("item3.2", category="item3")
+
+        result = auth_manager.filter_permitted_menu_items(menu.get_list())
+
+        assert len(result) == 2
+        assert result[0].name == "item1"
+        assert result[1].name == "item3"
+        assert len(result[1].childs) == 1
+        assert result[1].childs[0].name == "item3.1"
+
+        result = auth_manager.filter_permitted_menu_items(menu.get_list())
+
+        assert len(result) == 2
+        assert result[0].name == "item2"
+        assert result[1].name == "item3"
+        assert len(result[1].childs) == 1
+        assert result[1].childs[0].name == "item3.2"
 
     @pytest.mark.db_test
     def test_security_manager_return_fab_security_manager_override(self, auth_manager_with_appbuilder):

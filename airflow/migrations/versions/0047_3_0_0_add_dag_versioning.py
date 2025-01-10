@@ -28,11 +28,15 @@ Create Date: 2024-10-09 05:44:04.670984
 from __future__ import annotations
 
 import sqlalchemy as sa
+import sqlalchemy_jsonfield
 from alembic import op
+from sqlalchemy import LargeBinary, Table
+from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy_utils import UUIDType
 
 from airflow.migrations.db_types import StringID
-from airflow.models.base import naming_convention
+from airflow.models.base import ID_LEN, naming_convention
+from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -49,6 +53,32 @@ def _delete_serdag_and_code():
     op.execute(sa.text("DELETE FROM dag_code"))
 
 
+# The below tables helps us use the recreate_always feature of batch_alter_table and makes
+# this migration work in offline mode.
+old_dagcode_table = Table(
+    "dag_code",
+    sa.MetaData(naming_convention=naming_convention),
+    sa.Column("fileloc_hash", sa.BigInteger(), nullable=False, primary_key=True),
+    sa.Column("fileloc", sa.String(length=2000), nullable=False),
+    sa.Column("last_updated", UtcDateTime(), nullable=False),
+    sa.Column("source_code", sa.Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False),
+)
+
+old_serialized_table = Table(
+    "serialized_dag",
+    sa.MetaData(naming_convention=naming_convention),
+    sa.Column("dag_id", sa.String(ID_LEN), nullable=False, primary_key=True),
+    sa.Column("fileloc", sa.String(length=2000), nullable=False),
+    sa.Column("fileloc_hash", sa.BigInteger(), nullable=False),
+    sa.Column("data", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
+    sa.Column("data_compressed", LargeBinary, nullable=True),
+    sa.Column("dag_hash", sa.String(32), nullable=False),
+    sa.Column("last_updated", UtcDateTime(), nullable=False),
+    sa.Column("processor_subdir", sa.String(2000)),
+    sa.Index("idx_fileloc_hash", "fileloc_hash", unique=False),
+)
+
+
 def upgrade():
     """Apply add dag versioning."""
     # Before creating the dag_version table, we need to delete the existing serialized_dag and dag_code tables
@@ -57,7 +87,6 @@ def upgrade():
         "dag_version",
         sa.Column("id", UUIDType(binary=False), nullable=False),
         sa.Column("version_number", sa.Integer(), nullable=False),
-        sa.Column("version_name", StringID()),
         sa.Column("dag_id", StringID(), nullable=False),
         sa.Column("created_at", UtcDateTime(), nullable=False, default=timezone.utcnow),
         sa.ForeignKeyConstraint(
@@ -66,7 +95,9 @@ def upgrade():
         sa.PrimaryKeyConstraint("id", name=op.f("dag_version_pkey")),
         sa.UniqueConstraint("dag_id", "version_number", name="dag_id_v_name_v_number_unique_constraint"),
     )
-    with op.batch_alter_table("dag_code", recreate="always", naming_convention=naming_convention) as batch_op:
+    with op.batch_alter_table(
+        "dag_code", recreate="always", naming_convention=naming_convention, copy_from=old_dagcode_table
+    ) as batch_op:
         batch_op.drop_constraint("dag_code_pkey", type_="primary")
         batch_op.add_column(
             sa.Column("id", UUIDType(binary=False), primary_key=True), insert_before="fileloc_hash"
@@ -81,11 +112,15 @@ def upgrade():
             ondelete="CASCADE",
         )
         batch_op.create_unique_constraint("dag_code_dag_version_id_uq", ["dag_version_id"])
-        batch_op.drop_column("last_updated")
-        batch_op.add_column(sa.Column("created_at", UtcDateTime(), nullable=False, default=timezone.utcnow))
+        batch_op.add_column(sa.Column("source_code_hash", sa.String(length=32), nullable=False))
+        batch_op.drop_column("fileloc_hash")
+        batch_op.add_column(sa.Column("dag_id", sa.String(length=250), nullable=False))
 
     with op.batch_alter_table(
-        "serialized_dag", recreate="always", naming_convention=naming_convention
+        "serialized_dag",
+        recreate="always",
+        naming_convention=naming_convention,
+        copy_from=old_serialized_table,
     ) as batch_op:
         batch_op.drop_constraint("serialized_dag_pkey", type_="primary")
         batch_op.add_column(sa.Column("id", UUIDType(binary=False), primary_key=True))
@@ -132,6 +167,9 @@ def upgrade():
 
 def downgrade():
     """Unapply add dag versioning."""
+    # Going down from here, the way we serialize DAG changes, so we need to delete the dag_version table
+    # which in turn deletes the serialized dag and dag code tables.
+    op.execute(sa.text("DELETE FROM dag_version"))
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
         batch_op.drop_column("dag_version_id")
 
@@ -143,9 +181,10 @@ def downgrade():
         batch_op.drop_column("id")
         batch_op.drop_constraint(batch_op.f("dag_code_dag_version_id_fkey"), type_="foreignkey")
         batch_op.drop_column("dag_version_id")
+        batch_op.add_column(sa.Column("fileloc_hash", sa.BigInteger, nullable=False))
         batch_op.create_primary_key("dag_code_pkey", ["fileloc_hash"])
-        batch_op.drop_column("created_at")
-        batch_op.add_column(sa.Column("last_updated", UtcDateTime(), nullable=False))
+        batch_op.drop_column("source_code_hash")
+        batch_op.drop_column("dag_id")
 
     with op.batch_alter_table("serialized_dag", schema=None, naming_convention=naming_convention) as batch_op:
         batch_op.drop_column("id")

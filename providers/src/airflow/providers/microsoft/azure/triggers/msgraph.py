@@ -20,14 +20,13 @@ from __future__ import annotations
 import json
 import locale
 from base64 import b64encode
+from collections.abc import AsyncIterator, Sequence
 from contextlib import suppress
 from datetime import datetime
 from json import JSONDecodeError
 from typing import (
     TYPE_CHECKING,
     Any,
-    AsyncIterator,
-    Sequence,
 )
 from uuid import UUID
 

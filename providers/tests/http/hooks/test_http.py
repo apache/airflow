@@ -30,7 +30,7 @@ import pytest
 import requests
 import tenacity
 from aioresponses import aioresponses
-from requests.adapters import Response
+from requests.adapters import HTTPAdapter, Response
 from requests.auth import AuthBase, HTTPBasicAuth
 from requests.models import DEFAULT_REDIRECT_LIMIT
 
@@ -692,7 +692,21 @@ class TestHttpHook:
         hook.base_url = base_url
         assert hook.url_from_endpoint(endpoint) == expected_url
 
-    def test_airflow_dependency_version(self):
+    def test_custom_adapter(self):
+        with mock.patch(
+            "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
+        ):
+            custom_adapter = HTTPAdapter()
+            hook = HttpHook(method="GET", adapter=custom_adapter)
+            session = hook.get_conn()
+            assert isinstance(
+                session.adapters["http://"], type(custom_adapter)
+            ), "Custom HTTP adapter not correctly mounted"
+            assert isinstance(
+                session.adapters["https://"], type(custom_adapter)
+            ), "Custom HTTPS adapter not correctly mounted"
+            
+     def test_airflow_dependency_version(self):
         if airflow_dependency_version() >= packaging.version.parse("2.10.0"):
             raise RuntimeError(
                 "The class ConnectionWithExtra can be removed from the HttpHook since the get_extra_dejson"

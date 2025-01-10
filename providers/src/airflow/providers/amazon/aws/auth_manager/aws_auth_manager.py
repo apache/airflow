@@ -19,11 +19,21 @@ from __future__ import annotations
 import argparse
 import warnings
 from collections import defaultdict
+from collections.abc import Container, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Container, Sequence, cast
+from typing import TYPE_CHECKING, cast
 
 from flask import session, url_for
 
+from airflow.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.auth.managers.models.resource_details import (
+    AccessView,
+    ConnectionDetails,
+    DagAccessEntity,
+    DagDetails,
+    PoolDetails,
+    VariableDetails,
+)
 from airflow.cli.cli_config import CLICommand, DefaultHelpParser, GroupCommand
 from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
@@ -38,25 +48,12 @@ from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_man
     AwsSecurityManagerOverride,
 )
 from airflow.providers.amazon.aws.auth_manager.views.auth import AwsAuthManagerAuthenticationViews
-
-try:
-    from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
-    from airflow.auth.managers.models.resource_details import (
-        AccessView,
-        ConnectionDetails,
-        DagAccessEntity,
-        DagDetails,
-        PoolDetails,
-        VariableDetails,
-    )
-except ImportError:
-    raise AirflowOptionalProviderFeatureException(
-        "Failed to import BaseUser. This feature is only available in Airflow versions >= 2.8.0"
-    )
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from flask_appbuilder.menu import MenuItem
 
+    from airflow.auth.managers.base_auth_manager import ResourceMethod
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.auth.managers.models.batch_apis import (
         IsAuthorizedConnectionRequest,
@@ -75,22 +72,17 @@ class AwsAuthManager(BaseAuthManager):
 
     Leverages AWS services such as Amazon Identity Center and Amazon Verified Permissions to perform
     authentication and authorization in Airflow.
-
-    :param appbuilder: the flask app builder
     """
 
-    def __init__(self, appbuilder: AirflowAppBuilder) -> None:
-        from packaging.version import Version
+    appbuilder: AirflowAppBuilder | None = None
 
-        from airflow.version import version
-
-        # TODO: remove this if block when min_airflow_version is set to higher than 2.9.0
-        if Version(version) < Version("2.9"):
+    def __init__(self) -> None:
+        if not AIRFLOW_V_3_0_PLUS:
             raise AirflowOptionalProviderFeatureException(
-                "``AwsAuthManager`` is compatible with Airflow versions >= 2.9."
+                "AWS auth manager is only compatible with Airflow versions >= 3.0.0"
             )
 
-        super().__init__(appbuilder)
+        super().__init__()
         self._check_avp_schema_version()
 
     @cached_property
@@ -335,11 +327,11 @@ class AwsAuthManager(BaseAuthManager):
             for method in ["GET", "PUT"]:
                 if method in methods:
                     request: IsAuthorizedRequest = {
-                        "method": cast(ResourceMethod, method),
+                        "method": cast("ResourceMethod", method),
                         "entity_type": AvpEntities.DAG,
                         "entity_id": dag_id,
                     }
-                    requests[dag_id][cast(ResourceMethod, method)] = request
+                    requests[dag_id][cast("ResourceMethod", method)] = request
                     requests_list.append(request)
 
         batch_is_authorized_results = self.avp_facade.get_batch_is_authorized_results(
@@ -430,7 +422,8 @@ class AwsAuthManager(BaseAuthManager):
         ]
 
     def register_views(self) -> None:
-        self.appbuilder.add_view_no_menu(AwsAuthManagerAuthenticationViews())
+        if self.appbuilder:
+            self.appbuilder.add_view_no_menu(AwsAuthManagerAuthenticationViews())
 
     @staticmethod
     def _get_menu_item_request(resource_name: str) -> IsAuthorizedRequest:
@@ -444,7 +437,7 @@ class AwsAuthManager(BaseAuthManager):
         if not self.avp_facade.is_policy_store_schema_up_to_date():
             self.log.warning(
                 "The Amazon Verified Permissions policy store schema is different from the latest version "
-                "(https://github.com/apache/airflow/blob/main/airflow/providers/amazon/aws/auth_manager/avp/schema.json). "
+                "(https://github.com/apache/airflow/blob/main/providers/src/airflow/providers/amazon/aws/auth_manager/avp/schema.json). "
                 "Please update it to its latest version. "
                 "See doc: https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/auth-manager/setup/amazon-verified-permissions.html#update-the-policy-store-schema."
             )

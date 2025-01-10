@@ -24,8 +24,8 @@ from typing import TYPE_CHECKING, Union
 
 import attr
 
-from airflow.assets import Asset
 from airflow.providers_manager import ProvidersManager
+from airflow.sdk.definitions.asset import Asset
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -95,24 +95,40 @@ class HookLineageCollector(LoggingMixin):
         return f"{asset.uri}_{extra_hash}_{id(context)}"
 
     def create_asset(
-        self, scheme: str | None, uri: str | None, asset_kwargs: dict | None, asset_extra: dict | None
+        self,
+        *,
+        scheme: str | None = None,
+        uri: str | None = None,
+        name: str | None = None,
+        group: str | None = None,
+        asset_kwargs: dict | None = None,
+        asset_extra: dict | None = None,
     ) -> Asset | None:
         """
         Create an asset instance using the provided parameters.
 
         This method attempts to create an asset instance using the given parameters.
-        It first checks if a URI is provided and falls back to using the default asset factory
-        with the given URI if no other information is available.
+        It first checks if a URI or a name is provided and falls back to using the default asset factory
+        with the given URI or name if no other information is available.
 
-        If a scheme is provided but no URI, it attempts to find an asset factory that matches
+        If a scheme is provided but no URI or name, it attempts to find an asset factory that matches
         the given scheme. If no such factory is found, it logs an error message and returns None.
 
         If asset_kwargs is provided, it is used to pass additional parameters to the asset
         factory. The asset_extra parameter is also passed to the factory as an ``extra`` parameter.
         """
-        if uri:
+        if uri or name:
             # Fallback to default factory using the provided URI
-            return Asset(uri=uri, extra=asset_extra)
+            kwargs: dict[str, str | dict] = {}
+            if uri:
+                kwargs["uri"] = uri
+            if name:
+                kwargs["name"] = name
+            if group:
+                kwargs["group"] = group
+            if asset_extra:
+                kwargs["extra"] = asset_extra
+            return Asset(**kwargs)  # type: ignore[call-overload]
 
         if not scheme:
             self.log.debug(
@@ -137,11 +153,15 @@ class HookLineageCollector(LoggingMixin):
         context: LineageContext,
         scheme: str | None = None,
         uri: str | None = None,
+        name: str | None = None,
+        group: str | None = None,
         asset_kwargs: dict | None = None,
         asset_extra: dict | None = None,
     ):
         """Add the input asset and its corresponding hook execution context to the collector."""
-        asset = self.create_asset(scheme=scheme, uri=uri, asset_kwargs=asset_kwargs, asset_extra=asset_extra)
+        asset = self.create_asset(
+            scheme=scheme, uri=uri, name=name, group=group, asset_kwargs=asset_kwargs, asset_extra=asset_extra
+        )
         if asset:
             key = self._generate_key(asset, context)
             if key not in self._inputs:
@@ -153,11 +173,15 @@ class HookLineageCollector(LoggingMixin):
         context: LineageContext,
         scheme: str | None = None,
         uri: str | None = None,
+        name: str | None = None,
+        group: str | None = None,
         asset_kwargs: dict | None = None,
         asset_extra: dict | None = None,
     ):
         """Add the output asset and its corresponding hook execution context to the collector."""
-        asset = self.create_asset(scheme=scheme, uri=uri, asset_kwargs=asset_kwargs, asset_extra=asset_extra)
+        asset = self.create_asset(
+            scheme=scheme, uri=uri, name=name, group=group, asset_kwargs=asset_kwargs, asset_extra=asset_extra
+        )
         if asset:
             key = self._generate_key(asset, context)
             if key not in self._outputs:

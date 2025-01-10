@@ -16,11 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Iterable, Sequence
+from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.yandex.hooks.dataproc import DataprocHook
 
@@ -268,16 +267,6 @@ class DataprocBaseOperator(BaseOperator):
     def _setup(self, context: Context) -> DataprocHook:
         if self.cluster_id is None:
             self.cluster_id = context["task_instance"].xcom_pull(key="cluster_id")
-        if self.yandex_conn_id is None:
-            xcom_yandex_conn_id = context["task_instance"].xcom_pull(key="yandexcloud_connection_id")
-            if xcom_yandex_conn_id:
-                warnings.warn(
-                    "Implicit pass of `yandex_conn_id` is deprecated, please pass it explicitly",
-                    AirflowProviderDeprecationWarning,
-                    stacklevel=2,
-                )
-                self.yandex_conn_id = xcom_yandex_conn_id
-
         return DataprocHook(yandex_conn_id=self.yandex_conn_id)
 
     def execute(self, context: Context):

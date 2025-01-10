@@ -278,28 +278,46 @@ class TestVertexAIPromptMultimodalModelWithMediaOperator:
 
 
 class TestVertexAITextGenerationModelPredictOperator:
+    prompt = "In 10 words or less, what is Apache Airflow?"
+    pretrained_model = "text-bison"
+    temperature = 0.0
+    max_output_tokens = 256
+    top_p = 0.8
+    top_k = 40
+
+    def test_deprecation_warning(self):
+        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
+            TextGenerationModelPredictOperator(
+                task_id=TASK_ID,
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                prompt=self.prompt,
+                pretrained_model=self.pretrained_model,
+                temperature=self.temperature,
+                max_output_tokens=self.max_output_tokens,
+                top_p=self.top_p,
+                top_k=self.top_k,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+            )
+            assert_warning("GenerativeModelGenerateContentOperator", warnings)
+
     @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
     def test_execute(self, mock_hook):
-        prompt = "In 10 words or less, what is Apache Airflow?"
-        pretrained_model = "text-bison"
-        temperature = 0.0
-        max_output_tokens = 256
-        top_p = 0.8
-        top_k = 40
-
-        op = TextGenerationModelPredictOperator(
-            task_id=TASK_ID,
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            prompt=prompt,
-            pretrained_model=pretrained_model,
-            temperature=temperature,
-            max_output_tokens=max_output_tokens,
-            top_p=top_p,
-            top_k=top_k,
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = TextGenerationModelPredictOperator(
+                task_id=TASK_ID,
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                prompt=self.prompt,
+                pretrained_model=self.pretrained_model,
+                temperature=self.temperature,
+                max_output_tokens=self.max_output_tokens,
+                top_p=self.top_p,
+                top_k=self.top_k,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+            )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -308,12 +326,12 @@ class TestVertexAITextGenerationModelPredictOperator:
         mock_hook.return_value.text_generation_model_predict.assert_called_once_with(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            prompt=prompt,
-            pretrained_model=pretrained_model,
-            temperature=temperature,
-            max_output_tokens=max_output_tokens,
-            top_p=top_p,
-            top_k=top_k,
+            prompt=self.prompt,
+            pretrained_model=self.pretrained_model,
+            temperature=self.temperature,
+            max_output_tokens=self.max_output_tokens,
+            top_p=self.top_p,
+            top_k=self.top_k,
         )
 
 

@@ -36,8 +36,6 @@ EMAILS = ["test1@example.com", "test2@example.com"]
 
 send_email_test = mock.MagicMock()
 
-pytestmark = pytest.mark.skip_if_database_isolation_mode
-
 
 class TestEmail:
     def setup_method(self):
@@ -166,11 +164,11 @@ class TestEmailSmtp:
         assert mock_send_mime.called
         _, call_args = mock_send_mime.call_args
         assert conf.get("smtp", "SMTP_MAIL_FROM") == call_args["e_from"]
-        assert ["to"] == call_args["e_to"]
+        assert call_args["e_to"] == ["to"]
         msg = call_args["mime_msg"]
-        assert "subject" == msg["Subject"]
+        assert msg["Subject"] == "subject"
         assert conf.get("smtp", "SMTP_MAIL_FROM") == msg["From"]
-        assert 2 == len(msg.get_payload())
+        assert len(msg.get_payload()) == 2
         filename = f'attachment; filename="{path.name}"'
         assert filename == msg.get_payload()[-1].get("Content-Disposition")
         mimeapp = MIMEApplication("attachment")
@@ -201,11 +199,11 @@ class TestEmailSmtp:
         assert mock_send_mime.called
         _, call_args = mock_send_mime.call_args
         assert conf.get("smtp", "SMTP_MAIL_FROM") == call_args["e_from"]
-        assert ["to", "cc", "bcc"] == call_args["e_to"]
+        assert call_args["e_to"] == ["to", "cc", "bcc"]
         msg = call_args["mime_msg"]
-        assert "subject" == msg["Subject"]
+        assert msg["Subject"] == "subject"
         assert conf.get("smtp", "SMTP_MAIL_FROM") == msg["From"]
-        assert 2 == len(msg.get_payload())
+        assert len(msg.get_payload()) == 2
         assert f'attachment; filename="{path.name}"' == msg.get_payload()[-1].get("Content-Disposition")
         mimeapp = MIMEApplication("attachment")
         assert mimeapp.get_payload() == msg.get_payload()[-1].get_payload()

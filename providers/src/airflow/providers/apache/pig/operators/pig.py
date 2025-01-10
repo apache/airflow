@@ -18,7 +18,8 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.pig.hooks.pig import PigCliHook

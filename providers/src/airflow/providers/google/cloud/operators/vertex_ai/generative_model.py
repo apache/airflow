@@ -19,7 +19,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import GenerativeModelHook
@@ -352,6 +353,11 @@ class PromptMultimodalModelWithMediaOperator(GoogleCloudBaseOperator):
         return response
 
 
+@deprecated(
+    planned_removal_date="April 09, 2025",
+    use_instead="GenerativeModelGenerateContentOperator",
+    category=AirflowProviderDeprecationWarning,
+)
 class TextGenerationModelPredictOperator(GoogleCloudBaseOperator):
     """
     Uses the Vertex AI PaLM API to generate natural language text.

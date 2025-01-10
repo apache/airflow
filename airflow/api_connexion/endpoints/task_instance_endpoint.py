@@ -16,7 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Iterable, Sequence, TypeVar
+from collections.abc import Iterable, Sequence
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from flask import g
 from marshmallow import ValidationError
@@ -46,6 +47,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     task_instance_schema,
 )
 from airflow.api_connexion.security import get_readable_dags
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.exceptions import TaskNotFound
 from airflow.models.dagrun import DagRun as DR
@@ -57,7 +59,6 @@ from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.www.decorators import action_logging
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -439,6 +440,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
 @action_logging
 @provide_session
@@ -522,19 +524,10 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
     if not task:
         error_message = f"Task ID {task_id} not found"
         raise NotFound(error_message)
-
-    logical_date = data.get("logical_date")
     run_id = data.get("dag_run_id")
-    if (
-        logical_date
-        and (
-            session.scalars(
-                select(TI).where(TI.task_id == task_id, TI.dag_id == dag_id, TI.logical_date == logical_date)
-            ).one_or_none()
-        )
-        is None
-    ):
-        raise NotFound(detail=f"Task instance not found for task {task_id!r} on logical_date {logical_date}")
+    if not run_id:
+        error_message = f"Task instance not found for task {task_id!r} on DAG run with ID {run_id!r}"
+        raise NotFound(detail=error_message)
 
     select_stmt = select(TI).where(
         TI.dag_id == dag_id, TI.task_id == task_id, TI.run_id == run_id, TI.map_index == -1
@@ -547,7 +540,6 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
     tis = dag.set_task_instance_state(
         task_id=task_id,
         run_id=run_id,
-        logical_date=logical_date,
         state=data["new_state"],
         upstream=data["include_upstream"],
         downstream=data["include_downstream"],
@@ -566,6 +558,7 @@ def set_mapped_task_instance_note(
     return set_task_instance_note(dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=map_index)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
 @action_logging
 @provide_session
@@ -728,6 +721,7 @@ def get_mapped_task_instance_dependencies(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def get_task_instance_try_details(
@@ -765,6 +759,7 @@ def get_task_instance_try_details(
     return task_instance_history_schema.dump(result[0])
 
 
+@mark_fastapi_migration_done
 @provide_session
 def get_mapped_task_instance_try_details(
     *,
@@ -786,6 +781,7 @@ def get_mapped_task_instance_try_details(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def get_task_instance_tries(
@@ -818,6 +814,7 @@ def get_task_instance_tries(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def get_mapped_task_instance_tries(

@@ -26,9 +26,10 @@ import logging
 import re
 import time
 import uuid
+from collections.abc import Iterable, Mapping, Sequence
 from copy import deepcopy
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Iterable, Mapping, NoReturn, Sequence, Union, cast
+from typing import TYPE_CHECKING, Any, NoReturn, Union, cast
 
 from aiohttp import ClientSession as ClientSession
 from gcloud.aio.bigquery import Job, Table as Table_async
@@ -2095,7 +2096,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             query_request = {
                 "query": "SELECT partition_id "
                 f"FROM `{project_id}.{dataset_id}.INFORMATION_SCHEMA.PARTITIONS`"
-                + (f" WHERE table_id={table_id}" if table_id else ""),
+                + (f" WHERE table_name='{table_id}'" if table_id else ""),
                 "useLegacySql": False,
             }
             job_query_resp = await job_client.query(query_request, cast(Session, session))

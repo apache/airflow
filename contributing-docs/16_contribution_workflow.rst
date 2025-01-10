@@ -196,7 +196,13 @@ Step 4: Prepare PR
      and place in either `newsfragments <https://github.com/apache/airflow/blob/main/newsfragments>`__ for core newsfragments,
      or `chart/newsfragments <https://github.com/apache/airflow/blob/main/chart/newsfragments>`__ for helm chart newsfragments.
 
-     In general newsfragments must be one line.  For newsfragment type ``significant``, you may include summary and body separated by a blank line, similar to ``git`` commit messages.
+     In general newsfragments must be one line.  For newsfragment type ``significant``,
+     you should follow the template in ``newsfragments/template.significant.rst`` to include summary, body, change type and migrations rules needed.
+     This can also be done by the following command.
+
+     .. code-block:: bash
+
+        uv tool run towncrier create --dir . --config newsfragments/config.toml --content "`cat newsfragments/template.significant.rst`"
 
 2. Rebase your fork, squash commits, and resolve all conflicts. See `How to rebase PR <#how-to-rebase-pr>`_
    if you need help with rebasing your change. Remember to rebase often if your PR takes a lot of time to

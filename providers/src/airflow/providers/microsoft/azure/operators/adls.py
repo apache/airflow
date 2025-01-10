@@ -16,7 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import IO, TYPE_CHECKING, Any, AnyStr, Iterable, Sequence
+from collections.abc import Iterable, Sequence
+from typing import IO, TYPE_CHECKING, Any, AnyStr
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook, AzureDataLakeStorageV2Hook

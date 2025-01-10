@@ -119,9 +119,6 @@ class TestDebugExecutor:
     def test_reschedule_mode(self):
         assert DebugExecutor.change_sensor_mode_to_reschedule
 
-    def test_is_single_threaded(self):
-        assert DebugExecutor.is_single_threaded
-
     def test_is_production_default_value(self):
         assert not DebugExecutor.is_production
 

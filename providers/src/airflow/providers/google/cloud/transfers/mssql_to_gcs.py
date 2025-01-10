@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import datetime
 import decimal
-from typing import Sequence
+from collections.abc import Sequence
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook

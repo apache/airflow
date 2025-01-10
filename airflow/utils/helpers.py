@@ -21,9 +21,10 @@ import copy
 import itertools
 import re
 import signal
+from collections.abc import Generator, Iterable, Mapping, MutableMapping
 from datetime import datetime
-from functools import reduce
-from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, Mapping, MutableMapping, TypeVar, cast
+from functools import cache, reduce
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
 from lazy_object_proxy import Proxy
 
@@ -170,7 +171,7 @@ def as_flattened_list(iterable: Iterable[Iterable[T]]) -> list[T]:
     return [e for i in iterable for e in i]
 
 
-def parse_template_string(template_string: str) -> tuple[str | None, jinja2.Template | None]:
+def parse_template_string(template_string: str) -> tuple[str, None] | tuple[None, jinja2.Template]:
     """Parse Jinja template string."""
     import jinja2
 
@@ -178,6 +179,27 @@ def parse_template_string(template_string: str) -> tuple[str | None, jinja2.Temp
         return None, jinja2.Template(template_string)
     else:
         return template_string, None
+
+
+@cache
+def log_filename_template_renderer() -> Callable[..., str]:
+    template = conf.get("logging", "log_filename_template")
+
+    if "{{" in template:
+        import jinja2
+
+        return jinja2.Template(template).render
+    else:
+
+        def f_str_format(ti: TaskInstance, try_number: int | None = None):
+            return template.format(
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                logical_date=ti.logical_date.isoformat(),
+                try_number=try_number or ti.try_number,
+            )
+
+        return f_str_format
 
 
 def render_log_filename(ti: TaskInstance, try_number, filename_template) -> str:

@@ -38,7 +38,7 @@ from airflow.utils.cli import _search_for_dag_file
 # Mark entire module as db_test because ``action_cli`` wrapper still could use DB on callbacks:
 # - ``cli_action_loggers.on_pre_execution``
 # - ``cli_action_loggers.on_post_execution``
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 repo_root = Path(airflow.__file__).parent.parent
 
 
@@ -131,9 +131,10 @@ class TestCliUtil:
 
         exec_date = timezone.utcnow()
         namespace = Namespace(dag_id="foo", task_id="bar", subcommand="test", logical_date=exec_date)
-        with mock.patch.object(sys, "argv", args), mock.patch(
-            "airflow.utils.session.create_session"
-        ) as mock_create_session:
+        with (
+            mock.patch.object(sys, "argv", args),
+            mock.patch("airflow.utils.session.create_session") as mock_create_session,
+        ):
             metrics = cli._build_metrics(args[1], namespace)
             # Make it so the default_action_log doesn't actually commit the txn, by giving it a next txn
             # instead
@@ -189,9 +190,10 @@ class TestCliUtil:
 
         exec_date = timezone.utcnow()
         namespace = Namespace(dag_id="foo", task_id="bar", subcommand="test", execution_date=exec_date)
-        with mock.patch.object(sys, "argv", args), mock.patch(
-            "airflow.utils.session.create_session"
-        ) as mock_create_session:
+        with (
+            mock.patch.object(sys, "argv", args),
+            mock.patch("airflow.utils.session.create_session") as mock_create_session,
+        ):
             metrics = cli._build_metrics(args[1], namespace)
             # Make it so the default_action_log doesn't actually commit the txn, by giving it a next txn
             # instead

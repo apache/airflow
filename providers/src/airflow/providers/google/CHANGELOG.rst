@@ -27,6 +27,69 @@
 Changelog
 ---------
 
+12.0.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  Deprecated classes, parameters and features have been removed from the Google provider package.
+  The following breaking changes were introduced:
+
+  * Operators
+
+    * Removed ``CreateDataPipelineOperator``. Please use the ``DataflowCreatePipelineOperator`` instead
+    * Removed ``RunDataPipelineOperator``. Please use the ``DataflowRunPipelineOperator`` instead
+    * Removed ``CreateDataPipelineOperator``. Please use the ``DataflowCreatePipelineOperator`` instead
+    * Removed ``RunDataPipelineOperator``. Please use the ``DataflowRunPipelineOperator`` instead
+
+  * Hooks
+
+    * Removed ``DataPipelineHook``. Please use the ``DataflowHook`` instead
+    * Removed ``DataPipelineHook``. Please use the DataflowHook instead
+
+* ``Google provider delete deprecated reaching removal date (December 2024) (#45084)``
+
+Features
+~~~~~~~~
+
+* ``Add Google Vertex AI Feature Store - Feature View Sync Operators, Sensor (#44891)``
+* ``Introduce gcp translation(V3), translate document providers (#44971)``
+* ``Introduce the translation API v3 (advanced) models operators. (#44627)``
+* ``Support multiple SQL queries in Dataproc SQL job (#44890)``
+* ``feat: add OpenLineage support for BigQuery Create Table operators (#44783)``
+* ``feat: add OpenLineage support for S3ToGCSOperator (#44426)``
+* ``feat: automatically inject OL info into spark job in DataprocSubmitJobOperator (#44477)``
+* ``Implement AlloyDB operators: create/update/delete clusters (#45027)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix MetastoreHivePartitionSensor failing due to duplicate aliases (#45001)``
+* ``Fix failing OpenLineage emition for InsertBigQueryOperator  (#44650)``
+* ``BigQueryInsertJobOperator: log transient error and check job state before marking task as success (#44279)``
+* ``Make 'CloudBatchSubmitJobOperator' fail when job fails (#44425)``
+
+Misc
+~~~~
+
+* ``Remove references to AIRFLOW_V_2_9_PLUS (#44987)``
+* ``Consistent way of checking Airflow version in providers (#44686)``
+* ``Fix yoda-conditions (#44466)``
+* ``feat: add OpenLineage support for transfer operators between gcs and local (#44417)``
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+* ``chore: remove deprecated bigquery facets from OpenLineage utils (#44838)``
+* ``Implement KubernetesInstallKueueOperator (#44568)``
+* ``Fix docs for dataform operators (#44729)``
+* ``Deprecate VertexAI PaLM text generative model (#44719)``
+* ``Show prominent warning for deprecations in docs (#44479)``
+* ``chore: unify handling of gcs paths (#44410)``
+
 11.0.0
 ......
 
@@ -172,6 +235,36 @@ Breaking changes
     * Removed ``BigQueryBaseCursor.run_copy()``. Please use ``BigQueryHook.insert_job()`` instead
     * Removed ``BigQueryBaseCursor.run_extract()``. Please use ``BigQueryHook.insert_job()`` instead
     * Removed ``BigQueryBaseCursor.run_query()``. Please use ``BigQueryHook.insert_job()`` instead
+
+
+* ``Remove deprecated functionality from Google provider (#43953)``
+
+Features
+~~~~~~~~
+
+* ``feat: add OpenLineage support for BigQueryToBigQueryOperator (#44214)``
+* ``Introduce gcp advance API (V3) translate native datasets operators (#44271)``
+* ``Introduce new gcp TranslateText and TranslateTextBatch operators (#43860)``
+* ``Add gcloud command to DataprocCreateClusterOperator to be able to create dataproc on GKE cluster (#44185)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix incorrect query in 'BigQueryAsyncHook.create_job_for_partition_get'. (#44225)``
+* ``Fix Dataplex Data Quality partial update (#44262)``
+
+Misc
+~~~~
+
+* ``Bump 'google-cloud-translate' to '3.16' (#44297)``
+* ``Bump 'google-cloud-datacatalog' to '3.23' (#44281)``
+* ``Rename execution_date to logical_date across codebase (#43902)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+   * ``Move Asset user facing components to task_sdk (#43773)``
 
 10.26.0
 .......

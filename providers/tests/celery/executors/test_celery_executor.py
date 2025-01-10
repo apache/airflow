@@ -43,8 +43,8 @@ from airflow.utils import timezone
 from airflow.utils.state import State
 
 from tests_common.test_utils import db
-from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -399,3 +399,12 @@ def test_celery_task_acks_late_loaded_from_string():
     # reload celery conf to apply the new config
     importlib.reload(default_celery)
     assert default_celery.DEFAULT_CELERY_CONFIG["task_acks_late"] is False
+
+
+@conf_vars({("celery", "extra_celery_config"): '{"worker_max_tasks_per_child": 10}'})
+def test_celery_extra_celery_config_loaded_from_string():
+    import importlib
+
+    # reload celery conf to apply the new config
+    importlib.reload(default_celery)
+    assert default_celery.DEFAULT_CELERY_CONFIG["worker_max_tasks_per_child"] == 10

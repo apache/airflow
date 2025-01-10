@@ -20,9 +20,10 @@ import base64
 import os
 import pickle
 import uuid
+from collections.abc import Sequence
 from shlex import quote
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Callable, Sequence
+from typing import TYPE_CHECKING, Callable
 
 import dill
 from kubernetes.client import models as k8s

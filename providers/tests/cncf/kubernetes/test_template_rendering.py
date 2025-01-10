@@ -30,7 +30,7 @@ from airflow.version import version
 
 from tests_common.test_utils.compat import BashOperator
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 9)
 

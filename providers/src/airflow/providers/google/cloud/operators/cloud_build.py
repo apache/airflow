@@ -21,8 +21,9 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Sequence
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote, urlsplit
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault

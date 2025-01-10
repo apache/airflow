@@ -24,7 +24,8 @@ import logging
 import sys
 from fnmatch import fnmatch
 from importlib import import_module
-from typing import TYPE_CHECKING, Any, Pattern, TypeVar, Union, cast
+from re import Pattern
+from typing import TYPE_CHECKING, Any, TypeVar, Union, cast
 
 import attr
 import re2
@@ -167,12 +168,6 @@ def serialize(o: object, depth: int = 0) -> U | None:
         dct[DATA] = data
         return dct
 
-    # pydantic models are recursive
-    if _is_pydantic(cls):
-        data = o.model_dump()  # type: ignore[attr-defined]
-        dct[DATA] = serialize(data, depth + 1)
-        return dct
-
     # dataclasses
     if dataclasses.is_dataclass(cls):
         # fixme: unfortunately using asdict with nested dataclasses it looses information
@@ -267,8 +262,8 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
     if hasattr(cls, "deserialize"):
         return getattr(cls, "deserialize")(deserialize(value), version)
 
-    # attr or dataclass or pydantic
-    if attr.has(cls) or dataclasses.is_dataclass(cls) or _is_pydantic(cls):
+    # attr or dataclass
+    if attr.has(cls) or dataclasses.is_dataclass(cls):
         class_version = getattr(cls, "__version__", 0)
         if int(version) > class_version:
             raise TypeError(
@@ -301,14 +296,14 @@ def _match(classname: str) -> bool:
     return _match_glob(classname) or _match_regexp(classname)
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _match_glob(classname: str):
     """Check if the given classname matches a pattern from allowed_deserialization_classes using glob syntax."""
     patterns = _get_patterns()
     return any(fnmatch(classname, p.pattern) for p in patterns)
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _match_regexp(classname: str):
     """Check if the given classname matches a pattern from allowed_deserialization_classes_regexp using regexp."""
     patterns = _get_regexp_patterns()
@@ -336,16 +331,6 @@ def _stringify(classname: str, version: int, value: T | None) -> str:
     s += ")"
 
     return s
-
-
-def _is_pydantic(cls: Any) -> bool:
-    """
-    Return True if the class is a pydantic model.
-
-    Checking is done by attributes as it is significantly faster than
-    using isinstance.
-    """
-    return hasattr(cls, "model_config") and hasattr(cls, "model_fields") and hasattr(cls, "model_fields_set")
 
 
 def _is_namedtuple(cls: Any) -> bool:
@@ -393,12 +378,12 @@ def _register():
     log.debug("loading serializers took %.3f seconds", timer.duration)
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _get_patterns() -> list[Pattern]:
     return [re2.compile(p) for p in conf.get("core", "allowed_deserialization_classes").split()]
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _get_regexp_patterns() -> list[Pattern]:
     return [re2.compile(p) for p in conf.get("core", "allowed_deserialization_classes_regexp").split()]
 

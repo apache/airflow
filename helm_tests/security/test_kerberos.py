@@ -152,4 +152,4 @@ class TestKerberos:
             show_only=["templates/secrets/kerberos-keytab-secret.yaml"],
         )
 
-        assert 0 == len(docs)
+        assert len(docs) == 0

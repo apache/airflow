@@ -36,8 +36,8 @@ from __future__ import annotations
 import pendulum
 
 from airflow import DAG
-from airflow.assets import Asset, AssetAlias
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk.definitions.asset import Asset, AssetAlias
 
 with DAG(
     dag_id="asset_s3_bucket_producer_with_no_taskflow",
@@ -68,7 +68,7 @@ with DAG(
     def produce_asset_events_through_asset_alias_with_no_taskflow(*, outlet_events=None):
         bucket_name = "bucket"
         object_path = "my-task"
-        outlet_events["example-alias-no-taskflow"].add(Asset(f"s3://{bucket_name}/{object_path}"))
+        outlet_events[AssetAlias("example-alias-no-taskflow")].add(Asset(f"s3://{bucket_name}/{object_path}"))
 
     PythonOperator(
         task_id="produce_asset_events_through_asset_alias_with_no_taskflow",

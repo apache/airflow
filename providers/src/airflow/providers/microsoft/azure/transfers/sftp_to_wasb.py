@@ -21,9 +21,10 @@ from __future__ import annotations
 
 import os
 from collections import namedtuple
+from collections.abc import Sequence
 from functools import cached_property
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

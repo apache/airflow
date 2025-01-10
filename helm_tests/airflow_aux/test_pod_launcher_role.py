@@ -33,6 +33,7 @@ class TestPodLauncher:
             ("CeleryExecutor", True, True, ["worker"]),
             ("LocalExecutor", True, True, ["scheduler"]),
             ("LocalExecutor", False, False, []),
+            ("CeleryExecutor,KubernetesExecutor", True, True, ["scheduler", "worker"]),
         ],
     )
     def test_pod_launcher_role(self, executor, rbac, allow, expected_accounts):
@@ -48,7 +49,7 @@ class TestPodLauncher:
             for idx, suffix in enumerate(expected_accounts):
                 assert f"release-name-airflow-{suffix}" == jmespath.search(f"subjects[{idx}].name", docs[0])
         else:
-            assert [] == docs
+            assert docs == []
 
     @pytest.mark.parametrize(
         "multiNamespaceMode, namespace, expectedRole, expectedRoleBinding",

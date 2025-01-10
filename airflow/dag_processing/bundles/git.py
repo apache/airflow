@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
 from git import Repo
 from git.exc import BadName
@@ -38,21 +39,26 @@ class GitDagBundle(BaseDagBundle):
     and then do a clone for each version from there.
 
     :param repo_url: URL of the git repository
-    :param head: Branch or tag for this DAG bundle
+    :param tracking_ref: Branch or tag for this DAG bundle
+    :param subdir: Subdirectory within the repository where the DAGs are stored (Optional)
     """
 
     supports_versioning = True
 
-    def __init__(self, *, repo_url: str, head: str, **kwargs) -> None:
+    def __init__(self, *, repo_url: str, tracking_ref: str, subdir: str | None = None, **kwargs) -> None:
         super().__init__(**kwargs)
         self.repo_url = repo_url
-        self.head = head
+        self.tracking_ref = tracking_ref
+        self.subdir = subdir
 
         self.bare_repo_path = self._dag_bundle_root_storage_path / "git" / self.name
+        self.repo_path = (
+            self._dag_bundle_root_storage_path / "git" / (self.name + f"+{self.version or self.tracking_ref}")
+        )
         self._clone_bare_repo_if_required()
         self._ensure_version_in_bare_repo()
         self._clone_repo_if_required()
-        self.repo.git.checkout(self.head)
+        self.repo.git.checkout(self.tracking_ref)
 
         if self.version:
             if not self._has_version(self.repo, self.version):
@@ -64,12 +70,12 @@ class GitDagBundle(BaseDagBundle):
             self.refresh()
 
     def _clone_repo_if_required(self) -> None:
-        if not os.path.exists(self.path):
+        if not os.path.exists(self.repo_path):
             Repo.clone_from(
                 url=self.bare_repo_path,
-                to_path=self.path,
+                to_path=self.repo_path,
             )
-        self.repo = Repo(self.path)
+        self.repo = Repo(self.repo_path)
 
     def _clone_bare_repo_if_required(self) -> None:
         if not os.path.exists(self.bare_repo_path):
@@ -88,16 +94,24 @@ class GitDagBundle(BaseDagBundle):
             if not self._has_version(self.bare_repo, self.version):
                 raise AirflowException(f"Version {self.version} not found in the repository")
 
-    def __hash__(self) -> int:
-        return hash((self.name, self.get_current_version()))
+    def __repr__(self):
+        return (
+            f"<GitDagBundle("
+            f"name={self.name!r}, "
+            f"tracking_ref={self.tracking_ref!r}, "
+            f"subdir={self.subdir!r}, "
+            f"version={self.version!r}"
+            f")>"
+        )
 
     def get_current_version(self) -> str:
         return self.repo.head.commit.hexsha
 
     @property
     def path(self) -> Path:
-        location = self.version or self.head
-        return self._dag_bundle_root_storage_path / "git" / f"{self.name}+{location}"
+        if self.subdir:
+            return self.repo_path / self.subdir
+        return self.repo_path
 
     @staticmethod
     def _has_version(repo: Repo, version: str) -> bool:
@@ -113,3 +127,31 @@ class GitDagBundle(BaseDagBundle):
 
         self.bare_repo.remotes.origin.fetch("+refs/heads/*:refs/heads/*")
         self.repo.remotes.origin.pull()
+
+    def _convert_git_ssh_url_to_https(self) -> str:
+        if not self.repo_url.startswith("git@"):
+            raise ValueError(f"Invalid git SSH URL: {self.repo_url}")
+        parts = self.repo_url.split(":")
+        domain = parts[0].replace("git@", "https://")
+        repo_path = parts[1].replace(".git", "")
+        return f"{domain}/{repo_path}"
+
+    def view_url(self, version: str | None = None) -> str | None:
+        if not version:
+            return None
+        url = self.repo_url
+        if url.startswith("git@"):
+            url = self._convert_git_ssh_url_to_https()
+        parsed_url = urlparse(url)
+        host = parsed_url.hostname
+        if not host:
+            return None
+        host_patterns = {
+            "github.com": f"{url}/tree/{version}",
+            "gitlab.com": f"{url}/-/tree/{version}",
+            "bitbucket.org": f"{url}/src/{version}",
+        }
+        for allowed_host, template in host_patterns.items():
+            if host == allowed_host or host.endswith(f".{allowed_host}"):
+                return template
+        return None

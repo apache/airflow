@@ -20,8 +20,9 @@
 from __future__ import annotations
 
 import csv
+from collections.abc import Sequence
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
 from airflow.providers.google.ads.hooks.ads import GoogleAdsHook

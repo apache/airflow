@@ -27,8 +27,9 @@ import logging
 import os
 import sys
 import types
+from collections.abc import Iterable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any
 
 from airflow import settings
 from airflow.configuration import conf
@@ -47,8 +48,8 @@ if TYPE_CHECKING:
         import importlib_metadata as metadata
     except ImportError:
         from importlib import metadata  # type: ignore[no-redef]
+    from collections.abc import Generator
     from types import ModuleType
-    from typing import Generator
 
     from airflow.listeners.listener import ListenerManager
     from airflow.timetables.base import Timetable
@@ -365,7 +366,7 @@ def ensure_plugins_loaded():
         log.debug("Loading %d plugin(s) took %.2f seconds", len(plugins), timer.duration)
 
 
-def initialize_web_ui_plugins():
+def initialize_flask_plugins():
     """Collect extension points for WEB UI."""
     global plugins
     global flask_blueprints
@@ -576,7 +577,7 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
     """
     ensure_plugins_loaded()
     integrate_macros_plugins()
-    initialize_web_ui_plugins()
+    initialize_flask_plugins()
     initialize_fastapi_plugins()
     initialize_extra_operators_links_plugins()
     if not attrs_to_dump:

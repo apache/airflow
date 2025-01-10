@@ -54,6 +54,10 @@ class TestCeleryAndLocalExecutor(BaseK8STest):
             timeout=300,
         )
 
+    @pytest.mark.xfail(
+        EXECUTOR == "LocalExecutor",
+        reason="https://github.com/apache/airflow/issues/44481 needs to be implemented",
+    )
     def test_integration_run_dag_with_scheduler_failure(self):
         dag_id = "example_xcom"
 

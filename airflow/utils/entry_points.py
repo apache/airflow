@@ -20,7 +20,7 @@ import functools
 import logging
 import sys
 from collections import defaultdict
-from typing import Iterator, Tuple
+from collections.abc import Iterator
 
 if sys.version_info >= (3, 12):
     from importlib import metadata
@@ -29,10 +29,10 @@ else:
 
 log = logging.getLogger(__name__)
 
-EPnD = Tuple[metadata.EntryPoint, metadata.Distribution]
+EPnD = tuple[metadata.EntryPoint, metadata.Distribution]
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _get_grouped_entry_points() -> dict[str, list[EPnD]]:
     mapping: dict[str, list[EPnD]] = defaultdict(list)
     for dist in metadata.distributions():

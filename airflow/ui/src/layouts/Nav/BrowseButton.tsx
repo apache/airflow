@@ -28,6 +28,10 @@ const links = [
     href: "/events",
     title: "Events",
   },
+  {
+    href: "/xcoms",
+    title: "XComs",
+  },
 ];
 
 export const BrowseButton = () => (

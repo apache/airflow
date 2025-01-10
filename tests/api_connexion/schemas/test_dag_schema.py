@@ -27,9 +27,9 @@ from airflow.api_connexion.schemas.dag_schema import (
     DAGDetailSchema,
     DAGSchema,
 )
-from airflow.assets import Asset
 from airflow.models import DagModel, DagTag
 from airflow.models.dag import DAG
+from airflow.sdk.definitions.asset import Asset
 
 UTC_JSON_REPR = "UTC" if pendulum.__version__.startswith("3") else "Timezone('UTC')"
 
@@ -47,7 +47,7 @@ def test_serialize_test_dag_schema(url_safe_serializer):
     )
     serialized_dag = DAGSchema().dump(dag_model)
 
-    assert {
+    assert serialized_dag == {
         "dag_id": "test_dag_id",
         "dag_display_name": "test_dag_id",
         "description": "The description",
@@ -71,7 +71,7 @@ def test_serialize_test_dag_schema(url_safe_serializer):
         "last_parsed_time": None,
         "timetable_description": None,
         "has_import_errors": None,
-    } == serialized_dag
+    }
 
 
 def test_serialize_test_dag_collection_schema(url_safe_serializer):
@@ -79,7 +79,7 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
     dag_model_b = DagModel(dag_id="test_dag_id_b", fileloc="/tmp/a.py")
     schema = DAGCollectionSchema()
     instance = DAGCollection(dags=[dag_model_a, dag_model_b], total_entries=2)
-    assert {
+    assert schema.dump(instance) == {
         "dags": [
             {
                 "dag_id": "test_dag_id_a",
@@ -133,10 +133,9 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
             },
         ],
         "total_entries": 2,
-    } == schema.dump(instance)
+    }
 
 
-@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 def test_serialize_test_dag_detail_schema(url_safe_serializer):
     dag = DAG(
@@ -197,11 +196,10 @@ def test_serialize_test_dag_detail_schema(url_safe_serializer):
     assert obj == expected
 
 
-@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 def test_serialize_test_dag_with_asset_schedule_detail_schema(url_safe_serializer):
-    asset1 = Asset(uri="s3://bucket/obj1")
-    asset2 = Asset(uri="s3://bucket/obj2")
+    asset1 = Asset(uri="s3://bucket/obj1", name="asset1")
+    asset2 = Asset(uri="s3://bucket/obj2", name="asset2")
     dag = DAG(
         dag_id="test_dag",
         start_date=datetime(2020, 6, 19),

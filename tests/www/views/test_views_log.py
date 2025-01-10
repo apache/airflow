@@ -41,10 +41,10 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 from airflow.www.app import create_app
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.www import client_with_login
 
 if AIRFLOW_V_3_0_PLUS:
@@ -278,7 +278,7 @@ def test_get_logs_with_metadata_as_download_file(log_admin_client, create_expect
         f"dag_id={DAG_ID}/run_id=scheduled__{date}/task_id={TASK_ID}/attempt={try_number}.log"
         in content_disposition
     )
-    assert 200 == response.status_code
+    assert response.status_code == 200
     content = response.data.decode("utf-8")
     assert "Log for testing." in content
     assert "localhost\n" in content
@@ -321,7 +321,7 @@ def test_get_logs_for_changed_filename_format_db(
     response = log_admin_client.get(url)
 
     # Should find the log under corresponding db entry.
-    assert 200 == response.status_code
+    assert response.status_code == 200
     assert "Log for testing." in response.data.decode("utf-8")
     content_disposition = response.headers["Content-Disposition"]
     expected_filename = (
@@ -379,7 +379,7 @@ def test_get_logs_with_metadata(log_admin_client, metadata, create_expected_log_
         data={"username": "test", "password": "test"},
         follow_redirects=True,
     )
-    assert 200 == response.status_code
+    assert response.status_code == 200
 
     data = response.data.decode()
     assert '"message":' in data
@@ -424,7 +424,7 @@ def test_get_logs_with_metadata_for_removed_dag(_, log_admin_client):
         data={"username": "test", "password": "test"},
         follow_redirects=True,
     )
-    assert 200 == response.status_code
+    assert response.status_code == 200
 
     data = response.data.decode()
     assert '"message":' in data
@@ -451,7 +451,7 @@ def test_get_logs_response_with_ti_equal_to_none(log_admin_client):
     data = response.json
     assert "message" in data
     assert "error" in data
-    assert "*** Task instance did not exist in the DB\n" == data["message"]
+    assert data["message"] == "*** Task instance did not exist in the DB\n"
 
 
 def test_get_logs_with_json_response_format(log_admin_client, create_expected_log_file):
@@ -470,7 +470,7 @@ def test_get_logs_with_json_response_format(log_admin_client, create_expected_lo
         "{}",
     )
     response = log_admin_client.get(url)
-    assert 200 == response.status_code
+    assert response.status_code == 200
 
     assert "message" in response.json
     assert "metadata" in response.json
@@ -518,7 +518,7 @@ def test_get_logs_for_handler_without_read_method(mock_reader, log_admin_client)
         "{}",
     )
     response = log_admin_client.get(url)
-    assert 200 == response.status_code
+    assert response.status_code == 200
 
     data = response.json
     assert "message" in data
@@ -538,8 +538,8 @@ def test_redirect_to_external_log_with_local_log_handler(log_admin_client, task_
         try_number,
     )
     response = log_admin_client.get(url)
-    assert 302 == response.status_code
-    assert "/home" == response.headers["Location"]
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/home"
 
 
 class _ExternalHandler(ExternalLoggingMixin):
@@ -572,5 +572,5 @@ def test_redirect_to_external_log_with_external_log_handler(_, log_admin_client)
         try_number,
     )
     response = log_admin_client.get(url)
-    assert 302 == response.status_code
-    assert _ExternalHandler.EXTERNAL_URL == response.headers["Location"]
+    assert response.status_code == 302
+    assert response.headers["Location"] == _ExternalHandler.EXTERNAL_URL

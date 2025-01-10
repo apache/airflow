@@ -19,8 +19,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Collection, Sequence
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Collection, Sequence
+from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -29,10 +30,11 @@ from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.sqs import SqsSensorTrigger
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
-from airflow.providers.amazon.aws.utils.sqs import MessageFilteringType, process_response
+from airflow.providers.amazon.aws.utils.sqs import process_response
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
+    from airflow.providers.amazon.aws.utils.sqs import MessageFilteringType
     from airflow.utils.context import Context
 
 
