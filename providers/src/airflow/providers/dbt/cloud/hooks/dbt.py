@@ -460,7 +460,7 @@ class DbtCloudHook(HttpHook):
     @fallback_to_default_account
     def get_job_by_name(
         self, project_name: str, environment_name: str, job_name: str, account_id: int | None = None
-    ) -> Response:
+    ) -> dict:
         """
         Retrieve metadata for a specific job by combination of project, environment, and job name.
 
@@ -470,7 +470,7 @@ class DbtCloudHook(HttpHook):
         :param environment_name: The name of a dbt Cloud environment.
         :param job_name: The name of a dbt Cloud job.
         :param account_id: Optional. The ID of a dbt Cloud account.
-        :return: The request response.
+        :return: The details of a job.
         """
         # get project_id using project_name
         projects = self.list_projects(name_contains=project_name, account_id=account_id)[0].json()["data"]
@@ -499,7 +499,7 @@ class DbtCloudHook(HttpHook):
                 f"Found {len(jobs)} jobs with name `{job_name}` in project `{project_name}` and environment `{environment_name}`."
             )
 
-        return list_jobs_responses[0]
+        return jobs[0]
 
     @fallback_to_default_account
     def trigger_job_run(
