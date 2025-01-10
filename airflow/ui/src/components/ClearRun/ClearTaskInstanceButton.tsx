@@ -34,21 +34,6 @@ type Props = {
 const ClearTaskInstanceButton = ({ taskInstance, withText = true }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
 
-  const [onlyFailed, setOnlyFailed] = useState(false);
-  const onToggleOnlyFailed = () => setOnlyFailed((state) => !state);
-
-  const [past, setPast] = useState(false);
-  const onTogglePast = () => setPast((state) => !state);
-
-  const [future, setFuture] = useState(false);
-  const onToggleFuture = () => setFuture((state) => !state);
-
-  const [upstream, setUpstream] = useState(false);
-  const onToggleUpstream = () => setUpstream((state) => !state);
-
-  const [downstream, setDownstream] = useState(false);
-  const onToggleDownstream = () => setDownstream((state) => !state);
-
   const [affectedTasks, setAffectedTasks] = useState<TaskInstanceCollectionResponse>({
     task_instances: [],
     total_entries: 0,
@@ -69,43 +54,18 @@ const ClearTaskInstanceButton = ({ taskInstance, withText = true }: Props) => {
       <ActionButton
         actionName="Clear Task Instance"
         icon={<FiRefreshCw />}
-        onClick={() => {
-          onOpen();
-          mutate({
-            dagId,
-            requestBody: {
-              dag_run_id: dagRunId,
-              dry_run: true,
-              include_downstream: downstream,
-              include_future: future,
-              include_past: past,
-              include_upstream: upstream,
-              only_failed: onlyFailed,
-              task_ids: [taskInstance.task_id],
-            },
-          });
-        }}
+        onClick={onOpen}
         text="Clear Task Instance"
         withText={withText}
       />
 
       <ClearTaskInstanceDialog
         affectedTasks={affectedTasks}
-        downstream={downstream}
-        future={future}
         isPending={isPending}
         mutate={mutate}
         onClose={onClose}
-        onlyFailed={onlyFailed}
-        onToggleDownstream={onToggleDownstream}
-        onToggleFuture={onToggleFuture}
-        onToggleOnlyFailed={onToggleOnlyFailed}
-        onTogglePast={onTogglePast}
-        onToggleUpstream={onToggleUpstream}
         open={open}
-        past={past}
         taskInstance={taskInstance}
-        upstream={upstream}
       />
     </Box>
   );

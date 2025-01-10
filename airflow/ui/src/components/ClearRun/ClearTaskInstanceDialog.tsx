@@ -33,45 +33,40 @@ import ClearTaskInstanceAccordion from "./ClearTaskInstanceAccordion";
 
 type Props = {
   readonly affectedTasks: TaskInstanceCollectionResponse;
-  readonly downstream: boolean;
-  readonly future: boolean;
   readonly isPending: boolean;
   readonly mutate: ({ dagId, requestBody }: { dagId: string; requestBody: ClearTaskInstancesBody }) => void;
   readonly onClose: () => void;
-  readonly onlyFailed: boolean;
-  readonly onToggleDownstream: () => void;
-  readonly onToggleFuture: () => void;
-  readonly onToggleOnlyFailed: () => void;
-  readonly onTogglePast: () => void;
-  readonly onToggleUpstream: () => void;
   readonly open: boolean;
-  readonly past: boolean;
   readonly taskInstance: TaskInstanceResponse;
-  readonly upstream: boolean;
 };
 
 const ClearTaskInstanceDialog = ({
   affectedTasks,
-  downstream,
-  future,
   isPending,
   mutate,
   onClose,
-  onlyFailed,
-  onToggleDownstream,
-  onToggleFuture,
-  onToggleOnlyFailed,
-  onTogglePast,
-  onToggleUpstream,
   open,
-  past,
   taskInstance,
-  upstream,
 }: Props) => {
   const dagId = taskInstance.dag_id;
   const dagRunId = taskInstance.dag_run_id;
   const taskId = taskInstance.task_id;
   const mapIndex = taskInstance.map_index;
+
+  const [onlyFailed, setOnlyFailed] = useState(false);
+  const onToggleOnlyFailed = () => setOnlyFailed((state) => !state);
+
+  const [past, setPast] = useState(false);
+  const onTogglePast = () => setPast((state) => !state);
+
+  const [future, setFuture] = useState(false);
+  const onToggleFuture = () => setFuture((state) => !state);
+
+  const [upstream, setUpstream] = useState(false);
+  const onToggleUpstream = () => setUpstream((state) => !state);
+
+  const [downstream, setDownstream] = useState(false);
+  const onToggleDownstream = () => setDownstream((state) => !state);
 
   const [note, setNote] = useState<string | null>(taskInstance.note);
   const { isPending: isPendingPatchDagRun, mutate: mutatePatchTaskInstance } = usePatchTaskInstance({
