@@ -2980,7 +2980,7 @@ export const useTaskInstanceServiceGetTaskInstancesBatch = <
  * @param data The data for the request.
  * @param data.dagId
  * @param data.requestBody
- * @returns TaskInstanceReferenceCollectionResponse Successful Response
+ * @returns TaskInstanceCollectionResponse Successful Response
  * @throws ApiError
  */
 export const useTaskInstanceServicePostClearTaskInstances = <

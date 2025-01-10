@@ -48,6 +48,8 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to debug resources"
         required: true
         type: string
+permissions:
+  contents: read
 jobs:
   tests-kubernetes:
     timeout-minutes: 60

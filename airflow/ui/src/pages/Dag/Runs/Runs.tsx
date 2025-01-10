@@ -144,11 +144,11 @@ export const Runs = () => {
       } else {
         searchParams.set(STATE_PARAM, val);
       }
-      setSearchParams(searchParams);
       setTableURLState({
         pagination: { ...pagination, pageIndex: 0 },
         sorting,
       });
+      setSearchParams(searchParams);
     },
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );

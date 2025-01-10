@@ -34,7 +34,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Final, TypeVar, cast
 import attrs
 
 from airflow.models.param import ParamsDict
-from airflow.sdk.definitions.abstractoperator import (
+from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
     DEFAULT_POOL_SLOTS,
@@ -48,9 +48,9 @@ from airflow.sdk.definitions.abstractoperator import (
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
 )
-from airflow.sdk.definitions.decorators import fixup_decorator_warning_stack
-from airflow.sdk.definitions.node import validate_key
-from airflow.sdk.types import NOTSET, validate_instance_args
+from airflow.sdk.definitions._internal.decorators import fixup_decorator_warning_stack
+from airflow.sdk.definitions._internal.node import validate_key
+from airflow.sdk.definitions._internal.types import NOTSET, validate_instance_args
 from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
     airflow_priority_weight_strategies,
@@ -143,7 +143,7 @@ class BaseOperatorMeta(abc.ABCMeta):
 
         @wraps(func)
         def apply_defaults(self: BaseOperator, *args: Any, **kwargs: Any) -> Any:
-            from airflow.sdk.definitions.contextmanager import DagContext, TaskGroupContext
+            from airflow.sdk.definitions._internal.contextmanager import DagContext, TaskGroupContext
 
             if args:
                 raise TypeError("Use keyword arguments when initializing operators")
@@ -1176,7 +1176,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def get_serialized_fields(cls):
         """Stringified DAGs and operators contain exactly these fields."""
         if not cls.__serialized_fields:
-            from airflow.sdk.definitions.contextmanager import DagContext
+            from airflow.sdk.definitions._internal.contextmanager import DagContext
 
             # make sure the following "fake" task is not added to current active
             # dag in context, otherwise, it will result in

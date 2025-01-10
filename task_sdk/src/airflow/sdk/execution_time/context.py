@@ -22,9 +22,9 @@ from typing import TYPE_CHECKING, Any
 
 import structlog
 
-from airflow.sdk.definitions.contextmanager import _CURRENT_CONTEXT
+from airflow.sdk.definitions._internal.contextmanager import _CURRENT_CONTEXT
+from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
-from airflow.sdk.types import NOTSET
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.connection import Connection

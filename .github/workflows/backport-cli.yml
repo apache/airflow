@@ -41,6 +41,9 @@ on:  # yamllint disable-line rule:truthy
         type: string
 
 permissions:
+  # Those permissions are only active for workflow dispatch (only committers can trigger it) and workflow call
+  # Which is triggered automatically by "automatic-backport" push workflow (only when merging by committer)
+  # Branch protection  prevents from pushing to the "code" branches
   contents: write
   pull-requests: write
 jobs:

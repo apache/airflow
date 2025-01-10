@@ -21,8 +21,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from airflow.sdk import get_current_context
 from airflow.sdk.definitions.connection import Connection
-from airflow.sdk.definitions.contextmanager import get_current_context
 from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse, VariableResult
