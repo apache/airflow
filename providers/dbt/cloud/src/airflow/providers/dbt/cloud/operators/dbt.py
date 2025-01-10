@@ -158,7 +158,7 @@ class DbtCloudRunJobOperator(BaseOperator):
                 project_name=self.project_name,
                 environment_name=self.environment_name,
                 job_name=self.job_name,
-            ).json()["data"]["id"]
+            )["id"]
 
         non_terminal_runs = None
         if self.reuse_existing_run:

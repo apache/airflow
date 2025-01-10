@@ -422,14 +422,14 @@ class TestDbtCloudHook:
         self, mock_list_projects, mock_list_environments, mock_list_jobs
     ):
         hook = DbtCloudHook(ACCOUNT_ID_CONN)
-        response = hook.get_job_by_name(
+        job_details = hook.get_job_by_name(
             project_name=PROJECT_NAME,
             environment_name=ENVIRONMENT_NAME,
             job_name=JOB_NAME,
             account_id=None,
         )
 
-        assert isinstance(response, Response)
+        assert job_details == DEFAULT_LIST_JOBS_RESPONSE["data"][0]
 
     @pytest.mark.parametrize(
         argnames="project_name, environment_name, job_name",
