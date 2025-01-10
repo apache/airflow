@@ -296,6 +296,8 @@ class HttpHook(BaseHook):
 
         try:
             session.headers.update(headers)
+        except TypeError:
+            self.log.warning("Connection to %s has invalid headers field.", connection.host)
         return session
 
     def _set_base_url(self, connection: Connection) -> None:
