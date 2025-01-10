@@ -1534,11 +1534,12 @@ export class DagReportService {
   public static getDagReport(data: GetDagReportData): CancelablePromise<GetDagReportResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dagReport",
+      url: "/public/dagReports",
       query: {
         subdir: data.subdir,
       },
       errors: {
+        400: "Bad Request",
         401: "Unauthorized",
         403: "Forbidden",
         422: "Validation Error",

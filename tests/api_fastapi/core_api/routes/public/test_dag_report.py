@@ -19,12 +19,22 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
-import re2 as re
+
+from airflow.utils.file import list_py_file_paths
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags
 
 pytestmark = pytest.mark.db_test
+
+TEST_DAG_FOLDER = "/opt/airflow/tests/dags"
+TEST_DAG_FOLDER_WITH_SUBDIR = "/opt/airflow/tests/dags/subdir2"
+TEST_DAG_FOLDER_INVALID = "/invalid/path"
+TEST_DAG_FOLDER_INVALID_2 = "/root/airflow/tests/dags/"
+
+
+def get_corresponding_dag_file_count(dir: str, include_examples: bool = True) -> int:
+    return len(list_py_file_paths(directory=dir, include_examples=include_examples))
 
 
 class TestDagReportEndpoint:
@@ -41,22 +51,41 @@ class TestDagReportEndpoint:
     @pytest.mark.parametrize(
         "subdir,include_example,expected_total_entries",
         [
-            pytest.param("/root/airflow/dags", True, 58, id="dag_path_with_example"),
-            pytest.param("/root/airflow/dags", False, 0, id="dag_path_without_example"),
+            pytest.param(
+                TEST_DAG_FOLDER,
+                True,
+                get_corresponding_dag_file_count(TEST_DAG_FOLDER),
+                id="dag_path_with_example",
+            ),
+            pytest.param(
+                TEST_DAG_FOLDER,
+                False,
+                get_corresponding_dag_file_count(TEST_DAG_FOLDER, False),
+                id="dag_path_without_example",
+            ),
+            pytest.param(
+                TEST_DAG_FOLDER_WITH_SUBDIR,
+                True,
+                get_corresponding_dag_file_count(TEST_DAG_FOLDER_WITH_SUBDIR),
+                id="dag_path_subdir_with_example",
+            ),
+            pytest.param(
+                TEST_DAG_FOLDER_WITH_SUBDIR,
+                False,
+                get_corresponding_dag_file_count(TEST_DAG_FOLDER_WITH_SUBDIR, False),
+                id="dag_path_subdir_without_example",
+            ),
         ],
     )
     def test_should_response_200(self, test_client, subdir, include_example, expected_total_entries):
         with conf_vars({("core", "load_examples"): str(include_example)}):
-            params = {"subdir": subdir} if subdir else {}
-            response = test_client.get("/public/dagReport", params=params)
+            response = test_client.get("/public/dagReport", params={"subdir": subdir})
             assert response.status_code == 200
             response_json = response.json()
-            expected_keys = {"dag_num", "dags", "file", "task_num", "warning_num"}
+            expected_keys = {"dag_num", "dags", "duration", "file", "task_num", "warning_num"}
             assert response_json["total_entries"] == expected_total_entries
             for dag_report in response_json["dag_reports"]:
                 assert all(key in dag_report for key in expected_keys)
-                # assert duration is in ISO8601 format ( PTnS or PTn.nS )
-                assert re.match(r"^PT\d+(\.\d+)?S$", dag_report["duration"])
 
     def test_should_response_200_with_empty_dagbag(self, test_client):
         # the constructor of DagBag will call `collect_dags` method and store the result in `dagbag_stats`
@@ -64,9 +93,21 @@ class TestDagReportEndpoint:
             self.dagbag_stats = []
 
         with patch("airflow.models.dagbag.DagBag.collect_dags", _mock_collect_dags):
-            response = test_client.get("/public/dagReport", params={"subdir": "airflow/example_dags"})
+            response = test_client.get("/public/dagReport", params={"subdir": TEST_DAG_FOLDER})
             assert response.status_code == 200
             assert response.json() == {"dag_reports": [], "total_entries": 0}
+
+    @pytest.mark.parametrize(
+        "subdir",
+        [
+            pytest.param(TEST_DAG_FOLDER_INVALID, id="invalid_dag_path"),
+            pytest.param(TEST_DAG_FOLDER_INVALID_2, id="invalid_dag_path_2"),
+        ],
+    )
+    def test_should_response_400(self, test_client, subdir):
+        response = test_client.get("/public/dagReport", params={"subdir": subdir})
+        assert response.status_code == 400
+        assert response.json() == {"detail": "subdir should be subpath of DAGS_FOLDER settings"}
 
     def test_should_response_422(self, test_client):
         response = test_client.get("/public/dagReport")

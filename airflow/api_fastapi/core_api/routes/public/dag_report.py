@@ -17,33 +17,38 @@
 
 from __future__ import annotations
 
+from typing import cast
+
+from fastapi import HTTPException, status
+
+from airflow import settings
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.dag_report import (
     DagReportCollectionResponse,
     DagReportResponse,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.models.dagbag import DagBag
-from airflow.utils.cli import process_subdir
 
-dag_report_router = AirflowRouter(tags=["DagReport"], prefix="/dagReport")
+dag_report_router = AirflowRouter(tags=["DagReport"], prefix="/dagReports")
 
 
 @dag_report_router.get(
     "",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+        ]
+    ),
 )
 def get_dag_report(
     subdir: str,
 ):
     """Get DAG report."""
-    # though the `subdir` will be validated on CLI side, we still need to validate again here or the CodeQL will report a security issue
-    dagbag = DagBag(process_subdir(subdir))
+    if not subdir.startswith(settings.DAGS_FOLDER):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "subdir should be subpath of DAGS_FOLDER settings")
+    dagbag = DagBag(subdir)
     return DagReportCollectionResponse(
-        dag_reports=[
-            DagReportResponse.model_validate(
-                dag_report,
-                from_attributes=True,
-            )
-            for dag_report in dagbag.dagbag_stats
-        ],
+        dag_reports=cast(list[DagReportResponse], dagbag.dagbag_stats),
         total_entries=len(dagbag.dagbag_stats),
     )
