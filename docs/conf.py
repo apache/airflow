@@ -346,7 +346,7 @@ html_static_path.append("sphinx_design/static/")  # Style overrides for the sphi
 # filename must be relative to the html_static_path, or a full URI with
 # scheme like http://example.org/script.js.
 if PACKAGE_NAME in ["apache-airflow", "helm-chart"]:
-    html_js_files = ["gh-jira-links.js", "redirects.js"]
+    html_js_files = ["gh-jira-links.js"]
 else:
     html_js_files = []
 if PACKAGE_NAME == "apache-airflow":
@@ -363,6 +363,7 @@ if PACKAGE_NAME == "apache-airflow":
         "administration-and-deployment/logging-monitoring/advanced-logging-configuration.html",
         "howto/docker-compose/index.html",
     ]
+    html_js_files.append("redirects.js")
 if PACKAGE_NAME.startswith("apache-airflow-providers"):
     manual_substitutions_in_generated_html = ["example-dags.html", "operators.html", "index.html"]
 if PACKAGE_NAME == "docker-stack":
