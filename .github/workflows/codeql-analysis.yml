@@ -72,7 +72,7 @@ jobs:
       fail-fast: false
       matrix:
         # Override automatic language detection by changing the below list
-        # Supported options are ['csharp', 'cpp', 'go', 'java', 'javascript', 'python', 'actions]
+        # Supported options are ['csharp', 'cpp', 'go', 'java', 'javascript', 'python']
         language: ['python', 'javascript', 'actions']
     permissions:
       actions: read
