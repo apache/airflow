@@ -52,10 +52,10 @@ from airflow.exceptions import (
     TaskNotFound,
 )
 from airflow.models.param import DagParam, ParamsDict
-from airflow.sdk.definitions.abstractoperator import AbstractOperator
-from airflow.sdk.definitions.asset import Asset, AssetAlias, BaseAsset
+from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+from airflow.sdk.definitions._internal.types import NOTSET
+from airflow.sdk.definitions.asset import AssetAll, BaseAsset
 from airflow.sdk.definitions.baseoperator import BaseOperator
-from airflow.sdk.types import NOTSET
 from airflow.timetables.base import Timetable
 from airflow.timetables.simple import (
     AssetTriggeredTimetable,
@@ -92,12 +92,7 @@ __all__ = [
 DagStateChangeCallback = Callable[[Context], None]
 ScheduleInterval = Union[None, str, timedelta, relativedelta]
 
-ScheduleArg = Union[
-    ScheduleInterval,
-    Timetable,
-    BaseAsset,
-    Collection[Union["Asset", "AssetAlias"]],
-]
+ScheduleArg = Union[ScheduleInterval, Timetable, BaseAsset, Collection[BaseAsset]]
 
 
 _DAG_HASH_ATTRS = frozenset(
@@ -492,8 +487,6 @@ class DAG:
 
     @timetable.default
     def _default_timetable(instance: DAG):
-        from airflow.sdk.definitions.asset import AssetAll
-
         schedule = instance.schedule
         # TODO: Once
         # delattr(self, "schedule")
@@ -502,8 +495,11 @@ class DAG:
         elif isinstance(schedule, BaseAsset):
             return AssetTriggeredTimetable(schedule)
         elif isinstance(schedule, Collection) and not isinstance(schedule, str):
-            if not all(isinstance(x, (Asset, AssetAlias)) for x in schedule):
-                raise ValueError("All elements in 'schedule' should be assets or asset aliases")
+            if not all(isinstance(x, BaseAsset) for x in schedule):
+                raise ValueError(
+                    "All elements in 'schedule' should be either assets, "
+                    "asset references, or asset aliases"
+                )
             return AssetTriggeredTimetable(AssetAll(*schedule))
         else:
             return _create_timetable(schedule, instance.timezone)
@@ -565,13 +561,13 @@ class DAG:
         return hash(tuple(hash_components))
 
     def __enter__(self) -> Self:
-        from airflow.sdk.definitions.contextmanager import DagContext
+        from airflow.sdk.definitions._internal.contextmanager import DagContext
 
         DagContext.push(self)
         return self
 
     def __exit__(self, _type, _value, _tb):
-        from airflow.sdk.definitions.contextmanager import DagContext
+        from airflow.sdk.definitions._internal.contextmanager import DagContext
 
         _ = DagContext.pop()
 
@@ -660,7 +656,7 @@ class DAG:
 
     def get_template_env(self, *, force_sandboxed: bool = False) -> jinja2.Environment:
         """Build a Jinja2 environment."""
-        import airflow.templates
+        from airflow.sdk.definitions._internal.templater import NativeEnvironment, SandboxedEnvironment
 
         # Collect directories to search for template files
         searchpath = [self.folder]
@@ -678,9 +674,9 @@ class DAG:
             jinja_env_options.update(self.jinja_environment_kwargs)
         env: jinja2.Environment
         if self.render_template_as_native_obj and not force_sandboxed:
-            env = airflow.templates.NativeEnvironment(**jinja_env_options)
+            env = NativeEnvironment(**jinja_env_options)
         else:
-            env = airflow.templates.SandboxedEnvironment(**jinja_env_options)
+            env = SandboxedEnvironment(**jinja_env_options)
 
         # Add any user defined items. Safe to edit globals as long as no templates are rendered yet.
         # http://jinja.pocoo.org/docs/2.10/api/#jinja2.Environment.globals
@@ -896,7 +892,7 @@ class DAG:
         """
         # FailStopDagInvalidTriggerRule.check(dag=self, trigger_rule=task.trigger_rule)
 
-        from airflow.sdk.definitions.contextmanager import TaskGroupContext
+        from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 
         # if the task has no start date, assign it the same as the DAG
         if not task.start_date:

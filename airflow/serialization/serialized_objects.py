@@ -41,7 +41,7 @@ from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallback
 from airflow.exceptions import AirflowException, SerializationError, TaskDeferred
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
-from airflow.models.dag import DAG
+from airflow.models.dag import DAG, _get_model_data_interval
 from airflow.models.expandinput import (
     EXPAND_INPUT_EMPTY,
     create_expand_input,
@@ -95,13 +95,14 @@ from airflow.utils.types import NOTSET, ArgNotSet, AttributeRemoved
 if TYPE_CHECKING:
     from inspect import Parameter
 
+    from airflow.models import DagRun
     from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.expandinput import ExpandInput
     from airflow.models.operator import Operator
-    from airflow.sdk.definitions.node import DAGNode
+    from airflow.sdk.definitions._internal.node import DAGNode
     from airflow.serialization.json_schema import Validator
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-    from airflow.timetables.base import DagRunInfo, Timetable
+    from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 
     HAS_KUBERNETES: bool
     try:
@@ -271,6 +272,8 @@ def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
             "__type": DAT.ASSET_ANY,
             "objects": [encode_asset_condition(x) for x in var.objects],
         }
+    if isinstance(var, AssetRef):
+        return {"__type": DAT.ASSET_REF, **attrs.asdict(var)}
     raise ValueError(f"serialization not implemented for {type(var).__name__!r}")
 
 
@@ -289,6 +292,8 @@ def decode_asset_condition(var: dict[str, Any]) -> BaseAsset:
         return AssetAny(*(decode_asset_condition(x) for x in var["objects"]))
     if dat == DAT.ASSET_ALIAS:
         return AssetAlias(name=var["name"], group=var["group"])
+    if dat == DAT.ASSET_REF:
+        return Asset.ref(**{k: v for k, v in var.items() if k != "__type"})
     raise ValueError(f"deserialization not implemented for DAT {dat!r}")
 
 
@@ -762,7 +767,7 @@ class BaseSerialization:
             serialized_asset = encode_asset_condition(var)
             return cls._encode(serialized_asset, type_=serialized_asset.pop("__type"))
         elif isinstance(var, AssetRef):
-            return cls._encode({"name": var.name}, type_=DAT.ASSET_REF)
+            return cls._encode(attrs.asdict(var), type_=DAT.ASSET_REF)
         elif isinstance(var, SimpleTaskInstance):
             return cls._encode(
                 cls.serialize(var.__dict__, strict=strict),
@@ -879,7 +884,7 @@ class BaseSerialization:
         elif type_ == DAT.ASSET_ALL:
             return AssetAll(*(decode_asset_condition(x) for x in var["objects"]))
         elif type_ == DAT.ASSET_REF:
-            return AssetRef(name=var["name"])
+            return Asset.ref(**var)
         elif type_ == DAT.SIMPLE_TASK_INSTANCE:
             return SimpleTaskInstance(**cls.deserialize(var))
         elif type_ == DAT.CONNECTION:
@@ -1782,6 +1787,7 @@ class TaskGroupSerialization(BaseSerialization):
         # When calling json.dumps(self.data, sort_keys=True) to generate dag_hash, misjudgment will occur
         encoded = {
             "_group_id": task_group._group_id,
+            "group_display_name": task_group.group_display_name,
             "prefix_group_id": task_group.prefix_group_id,
             "tooltip": task_group.tooltip,
             "ui_color": task_group.ui_color,
@@ -1817,7 +1823,7 @@ class TaskGroupSerialization(BaseSerialization):
         group_id = cls.deserialize(encoded_group["_group_id"])
         kwargs = {
             key: cls.deserialize(encoded_group[key])
-            for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor"]
+            for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor", "group_display_name"]
         }
 
         if not encoded_group.get("is_mapped"):
@@ -1955,6 +1961,19 @@ class LazyDeserializedDAG(pydantic.BaseModel):
                     obj = BaseSerialization.deserialize(port)
                     if isinstance(obj, of_type):
                         yield task["task_id"], obj
+
+    def get_run_data_interval(self, run: DagRun) -> DataInterval:
+        """Get the data interval of this run."""
+        if run.dag_id is not None and run.dag_id != self.dag_id:
+            raise ValueError(f"Arguments refer to different DAGs: {self.dag_id} != {run.dag_id}")
+
+        data_interval = _get_model_data_interval(run, "data_interval_start", "data_interval_end")
+        # the older implementation has call to infer_automated_data_interval if data_interval is None, do we want to keep that or raise
+        # an exception?
+        if data_interval is None:
+            raise ValueError(f"Cannot calculate data interval for run {run}")
+
+        return data_interval
 
     if TYPE_CHECKING:
         access_control: Mapping[str, Mapping[str, Collection[str]] | Collection[str]] | None = pydantic.Field(

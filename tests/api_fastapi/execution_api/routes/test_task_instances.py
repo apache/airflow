@@ -22,13 +22,13 @@ from unittest import mock
 
 import pytest
 import uuid6
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 
 from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import State, TaskInstanceState, TerminalTIState
 
 from tests_common.test_utils.db import clear_db_runs, clear_rendered_ti_fields
 
@@ -136,6 +136,92 @@ class TestTIRunState:
 
         assert session.scalar(select(TaskInstance.state).where(TaskInstance.id == ti.id)) == initial_ti_state
 
+    def test_xcom_cleared_when_ti_runs(self, client, session, create_task_instance, time_machine):
+        """
+        Test that the xcoms are cleared when the Task Instance state is updated to running.
+        """
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_xcom_cleared_when_ti_runs",
+            state=State.QUEUED,
+            session=session,
+            start_date=instant,
+        )
+        session.commit()
+
+        # Lets stage a xcom push
+        ti.xcom_push(key="key", value="value")
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": instant_str,
+            },
+        )
+
+        assert response.status_code == 200
+        # Once the task is running, we can check if xcom is cleared
+        assert ti.xcom_pull(task_ids="test_xcom_cleared_when_ti_runs", key="key") is None
+
+    def test_xcom_not_cleared_for_deferral(self, client, session, create_task_instance, time_machine):
+        """
+        Test that the xcoms are not cleared when the Task Instance state is re-running after deferral.
+        """
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_xcom_not_cleared_for_deferral",
+            state=State.RUNNING,
+            session=session,
+            start_date=instant,
+        )
+        session.commit()
+
+        # Move this task to deferred
+        payload = {
+            "state": "deferred",
+            "trigger_kwargs": {"key": "value", "moment": "2024-12-18T00:00:00Z"},
+            "classpath": "my-classpath",
+            "next_method": "execute_callback",
+            "trigger_timeout": "P1D",  # 1 day
+        }
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+        assert response.status_code == 204
+        assert response.text == ""
+        session.expire_all()
+
+        # Deferred -> Queued so that we can run it again
+        query = update(TaskInstance).where(TaskInstance.id == ti.id).values(state="queued")
+        session.execute(query)
+        session.commit()
+
+        # Lets stage a xcom push
+        ti.xcom_push(key="key", value="value")
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": instant_str,
+            },
+        )
+
+        assert response.status_code == 200
+        assert ti.xcom_pull(task_ids="test_xcom_not_cleared_for_deferral", key="key") == "value"
+
 
 class TestTIUpdateState:
     def setup_method(self):
@@ -234,7 +320,7 @@ class TestTIUpdateState:
         with mock.patch(
             "airflow.api_fastapi.common.db.common.Session.execute",
             side_effect=[
-                mock.Mock(one=lambda: ("running",)),  # First call returns "queued"
+                mock.Mock(one=lambda: ("running", 1, 0)),  # First call returns "queued"
                 SQLAlchemyError("Database error"),  # Second call raises an error
             ],
         ):
@@ -339,6 +425,131 @@ class TestTIUpdateState:
         assert trs[0].reschedule_date == timezone.parse("2024-10-31T11:03:00+00:00")
         assert trs[0].map_index == -1
         assert trs[0].duration == 129600
+
+    @pytest.mark.parametrize(
+        ("retries", "expected_state"),
+        [
+            (0, State.FAILED),
+            (None, State.FAILED),
+            (3, State.UP_FOR_RETRY),
+        ],
+    )
+    def test_ti_update_state_to_failed_with_retries(
+        self, client, session, create_task_instance, retries, expected_state
+    ):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_retry",
+            state=State.RUNNING,
+        )
+
+        if retries is not None:
+            ti.max_tries = retries
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": TerminalTIState.FAILED,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.state == expected_state
+        assert ti.next_method is None
+        assert ti.next_kwargs is None
+
+    def test_ti_update_state_when_ti_is_restarting(self, client, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_when_ti_is_restarting",
+            state=State.RUNNING,
+        )
+        # update state to restarting
+        ti.state = State.RESTARTING
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": TerminalTIState.FAILED,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        ti = session.get(TaskInstance, ti.id)
+        # restarting is always retried
+        assert ti.state == State.UP_FOR_RETRY
+        assert ti.next_method is None
+        assert ti.next_kwargs is None
+
+    def test_ti_update_state_when_ti_has_higher_tries_than_retries(
+        self, client, session, create_task_instance
+    ):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_when_ti_has_higher_tries_than_retries",
+            state=State.RUNNING,
+        )
+        # two maximum tries defined, but third try going on
+        ti.max_tries = 2
+        ti.try_number = 3
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": TerminalTIState.FAILED,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        ti = session.get(TaskInstance, ti.id)
+        # all retries exhausted, marking as failed
+        assert ti.state == State.FAILED
+        assert ti.next_method is None
+        assert ti.next_kwargs is None
+
+    def test_ti_update_state_to_failed_without_retry_table_check(self, client, session, create_task_instance):
+        # we just want to fail in this test, no need to retry
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_failed_table_check",
+            state=State.RUNNING,
+        )
+        ti.start_date = DEFAULT_START_DATE
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": TerminalTIState.FAIL_WITHOUT_RETRY,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.state == State.FAILED
+        assert ti.next_method is None
+        assert ti.next_kwargs is None
+        assert ti.duration == 3600.00
 
 
 class TestTIHealthEndpoint:
@@ -508,33 +719,6 @@ class TestTIHealthEndpoint:
         # If successful, ensure last_heartbeat_at is updated
         session.refresh(ti)
         assert ti.last_heartbeat_at == time_now.add(minutes=10)
-
-    def test_ti_update_state_to_failed_table_check(self, client, session, create_task_instance):
-        ti = create_task_instance(
-            task_id="test_ti_update_state_to_failed_table_check",
-            state=State.RUNNING,
-        )
-        ti.start_date = DEFAULT_START_DATE
-        session.commit()
-
-        response = client.patch(
-            f"/execution/task-instances/{ti.id}/state",
-            json={
-                "state": State.FAILED,
-                "end_date": DEFAULT_END_DATE.isoformat(),
-            },
-        )
-
-        assert response.status_code == 204
-        assert response.text == ""
-
-        session.expire_all()
-
-        ti = session.get(TaskInstance, ti.id)
-        assert ti.state == State.FAILED
-        assert ti.next_method is None
-        assert ti.next_kwargs is None
-        assert ti.duration == 3600.00
 
 
 class TestTIPutRTIF:

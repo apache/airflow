@@ -54,6 +54,15 @@ Breaking changes
    * ``Set up JWT token authentication in Fast APIs (#42634)``
    * ``Prepare FAB provider to set next version as major version (#43939)``
 
+1.5.2
+.....
+
+Misc
+~~~~
+
+* ``Correctly import isabs from os.path (#45178)``
+* ``Invalidate user session on password reset (#45139)``
+
 1.5.1
 .....
 

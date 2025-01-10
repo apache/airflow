@@ -21,11 +21,13 @@ from unittest import mock
 
 import pytest
 
-from airflow.callbacks.callback_requests import CallbackRequest
+from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest
 from airflow.configuration import conf
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from airflow.providers.celery.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 KUBERNETES_QUEUE = "kubernetes"
 
@@ -258,7 +260,10 @@ class TestCeleryKubernetesExecutor:
         cel_k8s_exec = CeleryKubernetesExecutor(cel_exec, k8s_exec)
         cel_k8s_exec.callback_sink = mock.MagicMock()
 
-        callback = CallbackRequest(full_filepath="fake")
+        if AIRFLOW_V_3_0_PLUS:
+            callback = DagCallbackRequest(full_filepath="fake", dag_id="fake", run_id="fake")
+        else:
+            callback = CallbackRequest(full_filepath="fake")
         cel_k8s_exec.send_callback(callback)
 
         cel_k8s_exec.callback_sink.send.assert_called_once_with(callback)

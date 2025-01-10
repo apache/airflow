@@ -58,11 +58,11 @@ from airflow.sdk.api.datamodels._generated import (
     IntermediateTIState,
     TaskInstance,
     TerminalTIState,
+    VariableResponse,
 )
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeferTask,
-    ErrorResponse,
     GetConnection,
     GetVariable,
     GetXCom,
@@ -94,6 +94,11 @@ HEARTBEAT_THRESHOLD: int = 30
 # Don't heartbeat more often than this
 MIN_HEARTBEAT_INTERVAL: int = 5
 MAX_FAILED_HEARTBEATS: int = 3
+
+# These are the task instance states that require some additional information to transition into.
+# "Directly" here means that the PATCH API calls to transition into these states are
+# made from _handle_request() itself and don't have to come all the way to wait().
+STATES_SENT_DIRECTLY = [IntermediateTIState.DEFERRED, IntermediateTIState.UP_FOR_RESCHEDULE]
 
 
 @overload
@@ -518,11 +523,11 @@ class WatchedSubprocess:
         # If it hasn't, assume it's failed
         self._exit_code = self._exit_code if self._exit_code is not None else 1
 
-        # If the process has finished in a terminal state, update the state of the TaskInstance
-        # to reflect the final state of the process.
-        # For states like `deferred`, the process will exit with 0, but the state will be updated
+        # If the process has finished non-directly patched state (directly means deferred, reschedule, etc.),
+        # update the state of the TaskInstance to reflect the final state of the process.
+        # For states like `deferred`, `up_for_reschedule`, the process will exit with 0, but the state will be updated
         # by the subprocess in the `handle_requests` method.
-        if self.final_state in TerminalTIState:
+        if self.final_state not in STATES_SENT_DIRECTLY:
             self.client.task_instances.finish(
                 id=self.id, state=self.final_state, when=datetime.now(tz=timezone.utc)
             )
@@ -719,12 +724,15 @@ class WatchedSubprocess:
             if isinstance(conn, ConnectionResponse):
                 conn_result = ConnectionResult.from_conn_response(conn)
                 resp = conn_result.model_dump_json(exclude_unset=True).encode()
-            elif isinstance(conn, ErrorResponse):
+            else:
                 resp = conn.model_dump_json().encode()
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
-            var_result = VariableResult.from_variable_response(var)
-            resp = var_result.model_dump_json().encode()
+            if isinstance(var, VariableResponse):
+                var_result = VariableResult.from_variable_response(var)
+                resp = var_result.model_dump_json(exclude_unset=True).encode()
+            else:
+                resp = var.model_dump_json().encode()
         elif isinstance(msg, GetXCom):
             xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
             xcom_result = XComResult.from_xcom_response(xcom)

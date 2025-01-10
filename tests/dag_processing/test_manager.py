@@ -41,7 +41,7 @@ import time_machine
 from sqlalchemy import func
 from uuid6 import uuid7
 
-from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest
+from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.dag_processing.manager import (
     DagFileProcessorAgent,
@@ -211,16 +211,9 @@ class TestDagFileProcessorManager:
         assert manager._processors == {"abc.txt": mock_processor}
 
     @conf_vars({("scheduler", "file_parsing_sort_mode"): "alphabetical"})
-    @mock.patch("zipfile.is_zipfile", return_value=True)
-    @mock.patch("airflow.utils.file.might_contain_dag", return_value=True)
-    @mock.patch("airflow.utils.file.find_path_from_directory", return_value=True)
-    @mock.patch("airflow.utils.file.os.path.isfile", return_value=True)
-    def test_file_paths_in_queue_sorted_alphabetically(
-        self, mock_isfile, mock_find_path, mock_might_contain_dag, mock_zipfile
-    ):
+    def test_file_paths_in_queue_sorted_alphabetically(self):
         """Test dag files are sorted alphabetically"""
         dag_files = ["file_3.py", "file_2.py", "file_4.py", "file_1.py"]
-        mock_find_path.return_value = dag_files
 
         manager = DagFileProcessorManager(dag_directory="directory", max_runs=1)
 
@@ -230,16 +223,9 @@ class TestDagFileProcessorManager:
         assert manager._file_path_queue == deque(["file_1.py", "file_2.py", "file_3.py", "file_4.py"])
 
     @conf_vars({("scheduler", "file_parsing_sort_mode"): "random_seeded_by_host"})
-    @mock.patch("zipfile.is_zipfile", return_value=True)
-    @mock.patch("airflow.utils.file.might_contain_dag", return_value=True)
-    @mock.patch("airflow.utils.file.find_path_from_directory", return_value=True)
-    @mock.patch("airflow.utils.file.os.path.isfile", return_value=True)
-    def test_file_paths_in_queue_sorted_random_seeded_by_host(
-        self, mock_isfile, mock_find_path, mock_might_contain_dag, mock_zipfile
-    ):
+    def test_file_paths_in_queue_sorted_random_seeded_by_host(self):
         """Test files are randomly sorted and seeded by host name"""
         dag_files = ["file_3.py", "file_2.py", "file_4.py", "file_1.py"]
-        mock_find_path.return_value = dag_files
 
         manager = DagFileProcessorManager(dag_directory="directory", max_runs=1)
 
@@ -256,44 +242,13 @@ class TestDagFileProcessorManager:
         manager.prepare_file_path_queue()
         assert manager._file_path_queue == expected_order
 
-    @pytest.fixture
-    def change_platform_timezone(self, monkeypatch):
-        monkeypatch.setenv("TZ", "Europe/Paris")
-
-        # propagate new timezone to C routines
-        # this is only needed for Unix. On Windows, exporting the TZ env variable
-        # is enough (see https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/localtime-s-localtime32-s-localtime64-s?view=msvc-170#remarks)
-        tzset = getattr(time, "tzset", None)
-        if tzset is not None:
-            tzset()
-
-        yield
-
-        # reset timezone to platform's default
-        monkeypatch.delenv("TZ")
-        if tzset is not None:
-            tzset()
-
     @conf_vars({("scheduler", "file_parsing_sort_mode"): "modified_time"})
-    @mock.patch("zipfile.is_zipfile", return_value=True)
-    @mock.patch("airflow.utils.file.might_contain_dag", return_value=True)
-    @mock.patch("airflow.utils.file.find_path_from_directory", return_value=True)
-    @mock.patch("airflow.utils.file.os.path.isfile", return_value=True)
     @mock.patch("airflow.utils.file.os.path.getmtime")
-    def test_file_paths_in_queue_sorted_by_modified_time(
-        self,
-        mock_getmtime,
-        mock_isfile,
-        mock_find_path,
-        mock_might_contain_dag,
-        mock_zipfile,
-        change_platform_timezone,
-    ):
+    def test_file_paths_in_queue_sorted_by_modified_time(self, mock_getmtime):
         """Test files are sorted by modified time"""
         paths_with_mtime = {"file_3.py": 3.0, "file_2.py": 2.0, "file_4.py": 5.0, "file_1.py": 4.0}
         dag_files = list(paths_with_mtime.keys())
         mock_getmtime.side_effect = list(paths_with_mtime.values())
-        mock_find_path.return_value = dag_files
 
         manager = DagFileProcessorManager(dag_directory="directory", max_runs=1)
 
@@ -303,24 +258,11 @@ class TestDagFileProcessorManager:
         assert manager._file_path_queue == deque(["file_4.py", "file_1.py", "file_3.py", "file_2.py"])
 
     @conf_vars({("scheduler", "file_parsing_sort_mode"): "modified_time"})
-    @mock.patch("zipfile.is_zipfile", return_value=True)
-    @mock.patch("airflow.utils.file.might_contain_dag", return_value=True)
-    @mock.patch("airflow.utils.file.find_path_from_directory", return_value=True)
-    @mock.patch("airflow.utils.file.os.path.isfile", return_value=True)
     @mock.patch("airflow.utils.file.os.path.getmtime")
-    def test_file_paths_in_queue_excludes_missing_file(
-        self,
-        mock_getmtime,
-        mock_isfile,
-        mock_find_path,
-        mock_might_contain_dag,
-        mock_zipfile,
-        change_platform_timezone,
-    ):
+    def test_file_paths_in_queue_excludes_missing_file(self, mock_getmtime):
         """Check that a file is not enqueued for processing if it has been deleted"""
         dag_files = ["file_3.py", "file_2.py", "file_4.py"]
         mock_getmtime.side_effect = [1.0, 2.0, FileNotFoundError()]
-        mock_find_path.return_value = dag_files
 
         manager = DagFileProcessorManager(dag_directory="directory", max_runs=1)
 
@@ -329,24 +271,11 @@ class TestDagFileProcessorManager:
         assert manager._file_path_queue == deque(["file_2.py", "file_3.py"])
 
     @conf_vars({("scheduler", "file_parsing_sort_mode"): "modified_time"})
-    @mock.patch("zipfile.is_zipfile", return_value=True)
-    @mock.patch("airflow.utils.file.might_contain_dag", return_value=True)
-    @mock.patch("airflow.utils.file.find_path_from_directory", return_value=True)
-    @mock.patch("airflow.utils.file.os.path.isfile", return_value=True)
     @mock.patch("airflow.utils.file.os.path.getmtime")
-    def test_add_new_file_to_parsing_queue(
-        self,
-        mock_getmtime,
-        mock_isfile,
-        mock_find_path,
-        mock_might_contain_dag,
-        mock_zipfile,
-        change_platform_timezone,
-    ):
+    def test_add_new_file_to_parsing_queue(self, mock_getmtime):
         """Check that new file is added to parsing queue"""
         dag_files = ["file_1.py", "file_2.py", "file_3.py"]
         mock_getmtime.side_effect = [1.0, 2.0, 3.0]
-        mock_find_path.return_value = dag_files
 
         manager = DagFileProcessorManager(dag_directory="directory", max_runs=1)
 
@@ -359,21 +288,8 @@ class TestDagFileProcessorManager:
         assert manager._file_path_queue == deque(["file_4.py", "file_3.py", "file_2.py", "file_1.py"])
 
     @conf_vars({("scheduler", "file_parsing_sort_mode"): "modified_time"})
-    @mock.patch("airflow.settings.TIMEZONE", timezone.utc)
-    @mock.patch("zipfile.is_zipfile", return_value=True)
-    @mock.patch("airflow.utils.file.might_contain_dag", return_value=True)
-    @mock.patch("airflow.utils.file.find_path_from_directory", return_value=True)
-    @mock.patch("airflow.utils.file.os.path.isfile", return_value=True)
     @mock.patch("airflow.utils.file.os.path.getmtime")
-    def test_recently_modified_file_is_parsed_with_mtime_mode(
-        self,
-        mock_getmtime,
-        mock_isfile,
-        mock_find_path,
-        mock_might_contain_dag,
-        mock_zipfile,
-        change_platform_timezone,
-    ):
+    def test_recently_modified_file_is_parsed_with_mtime_mode(self, mock_getmtime):
         """
         Test recently updated files are processed even if min_file_process_interval is not reached
         """
@@ -381,7 +297,6 @@ class TestDagFileProcessorManager:
         initial_file_1_mtime = (freezed_base_time - timedelta(minutes=5)).timestamp()
         dag_files = ["file_1.py"]
         mock_getmtime.side_effect = [initial_file_1_mtime]
-        mock_find_path.return_value = dag_files
 
         manager = DagFileProcessorManager(dag_directory="directory", max_runs=3)
 
@@ -415,13 +330,7 @@ class TestDagFileProcessorManager:
                 > (freezed_base_time - manager._file_stats["file_1.py"].last_finish_time).total_seconds()
             )
 
-    @mock.patch("zipfile.is_zipfile", return_value=True)
-    @mock.patch("airflow.utils.file.might_contain_dag", return_value=True)
-    @mock.patch("airflow.utils.file.find_path_from_directory", return_value=True)
-    @mock.patch("airflow.utils.file.os.path.isfile", return_value=True)
-    def test_file_paths_in_queue_sorted_by_priority(
-        self, mock_isfile, mock_find_path, mock_might_contain_dag, mock_zipfile
-    ):
+    def test_file_paths_in_queue_sorted_by_priority(self):
         from airflow.models.dagbag import DagPriorityParsingRequest
 
         parsing_request = DagPriorityParsingRequest(fileloc="file_1.py")
@@ -431,7 +340,6 @@ class TestDagFileProcessorManager:
 
         """Test dag files are sorted by priority"""
         dag_files = ["file_3.py", "file_2.py", "file_4.py", "file_1.py"]
-        mock_find_path.return_value = dag_files
 
         manager = DagFileProcessorManager(dag_directory="directory", max_runs=1)
 
@@ -526,6 +434,42 @@ class TestDagFileProcessorManager:
             manager._kill_timed_out_processors()
         mock_kill.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ["callbacks", "path", "child_comms_fd", "expected_buffer"],
+        [
+            pytest.param(
+                [],
+                "/opt/airflow/dags/test_dag.py",
+                123,
+                b'{"file":"/opt/airflow/dags/test_dag.py","requests_fd":123,"callback_requests":[],'
+                b'"type":"DagFileParseRequest"}\n',
+            ),
+            pytest.param(
+                [
+                    DagCallbackRequest(
+                        full_filepath="/opt/airflow/dags/dag_callback_dag.py",
+                        dag_id="dag_id",
+                        run_id="run_id",
+                        is_failure_callback=False,
+                    )
+                ],
+                "/opt/airflow/dags/dag_callback_dag.py",
+                123,
+                b'{"file":"/opt/airflow/dags/dag_callback_dag.py","requests_fd":123,"callback_requests":'
+                b'[{"full_filepath":"/opt/airflow/dags/dag_callback_dag.py","msg":null,"dag_id":"dag_id",'
+                b'"run_id":"run_id","is_failure_callback":false,"type":"DagCallbackRequest"}],'
+                b'"type":"DagFileParseRequest"}\n',
+            ),
+        ],
+    )
+    def test_serialize_callback_requests(self, callbacks, path, child_comms_fd, expected_buffer):
+        processor = self.mock_processor()
+        processor._on_child_started(callbacks, path, child_comms_fd)
+
+        # Verify the response was added to the buffer
+        val = processor.stdin.getvalue()
+        assert val == expected_buffer
+
     @conf_vars({("core", "load_examples"): "False"})
     @pytest.mark.execution_timeout(10)
     def test_dag_with_system_exit(self):
@@ -573,8 +517,10 @@ class TestDagFileProcessorManager:
                 if exit_event.is_set():
                     break
 
-                req = CallbackRequest(full_filepath=dag_filepath.as_posix())
-                logger.info("Sending CallbackRequests %d", n)
+                req = DagCallbackRequest(
+                    full_filepath=dag_filepath.as_posix(), dag_id="test_dag", run_id="run_id"
+                )
+                logger.info("Sending DagCallbackRequests %d", n)
                 try:
                     pipe.send(req)
                 except TypeError:
@@ -583,7 +529,7 @@ class TestDagFileProcessorManager:
                     break
                 except OSError:
                     break
-                logger.debug("   Sent %d CallbackRequests", n)
+                logger.debug("   Sent %d DagCallbackRequests", n)
 
         thread = threading.Thread(target=keep_pipe_full, args=(parent_pipe, exit_event))
 

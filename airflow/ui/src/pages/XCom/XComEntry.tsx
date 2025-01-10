@@ -30,13 +30,7 @@ type XComEntryProps = {
   readonly xcomKey: string;
 };
 
-export const XComEntry = ({
-  dagId,
-  mapIndex,
-  runId,
-  taskId,
-  xcomKey,
-}: XComEntryProps) => {
+export const XComEntry = ({ dagId, mapIndex, runId, taskId, xcomKey }: XComEntryProps) => {
   const { data, isLoading } = useXcomServiceGetXcomEntry<XComResponseString>({
     dagId,
     dagRunId: runId,
