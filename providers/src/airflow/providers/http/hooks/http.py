@@ -268,15 +268,19 @@ class HttpHook(BaseHook):
     def _configure_session_from_extra(
         self, session: requests.Session, connection: Connection
     ) -> requests.Session:
+        # TODO: once http provider depends on Airflow 2.10.0, use get_extra_dejson(True) instead
         extra = connection.extra_dejson
         extra.pop("timeout", None)
         extra.pop("allow_redirects", None)
         extra.pop("auth_type", None)
         extra.pop("auth_kwargs", None)
         headers = extra.pop("headers", {})
+
+        # TODO: once http provider depends on Airflow 2.10.0, we can remove this checked section below
         if isinstance(headers, str):
             with suppress(JSONDecodeError):
                 headers = json.loads(headers)
+
         session.proxies = extra.pop("proxies", extra.pop("proxy", {}))
         session.stream = extra.pop("stream", False)
         session.verify = extra.pop("verify", extra.pop("verify_ssl", True))

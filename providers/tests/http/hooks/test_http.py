@@ -709,8 +709,9 @@ class TestHttpHook:
     def test_airflow_dependency_version(self):
         if airflow_dependency_version() >= packaging.version.parse("2.10.0"):
             raise RuntimeError(
-                "The class ConnectionWithExtra can be removed from the HttpHook since the get_extra_dejson"
-                "method is now available on the Connection class since Apache Airflow 2.10.0+"
+                f"The method {HttpHook._configure_session_from_extra.__name__} from the "
+                f"{HttpHook.__name__} should be refactored since the {Connection.get_extra_dejson.__name__} "
+                f"method is now available on the {Connection.__name__} class since Apache Airflow 2.10.0"
             )
 
 
