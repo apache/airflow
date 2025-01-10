@@ -20,7 +20,7 @@ import os
 import sys
 import traceback
 from collections.abc import Generator
-from typing import TYPE_CHECKING, Annotated, Callable, Literal, Union
+from typing import TYPE_CHECKING, Annotated, Literal, Union
 
 import attrs
 from pydantic import BaseModel, Field, TypeAdapter
@@ -40,7 +40,6 @@ from airflow.stats import Stats
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
 
-    from airflow.typing_compat import Self
     from airflow.utils.context import Context
 
 
@@ -195,22 +194,18 @@ class DagFileProcessorProcess(WatchedSubprocess):
 
     parsing_result: DagFileParsingResult | None = None
 
-    @classmethod
-    def start(  # type: ignore[override]
-        cls,
-        path: str | os.PathLike[str],
-        callbacks: list[CallbackRequest],
-        target: Callable[[], None] = _parse_file_entrypoint,
+    def _on_child_started(
+        self,
+        *,
+        requests_fd: int,
         **kwargs,
-    ) -> Self:
-        return super().start(path, callbacks, target=target, client=None, **kwargs)  # type:ignore[arg-type]
-
-    def _on_child_started(  # type: ignore[override]
-        self, callbacks: list[CallbackRequest], path: str | os.PathLike[str], child_comms_fd: int
     ) -> None:
+        callbacks: list[CallbackRequest] = kwargs["callbacks"]
+        path: str | os.PathLike[str] = kwargs["path"]
+
         msg = DagFileParseRequest(
             file=os.fspath(path),
-            requests_fd=child_comms_fd,
+            requests_fd=requests_fd,
             callback_requests=callbacks,
         )
         self.stdin.write(msg.model_dump_json().encode() + b"\n")

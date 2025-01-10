@@ -48,7 +48,11 @@ import airflow.models
 from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest, TaskCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
-from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
+from airflow.dag_processing.processor import (
+    DagFileParsingResult,
+    DagFileProcessorProcess,
+    _parse_file_entrypoint,
+)
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dagwarning import DagWarning
@@ -864,9 +868,15 @@ class DagFileProcessorManager:
 
         return DagFileProcessorProcess.start(
             id=id,
-            path=file_path,
-            callbacks=callback_to_execute_for_file,
-            selector=self.selector,
+            client=None,
+            constructor_kwargs=dict(
+                selector=self.selector,
+            ),
+            target=_parse_file_entrypoint,
+            on_child_started_kwargs=dict(
+                path=file_path,
+                callbacks=callback_to_execute_for_file,
+            ),
         )
 
     def _start_new_processes(self):

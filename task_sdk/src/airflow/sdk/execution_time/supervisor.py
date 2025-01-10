@@ -286,13 +286,13 @@ def _fork_main(
 
 @attrs.define()
 class WatchedSubprocess:
-    id: UUID
+    id: UUID | None
     pid: int
 
     stdin: BinaryIO
     """The handle connected to stdin of the child process"""
 
-    client: Client
+    client: Client | None
 
     _process: psutil.Process
     _num_open_sockets: int = 4
@@ -319,14 +319,17 @@ class WatchedSubprocess:
     @classmethod
     def start(
         cls,
-        path: str | os.PathLike[str],
-        what: TaskInstance,
-        client: Client,
+        id: UUID | None,
+        client: Client | None,
         target: Callable[[], None] = _subprocess_main,
         logger: FilteringBoundLogger | None = None,
-        **constructor_kwargs,
+        constructor_kwargs=None,
+        on_child_started_kwargs=None,
     ) -> Self:
         """Fork and start a new subprocess to execute the given task."""
+        constructor_kwargs = constructor_kwargs or {}
+        on_child_started_kwargs = on_child_started_kwargs or {}
+
         # Create socketpairs/"pipes" to connect to the stdin and out from the subprocess
         child_stdin, feed_stdin = mkpipe(remote_read=True)
         child_stdout, read_stdout = mkpipe()
@@ -342,10 +345,11 @@ class WatchedSubprocess:
 
             # Python GC should delete these for us, but lets make double sure that we don't keep anything
             # around in the forked processes, especially things that might involve open files or sockets!
-            del path
             del client
-            del what
             del logger
+            for k in list(on_child_started_kwargs.keys()):
+                v = on_child_started_kwargs.pop(k)
+                del v
 
             # Run the child entrypoint
             _fork_main(child_stdin, child_stdout, child_stderr, child_logs.fileno(), target)
@@ -357,7 +361,7 @@ class WatchedSubprocess:
         cls._close_unused_sockets(child_stdin, child_stdout, child_stderr, child_comms, child_logs)
 
         proc = cls(
-            id=constructor_kwargs.pop("id", None) or getattr(what, "id"),
+            id=id,
             pid=pid,
             stdin=feed_stdin,
             process=psutil.Process(pid),
@@ -375,7 +379,7 @@ class WatchedSubprocess:
         )
 
         # Tell the task process what it needs to do!
-        proc._on_child_started(what, path, requests_fd)
+        proc._on_child_started(requests_fd=requests_fd, **on_child_started_kwargs)
 
         return proc
 
@@ -423,12 +427,16 @@ class WatchedSubprocess:
         for sock in sockets:
             sock.close()
 
-    def _on_child_started(self, ti: TaskInstance, path: str | os.PathLike[str], requests_fd: int):
+    def _on_child_started(self, *, requests_fd: int, **kwargs):
         """Send startup message to the subprocess."""
+        ti: TaskInstance = kwargs["ti"]
+        path: str | os.PathLike[str] = kwargs["path"]
         try:
             # We've forked, but the task won't start doing anything until we send it the StartupDetails
             # message. But before we do that, we need to tell the server it's started (so it has the chance to
             # tell us "no, stop!" for any reason)
+            if TYPE_CHECKING:
+                assert self.client
             ti_context = self.client.task_instances.start(ti.id, self.pid, datetime.now(tz=timezone.utc))
             self._last_successful_heartbeat = time.monotonic()
         except Exception:
@@ -528,6 +536,8 @@ class WatchedSubprocess:
         # For states like `deferred`, `up_for_reschedule`, the process will exit with 0, but the state will be updated
         # by the subprocess in the `handle_requests` method.
         if self.final_state not in STATES_SENT_DIRECTLY:
+            if TYPE_CHECKING:
+                assert self.client
             self.client.task_instances.finish(
                 id=self.id, state=self.final_state, when=datetime.now(tz=timezone.utc)
             )
@@ -716,6 +726,8 @@ class WatchedSubprocess:
     def _handle_request(self, msg: ToSupervisor, log: FilteringBoundLogger):
         log.debug("Received message from task runner", msg=msg)
         resp = None
+        if TYPE_CHECKING:
+            assert self.client
         if isinstance(msg, TaskState):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
@@ -902,7 +914,12 @@ def supervise(
         processors = logging_processors(enable_pretty_log=pretty_logs)[0]
         logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
 
-    process = WatchedSubprocess.start(dag_path, ti, client=client, logger=logger)
+    process = WatchedSubprocess.start(
+        id=ti.id,
+        client=client,
+        logger=logger,
+        on_child_started_kwargs=dict(path=dag_path, ti=ti),
+    )
 
     exit_code = process.wait()
     end = time.monotonic()
