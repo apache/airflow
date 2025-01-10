@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-10T07:41:48.949083
+# This constraints file was automatically generated on 2025-01-10T13:42:55.395166
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -84,7 +84,7 @@ asttokens==3.0.0
 async-timeout==5.0.1
 asyncssh==2.19.0
 atlasclient==1.0.0
-atlassian-python-api==3.41.16
+atlassian-python-api==3.41.18
 attrs==24.3.0
 aws-sam-translator==1.94.0
 aws-xray-sdk==2.14.0
@@ -361,7 +361,7 @@ mypy-boto3-s3==1.35.93
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.1.0
-mysqlclient==2.2.6
+mysqlclient==2.2.7
 nbclient==0.10.2
 nbformat==5.10.4
 neo4j==5.27.0
