@@ -254,10 +254,6 @@ def _fork_main(
                 atexit._run_exitfuncs()
                 base_exit(n)
 
-    from airflow import settings
-
-    settings.configure_orm()
-
     try:
         target()
         exit(0)
