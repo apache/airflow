@@ -65,6 +65,12 @@ class DagBundlesManager(LoggingMixin):
                 " for section `dag_bundles` and key `backends`."
             )
 
+        if any(b["name"] == "example_dags" for b in backends):
+            raise AirflowConfigException(
+                "Bundle name 'example_dags' is a reserved name. Please choose another name for your bundle."
+                " Example DAGs can be enabled with the '[core] load_examples' config."
+            )
+
         # example dags!
         if conf.getboolean("core", "LOAD_EXAMPLES"):
             from airflow import example_dags

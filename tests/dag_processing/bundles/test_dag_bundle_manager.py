@@ -181,3 +181,10 @@ def test_example_dags_bundle_added():
         manager = DagBundlesManager()
         manager.parse_config()
         assert "example_dags" not in manager._bundle_config
+
+
+def test_example_dags_name_is_reserved():
+    reserved_name_config = [{"name": "example_dags"}]
+    with conf_vars({("dag_bundles", "backends"): json.dumps(reserved_name_config)}):
+        with pytest.raises(AirflowConfigException, match="Bundle name 'example_dags' is a reserved name."):
+            DagBundlesManager().parse_config()
