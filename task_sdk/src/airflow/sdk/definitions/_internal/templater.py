@@ -28,7 +28,7 @@ import jinja2.nativetypes
 import jinja2.sandbox
 
 from airflow.io.path import ObjectStoragePath
-from airflow.sdk.definitions.mixins import ResolveMixin
+from airflow.sdk.definitions._internal.mixins import ResolveMixin
 from airflow.utils.helpers import render_template_as_native, render_template_to_string
 
 if TYPE_CHECKING:
@@ -36,17 +36,6 @@ if TYPE_CHECKING:
 
     from airflow.models.operator import Operator
     from airflow.sdk.definitions.dag import DAG
-
-
-def literal(value: Any) -> LiteralValue:
-    """
-    Wrap a value to ensure it is rendered as-is without applying Jinja templating to its contents.
-
-    Designed for use in an operator's template field.
-
-    :param value: The value to be rendered without templating
-    """
-    return LiteralValue(value)
 
 
 @dataclass(frozen=True)
@@ -69,8 +58,6 @@ class LiteralValue(ResolveMixin):
 log = logging.getLogger(__name__)
 
 
-# TODO: Task-SDK: Should everything below this line live in `_internal/templater.py`?
-#   so that it is not exposed to the public API.
 class Templater:
     """
     This renders the template fields of object.
