@@ -42,9 +42,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => (
           <div />
         </Flex>
       </HStack>
-      <HStack>
-        <ClearRunButton dagRun={dagRun} />
-      </HStack>
+      <ClearRunButton dagRun={dagRun} />
     </Flex>
     {dagRun.note === null || dagRun.note.length === 0 ? undefined : (
       <Flex alignItems="flex-start" justifyContent="space-between" mr={16}>

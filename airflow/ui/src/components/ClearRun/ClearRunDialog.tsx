@@ -29,7 +29,7 @@ import { Button, Dialog } from "src/components/ui";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
 
 import SegmentedControl from "../ui/SegmentedControl";
-import ClearRunTasksAccordion from "./ClearRunTaskAccordion";
+import ClearRunAccordion from "./ClearRunAccordion";
 
 type Props = {
   readonly affectedTasks: TaskInstanceCollectionResponse;
@@ -95,7 +95,9 @@ const ClearRunDialog = ({
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>
-            <Heading size="xl">Clear DagRun - {dagRunId} </Heading>
+            <Heading size="xl">
+              <strong>Clear DagRun: </strong> {dagRunId}
+            </Heading>
           </VStack>
         </Dialog.Header>
 
@@ -118,7 +120,7 @@ const ClearRunDialog = ({
               value={onlyFailed ? "only_failed" : "existing_tasks"}
             />
           </Flex>
-          <ClearRunTasksAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
+          <ClearRunAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
           <Flex justifyContent="end" mt={3}>
             <Button
               colorPalette="blue"
