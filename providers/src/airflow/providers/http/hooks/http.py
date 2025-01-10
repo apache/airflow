@@ -30,13 +30,14 @@ import aiohttp
 import requests
 import tenacity
 from aiohttp import ClientResponseError
+from asgiref.sync import sync_to_async
+from requests.auth import AuthBase
+from requests.models import DEFAULT_REDIRECT_LIMIT
+from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
+
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.utils.module_loading import import_string
-from asgiref.sync import sync_to_async
-from requests.auth import HTTPBasicAuth, AuthBase
-from requests.models import DEFAULT_REDIRECT_LIMIT
-from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
@@ -232,7 +233,7 @@ class HttpHook(BaseHook):
                     self._is_auth_type_setup = True
                     self.log.info("Loaded auth_type: %s", module_name)
                     return module
-                except ImportError as error:
+                except Exception as error:
                     self.log.error("Cannot import auth_type '%s' due to: %s", module_name, error)
                     raise AirflowException(error)
             self.log.warning(
