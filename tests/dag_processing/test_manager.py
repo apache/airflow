@@ -112,8 +112,8 @@ class TestDagFileProcessorManager:
             id=uuid7(),
             pid=1234,
             process=proc,
-            client=Mock(),
             stdin=io.BytesIO(),
+            requests_fd=123,
         )
         ret._num_open_sockets = 0
         return ret
@@ -435,12 +435,11 @@ class TestDagFileProcessorManager:
         mock_kill.assert_not_called()
 
     @pytest.mark.parametrize(
-        ["callbacks", "path", "child_comms_fd", "expected_buffer"],
+        ["callbacks", "path", "expected_buffer"],
         [
             pytest.param(
                 [],
                 "/opt/airflow/dags/test_dag.py",
-                123,
                 b'{"file":"/opt/airflow/dags/test_dag.py","requests_fd":123,"callback_requests":[],'
                 b'"type":"DagFileParseRequest"}\n',
             ),
@@ -454,7 +453,6 @@ class TestDagFileProcessorManager:
                     )
                 ],
                 "/opt/airflow/dags/dag_callback_dag.py",
-                123,
                 b'{"file":"/opt/airflow/dags/dag_callback_dag.py","requests_fd":123,"callback_requests":'
                 b'[{"full_filepath":"/opt/airflow/dags/dag_callback_dag.py","msg":null,"dag_id":"dag_id",'
                 b'"run_id":"run_id","is_failure_callback":false,"type":"DagCallbackRequest"}],'
@@ -462,9 +460,9 @@ class TestDagFileProcessorManager:
             ),
         ],
     )
-    def test_serialize_callback_requests(self, callbacks, path, child_comms_fd, expected_buffer):
+    def test_serialize_callback_requests(self, callbacks, path, expected_buffer):
         processor = self.mock_processor()
-        processor._on_child_started(callbacks, path, child_comms_fd)
+        processor._on_child_started(callbacks, path)
 
         # Verify the response was added to the buffer
         val = processor.stdin.getvalue()
