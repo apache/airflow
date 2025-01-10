@@ -21,7 +21,8 @@ name: CI
 on:  # yamllint disable-line rule:truthy
   pull_request:
     types: [labeled, unlabeled, opened, reopened, synchronize]
-
+permissions:
+  contents: read
 jobs:
   check-news-fragment:
     name: Check News Fragment
