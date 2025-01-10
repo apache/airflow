@@ -347,9 +347,7 @@ class WatchedSubprocess:
             # around in the forked processes, especially things that might involve open files or sockets!
             del client
             del logger
-            for k in list(on_child_started_kwargs.keys()):
-                v = on_child_started_kwargs.pop(k)
-                del v
+            del on_child_started_kwargs
 
             # Run the child entrypoint
             _fork_main(child_stdin, child_stdout, child_stderr, child_logs.fileno(), target)
