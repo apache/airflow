@@ -465,7 +465,9 @@ class TestHttpHook:
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_auth_types")
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
     @mock.patch("providers.tests.http.hooks.test_http.CustomAuthBase.__init__")
-    def test_connection_with_extra_auth_type_and_no_credentials(self, auth, mock_get_connection, mock_get_auth_types):
+    def test_connection_with_extra_auth_type_and_no_credentials(
+        self, auth, mock_get_connection, mock_get_auth_types
+    ):
         auth.return_value = None
         conn = Connection(
             conn_id="http_default",
