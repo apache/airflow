@@ -131,8 +131,8 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
 
   return (
     <>
-      <FlexibleForm params={paramsDict} />
-      <Accordion.Root collapsible mb={4} mt={4} size="lg" variant="enclosed">
+      <Accordion.Root collapsible defaultValue={["params"]} mb={4} mt={4} size="lg" variant="enclosed">
+        <FlexibleForm params={paramsDict} />
         <Accordion.Item key="advancedOptions" value="advancedOptions">
           <Accordion.ItemTrigger cursor="button">Advanced Options</Accordion.ItemTrigger>
           <Accordion.ItemContent>

@@ -38,19 +38,26 @@ const FlexibleForm = ({ params }: FlexibleFormProps) => {
 
   return (
     <>
-      <Stack separator={<StackSeparator />}>
-        {Object.keys(params).length > 0 && (
-          <Alert
-            status="warning"
-            title="Population of changes in trigger form fields is not implemented yet. Please stay tuned for upcoming updates... and change the run conf in the 'Advanced Options' conf section below meanwhile."
-          />
-        )}
-        {Object.entries(params)
-          .filter(([, param]) => typeof param.schema.section !== "string")
-          .map(([name, param]) => (
-            <Row key={name} name={name} param={param} />
-          ))}
-      </Stack>
+      {Object.entries(params).some(([, param]) => typeof param.schema.section !== "string") ? (
+        <Accordion.Item key="params" value="params">
+          <Accordion.ItemTrigger cursor="button">Run Parameters</Accordion.ItemTrigger>
+          <Accordion.ItemContent>
+            <Stack separator={<StackSeparator />}>
+              {Object.keys(params).length > 0 && (
+                <Alert
+                  status="warning"
+                  title="Population of changes in trigger form fields is not implemented yet. Please stay tuned for upcoming updates... and change the run conf in the 'Advanced Options' conf section below meanwhile."
+                />
+              )}
+              {Object.entries(params)
+                .filter(([, param]) => typeof param.schema.section !== "string")
+                .map(([name, param]) => (
+                  <Row key={name} name={name} param={param} />
+                ))}
+            </Stack>
+          </Accordion.ItemContent>
+        </Accordion.Item>
+      ) : undefined}
       {Object.entries(params)
         .filter(([, secParam]) => secParam.schema.section)
         .map(([, secParam]) => {
@@ -62,27 +69,18 @@ const FlexibleForm = ({ params }: FlexibleFormProps) => {
             processedSections.set(currentSection, true);
 
             return (
-              <Accordion.Root
-                collapsible
-                key={secParam.schema.section}
-                mb={4}
-                mt={4}
-                size="lg"
-                variant="enclosed"
-              >
-                <Accordion.Item value={secParam.schema.section ?? ""}>
-                  <Accordion.ItemTrigger cursor="button">{secParam.schema.section}</Accordion.ItemTrigger>
-                  <Accordion.ItemContent>
-                    <Stack separator={<StackSeparator />}>
-                      {Object.entries(params)
-                        .filter(([, param]) => param.schema.section === currentSection)
-                        .map(([name, param]) => (
-                          <Row key={name} name={name} param={param} />
-                        ))}
-                    </Stack>
-                  </Accordion.ItemContent>
-                </Accordion.Item>
-              </Accordion.Root>
+              <Accordion.Item key={secParam.schema.section ?? ""} value={secParam.schema.section ?? ""}>
+                <Accordion.ItemTrigger cursor="button">{secParam.schema.section}</Accordion.ItemTrigger>
+                <Accordion.ItemContent>
+                  <Stack separator={<StackSeparator />}>
+                    {Object.entries(params)
+                      .filter(([, param]) => param.schema.section === currentSection)
+                      .map(([name, param]) => (
+                        <Row key={name} name={name} param={param} />
+                      ))}
+                  </Stack>
+                </Accordion.ItemContent>
+              </Accordion.Item>
             );
           }
         })}
