@@ -1531,7 +1531,7 @@ class TestPatchDagRunState(TestDagRunEndpoint):
         dag_run_id = "TEST_DAG_RUN_ID"
         with dag_maker(dag_id) as dag:
             task = EmptyOperator(task_id="task_id", dag=dag)
-        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        self.app.dag_bag.bag_dag(dag)
         dr = dag_maker.create_dagrun(run_id=dag_run_id, run_type=run_type)
         ti = dr.get_task_instance(task_id="task_id")
         ti.task = task

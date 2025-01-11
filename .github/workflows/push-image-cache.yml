@@ -80,8 +80,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Disable airflow repo cache read from main."
         required: true
         type: string
-permissions:
-  contents: read
 jobs:
   push-ci-image-cache:
     name: "Push CI ${{ inputs.cache-type }}:${{ matrix.python }} image cache "
@@ -90,6 +88,9 @@ jobs:
     # instead of an array of strings.
     # yamllint disable-line rule:line-length
     runs-on: ${{ (inputs.platform == 'linux/amd64') && fromJSON(inputs.runs-on-as-json-public) || fromJSON(inputs.runs-on-as-json-self-hosted) }}
+    permissions:
+      contents: read
+      packages: write
     strategy:
       fail-fast: false
       matrix:
@@ -163,6 +164,9 @@ jobs:
     # instead of an array of strings.
     # yamllint disable-line rule:line-length
     runs-on: ${{ (inputs.platform == 'linux/amd64') && fromJSON(inputs.runs-on-as-json-public) || fromJSON(inputs.runs-on-as-json-self-hosted) }}
+    permissions:
+      contents: read
+      packages: write
     strategy:
       fail-fast: false
       matrix:

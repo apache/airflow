@@ -175,16 +175,22 @@ jobs:
           PUSH: ${{ inputs.push-image }}
           VERBOSE: "true"
           PLATFORM: ${{ inputs.platform }}
+      - name: Check free space
+        run: df -H
+        shell: bash
+      - name: Make /mnt/ directory writeable
+        run: sudo chown -R ${USER} /mnt
+        shell: bash
       - name: "Export CI docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         env:
           PLATFORM: ${{ inputs.platform }}
-        run: breeze ci-image save --platform "${PLATFORM}"
+        run: breeze ci-image save --platform "${PLATFORM}" --image-file-dir "/mnt"
         if: inputs.upload-image-artifact == 'true'
       - name: "Stash CI docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         uses: apache/infrastructure-actions/stash/save@c94b890bbedc2fc61466d28e6bd9966bc6c6643c
         with:
           key: ci-image-save-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}
-          path: "/tmp/ci-image-save-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar"
+          path: "/mnt/ci-image-save-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar"
           if-no-files-found: 'error'
           retention-days: '2'
         if: inputs.upload-image-artifact == 'true'
