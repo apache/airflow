@@ -9,9 +9,11 @@ ack
 ackIds
 acknowledgement
 acks
+acl
 actionCard
 Acyclic
 acyclic
+adb
 AddressesType
 adf
 adhoc
@@ -32,6 +34,7 @@ airbyte
 AirflowException
 airflowignore
 ajax
+aks
 AlertApi
 alertPolicies
 Alibaba
@@ -65,6 +68,7 @@ apis
 AppBuilder
 appbuilder
 Appflow
+appflow
 approle
 AQL
 arango
@@ -88,6 +92,8 @@ asctime
 asend
 asia
 assertEqualIgnoreMultipleSpaces
+AssetEvent
+AssetEvents
 assigment
 ast
 astroid
@@ -122,6 +128,7 @@ autoscale
 autoscaled
 autoscaler
 autoscaling
+available
 avp
 Avro
 avro
@@ -156,6 +163,7 @@ balancers
 Banco
 Bas
 BaseClient
+BaseHook
 BaseObject
 BaseOperator
 baseOperator
@@ -253,8 +261,10 @@ cli
 clientId
 Cloudant
 cloudant
+CloudantV
 cloudbuild
 CloudBuildClient
+cloudformation
 cloudml
 cloudpickle
 cloudsqldatabehook
@@ -316,6 +326,7 @@ contextmgr
 contrib
 CoreV
 coroutine
+cosmosdb
 coverals
 cp
 cpu
@@ -354,6 +365,7 @@ dagbag
 dagbags
 DagCallbackRequest
 DagFileProcessorManager
+dagfolder
 dagmodel
 DagParam
 Dagre
@@ -365,12 +377,15 @@ dagruns
 DagRunState
 dagRunState
 DAGs
+DagsFolderDagBundle
 Dask
 dask
 daskexecutor
 dat
+databrew
 Databricks
 databricks
+datacatalog
 datacenter
 dataclass
 Datadog
@@ -378,6 +393,7 @@ datadog
 Dataflow
 dataflow
 Dataform
+dataform
 DataFrame
 Dataframe
 dataframe
@@ -392,6 +408,7 @@ Dataplex
 dataplex
 datapoint
 Dataprep
+dataprep
 Dataproc
 dataproc
 DataprocDiagnoseClusterOperator
@@ -448,6 +465,7 @@ DeidentifyContentResponse
 DeidentifyTemplate
 del
 delim
+delitem
 dep
 DependencyMixin
 deploymentUrl
@@ -515,6 +533,7 @@ dotproduct
 DownloadReportV
 downscaling
 downstreams
+dp
 dq
 Drillbit
 Drivy
@@ -524,6 +543,7 @@ ds
 dsl
 Dsn
 dsn
+dts
 dttm
 dtypes
 du
@@ -536,6 +556,7 @@ dynamodb
 dynload
 ec
 ecb
+ECR
 ecs
 EdgeModifier
 EdgeModifiers
@@ -575,10 +596,12 @@ errno
 errored
 eslint
 ETag
+etag
 etl
 europe
 eval
 evals
+eventbridge
 EventBufferValueType
 eventlet
 evo
@@ -601,6 +624,7 @@ falsy
 faq
 Fargate
 fargate
+fastapi
 fbee
 fc
 fd
@@ -669,6 +693,9 @@ gcpcloudsql
 GCS
 gcs
 gdbm
+gdrive
+Gelf
+gelf
 generateUploadUrl
 Gentner
 geq
@@ -677,8 +704,10 @@ getboolean
 getfqdn
 getframe
 getint
+getitem
 GetPartitions
 getsource
+getters
 gevent
 GH
 GiB
@@ -774,17 +803,20 @@ hyperparameter
 hyperparameters
 IaC
 iam
+ibmcloudant
 idempotence
 idempotency
 IdP
 ie
 iframe
 IGM
+igm
 ignorable
 ignoreUnknownValues
 ImageAnnotatorClient
 imageORfile
 imagePullPolicy
+imagePullSecrets
 imageVersion
 Imap
 imap
@@ -826,8 +858,15 @@ ints
 intvl
 Investorise
 io
+IP
 ip
 ipc
+IPv
+ipv
+IPv4
+ipv4
+IPv6
+ipv6
 iPython
 irreproducible
 IRSA
@@ -836,6 +875,7 @@ ish
 isn
 isort
 istio
+iter
 iterable
 iterables
 iteratively
@@ -884,6 +924,7 @@ Jupyter
 jupyter
 jupytercmd
 JWT
+jwt
 Kafka
 kafka
 Kalibrr
@@ -922,6 +963,7 @@ Kubernetes
 kubernetes
 KubernetesPodOperator
 Kueue
+kueue
 Kusto
 kv
 kwarg
@@ -938,6 +980,7 @@ latin
 LaunchTemplateParameters
 ldap
 ldaps
+len
 leq
 Letsbonus
 LevelDB
@@ -952,8 +995,10 @@ LineItem
 lineterminator
 linter
 linux
+ListDatasetsPager
 ListGenerator
 ListInfoTypesResponse
+ListModelsPager
 ListSecretsPager
 Liveness
 liveness
@@ -971,6 +1016,7 @@ loglevel
 Logstash
 logstash
 longblob
+lookups
 Lowin
 lshift
 lxml
@@ -999,7 +1045,9 @@ mb
 md
 mediawiki
 memberOf
+memcached
 Memorystore
+memorystore
 Mesos
 mesos
 MessageAttributes
@@ -1039,8 +1087,12 @@ monospace
 Moto
 moto
 mouseover
+msfabric
 msg
+msgraph
 mssql
+mTLS
+mtls
 muldelete
 Multinamespace
 mutex
@@ -1069,6 +1121,7 @@ neighbours
 neo
 Neo4j
 neo4j
+neptune
 neq
 NetBIOS
 NetworkPolicy
@@ -1215,6 +1268,7 @@ postgres
 postgresql
 postMessage
 Potiuk
+powerbi
 powershell
 pql
 prc
@@ -1244,6 +1298,7 @@ presign
 presigned
 prestocmd
 prestodb
+pretify
 prev
 Proc
 productionalize
@@ -1311,6 +1366,7 @@ Quboles
 queryParameters
 querystring
 queueing
+quicksight
 quickstart
 quotechar
 rabbitmq
@@ -1320,9 +1376,11 @@ rbac
 rc
 rdbms
 RDS
+rds
 readfp
 Readme
 readme
+readonly
 ReadOnlyCredentials
 readthedocs
 Realtime
@@ -1454,11 +1512,15 @@ serializer
 serializers
 serverless
 ServiceAccount
+ServiceResource
+SES
 sessionmaker
 setattr
 setdefault
+setitem
 setMachineType
 setted
+SFN
 sftp
 SFTPClient
 sharded
@@ -1480,6 +1542,11 @@ SlackResponse
 slas
 smtp
 SnowflakeHook
+Snowpark
+snowpark
+SnowparkOperator
+SNS
+sns
 somecollection
 somedatabase
 sortable
@@ -1512,6 +1579,8 @@ sqlproxy
 sqlsensor
 Sqoop
 sqoop
+SQS
+sqs
 src
 srv
 ssc
@@ -1533,6 +1602,7 @@ stacktrace
 starttls
 StatefulSet
 StatefulSets
+statics
 StatsD
 statsd
 stderr
@@ -1546,6 +1616,7 @@ StrictUndefined
 Stringified
 stringified
 Struct
+STS
 subchart
 subclassed
 Subclasses
@@ -1598,6 +1669,7 @@ symlinking
 symlinks
 sync'ed
 sys
+sysinfo
 syspath
 Systemd
 systemd
@@ -1662,6 +1734,7 @@ TicketAudit
 timedelta
 timedeltas
 timeframe
+timespan
 timezones
 tis
 TLS
@@ -1680,7 +1753,9 @@ tooltip
 tooltips
 traceback
 tracebacks
+tracemalloc
 TrainingPipeline
+TranslationServiceClient
 travis
 triage
 triaging
@@ -1717,6 +1792,7 @@ unarchived
 unassigns
 uncomment
 uncommenting
+uncompress
 Undead
 undead
 Undeads
@@ -1796,6 +1872,7 @@ verticaql
 Vevo
 videointelligence
 VideoIntelligenceServiceClient
+views
 virtualenv
 virtualenvs
 vm
@@ -1859,6 +1936,7 @@ Yieldr
 yml
 youtrack
 youtube
+yq
 zA
 Zego
 Zendesk
