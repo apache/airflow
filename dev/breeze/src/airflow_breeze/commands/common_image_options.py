@@ -227,6 +227,6 @@ option_image_file_dir = click.option(
         readable=True,
         path_type=Path,
     ),
-    default=tempfile.gettempdir(),
+    default=tempfile.gettempdir() if not generating_command_images() else "/tmp",
     show_default=True,
 )
