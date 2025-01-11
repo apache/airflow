@@ -1382,7 +1382,7 @@ COPY <<"EOF" /usr/local/lib/python3.9/site-packages/sphinx_airflow_theme/layout.
     basic/layout.html
     ~~~~~~~~~~~~~~~~~
 
-    Master layout template for Sphinx themes.
+    Main layout template for Sphinx themes.
 
     :copyright: Copyright 2007-2019 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
