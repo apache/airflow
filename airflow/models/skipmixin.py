@@ -120,8 +120,11 @@ class SkipMixin(LoggingMixin):
             raise ValueError("dag_run is required")
 
         task_ids_list = [d.task_id for d in task_list]
-        SkipMixin._set_state_to_skipped(dag_run, task_ids_list, session)
-        session.commit()
+
+        # The following could be applied only for non-mapped tasks
+        if map_index == -1:
+            SkipMixin._set_state_to_skipped(dag_run, task_ids_list, session)
+            session.commit()
 
         if task_id is not None:
             from airflow.models.xcom import XCom
