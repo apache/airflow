@@ -30,7 +30,7 @@ import { toaster } from "src/components/ui";
 
 const onError = () => {
   toaster.create({
-    description: "Clear Dag Run request failed.",
+    description: "Clear Dag Run request failed",
     title: "Failed to clear the Dag Run",
     type: "error",
   });

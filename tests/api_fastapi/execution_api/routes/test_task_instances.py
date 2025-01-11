@@ -22,7 +22,7 @@ from unittest import mock
 
 import pytest
 import uuid6
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 
 from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
@@ -135,6 +135,92 @@ class TestTIRunState:
         }
 
         assert session.scalar(select(TaskInstance.state).where(TaskInstance.id == ti.id)) == initial_ti_state
+
+    def test_xcom_cleared_when_ti_runs(self, client, session, create_task_instance, time_machine):
+        """
+        Test that the xcoms are cleared when the Task Instance state is updated to running.
+        """
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_xcom_cleared_when_ti_runs",
+            state=State.QUEUED,
+            session=session,
+            start_date=instant,
+        )
+        session.commit()
+
+        # Lets stage a xcom push
+        ti.xcom_push(key="key", value="value")
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": instant_str,
+            },
+        )
+
+        assert response.status_code == 200
+        # Once the task is running, we can check if xcom is cleared
+        assert ti.xcom_pull(task_ids="test_xcom_cleared_when_ti_runs", key="key") is None
+
+    def test_xcom_not_cleared_for_deferral(self, client, session, create_task_instance, time_machine):
+        """
+        Test that the xcoms are not cleared when the Task Instance state is re-running after deferral.
+        """
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_xcom_not_cleared_for_deferral",
+            state=State.RUNNING,
+            session=session,
+            start_date=instant,
+        )
+        session.commit()
+
+        # Move this task to deferred
+        payload = {
+            "state": "deferred",
+            "trigger_kwargs": {"key": "value", "moment": "2024-12-18T00:00:00Z"},
+            "classpath": "my-classpath",
+            "next_method": "execute_callback",
+            "trigger_timeout": "P1D",  # 1 day
+        }
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+        assert response.status_code == 204
+        assert response.text == ""
+        session.expire_all()
+
+        # Deferred -> Queued so that we can run it again
+        query = update(TaskInstance).where(TaskInstance.id == ti.id).values(state="queued")
+        session.execute(query)
+        session.commit()
+
+        # Lets stage a xcom push
+        ti.xcom_push(key="key", value="value")
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": instant_str,
+            },
+        )
+
+        assert response.status_code == 200
+        assert ti.xcom_pull(task_ids="test_xcom_not_cleared_for_deferral", key="key") == "value"
 
 
 class TestTIUpdateState:

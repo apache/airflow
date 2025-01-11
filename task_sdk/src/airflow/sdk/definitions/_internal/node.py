@@ -27,14 +27,14 @@ from typing import TYPE_CHECKING, Any
 import methodtools
 import re2
 
-from airflow.sdk.definitions.mixins import DependencyMixin
+from airflow.sdk.definitions._internal.mixins import DependencyMixin
 
 if TYPE_CHECKING:
     from airflow.models.operator import Operator
+    from airflow.sdk.definitions._internal.types import Logger
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.edges import EdgeModifier
     from airflow.sdk.definitions.taskgroup import TaskGroup
-    from airflow.sdk.types import Logger
     from airflow.serialization.enums import DagAttributeTypes
 
 

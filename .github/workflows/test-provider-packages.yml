@@ -62,6 +62,8 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uv"
         required: true
         type: string
+permissions:
+  contents: read
 jobs:
   prepare-install-verify-provider-packages:
     timeout-minutes: 80

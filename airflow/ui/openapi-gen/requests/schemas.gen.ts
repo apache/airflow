@@ -539,7 +539,7 @@ export const $ClearTaskInstancesBody = {
     reset_dag_runs: {
       type: "boolean",
       title: "Reset Dag Runs",
-      default: false,
+      default: true,
     },
     task_ids: {
       anyOf: [
@@ -4301,47 +4301,6 @@ export const $TaskInstanceHistoryResponse = {
   ],
   title: "TaskInstanceHistoryResponse",
   description: "TaskInstanceHistory serializer for responses.",
-} as const;
-
-export const $TaskInstanceReferenceCollectionResponse = {
-  properties: {
-    task_instances: {
-      items: {
-        $ref: "#/components/schemas/TaskInstanceReferenceResponse",
-      },
-      type: "array",
-      title: "Task Instances",
-    },
-    total_entries: {
-      type: "integer",
-      title: "Total Entries",
-    },
-  },
-  type: "object",
-  required: ["task_instances", "total_entries"],
-  title: "TaskInstanceReferenceCollectionResponse",
-  description: "Task Instance Reference collection serializer for responses.",
-} as const;
-
-export const $TaskInstanceReferenceResponse = {
-  properties: {
-    task_id: {
-      type: "string",
-      title: "Task Id",
-    },
-    dag_run_id: {
-      type: "string",
-      title: "Dag Run Id",
-    },
-    dag_id: {
-      type: "string",
-      title: "Dag Id",
-    },
-  },
-  type: "object",
-  required: ["task_id", "dag_run_id", "dag_id"],
-  title: "TaskInstanceReferenceResponse",
-  description: "Task Instance Reference serializer for responses.",
 } as const;
 
 export const $TaskInstanceResponse = {

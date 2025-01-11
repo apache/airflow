@@ -28,7 +28,7 @@ from requests_kerberos import HTTPKerberosAuth
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.configuration import conf
-from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 from airflow.utils.net import getfqdn
 
 if TYPE_CHECKING:
@@ -115,7 +115,7 @@ T = TypeVar("T", bound=Callable)
 
 
 def find_user(username=None, email=None):
-    security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
+    security_manager = cast(FabAuthManager, get_auth_manager()).security_manager
     return security_manager.find_user(username=username, email=email)
 
 

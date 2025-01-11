@@ -206,7 +206,8 @@ class TestCliConfigList:
             )
         output = temp_stdout.getvalue()
         lines = output.splitlines()
-        assert all(not line.strip() or line.startswith(("#", "[")) for line in lines if line)
+        bad_lines = [l for l in lines if l and not (not l.strip() or l.startswith(("#", "[")))]  # noqa: E741
+        assert bad_lines == []
 
 
 class TestCliConfigGetValue:
