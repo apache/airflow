@@ -892,7 +892,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
     # and finally open a PR
     ```
 
-The `--run-in-parallell` switch allows to speed up SBOM generation significantly, but it might take a lot
+The `--run-in-parallel` switch allows to speed up SBOM generation significantly, but it might take a lot
 of memory - if you are running into memory issues you can limit parallelism by setting `--parallelism N`
 where N is a number of parallel `cdxgen` servers that should be started.
 

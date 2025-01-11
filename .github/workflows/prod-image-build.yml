@@ -283,17 +283,23 @@ jobs:
         if: inputs.build-provider-packages != 'true'
       - name: "Verify PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         run: breeze prod-image verify
+      - name: Check free space
+        run: df -H
+        shell: bash
+      - name: Make /mnt/ directory writeable
+        run: sudo chown -R ${USER} /mnt
+        shell: bash
       - name: "Export PROD docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         env:
           PLATFORM: ${{ inputs.platform }}
         run: >
-          breeze prod-image save --platform "${PLATFORM}"
+          breeze prod-image save --platform "${PLATFORM}" --image-file-dir "/mnt"
         if: inputs.upload-image-artifact == 'true'
       - name: "Stash PROD docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         uses: apache/infrastructure-actions/stash/save@c94b890bbedc2fc61466d28e6bd9966bc6c6643c
         with:
           key: prod-image-save-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}
-          path: "/tmp/prod-image-save-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar"
+          path: "/mnt/prod-image-save-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar"
           if-no-files-found: 'error'
           retention-days: '2'
         if: inputs.upload-image-artifact == 'true'
