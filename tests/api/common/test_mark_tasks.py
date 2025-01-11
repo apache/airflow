@@ -27,12 +27,10 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
 
-    from tests_common.pytest_plugin import DagMaker
-
 pytestmark = pytest.mark.db_test
 
 
-def test_set_dag_run_state_to_failed(dag_maker: DagMaker):
+def test_set_dag_run_state_to_failed(dag_maker):
     with dag_maker("TEST_DAG_1"):
         with EmptyOperator(task_id="teardown").as_teardown():
             EmptyOperator(task_id="running")
@@ -54,7 +52,7 @@ def test_set_dag_run_state_to_failed(dag_maker: DagMaker):
     assert "teardown" not in task_dict
 
 
-def test_set_dag_run_state_to_success(dag_maker: DagMaker):
+def test_set_dag_run_state_to_success(dag_maker):
     with dag_maker("TEST_DAG_1"):
         with EmptyOperator(task_id="teardown").as_teardown():
             EmptyOperator(task_id="running")
