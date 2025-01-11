@@ -6591,6 +6591,23 @@ components:
       required:
       - file
       title: Body_import_variables
+    BulkActionResponse:
+      properties:
+        success:
+          items:
+            type: string
+          type: array
+          title: Success
+          default: []
+        errors:
+          items:
+            type: object
+          type: array
+          title: Errors
+          default: []
+      type: object
+      title: BulkActionResponse
+      description: Response for individual bulk actions.
     BulkVariableRequest:
       properties:
         actions:
@@ -6609,33 +6626,21 @@ components:
       description: Request body for bulk variable operations (create, update, delete).
     BulkVariableResponse:
       properties:
-        created:
-          items:
-            type: string
-          type: array
-          title: Created
-          description: list of keys for successfully created variables.
-        updated:
-          items:
-            type: string
-          type: array
-          title: Updated
-          description: list of keys for successfully updated variables.
-        deleted:
-          items:
-            type: string
-          type: array
-          title: Deleted
-          description: list of keys for successfully deleted variables.
-        errors:
-          items:
-            type: object
-          type: array
-          title: Errors
-          description: list of error details for failed operations.
+        create:
+          anyOf:
+          - $ref: '#/components/schemas/BulkActionResponse'
+          - type: 'null'
+        update:
+          anyOf:
+          - $ref: '#/components/schemas/BulkActionResponse'
+          - type: 'null'
+        delete:
+          anyOf:
+          - $ref: '#/components/schemas/BulkActionResponse'
+          - type: 'null'
       type: object
       title: BulkVariableResponse
-      description: Response body for bulk variable operations.
+      description: Structured response for bulk variable operations.
     ClearTaskInstancesBody:
       properties:
         dry_run:

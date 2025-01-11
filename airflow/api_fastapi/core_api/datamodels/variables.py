@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import json
-from typing import Literal, Union
+from typing import Any, Literal
 
 from pydantic import ConfigDict, Field, model_validator
 
@@ -100,27 +100,24 @@ class VariableActionDelete(BaseModel):
     action_if_not_exists: Literal["skip", "fail"] = "fail"
 
 
-VariableAction = Union[VariableActionCreate, VariableActionUpdate, VariableActionDelete]
-
-
 class BulkVariableRequest(BaseModel):
     """Request body for bulk variable operations (create, update, delete)."""
 
-    actions: list[VariableAction] = Field(..., description="A list of variable actions to perform.")
+    actions: list[VariableActionCreate | VariableActionUpdate | VariableActionDelete] = Field(
+        ..., description="A list of variable actions to perform."
+    )
+
+
+class BulkActionResponse(BaseModel):
+    """Response for individual bulk actions."""
+
+    success: list[str] = []
+    errors: list[dict[str, Any]] = []
 
 
 class BulkVariableResponse(BaseModel):
-    """Response body for bulk variable operations."""
+    """Structured response for bulk variable operations."""
 
-    created: list[str] = Field(
-        default_factory=list, description="list of keys for successfully created variables."
-    )
-    updated: list[str] = Field(
-        default_factory=list, description="list of keys for successfully updated variables."
-    )
-    deleted: list[str] = Field(
-        default_factory=list, description="list of keys for successfully deleted variables."
-    )
-    errors: list[dict] = Field(
-        default_factory=list, description="list of error details for failed operations."
-    )
+    create: BulkActionResponse | None = Field(default=None)
+    update: BulkActionResponse | None = Field(default=None)
+    delete: BulkActionResponse | None = Field(default=None)

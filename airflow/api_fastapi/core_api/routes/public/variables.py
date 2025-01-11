@@ -33,6 +33,7 @@ from airflow.api_fastapi.common.parameters import (
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.variables import (
+    BulkActionResponse,
     BulkVariableRequest,
     BulkVariableResponse,
     VariableActionCreate,
@@ -250,7 +251,7 @@ def categorize_keys(session, keys: set) -> tuple[set, set]:
     return matched_keys, not_found_keys
 
 
-def handle_bulk_create(session, action: VariableActionCreate, results: BulkVariableResponse):
+def handle_bulk_create(session, action: VariableActionCreate, results: BulkActionResponse) -> None:
     """Create new variables in bulk."""
     to_create_keys = {variable.key for variable in action.variables}
     matched_keys, not_found_keys = categorize_keys(session, to_create_keys)
@@ -271,13 +272,13 @@ def handle_bulk_create(session, action: VariableActionCreate, results: BulkVaria
                 Variable.set(
                     key=variable.key, value=variable.value, description=variable.description, session=session
                 )
-                results.created.append(variable.key)
+                results.success.append(variable.key)
 
     except HTTPException as e:
-        results.errors.append({"action": action.action, "error": f"{e.detail}", "status_code": e.status_code})
+        results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
 
 
-def handle_bulk_update(session, action: VariableActionUpdate, results: BulkVariableResponse):
+def handle_bulk_update(session, action: VariableActionUpdate, results: BulkActionResponse) -> None:
     """Update existing variables in bulk."""
     to_update_keys = {variable.key for variable in action.variables}
     matched_keys, not_found_keys = categorize_keys(session, to_update_keys)
@@ -301,16 +302,16 @@ def handle_bulk_update(session, action: VariableActionUpdate, results: BulkVaria
 
                 for key, val in data.items():
                     setattr(old_variable, key, val)
-                results.updated.append(variable.key)
+                results.success.append(variable.key)
 
     except HTTPException as e:
-        results.errors.append({"action": action.action, "error": f"{e.detail}", "status_code": e.status_code})
+        results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
 
     except ValidationError as e:
-        results.errors.append({"action": action.action, "error": f"{e.errors()}"})
+        results.errors.append({"error": f"{e.errors()}"})
 
 
-def handle_bulk_delete(session, action: VariableActionDelete, results: BulkVariableResponse):
+def handle_bulk_delete(session, action: VariableActionDelete, results: BulkActionResponse) -> None:
     """Delete variables in bulk."""
     to_delete_keys = set(action.keys)
     matched_keys, not_found_keys = categorize_keys(session, to_delete_keys)
@@ -330,10 +331,10 @@ def handle_bulk_delete(session, action: VariableActionDelete, results: BulkVaria
             existing_variable = session.scalar(select(Variable).where(Variable.key == key).limit(1))
             if existing_variable:
                 session.delete(existing_variable)
-                results.deleted.append(key)
+                results.success.append(key)
 
     except HTTPException as e:
-        results.errors.append({"action": action.action, "error": f"{e.detail}", "status_code": e.status_code})
+        results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
 
 
 @variables_router.patch("/")
@@ -342,19 +343,17 @@ def bulk_variables(
     session: SessionDep,
 ) -> BulkVariableResponse:
     """Bulk create, update, and delete variables."""
-    results: BulkVariableResponse = BulkVariableResponse(created=[], updated=[], deleted=[], errors=[])
+    results: dict[str, BulkActionResponse] = {}
 
     for action in request.actions:
-        if isinstance(action, VariableActionCreate):
-            handle_bulk_create(session, action, results)
-        elif isinstance(action, VariableActionUpdate):
-            handle_bulk_update(session, action, results)
-        elif isinstance(action, VariableActionDelete):
-            handle_bulk_delete(session, action, results)
-        else:
-            results["errors"].append(
-                {"action": str(action), "error": f"Invalid action type: {action.__class__.__name__}"}
-            )
+        if action.action not in results:
+            results[action.action] = BulkActionResponse()
 
-    session.commit()
-    return results
+        if action.action == "create":
+            handle_bulk_create(session, action, results[action.action])
+        elif action.action == "update":
+            handle_bulk_update(session, action, results[action.action])
+        elif action.action == "delete":
+            handle_bulk_delete(session, action, results[action.action])
+
+    return BulkVariableResponse(**results)

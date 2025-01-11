@@ -143,6 +143,16 @@ export type Body_import_variables = {
 };
 
 /**
+ * Response for individual bulk actions.
+ */
+export type BulkActionResponse = {
+  success?: Array<string>;
+  errors?: Array<{
+    [key: string]: unknown;
+  }>;
+};
+
+/**
  * Request body for bulk variable operations (create, update, delete).
  */
 export type BulkVariableRequest = {
@@ -153,27 +163,12 @@ export type BulkVariableRequest = {
 };
 
 /**
- * Response body for bulk variable operations.
+ * Structured response for bulk variable operations.
  */
 export type BulkVariableResponse = {
-  /**
-   * list of keys for successfully created variables.
-   */
-  created?: Array<string>;
-  /**
-   * list of keys for successfully updated variables.
-   */
-  updated?: Array<string>;
-  /**
-   * list of keys for successfully deleted variables.
-   */
-  deleted?: Array<string>;
-  /**
-   * list of error details for failed operations.
-   */
-  errors?: Array<{
-    [key: string]: unknown;
-  }>;
+  create?: BulkActionResponse | null;
+  update?: BulkActionResponse | null;
+  delete?: BulkActionResponse | null;
 };
 
 /**

@@ -495,6 +495,30 @@ export const $Body_import_variables = {
   title: "Body_import_variables",
 } as const;
 
+export const $BulkActionResponse = {
+  properties: {
+    success: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Success",
+      default: [],
+    },
+    errors: {
+      items: {
+        type: "object",
+      },
+      type: "array",
+      title: "Errors",
+      default: [],
+    },
+  },
+  type: "object",
+  title: "BulkActionResponse",
+  description: "Response for individual bulk actions.",
+} as const;
+
 export const $BulkVariableRequest = {
   properties: {
     actions: {
@@ -524,42 +548,40 @@ export const $BulkVariableRequest = {
 
 export const $BulkVariableResponse = {
   properties: {
-    created: {
-      items: {
-        type: "string",
-      },
-      type: "array",
-      title: "Created",
-      description: "list of keys for successfully created variables.",
+    create: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/BulkActionResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
-    updated: {
-      items: {
-        type: "string",
-      },
-      type: "array",
-      title: "Updated",
-      description: "list of keys for successfully updated variables.",
+    update: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/BulkActionResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
-    deleted: {
-      items: {
-        type: "string",
-      },
-      type: "array",
-      title: "Deleted",
-      description: "list of keys for successfully deleted variables.",
-    },
-    errors: {
-      items: {
-        type: "object",
-      },
-      type: "array",
-      title: "Errors",
-      description: "list of error details for failed operations.",
+    delete: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/BulkActionResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
   },
   type: "object",
   title: "BulkVariableResponse",
-  description: "Response body for bulk variable operations.",
+  description: "Structured response for bulk variable operations.",
 } as const;
 
 export const $ClearTaskInstancesBody = {
