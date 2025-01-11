@@ -35,16 +35,22 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Check free space
+      run: df -H
+      shell: bash
+    - name: Make /mnt/ directory writeable
+      run: sudo chown -R ${USER} /mnt
+      shell: bash
     - name: "Restore CI docker images ${{ inputs.platform }}:${{ inputs.python }}"
       uses: apache/infrastructure-actions/stash/restore@c94b890bbedc2fc61466d28e6bd9966bc6c6643c
       with:
         key: ci-image-save-${{ inputs.platform }}-${{ inputs.python }}
-        path: "/tmp/"
+        path: "/mnt/"
       if: contains(inputs.python-versions-list-as-string, inputs.python)
     - name: "Load CI image ${{ inputs.platform }}:${{ inputs.python }}"
       env:
         PLATFORM: ${{ inputs.platform }}
         PYTHON: ${{ inputs.python }}
-      run: breeze ci-image load --platform "${PLATFORM}" --python "${PYTHON}"
+      run: breeze ci-image load --platform "${PLATFORM}" --python "${PYTHON}" --image-file-dir "/mnt/"
       shell: bash
       if: contains(inputs.python-versions-list-as-string, inputs.python)
