@@ -36,8 +36,9 @@ from requests.models import DEFAULT_REDIRECT_LIMIT
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.http import airflow_dependency_version
 from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
+
+from airflow.providers import http
 
 DEFAULT_HEADERS_AS_STRING = '{\r\n "Content-Type": "application/json",\r\n  "X-Requested-By": "Airflow"\r\n}'
 DEFAULT_HEADERS = json.loads(DEFAULT_HEADERS_AS_STRING)
@@ -71,6 +72,20 @@ def get_airflow_connection_with_port(conn_id: str = "http_default"):
 
 def get_airflow_connection_with_login_and_password(conn_id: str = "http_default"):
     return Connection(conn_id=conn_id, conn_type="http", host="test.com", login="username", password="pass")
+
+
+def airflow_dependency_version():
+    import re
+    from os.path import dirname, join
+
+    import yaml
+
+    with open(join(dirname(http.__file__), "provider.yaml"), encoding="utf-8") as file:
+        for dependency in yaml.safe_load(file)["dependencies"]:
+            if dependency.startswith("apache-airflow"):
+                match = re.search(r">=([\d\.]+)", dependency)
+                if match:
+                    return packaging.version.parse(match.group(1))
 
 
 class CustomAuthBase(HTTPBasicAuth):
