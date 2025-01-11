@@ -679,9 +679,6 @@ def load(
     else:
         image_file_to_load = image_file_dir / image_file
 
-    if not image_file_to_load.exists():
-        get_console().print(f"[error]The image {image_file_to_load} does not exist.[/]")
-        sys.exit(1)
     if not image_file_to_load.name.endswith(f"-{python}.tar"):
         get_console().print(
             f"[error]The image file {image_file_to_load} does not end with '-{python}.tar'. Exiting.[/]"
@@ -698,6 +695,11 @@ def load(
         download_artifact_from_run_id(from_run, image_file_to_load, github_repository, github_token)
     elif from_pr:
         download_artifact_from_pr(from_pr, image_file_to_load, github_repository, github_token)
+
+    if not image_file_to_load.exists():
+        get_console().print(f"[error]The image {image_file_to_load} does not exist.[/]")
+        sys.exit(1)
+
     get_console().print(f"[info]Loading Python CI image from {image_file_to_load}[/]")
     result = run_command(["docker", "image", "load", "-i", image_file_to_load.as_posix()], check=False)
     if result.returncode != 0:
