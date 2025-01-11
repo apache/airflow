@@ -16,37 +16,58 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Tabs, For, type TabsRootProps } from "@chakra-ui/react";
+import { Button, Group } from "@chakra-ui/react";
+import { useEffect, useState } from "react";
 
 type Option = {
-  disabled?: boolean;
-  label: string;
-  value: string;
+  readonly disabled?: boolean;
+  readonly label: string;
+  readonly value: string;
 };
 
 type SegmentedControlProps = {
-  readonly onValueChange: (value: string) => void;
+  readonly defaultValues?: Array<string>;
+  readonly multiple?: boolean;
+  readonly onChange?: (options: Array<string>) => void;
   readonly options: Array<Option>;
-  readonly value: string;
-} & Omit<TabsRootProps, "onValueChange">;
+};
 
-const SegmentedControl = ({ onValueChange, options, value, ...rest }: SegmentedControlProps) => (
-  <Tabs.Root
-    defaultValue={value}
-    onValueChange={(option) => onValueChange(option.value)}
-    variant="enclosed"
-    {...rest}
-  >
-    <Tabs.List>
-      <For each={options}>
-        {(option) => (
-          <Tabs.Trigger disabled={option.disabled} key={option.value} value={option.value}>
-            {option.label}
-          </Tabs.Trigger>
-        )}
-      </For>
-    </Tabs.List>
-  </Tabs.Root>
-);
+const SegmentedControl = ({ defaultValues, multiple = false, onChange, options }: SegmentedControlProps) => {
+  const [selectedOptions, setSelectedOptions] = useState<Array<string>>(defaultValues ?? []);
+
+  const onClick = (selected: string) => {
+    if (multiple) {
+      if (selectedOptions.includes(selected)) {
+        setSelectedOptions((prevState) => prevState.filter((value) => value !== selected));
+      } else {
+        setSelectedOptions((prevState) => [...prevState, selected]);
+      }
+    } else {
+      if (!selectedOptions.includes(selected)) {
+        setSelectedOptions([selected]);
+      }
+    }
+  };
+
+  useEffect(() => onChange?.(selectedOptions), [onChange, selectedOptions]);
+
+  return (
+    <Group backgroundColor="bg.muted" borderRadius={8} colorPalette="gray" mb={3} p={1}>
+      {options.map(({ disabled, label, value }: Option) => (
+        <Button
+          _hover={{ backgroundColor: "bg.panel" }}
+          bg={selectedOptions.includes(value) ? "bg.panel" : undefined}
+          disabled={disabled}
+          key={value}
+          onClick={() => onClick(value)}
+          size="md"
+          variant="ghost"
+        >
+          {label}
+        </Button>
+      ))}
+    </Group>
+  );
+};
 
 export default SegmentedControl;
