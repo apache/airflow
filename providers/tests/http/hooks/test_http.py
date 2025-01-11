@@ -36,9 +36,8 @@ from requests.models import DEFAULT_REDIRECT_LIMIT
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
-
 from airflow.providers import http
+from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
 
 DEFAULT_HEADERS_AS_STRING = '{\r\n "Content-Type": "application/json",\r\n  "X-Requested-By": "Airflow"\r\n}'
 DEFAULT_HEADERS = json.loads(DEFAULT_HEADERS_AS_STRING)
