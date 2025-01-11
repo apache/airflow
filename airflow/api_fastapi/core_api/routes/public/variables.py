@@ -242,11 +242,18 @@ def import_variables(
     )
 
 
-def handle_create(session, action: VariableActionCreate, results: BulkVariableResponse):
-    """Create new variables."""
+def categorize_keys(session, keys: set) -> tuple[set, set]:
+    """Categorize the given keys into matched_keys and not_found_keys based on existing keys."""
     existing_keys = {variable for variable in session.execute(select(Variable.key)).scalars()}
+    matched_keys = existing_keys & keys
+    not_found_keys = keys - existing_keys
+    return matched_keys, not_found_keys
+
+
+def handle_bulk_create(session, action: VariableActionCreate, results: BulkVariableResponse):
+    """Create new variables in bulk."""
     to_create_keys = {variable.key for variable in action.variables}
-    matched_keys = existing_keys & to_create_keys
+    matched_keys, not_found_keys = categorize_keys(session, to_create_keys)
 
     try:
         if action.action_if_exists == "fail" and matched_keys:
@@ -255,7 +262,7 @@ def handle_create(session, action: VariableActionCreate, results: BulkVariableRe
                 detail=f"The variables with these keys: {', '.join(matched_keys)} already exist.",
             )
         elif action.action_if_exists == "skip":
-            create_keys = to_create_keys - matched_keys
+            create_keys = not_found_keys
         else:
             create_keys = to_create_keys
 
@@ -270,12 +277,10 @@ def handle_create(session, action: VariableActionCreate, results: BulkVariableRe
         results.errors.append({"action": action.action, "error": f"{e.detail}", "status_code": e.status_code})
 
 
-def handle_update(session, action: VariableActionUpdate, results: BulkVariableResponse):
-    """Update existing variables."""
-    existing_keys = {variable for variable in session.execute(select(Variable.key)).scalars()}
+def handle_bulk_update(session, action: VariableActionUpdate, results: BulkVariableResponse):
+    """Update existing variables in bulk."""
     to_update_keys = {variable.key for variable in action.variables}
-    matched_keys = existing_keys & to_update_keys
-    not_found_keys = to_update_keys - existing_keys
+    matched_keys, not_found_keys = categorize_keys(session, to_update_keys)
 
     try:
         if action.action_if_not_exists == "fail" and not_found_keys:
@@ -305,12 +310,10 @@ def handle_update(session, action: VariableActionUpdate, results: BulkVariableRe
         results.errors.append({"action": action.action, "error": f"{e.errors()}"})
 
 
-def handle_delete(session, action: VariableActionDelete, results: BulkVariableResponse):
-    """Delete variables."""
-    existing_keys = {variable for variable in session.execute(select(Variable.key)).scalars()}
+def handle_bulk_delete(session, action: VariableActionDelete, results: BulkVariableResponse):
+    """Delete variables in bulk."""
     to_delete_keys = set(action.keys)
-    matched_keys = existing_keys & to_delete_keys
-    not_found_keys = to_delete_keys - existing_keys
+    matched_keys, not_found_keys = categorize_keys(session, to_delete_keys)
 
     try:
         if action.action_if_not_exists == "fail" and not_found_keys:
@@ -343,11 +346,11 @@ def bulk_variables(
 
     for action in request.actions:
         if isinstance(action, VariableActionCreate):
-            handle_create(session, action, results)
+            handle_bulk_create(session, action, results)
         elif isinstance(action, VariableActionUpdate):
-            handle_update(session, action, results)
+            handle_bulk_update(session, action, results)
         elif isinstance(action, VariableActionDelete):
-            handle_delete(session, action, results)
+            handle_bulk_delete(session, action, results)
         else:
             results["errors"].append(
                 {"action": str(action), "error": f"Invalid action type: {action.__class__.__name__}"}
