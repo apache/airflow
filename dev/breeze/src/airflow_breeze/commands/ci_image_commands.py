@@ -46,6 +46,7 @@ from airflow_breeze.commands.common_image_options import (
     option_from_pr,
     option_from_run,
     option_github_token_for_images,
+    option_image_file_dir,
     option_install_mysql_client_type,
     option_platform_multiple,
     option_prepare_buildx_cache,
@@ -290,11 +291,12 @@ option_ci_image_file_to_save = click.option(
 option_ci_image_file_to_load = click.option(
     "--image-file",
     required=False,
-    type=click.Path(exists=True, dir_okay=False, readable=True, path_type=Path, resolve_path=True),
+    type=click.Path(dir_okay=False, readable=True, path_type=Path, resolve_path=True),
     envvar="IMAGE_FILE",
     help="Optional file name to load the image from - name must follow the convention:"
     "`ci-image-save-{escaped_platform}-*-{python_version}.tar`. where escaped_platform is one of "
-    "linux_amd64 or linux_arm64.",
+    "linux_amd64 or linux_arm64. If it does not exist in current working dir and if you do not specify "
+    "absolute file, it will be searched for in the --image-file-dir.",
 )
 
 
@@ -601,17 +603,19 @@ def run_verify_in_parallel(
 
 
 @ci_image.command(name="save")
-@option_python
-@option_platform_single
-@option_github_repository
-@option_verbose
 @option_ci_image_file_to_save
+@option_github_repository
+@option_image_file_dir
+@option_platform_single
+@option_python
+@option_verbose
 @option_dry_run
 def save(
     python: str,
     platform: str,
     github_repository: str,
     image_file: Path | None,
+    image_file_dir: Path,
 ):
     """Save CI image to a file."""
     perform_environment_checks()
@@ -623,9 +627,15 @@ def save(
         run_command(["docker", "buildx", "du", "--verbose"], check=False)
     escaped_platform = platform.replace("/", "_")
     if not image_file:
-        image_file = Path(f"/tmp/ci-image-save-{escaped_platform}-{python}.tar")
-    get_console().print(f"[info]Saving Python CI image {image_name} to {image_file}[/]")
-    result = run_command(["docker", "image", "save", "-o", image_file.as_posix(), image_name], check=False)
+        image_file_to_store = image_file_dir / f"ci-image-save-{escaped_platform}-{python}.tar"
+    elif image_file.is_absolute():
+        image_file_to_store = image_file
+    else:
+        image_file_to_store = image_file_dir / image_file
+    get_console().print(f"[info]Saving Python CI image {image_name} to {image_file_to_store}[/]")
+    result = run_command(
+        ["docker", "image", "save", "-o", image_file_to_store.as_posix(), image_name], check=False
+    )
     if result.returncode != 0:
         get_console().print(f"[error]Error when saving image: {result.stdout}[/]")
         sys.exit(result.returncode)
@@ -638,6 +648,7 @@ def save(
 @option_from_pr
 @option_github_repository
 @option_github_token_for_images
+@option_image_file_dir
 @option_platform_single
 @option_python
 @option_skip_image_file_deletion
@@ -648,6 +659,7 @@ def load(
     github_repository: str,
     github_token: str,
     image_file: Path | None,
+    image_file_dir: Path,
     platform: str,
     python: str,
     skip_image_file_deletion: bool,
@@ -659,37 +671,43 @@ def load(
         github_repository=github_repository,
     )
     escaped_platform = platform.replace("/", "_")
-    path = f"/tmp/ci-image-save-{escaped_platform}-{python}.tar"
-
-    if from_run:
-        download_artifact_from_run_id(from_run, path, github_repository, github_token)
-    elif from_pr:
-        download_artifact_from_pr(from_pr, path, github_repository, github_token)
 
     if not image_file:
-        image_file = Path(path)
-    if not image_file.exists():
-        get_console().print(f"[error]The image {image_file} does not exist.[/]")
-        sys.exit(1)
-    if not image_file.name.endswith(f"-{python}.tar"):
+        image_file_to_load = image_file_dir / f"ci-image-save-{escaped_platform}-{python}.tar"
+    elif image_file.is_absolute() or image_file.exists():
+        image_file_to_load = image_file
+    else:
+        image_file_to_load = image_file_dir / image_file
+
+    if not image_file_to_load.name.endswith(f"-{python}.tar"):
         get_console().print(
-            f"[error]The image file {image_file} does not end with '-{python}.tar'. Exiting.[/]"
+            f"[error]The image file {image_file_to_load} does not end with '-{python}.tar'. Exiting.[/]"
         )
         sys.exit(1)
-    if not image_file.name.startswith(f"ci-image-save-{escaped_platform}"):
+    if not image_file_to_load.name.startswith(f"ci-image-save-{escaped_platform}"):
         get_console().print(
-            f"[error]The image file {image_file} does not start with 'ci-image-save-{escaped_platform}'. "
-            f"Exiting.[/]"
+            f"[error]The image file {image_file_to_load} does not start with "
+            f"'ci-image-save-{escaped_platform}'. Exiting.[/]"
         )
         sys.exit(1)
-    get_console().print(f"[info]Loading Python CI image from {image_file}[/]")
-    result = run_command(["docker", "image", "load", "-i", image_file.as_posix()], check=False)
+
+    if from_run:
+        download_artifact_from_run_id(from_run, image_file_to_load, github_repository, github_token)
+    elif from_pr:
+        download_artifact_from_pr(from_pr, image_file_to_load, github_repository, github_token)
+
+    if not image_file_to_load.exists():
+        get_console().print(f"[error]The image {image_file_to_load} does not exist.[/]")
+        sys.exit(1)
+
+    get_console().print(f"[info]Loading Python CI image from {image_file_to_load}[/]")
+    result = run_command(["docker", "image", "load", "-i", image_file_to_load.as_posix()], check=False)
     if result.returncode != 0:
         get_console().print(f"[error]Error when loading image: {result.stdout}[/]")
         sys.exit(result.returncode)
     if not skip_image_file_deletion:
-        get_console().print(f"[info]Deleting image file {image_file}[/]")
-        image_file.unlink()
+        get_console().print(f"[info]Deleting image file {image_file_to_load}[/]")
+        image_file_to_load.unlink()
     if get_verbose():
         run_command(["docker", "images", "-a"])
     mark_image_as_rebuilt(ci_image_params=build_ci_params)
