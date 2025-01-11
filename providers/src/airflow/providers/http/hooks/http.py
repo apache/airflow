@@ -87,6 +87,35 @@ class HttpHook(BaseHook):
     conn_type = "http"
     hook_name = "HTTP"
 
+    def __init__(
+        self,
+        method: str = "POST",
+        http_conn_id: str = default_conn_name,
+        auth_type: Any = None,
+        tcp_keep_alive: bool = True,
+        tcp_keep_alive_idle: int = 120,
+        tcp_keep_alive_count: int = 20,
+        tcp_keep_alive_interval: int = 30,
+        adapter: HTTPAdapter | None = None,
+    ) -> None:
+        super().__init__()
+        self.http_conn_id = http_conn_id
+        self.method = method.upper()
+        self.base_url: str = ""
+        self._retry_obj: Callable[..., Any]
+        self.auth_type: Any = auth_type
+
+        # If no adapter is provided, use TCPKeepAliveAdapter (default behavior)
+        self.adapter = adapter
+        if tcp_keep_alive and adapter is None:
+            self.keep_alive_adapter = TCPKeepAliveAdapter(
+                idle=tcp_keep_alive_idle,
+                count=tcp_keep_alive_count,
+                interval=tcp_keep_alive_interval,
+            )
+        else:
+            self.keep_alive_adapter = None
+
     @classmethod
     @cache
     def get_auth_types(cls) -> frozenset[str]:
@@ -149,35 +178,6 @@ class HttpHook(BaseHook):
             "hidden_fields": ["extra"],
             "relabeling": {},
         }
-
-    def __init__(
-        self,
-        method: str = "POST",
-        http_conn_id: str = default_conn_name,
-        auth_type: Any = None,
-        tcp_keep_alive: bool = True,
-        tcp_keep_alive_idle: int = 120,
-        tcp_keep_alive_count: int = 20,
-        tcp_keep_alive_interval: int = 30,
-        adapter: HTTPAdapter | None = None,
-    ) -> None:
-        super().__init__()
-        self.http_conn_id = http_conn_id
-        self.method = method.upper()
-        self.base_url: str = ""
-        self._retry_obj: Callable[..., Any]
-        self.auth_type: Any = auth_type
-
-        # If no adapter is provided, use TCPKeepAliveAdapter (default behavior)
-        self.adapter = adapter
-        if tcp_keep_alive and adapter is None:
-            self.keep_alive_adapter = TCPKeepAliveAdapter(
-                idle=tcp_keep_alive_idle,
-                count=tcp_keep_alive_count,
-                interval=tcp_keep_alive_interval,
-            )
-        else:
-            self.keep_alive_adapter = None
 
     # headers may be passed through directly or in the "extra" field in the connection
     # definition
@@ -303,20 +303,6 @@ class HttpHook(BaseHook):
         except TypeError:
             self.log.warning("Connection to %s has invalid headers field.", connection.host)
         return session
-
-    def _set_base_url(self, connection: Connection) -> None:
-        host = connection.host or ""
-        schema = connection.schema or "http"
-        # RFC 3986 (https://www.rfc-editor.org/rfc/rfc3986.html#page-16)
-        if "://" in host:
-            self.base_url = host
-        else:
-            self.base_url = f"{schema}://{host}" if host else f"{schema}://"
-            if connection.port:
-                self.base_url = f"{self.base_url}:{connection.port}"
-        parsed = urlparse(self.base_url)
-        if not parsed.scheme:
-            raise ValueError(f"Invalid base URL: Missing scheme in {self.base_url}")
 
     def _configure_session_from_mount_adapters(self, session: requests.Session) -> requests.Session:
         scheme = urlparse(self.base_url).scheme
