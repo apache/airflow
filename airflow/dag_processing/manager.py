@@ -661,8 +661,10 @@ class DagFileProcessorManager:
                 ).total_seconds()
                 current_version = bundle.get_current_version()
                 if (
-                    not elapsed_time_since_refresh > bundle.refresh_interval
-                ) and bundle_model.latest_version == current_version:
+                    elapsed_time_since_refresh < bundle.refresh_interval
+                    and bundle_model.latest_version == current_version
+                    and bundle.name in self._bundle_versions
+                ):
                     self.log.info("Not time to refresh %s", bundle.name)
                     continue
 
