@@ -260,7 +260,7 @@ def handle_bulk_create(session, action: VariableActionCreate, results: BulkActio
         if action.action_if_exists == "fail" and matched_keys:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=f"The variables with these keys: {', '.join(matched_keys)} already exist.",
+                detail=f"The variables with these keys: {matched_keys} already exist.",
             )
         elif action.action_if_exists == "skip":
             create_keys = not_found_keys
@@ -287,7 +287,7 @@ def handle_bulk_update(session, action: VariableActionUpdate, results: BulkActio
         if action.action_if_not_exists == "fail" and not_found_keys:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"The variables with these keys: {', '.join(not_found_keys)} were not found.",
+                detail=f"The variables with these keys: {not_found_keys} were not found.",
             )
         elif action.action_if_not_exists == "skip":
             update_keys = matched_keys
@@ -320,7 +320,7 @@ def handle_bulk_delete(session, action: VariableActionDelete, results: BulkActio
         if action.action_if_not_exists == "fail" and not_found_keys:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"The variables with these keys: {', '.join(not_found_keys)} were not found.",
+                detail=f"The variables with these keys: {not_found_keys} were not found.",
             )
         elif action.action_if_not_exists == "skip":
             delete_keys = matched_keys
