@@ -156,37 +156,28 @@ CORE_EXTRAS: dict[str, list[str]] = {
 
 DOC_EXTRAS: dict[str, list[str]] = {
     "doc": [
-        "astroid>=2.12.3,<3.0",
-        "checksumdir>=1.2.0",
-        # click 8.1.4 and 8.1.5 generate mypy errors due to typing issue in the upstream package:
-        # https://github.com/pallets/click/issues/2558
-        "click>=8.0,!=8.1.4,!=8.1.5",
-        # Docutils 0.17.0 converts generated <div class="section"> into <section> and breaks our doc formatting
-        # By adding a lot of whitespace separation. This limit can be lifted when we update our doc to handle
-        # <section> tags for sections
-        "docutils<0.17,>=0.16",
-        # The new theme 0.1.0 is for Sphinx 7. Airflow 2. still uses old version of Sphinx
-        "sphinx-airflow-theme>=0.0.12,<0.1.0",
-        "sphinx-argparse>=0.4.0",
-        # sphinx-autoapi fails with astroid 3.0, see: https://github.com/readthedocs/sphinx-autoapi/issues/407
-        # This was fixed in sphinx-autoapi 3.0, however it has requirement sphinx>=6.1, but we stuck on 5.x
-        "sphinx-autoapi>=2.1.1",
-        "sphinx-copybutton>=0.5.2",
-        "sphinx-design>=0.5.0",
-        "sphinx-jinja>=2.0.2",
-        "sphinx-rtd-theme>=2.0.0",
-        # Currently we are using sphinx 5 but we need to migrate to Sphinx 7
-        "sphinx>=5.3.0,<6.0.0",
-        "sphinxcontrib-applehelp>=1.0.4",
-        "sphinxcontrib-devhelp>=1.0.2",
-        "sphinxcontrib-htmlhelp>=2.0.1",
-        "sphinxcontrib-httpdomain>=1.8.1",
-        "sphinxcontrib-jquery>=4.1",
-        "sphinxcontrib-jsmath>=1.0.1",
-        "sphinxcontrib-qthelp>=1.0.3",
-        "sphinxcontrib-redoc>=1.6.0",
-        "sphinxcontrib-serializinghtml==1.1.5",
-        "sphinxcontrib-spelling>=8.0.0",
+        "astroid>=3; python_version >= '3.9'",
+        "checksumdir>=1.2.0; python_version >= '3.9'",
+        "click>=8.1.8; python_version >= '3.9'",
+        "docutils>=0.21; python_version >= '3.9'",
+        "sphinx-airflow-theme>=0.1.0; python_version >= '3.9'",
+        "sphinx-argparse>=0.4.0; python_version >= '3.9'",
+        "sphinx-autoapi>=3; python_version >= '3.9'",
+        "sphinx-copybutton>=0.5.2; python_version >= '3.9'",
+        "sphinx-design>=0.5.0; python_version >= '3.9'",
+        "sphinx-jinja>=2.0.2; python_version >= '3.9'",
+        "sphinx-rtd-theme>=2.0.0; python_version >= '3.9'",
+        "sphinx>=7; python_version >= '3.9'",
+        "sphinxcontrib-applehelp>=1.0.4; python_version >= '3.9'",
+        "sphinxcontrib-devhelp>=1.0.2; python_version >= '3.9'",
+        "sphinxcontrib-htmlhelp>=2.0.1; python_version >= '3.9'",
+        "sphinxcontrib-httpdomain>=1.8.1; python_version >= '3.9'",
+        "sphinxcontrib-jquery>=4.1; python_version >= '3.9'",
+        "sphinxcontrib-jsmath>=1.0.1; python_version >= '3.9'",
+        "sphinxcontrib-qthelp>=1.0.3; python_version >= '3.9'",
+        "sphinxcontrib-redoc>=1.6.0; python_version >= '3.9'",
+        "sphinxcontrib-serializinghtml>=1.1.5; python_version >= '3.9'",
+        "sphinxcontrib-spelling>=8.0.0; python_version >= '3.9'",
     ],
     "doc-gen": [
         "apache-airflow[doc]",
