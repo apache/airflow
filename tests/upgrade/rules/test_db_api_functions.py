@@ -18,6 +18,7 @@ from unittest import TestCase
 
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.upgrade.rules.db_api_functions import DbApiRule
 
 
@@ -41,7 +42,7 @@ class GrandChildHook(MyHook):
         pass
 
 
-class ProperDbApiHook(DbApiHook):
+class ProperDbApiHook(DbApiHook, BigQueryHook):
     def bulk_dump(self, table, tmp_file):
         pass
 
