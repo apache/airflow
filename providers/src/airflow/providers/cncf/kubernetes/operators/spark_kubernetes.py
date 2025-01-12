@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
 
@@ -188,7 +188,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         if not context:
             return {}
 
-        context_dict = cast(Dict, context)
+        context_dict = cast(dict, context)
         ti = context_dict["ti"]
         run_id = context_dict["run_id"]
 
