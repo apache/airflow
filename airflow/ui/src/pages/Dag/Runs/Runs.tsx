@@ -31,7 +31,7 @@ import { useParams, Link as RouterLink, useSearchParams } from "react-router-dom
 
 import { useDagRunServiceGetDagRuns } from "openapi/queries";
 import type { DAGRunResponse, DagRunState } from "openapi/requests/types.gen";
-import ClearRunButton from "src/components/ClearRun/ClearRunButton";
+import { ClearRunButton } from "src/components/Clear";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -88,7 +88,7 @@ const columns: Array<ColumnDef<DAGRunResponse>> = [
     header: "Duration",
   },
   {
-    accessorKey: "clear_dag_run",
+    accessorKey: "actions",
     cell: ({ row }) => (
       <Flex justifyContent="end">
         <ClearRunButton dagRun={row.original} withText={false} />
@@ -96,6 +96,9 @@ const columns: Array<ColumnDef<DAGRunResponse>> = [
     ),
     enableSorting: false,
     header: "",
+    meta: {
+      skeletonWidth: 10,
+    },
   },
 ];
 

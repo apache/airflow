@@ -1939,7 +1939,10 @@ def get_all_the_context(**context):
     current_context = get_current_context()
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", AirflowContextDeprecationWarning)
-        assert context == current_context._context
+        if AIRFLOW_V_3_0_PLUS:
+            assert context == current_context
+        else:
+            assert current_context._context
 
 
 @pytest.fixture
