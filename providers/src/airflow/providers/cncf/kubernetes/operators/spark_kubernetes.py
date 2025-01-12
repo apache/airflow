@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Dict, cast
 
 from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
 
@@ -188,8 +188,9 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         if not context:
             return {}
 
-        ti = context["ti"]
-        run_id = context["run_id"]
+        context_dict = cast(Dict, context)
+        ti = context_dict["ti"]
+        run_id = context_dict["run_id"]
 
         labels = {
             "dag_id": ti.dag_id,
@@ -208,8 +209,8 @@ class SparkKubernetesOperator(KubernetesPodOperator):
 
         # In the case of sub dags this is just useful
         # TODO: Remove this when the minimum version of Airflow is bumped to 3.0
-        if getattr(context["dag"], "is_subdag", False):
-            labels["parent_dag_id"] = context["dag"].parent_dag.dag_id
+        if getattr(context_dict["dag"], "is_subdag", False):
+            labels["parent_dag_id"] = context_dict["dag"].parent_dag.dag_id
         # Ensure that label is valid for Kube,
         # and if not truncate/remove invalid chars and replace with short hash.
         for label_id, label in labels.items():
@@ -231,7 +232,10 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         return self.manage_template_specs()
 
     def find_spark_job(self, context, exclude_checked: bool = True):
-        label_selector = self._build_find_pod_label_selector(context, exclude_checked=exclude_checked) + ",spark-role=driver"
+        label_selector = (
+            self._build_find_pod_label_selector(context, exclude_checked=exclude_checked)
+            + ",spark-role=driver"
+        )
         pod_list = self.client.list_namespaced_pod(self.namespace, label_selector=label_selector).items
 
         pod = None
