@@ -87,9 +87,9 @@ def deserialize(classname: str, version: int, data: object) -> Any:
         try:
             from zoneinfo import ZoneInfo
         except ImportError:
-            from backports.zoneinfo import ZoneInfo
+            from backports.zoneinfo import ZoneInfo  # type: ignore[no-redef]
 
-        return ZoneInfo(data)
+        return ZoneInfo(data)  # type: ignore[arg-type]
 
     return parse_timezone(data)
 

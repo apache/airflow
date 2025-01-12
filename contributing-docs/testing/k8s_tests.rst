@@ -270,7 +270,7 @@ Should result in KinD creating the K8S cluster.
     Connecting to localhost:18150. Num try: 1
     Error when connecting to localhost:18150 : ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
 
-    Airflow webserver is not available at port 18150. Run `breeze k8s deploy-airflow --python 3.8 --kubernetes-version v1.24.2` to (re)deploy airflow
+    Airflow webserver is not available at port 18150. Run `breeze k8s deploy-airflow --python 3.9 --kubernetes-version v1.24.2` to (re)deploy airflow
 
     KinD cluster airflow-python-3.8-v1.24.2 created!
 
@@ -352,7 +352,7 @@ Should show the status of current KinD cluster.
     Connecting to localhost:18150. Num try: 1
     Error when connecting to localhost:18150 : ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
 
-    Airflow webserver is not available at port 18150. Run `breeze k8s deploy-airflow --python 3.8 --kubernetes-version v1.24.2` to (re)deploy airflow
+    Airflow webserver is not available at port 18150. Run `breeze k8s deploy-airflow --python 3.9 --kubernetes-version v1.24.2` to (re)deploy airflow
 
 
     Cluster healthy: airflow-python-3.8-v1.24.2

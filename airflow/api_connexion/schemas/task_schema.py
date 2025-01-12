@@ -49,14 +49,14 @@ class TaskSchema(Schema):
     )
     depends_on_past = fields.Boolean(dump_only=True)
     wait_for_downstream = fields.Boolean(dump_only=True)
-    retries = fields.Number(dump_only=True)
+    retries = fields.Number(dump_only=True)  # type: ignore[var-annotated]
     queue = fields.String(dump_only=True)
     pool = fields.String(dump_only=True)
-    pool_slots = fields.Number(dump_only=True)
+    pool_slots = fields.Number(dump_only=True)  # type: ignore[var-annotated]
     execution_timeout = fields.Nested(TimeDeltaSchema, dump_only=True)
     retry_delay = fields.Nested(TimeDeltaSchema, dump_only=True)
     retry_exponential_backoff = fields.Boolean(dump_only=True)
-    priority_weight = fields.Number(dump_only=True)
+    priority_weight = fields.Number(dump_only=True)  # type: ignore[var-annotated]
     weight_rule = WeightRuleField(dump_only=True)
     ui_color = ColorField(dump_only=True)
     ui_fgcolor = ColorField(dump_only=True)
