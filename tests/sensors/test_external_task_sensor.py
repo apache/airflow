@@ -56,7 +56,10 @@ from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.mock_operators import MockOperator
 
-pytestmark = pytest.mark.db_test
+pytestmark = [
+    pytest.mark.db_test,
+    pytest.mark.filterwarnings("default::airflow.exceptions.RemovedInAirflow3Warning"),
+]
 
 
 DEFAULT_DATE = datetime(2015, 1, 1)

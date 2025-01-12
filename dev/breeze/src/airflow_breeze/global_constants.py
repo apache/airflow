@@ -23,9 +23,9 @@ from __future__ import annotations
 import json
 import platform
 from enum import Enum
-from functools import lru_cache
 from pathlib import Path
 
+from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
@@ -48,17 +48,24 @@ APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.8", "3.9", "3.10", "3.11", "3.12"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
-# Database Backends used when starting Breeze. The "none" value means that invalid configuration
-# Is set and no database started - access to a database will fail.
-ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "none"]
-ALLOWED_PROD_BACKENDS = ["mysql", "postgres"]
+# Database Backends used when starting Breeze. The "none" value means that the configuration is invalid.
+# No database will be started - access to a database will fail.
+SQLITE_BACKEND = "sqlite"
+MYSQL_BACKEND = "mysql"
+POSTGRES_BACKEND = "postgres"
+NONE_BACKEND = "none"
+ALLOWED_BACKENDS = [SQLITE_BACKEND, MYSQL_BACKEND, POSTGRES_BACKEND, NONE_BACKEND]
+ALLOWED_PROD_BACKENDS = [MYSQL_BACKEND, POSTGRES_BACKEND]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
-TESTABLE_INTEGRATIONS = [
+CELERY_INTEGRATION = "celery"
+TESTABLE_CORE_INTEGRATIONS = [
+    CELERY_INTEGRATION,
+    "kerberos",
+]
+TESTABLE_PROVIDERS_INTEGRATIONS = [
     "cassandra",
-    "celery",
     "drill",
     "kafka",
-    "kerberos",
     "mongo",
     "mssql",
     "pinot",
@@ -70,19 +77,45 @@ TESTABLE_INTEGRATIONS = [
 DISABLE_TESTABLE_INTEGRATIONS_FROM_CI = [
     "mssql",
 ]
-OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
+KEYCLOAK_INTEGRATION = "keycloak"
+STATSD_INTEGRATION = "statsd"
+OTEL_INTEGRATION = "otel"
+OPENLINEAGE_INTEGRATION = "openlineage"
+OTHER_CORE_INTEGRATIONS = [STATSD_INTEGRATION, OTEL_INTEGRATION, KEYCLOAK_INTEGRATION]
+OTHER_PROVIDERS_INTEGRATIONS = [OPENLINEAGE_INTEGRATION]
 ALLOWED_DEBIAN_VERSIONS = ["bookworm"]
-ALL_INTEGRATIONS = sorted(
+ALL_CORE_INTEGRATIONS = sorted(
     [
-        *TESTABLE_INTEGRATIONS,
-        *OTHER_INTEGRATIONS,
+        *TESTABLE_CORE_INTEGRATIONS,
+        *OTHER_CORE_INTEGRATIONS,
     ]
 )
-AUTOCOMPLETE_INTEGRATIONS = sorted(
+ALL_PROVIDERS_INTEGRATIONS = sorted(
+    [
+        *TESTABLE_PROVIDERS_INTEGRATIONS,
+        *OTHER_PROVIDERS_INTEGRATIONS,
+    ]
+)
+AUTOCOMPLETE_CORE_INTEGRATIONS = sorted(
     [
         "all-testable",
         "all",
-        *ALL_INTEGRATIONS,
+        *ALL_CORE_INTEGRATIONS,
+    ]
+)
+AUTOCOMPLETE_PROVIDERS_INTEGRATIONS = sorted(
+    [
+        "all-testable",
+        "all",
+        *ALL_PROVIDERS_INTEGRATIONS,
+    ]
+)
+AUTOCOMPLETE_ALL_INTEGRATIONS = sorted(
+    [
+        "all-testable",
+        "all",
+        *ALL_CORE_INTEGRATIONS,
+        *ALL_PROVIDERS_INTEGRATIONS,
     ]
 )
 ALLOWED_TTY = ["auto", "enabled", "disabled"]
@@ -93,7 +126,7 @@ ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "pre-commit", "docker-compose"]
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.27.13", "v1.28.9", "v1.29.4", "v1.30.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.28.15", "v1.29.12", "v1.30.8", "v1.31.4", "v1.32.0"]
 
 LOCAL_EXECUTOR = "LocalExecutor"
 KUBERNETES_EXECUTOR = "KubernetesExecutor"
@@ -139,7 +172,7 @@ ALLOWED_MOUNT_OPTIONS = [
 ]
 
 USE_AIRFLOW_MOUNT_SOURCES = [MOUNT_REMOVE, MOUNT_TESTS, MOUNT_PROVIDERS_AND_TESTS]
-ALLOWED_POSTGRES_VERSIONS = ["12", "13", "14", "15", "16"]
+ALLOWED_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17"]
 # Oracle introduced new release model for MySQL
 # - LTS: Long Time Support releases, new release approx every 2 year,
 #  with 5 year premier and 3 year extended support, no new features/removals during current LTS release.
@@ -156,7 +189,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "24.3.1"
-UV_VERSION = "0.5.11"
+UV_VERSION = "0.5.17"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -170,48 +203,58 @@ REGULAR_DOC_PACKAGES = [
 ]
 
 
-@lru_cache(maxsize=None)
-def all_selective_test_types() -> tuple[str, ...]:
-    return tuple(sorted(e.value for e in SelectiveUnitTestTypes))
+@clearable_cache
+def all_selective_core_test_types() -> tuple[str, ...]:
+    return tuple(sorted(e.value for e in SelectiveCoreTestType))
 
 
-@lru_cache(maxsize=None)
-def all_selective_test_types_except_providers() -> tuple[str, ...]:
-    return tuple(sorted(e.value for e in SelectiveUnitTestTypes if e != SelectiveUnitTestTypes.PROVIDERS))
+@clearable_cache
+def providers_test_type() -> tuple[str, ...]:
+    return tuple(sorted(e.value for e in SelectiveProvidersTestType))
 
 
-class SelectiveUnitTestTypes(Enum):
+class SelectiveTestType(Enum):
+    pass
+
+
+class SelectiveCoreTestType(SelectiveTestType):
     ALWAYS = "Always"
     API = "API"
-    BRANCH_PYTHON_VENV = "BranchPythonVenv"
-    EXTERNAL_PYTHON = "ExternalPython"
-    EXTERNAL_BRANCH_PYTHON = "BranchExternalPython"
     CLI = "CLI"
     CORE = "Core"
     SERIALIZATION = "Serialization"
     OTHER = "Other"
     OPERATORS = "Operators"
-    PLAIN_ASSERTS = "PlainAsserts"
-    PROVIDERS = "Providers"
-    PYTHON_VENV = "PythonVenv"
     WWW = "WWW"
 
 
-ALLOWED_TEST_TYPE_CHOICES = [
-    "All",
-    "Default",
-    *all_selective_test_types(),
-    "All-Postgres",
-    "All-MySQL",
-    "All-Quarantined",
-]
-
-ALLOWED_PARALLEL_TEST_TYPE_CHOICES = [
-    *all_selective_test_types(),
-]
+class SelectiveProvidersTestType(SelectiveTestType):
+    PROVIDERS = "Providers"
 
 
-@lru_cache(maxsize=None)
+class GroupOfTests(Enum):
+    CORE = "core"
+    PROVIDERS = "providers"
+    HELM = "helm"
+    INTEGRATION_CORE = "integration-core"
+    INTEGRATION_PROVIDERS = "integration-providers"
+    SYSTEM = "system"
+    PYTHON_API_CLIENT = "python-api-client"
+
+
+ALL_TEST_TYPE = "All"
+NONE_TEST_TYPE = "None"
+
+ALL_TEST_SUITES: dict[str, tuple[str, ...]] = {
+    "All": (),
+    "All-Long": ("-m", "long_running", "--include-long-running"),
+    "All-Quarantined": ("-m", "quarantined", "--include-quarantined"),
+    "All-Postgres": ("--backend", "postgres"),
+    "All-MySQL": ("--backend", "mysql"),
+}
+
+
+@clearable_cache
 def all_helm_test_packages() -> list[str]:
     return sorted(
         [
@@ -222,10 +265,11 @@ def all_helm_test_packages() -> list[str]:
     )
 
 
-ALLOWED_HELM_TEST_PACKAGES = [
-    "all",
-    *all_helm_test_packages(),
-]
+ALLOWED_TEST_TYPE_CHOICES: dict[GroupOfTests, list[str]] = {
+    GroupOfTests.CORE: [*ALL_TEST_SUITES.keys(), *all_selective_core_test_types()],
+    GroupOfTests.PROVIDERS: [*ALL_TEST_SUITES.keys()],
+    GroupOfTests.HELM: [ALL_TEST_TYPE, *all_helm_test_packages()],
+}
 
 ALLOWED_PACKAGE_FORMATS = ["wheel", "sdist", "both"]
 ALLOWED_INSTALLATION_PACKAGE_FORMATS = ["wheel", "sdist"]
@@ -237,7 +281,6 @@ SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64"]
 ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
 
 ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
-ALLOWED_PYDANTIC_VERSIONS = ["v2", "v1", "none"]
 
 ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
 
@@ -262,6 +305,7 @@ RABBITMQ_HOST_PORT = "25672"
 REDIS_HOST_PORT = "26379"
 SSH_PORT = "12322"
 WEBSERVER_HOST_PORT = "28080"
+VITE_DEV_PORT = "5173"
 
 CELERY_BROKER_URLS_MAP = {"rabbitmq": "amqp://guest:guest@rabbitmq:5672", "redis": "redis://redis:6379/0"}
 SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"
@@ -273,7 +317,7 @@ PRODUCTION_IMAGE = False
 # changes from main to the previous branch.
 ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.8", "3.9", "3.10", "3.11", "3.12"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
-CURRENT_POSTGRES_VERSIONS = ["12", "13", "14", "15", "16"]
+CURRENT_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17"]
 DEFAULT_POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
 USE_MYSQL_INNOVATION_RELEASE = True
 if USE_MYSQL_INNOVATION_RELEASE:
@@ -324,6 +368,14 @@ AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
     "2.8.2": ["3.8", "3.9", "3.10", "3.11"],
     "2.8.3": ["3.8", "3.9", "3.10", "3.11"],
     "2.9.0": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.9.1": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.9.2": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.9.3": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.10.0": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.10.1": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.10.2": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.10.3": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.10.4": ["3.8", "3.9", "3.10", "3.11", "3.12"],
 }
 
 DB_RESET = False
@@ -355,12 +407,14 @@ COMMITTERS = [
     "bolkedebruin",
     "criccomini",
     "dimberman",
+    "dirrao",
     "dstandish",
     "eladkal",
     "ephraimbuddy",
     "feluelle",
     "feng-tao",
     "ferruzzi",
+    "gopidesupavan",
     "houqp",
     "hussein-awala",
     "jedcunningham",
@@ -392,6 +446,7 @@ COMMITTERS = [
     "saguziel",
     "sekikn",
     "shahar1",
+    "tirkarthi",
     "turbaszek",
     "uranusjr",
     "utkarsharma2",
@@ -416,7 +471,7 @@ def get_airflow_version():
     return airflow_version
 
 
-@lru_cache(maxsize=None)
+@clearable_cache
 def get_airflow_extras():
     airflow_dockerfile = AIRFLOW_SOURCES_ROOT / "Dockerfile"
     with open(airflow_dockerfile) as dockerfile:
@@ -427,7 +482,7 @@ def get_airflow_extras():
 
 
 # Initialize integrations
-ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT, "airflow", "providers").rglob("provider.yaml")
+ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT, "providers").rglob("provider.yaml")
 PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "provider_info.schema.json"
 
 with Path(AIRFLOW_SOURCES_ROOT, "generated", "provider_dependencies.json").open() as f:
@@ -444,12 +499,9 @@ FILES_FOR_REBUILD_CHECK = [
     "scripts/docker/common.sh",
     "scripts/docker/install_additional_dependencies.sh",
     "scripts/docker/install_airflow.sh",
-    "scripts/docker/install_airflow_dependencies_from_branch_tip.sh",
     "scripts/docker/install_from_docker_context_files.sh",
     "scripts/docker/install_mysql.sh",
 ]
-
-ENABLED_SYSTEMS = ""
 
 CURRENT_KUBERNETES_VERSIONS = ALLOWED_KUBERNETES_VERSIONS
 CURRENT_EXECUTORS = [KUBERNETES_EXECUTOR]
@@ -457,8 +509,8 @@ CURRENT_EXECUTORS = [KUBERNETES_EXECUTOR]
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = "v0.23.0"
-HELM_VERSION = "v3.15.3"
+KIND_VERSION = "v0.26.0"
+HELM_VERSION = "v3.16.4"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
 USE_AIRFLOW_VERSION = None
@@ -510,26 +562,20 @@ DEFAULT_EXTRAS = [
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
-CHICKEN_EGG_PROVIDERS = " ".join([])
+CHICKEN_EGG_PROVIDERS = ""
 
 
-BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str | list[str]]] = [
+PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
-        "python-version": "3.8",
-        "airflow-version": "2.7.3",
-        "remove-providers": "common.io fab",
+        "python-version": "3.9",
+        "airflow-version": "2.9.3",
+        "remove-providers": "cloudant fab edge",
         "run-tests": "true",
     },
     {
-        "python-version": "3.8",
-        "airflow-version": "2.8.4",
-        "remove-providers": "fab",
-        "run-tests": "true",
-    },
-    {
-        "python-version": "3.8",
-        "airflow-version": "2.9.1",
-        "remove-providers": "",
+        "python-version": "3.9",
+        "airflow-version": "2.10.4",
+        "remove-providers": "cloudant fab",
         "run-tests": "true",
     },
 ]
@@ -546,6 +592,6 @@ class GithubEvents(Enum):
     WORKFLOW_RUN = "workflow_run"
 
 
-@lru_cache(maxsize=None)
+@clearable_cache
 def github_events() -> list[str]:
     return [e.value for e in GithubEvents]

@@ -337,7 +337,7 @@ class ExecutorLoader:
         from airflow.settings import engine
 
         # SQLite only works with single threaded executors
-        if engine.dialect.name == "sqlite":
+        if engine and engine.dialect.name == "sqlite":
             raise AirflowConfigException(f"error: cannot use SQLite with the {executor.__name__}")
 
     @classmethod

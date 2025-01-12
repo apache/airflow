@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Iterable
+from collections.abc import Iterable
 
 import pytest
 
@@ -30,7 +30,6 @@ from airflow_breeze.utils.packages import (
     get_available_packages,
     get_cross_provider_dependent_packages,
     get_dist_package_name_prefix,
-    get_documentation_package_path,
     get_install_requirements,
     get_long_package_name,
     get_min_airflow_version,
@@ -42,12 +41,11 @@ from airflow_breeze.utils.packages import (
     get_provider_requirements,
     get_removed_provider_ids,
     get_short_package_name,
-    get_source_package_path,
     get_suspended_provider_folders,
     get_suspended_provider_ids,
     validate_provider_info_with_runtime_schema,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_PROVIDERS_ROOT, AIRFLOW_SOURCES_ROOT, DOCS_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
 
 def test_get_available_packages():
@@ -109,17 +107,17 @@ def test_get_provider_requirements():
 
 def test_get_removed_providers():
     # Modify it every time we schedule provider for removal or remove it
-    assert [] == get_removed_provider_ids()
+    assert get_removed_provider_ids() == []
 
 
 def test_get_suspended_provider_ids():
     # Modify it every time we suspend/resume provider
-    assert [] == get_suspended_provider_ids()
+    assert get_suspended_provider_ids() == []
 
 
 def test_get_suspended_provider_folders():
     # Modify it every time we suspend/resume provider
-    assert [] == get_suspended_provider_folders()
+    assert get_suspended_provider_folders() == []
 
 
 @pytest.mark.parametrize(
@@ -148,14 +146,6 @@ def test_find_matching_long_package_name(
 def test_find_matching_long_package_name_bad_filter():
     with pytest.raises(SystemExit, match=r"Some filters did not find any package: \['bad-filter-\*"):
         find_matching_long_package_names(short_packages=(), filters=("bad-filter-*",))
-
-
-def test_get_source_package_path():
-    assert get_source_package_path("apache.hdfs") == AIRFLOW_PROVIDERS_ROOT / "apache" / "hdfs"
-
-
-def test_get_documentation_package_path():
-    assert get_documentation_package_path("apache.hdfs") == DOCS_ROOT / "apache-airflow-providers-apache-hdfs"
 
 
 @pytest.mark.parametrize(
@@ -223,7 +213,8 @@ def test_get_documentation_package_path():
     ],
 )
 def test_get_install_requirements(provider: str, version_suffix: str, expected: str):
-    assert get_install_requirements(provider, version_suffix).strip() == expected.strip()
+    actual = get_install_requirements(provider, version_suffix)
+    assert actual.strip() == expected.strip()
 
 
 @pytest.mark.parametrize(
@@ -236,8 +227,6 @@ def test_get_install_requirements(provider: str, version_suffix: str, expected: 
                 "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
                 "apache.cassandra": ["apache-airflow-providers-apache-cassandra"],
                 "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.2.0"],
-                "common.compat": ["apache-airflow-providers-common-compat"],
-                "common.sql": ["apache-airflow-providers-common-sql"],
                 "facebook": ["apache-airflow-providers-facebook>=2.2.0"],
                 "leveldb": ["plyvel"],
                 "microsoft.azure": ["apache-airflow-providers-microsoft-azure"],
@@ -261,8 +250,6 @@ def test_get_install_requirements(provider: str, version_suffix: str, expected: 
                 "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
                 "apache.cassandra": ["apache-airflow-providers-apache-cassandra"],
                 "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.2.0.dev0"],
-                "common.compat": ["apache-airflow-providers-common-compat"],
-                "common.sql": ["apache-airflow-providers-common-sql"],
                 "facebook": ["apache-airflow-providers-facebook>=2.2.0.dev0"],
                 "leveldb": ["plyvel"],
                 "microsoft.azure": ["apache-airflow-providers-microsoft-azure"],
@@ -286,8 +273,6 @@ def test_get_install_requirements(provider: str, version_suffix: str, expected: 
                 "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
                 "apache.cassandra": ["apache-airflow-providers-apache-cassandra"],
                 "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.2.0b0"],
-                "common.compat": ["apache-airflow-providers-common-compat"],
-                "common.sql": ["apache-airflow-providers-common-sql"],
                 "facebook": ["apache-airflow-providers-facebook>=2.2.0b0"],
                 "leveldb": ["plyvel"],
                 "microsoft.azure": ["apache-airflow-providers-microsoft-azure"],
@@ -307,26 +292,33 @@ def test_get_install_requirements(provider: str, version_suffix: str, expected: 
     ],
 )
 def test_get_package_extras(version_suffix: str, expected: dict[str, list[str]]):
-    assert get_package_extras("google", version_suffix=version_suffix) == expected
+    actual = get_package_extras("google", version_suffix=version_suffix)
+    assert actual == expected
 
 
-def test_get_provider_details():
-    provider_details = get_provider_details("asana")
-    assert provider_details.provider_id == "asana"
-    assert provider_details.full_package_name == "airflow.providers.asana"
-    assert provider_details.pypi_package_name == "apache-airflow-providers-asana"
-    assert (
-        provider_details.source_provider_package_path
-        == AIRFLOW_SOURCES_ROOT / "airflow" / "providers" / "asana"
+def test_get_new_provider_details():
+    provider_details = get_provider_details("airbyte")
+    assert provider_details.provider_id == "airbyte"
+    assert provider_details.full_package_name == "airflow.providers.airbyte"
+    assert provider_details.pypi_package_name == "apache-airflow-providers-airbyte"
+    assert provider_details.root_provider_path == AIRFLOW_SOURCES_ROOT.joinpath(
+        "airflow",
+        "providers",
+        "airbyte",
     )
-    assert (
-        provider_details.documentation_provider_package_path == DOCS_ROOT / "apache-airflow-providers-asana"
+    assert provider_details.base_provider_package_path == AIRFLOW_SOURCES_ROOT.joinpath(
+        "airflow",
+        "providers",
+        "airbyte",
     )
-    assert "Asana" in provider_details.provider_description
+    assert provider_details.documentation_provider_package_path == AIRFLOW_SOURCES_ROOT.joinpath(
+        "docs", "apache-airflow-providers-airbyte"
+    )
+    assert "Airbyte" in provider_details.provider_description
     assert len(provider_details.versions) > 11
     assert provider_details.excluded_python_versions == []
     assert provider_details.plugins == []
-    assert provider_details.changelog_path == provider_details.source_provider_package_path / "CHANGELOG.rst"
+    assert provider_details.changelog_path == provider_details.root_provider_path / "CHANGELOG.rst"
     assert not provider_details.removed
 
 
@@ -372,8 +364,8 @@ def test_get_dist_package_name_prefix(provider_id: str, expected_package_name: s
             id="version-with-platform-marker",
         ),
         pytest.param(
-            "backports.zoneinfo>=0.2.1;python_version<'3.9'",
-            ("backports.zoneinfo", '>=0.2.1; python_version < "3.9"'),
+            "pendulum>=2.1.2,<4.0;python_version<'3.12'",
+            ("pendulum", '>=2.1.2,<4.0; python_version < "3.12"'),
             id="version-with-python-marker",
         ),
         pytest.param(
@@ -431,8 +423,8 @@ def test_validate_provider_info_with_schema():
 @pytest.mark.parametrize(
     "provider_id, min_version",
     [
-        ("amazon", "2.7.0"),
-        ("common.io", "2.8.0"),
+        ("amazon", "2.9.0"),
+        ("fab", "2.9.0"),
     ],
 )
 def test_get_min_airflow_version(provider_id: str, min_version: str):
@@ -496,7 +488,7 @@ def test_provider_jinja_context():
         "CHANGELOG_RELATIVE_PATH": "../../airflow/providers/amazon",
         "SUPPORTED_PYTHON_VERSIONS": ["3.8", "3.9", "3.10", "3.11", "3.12"],
         "PLUGINS": [],
-        "MIN_AIRFLOW_VERSION": "2.7.0",
+        "MIN_AIRFLOW_VERSION": "2.9.0",
         "PROVIDER_REMOVED": False,
         "PROVIDER_INFO": provider_info,
     }

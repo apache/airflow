@@ -36,7 +36,10 @@ from airflow.www import app as application
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
 
-pytestmark = pytest.mark.db_test
+pytestmark = [
+    pytest.mark.db_test,
+    pytest.mark.filterwarnings("default::airflow.exceptions.RemovedInAirflow3Warning"),
+]
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).parents[2].resolve()
 

@@ -43,16 +43,3 @@ def get_python_version_list(python_versions: str) -> list[str]:
         )
         sys.exit(1)
     return python_version_list
-
-
-def check_python_version():
-    if not sys.version_info >= (3, 9):
-        get_console().print("[error]At least Python 3.9 is required to prepare reproducible archives.\n")
-        get_console().print(
-            "[warning]Please reinstall Breeze using Python 3.9 - 3.12 environment.[/]\n\n"
-            "If you are using uv:\n\n"
-            "   uv tool install --force --reinstall --python 3.9 -e ./dev/breeze\n\n"
-            "If you are using pipx:\n\n"
-            "   pipx install --python $(which python3.9) --force -e ./dev/breeze\n"
-        )
-        sys.exit(1)

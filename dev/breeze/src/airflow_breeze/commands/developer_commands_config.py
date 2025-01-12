@@ -25,6 +25,7 @@ DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
         "down",
         "shell",
         "exec",
+        "compile-ui-assets",
         "compile-www-assets",
         "cleanup",
         "generate-migration-file",
@@ -38,7 +39,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--integration",
                 "--standalone-dag-processor",
-                "--database-isolation",
             ],
         },
         {
@@ -82,7 +82,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--integration",
                 "--standalone-dag-processor",
-                "--database-isolation",
+                "--start-webserver-with-examples",
             ],
         },
         {
@@ -125,7 +125,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--force-build",
                 "--platform",
-                "--image-tag",
                 "--github-repository",
                 "--builder",
                 "--use-uv",
@@ -147,6 +146,8 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-constraints-reference",
                 "--airflow-extras",
                 "--airflow-skip-constraints",
+                "--clean-airflow-installation",
+                "--excluded-providers",
                 "--force-lowest-dependencies",
                 "--install-airflow-with-constraints",
                 "--install-selected-providers",
@@ -155,9 +156,9 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--providers-constraints-mode",
                 "--providers-constraints-reference",
                 "--providers-skip-constraints",
-                "--test-type",
                 "--use-airflow-version",
                 "--use-packages-from-dist",
+                "--install-airflow-python-client",
             ],
         },
         {
@@ -166,7 +167,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--upgrade-boto",
                 "--downgrade-sqlalchemy",
                 "--downgrade-pendulum",
-                "--pydantic",
             ],
         },
         {
@@ -196,6 +196,15 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         }
     ],
+    "breeze compile-ui-assets": [
+        {
+            "name": "Compile ui assets flag",
+            "options": [
+                "--dev",
+                "--force-clean",
+            ],
+        }
+    ],
     "breeze start-airflow": [
         {
             "name": "Execution mode",
@@ -204,7 +213,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--platform",
                 "--integration",
                 "--standalone-dag-processor",
-                "--database-isolation",
                 "--load-example-dags",
                 "--load-default-connections",
             ],
@@ -245,7 +253,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Build CI image (before entering shell)",
             "options": [
                 "--force-build",
-                "--image-tag",
                 "--github-repository",
                 "--builder",
                 "--use-uv",
@@ -266,6 +273,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-constraints-reference",
                 "--airflow-extras",
                 "--airflow-skip-constraints",
+                "--clean-airflow-installation",
                 "--install-selected-providers",
                 "--package-format",
                 "--providers-constraints-location",
@@ -338,7 +346,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--skip-image-upgrade-check",
                 "--force-build",
-                "--image-tag",
                 "--github-repository",
                 "--builder",
             ],

@@ -63,16 +63,13 @@ OpenLineage defines a few methods for implementation in Operators. Those are ref
 
 .. code-block:: python
 
-  def get_openlineage_facets_on_start() -> OperatorLineage:
-      ...
+  def get_openlineage_facets_on_start() -> OperatorLineage: ...
 
 
-  def get_openlineage_facets_on_complete(ti: TaskInstance) -> OperatorLineage:
-      ...
+  def get_openlineage_facets_on_complete(ti: TaskInstance) -> OperatorLineage: ...
 
 
-  def get_openlineage_facets_on_failure(ti: TaskInstance) -> OperatorLineage:
-      ...
+  def get_openlineage_facets_on_failure(ti: TaskInstance) -> OperatorLineage: ...
 
 OpenLineage methods get called respectively when task instance changes state to:
 

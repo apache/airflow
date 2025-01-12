@@ -166,9 +166,7 @@ class MongoHook(BaseHook):
         path = f"/{self.connection.schema}"
         return urlunsplit((scheme, netloc, path, "", ""))
 
-    def get_collection(
-        self, mongo_collection: str, mongo_db: str | None = None
-    ) -> pymongo.collection.Collection:
+    def get_collection(self, mongo_collection: str, mongo_db: str | None = None):
         """
         Fetch a mongo collection object for querying.
 
@@ -179,9 +177,7 @@ class MongoHook(BaseHook):
 
         return mongo_conn.get_database(mongo_db).get_collection(mongo_collection)
 
-    def aggregate(
-        self, mongo_collection: str, aggregate_query: list, mongo_db: str | None = None, **kwargs
-    ) -> pymongo.command_cursor.CommandCursor:
+    def aggregate(self, mongo_collection: str, aggregate_query: list, mongo_db: str | None = None, **kwargs):
         """
         Run an aggregation pipeline and returns the results.
 

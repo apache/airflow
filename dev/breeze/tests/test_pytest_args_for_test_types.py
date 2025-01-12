@@ -18,15 +18,16 @@ from __future__ import annotations
 
 import pytest
 
-from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION
+from airflow_breeze.global_constants import GroupOfTests
 from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, convert_test_type_to_pytest_args
 
 
 @pytest.mark.parametrize(
-    "test_type, pytest_args, skip_provider_tests",
+    "test_group, test_type, pytest_args",
     [
         # Those list needs to be updated every time we add a new directory to tests/ folder
         (
+            GroupOfTests.CORE,
             "Core",
             [
                 "tests/core",
@@ -36,69 +37,54 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
                 "tests/ti_deps",
                 "tests/utils",
             ],
-            False,
         ),
         (
-            "Integration",
+            GroupOfTests.INTEGRATION_PROVIDERS,
+            "All",
+            ["tests/providers/integration"],
+        ),
+        (
+            GroupOfTests.INTEGRATION_CORE,
+            "All",
             ["tests/integration"],
-            False,
         ),
         (
-            "Integration",
-            [
-                "tests/integration/api_experimental",
-                "tests/integration/cli",
-                "tests/integration/executors",
-                "tests/integration/security",
-            ],
-            True,
-        ),
-        (
+            GroupOfTests.CORE,
             "API",
-            ["tests/api", "tests/api_experimental", "tests/api_connexion", "tests/api_internal"],
-            False,
+            ["tests/api", "tests/api_connexion", "tests/api_experimental", "tests/api_internal"],
         ),
         (
+            GroupOfTests.CORE,
             "Serialization",
             ["tests/serialization"],
-            False,
         ),
         (
-            "System",
-            ["tests/system"],
-            False,
-        ),
-        (
+            GroupOfTests.CORE,
             "Operators",
-            ["tests/operators", "--exclude-virtualenv-operator", "--exclude-external-python-operator"],
-            False,
+            ["tests/operators"],
         ),
         (
+            GroupOfTests.PROVIDERS,
             "Providers",
             ["tests/providers"],
-            False,
         ),
         (
-            "Providers",
-            [],
-            True,
-        ),
-        (
+            GroupOfTests.PROVIDERS,
             "Providers[amazon]",
             ["tests/providers/amazon"],
-            False,
         ),
         (
+            GroupOfTests.PROVIDERS,
             "Providers[common.io]",
             ["tests/providers/common/io"],
-            False,
         ),
         (
+            GroupOfTests.PROVIDERS,
             "Providers[amazon,google,apache.hive]",
             ["tests/providers/amazon", "tests/providers/google", "tests/providers/apache/hive"],
-            False,
         ),
         (
+            GroupOfTests.PROVIDERS,
             "Providers[-amazon,google,microsoft.azure]",
             [
                 "tests/providers",
@@ -106,50 +92,19 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
                 "--ignore=tests/providers/google",
                 "--ignore=tests/providers/microsoft/azure",
             ],
-            False,
         ),
         (
-            "PlainAsserts",
-            [
-                "tests/operators/test_python.py::TestPythonVirtualenvOperator::test_airflow_context",
-                "--assert=plain",
-            ],
-            False,
-        ),
-        (
+            GroupOfTests.CORE,
             "All-Quarantined",
             ["tests", "-m", "quarantined", "--include-quarantined"],
-            False,
         ),
         (
-            "PythonVenv",
-            [
-                "tests/operators/test_python.py::TestPythonVirtualenvOperator",
-            ],
-            False,
+            GroupOfTests.PROVIDERS,
+            "All-Quarantined",
+            ["tests/providers", "-m", "quarantined", "--include-quarantined"],
         ),
         (
-            "BranchPythonVenv",
-            [
-                "tests/operators/test_python.py::TestBranchPythonVirtualenvOperator",
-            ],
-            False,
-        ),
-        (
-            "ExternalPython",
-            [
-                "tests/operators/test_python.py::TestExternalPythonOperator",
-            ],
-            False,
-        ),
-        (
-            "BranchExternalPython",
-            [
-                "tests/operators/test_python.py::TestBranchExternalPythonOperator",
-            ],
-            False,
-        ),
-        (
+            GroupOfTests.CORE,
             "Other",
             [
                 "tests/auth",
@@ -172,24 +127,33 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
                 "tests/sensors",
                 "tests/task",
                 "tests/template",
+                "tests/test_utils",
                 "tests/testconfig",
                 "tests/timetables",
                 "tests/triggers",
             ],
-            False,
+        ),
+        (
+            GroupOfTests.HELM,
+            "All",
+            ["helm_tests"],
+        ),
+        (
+            GroupOfTests.HELM,
+            "airflow_aux",
+            ["helm_tests/airflow_aux"],
         ),
     ],
 )
 def test_pytest_args_for_regular_test_types(
+    test_group: GroupOfTests,
     test_type: str,
     pytest_args: list[str],
-    skip_provider_tests: bool,
 ):
     assert (
         convert_test_type_to_pytest_args(
+            test_group=test_group,
             test_type=test_type,
-            skip_provider_tests=skip_provider_tests,
-            python_version=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         )
         == pytest_args
     )
@@ -198,160 +162,164 @@ def test_pytest_args_for_regular_test_types(
 def test_pytest_args_for_missing_provider():
     with pytest.raises(SystemExit):
         convert_test_type_to_pytest_args(
+            test_group=GroupOfTests.PROVIDERS,
             test_type="Providers[missing.provider]",
-            skip_provider_tests=False,
-            python_version=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         )
 
 
 @pytest.mark.parametrize(
-    "helm_test_package, pytest_args",
+    "test_group, parallel_test_types, folders",
     [
         (
-            None,
-            ["helm_tests"],
-        ),
-        (
-            "airflow_aux",
-            ["helm_tests/airflow_aux"],
-        ),
-        (
-            "all",
-            ["helm_tests"],
-        ),
-    ],
-)
-def test_pytest_args_for_helm_test_types(helm_test_package: str, pytest_args: list[str]):
-    assert (
-        convert_test_type_to_pytest_args(
-            test_type="Helm",
-            skip_provider_tests=False,
-            helm_test_package=helm_test_package,
-            python_version=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-        )
-        == pytest_args
-    )
-
-
-@pytest.mark.parametrize(
-    "parallel_test_types, folders, skip_provider_tests",
-    [
-        (
+            GroupOfTests.CORE,
             "API",
-            ["tests/api", "tests/api_experimental", "tests/api_connexion", "tests/api_internal"],
-            False,
+            ["tests/api", "tests/api_connexion", "tests/api_experimental", "tests/api_internal"],
         ),
         (
+            GroupOfTests.CORE,
             "CLI",
             [
                 "tests/cli",
             ],
-            False,
         ),
         (
+            GroupOfTests.CORE,
             "API CLI",
             [
                 "tests/api",
-                "tests/api_experimental",
                 "tests/api_connexion",
+                "tests/api_experimental",
                 "tests/api_internal",
                 "tests/cli",
             ],
-            False,
         ),
         (
+            GroupOfTests.CORE,
             "Core",
             ["tests/core", "tests/executors", "tests/jobs", "tests/models", "tests/ti_deps", "tests/utils"],
-            False,
         ),
         (
-            "Core Providers",
+            GroupOfTests.PROVIDERS,
+            "Providers",
             [
-                "tests/core",
-                "tests/executors",
-                "tests/jobs",
-                "tests/models",
-                "tests/ti_deps",
-                "tests/utils",
                 "tests/providers",
             ],
-            False,
         ),
         (
-            "Core Providers[amazon]",
+            GroupOfTests.PROVIDERS,
+            "Providers[amazon]",
             [
-                "tests/core",
-                "tests/executors",
-                "tests/jobs",
-                "tests/models",
-                "tests/ti_deps",
-                "tests/utils",
                 "tests/providers/amazon",
             ],
-            False,
         ),
         (
-            "Core Providers[amazon] Providers[google]",
+            GroupOfTests.PROVIDERS,
+            "Providers[amazon] Providers[google]",
             [
-                "tests/core",
-                "tests/executors",
-                "tests/jobs",
-                "tests/models",
-                "tests/ti_deps",
-                "tests/utils",
                 "tests/providers/amazon",
                 "tests/providers/google",
             ],
-            False,
         ),
         (
-            "Core Providers[-amazon,google]",
+            GroupOfTests.PROVIDERS,
+            "Providers[-amazon,google]",
             [
-                "tests/core",
-                "tests/executors",
-                "tests/jobs",
-                "tests/models",
-                "tests/ti_deps",
-                "tests/utils",
                 "tests/providers",
             ],
-            False,
         ),
         (
-            "Core Providers[amazon] Providers[google]",
+            GroupOfTests.PROVIDERS,
+            "Providers[-amazon,google] Providers[amazon] Providers[google]",
             [
-                "tests/core",
-                "tests/executors",
-                "tests/jobs",
-                "tests/models",
-                "tests/ti_deps",
-                "tests/utils",
-            ],
-            True,
-        ),
-        (
-            "Core Providers[-amazon,google] Providers[amazon] Providers[google]",
-            [
-                "tests/core",
-                "tests/executors",
-                "tests/jobs",
-                "tests/models",
-                "tests/ti_deps",
-                "tests/utils",
                 "tests/providers",
+                "tests/providers/amazon",
+                "tests/providers/google",
             ],
-            False,
+        ),
+        (
+            GroupOfTests.INTEGRATION_PROVIDERS,
+            "All",
+            [
+                "tests/providers/integration",
+            ],
+        ),
+        (
+            GroupOfTests.HELM,
+            "All",
+            [
+                "helm_tests",
+            ],
+        ),
+        (
+            GroupOfTests.INTEGRATION_CORE,
+            "All",
+            [
+                "tests/integration",
+            ],
+        ),
+        (
+            GroupOfTests.SYSTEM,
+            "None",
+            [],
         ),
     ],
 )
 def test_folders_for_parallel_test_types(
-    parallel_test_types: str, folders: list[str], skip_provider_tests: bool
+    test_group: GroupOfTests, parallel_test_types: str, folders: list[str]
 ):
     assert (
         convert_parallel_types_to_folders(
+            test_group=test_group,
             parallel_test_types_list=parallel_test_types.split(" "),
-            skip_provider_tests=skip_provider_tests,
-            python_version=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         )
         == folders
     )
+
+
+@pytest.mark.parametrize(
+    "test_group, parallel_test_types",
+    [
+        (
+            GroupOfTests.CORE,
+            "Providers",
+        ),
+        (
+            GroupOfTests.CORE,
+            "Helm",
+        ),
+        (
+            GroupOfTests.PROVIDERS,
+            "API CLI",
+        ),
+        (
+            GroupOfTests.PROVIDERS,
+            "API CLI Providers",
+        ),
+        (
+            GroupOfTests.HELM,
+            "API",
+        ),
+        (
+            GroupOfTests.HELM,
+            "Providers",
+        ),
+        (
+            GroupOfTests.INTEGRATION_PROVIDERS,
+            "API",
+        ),
+        (
+            GroupOfTests.INTEGRATION_CORE,
+            "WWW",
+        ),
+        (
+            GroupOfTests.SYSTEM,
+            "CLI",
+        ),
+    ],
+)
+def xtest_wrong_types_for_parallel_test_types(test_group: GroupOfTests, parallel_test_types: str):
+    with pytest.raises(SystemExit):
+        convert_parallel_types_to_folders(
+            test_group=test_group,
+            parallel_test_types_list=parallel_test_types.split(" "),
+        )

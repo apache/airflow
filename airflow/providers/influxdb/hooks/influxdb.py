@@ -99,7 +99,8 @@ class InfluxDBHook(BaseHook):
             return self.client
 
         self.client = self.get_client(self.uri, self.extras)
-
+        if not self.client:
+            raise ValueError("InfluxDB connection not present")
         return self.client
 
     def query(self, query) -> list[FluxTable]:

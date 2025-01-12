@@ -194,12 +194,6 @@ def version():
 @click.option("-C/-c", "--cheatsheet/--no-cheatsheet", help="Enable/disable cheatsheet.", default=None)
 @click.option("-A/-a", "--asciiart/--no-asciiart", help="Enable/disable ASCIIart.", default=None)
 @click.option(
-    "-U/-u",
-    "--use-uv/--no-use-uv",
-    help="Enable/disable using uv for creating venvs by breeze.",
-    default=None,
-)
-@click.option(
     "--colour/--no-colour",
     help="Enable/disable Colour mode (useful for colour blind-friendly communication).",
     default=None,
@@ -207,7 +201,6 @@ def version():
 def change_config(
     python: str,
     backend: str,
-    use_uv: bool,
     postgres_version: str,
     mysql_version: str,
     cheatsheet: bool,
@@ -220,15 +213,6 @@ def change_config(
     asciiart_file = "suppress_asciiart"
     cheatsheet_file = "suppress_cheatsheet"
     colour_file = "suppress_colour"
-    use_uv_file = "use_uv"
-
-    if use_uv is not None:
-        if use_uv:
-            touch_cache_file(use_uv_file)
-            get_console().print("[info]Enable using uv[/]")
-        else:
-            delete_cache(use_uv_file)
-            get_console().print("[info]Disable using uv[/]")
     if asciiart is not None:
         if asciiart:
             delete_cache(asciiart_file)
@@ -262,8 +246,6 @@ def change_config(
     get_console().print()
     get_console().print(f"[info]* Python: {python}[/]")
     get_console().print(f"[info]* Backend: {backend}[/]")
-    get_console().print(f"[info]* Use uv: {get_status(use_uv_file)}[/]")
-    get_console().print()
     get_console().print(f"[info]* Postgres version: {postgres_version}[/]")
     get_console().print(f"[info]* MySQL version: {mysql_version}[/]")
     get_console().print()
@@ -589,6 +571,7 @@ DEVELOPER_COMMANDS = [
     "exec",
     "shell",
     "compile-www-assets",
+    "compile-ui-assets",
     "cleanup",
     "generate-migration-file",
 ]

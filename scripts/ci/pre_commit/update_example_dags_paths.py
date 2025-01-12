@@ -34,7 +34,7 @@ if __name__ not in ("__main__", "__mp_main__"):
 console = Console(color_system="standard", width=200)
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).parents[3].resolve()
-
+PROVIDERS_SRC = AIRFLOW_SOURCES_ROOT / "providers" / "src" / "airflow" / "providers"
 
 EXAMPLE_DAGS_URL_MATCHER = re.compile(
     r"^(.*)(https://github.com/apache/airflow/tree/(.*)/airflow/providers/(.*)/example_dags)(/?>.*)$"
@@ -45,10 +45,7 @@ def get_provider_and_version(url_path: str) -> tuple[str, str]:
     candidate_folders = url_path.split("/")
     while candidate_folders:
         try:
-            with open(
-                (AIRFLOW_SOURCES_ROOT / "airflow" / "providers").joinpath(*candidate_folders)
-                / "provider.yaml"
-            ) as f:
+            with PROVIDERS_SRC.joinpath(*candidate_folders, "provider.yaml").open() as f:
                 provider_info = yaml.safe_load(f)
             version = provider_info["versions"][0]
             provider = "-".join(candidate_folders)
@@ -68,13 +65,11 @@ def replace_match(file: Path, line: str) -> str | None:
     if match:
         url_path_to_dir = match.group(4)
         folders = url_path_to_dir.split("/")
-        example_dags_folder = (AIRFLOW_SOURCES_ROOT / "airflow" / "providers").joinpath(
-            *folders
-        ) / "example_dags"
+        example_dags_folder = PROVIDERS_SRC.joinpath(*folders, "example_dags")
         provider, version = get_provider_and_version(url_path_to_dir)
         proper_system_tests_url = (
             f"https://github.com/apache/airflow/tree/providers-{provider}/{version}"
-            f"/tests/system/providers/{url_path_to_dir}"
+            f"/providers/tests/system/{url_path_to_dir}"
         )
         if not example_dags_folder.exists():
             if proper_system_tests_url in file.read_text():

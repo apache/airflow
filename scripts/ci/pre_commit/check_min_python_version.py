@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from common_precommit_utils import console
 
 # update this version when we switch to a newer version of Python
-required_version = tuple(map(int, "3.8".split(".")))
+required_version = tuple(map(int, "3.9".split(".")))
 required_version_str = f"{required_version[0]}.{required_version[1]}"
 global_version = tuple(
     map(
