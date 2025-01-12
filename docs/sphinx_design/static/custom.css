@@ -40,3 +40,14 @@ div.admonition.warning {
 .rst-content .warning .admonition-title {
   background: #cc341d;
 }
+
+section {
+  padding-top: 0rem !important;
+  padding-bottom: 0rem !important;
+}
+
+a.headerlink::after {
+  content: url(/images/anchor.svg) !important;  /* TODO - Image not existing :-( Needs replacement */
+  visibility: visible !important;
+  font-size: 100% !important;
+}
