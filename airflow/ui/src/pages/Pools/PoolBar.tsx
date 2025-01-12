@@ -21,6 +21,7 @@ import { MdHourglassDisabled, MdHourglassFull } from "react-icons/md";
 
 import type { PoolResponse } from "openapi/requests/types.gen";
 import { Tooltip } from "src/components/ui";
+import { stateColor } from "src/utils/stateColor";
 
 type PoolBarProps = {
   readonly pools: Array<PoolResponse>;
@@ -68,33 +69,33 @@ const PoolBar = ({ pools }: PoolBarProps) => (
             <Flex bg="gray.100" borderRadius="md" h="20px" overflow="hidden" w="100%">
               {/* Open Slots */}
               <Tooltip content={`Open Slots: ${pool.open_slots}`}>
-                <Box bg="green.solid" flex={openFlex} h="100%" />
+                <Box bg={stateColor.success} flex={openFlex} h="100%" />
               </Tooltip>
 
               {/* Scheduled Slots */}
               <Tooltip content={`Scheduled Slots: ${pool.scheduled_slots}`}>
-                <Box bg="gray.emphasized" flex={scheduledFlex} h="100%" />
+                <Box bg={stateColor.scheduled} flex={scheduledFlex} h="100%" />
               </Tooltip>
 
               {/* Running Slots */}
               <Tooltip content={`Running Slots: ${pool.running_slots}`}>
-                <Box bg="blue.solid" flex={runningFlex} h="100%" />
+                <Box bg={stateColor.running} flex={runningFlex} h="100%" />
               </Tooltip>
 
               {/* Queued Slots */}
               <Tooltip content={`Queued Slots: ${pool.queued_slots}`}>
-                <Box bg="orange.solid" flex={queuedFlex} h="100%" />
+                <Box bg={stateColor.queued} flex={queuedFlex} h="100%" />
               </Tooltip>
 
               {/* Occupied Slots */}
               <Tooltip content={`Occupied Slots: ${pool.occupied_slots}`}>
-                <Box bg="yellow.solid" flex={occupiedFlex} h="100%" />
+                <Box bg={stateColor.up_for_retry} flex={occupiedFlex} h="100%" />
               </Tooltip>
 
               {/* Deferred Slots */}
               {pool.include_deferred && pool.deferred_slots > 0 ? (
                 <Tooltip content={`Deferred Slots: ${pool.deferred_slots}`}>
-                  <Box bg="red.solid" flex={deferredFlex} h="100%" />
+                  <Box bg={stateColor.deferred} flex={deferredFlex} h="100%" />
                 </Tooltip>
               ) : undefined}
             </Flex>
