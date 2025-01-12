@@ -23,7 +23,11 @@ from unittest.mock import patch
 import pytest
 import requests
 
-from airflow.exceptions import AirflowException, AirflowSensorTimeout, TaskDeferred
+from airflow.exceptions import (
+    AirflowException,
+    AirflowSensorTimeout,
+    TaskDeferred,
+)
 from airflow.models.dag import DAG
 from airflow.providers.http.operators.http import HttpOperator
 from airflow.providers.http.sensors.http import HttpSensor
