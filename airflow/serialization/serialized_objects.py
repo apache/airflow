@@ -781,7 +781,7 @@ class BaseSerialization:
             return cls._encode(var.to_json(), type_=DAT.DAG_CALLBACK_REQUEST)
         elif var.__class__ == Context:
             d = {}
-            for k, v in var._context.items():
+            for k, v in var.items():
                 obj = cls.serialize(v, strict=strict)
                 d[str(k)] = obj
             return cls._encode(d, type_=DAT.TASK_CONTEXT)
