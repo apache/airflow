@@ -209,7 +209,7 @@ rerun in Breeze as you will (``-n auto`` will parallelize tests using ``pytest-x
 
 .. code-block:: bash
 
-    breeze shell --backend none --python 3.8
+    breeze shell --backend none --python 3.9
     > pytest tests --skip-db-tests -n auto
 
 
@@ -286,7 +286,7 @@ either by package/module/test or by test type - whatever ``pytest`` supports.
 
 .. code-block:: bash
 
-    breeze shell --backend postgres --python 3.8
+    breeze shell --backend postgres --python 3.9
     > pytest tests --run-db-tests-only
 
 As explained before, you cannot run DB tests in parallel using ``pytest-xdist`` plugin, but ``breeze`` has
@@ -296,7 +296,7 @@ you use ``breeze testing db-tests`` command):
 
 .. code-block:: bash
 
-    breeze testing tests --run-db-tests-only --backend postgres --python 3.8 --run-in-parallel
+    breeze testing tests --run-db-tests-only --backend postgres --python 3.9 --run-in-parallel
 
 Examples of marking test as DB test
 ...................................
@@ -1122,7 +1122,7 @@ directly to the container.
 
 .. code-block:: bash
 
-   breeze ci-image build --python 3.8
+   breeze ci-image build --python 3.9
 
 2. Enter breeze environment by selecting the appropriate airflow version and choosing
    ``providers-and-tests`` option for ``--mount-sources`` flag.
@@ -1224,7 +1224,7 @@ Herr id how to reproduce it.
 
 .. code-block:: bash
 
-   breeze ci-image build --python 3.8
+   breeze ci-image build --python 3.9
 
 2. Build providers from latest sources:
 

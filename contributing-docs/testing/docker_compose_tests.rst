@@ -48,7 +48,7 @@ Running complete test with breeze:
 
 .. code-block:: bash
 
-    breeze prod-image build --python 3.8
+    breeze prod-image build --python 3.9
     breeze testing docker-compose-tests
 
 In case the test fails, it will dump the logs from the running containers to the console and it
@@ -66,7 +66,7 @@ The test can be also run manually with ``pytest docker_tests/test_docker_compose
 command, provided that you have a local airflow venv with ``dev`` extra set and the
 ``DOCKER_IMAGE`` environment variable is set to the image you want to test. The variable defaults
 to ``ghcr.io/apache/airflow/main/prod/python3.8:latest`` which is built by default
-when you run ``breeze prod-image build --python 3.8``. also the switches ``--skip-docker-compose-deletion``
+when you run ``breeze prod-image build --python 3.9``. also the switches ``--skip-docker-compose-deletion``
 and ``--wait-for-containers-timeout`` can only be passed via environment variables.
 
 If you want to debug the deployment using ``docker compose`` commands after ``SKIP_DOCKER_COMPOSE_DELETION``

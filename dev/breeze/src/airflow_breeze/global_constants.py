@@ -46,7 +46,7 @@ APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 
 # Checked before putting in build cache
 ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.8", "3.9", "3.10", "3.11", "3.12"]
-DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
+DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.9"
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 # Database Backends used when starting Breeze. The "none" value means that the configuration is invalid.
 # No database will be started - access to a database will fail.
