@@ -33,7 +33,6 @@ import {
 import {
   BackfillPostBody,
   Body_import_variables,
-  BulkVariablesBody,
   ClearTaskInstancesBody,
   ConnectionBody,
   ConnectionBulkBody,
@@ -51,6 +50,7 @@ import {
   TaskInstancesBatchBody,
   TriggerDAGRunPostBody,
   VariableBody,
+  VariableBulkBody,
 } from "../requests/types.gen";
 import * as Common from "./common";
 
@@ -3779,7 +3779,7 @@ export const useVariableServicePatchVariable = <
  * Bulk create, update, and delete variables.
  * @param data The data for the request.
  * @param data.requestBody
- * @returns BulkVariableResponse Successful Response
+ * @returns VariableBulkResponse Successful Response
  * @throws ApiError
  */
 export const useVariableServiceBulkVariables = <
@@ -3792,7 +3792,7 @@ export const useVariableServiceBulkVariables = <
       TData,
       TError,
       {
-        requestBody: BulkVariablesBody;
+        requestBody: VariableBulkBody;
       },
       TContext
     >,
@@ -3803,7 +3803,7 @@ export const useVariableServiceBulkVariables = <
     TData,
     TError,
     {
-      requestBody: BulkVariablesBody;
+      requestBody: VariableBulkBody;
     },
     TContext
   >({

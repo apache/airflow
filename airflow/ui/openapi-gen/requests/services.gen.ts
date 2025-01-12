@@ -3052,7 +3052,7 @@ export class VariableService {
    * Bulk create, update, and delete variables.
    * @param data The data for the request.
    * @param data.requestBody
-   * @returns BulkVariableResponse Successful Response
+   * @returns VariableBulkResponse Successful Response
    * @throws ApiError
    */
   public static bulkVariables(data: BulkVariablesData): CancelablePromise<BulkVariablesResponse> {

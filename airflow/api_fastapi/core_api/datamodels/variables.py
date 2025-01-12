@@ -76,7 +76,7 @@ class VariablesImportResponse(BaseModel):
     created_count: int
 
 
-class VariableActionCreate(BaseModel):
+class VariableBulkCreateAction(BaseModel):
     """Bulk Create Variable serializer for request bodies."""
 
     action: Literal["create"] = "create"
@@ -84,7 +84,7 @@ class VariableActionCreate(BaseModel):
     action_if_exists: Literal["skip", "overwrite", "fail"] = "fail"
 
 
-class VariableActionUpdate(BaseModel):
+class VariableBulkUpdateAction(BaseModel):
     """Bulk Update Variable serializer for request bodies."""
 
     action: Literal["update"] = "update"
@@ -92,7 +92,7 @@ class VariableActionUpdate(BaseModel):
     action_if_not_exists: Literal["skip", "fail"] = "fail"
 
 
-class VariableActionDelete(BaseModel):
+class VariableBulkDeleteAction(BaseModel):
     """Bulk Delete Variable serializer for request bodies."""
 
     action: Literal["delete"] = "delete"
@@ -100,24 +100,48 @@ class VariableActionDelete(BaseModel):
     action_if_not_exists: Literal["skip", "fail"] = "fail"
 
 
-class BulkVariablesBody(BaseModel):
+class VariableBulkBody(BaseModel):
     """Request body for bulk variable operations (create, update, delete)."""
 
-    actions: list[VariableActionCreate | VariableActionUpdate | VariableActionDelete] = Field(
+    actions: list[VariableBulkCreateAction | VariableBulkUpdateAction | VariableBulkDeleteAction] = Field(
         ..., description="A list of variable actions to perform."
     )
 
 
-class BulkActionResponse(BaseModel):
-    """Bulk Action serializer for responses."""
+class VariableBulkActionResponse(BaseModel):
+    """
+    Serializer for individual bulk action responses.
 
-    success: list[str] = []
-    errors: list[dict[str, Any]] = []
+    Represents the outcome of a single bulk operation (create, update, or delete).
+    The response includes a list of successful keys and any errors encountered during the operation.
+    This structure helps users understand which key actions succeeded and which failed.
+    """
+
+    success: list[str] = Field(default=[], description="A list of keys representing successful operations.")
+    errors: list[dict[str, Any]] = Field(
+        default=[],
+        description="A list of errors encountered during the operation, each containing details about the issue.",
+    )
 
 
-class BulkVariableResponse(BaseModel):
-    """Bulk Variable operation serializer for responses."""
+class VariableBulkResponse(BaseModel):
+    """
+    Serializer for responses to bulk variable operations.
 
-    create: BulkActionResponse | None = Field(default=None)
-    update: BulkActionResponse | None = Field(default=None)
-    delete: BulkActionResponse | None = Field(default=None)
+    This represents the results of create, update, and delete actions performed on variables in bulk.
+    Each action (if requested) is represented as a field containing details about successful keys and any encountered errors.
+    Fields are populated in the response only if the respective action was part of the request, else are set None.
+    """
+
+    create: VariableBulkActionResponse | None = Field(
+        default=None,
+        description="Details of the bulk create operation, including successful keys and errors.",
+    )
+    update: VariableBulkActionResponse | None = Field(
+        default=None,
+        description="Details of the bulk update operation, including successful keys and errors.",
+    )
+    delete: VariableBulkActionResponse | None = Field(
+        default=None,
+        description="Details of the bulk delete operation, including successful keys and errors.",
+    )

@@ -33,13 +33,13 @@ from airflow.api_fastapi.common.parameters import (
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.variables import (
-    BulkActionResponse,
-    BulkVariableResponse,
-    BulkVariablesBody,
-    VariableActionCreate,
-    VariableActionDelete,
-    VariableActionUpdate,
     VariableBody,
+    VariableBulkActionResponse,
+    VariableBulkBody,
+    VariableBulkCreateAction,
+    VariableBulkDeleteAction,
+    VariableBulkResponse,
+    VariableBulkUpdateAction,
     VariableCollectionResponse,
     VariableResponse,
     VariablesImportResponse,
@@ -251,7 +251,9 @@ def categorize_keys(session, keys: set) -> tuple[set, set]:
     return matched_keys, not_found_keys
 
 
-def handle_bulk_create(session, action: VariableActionCreate, results: BulkActionResponse) -> None:
+def handle_bulk_create(
+    session, action: VariableBulkCreateAction, results: VariableBulkActionResponse
+) -> None:
     """Bulk create variables."""
     to_create_keys = {variable.key for variable in action.variables}
     matched_keys, not_found_keys = categorize_keys(session, to_create_keys)
@@ -278,7 +280,9 @@ def handle_bulk_create(session, action: VariableActionCreate, results: BulkActio
         results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
 
 
-def handle_bulk_update(session, action: VariableActionUpdate, results: BulkActionResponse) -> None:
+def handle_bulk_update(
+    session, action: VariableBulkUpdateAction, results: VariableBulkActionResponse
+) -> None:
     """Bulk Update variables."""
     to_update_keys = {variable.key for variable in action.variables}
     matched_keys, not_found_keys = categorize_keys(session, to_update_keys)
@@ -311,7 +315,9 @@ def handle_bulk_update(session, action: VariableActionUpdate, results: BulkActio
         results.errors.append({"error": f"{e.errors()}"})
 
 
-def handle_bulk_delete(session, action: VariableActionDelete, results: BulkActionResponse) -> None:
+def handle_bulk_delete(
+    session, action: VariableBulkDeleteAction, results: VariableBulkActionResponse
+) -> None:
     """Bulk delete variables."""
     to_delete_keys = set(action.keys)
     matched_keys, not_found_keys = categorize_keys(session, to_delete_keys)
@@ -339,15 +345,15 @@ def handle_bulk_delete(session, action: VariableActionDelete, results: BulkActio
 
 @variables_router.patch("")
 def bulk_variables(
-    request: BulkVariablesBody,
+    request: VariableBulkBody,
     session: SessionDep,
-) -> BulkVariableResponse:
+) -> VariableBulkResponse:
     """Bulk create, update, and delete variables."""
-    results: dict[str, BulkActionResponse] = {}
+    results: dict[str, VariableBulkActionResponse] = {}
 
     for action in request.actions:
         if action.action not in results:
-            results[action.action] = BulkActionResponse()
+            results[action.action] = VariableBulkActionResponse()
 
         if action.action == "create":
             handle_bulk_create(session, action, results[action.action])
@@ -356,4 +362,4 @@ def bulk_variables(
         elif action.action == "delete":
             handle_bulk_delete(session, action, results[action.action])
 
-    return BulkVariableResponse(**results)
+    return VariableBulkResponse(**results)
