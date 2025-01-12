@@ -44,12 +44,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uvloop (true/false)"
         required: true
         type: string
-permissions:
-  # This permission is only active for "canary" builds and PRs from the main repo
-  # All fork PRs are not allowed to have write permissions and this one is automatically downgraded to read
-  # Branch protection also prevents from pushing to the "code" branches so we can safely use this one to
-  # Push constraints to "constraints" branches which are non-code branches and are not protected
-  contents: write
 jobs:
   generate-constraints:
     permissions:

@@ -581,7 +581,11 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             return self._read_result(output_path)
 
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
-        return KeywordParameters.determine(self.python_callable, self.op_args, context).serializing()
+        keyword_params = KeywordParameters.determine(self.python_callable, self.op_args, context)
+        if AIRFLOW_V_3_0_PLUS:
+            return keyword_params.unpacking()
+        else:
+            return keyword_params.serializing()  # type: ignore[attr-defined]
 
 
 class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
