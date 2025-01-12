@@ -33,7 +33,7 @@ import {
 import {
   BackfillPostBody,
   Body_import_variables,
-  BulkVariableRequest,
+  BulkVariablesBody,
   ClearTaskInstancesBody,
   ConnectionBody,
   ConnectionBulkBody,
@@ -3792,7 +3792,7 @@ export const useVariableServiceBulkVariables = <
       TData,
       TError,
       {
-        requestBody: BulkVariableRequest;
+        requestBody: BulkVariablesBody;
       },
       TContext
     >,
@@ -3803,7 +3803,7 @@ export const useVariableServiceBulkVariables = <
     TData,
     TError,
     {
-      requestBody: BulkVariableRequest;
+      requestBody: BulkVariablesBody;
     },
     TContext
   >({

@@ -5903,6 +5903,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - Variable
+      summary: Bulk Variables
+      description: Bulk create, update, and delete variables.
+      operationId: bulk_variables
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkVariablesBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkVariableResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/variables/import:
     post:
       tags:
@@ -5965,44 +6002,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unprocessable Entity
-  /public/variables/:
-    patch:
-      tags:
-      - Variable
-      summary: Bulk Variables
-      description: Bulk create, update, and delete variables.
-      operationId: bulk_variables
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/BulkVariableRequest'
-        required: true
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BulkVariableResponse'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
   /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}:
     get:
       tags:
@@ -6607,23 +6606,7 @@ components:
           default: []
       type: object
       title: BulkActionResponse
-      description: Response for individual bulk actions.
-    BulkVariableRequest:
-      properties:
-        actions:
-          items:
-            anyOf:
-            - $ref: '#/components/schemas/VariableActionCreate'
-            - $ref: '#/components/schemas/VariableActionUpdate'
-            - $ref: '#/components/schemas/VariableActionDelete'
-          type: array
-          title: Actions
-          description: A list of variable actions to perform.
-      type: object
-      required:
-      - actions
-      title: BulkVariableRequest
-      description: Request body for bulk variable operations (create, update, delete).
+      description: Bulk Action serializer for responses.
     BulkVariableResponse:
       properties:
         create:
@@ -6640,7 +6623,23 @@ components:
           - type: 'null'
       type: object
       title: BulkVariableResponse
-      description: Structured response for bulk variable operations.
+      description: Bulk Variable operation serializer for responses.
+    BulkVariablesBody:
+      properties:
+        actions:
+          items:
+            anyOf:
+            - $ref: '#/components/schemas/VariableActionCreate'
+            - $ref: '#/components/schemas/VariableActionUpdate'
+            - $ref: '#/components/schemas/VariableActionDelete'
+          type: array
+          title: Actions
+          description: A list of variable actions to perform.
+      type: object
+      required:
+      - actions
+      title: BulkVariablesBody
+      description: Request body for bulk variable operations (create, update, delete).
     ClearTaskInstancesBody:
       properties:
         dry_run:
@@ -9854,7 +9853,7 @@ components:
       required:
       - variables
       title: VariableActionCreate
-      description: Request body for creating variables.
+      description: Bulk Create Variable serializer for request bodies.
     VariableActionDelete:
       properties:
         action:
@@ -9879,7 +9878,7 @@ components:
       required:
       - keys
       title: VariableActionDelete
-      description: Request body for deleting variables.
+      description: Bulk Delete Variable serializer for request bodies.
     VariableActionUpdate:
       properties:
         action:
@@ -9904,7 +9903,7 @@ components:
       required:
       - variables
       title: VariableActionUpdate
-      description: Request body for updating existing variables.
+      description: Bulk Update Variable serializer for request bodies.
     VariableBody:
       properties:
         key:

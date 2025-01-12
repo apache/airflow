@@ -516,34 +516,7 @@ export const $BulkActionResponse = {
   },
   type: "object",
   title: "BulkActionResponse",
-  description: "Response for individual bulk actions.",
-} as const;
-
-export const $BulkVariableRequest = {
-  properties: {
-    actions: {
-      items: {
-        anyOf: [
-          {
-            $ref: "#/components/schemas/VariableActionCreate",
-          },
-          {
-            $ref: "#/components/schemas/VariableActionUpdate",
-          },
-          {
-            $ref: "#/components/schemas/VariableActionDelete",
-          },
-        ],
-      },
-      type: "array",
-      title: "Actions",
-      description: "A list of variable actions to perform.",
-    },
-  },
-  type: "object",
-  required: ["actions"],
-  title: "BulkVariableRequest",
-  description: "Request body for bulk variable operations (create, update, delete).",
+  description: "Bulk Action serializer for responses.",
 } as const;
 
 export const $BulkVariableResponse = {
@@ -581,7 +554,34 @@ export const $BulkVariableResponse = {
   },
   type: "object",
   title: "BulkVariableResponse",
-  description: "Structured response for bulk variable operations.",
+  description: "Bulk Variable operation serializer for responses.",
+} as const;
+
+export const $BulkVariablesBody = {
+  properties: {
+    actions: {
+      items: {
+        anyOf: [
+          {
+            $ref: "#/components/schemas/VariableActionCreate",
+          },
+          {
+            $ref: "#/components/schemas/VariableActionUpdate",
+          },
+          {
+            $ref: "#/components/schemas/VariableActionDelete",
+          },
+        ],
+      },
+      type: "array",
+      title: "Actions",
+      description: "A list of variable actions to perform.",
+    },
+  },
+  type: "object",
+  required: ["actions"],
+  title: "BulkVariablesBody",
+  description: "Request body for bulk variable operations (create, update, delete).",
 } as const;
 
 export const $ClearTaskInstancesBody = {
@@ -5563,7 +5563,7 @@ export const $VariableActionCreate = {
   type: "object",
   required: ["variables"],
   title: "VariableActionCreate",
-  description: "Request body for creating variables.",
+  description: "Bulk Create Variable serializer for request bodies.",
 } as const;
 
 export const $VariableActionDelete = {
@@ -5592,7 +5592,7 @@ export const $VariableActionDelete = {
   type: "object",
   required: ["keys"],
   title: "VariableActionDelete",
-  description: "Request body for deleting variables.",
+  description: "Bulk Delete Variable serializer for request bodies.",
 } as const;
 
 export const $VariableActionUpdate = {
@@ -5621,7 +5621,7 @@ export const $VariableActionUpdate = {
   type: "object",
   required: ["variables"],
   title: "VariableActionUpdate",
-  description: "Request body for updating existing variables.",
+  description: "Bulk Update Variable serializer for request bodies.",
 } as const;
 
 export const $VariableBody = {

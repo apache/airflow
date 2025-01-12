@@ -77,7 +77,7 @@ class VariablesImportResponse(BaseModel):
 
 
 class VariableActionCreate(BaseModel):
-    """Request body for creating variables."""
+    """Bulk Create Variable serializer for request bodies."""
 
     action: Literal["create"] = "create"
     variables: list[VariableBody] = Field(..., description="A list of variables to be created.")
@@ -85,7 +85,7 @@ class VariableActionCreate(BaseModel):
 
 
 class VariableActionUpdate(BaseModel):
-    """Request body for updating existing variables."""
+    """Bulk Update Variable serializer for request bodies."""
 
     action: Literal["update"] = "update"
     variables: list[VariableBody] = Field(..., description="A list of variables to be updated.")
@@ -93,14 +93,14 @@ class VariableActionUpdate(BaseModel):
 
 
 class VariableActionDelete(BaseModel):
-    """Request body for deleting variables."""
+    """Bulk Delete Variable serializer for request bodies."""
 
     action: Literal["delete"] = "delete"
     keys: list[str] = Field(..., description="A list of variable keys to be deleted.")
     action_if_not_exists: Literal["skip", "fail"] = "fail"
 
 
-class BulkVariableRequest(BaseModel):
+class BulkVariablesBody(BaseModel):
     """Request body for bulk variable operations (create, update, delete)."""
 
     actions: list[VariableActionCreate | VariableActionUpdate | VariableActionDelete] = Field(
@@ -109,14 +109,14 @@ class BulkVariableRequest(BaseModel):
 
 
 class BulkActionResponse(BaseModel):
-    """Response for individual bulk actions."""
+    """Bulk Action serializer for responses."""
 
     success: list[str] = []
     errors: list[dict[str, Any]] = []
 
 
 class BulkVariableResponse(BaseModel):
-    """Structured response for bulk variable operations."""
+    """Bulk Variable operation serializer for responses."""
 
     create: BulkActionResponse | None = Field(default=None)
     update: BulkActionResponse | None = Field(default=None)

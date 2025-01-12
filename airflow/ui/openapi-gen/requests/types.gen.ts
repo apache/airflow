@@ -143,7 +143,7 @@ export type Body_import_variables = {
 };
 
 /**
- * Response for individual bulk actions.
+ * Bulk Action serializer for responses.
  */
 export type BulkActionResponse = {
   success?: Array<string>;
@@ -153,22 +153,22 @@ export type BulkActionResponse = {
 };
 
 /**
- * Request body for bulk variable operations (create, update, delete).
- */
-export type BulkVariableRequest = {
-  /**
-   * A list of variable actions to perform.
-   */
-  actions: Array<VariableActionCreate | VariableActionUpdate | VariableActionDelete>;
-};
-
-/**
- * Structured response for bulk variable operations.
+ * Bulk Variable operation serializer for responses.
  */
 export type BulkVariableResponse = {
   create?: BulkActionResponse | null;
   update?: BulkActionResponse | null;
   delete?: BulkActionResponse | null;
+};
+
+/**
+ * Request body for bulk variable operations (create, update, delete).
+ */
+export type BulkVariablesBody = {
+  /**
+   * A list of variable actions to perform.
+   */
+  actions: Array<VariableActionCreate | VariableActionUpdate | VariableActionDelete>;
 };
 
 /**
@@ -1285,7 +1285,7 @@ export type ValidationError = {
 };
 
 /**
- * Request body for creating variables.
+ * Bulk Create Variable serializer for request bodies.
  */
 export type VariableActionCreate = {
   action?: "create";
@@ -1299,7 +1299,7 @@ export type VariableActionCreate = {
 export type action_if_exists = "skip" | "overwrite" | "fail";
 
 /**
- * Request body for deleting variables.
+ * Bulk Delete Variable serializer for request bodies.
  */
 export type VariableActionDelete = {
   action?: "delete";
@@ -1313,7 +1313,7 @@ export type VariableActionDelete = {
 export type action_if_not_exists = "skip" | "fail";
 
 /**
- * Request body for updating existing variables.
+ * Bulk Update Variable serializer for request bodies.
  */
 export type VariableActionUpdate = {
   action?: "update";
@@ -2209,18 +2209,18 @@ export type PostVariableData = {
 
 export type PostVariableResponse = VariableResponse;
 
+export type BulkVariablesData = {
+  requestBody: BulkVariablesBody;
+};
+
+export type BulkVariablesResponse = BulkVariableResponse;
+
 export type ImportVariablesData = {
   actionIfExists?: "overwrite" | "fail" | "skip";
   formData: Body_import_variables;
 };
 
 export type ImportVariablesResponse = VariablesImportResponse;
-
-export type BulkVariablesData = {
-  requestBody: BulkVariableRequest;
-};
-
-export type BulkVariablesResponse = BulkVariableResponse;
 
 export type ReparseDagFileData = {
   fileToken: string;
@@ -4669,6 +4669,27 @@ export type $OpenApiTs = {
         422: HTTPValidationError;
       };
     };
+    patch: {
+      req: BulkVariablesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: BulkVariableResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
   };
   "/public/variables/import": {
     post: {
@@ -4698,29 +4719,6 @@ export type $OpenApiTs = {
          * Unprocessable Entity
          */
         422: HTTPExceptionResponse;
-      };
-    };
-  };
-  "/public/variables/": {
-    patch: {
-      req: BulkVariablesData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: BulkVariableResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
       };
     };
   };

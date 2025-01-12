@@ -34,8 +34,8 @@ from airflow.api_fastapi.common.parameters import (
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.variables import (
     BulkActionResponse,
-    BulkVariableRequest,
     BulkVariableResponse,
+    BulkVariablesBody,
     VariableActionCreate,
     VariableActionDelete,
     VariableActionUpdate,
@@ -252,7 +252,7 @@ def categorize_keys(session, keys: set) -> tuple[set, set]:
 
 
 def handle_bulk_create(session, action: VariableActionCreate, results: BulkActionResponse) -> None:
-    """Create new variables in bulk."""
+    """Bulk create variables."""
     to_create_keys = {variable.key for variable in action.variables}
     matched_keys, not_found_keys = categorize_keys(session, to_create_keys)
 
@@ -279,7 +279,7 @@ def handle_bulk_create(session, action: VariableActionCreate, results: BulkActio
 
 
 def handle_bulk_update(session, action: VariableActionUpdate, results: BulkActionResponse) -> None:
-    """Update existing variables in bulk."""
+    """Bulk Update variables."""
     to_update_keys = {variable.key for variable in action.variables}
     matched_keys, not_found_keys = categorize_keys(session, to_update_keys)
 
@@ -312,7 +312,7 @@ def handle_bulk_update(session, action: VariableActionUpdate, results: BulkActio
 
 
 def handle_bulk_delete(session, action: VariableActionDelete, results: BulkActionResponse) -> None:
-    """Delete variables in bulk."""
+    """Bulk delete variables."""
     to_delete_keys = set(action.keys)
     matched_keys, not_found_keys = categorize_keys(session, to_delete_keys)
 
@@ -337,9 +337,9 @@ def handle_bulk_delete(session, action: VariableActionDelete, results: BulkActio
         results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
 
 
-@variables_router.patch("/")
+@variables_router.patch("")
 def bulk_variables(
-    request: BulkVariableRequest,
+    request: BulkVariablesBody,
     session: SessionDep,
 ) -> BulkVariableResponse:
     """Bulk create, update, and delete variables."""
