@@ -232,6 +232,6 @@ class AzureDataExplorerHook(BaseHook):
             for k, v in options.items():
                 properties.set_option(k, v)
         try:
-            return self.connection.execute(database, query, properties=properties)
+            return self.connection.execute(database, query, properties=properties)  # type: ignore[return-value]
         except KustoServiceError as error:
             raise AirflowException(f"Error running Kusto query: {error}")

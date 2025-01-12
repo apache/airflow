@@ -347,10 +347,6 @@ BUNDLE_EXTRAS: dict[str, list[str]] = {
     ],
 }
 
-# When you remove a dependency from the list, you should also make sure to add the dependency to be removed
-# in the scripts/docker/install_airflow_dependencies_from_branch_tip.sh script DEPENDENCIES_TO_REMOVE
-# in order to make sure the dependency is not installed in the CI image build process from the main
-# of Airflow branch. After your PR is merged, you should remove it from the list there.
 DEPENDENCIES = [
     # Alembic is important to handle our migrations in predictable and performant way. It is developed
     # together with SQLAlchemy. Our experience with Alembic is that it very stable in minor version

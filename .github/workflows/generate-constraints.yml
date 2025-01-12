@@ -32,16 +32,16 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to generate constraints without providers (true/false)"
         required: true
         type: string
-      image-tag:
-        description: "Tag to set for the image"
-        required: true
-        type: string
       chicken-egg-providers:
         description: "Space-separated list of providers that should be installed from context files"
         required: true
         type: string
       debug-resources:
         description: "Whether to run in debug mode (true/false)"
+        required: true
+        type: string
+      use-uv:
+        description: "Whether to use uvloop (true/false)"
         required: true
         type: string
 jobs:
@@ -57,7 +57,6 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
       INCLUDE_SUCCESS_OUTPUTS: "true"
-      IMAGE_TAG: ${{ inputs.image-tag }}
       PYTHON_VERSIONS: ${{ inputs.python-versions-list-as-string }}
       VERBOSE: "true"
       VERSION_SUFFIX_FOR_PYPI: "dev0"
@@ -69,21 +68,17 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-      - name: Login to ghcr.io
-        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-      - name: "\
-            Pull CI images \
-            ${{ inputs.python-versions-list-as-string }}:\
-            ${{ inputs.image-tag }}"
-        run: breeze ci-image pull --run-in-parallel --tag-as-latest
-      - name: "
-            Verify CI images \
-            ${{ inputs.python-versions-list-as-string }}:\
-            ${{ inputs.image-tag }}"
+        with:
+          use-uv: ${{ inputs.use-uv }}
+        id: breeze
+      - name: "Prepare all CI images: ${{ inputs.python-versions-list-as-string}}"
+        uses: ./.github/actions/prepare_all_ci_images
+        with:
+          platform: "linux/amd64"
+          python-versions-list-as-string: ${{ inputs.python-versions-list-as-string }}
+      - name: "Verify all CI images ${{ inputs.python-versions-list-as-string }}"
         run: breeze ci-image verify --run-in-parallel
       - name: "Source constraints"
         shell: bash
@@ -104,22 +99,28 @@ jobs:
         # from the source code, not from the PyPI because they have apache-airflow>=X.Y.Z dependency
         # And when we prepare them from sources they will have apache-airflow>=X.Y.Z.dev0
         shell: bash
+        env:
+          CHICKEN_EGG_PROVIDERS: ${{ inputs.chicken-egg-providers }}
         run: >
           breeze release-management prepare-provider-packages --include-not-ready-providers
           --package-format wheel --version-suffix-for-pypi dev0
-          ${{ inputs.chicken-egg-providers }}
+          ${CHICKEN_EGG_PROVIDERS}
         if: inputs.chicken-egg-providers != ''
       - name: "PyPI constraints"
         shell: bash
         timeout-minutes: 25
+        env:
+          CHICKEN_EGG_PROVIDERS: ${{ inputs.chicken-egg-providers }}
         run: >
           breeze release-management generate-constraints --run-in-parallel
           --airflow-constraints-mode constraints --answer yes
-          --chicken-egg-providers "${{ inputs.chicken-egg-providers }}" --parallelism 3
+          --chicken-egg-providers "${CHICKEN_EGG_PROVIDERS}" --parallelism 3
       - name: "Dependency upgrade summary"
         shell: bash
+        env:
+          PYTHON_VERSIONS: ${{ env.PYTHON_VERSIONS }}
         run: |
-          for PYTHON_VERSION in ${{ env.PYTHON_VERSIONS }}; do
+          for PYTHON_VERSION in $PYTHON_VERSIONS; do
             echo "Summarizing Python $PYTHON_VERSION"
             cat "files/constraints-${PYTHON_VERSION}"/*.md >> $GITHUB_STEP_SUMMARY || true
           done

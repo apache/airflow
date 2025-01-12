@@ -36,8 +36,6 @@ function common::get_packaging_tool() {
 
     ## IMPORTANT: IF YOU MODIFY THIS FUNCTION YOU SHOULD ALSO MODIFY CORRESPONDING FUNCTION IN
     ## `scripts/in_container/_in_container_utils.sh`
-    local PYTHON_BIN
-    PYTHON_BIN=$(which python)
     if [[ ${AIRFLOW_USE_UV} == "true" ]]; then
         echo
         echo "${COLOR_BLUE}Using 'uv' to install Airflow${COLOR_RESET}"
@@ -45,8 +43,8 @@ function common::get_packaging_tool() {
         export PACKAGING_TOOL="uv"
         export PACKAGING_TOOL_CMD="uv pip"
         if [[ -z ${VIRTUAL_ENV=} ]]; then
-            export EXTRA_INSTALL_FLAGS="--python ${PYTHON_BIN}"
-            export EXTRA_UNINSTALL_FLAGS="--python ${PYTHON_BIN}"
+            export EXTRA_INSTALL_FLAGS="--system"
+            export EXTRA_UNINSTALL_FLAGS="--system"
         else
             export EXTRA_INSTALL_FLAGS=""
             export EXTRA_UNINSTALL_FLAGS=""
@@ -118,6 +116,7 @@ function common::show_packaging_tool_version_and_location() {
 }
 
 function common::install_packaging_tools() {
+    : "${AIRFLOW_USE_UV:?Should be set}"
     if [[ "${VIRTUAL_ENV=}" != "" ]]; then
         echo
         echo "${COLOR_BLUE}Checking packaging tools in venv: ${VIRTUAL_ENV}${COLOR_RESET}"
@@ -170,8 +169,23 @@ function common::install_packaging_tools() {
             pip install --root-user-action ignore --disable-pip-version-check "uv==${AIRFLOW_UV_VERSION}"
         fi
     fi
-    # make sure that the venv/user in .local exists
-    mkdir -p "${HOME}/.local/bin"
+    if  [[ ${AIRFLOW_PRE_COMMIT_VERSION=} == "" ]]; then
+        echo
+        echo "${COLOR_BLUE}Installing latest pre-commit with pre-commit-uv uv${COLOR_RESET}"
+        echo
+        uv tool install pre-commit --with pre-commit-uv --with uv
+        # make sure that the venv/user in .local exists
+        mkdir -p "${HOME}/.local/bin"
+    else
+        echo
+        echo "${COLOR_BLUE}Installing predefined versions of pre-commit with pre-commit-uv and uv:${COLOR_RESET}"
+        echo "${COLOR_BLUE}pre_commit(${AIRFLOW_PRE_COMMIT_VERSION}) uv(${AIRFLOW_UV_VERSION}) pre_commit-uv(${AIRFLOW_PRE_COMMIT_UV_VERSION})${COLOR_RESET}"
+        echo
+        uv tool install "pre-commit==${AIRFLOW_PRE_COMMIT_VERSION}" \
+            --with "uv==${AIRFLOW_UV_VERSION}" --with "pre-commit-uv==${AIRFLOW_PRE_COMMIT_UV_VERSION}"
+        # make sure that the venv/user in .local exists
+        mkdir -p "${HOME}/.local/bin"
+    fi
 }
 
 function common::import_trusted_gpg() {
