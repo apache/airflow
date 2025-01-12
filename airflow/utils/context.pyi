@@ -27,7 +27,7 @@
 from __future__ import annotations
 
 from collections.abc import Collection, Container, Iterable, Iterator, Mapping, Sequence
-from typing import Any, overload
+from typing import Any, TypedDict, overload
 
 from pendulum import DateTime
 from sqlalchemy.orm import Session
@@ -39,7 +39,6 @@ from airflow.models.dagrun import DagRun
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetRef, AssetUniqueKey, BaseAssetUniqueKey
-from airflow.typing_compat import TypedDict
 
 KNOWN_CONTEXT_KEYS: set[str]
 

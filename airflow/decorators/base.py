@@ -22,16 +22,7 @@ import textwrap
 import warnings
 from collections.abc import Collection, Iterator, Mapping, Sequence
 from functools import cached_property, update_wrapper
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    ClassVar,
-    Generic,
-    TypeVar,
-    cast,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, Protocol, TypeVar, cast, overload
 
 import attr
 import re2
@@ -55,7 +46,7 @@ from airflow.models.xcom_arg import XComArg
 from airflow.sdk.definitions._internal.contextmanager import DagContext, TaskGroupContext
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.baseoperator import BaseOperator as TaskSDKBaseOperator
-from airflow.typing_compat import ParamSpec, Protocol
+from airflow.typing_compat import ParamSpec
 from airflow.utils import timezone
 from airflow.utils.context import KNOWN_CONTEXT_KEYS
 from airflow.utils.decorators import remove_task_decorator
