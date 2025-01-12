@@ -39,8 +39,6 @@ from airflow.models.dagrun import DagRun
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetRef, AssetUniqueKey, BaseAssetUniqueKey
-from airflow.serialization.pydantic.asset import AssetEventPydantic
-from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.typing_compat import TypedDict
 
 KNOWN_CONTEXT_KEYS: set[str]
@@ -101,7 +99,7 @@ class InletEventsAccessors(Mapping[Asset | AssetAlias, InletEventsAccessor]):
 class Context(TypedDict, total=False):
     conn: Any
     dag: DAG
-    dag_run: DagRun | DagRunPydantic
+    dag_run: DagRun
     data_interval_end: DateTime
     data_interval_start: DateTime
     outlet_events: OutletEventAccessors
@@ -128,7 +126,7 @@ class Context(TypedDict, total=False):
     test_mode: bool
     templates_dict: Mapping[str, Any] | None
     ti: TaskInstance
-    triggering_asset_events: Mapping[str, Collection[AssetEvent | AssetEventPydantic]]
+    triggering_asset_events: Mapping[str, Collection[AssetEvent]]
     ts: str
     ts_nodash: str
     ts_nodash_with_tz: str
