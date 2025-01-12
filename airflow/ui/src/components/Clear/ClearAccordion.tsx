@@ -17,60 +17,14 @@
  * under the License.
  */
 import { Box, Editable, Text, VStack } from "@chakra-ui/react";
-import { Link } from "@chakra-ui/react";
-import type { ColumnDef } from "@tanstack/react-table";
 import type { ChangeEvent } from "react";
-import { Link as RouterLink } from "react-router-dom";
 
-import type {
-  DAGRunResponse,
-  TaskInstanceCollectionResponse,
-  TaskInstanceResponse,
-} from "openapi/requests/types.gen";
+import type { DAGRunResponse, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import ReactMarkdown from "src/components/ReactMarkdown";
-import { Status, Tooltip } from "src/components/ui";
 import { Accordion } from "src/components/ui";
-import { getTaskInstanceLink } from "src/utils/links";
-import { trimText } from "src/utils/trimTextFn";
 
-const columns: Array<ColumnDef<TaskInstanceResponse>> = [
-  {
-    accessorKey: "task_display_name",
-    cell: ({ row: { original } }) => (
-      <Tooltip content={original.task_display_name}>
-        <Link asChild color="fg.info" fontWeight="bold" maxWidth="200px" overflow="hidden">
-          <RouterLink to={getTaskInstanceLink(original)}>
-            {trimText(original.task_display_name, 25).trimmedText}
-          </RouterLink>
-        </Link>
-      </Tooltip>
-    ),
-    enableSorting: false,
-    header: "Task ID",
-  },
-  {
-    accessorKey: "state",
-    cell: ({
-      row: {
-        original: { state },
-      },
-    }) => <Status state={state}>{state}</Status>,
-    enableSorting: false,
-    header: () => "State",
-  },
-  {
-    accessorFn: (row: TaskInstanceResponse) => row.rendered_map_index ?? row.map_index,
-    enableSorting: false,
-    header: "Map Index",
-  },
-
-  {
-    accessorKey: "dag_run_id",
-    enableSorting: false,
-    header: "Run Id",
-  },
-];
+import { columns } from "./columns";
 
 type Props = {
   readonly affectedTasks?: TaskInstanceCollectionResponse;
@@ -80,7 +34,7 @@ type Props = {
 
 // Table is in memory, pagination and sorting are disabled.
 // TODO: Make a front-end only unconnected table component with client side ordering and pagination
-const ClearRunTasksAccordion = ({ affectedTasks, note, setNote }: Props) => (
+const ClearAccordion = ({ affectedTasks, note, setNote }: Props) => (
   <Accordion.Root collapsible defaultValue={["note"]} multiple={false} variant="enclosed">
     <Accordion.Item key="tasks" value="tasks">
       <Accordion.ItemTrigger>
@@ -144,4 +98,4 @@ const ClearRunTasksAccordion = ({ affectedTasks, note, setNote }: Props) => (
   </Accordion.Root>
 );
 
-export default ClearRunTasksAccordion;
+export default ClearAccordion;

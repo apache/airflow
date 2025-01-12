@@ -155,7 +155,8 @@ DOC_EXTRAS: dict[str, list[str]] = {
         # By adding a lot of whitespace separation. This limit can be lifted when we update our doc to handle
         # <section> tags for sections
         "docutils<0.17,>=0.16",
-        "sphinx-airflow-theme>=0.0.12",
+        # The new theme 0.1.0 is for Sphinx 7. We should change it to >=0.1.0 when we move to Sphinx 7
+        "sphinx-airflow-theme>=0.0.12,<0.1.0",
         "sphinx-argparse>=0.4.0",
         # sphinx-autoapi fails with astroid 3.0, see: https://github.com/readthedocs/sphinx-autoapi/issues/407
         # This was fixed in sphinx-autoapi 3.0, however it has requirement sphinx>=6.1, but we stuck on 5.x
