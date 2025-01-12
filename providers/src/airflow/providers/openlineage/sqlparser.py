@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Callable, TypedDict
+from typing import TYPE_CHECKING, Callable
 
 import sqlparse
 from attrs import define
@@ -32,6 +32,7 @@ from airflow.providers.openlineage.utils.sql import (
     get_table_schemas,
 )
 from airflow.providers.openlineage.utils.utils import should_use_external_connection
+from airflow.typing_compat import TypedDict
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:

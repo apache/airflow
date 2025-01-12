@@ -25,7 +25,6 @@ import platform
 import subprocess
 import sys
 from enum import Enum
-from typing import Protocol
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
@@ -34,6 +33,7 @@ import tenacity
 from airflow import configuration
 from airflow.cli.simple_table import AirflowConsole
 from airflow.providers_manager import ProvidersManager
+from airflow.typing_compat import Protocol
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded

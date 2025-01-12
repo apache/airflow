@@ -24,7 +24,7 @@ from collections.abc import Sequence
 from enum import Enum
 from functools import cached_property, wraps
 from inspect import signature
-from typing import TYPE_CHECKING, Any, Callable, TypedDict, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
 import aiohttp
 from asgiref.sync import sync_to_async
@@ -33,6 +33,7 @@ from requests.sessions import Session
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
+from airflow.typing_compat import TypedDict
 
 if TYPE_CHECKING:
     from requests.models import PreparedRequest, Response
