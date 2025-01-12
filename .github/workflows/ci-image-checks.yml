@@ -142,6 +142,7 @@ jobs:
         if: inputs.canary-run == 'true'
       - name: "Prepare .tar file from pre-commit cache"
         run: |
+          mkdir -p ~/.cache/uv  # until we are Python 3.9+ we do not have .uv in pre-commits
           tar -C ~ -czf /tmp/cache-pre-commit.tar.gz .cache/pre-commit .cache/uv
         shell: bash
         if: inputs.canary-run == 'true'
