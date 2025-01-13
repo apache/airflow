@@ -469,6 +469,25 @@ class TestBigQueryCreateExternalTableOperator:
             ),
         }
 
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute_with_schema_fields_not_set(self, mock_hook: MagicMock):
+        operator = BigQueryCreateExternalTableOperator(
+            task_id=TASK_ID,
+            bucket=TEST_GCS_BUCKET,
+            source_objects=TEST_GCS_CSV_DATA,
+            autodetect=True,
+            destination_project_dataset_table=f"{TEST_GCP_PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}",
+        )
+
+        mock_hook.return_value.split_tablename.return_value = (
+            TEST_GCP_PROJECT_ID,
+            TEST_DATASET,
+            TEST_TABLE_ID,
+        )
+
+        operator.execute(context=MagicMock())
+        assert "schema" not in mock_hook.return_value.create_empty_table.call_args.kwargs["table_resource"]
+
 
 class TestBigQueryDeleteDatasetOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
