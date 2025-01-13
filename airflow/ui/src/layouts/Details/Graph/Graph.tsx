@@ -16,19 +16,43 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex } from "@chakra-ui/react";
-import { ReactFlow, Controls, Background, MiniMap } from "@xyflow/react";
+import { Flex, useToken } from "@chakra-ui/react";
+import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useParams } from "react-router-dom";
 
-import { useStructureServiceStructureData } from "openapi/queries";
+import { useGridServiceGridData, useStructureServiceStructureData } from "openapi/queries";
 import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
+import { stateColor } from "src/utils/stateColor";
 
 import Edge from "./Edge";
 import { JoinNode } from "./JoinNode";
 import { TaskNode } from "./TaskNode";
+import type { CustomNodeProps } from "./reactflowUtils";
 import { useGraphLayout } from "./useGraphLayout";
+
+const nodeColor = (
+  { data: { depth, height, isOpen, taskInstance, width }, type }: ReactFlowNode<CustomNodeProps>,
+  evenColor?: string,
+  oddColor?: string,
+) => {
+  if (height === undefined || width === undefined || type === "join") {
+    return "";
+  }
+
+  if (taskInstance?.state !== undefined && !isOpen) {
+    return stateColor[taskInstance.state ?? "null"];
+  }
+
+  if (isOpen && depth !== undefined && depth % 2 === 0) {
+    return evenColor ?? "";
+  } else if (isOpen) {
+    return oddColor ?? "";
+  }
+
+  return "";
+};
 
 const nodeTypes = {
   join: JoinNode,
@@ -37,10 +61,22 @@ const nodeTypes = {
 const edgeTypes = { custom: Edge };
 
 export const Graph = () => {
-  const { colorMode } = useColorMode();
-  const { dagId = "" } = useParams();
+  const { colorMode = "light" } = useColorMode();
+  const { dagId = "", runId, taskId } = useParams();
+
+  // corresponds to the "bg", "bg.emphasized", "border.inverted" semantic tokens
+  const [oddLight, oddDark, evenLight, evenDark, selectedDarkColor, selectedLightColor] = useToken("colors", [
+    "white",
+    "black",
+    "gray.200",
+    "gray.800",
+    "gray.200",
+    "gray.800",
+  ]);
 
   const { openGroupIds } = useOpenGroups();
+
+  const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
 
   const { data: graphData = { arrange: "LR", edges: [], nodes: [] } } = useStructureServiceStructureData({
     dagId,
@@ -51,6 +87,38 @@ export const Graph = () => {
     dagId,
     openGroupIds,
   });
+
+  const { data: gridData } = useGridServiceGridData(
+    {
+      dagId,
+      limit: 14,
+      offset: 0,
+      orderBy: "-start_date",
+    },
+    undefined,
+    {
+      enabled: Boolean(runId),
+    },
+  );
+
+  const dagRun = gridData?.dag_runs.find((dr) => dr.dag_run_id === runId);
+
+  // Add task instances to the node data but without having to recalculate how the graph is laid out
+  const nodes =
+    dagRun?.task_instances === undefined
+      ? data?.nodes
+      : data?.nodes.map((node) => {
+          const taskInstance = dagRun.task_instances.find((ti) => ti.task_id === node.id);
+
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              isSelected: node.id === taskId,
+              taskInstance,
+            },
+          };
+        });
 
   return (
     <Flex flex={1}>
@@ -63,14 +131,28 @@ export const Graph = () => {
         fitView
         maxZoom={1}
         minZoom={0.25}
-        nodes={data?.nodes ?? []}
+        nodes={nodes}
         nodesDraggable={false}
         nodeTypes={nodeTypes}
         onlyRenderVisibleElements
       >
         <Background />
         <Controls showInteractive={false} />
-        <MiniMap nodeStrokeWidth={15} pannable zoomable />
+        <MiniMap
+          nodeColor={(node: ReactFlowNode<CustomNodeProps>) =>
+            nodeColor(
+              node,
+              colorMode === "dark" ? evenDark : evenLight,
+              colorMode === "dark" ? oddDark : oddLight,
+            )
+          }
+          nodeStrokeColor={(node: ReactFlowNode<CustomNodeProps>) =>
+            node.data.isSelected && selectedColor !== undefined ? selectedColor : ""
+          }
+          nodeStrokeWidth={15}
+          pannable
+          zoomable
+        />
       </ReactFlow>
     </Flex>
   );

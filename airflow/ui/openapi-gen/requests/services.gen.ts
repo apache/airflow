@@ -54,6 +54,8 @@ import type {
   UnpauseBackfillResponse,
   CancelBackfillData,
   CancelBackfillResponse,
+  CreateBackfillDryRunData,
+  CreateBackfillDryRunResponse,
   GridDataData,
   GridDataResponse,
   DeleteConnectionData,
@@ -70,6 +72,7 @@ import type {
   PutConnectionsResponse,
   TestConnectionData,
   TestConnectionResponse,
+  CreateDefaultConnectionsResponse,
   GetDagRunData,
   GetDagRunResponse,
   DeleteDagRunData,
@@ -926,6 +929,31 @@ export class BackfillService {
       },
     });
   }
+
+  /**
+   * Create Backfill Dry Run
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns DryRunBackfillCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static createBackfillDryRun(
+    data: CreateBackfillDryRunData,
+  ): CancelablePromise<CreateBackfillDryRunResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/backfills/dry_run",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        409: "Conflict",
+        422: "Validation Error",
+      },
+    });
+  }
 }
 
 export class GridService {
@@ -1153,6 +1181,23 @@ export class ConnectionService {
         401: "Unauthorized",
         403: "Forbidden",
         422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Create Default Connections
+   * Create default connections.
+   * @returns void Successful Response
+   * @throws ApiError
+   */
+  public static createDefaultConnections(): CancelablePromise<CreateDefaultConnectionsResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/connections/defaults",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
       },
     });
   }
@@ -2376,7 +2421,7 @@ export class TaskInstanceService {
    * @param data The data for the request.
    * @param data.dagId
    * @param data.requestBody
-   * @returns TaskInstanceReferenceCollectionResponse Successful Response
+   * @returns TaskInstanceCollectionResponse Successful Response
    * @throws ApiError
    */
   public static postClearTaskInstances(

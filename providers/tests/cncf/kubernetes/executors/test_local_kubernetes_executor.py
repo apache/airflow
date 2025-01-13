@@ -19,12 +19,14 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.callbacks.callback_requests import CallbackRequest
+from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest
 from airflow.configuration import conf
 from airflow.executors.local_executor import LocalExecutor
 from airflow.providers.cncf.kubernetes.executors.local_kubernetes_executor import (
     LocalKubernetesExecutor,
 )
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
 class TestLocalKubernetesExecutor:
@@ -113,7 +115,10 @@ class TestLocalKubernetesExecutor:
         local_k8s_exec = LocalKubernetesExecutor(local_executor_mock, k8s_executor_mock)
         local_k8s_exec.callback_sink = mock.MagicMock()
 
-        callback = CallbackRequest(full_filepath="fake")
+        if AIRFLOW_V_3_0_PLUS:
+            callback = DagCallbackRequest(full_filepath="fake", dag_id="fake", run_id="fake")
+        else:
+            callback = CallbackRequest(full_filepath="fake")
         local_k8s_exec.send_callback(callback)
 
         local_k8s_exec.callback_sink.send.assert_called_once_with(callback)

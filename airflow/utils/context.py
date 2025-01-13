@@ -20,17 +20,10 @@
 from __future__ import annotations
 
 import contextlib
-import copy
-import functools
-import warnings
 from collections.abc import (
     Container,
-    ItemsView,
     Iterator,
-    KeysView,
     Mapping,
-    MutableMapping,
-    ValuesView,
 )
 from typing import (
     TYPE_CHECKING,
@@ -40,7 +33,6 @@ from typing import (
 )
 
 import attrs
-import lazy_object_proxy
 from sqlalchemy import and_, select
 
 from airflow.exceptions import RemovedInAirflow3Warning
@@ -367,97 +359,12 @@ class AirflowContextDeprecationWarning(RemovedInAirflow3Warning):
     """Warn for usage of deprecated context variables in a task."""
 
 
-def _create_deprecation_warning(key: str, replacements: list[str]) -> RemovedInAirflow3Warning:
-    message = f"Accessing {key!r} from the template is deprecated and will be removed in a future version."
-    if not replacements:
-        return AirflowContextDeprecationWarning(message)
-    display_except_last = ", ".join(repr(r) for r in replacements[:-1])
-    if display_except_last:
-        message += f" Please use {display_except_last} or {replacements[-1]!r} instead."
-    else:
-        message += f" Please use {replacements[-1]!r} instead."
-    return AirflowContextDeprecationWarning(message)
-
-
-class Context(MutableMapping[str, Any]):
-    """
-    Jinja2 template context for task rendering.
-
-    This is a mapping (dict-like) class that can lazily emit warnings when
-    (and only when) deprecated context keys are accessed.
-    """
-
-    _DEPRECATION_REPLACEMENTS: dict[str, list[str]] = {}
-
-    def __init__(self, context: MutableMapping[str, Any] | None = None, **kwargs: Any) -> None:
-        self._context: MutableMapping[str, Any] = context or {}
-        if kwargs:
-            self._context.update(kwargs)
-        self._deprecation_replacements = self._DEPRECATION_REPLACEMENTS.copy()
-
-    def __repr__(self) -> str:
-        return repr(self._context)
+class Context(dict[str, Any]):
+    """Jinja2 template context for task rendering."""
 
     def __reduce_ex__(self, protocol: SupportsIndex) -> tuple[Any, ...]:
-        """
-        Pickle the context as a dict.
-
-        We are intentionally going through ``__getitem__`` in this function,
-        instead of using ``items()``, to trigger deprecation warnings.
-        """
-        items = [(key, self[key]) for key in self._context]
-        return dict, (items,)
-
-    def __copy__(self) -> Context:
-        new = type(self)(copy.copy(self._context))
-        new._deprecation_replacements = self._deprecation_replacements.copy()
-        return new
-
-    def __getitem__(self, key: str) -> Any:
-        with contextlib.suppress(KeyError):
-            warnings.warn(
-                _create_deprecation_warning(key, self._deprecation_replacements[key]),
-                stacklevel=2,
-            )
-        with contextlib.suppress(KeyError):
-            return self._context[key]
-        raise KeyError(key)
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        self._deprecation_replacements.pop(key, None)
-        self._context[key] = value
-
-    def __delitem__(self, key: str) -> None:
-        self._deprecation_replacements.pop(key, None)
-        del self._context[key]
-
-    def __contains__(self, key: object) -> bool:
-        return key in self._context
-
-    def __iter__(self) -> Iterator[str]:
-        return iter(self._context)
-
-    def __len__(self) -> int:
-        return len(self._context)
-
-    def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, Context):
-            return NotImplemented
-        return self._context == other._context
-
-    def __ne__(self, other: Any) -> bool:
-        if not isinstance(other, Context):
-            return NotImplemented
-        return self._context != other._context
-
-    def keys(self) -> KeysView[str]:
-        return self._context.keys()
-
-    def items(self):
-        return ItemsView(self._context)
-
-    def values(self):
-        return ValuesView(self._context)
+        """Pickle the context as a dict."""
+        return dict, (list(self.items()),)
 
 
 def context_merge(context: Mapping[str, Any], *args: Any, **kwargs: Any) -> None:
@@ -505,44 +412,8 @@ def context_copy_partial(source: Mapping[str, Any], keys: Container[str]) -> Con
 
     :meta private:
     """
-    new = Context({k: v for k, v in source._context.items() if k in keys})
-    new._deprecation_replacements = source._deprecation_replacements.copy()
+    new = Context({k: v for k, v in source.items() if k in keys})
     return new
-
-
-def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]:
-    """
-    Create a mapping that wraps deprecated entries in a lazy object proxy.
-
-    This further delays deprecation warning to until when the entry is actually
-    used, instead of when it's accessed in the context. The result is useful for
-    passing into a callable with ``**kwargs``, which would unpack the mapping
-    too eagerly otherwise.
-
-    This is implemented as a free function because the ``Context`` type is
-    "faked" as a ``TypedDict`` in ``context.pyi``, which cannot have custom
-    functions.
-
-    :meta private:
-    """
-    if not isinstance(source, Context):
-        # Sometimes we are passed a plain dict (usually in tests, or in User's
-        # custom operators) -- be lenient about what we accept so we don't
-        # break anything for users.
-        return source
-
-    def _deprecated_proxy_factory(k: str, v: Any) -> Any:
-        replacements = source._deprecation_replacements[k]
-        warnings.warn(_create_deprecation_warning(k, replacements), stacklevel=2)
-        return v
-
-    def _create_value(k: str, v: Any) -> Any:
-        if k not in source._deprecation_replacements:
-            return v
-        factory = functools.partial(_deprecated_proxy_factory, k, v)
-        return lazy_object_proxy.Proxy(factory)
-
-    return {k: _create_value(k, v) for k, v in source._context.items()}
 
 
 def context_get_outlet_events(context: Context) -> OutletEventAccessors:

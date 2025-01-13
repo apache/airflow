@@ -20,6 +20,7 @@ import { Box, Flex, Heading, HStack, SimpleGrid, Text } from "@chakra-ui/react";
 import { MdOutlineModeComment, MdOutlineTask } from "react-icons/md";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import { ClearTaskInstanceButton } from "src/components/Clear";
 import { Stat } from "src/components/Stat";
 import Time from "src/components/Time";
 import { Status } from "src/components/ui";
@@ -39,6 +40,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
           <div />
         </Flex>
       </HStack>
+      <ClearTaskInstanceButton taskInstance={taskInstance} />
     </Flex>
     {taskInstance.note === null || taskInstance.note.length === 0 ? undefined : (
       <Flex alignItems="flex-start" justifyContent="space-between" mr={16}>

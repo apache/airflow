@@ -16,11 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from typing import NamedTuple
+from typing import NamedTuple, TypedDict
 
 from marshmallow import Schema, fields
-
-from airflow.typing_compat import TypedDict
 
 
 class ProviderSchema(Schema):

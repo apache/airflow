@@ -16,13 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button } from "@chakra-ui/react";
+import { Box, Button, HStack } from "@chakra-ui/react";
 import type { PropsWithChildren } from "react";
 import { FiChevronsLeft } from "react-icons/fi";
 import { Outlet, Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import type { DAGResponse } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { SearchDagsButton } from "src/components/SearchDags";
 import { ProgressBar } from "src/components/ui";
 import { Toaster } from "src/components/ui";
 import { OpenGroupsProvider } from "src/context/openGroups";
@@ -53,12 +54,15 @@ export const DetailsLayout = ({ children, dag, error, isLoading, tabs }: Props) 
   return (
     <OpenGroupsProvider dagId={dagId}>
       <Box>
-        <Button asChild colorPalette="blue" variant="ghost">
-          <RouterLink to="/dags">
-            <FiChevronsLeft />
-            Back to all dags
-          </RouterLink>
-        </Button>
+        <HStack justifyContent="space-between" mb={2}>
+          <Button asChild colorPalette="blue" variant="ghost">
+            <RouterLink to="/dags">
+              <FiChevronsLeft />
+              Back to all dags
+            </RouterLink>
+          </Button>
+          <SearchDagsButton />
+        </HStack>
         <Toaster />
         {children}
         <ErrorAlert error={error} />
