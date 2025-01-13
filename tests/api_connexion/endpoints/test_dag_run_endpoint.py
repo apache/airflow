@@ -25,6 +25,7 @@ import pytest
 import time_machine
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models import Log
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dag import DAG, DagModel
@@ -90,8 +91,9 @@ class TestDagRunEndpoint:
         with create_session() as session:
             session.add(dag_instance)
         dag = DAG(dag_id=dag_id, schedule=None, params={"validated_number": Param(1, minimum=1, maximum=10)})
+        DagBundlesManager().sync_bundles_to_db()
         self.app.dag_bag.bag_dag(dag)
-        self.app.dag_bag.sync_to_db()
+        self.app.dag_bag.sync_to_db("dags-folder", None)
         return dag_instance
 
     def _create_test_dag_run(self, state=DagRunState.RUNNING, extra_dag=False, commit=True, idx_start=1):
