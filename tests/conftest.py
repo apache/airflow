@@ -16,14 +16,19 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import logging
 import os
 import sys
+from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 import pytest
 
 from tests_common.test_utils.log_handlers import non_pytest_handlers
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # We should set these before loading _any_ of the rest of airflow so that the
 # unit test mode config is set as early as possible.
@@ -79,6 +84,37 @@ def clear_all_logger_handlers():
     remove_all_non_pytest_log_handlers()
     yield
     remove_all_non_pytest_log_handlers()
+
+
+@pytest.fixture
+def testing_dag_bundle():
+    from airflow.models.dagbundle import DagBundleModel
+    from airflow.utils.session import create_session
+
+    with create_session() as session:
+        if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
+            testing = DagBundleModel(name="testing")
+            session.add(testing)
+
+
+@pytest.fixture
+def configure_testing_dag_bundle():
+    """Configure the testing DAG bundle with the provided path, and disable the DAGs folder bundle."""
+    from tests_common.test_utils.config import conf_vars
+
+    @contextmanager
+    def _config_bundle(path_to_parse: Path | str):
+        bundle_config = [
+            {
+                "name": "testing",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"local_folder": str(path_to_parse), "refresh_interval": 0},
+            }
+        ]
+        with conf_vars({("dag_bundles", "backends"): json.dumps(bundle_config)}):
+            yield
+
+    return _config_bundle
 
 
 if TYPE_CHECKING:

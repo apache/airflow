@@ -16,11 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import os
+
 import pytest
 
 from airflow.www import app
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import parse_and_sync_to_db
 from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
 
 
@@ -72,5 +75,5 @@ def set_auth_role_public(request):
 def dagbag():
     from airflow.models import DagBag
 
-    DagBag(include_examples=True, read_dags_from_db=False).sync_to_db()
-    return DagBag(include_examples=True, read_dags_from_db=True)
+    parse_and_sync_to_db(os.devnull, include_examples=True)
+    return DagBag(read_dags_from_db=True)
