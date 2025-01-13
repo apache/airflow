@@ -711,7 +711,8 @@ class TestSparkKubernetesOperator:
         mock_await_pod_start,
         mock_await_pod_completion,
         mock_fetch_requested_container_logs,
-        data_file,):
+        data_file,
+    ):
         task_name = "test_find_custom_pod_labels"
         job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
 
@@ -724,14 +725,9 @@ class TestSparkKubernetesOperator:
         )
         context = create_context(op)
         op.execute(context)
-        label_selector = (
-            op._build_find_pod_label_selector(context)
-            + ",spark-role=driver"
-        )
+        label_selector = op._build_find_pod_label_selector(context) + ",spark-role=driver"
         op.find_spark_job(context)
-        mock_get_kube_client.list_namespaced_pod.assert_called_with(
-            'default', label_selector=label_selector
-        )
+        mock_get_kube_client.list_namespaced_pod.assert_called_with("default", label_selector=label_selector)
 
 
 @pytest.mark.db_test
