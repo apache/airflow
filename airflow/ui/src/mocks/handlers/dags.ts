@@ -30,7 +30,7 @@ export const handlers = [
       default_view: "grid",
       file_token:
         ".eJw9yUsOgCAMBcC7cAB7JPISizR82kCJcnvjxtUsJlDWxlQwPEvhjU7TV0pk27N2goxU9f7lB80qxxPXJF-uQ1CjY5avI0wO2-EFouohiw.fhdU5u0Pb7lElEd-AUUXqjHSsdo",
-      fileloc: "/home/karthikeyan/stuff/python/airflow/airflow/example_dags/tutorial_taskflow_api.py",
+      fileloc: "/airflow/dags/tutorial_taskflow_api.py",
       has_import_errors: false,
       has_task_concurrency_limits: false,
       is_active: true,
@@ -67,7 +67,7 @@ export const handlers = [
       default_view: "grid",
       file_token:
         ".eJw9yUsOgCAMBcC7cAB7JPISizR82kCJcnvjxtUsJlDWxlQwPEvhjU7TV0pk27N2goxU9f7lB80qxxPXJF-uQ1CjY5avI0wO2-EFouohiw.fhdU5u0Pb7lElEd-AUUXqjHSsdo",
-      fileloc: "/home/karthikeyan/stuff/python/airflow/airflow/example_dags/tutorial_taskflow_api_failed.py",
+      fileloc: "/airflow/dags/tutorial_taskflow_api_failed.py",
       has_import_errors: false,
       has_task_concurrency_limits: false,
       is_active: true,
@@ -126,7 +126,7 @@ export const handlers = [
       description: null,
       file_token:
         ".eJw9yUsOgCAMBcC7cAB7JPISizR82kCJcnvjxtUsJlDWxlQwPEvhjU7TV0pk27N2goxU9f7lB80qxxPXJF-uQ1CjY5avI0wO2-EFouohiw.fhdU5u0Pb7lElEd-AUUXqjHSsdo",
-      fileloc: "/home/karthikeyan/stuff/python/airflow/airflow/example_dags/tutorial_taskflow_api_failed.py",
+      fileloc: "/airflow/dags/tutorial_taskflow_api_failed.py",
       has_import_errors: false,
       has_task_concurrency_limits: false,
       is_active: true,
@@ -153,7 +153,7 @@ export const handlers = [
       description: null,
       file_token:
         ".eJw9yUsOgCAMBcC7cAB7JPISizR82kCJcnvjxtUsJlDWxlQwPEvhjU7TV0pk27N2goxU9f7lB80qxxPXJF-uQ1CjY5avI0wO2-EFouohiw.fhdU5u0Pb7lElEd-AUUXqjHSsdo",
-      fileloc: "/home/karthikeyan/stuff/python/airflow/airflow/example_dags/tutorial_taskflow_api_success.py",
+      fileloc: "/airflow/dags/tutorial_taskflow_api_success.py",
       has_import_errors: false,
       has_task_concurrency_limits: false,
       is_active: true,
