@@ -19,7 +19,11 @@ from __future__ import annotations
 
 import contextlib
 import inspect
+import json
 import logging
+import os
+import pathlib
+import shutil
 import sys
 import time
 from collections import defaultdict
@@ -30,6 +34,7 @@ from urllib.parse import quote, urlparse
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
 import elasticsearch
 import pendulum
+from elasticsearch import helpers
 from elasticsearch.exceptions import NotFoundError
 
 from airflow.configuration import conf
@@ -106,9 +111,12 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     """
     ElasticsearchTaskHandler is a python log handler that reads logs from Elasticsearch.
 
-    Note that Airflow does not handle the indexing of logs into Elasticsearch. Instead,
+    Note that Airflow by default does not handle the indexing of logs into Elasticsearch. Instead,
     Airflow flushes logs into local files. Additional software setup is required to index
     the logs into Elasticsearch, such as using Filebeat and Logstash.
+
+    Airflow can be configured to support directly writing logging to Elasticsearch. To enable this feature,
+    set `json_format` and `write_to_es` to `True`.
 
     To efficiently query and sort Elasticsearch results, this handler assumes each
     log message has a field `log_id` consists of ti primary keys:
@@ -136,6 +144,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         write_stdout: bool,
         json_format: bool,
         json_fields: str,
+        write_to_es: bool = False,
+        target_index: str = "airflow-logs",
         host_field: str = "host",
         offset_field: str = "offset",
         host: str = "http://localhost:9200",
@@ -166,6 +176,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         self.index_patterns = index_patterns
         self.index_patterns_callable = index_patterns_callable
         self.context_set = False
+        self.write_to_es = write_to_es
+        self.target_index = target_index
+        self.delete_local_copy = kwargs.get(
+            "delete_local_copy", conf.getboolean("logging", "delete_local_logs")
+        )
 
         self.formatter: logging.Formatter
         self.handler: logging.FileHandler | logging.StreamHandler  # type: ignore[assignment]
@@ -428,9 +443,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 extras={
                     "dag_id": str(ti.dag_id),
                     "task_id": str(ti.task_id),
-                    date_key: self._clean_date(ti.logical_date)
-                    if AIRFLOW_V_3_0_PLUS
-                    else self._clean_date(ti.execution_date),
+                    date_key: (
+                        self._clean_date(ti.logical_date)
+                        if AIRFLOW_V_3_0_PLUS
+                        else self._clean_date(ti.execution_date)
+                    ),
                     "try_number": str(ti.try_number),
                     "log_id": self._render_log_id(ti, ti.try_number),
                 },
@@ -479,6 +496,18 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         if self.write_stdout:
             self.handler.close()
             sys.stdout = sys.__stdout__
+
+        if self.write_to_es and not self.write_stdout:
+            full_path = self.handler.baseFilename  # type: ignore[union-attr]
+            log_relative_path = pathlib.Path(full_path).relative_to(self.local_base).as_posix()
+            local_loc = os.path.join(self.local_base, log_relative_path)
+            if os.path.exists(local_loc):
+                # read log and remove old logs to get just the latest additions
+                log = pathlib.Path(local_loc).read_text()
+                log_lines = self._parse_raw_log(log)
+                success = self._write_to_es(log_lines)
+                if success and self.delete_local_copy:
+                    shutil.rmtree(os.path.dirname(local_loc))
 
         super().close()
 
@@ -598,6 +627,31 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # callback should get the Hit class if "from_es" is not defined
         callback: type[Hit] | Callable[..., Any] = getattr(doc_class, "from_es", doc_class)
         return callback(hit)
+
+    def _parse_raw_log(self, log: str) -> list[dict[str, Any]]:
+        logs = log.split("\n")
+        parsed_logs = []
+        for line in logs:
+            # Make sure line is not empty
+            if line.strip():
+                parsed_logs.append(json.loads(line))
+
+        return parsed_logs
+
+    def _write_to_es(self, log_lines: list[dict[str, Any]]) -> bool:
+        """
+        Write the log to ElasticSearch; return `True` or fails silently and return `False`.
+
+        :param log_lines: the log_lines to write to the ElasticSearch.
+        """
+        # Prepare the bulk request for Elasticsearch
+        bulk_actions = [{"_index": self.target_index, "_source": log} for log in log_lines]
+        try:
+            _ = helpers.bulk(self.client, bulk_actions)
+            return True
+        except Exception as e:
+            self.log.exception("Unable to insert logs into Elasticsearch. Reason: %s", str(e))
+            return False
 
 
 def getattr_nested(obj, item, default):
