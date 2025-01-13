@@ -21,14 +21,14 @@ from unittest.mock import MagicMock, call, patch
 from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance
 from airflow.utils.session import create_session
-from sagemaker_ui_helper.models.execution import ExecutionClient
+from sagemaker_studio.models.execution import ExecutionClient
 
 from airflow.providers.amazon.aws.hooks.sagemaker_unified_studio import SageMakerNotebookHook
 
 
 class TestSageMakerNotebookHook(TestCase):
     @patch(
-        "airflow.providers.amazon.aws.hooks.sagemaker_unified_studio.SageMakerUIHelperAPI",
+        "airflow.providers.amazon.aws.hooks.sagemaker_unified_studio.SageMakerStudioAPI",
         autospec=True,
     )
     def setUp(self, mock_sdk):
@@ -51,7 +51,7 @@ class TestSageMakerNotebookHook(TestCase):
             compute={"instance_type": "ml.c4.2xlarge"},
         )
 
-        self.hook._sagemaker_ui_helper = mock_sdk
+        self.hook._sagemaker_studio = mock_sdk
         self.files = [
             {"display_name": "file1.txt", "url": "http://example.com/file1.txt"},
             {"display_name": "file2.txt", "url": "http://example.com/file2.txt"},
@@ -83,7 +83,7 @@ class TestSageMakerNotebookHook(TestCase):
         self.assertEqual(config, expected_config)
 
     @patch(
-        "airflow.providers.amazon.aws.hooks.sagemaker_unified_studio.SageMakerUIHelperAPI",
+        "airflow.providers.amazon.aws.hooks.sagemaker_unified_studio.SageMakerStudioAPI",
         autospec=True,
     )
     def test_format_output_config_default(self, mock_sdk):
@@ -102,36 +102,36 @@ class TestSageMakerNotebookHook(TestCase):
         self.assertEqual(config, expected_config)
 
     def test_start_notebook_execution(self):
-        self.hook._sagemaker_ui_helper = MagicMock()
-        self.hook._sagemaker_ui_helper.execution_client = MagicMock(spec=ExecutionClient)
+        self.hook._sagemaker_studio = MagicMock()
+        self.hook._sagemaker_studio.execution_client = MagicMock(spec=ExecutionClient)
 
-        self.hook._sagemaker_ui_helper.execution_client.start_execution.return_value = {
+        self.hook._sagemaker_studio.execution_client.start_execution.return_value = {
             "executionId": "123456"
         }
         result = self.hook.start_notebook_execution()
         self.assertEqual(result, {"executionId": "123456"})
-        self.hook._sagemaker_ui_helper.execution_client.start_execution.assert_called_once()
+        self.hook._sagemaker_studio.execution_client.start_execution.assert_called_once()
 
     @patch("time.sleep", return_value=None)  # To avoid actual sleep during tests
     def test_wait_for_execution_completion(self, mock_sleep):
         execution_id = "123456"
-        self.hook._sagemaker_ui_helper = MagicMock()
-        self.hook._sagemaker_ui_helper.execution_client = MagicMock(spec=ExecutionClient)
-        self.hook._sagemaker_ui_helper.execution_client.get_execution.return_value = {
+        self.hook._sagemaker_studio = MagicMock()
+        self.hook._sagemaker_studio.execution_client = MagicMock(spec=ExecutionClient)
+        self.hook._sagemaker_studio.execution_client.get_execution.return_value = {
             "status": "COMPLETED"
         }
 
         result = self.hook.wait_for_execution_completion(execution_id, {})
         self.assertEqual(result, {"Status": "COMPLETED", "ExecutionId": execution_id})
-        self.hook._sagemaker_ui_helper.execution_client.get_execution.assert_called()
+        self.hook._sagemaker_studio.execution_client.get_execution.assert_called()
         mock_sleep.assert_called_once()
 
     @patch("time.sleep", return_value=None)
     def test_wait_for_execution_completion_failed(self, mock_sleep):
         execution_id = "123456"
-        self.hook._sagemaker_ui_helper = MagicMock()
-        self.hook._sagemaker_ui_helper.execution_client = MagicMock(spec=ExecutionClient)
-        self.hook._sagemaker_ui_helper.execution_client.get_execution.return_value = {
+        self.hook._sagemaker_studio = MagicMock()
+        self.hook._sagemaker_studio.execution_client = MagicMock(spec=ExecutionClient)
+        self.hook._sagemaker_studio.execution_client.get_execution.return_value = {
             "status": "FAILED",
             "error_details": {"error_message": "Execution failed"},
         }

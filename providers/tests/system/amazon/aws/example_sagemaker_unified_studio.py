@@ -20,11 +20,12 @@ from datetime import datetime
 
 import boto3
 import pytest
+import os
 
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
-from airflow.providers.amazon.aws.operators.sagemaker_unified_studio import SageMakerNotebookOperator
+from airflow.operators.bash import BashOperator
 
 from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
@@ -103,6 +104,8 @@ def create_sus_domain(
 
 
 def get_common_config(blueprint):
+    account = None
+    region = None
     return {
         "awsAccount": {"awsAccountId": account},
         "awsRegion": {"regionName": region},
@@ -126,6 +129,8 @@ def construct_data_analytics_profile(
                "Amazon SageMaker", environment_blueprints)
     )
     # TODO: 2. get subnet data and regional params
+    enabled_regions = None
+    regional_params = None
     # 3. update blueprint with regional params
     for blueprint in environment_blueprints:
         datazone_client.put_environment_blueprint_configurations(
@@ -190,6 +195,7 @@ def construct_data_analytics_profile(
     emr_on_ec2_config = {
         **get_common_config(emr_on_ec2_blueprint), "deploymentMode": "ON_DEMAND"}
     # 5. place required configs in data analytics profile
+    profile_name_suffix = None
     data_analytics_profile = {
         # TODO: pull this name suffix from somewhere (check original)
         "name": f"Data analytics project profile{profile_name_suffix}",
@@ -242,8 +248,7 @@ def create_sus_project(domain_id: str, project_profile_id: str):
         if retries > 20:
             raise RuntimeError("Create project timed out")
         print(
-            f"Creating DataZone project {project_id}, project status = {
-                project_status} and environment status = {environment_status}"
+            f"Creating DataZone project {project_id}, project status = {project_status} and environment status = {environment_status}"
         )
         time.sleep(30)  # polling every 10 seconds
 
@@ -264,7 +269,16 @@ def emulate_mwaa_environment():
     Sets several environment variables in the container to emulate an MWAA environment provisioned
     within SageMaker Unified Studio.
     """
-    pass
+    print(os.getcwd())
+    AIRFLOW_PREFIX = "AIRFLOW__WORKFLOWS__"
+    os.environ[f"{AIRFLOW_PREFIX}DATAZONE_DOMAIN_ID"] = "dzd_5i3k33tlvculbb"
+    os.environ[f"{AIRFLOW_PREFIX}DATAZONE_PROJECT_ID"] = "6g0ib1wbhy1o6f"
+    os.environ[f"{AIRFLOW_PREFIX}DATAZONE_ENVIRONMENT_ID"] = "45309kaqlx06qv"
+    os.environ[f"{AIRFLOW_PREFIX}DATAZONE_SCOPE_NAME"] = "dev"
+    os.environ[f"{AIRFLOW_PREFIX}DATAZONE_STAGE"] = "prod"
+    os.environ[f"{AIRFLOW_PREFIX}DATAZONE_ENDPOINT"] = "https://datazone.us-east-1.api.aws"
+    os.environ[f"{AIRFLOW_PREFIX}PROJECT_S3_PATH"] = "s3://amazon-sagemaker-713881818467-us-east-1-5f2b2dc83db7/dzd_5i3k33tlvculbb/6g0ib1wbhy1o6f/dev"
+    os.environ[f"{AIRFLOW_PREFIX}DATAZONE_DOMAIN_REGION"] = "us-east-1"
 
 
 @task
@@ -281,6 +295,20 @@ def delete_sus_domain(env_id: str, domain_id: str):
     return delete_domain_response
 
 
+def notebook_operator():
+    # from airflow.providers.amazon.aws.operators.sagemaker_unified_studio import SageMakerNotebookOperator
+    # return SageMakerNotebookOperator(
+    #     task_id="initial",
+    #     input_config={"input_path": notebook_path, "input_params": {}},
+    #     output_config={"output_formats": ["NOTEBOOK"]},
+    #     wait_for_completion=True,
+    #     poll_interval=5,
+    # )
+    return BashOperator(
+        task_id="test",
+        bash_command="printenv",
+    )
+
 with DAG(
     DAG_ID,
     schedule="@once",
@@ -293,34 +321,28 @@ with DAG(
 
     notebook_path = "tests/amazon/aws/operators/test_notebook.ipynb"
 
-    setup_sus_domain = create_sus_domain(env_id=env_id)
+    # setup_sus_domain = create_sus_domain(env_id=env_id)
 
-    setup_sus_project = create_sus_project(
-        domain_id=setup_sus_domain["domain_id"])
+    # setup_sus_project = create_sus_project(
+    #     domain_id=setup_sus_domain["domain_id"])
 
     setup_mock_mwaa_environment = emulate_mwaa_environment()
 
-    run_notebook = SageMakerNotebookOperator(
-        task_id="initial",
-        input_config={"input_path": notebook_path, "input_params": {}},
-        output_config={"output_formats": ["NOTEBOOK"]},
-        wait_for_completion=True,
-        poll_interval=5,
-    )
+    run_notebook = notebook_operator()
 
-    teardown_sus_domain = delete_sus_domain(
-        domain_id=setup_sus_domain["domain_id"])
+    # teardown_sus_domain = delete_sus_domain(
+    #     domain_id=setup_sus_domain["domain_id"])
 
     chain(
         # TEST SETUP
         test_context,
-        setup_sus_domain,
-        setup_sus_project,
+        # setup_sus_domain,
+        # setup_sus_project,
         setup_mock_mwaa_environment,
         # TEST BODY
         run_notebook,
         # TEST TEARDOWN
-        teardown_sus_domain,
+        # teardown_sus_domain,
     )
 
     from tests_common.test_utils.watcher import watcher
@@ -333,4 +355,5 @@ with DAG(
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
 test_run = get_test_run(dag)

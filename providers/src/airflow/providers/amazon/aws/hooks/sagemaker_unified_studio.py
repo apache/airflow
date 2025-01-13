@@ -21,9 +21,9 @@ import time
 
 from airflow import AirflowException
 from airflow.hooks.base import BaseHook
-from sagemaker_ui_helper import ClientConfig
-from sagemaker_ui_helper._openapi.models import GetExecutionRequest, StartExecutionRequest
-from sagemaker_ui_helper.sagemaker_ui_helper_api import SageMakerUIHelperAPI
+from sagemaker_studio import ClientConfig
+from sagemaker_studio._openapi.models import GetExecutionRequest, StartExecutionRequest
+from sagemaker_studio.sagemaker_studio_api import SageMakerStudioAPI
 
 from airflow.providers.amazon.aws.utils.sagemaker_unified_studio import is_local_runner
 
@@ -73,7 +73,7 @@ class SageMakerNotebookHook(BaseHook):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self._sagemaker_ui_helper = SageMakerUIHelperAPI(self._get_sagemaker_ui_helper_config())
+        self._sagemaker_studio = SageMakerStudioAPI(self._get_sagemaker_studio_config())
         self.execution_name = execution_name
         self.input_config = input_config
         self.output_config = output_config
@@ -82,7 +82,7 @@ class SageMakerNotebookHook(BaseHook):
         self.tags = tags
         self.poll_interval = poll_interval
 
-    def _get_sagemaker_ui_helper_config(self):
+    def _get_sagemaker_studio_config(self):
         config = ClientConfig()
         config.overrides["execution"] = {"local": is_local_runner()}
         return config
@@ -122,7 +122,7 @@ class SageMakerNotebookHook(BaseHook):
 
         request = StartExecutionRequest(**start_execution_params)
 
-        return self._sagemaker_ui_helper.execution_client.start_execution(request)
+        return self._sagemaker_studio.execution_client.start_execution(request)
 
     def wait_for_execution_completion(self, execution_id, context):
 
@@ -160,7 +160,7 @@ class SageMakerNotebookHook(BaseHook):
         )
 
     def get_execution_response(self, execution_id):
-        response = self._sagemaker_ui_helper.execution_client.get_execution(
+        response = self._sagemaker_studio.execution_client.get_execution(
             GetExecutionRequest(execution_id=execution_id)
         )
         return response
