@@ -64,6 +64,29 @@ class DagBundlesManager(LoggingMixin):
                 "Bundle config is not a list. Check config value"
                 " for section `dag_bundles` and key `backends`."
             )
+
+        if any(b["name"] == "example_dags" for b in backends):
+            raise AirflowConfigException(
+                "Bundle name 'example_dags' is a reserved name. Please choose another name for your bundle."
+                " Example DAGs can be enabled with the '[core] load_examples' config."
+            )
+
+        # example dags!
+        if conf.getboolean("core", "LOAD_EXAMPLES"):
+            from airflow import example_dags
+
+            example_dag_folder = next(iter(example_dags.__path__))
+            backends.append(
+                {
+                    "name": "example_dags",
+                    "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                    "kwargs": {
+                        "local_folder": example_dag_folder,
+                        "refresh_interval": conf.getint("scheduler", "dag_dir_list_interval"),
+                    },
+                }
+            )
+
         seen = set()
         for cfg in backends:
             name = cfg["name"]
@@ -111,3 +134,7 @@ class DagBundlesManager(LoggingMixin):
         """
         for name, (class_, kwargs) in self._bundle_config.items():
             yield class_(name=name, version=None, **kwargs)
+
+    def view_url(self, name: str, version: str | None = None) -> str | None:
+        bundle = self.get_bundle(name, version)
+        return bundle.view_url(version=version)

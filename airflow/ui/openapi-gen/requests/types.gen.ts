@@ -638,6 +638,21 @@ export type DagTagResponse = {
 export type DagWarningType = "asset conflict" | "non-existent pool";
 
 /**
+ * Backfill collection serializer for responses in dry-run mode.
+ */
+export type DryRunBackfillCollectionResponse = {
+  backfills: Array<DryRunBackfillResponse>;
+  total_entries: number;
+};
+
+/**
+ * Backfill serializer for responses in dry-run mode.
+ */
+export type DryRunBackfillResponse = {
+  logical_date: string;
+};
+
+/**
  * Edge serializer for responses.
  */
 export type EdgeResponse = {
@@ -1048,23 +1063,6 @@ export type TaskInstanceHistoryResponse = {
   pid: number | null;
   executor: string | null;
   executor_config: string;
-};
-
-/**
- * Task Instance Reference collection serializer for responses.
- */
-export type TaskInstanceReferenceCollectionResponse = {
-  task_instances: Array<TaskInstanceReferenceResponse>;
-  total_entries: number;
-};
-
-/**
- * Task Instance Reference serializer for responses.
- */
-export type TaskInstanceReferenceResponse = {
-  task_id: string;
-  dag_run_id: string;
-  dag_id: string;
 };
 
 /**
@@ -1569,6 +1567,12 @@ export type CancelBackfillData = {
 
 export type CancelBackfillResponse = BackfillResponse;
 
+export type CreateBackfillDryRunData = {
+  requestBody: BackfillPostBody;
+};
+
+export type CreateBackfillDryRunResponse = DryRunBackfillCollectionResponse;
+
 export type GridDataData = {
   dagId: string;
   includeDownstream?: boolean;
@@ -1984,7 +1988,7 @@ export type PostClearTaskInstancesData = {
   requestBody: ClearTaskInstancesBody;
 };
 
-export type PostClearTaskInstancesResponse = TaskInstanceReferenceCollectionResponse;
+export type PostClearTaskInstancesResponse = TaskInstanceCollectionResponse;
 
 export type GetLogData = {
   accept?: "application/json" | "text/plain" | "*/*";
@@ -2813,6 +2817,37 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: BackfillResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/backfills/dry_run": {
+    post: {
+      req: CreateBackfillDryRunData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DryRunBackfillCollectionResponse;
         /**
          * Unauthorized
          */
@@ -4021,7 +4056,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: TaskInstanceReferenceCollectionResponse;
+        200: TaskInstanceCollectionResponse;
         /**
          * Unauthorized
          */

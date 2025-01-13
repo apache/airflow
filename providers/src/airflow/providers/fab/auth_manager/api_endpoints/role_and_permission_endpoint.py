@@ -24,9 +24,6 @@ from flask import request
 from marshmallow import ValidationError
 from sqlalchemy import asc, desc, func, select
 
-from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
-from airflow.api_connexion.parameters import check_limit, format_parameters
-from airflow.api_connexion.security import requires_access_custom_view
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 from airflow.providers.fab.auth_manager.models import Action, Role
@@ -37,11 +34,14 @@ from airflow.providers.fab.auth_manager.schemas.role_and_permission_schema impor
     role_collection_schema,
     role_schema,
 )
-from airflow.security import permissions
+from airflow.providers.fab.www.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
+from airflow.providers.fab.www.api_connexion.parameters import check_limit, format_parameters
+from airflow.providers.fab.www.api_connexion.security import requires_access_custom_view
+from airflow.providers.fab.www.security import permissions
 
 if TYPE_CHECKING:
-    from airflow.api_connexion.types import APIResponse, UpdateMask
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+    from airflow.providers.fab.www.api_connexion.types import APIResponse, UpdateMask
 
 
 def _check_action_and_resource(sm: FabAirflowSecurityManagerOverride, perms: list[tuple[str, str]]) -> None:

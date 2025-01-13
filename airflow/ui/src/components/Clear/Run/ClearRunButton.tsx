@@ -21,9 +21,9 @@ import { useState } from "react";
 import { FiRefreshCw } from "react-icons/fi";
 
 import type { DAGRunResponse, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
+import ActionButton from "src/components/ui/ActionButton";
 import { useClearDagRun } from "src/queries/useClearRun";
 
-import ActionButton from "../ui/ActionButton";
 import ClearRunDialog from "./ClearRunDialog";
 
 type Props = {
@@ -33,8 +33,6 @@ type Props = {
 
 const ClearRunButton = ({ dagRun, withText = true }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
-
-  const [onlyFailed, setOnlyFailed] = useState(false);
 
   const [affectedTasks, setAffectedTasks] = useState<TaskInstanceCollectionResponse>({
     task_instances: [],
@@ -56,14 +54,7 @@ const ClearRunButton = ({ dagRun, withText = true }: Props) => {
       <ActionButton
         actionName="Clear Dag Run"
         icon={<FiRefreshCw />}
-        onClick={() => {
-          onOpen();
-          mutate({
-            dagId,
-            dagRunId,
-            requestBody: { dry_run: true, only_failed: onlyFailed },
-          });
-        }}
+        onClick={onOpen}
         text="Clear Run"
         withText={withText}
       />
@@ -74,9 +65,7 @@ const ClearRunButton = ({ dagRun, withText = true }: Props) => {
         isPending={isPending}
         mutate={mutate}
         onClose={onClose}
-        onlyFailed={onlyFailed}
         open={open}
-        setOnlyFailed={setOnlyFailed}
       />
     </Box>
   );

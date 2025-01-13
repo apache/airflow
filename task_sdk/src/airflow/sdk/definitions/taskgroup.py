@@ -36,21 +36,21 @@ from airflow.exceptions import (
     DuplicateTaskIdFound,
     TaskAlreadyInTaskGroup,
 )
-from airflow.sdk.definitions.node import DAGNode
+from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
     from airflow.models.expandinput import ExpandInput
-    from airflow.sdk.definitions.abstractoperator import AbstractOperator
+    from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+    from airflow.sdk.definitions._internal.mixins import DependencyMixin
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.edges import EdgeModifier
-    from airflow.sdk.definitions.mixins import DependencyMixin
     from airflow.serialization.enums import DagAttributeTypes
 
 
 def _default_parent_group() -> TaskGroup | None:
-    from airflow.sdk.definitions.contextmanager import TaskGroupContext
+    from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 
     return TaskGroupContext.get_current()
 
@@ -65,7 +65,7 @@ def _parent_used_group_ids(tg: TaskGroup) -> set:
 # that it makes Mypy (1.9.0 and 1.13.0 tested) seem to entirely loose track that this is an Attrs class. So
 # we've gone with this and moved on with our lives, mypy is to much of a dark beast to battle over this.
 def _default_dag(instance: TaskGroup):
-    from airflow.sdk.definitions.contextmanager import DagContext
+    from airflow.sdk.definitions._internal.contextmanager import DagContext
 
     if (pg := instance.parent_group) is not None:
         return pg.dag
@@ -217,8 +217,8 @@ class TaskGroup(DAGNode):
 
         :meta private:
         """
-        from airflow.sdk.definitions.abstractoperator import AbstractOperator
-        from airflow.sdk.definitions.contextmanager import TaskGroupContext
+        from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+        from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 
         if TaskGroupContext.active:
             if task.task_group and task.task_group != self:
@@ -346,13 +346,13 @@ class TaskGroup(DAGNode):
                 task.set_downstream(task_or_task_list)
 
     def __enter__(self) -> TaskGroup:
-        from airflow.sdk.definitions.contextmanager import TaskGroupContext
+        from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 
         TaskGroupContext.push(self)
         return self
 
     def __exit__(self, _type, _value, _tb):
-        from airflow.sdk.definitions.contextmanager import TaskGroupContext
+        from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 
         TaskGroupContext.pop()
 

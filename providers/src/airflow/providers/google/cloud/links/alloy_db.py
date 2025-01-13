@@ -31,6 +31,10 @@ ALLOY_DB_BASE_LINK = "/alloydb"
 ALLOY_DB_CLUSTER_LINK = (
     ALLOY_DB_BASE_LINK + "/locations/{location_id}/clusters/{cluster_id}?project={project_id}"
 )
+ALLOY_DB_USERS_LINK = (
+    ALLOY_DB_BASE_LINK + "/locations/{location_id}/clusters/{cluster_id}/users?project={project_id}"
+)
+ALLOY_DB_BACKUPS_LINK = ALLOY_DB_BASE_LINK + "/backups?project={project_id}"
 
 
 class AlloyDBClusterLink(BaseGoogleLink):
@@ -52,4 +56,46 @@ class AlloyDBClusterLink(BaseGoogleLink):
             context,
             key=AlloyDBClusterLink.key,
             value={"location_id": location_id, "cluster_id": cluster_id, "project_id": project_id},
+        )
+
+
+class AlloyDBUsersLink(BaseGoogleLink):
+    """Helper class for constructing AlloyDB users Link."""
+
+    name = "AlloyDB Users"
+    key = "alloy_db_users"
+    format_str = ALLOY_DB_USERS_LINK
+
+    @staticmethod
+    def persist(
+        context: Context,
+        task_instance: BaseOperator,
+        location_id: str,
+        cluster_id: str,
+        project_id: str | None,
+    ):
+        task_instance.xcom_push(
+            context,
+            key=AlloyDBUsersLink.key,
+            value={"location_id": location_id, "cluster_id": cluster_id, "project_id": project_id},
+        )
+
+
+class AlloyDBBackupsLink(BaseGoogleLink):
+    """Helper class for constructing AlloyDB backups Link."""
+
+    name = "AlloyDB Backups"
+    key = "alloy_db_backups"
+    format_str = ALLOY_DB_BACKUPS_LINK
+
+    @staticmethod
+    def persist(
+        context: Context,
+        task_instance: BaseOperator,
+        project_id: str | None,
+    ):
+        task_instance.xcom_push(
+            context,
+            key=AlloyDBBackupsLink.key,
+            value={"project_id": project_id},
         )

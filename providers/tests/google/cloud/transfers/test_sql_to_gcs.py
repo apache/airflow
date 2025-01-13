@@ -581,3 +581,22 @@ class TestBaseSQLToGCSOperator:
 
         df = pd.read_csv(file.name)
         assert len(df.index) == 0
+
+    @pytest.mark.parametrize(
+        ("filename", "expected_name"),
+        (
+            ("file_{}.csv", "/"),
+            ("dir/file_{}.csv", "dir"),
+            ("{}.csv", "/"),
+            ("file.csv", "file.csv"),
+            ("dir/file.csv", "dir/file.csv"),
+        ),
+    )
+    def test__get_openlineage_output_datasets(self, filename, expected_name):
+        op = DummySQLToGCSOperator(
+            task_id=TASK_ID, sql="SELECT * FROM a.b", bucket="my-bucket", filename=filename
+        )
+        result = op._get_openlineage_output_datasets()
+        assert len(result) == 1
+        assert result[0].namespace == "gs://my-bucket"
+        assert result[0].name == expected_name

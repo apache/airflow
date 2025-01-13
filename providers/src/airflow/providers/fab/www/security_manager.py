@@ -38,8 +38,7 @@ from airflow.auth.managers.utils.fab import (
 )
 from airflow.exceptions import AirflowException
 from airflow.models import Connection, DagRun, Pool, TaskInstance, Variable
-from airflow.providers.fab.www.utils import CustomSQLAInterface
-from airflow.security.permissions import (
+from airflow.providers.fab.www.security.permissions import (
     RESOURCE_ADMIN_MENU,
     RESOURCE_ASSET,
     RESOURCE_AUDIT_LOG,
@@ -64,6 +63,7 @@ from airflow.security.permissions import (
     RESOURCE_VARIABLE,
     RESOURCE_XCOM,
 )
+from airflow.providers.fab.www.utils import CustomSQLAInterface
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 EXISTING_ROLES = {
