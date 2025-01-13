@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Flex, Heading, VStack } from "@chakra-ui/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FiRefreshCw } from "react-icons/fi";
 
 import type {
@@ -26,10 +26,10 @@ import type {
   TaskInstanceCollectionResponse,
 } from "openapi/requests/types.gen";
 import { Button, Dialog } from "src/components/ui";
+import SegmentedControl from "src/components/ui/SegmentedControl";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
 
-import SegmentedControl from "../ui/SegmentedControl";
-import ClearRunTasksAccordion from "./ClearRunTaskAccordion";
+import ClearAccordion from "../ClearAccordion";
 
 type Props = {
   readonly affectedTasks: TaskInstanceCollectionResponse;
@@ -45,57 +45,36 @@ type Props = {
     requestBody: DAGRunClearBody;
   }) => void;
   readonly onClose: () => void;
-  readonly onlyFailed: boolean;
   readonly open: boolean;
-  readonly setOnlyFailed: (value: boolean) => void;
 };
 
-const ClearRunDialog = ({
-  affectedTasks,
-  dagRun,
-  isPending,
-  mutate,
-  onClose,
-  onlyFailed,
-  open,
-  setOnlyFailed,
-}: Props) => {
+const ClearRunDialog = ({ affectedTasks, dagRun, isPending, mutate, onClose, open }: Props) => {
+  const [selectedOptions, setSelectedOptions] = useState<Array<string>>([]);
+
+  const onlyFailed = selectedOptions.includes("onlyFailed");
+
   const dagId = dagRun.dag_id;
   const dagRunId = dagRun.dag_run_id;
 
   const [note, setNote] = useState<string | null>(dagRun.note);
   const { isPending: isPendingPatchDagRun, mutate: mutatePatchDagRun } = usePatchDagRun({ dagId, dagRunId });
 
-  const onChange = (value: string) => {
-    switch (value) {
-      case "existing_tasks":
-        setOnlyFailed(false);
-        mutate({
-          dagId,
-          dagRunId,
-          requestBody: { dry_run: true, only_failed: false },
-        });
-        break;
-      case "only_failed":
-        setOnlyFailed(true);
-        mutate({
-          dagId,
-          dagRunId,
-          requestBody: { dry_run: true, only_failed: true },
-        });
-        break;
-      default:
-        // TODO: Handle this `new_tasks` case
-        break;
-    }
-  };
+  useEffect(() => {
+    mutate({
+      dagId,
+      dagRunId,
+      requestBody: { dry_run: true, only_failed: onlyFailed },
+    });
+  }, [dagId, dagRunId, mutate, onlyFailed]);
 
   return (
     <Dialog.Root onOpenChange={onClose} open={open} size="xl">
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>
-            <Heading size="xl">Clear DagRun - {dagRunId} </Heading>
+            <Heading size="xl">
+              <strong>Clear DagRun: </strong> {dagRunId}
+            </Heading>
           </VStack>
         </Dialog.Header>
 
@@ -104,21 +83,20 @@ const ClearRunDialog = ({
         <Dialog.Body width="full">
           <Flex justifyContent="center">
             <SegmentedControl
-              mb={3}
-              onValueChange={onChange}
+              defaultValues={["existingTasks"]}
+              onChange={setSelectedOptions}
               options={[
-                { label: "Clear existing tasks", value: "existing_tasks" },
-                { label: "Clear only failed tasks", value: "only_failed" },
+                { label: "Clear existing tasks", value: "existingTasks" },
+                { label: "Clear only failed tasks", value: "onlyFailed" },
                 {
                   disabled: true,
                   label: "Queue up new tasks",
                   value: "new_tasks",
                 },
               ]}
-              value={onlyFailed ? "only_failed" : "existing_tasks"}
             />
           </Flex>
-          <ClearRunTasksAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
+          <ClearAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
           <Flex justifyContent="end" mt={3}>
             <Button
               colorPalette="blue"

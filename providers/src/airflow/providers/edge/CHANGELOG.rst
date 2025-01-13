@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.10.1pre0
+..........
+
+Misc
+~~~~
+
+* ``Re-add the feature to support pool slots in concurrency calculation for Airflow 3.``
+
 0.10.0pre0
 ..........
 
