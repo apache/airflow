@@ -1717,11 +1717,13 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
                 "tableId": table_id,
             },
             "labels": self.labels,
-            "schema": {"fields": schema_fields},
             "externalDataConfiguration": external_data_configuration,
             "location": self.location,
             "encryptionConfiguration": self.encryption_configuration,
         }
+
+        if self.schema_fields:
+            table_resource["schema"] = {"fields": schema_fields}
 
         # Save table as attribute for further use by OpenLineage
         self._table = bq_hook.create_empty_table(table_resource=table_resource)
