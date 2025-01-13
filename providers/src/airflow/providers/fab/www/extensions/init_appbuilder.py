@@ -521,6 +521,12 @@ class AirflowAppBuilder:
                 log.exception(e)
                 log.error(LOGMSG_ERR_FAB_ADD_PERMISSION_VIEW, e)
 
+    def add_permissions(self, update_perms=False):
+        if self.update_perms or update_perms:
+            for baseview in self.baseviews:
+                self._add_permission(baseview, update_perms=update_perms)
+            self._add_menu_permissions(update_perms=update_perms)
+
     def _add_permissions_menu(self, name, update_perms=False):
         if self.update_perms or update_perms:
             try:
