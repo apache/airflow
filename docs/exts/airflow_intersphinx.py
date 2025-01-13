@@ -126,7 +126,7 @@ if __name__ == "__main__":
             cache: dict[Any, Any] = {}
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 for name, (uri, invs) in intersphinx_mapping.values():
-                    pool.submit(fetch_inventory_group, name, uri, invs, cache, _MockApp(), now)
+                    pool.submit(fetch_inventory_group, name, uri, invs, cache, _MockApp(), now)  # type: ignore[arg-type]
 
             inv_dict = {}
             for uri, (name, now, invdata) in cache.items():

@@ -203,7 +203,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
         target: Callable[[], None] = _parse_file_entrypoint,
         **kwargs,
     ) -> Self:
-        proc = super().start(target=target, **kwargs)
+        proc: Self = super().start(target=target, **kwargs)
         proc._on_child_started(callbacks, path)
         return proc
 
