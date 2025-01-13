@@ -19,7 +19,7 @@ from __future__ import annotations
 from functools import cache
 from typing import TYPE_CHECKING, Annotated, Any, Callable
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer
 from jwt import InvalidTokenError
 
@@ -51,6 +51,18 @@ def get_user(token_str: Annotated[str, Depends(oauth2_scheme)]) -> BaseUser:
         return get_auth_manager().deserialize_user(payload)
     except InvalidTokenError:
         raise HTTPException(403, "Forbidden")
+
+
+async def get_user_with_exception_handling(request: Request) -> BaseUser | None:
+    # Currently UI does not support JWT token this method handles if no token is provided by UI
+    # we can remove this method after issue https://github.com/apache/airflow/issues/44884 is dome
+    try:
+        token_str = await oauth2_scheme(request)
+        if not token_str:  # Handle None or empty token
+            return None
+        return get_user(token_str)
+    except HTTPException:
+        return None
 
 
 def requires_access_dag(method: ResourceMethod, access_entity: DagAccessEntity | None = None) -> Callable:
