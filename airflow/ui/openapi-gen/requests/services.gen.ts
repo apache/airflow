@@ -54,6 +54,8 @@ import type {
   UnpauseBackfillResponse,
   CancelBackfillData,
   CancelBackfillResponse,
+  CreateBackfillDryRunData,
+  CreateBackfillDryRunResponse,
   GridDataData,
   GridDataResponse,
   DeleteConnectionData,
@@ -918,6 +920,31 @@ export class BackfillService {
       path: {
         backfill_id: data.backfillId,
       },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        409: "Conflict",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Create Backfill Dry Run
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns DryRunBackfillCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static createBackfillDryRun(
+    data: CreateBackfillDryRunData,
+  ): CancelablePromise<CreateBackfillDryRunResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/backfills/dry_run",
+      body: data.requestBody,
+      mediaType: "application/json",
       errors: {
         401: "Unauthorized",
         403: "Forbidden",

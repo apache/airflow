@@ -155,6 +155,72 @@ class BackfillDagRun(Base):
         return val
 
 
+def _get_latest_dag_run_row_query(info, session):
+    from airflow.models import DagRun
+
+    return (
+        select(DagRun)
+        .where(DagRun.logical_date == info.logical_date)
+        .order_by(nulls_first(desc(DagRun.start_date), session=session))
+        .limit(1)
+    )
+
+
+def _get_dag_run_no_create_reason(dr, reprocess_behavior: ReprocessBehavior) -> str | None:
+    non_create_reason = None
+    if dr.state not in (DagRunState.SUCCESS, DagRunState.FAILED):
+        non_create_reason = BackfillDagRunExceptionReason.IN_FLIGHT
+    elif reprocess_behavior is ReprocessBehavior.NONE:
+        non_create_reason = BackfillDagRunExceptionReason.ALREADY_EXISTS
+    elif reprocess_behavior is ReprocessBehavior.FAILED:
+        if dr.state != DagRunState.FAILED:
+            non_create_reason = BackfillDagRunExceptionReason.ALREADY_EXISTS
+    return non_create_reason
+
+
+def _validate_backfill_params(dag, reverse, reprocess_behavior: ReprocessBehavior | None):
+    depends_on_past = None
+    depends_on_past = any(x.depends_on_past for x in dag.tasks)
+    if depends_on_past:
+        if reverse is True:
+            raise ValueError(
+                "Backfill cannot be run in reverse when the dag has tasks where depends_on_past=True"
+            )
+        if reprocess_behavior in (None, ReprocessBehavior.NONE):
+            raise ValueError(
+                "Dag has task for which depends_on_past is true. "
+                "You must set reprocess behavior to reprocess completed or "
+                "reprocess failed"
+            )
+
+
+def _do_dry_run(*, dag_id, from_date, to_date, reverse, reprocess_behavior, session) -> list[datetime]:
+    from airflow.models.serialized_dag import SerializedDagModel
+
+    serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
+    dag = serdag.dag
+    _validate_backfill_params(dag, reverse, reprocess_behavior)
+
+    dagrun_info_list = _get_info_list(
+        dag=dag,
+        from_date=from_date,
+        to_date=to_date,
+        reverse=reverse,
+    )
+    logical_dates = []
+    for info in dagrun_info_list:
+        dr = session.scalar(
+            statement=_get_latest_dag_run_row_query(info, session),
+        )
+        if dr:
+            non_create_reason = _get_dag_run_no_create_reason(dr, reprocess_behavior)
+            if not non_create_reason:
+                logical_dates.append(info.logical_date)
+        else:
+            logical_dates.append(info.logical_date)
+    return logical_dates
+
+
 def _create_backfill_dag_run(
     *,
     dag,
@@ -165,27 +231,15 @@ def _create_backfill_dag_run(
     backfill_sort_ordinal,
     session,
 ):
-    from airflow.models import DagRun
-
     with session.begin_nested() as nested:
         dr = session.scalar(
             with_row_locks(
-                select(DagRun)
-                .where(DagRun.logical_date == info.logical_date)
-                .order_by(nulls_first(desc(DagRun.start_date), session=session))
-                .limit(1),
+                query=_get_latest_dag_run_row_query(info, session),
                 session=session,
-            )
+            ),
         )
         if dr:
-            non_create_reason = None
-            if dr.state not in (DagRunState.SUCCESS, DagRunState.FAILED):
-                non_create_reason = BackfillDagRunExceptionReason.IN_FLIGHT
-            elif reprocess_behavior is ReprocessBehavior.NONE:
-                non_create_reason = BackfillDagRunExceptionReason.ALREADY_EXISTS
-            elif reprocess_behavior is ReprocessBehavior.FAILED:
-                if dr.state != DagRunState.FAILED:
-                    non_create_reason = BackfillDagRunExceptionReason.ALREADY_EXISTS
+            non_create_reason = _get_dag_run_no_create_reason(dr, reprocess_behavior)
             if non_create_reason:
                 # rolling back here restores to start of this nested tran
                 # which releases the lock on the latest dag run, since we
@@ -272,18 +326,8 @@ def _create_backfill(
             )
 
         dag = serdag.dag
-        depends_on_past = any(x.depends_on_past for x in dag.tasks)
-        if depends_on_past:
-            if reverse is True:
-                raise ValueError(
-                    "Backfill cannot be run in reverse when the dag has tasks where depends_on_past=True"
-                )
-            if reprocess_behavior in (None, ReprocessBehavior.NONE):
-                raise ValueError(
-                    "Dag has task for which depends_on_past is true. "
-                    "You must set reprocess behavior to reprocess completed or "
-                    "reprocess failed"
-                )
+        _validate_backfill_params(dag, reverse, reprocess_behavior)
+
         br = Backfill(
             dag_id=dag_id,
             from_date=from_date,
@@ -316,6 +360,7 @@ def _create_backfill(
         )
         if not dag_model:
             raise RuntimeError(f"Dag {dag_id} not found")
+
         for info in dagrun_info_list:
             backfill_sort_ordinal += 1
             _create_backfill_dag_run(
