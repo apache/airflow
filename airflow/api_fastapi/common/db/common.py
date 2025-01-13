@@ -198,8 +198,6 @@ def action_logging(event: str | None):
             user_name = "anonymous"
             user_display = ""
         else:
-            # user_name = user.role
-            # user_display = user.username
             user_name = getattr(user, "role", "unknown_role")
             user_display = getattr(user, "username", "unknown_user")
 
