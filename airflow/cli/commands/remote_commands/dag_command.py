@@ -551,5 +551,5 @@ def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
     else:
         bundles = manager.get_all_dag_bundles()
         for bundle in bundles:
-            dag_bag = DagBag(bundle.path)
-            dag_bag.sync_to_db(bundle.name, bundle_version=bundle.version, session=session)
+            dag_bag = DagBag(bundle.path, include_examples=False)
+            dag_bag.sync_to_db(bundle.name, bundle_version=bundle.get_current_version(), session=session)
