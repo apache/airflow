@@ -580,7 +580,7 @@ def post_clear_task_instances(
 
     task_ids = body.task_ids
     if task_ids is not None:
-        task_id = [task[0] if isinstance(task, tuple) else task for task in task_ids]
+        task_id = [task[0] if isinstance(task, list) else task for task in task_ids]
         dag = dag.partial_subset(
             task_ids_or_regex=task_id,
             include_downstream=downstream,

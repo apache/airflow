@@ -60,6 +60,7 @@ export const useClearTaskInstances = ({
       onSuccessDryRun(data);
     } else {
       const taskInstanceKeys = (variables.requestBody.task_ids ?? [])
+        .filter((taskId): taskId is string => typeof taskId === "string")
         .map((taskId) => {
           const runId = variables.requestBody.dag_run_id;
 

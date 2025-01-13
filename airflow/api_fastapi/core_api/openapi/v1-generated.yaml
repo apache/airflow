@@ -6635,7 +6635,11 @@ components:
         task_ids:
           anyOf:
           - items:
-              type: string
+              anyOf:
+              - type: string
+              - items:
+                  type: string
+                type: array
             type: array
           - type: 'null'
           title: Task Ids
