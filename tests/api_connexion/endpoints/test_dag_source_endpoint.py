@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import os
+
 import pytest
 from sqlalchemy import select
 
@@ -24,13 +26,12 @@ from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
 
 from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
-from tests_common.test_utils.db import clear_db_dags
+from tests_common.test_utils.db import clear_db_dags, parse_and_sync_to_db
 
 pytestmark = pytest.mark.db_test
 
 
-EXAMPLE_DAG_ID = "example_bash_operator"
-TEST_DAG_ID = "latest_only"
+TEST_DAG_ID = "example_bash_operator"
 
 
 @pytest.fixture(scope="module")
@@ -51,9 +52,9 @@ def configured_app(minimal_app_for_api):
 
 @pytest.fixture
 def test_dag():
-    dagbag = DagBag(include_examples=True)
-    dagbag.sync_to_db()
-    return dagbag.dags[TEST_DAG_ID]
+    parse_and_sync_to_db(os.devnull, include_examples=True)
+    dagbag = DagBag(read_dags_from_db=True)
+    return dagbag.get_dag(TEST_DAG_ID)
 
 
 class TestGetSource:

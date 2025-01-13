@@ -50,7 +50,7 @@ from airflow.utils.types import DagRunType
 
 from tests.models import TEST_DAGS_FOLDER
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs, parse_and_sync_to_db
 
 DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1), timezone=timezone.utc)
 if pendulum.__version__.startswith("3"):
@@ -68,8 +68,7 @@ class TestCliDags:
 
     @classmethod
     def setup_class(cls):
-        cls.dagbag = DagBag(include_examples=True)
-        cls.dagbag.sync_to_db()
+        parse_and_sync_to_db(os.devnull, include_examples=True)
         cls.parser = cli_parser.get_parser()
 
     @classmethod
@@ -207,8 +206,7 @@ class TestCliDags:
 
         with time_machine.travel(DEFAULT_DATE):
             clear_db_dags()
-            self.dagbag = DagBag(dag_folder=tmp_path, include_examples=False)
-            self.dagbag.sync_to_db()
+            parse_and_sync_to_db(tmp_path, include_examples=False)
 
         default_run = DEFAULT_DATE
         future_run = default_run + timedelta(days=5)
@@ -255,8 +253,7 @@ class TestCliDags:
 
         # Rebuild Test DB for other tests
         clear_db_dags()
-        TestCliDags.dagbag = DagBag(include_examples=True)
-        TestCliDags.dagbag.sync_to_db()
+        parse_and_sync_to_db(os.devnull, include_examples=True)
 
     @conf_vars({("core", "load_examples"): "true"})
     def test_cli_report(self):
@@ -405,24 +402,24 @@ class TestCliDags:
     def test_pause(self):
         args = self.parser.parse_args(["dags", "pause", "example_bash_operator"])
         dag_command.dag_pause(args)
-        assert self.dagbag.dags["example_bash_operator"].get_is_paused()
+        assert DagModel.get_dagmodel("example_bash_operator").is_paused
         dag_command.dag_unpause(args)
-        assert not self.dagbag.dags["example_bash_operator"].get_is_paused()
+        assert not DagModel.get_dagmodel("example_bash_operator").is_paused
 
     @mock.patch("airflow.cli.commands.remote_commands.dag_command.ask_yesno")
     def test_pause_regex(self, mock_yesno):
         args = self.parser.parse_args(["dags", "pause", "^example_.*$", "--treat-dag-id-as-regex"])
         dag_command.dag_pause(args)
         mock_yesno.assert_called_once()
-        assert self.dagbag.dags["example_bash_decorator"].get_is_paused()
-        assert self.dagbag.dags["example_kubernetes_executor"].get_is_paused()
-        assert self.dagbag.dags["example_xcom_args"].get_is_paused()
+        assert DagModel.get_dagmodel("example_bash_decorator").is_paused
+        assert DagModel.get_dagmodel("example_kubernetes_executor").is_paused
+        assert DagModel.get_dagmodel("example_xcom_args").is_paused
 
         args = self.parser.parse_args(["dags", "unpause", "^example_.*$", "--treat-dag-id-as-regex"])
         dag_command.dag_unpause(args)
-        assert not self.dagbag.dags["example_bash_decorator"].get_is_paused()
-        assert not self.dagbag.dags["example_kubernetes_executor"].get_is_paused()
-        assert not self.dagbag.dags["example_xcom_args"].get_is_paused()
+        assert not DagModel.get_dagmodel("example_bash_decorator").is_paused
+        assert not DagModel.get_dagmodel("example_kubernetes_executor").is_paused
+        assert not DagModel.get_dagmodel("example_xcom_args").is_paused
 
     @mock.patch("airflow.cli.commands.remote_commands.dag_command.ask_yesno")
     def test_pause_regex_operation_cancelled(self, ask_yesno, capsys):

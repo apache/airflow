@@ -111,6 +111,7 @@ class TestDagEndpoint:
         ):
             EmptyOperator(task_id=TASK_ID)
 
+        dag_maker.sync_dagbag_to_db()
         dag_maker.create_dagrun(state=DagRunState.FAILED)
 
         with dag_maker(
@@ -127,7 +128,7 @@ class TestDagEndpoint:
         self._create_deactivated_paused_dag(session)
         self._create_dag_tags(session)
 
-        dag_maker.dagbag.sync_to_db()
+        dag_maker.sync_dagbag_to_db()
         dag_maker.dag_model.has_task_concurrency_limits = True
         session.merge(dag_maker.dag_model)
         session.commit()
