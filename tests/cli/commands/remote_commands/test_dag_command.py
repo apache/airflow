@@ -98,7 +98,7 @@ class TestCliDags:
         dag_version_after_command = session.query(DagVersion).all()
         assert len(dag_version_after_command)
 
-    def test_reserialize_should_support_subdir_argument(self, session):
+    def test_reserialize_should_support_bundle_name_argument(self, configure_testing_dag_bundle, session):
         # Run clear of serialized dags
         session.query(DagVersion).delete()
 
@@ -106,13 +106,34 @@ class TestCliDags:
         serialized_dags_after_clear = session.query(SerializedDagModel).all()
         assert len(serialized_dags_after_clear) == 0
 
-        dag_command.dag_reserialize(
-            self.parser.parse_args(["dags", "reserialize", "--bundle-name", "dags-folder"])
-        )
+        path_to_parse = TEST_DAGS_FOLDER / "test_dag_with_no_tags.py"
+
+        with configure_testing_dag_bundle(path_to_parse):
+            dag_command.dag_reserialize(
+                self.parser.parse_args(["dags", "reserialize", "--bundle-name", "testing"])
+            )
 
         # Check serialized DAG are back
         serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
-        assert len(serialized_dags_after_reserialize)  # Serialized DAG back
+        assert len(serialized_dags_after_reserialize) == 1  # Serialized DAG back
+
+    def test_reserialize_should_support_more_than_one_bundle(self, configure_testing_dag_bundle, session):
+        # Run clear of serialized dags
+        session.query(DagVersion).delete()
+
+        # Assert no serialized Dags
+        serialized_dags_after_clear = session.query(SerializedDagModel).all()
+        assert len(serialized_dags_after_clear) == 0
+
+        path_to_parse = TEST_DAGS_FOLDER / "test_dag_with_no_tags.py"
+
+        with configure_testing_dag_bundle(path_to_parse):
+            dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize"]))
+
+        # Check serialized DAG are back
+        serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
+        assert len(serialized_dags_after_reserialize) > 1
+        assert "test_dag_with_no_tags" in [dag.dag_id for dag in serialized_dags_after_reserialize]
 
     def test_show_dag_dependencies_print(self):
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:

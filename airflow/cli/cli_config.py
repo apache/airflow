@@ -172,7 +172,7 @@ ARG_BUNDLE_NAME = Arg(
         "--bundle-name",
     ),
     help=("The name of the DAG bundle to use."),
-    default="dags-folder",
+    default=None,
 )
 ARG_START_DATE = Arg(("-s", "--start-date"), help="Override start_date YYYY-MM-DD", type=parsedate)
 ARG_END_DATE = Arg(("-e", "--end-date"), help="Override end_date YYYY-MM-DD", type=parsedate)
