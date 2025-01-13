@@ -15,20 +15,36 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+"""
+add bundle_name to ParseImportError.
+
+Revision ID: 03de77aaa4ec
+Revises: e39a26ac59f6
+Create Date: 2025-01-08 10:38:02.108760
+
+"""
+
 from __future__ import annotations
 
-from sqlalchemy import Column, Integer, String, Text
+import sqlalchemy as sa
+from alembic import op
 
-from airflow.models.base import Base, StringID
-from airflow.utils.sqlalchemy import UtcDateTime
+# revision identifiers, used by Alembic.
+revision = "03de77aaa4ec"
+down_revision = "e39a26ac59f6"
+branch_labels = None
+depends_on = None
+airflow_version = "3.0.0"
 
 
-class ParseImportError(Base):
-    """Stores all Import Errors which are recorded when parsing DAGs and displayed on the Webserver."""
+def upgrade():
+    """Apply add bundle_name to ParseImportError."""
+    with op.batch_alter_table("import_error", schema=None) as batch_op:
+        batch_op.add_column(sa.Column("bundle_name", sa.String(length=250), nullable=True))
 
-    __tablename__ = "import_error"
-    id = Column(Integer, primary_key=True)
-    timestamp = Column(UtcDateTime)
-    filename = Column(String(1024))
-    bundle_name = Column(StringID())
-    stacktrace = Column(Text)
+
+def downgrade():
+    """Unapply add bundle_name to ParseImportError."""
+    with op.batch_alter_table("import_error", schema=None) as batch_op:
+        batch_op.drop_column("bundle_name")
