@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-11T19:45:20.248234
+# This constraints file was automatically generated on 2025-01-13T08:31:34.034349
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -62,7 +62,6 @@ SQLAlchemy-JSONField==1.0.2
 SQLAlchemy-Utils==0.41.2
 SQLAlchemy==1.4.54
 SecretStorage==3.3.3
-Sphinx==5.3.0
 WTForms==3.1.2
 Werkzeug==2.2.3
 adal==1.2.7
@@ -75,7 +74,6 @@ aioitertools==0.12.0
 aioresponses==0.7.7
 aiosignal==1.3.1
 airbyte-api==0.52.2
-alabaster==0.7.13
 alembic==1.14.0
 alibabacloud-adb20211201==2.0.0
 alibabacloud-tea==0.4.0
@@ -92,7 +90,6 @@ amqp==5.3.1
 analytics-python==1.2.9
 annotated-types==0.7.0
 ansicolors==1.1.8
-anyascii==0.3.2
 anyio==4.5.2
 apache-airflow-providers-airbyte==4.0.0
 apache-airflow-providers-alibaba==2.9.1
@@ -193,7 +190,6 @@ argcomplete==3.5.3
 asana==3.2.3
 asgiref==3.8.1
 asn1crypto==1.5.1
-astroid==2.15.8
 asttokens==3.0.0
 async-timeout==5.0.1
 asyncssh==2.19.0
@@ -252,7 +248,6 @@ cfn-lint==1.22.4
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.1
-checksumdir==1.2.0
 ciso8601==2.3.2
 click-didyoumean==0.3.1
 click-plugins==1.1.1
@@ -289,7 +284,7 @@ dnspython==2.6.1
 docker==7.1.0
 docopt==0.6.2
 docstring_parser==0.16
-docutils==0.16
+docutils==0.20.1
 duckdb==1.1.3
 elastic-transport==8.17.0
 elasticsearch==8.17.0
@@ -400,7 +395,6 @@ icdiff==2.0.7
 identify==2.6.1
 idna==3.10
 ijson==3.3.0
-imagesize==1.4.1
 immutabledict==4.2.1
 importlib-metadata==6.11.0
 importlib_resources==6.4.5
@@ -533,7 +527,6 @@ pinecone-plugin-inference==1.1.0
 pinecone-plugin-interface==0.0.7
 pinotdb==5.6.0
 pipdeptree==2.24.0
-pipx==1.7.1
 pkginfo==1.12.0
 pkgutil_resolve_name==1.3.10
 platformdirs==4.3.6
@@ -570,7 +563,6 @@ pydantic_core==2.27.2
 pydata-google-auth==1.8.2
 pydot==1.4.2
 pydruid==0.6.9
-pyenchant==3.2.2
 pyexasol==0.25.2
 pygraphviz==1.11
 pyiceberg==0.7.1
@@ -647,28 +639,10 @@ slack_sdk==3.34.0
 smbprotocol==1.15.0
 smmap==5.0.2
 sniffio==1.3.1
-snowballstemmer==2.2.0
 snowflake-connector-python==3.12.4
 snowflake-sqlalchemy==1.7.2
 sortedcontainers==2.4.0
 soupsieve==2.6
-sphinx-airflow-theme==0.0.12
-sphinx-argparse==0.4.0
-sphinx-autoapi==2.1.1
-sphinx-copybutton==0.5.2
-sphinx-jinja==2.0.2
-sphinx-rtd-theme==2.0.0
-sphinx_design==0.5.0
-sphinxcontrib-applehelp==1.0.4
-sphinxcontrib-devhelp==1.0.2
-sphinxcontrib-htmlhelp==2.0.1
-sphinxcontrib-httpdomain==1.8.1
-sphinxcontrib-jquery==4.1
-sphinxcontrib-jsmath==1.0.1
-sphinxcontrib-qthelp==1.0.3
-sphinxcontrib-redoc==1.6.0
-sphinxcontrib-serializinghtml==1.1.5
-sphinxcontrib-spelling==8.0.0
 spython==0.3.14
 sqlalchemy-bigquery==1.12.0
 sqlalchemy-redshift==0.8.14
@@ -733,7 +707,7 @@ universal_pathlib==0.2.6
 uritemplate==4.1.1
 urllib3==1.26.20
 userpath==1.9.2
-uv==0.5.11
+uv==0.5.17
 validators==0.34.0
 vertica-python==1.4.0
 vine==5.1.0
