@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-13T13:53:07.520559
+# This constraints file was automatically generated on 2025-01-13T19:47:37.668685
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -383,7 +383,7 @@ nh3==0.2.20
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.59.6
+openai==1.59.7
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.26.0
@@ -520,7 +520,7 @@ rfc3339-validator==0.1.4
 rfc3986==2.0.0
 rich-argparse==1.6.0
 rich-click==1.8.5
-rich-toolkit==0.12.0
+rich-toolkit==0.13.2
 rich==13.9.4
 rpds-py==0.22.3
 rsa==4.9
