@@ -713,6 +713,7 @@ def test_emit_dag_complete_event(
         clear_number=0,
         dag_run_state=DagRunState.SUCCESS,
         task_ids=["task_0", "task_1", "task_2.test"],
+        run_facets={"airflowDagRun": AirflowDagRunFacet(dag={"description": "dag desc"}, dagRun=dag_run)},
     )
 
     client.emit.assert_called_once_with(
@@ -731,6 +732,7 @@ def test_emit_dag_complete_event(
                         },
                     ),
                     "debug": AirflowDebugRunFacet(packages=ANY),
+                    "airflowDagRun": AirflowDagRunFacet(dag={"description": "dag desc"}, dagRun=dag_run),
                 },
             ),
             job=Job(
@@ -804,6 +806,7 @@ def test_emit_dag_failed_event(
         dag_run_state=DagRunState.FAILED,
         task_ids=["task_0", "task_1", "task_2.test"],
         msg="error msg",
+        run_facets={"airflowDagRun": AirflowDagRunFacet(dag={"description": "dag desc"}, dagRun=dag_run)},
     )
 
     client.emit.assert_called_once_with(
@@ -825,6 +828,7 @@ def test_emit_dag_failed_event(
                         },
                     ),
                     "debug": AirflowDebugRunFacet(packages=ANY),
+                    "airflowDagRun": AirflowDagRunFacet(dag={"description": "dag desc"}, dagRun=dag_run),
                 },
             ),
             job=Job(
