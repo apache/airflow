@@ -28,7 +28,7 @@ from collections import deque
 from contextlib import suppress
 from copy import copy
 from queue import SimpleQueue
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
 from sqlalchemy import func, select
 
@@ -39,7 +39,6 @@ from airflow.models.trigger import Trigger
 from airflow.stats import Stats
 from airflow.traces.tracer import Trace, add_span
 from airflow.triggers.base import TriggerEvent
-from airflow.typing_compat import TypedDict
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin

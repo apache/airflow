@@ -2173,6 +2173,10 @@ pgbouncer:
   auth_type: scram-sha-256
   auth_file: /etc/pgbouncer/users.txt
 
+  # Whether to mount the config secret files at a default location (/etc/pgbouncer/*).
+  # Can be skipped to allow for other means to get the values, e.g. secrets provider class.
+  mountConfigSecret: true
+
   # annotations to be added to the PgBouncer deployment
   annotations: {}
 
@@ -2279,6 +2283,8 @@ pgbouncer:
   #     - name: my-templated-extra-volume
   #       mountPath: "{{ .Values.my_custom_path }}"
   #       readOnly: true
+  # Volumes apply to all pgbouncer containers, while volume mounts apply to the pgbouncer
+  # container itself. Metrics exporter container has its own mounts.
   extraVolumes: []
   extraVolumeMounts: []
 
@@ -2352,6 +2358,15 @@ pgbouncer:
       periodSeconds: 10
       timeoutSeconds: 1
 
+    # Mount additional volumes into the metrics exporter. It can be templated like in the following example:
+    #   extraVolumeMounts:
+    #     - name: my-templated-extra-volume
+    #       mountPath: "{{ .Values.my_custom_path }}"
+    #       readOnly: true
+    extraVolumeMounts: []
+
+  # Labels specific to pgbouncer objects and pods
+  labels: {}
   # Environment variables to add to pgbouncer container
   env: []
 

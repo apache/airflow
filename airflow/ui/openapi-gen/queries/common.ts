@@ -1596,6 +1596,9 @@ export type AssetServiceCreateAssetEventMutationResult = Awaited<
 export type BackfillServiceCreateBackfillMutationResult = Awaited<
   ReturnType<typeof BackfillService.createBackfill>
 >;
+export type BackfillServiceCreateBackfillDryRunMutationResult = Awaited<
+  ReturnType<typeof BackfillService.createBackfillDryRun>
+>;
 export type ConnectionServicePostConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.postConnection>
 >;
