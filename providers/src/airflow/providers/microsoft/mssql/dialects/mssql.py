@@ -56,9 +56,9 @@ class MsSqlDialect(Dialect):
         self.log.debug("columns: %s", columns)
 
         return f"""MERGE INTO {table} WITH (ROWLOCK) AS target
-            USING (SELECT {', '.join(map(lambda column: f'{self.placeholder} AS {column}', target_fields))}) AS source
-            ON {' AND '.join(map(lambda column: f'target.{self.escape_column_name(column)} = source.{column}', primary_keys))}
+            USING (SELECT {', '.join(map(lambda column: f'{self.placeholder} AS {self.escape_column_name(column)}', target_fields))}) AS source
+            ON {' AND '.join(map(lambda column: f'target.{self.escape_column_name(column)} = source.{self.escape_column_name(column)}', primary_keys))}
             WHEN MATCHED THEN
-                UPDATE SET {', '.join(map(lambda column: f'target.{column} = source.{column}', columns))}
+                UPDATE SET {', '.join(map(lambda column: f'target.{self.escape_column_name(column)} = source.{self.escape_column_name(column)}', columns))}
             WHEN NOT MATCHED THEN
-                INSERT ({', '.join(target_fields)}) VALUES ({', '.join(map(lambda column: f'source.{self.escape_column_name(column)}', target_fields))});"""
+                INSERT ({', '.join(map(self.escape_column_name, target_fields))}) VALUES ({', '.join(map(lambda column: f'source.{self.escape_column_name(column)}', target_fields))});"""
