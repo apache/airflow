@@ -144,7 +144,7 @@ class TestPowerBIDatasetRefreshOperator(Base):
                     "dataset_refresh_id": "1234",
                 },
             )
-        assert context["ti"].xcom_push.call_count == 0
+        assert context["ti"].xcom_push.call_count == 1
         assert str(exc.value) == "error"
 
     def test_powerbi_operator_refresh_fail(self):
@@ -163,7 +163,7 @@ class TestPowerBIDatasetRefreshOperator(Base):
                     "dataset_refresh_id": "1234",
                 },
             )
-        assert context["ti"].xcom_push.call_count == 0
+        assert context["ti"].xcom_push.call_count == 1
         assert str(exc.value) == "error message"
 
     def test_execute_complete_no_event(self):

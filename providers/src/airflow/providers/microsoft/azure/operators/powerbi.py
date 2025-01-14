@@ -153,11 +153,10 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event:
-            if event["status"] == "error":
-                raise AirflowException(event["message"])
-
             self.xcom_push(
                 context=context,
                 key=f"{self.task_id}.powerbi_dataset_refresh_status",
                 value=event["dataset_refresh_status"],
             )
+            if event["status"] == "error":
+                raise AirflowException(event["message"])
