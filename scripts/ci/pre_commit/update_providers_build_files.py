@@ -31,11 +31,10 @@ providers: set[str] = set()
 file_list = sys.argv[1:]
 console.print(f"[bright_blue]Determining providers to regenerate from: {file_list}\n")
 
-# get all folders from arguments
-for examined_file in file_list:
-    if not examined_file.startswith("providers/src"):
-        continue
-    console.print(f"[bright_blue]Looking at {examined_file} for provider.yaml")
+
+# TODO: remove it when we move all providers to the new structure
+def _find_old_providers_structure() -> None:
+    console.print(f"[bright_blue]Looking at {examined_file} for old structure provider.yaml")
     # find the folder where provider.yaml is
     for parent in Path(examined_file).parents:
         console.print(f"[bright_blue]Checking {parent}")
@@ -44,7 +43,7 @@ for examined_file in file_list:
             break
     else:
         console.print(f"[yellow]\nCould not find `provider.yaml` in any parent of {examined_file}[/]")
-        continue
+        return
     # find base for the provider sources
     for parent in provider_folder.parents:
         if parent.name == "providers":
@@ -52,12 +51,45 @@ for examined_file in file_list:
             console.print(f"[bright_blue]Found base folder {base_folder}")
             break
     else:
-        console.print(f"[red]\nCould not find base folder for {provider_folder}")
+        console.print(f"[red]\nCould not find old structure base folder for {provider_folder}")
         sys.exit(1)
     provider_name = ".".join(provider_folder.relative_to(base_folder).as_posix().split("/"))
     providers.add(provider_name)
 
-console.print(f"[bright_blue]Regenerating providers __init__ files for providers: {providers}[/]")
+
+def _find_new_providers_structure() -> None:
+    console.print(f"[bright_blue]Looking at {examined_file} for new structure provider.yaml")
+    # find the folder where provider.yaml is
+    for parent in Path(examined_file).parents:
+        console.print(f"[bright_blue]Checking {parent} for provider.yaml")
+        if (parent / "provider.yaml").exists():
+            console.print(f"[bright_blue]Found {parent} with provider.yaml")
+            provider_folder = parent
+            break
+    else:
+        console.print(f"[yellow]\nCould not find `provider.yaml` in any parent of {examined_file}[/]")
+        return
+    # find base for the provider sources
+    for parent in provider_folder.parents:
+        if parent.name == "providers":
+            base_folder = parent
+            console.print(f"[bright_blue]Found base folder {base_folder}")
+            break
+    else:
+        console.print(f"[red]\nCould not find new structure base folder for {provider_folder}")
+        sys.exit(1)
+    provider_name = ".".join(provider_folder.relative_to(base_folder).as_posix().split("/"))
+    providers.add(provider_name)
+
+
+# get all folders from arguments
+for examined_file in file_list:
+    if not examined_file.startswith("providers/src"):
+        _find_new_providers_structure()
+    else:
+        _find_old_providers_structure()
+
+console.print(f"[bright_blue]Regenerating build files for providers: {providers}[/]")
 
 if not providers:
     console.print("[red]\nThe found providers list cannot be empty[/]")

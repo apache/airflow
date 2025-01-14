@@ -667,6 +667,11 @@ def start_airflow(
     is_flag=True,
 )
 @click.option(
+    "--skip-deletion",
+    help="Skip deletion of generated new packages documentation in `docs/apache-airflow-providers-*`.",
+    is_flag=True,
+)
+@click.option(
     "--package-filter",
     help="Filter(s) to use more than one can be specified. You can use glob pattern matching the "
     "full package name, for example `apache-airflow-providers-*`. Useful when you want to select"
@@ -694,6 +699,7 @@ def build_docs(
     include_not_ready_providers: bool,
     include_removed_providers: bool,
     one_pass_only: bool,
+    skip_deletion: bool,
     package_filter: tuple[str, ...],
     package_list: str,
     spellcheck_only: bool,
@@ -730,6 +736,7 @@ def build_docs(
         package_filter=package_filter,
         docs_only=docs_only,
         spellcheck_only=spellcheck_only,
+        skip_deletion=skip_deletion,
         one_pass_only=one_pass_only,
         short_doc_packages=expand_all_provider_packages(
             short_doc_packages=doc_packages,
