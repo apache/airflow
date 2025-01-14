@@ -111,7 +111,7 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: 'airflow/ui/pnpm-lock.yaml'
       - name: "Restore eslint cache (ui)"
-        uses: apache/infrastructure-actions/stash/restore@c94b890bbedc2fc61466d28e6bd9966bc6c6643c
+        uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
           path: airflow/ui/node_modules/
           key: cache-ui-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow/ui/**/pnpm-lock.yaml') }}
@@ -121,7 +121,7 @@ jobs:
         env:
           FORCE_COLOR: 2
       - name: "Save eslint cache (ui)"
-        uses: apache/infrastructure-actions/stash/save@c94b890bbedc2fc61466d28e6bd9966bc6c6643c
+        uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
           path: airflow/ui/node_modules/
           key: cache-ui-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow/ui/**/pnpm-lock.yaml') }}
@@ -149,7 +149,7 @@ jobs:
         with:
           node-version: 21
       - name: "Restore eslint cache (www)"
-        uses: apache/infrastructure-actions/stash/restore@c94b890bbedc2fc61466d28e6bd9966bc6c6643c
+        uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
           path: airflow/www/node_modules/
           key: cache-www-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow/www/**/yarn.lock') }}
@@ -159,7 +159,7 @@ jobs:
         env:
           FORCE_COLOR: 2
       - name: "Save eslint cache (www)"
-        uses: apache/infrastructure-actions/stash/save@c94b890bbedc2fc61466d28e6bd9966bc6c6643c
+        uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
           path: airflow/www/node_modules/
           key: cache-www-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow/www/**/yarn.lock') }}

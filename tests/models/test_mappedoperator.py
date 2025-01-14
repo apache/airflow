@@ -54,7 +54,7 @@ from tests_common.test_utils.mock_operators import (
 pytestmark = pytest.mark.db_test
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk.definitions.context import Context
 
 
 def test_task_mapping_with_dag():

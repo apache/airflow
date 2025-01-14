@@ -25,7 +25,11 @@ from airflow.utils.context import context_merge
 from airflow.utils.operator_helpers import determine_kwargs
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    try:
+        from airflow.sdk.definitions.context import Context
+    except ImportError:
+        # TODO: Remove once provider drops support for Airflow 2
+        from airflow.utils.context import Context
 
 
 class PythonSensor(BaseSensorOperator):

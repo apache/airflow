@@ -1660,6 +1660,9 @@ export type PoolServicePatchPoolMutationResult = Awaited<ReturnType<typeof PoolS
 export type VariableServicePatchVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.patchVariable>
 >;
+export type VariableServiceBulkVariablesMutationResult = Awaited<
+  ReturnType<typeof VariableService.bulkVariables>
+>;
 export type AssetServiceDeleteAssetQueuedEventsMutationResult = Awaited<
   ReturnType<typeof AssetService.deleteAssetQueuedEvents>
 >;

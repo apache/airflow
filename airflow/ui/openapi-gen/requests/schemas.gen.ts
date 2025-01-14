@@ -5511,6 +5511,196 @@ export const $VariableBody = {
   description: "Variable serializer for bodies.",
 } as const;
 
+export const $VariableBulkActionResponse = {
+  properties: {
+    success: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Success",
+      description: "A list of keys representing successful operations.",
+      default: [],
+    },
+    errors: {
+      items: {
+        type: "object",
+      },
+      type: "array",
+      title: "Errors",
+      description:
+        "A list of errors encountered during the operation, each containing details about the issue.",
+      default: [],
+    },
+  },
+  type: "object",
+  title: "VariableBulkActionResponse",
+  description: `Serializer for individual bulk action responses.
+
+Represents the outcome of a single bulk operation (create, update, or delete).
+The response includes a list of successful keys and any errors encountered during the operation.
+This structure helps users understand which key actions succeeded and which failed.`,
+} as const;
+
+export const $VariableBulkBody = {
+  properties: {
+    actions: {
+      items: {
+        anyOf: [
+          {
+            $ref: "#/components/schemas/VariableBulkCreateAction",
+          },
+          {
+            $ref: "#/components/schemas/VariableBulkUpdateAction",
+          },
+          {
+            $ref: "#/components/schemas/VariableBulkDeleteAction",
+          },
+        ],
+      },
+      type: "array",
+      title: "Actions",
+      description: "A list of variable actions to perform.",
+    },
+  },
+  type: "object",
+  required: ["actions"],
+  title: "VariableBulkBody",
+  description: "Request body for bulk variable operations (create, update, delete).",
+} as const;
+
+export const $VariableBulkCreateAction = {
+  properties: {
+    action: {
+      type: "string",
+      const: "create",
+      title: "Action",
+      default: "create",
+    },
+    variables: {
+      items: {
+        $ref: "#/components/schemas/VariableBody",
+      },
+      type: "array",
+      title: "Variables",
+      description: "A list of variables to be created.",
+    },
+    action_if_exists: {
+      type: "string",
+      enum: ["skip", "overwrite", "fail"],
+      title: "Action If Exists",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["variables"],
+  title: "VariableBulkCreateAction",
+  description: "Bulk Create Variable serializer for request bodies.",
+} as const;
+
+export const $VariableBulkDeleteAction = {
+  properties: {
+    action: {
+      type: "string",
+      const: "delete",
+      title: "Action",
+      default: "delete",
+    },
+    keys: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Keys",
+      description: "A list of variable keys to be deleted.",
+    },
+    action_if_not_exists: {
+      type: "string",
+      enum: ["skip", "fail"],
+      title: "Action If Not Exists",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["keys"],
+  title: "VariableBulkDeleteAction",
+  description: "Bulk Delete Variable serializer for request bodies.",
+} as const;
+
+export const $VariableBulkResponse = {
+  properties: {
+    create: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/VariableBulkActionResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description: "Details of the bulk create operation, including successful keys and errors.",
+    },
+    update: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/VariableBulkActionResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description: "Details of the bulk update operation, including successful keys and errors.",
+    },
+    delete: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/VariableBulkActionResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description: "Details of the bulk delete operation, including successful keys and errors.",
+    },
+  },
+  type: "object",
+  title: "VariableBulkResponse",
+  description: `Serializer for responses to bulk variable operations.
+
+This represents the results of create, update, and delete actions performed on variables in bulk.
+Each action (if requested) is represented as a field containing details about successful keys and any encountered errors.
+Fields are populated in the response only if the respective action was part of the request, else are set None.`,
+} as const;
+
+export const $VariableBulkUpdateAction = {
+  properties: {
+    action: {
+      type: "string",
+      const: "update",
+      title: "Action",
+      default: "update",
+    },
+    variables: {
+      items: {
+        $ref: "#/components/schemas/VariableBody",
+      },
+      type: "array",
+      title: "Variables",
+      description: "A list of variables to be updated.",
+    },
+    action_if_not_exists: {
+      type: "string",
+      enum: ["skip", "fail"],
+      title: "Action If Not Exists",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["variables"],
+  title: "VariableBulkUpdateAction",
+  description: "Bulk Update Variable serializer for request bodies.",
+} as const;
+
 export const $VariableCollectionResponse = {
   properties: {
     variables: {

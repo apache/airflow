@@ -32,7 +32,11 @@ except ModuleNotFoundError as e:
 from airflow.providers.teradata.hooks.teradata import TeradataHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    try:
+        from airflow.sdk.definitions.context import Context
+    except ImportError:
+        # TODO: Remove once provider drops support for Airflow 2
+        from airflow.utils.context import Context
 
 
 class S3ToTeradataOperator(BaseOperator):

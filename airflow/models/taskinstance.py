@@ -163,6 +163,7 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
     from airflow.sdk.definitions.dag import DAG
+    from airflow.sdk.definitions.protocols import RuntimeTaskInstanceProtocol
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Literal, TypeGuard
     from airflow.utils.task_group import TaskGroup
@@ -940,7 +941,7 @@ def _get_template_context(
     dag_run = task_instance.get_dagrun(session)
     data_interval = dag.get_run_data_interval(dag_run)
 
-    validated_params = process_params(dag, task, dag_run, suppress_exception=ignore_param_exceptions)
+    validated_params = process_params(dag, task, dag_run.conf, suppress_exception=ignore_param_exceptions)
 
     logical_date: DateTime = timezone.coerce_datetime(task_instance.logical_date)
     ds = logical_date.strftime("%Y-%m-%d")
@@ -1007,10 +1008,10 @@ def _get_template_context(
         expanded_ti_count = None
 
     # NOTE: If you add to this dict, make sure to also update the following:
-    # * Context in airflow/utils/context.pyi
+    # * Context in task_sdk/src/airflow/sdk/definitions/context.py
     # * KNOWN_CONTEXT_KEYS in airflow/utils/context.py
     # * Table in docs/apache-airflow/templates-ref.rst
-    context: dict[str, Any] = {
+    context: Context = {
         "dag": dag,
         "dag_run": dag_run,
         "data_interval_end": timezone.coerce_datetime(data_interval.end),
@@ -1048,7 +1049,7 @@ def _get_template_context(
     }
     # Mypy doesn't like turning existing dicts in to a TypeDict -- and we "lie" in the type stub to say it
     # is one, but in practice it isn't. See https://github.com/python/mypy/issues/8890
-    return Context(context)  # type: ignore
+    return context
 
 
 def _is_eligible_to_retry(*, task_instance: TaskInstance):
@@ -1873,6 +1874,22 @@ class TaskInstance(Base, LoggingMixin):
     @hybrid_property
     def task_display_name(self) -> str:
         return self._task_display_property_value or self.task_id
+
+    @classmethod
+    def from_runtime_ti(cls, runtime_ti: RuntimeTaskInstanceProtocol) -> TaskInstance:
+        if runtime_ti.map_index is None:
+            runtime_ti.map_index = -1
+        ti = TaskInstance(
+            run_id=runtime_ti.run_id,
+            task=runtime_ti.task,  # type: ignore[arg-type]
+            map_index=runtime_ti.map_index,
+        )
+        ti.refresh_from_db()
+
+        if TYPE_CHECKING:
+            assert ti
+            assert isinstance(ti, TaskInstance)
+        return ti
 
     @staticmethod
     def _command_as_list(
@@ -3276,7 +3293,7 @@ class TaskInstance(Base, LoggingMixin):
             assert ti.task
 
         if ti.task.dag.__class__ is AttributeRemoved:
-            ti.task.dag = self.task.dag
+            ti.task.dag = self.task.dag  # type: ignore[assignment]
 
         # If self.task is mapped, this call replaces self.task to point to the
         # unmapped BaseOperator created by this function! This is because the
@@ -3284,7 +3301,7 @@ class TaskInstance(Base, LoggingMixin):
         # able to access the unmapped task instead.
         original_task.render_template_fields(context, jinja_env)
         if isinstance(self.task, MappedOperator):
-            self.task = context["ti"].task
+            self.task = context["ti"].task  # type: ignore[assignment]
 
         return original_task
 
