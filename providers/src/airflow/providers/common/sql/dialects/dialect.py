@@ -62,31 +62,36 @@ class Dialect(LoggingMixin):
         return self.hook._replace_statement_format  # type: ignore
 
     @property
-    def _escape_column_name_format(self) -> str:
-        return self.hook._escape_column_name_format  # type: ignore
+    def _escape_word_format(self) -> str:
+        return self.hook._escape_word_format  # type: ignore
 
-    def escape_column_name(self, column_name: str) -> str:
+    def escape_word(self, word: str) -> str:
         """
-        Escape the column name if it's a reserved word or contains special characters.
+        Escape the word if it's a reserved word or contains special characters.
 
-        :param column_name: Name of the column
-        :return: The escaped column name if needed
+        :param word: Name of the column
+        :return: The escaped word if needed
         """
         if (
-            column_name != self._escape_column_name_format.format(self.unescape_column_name(column_name))
-            and (column_name.casefold() in self.reserved_words or self.pattern.search(column_name))
+            word != self._escape_word_format.format(self.unescape_word(word))
+            and (word.casefold() in self.reserved_words or self.pattern.search(word))
         ):
-            return self._escape_column_name_format.format(column_name)
-        return column_name
+            return self._escape_word_format.format(word)
+        return word
 
-    def unescape_column_name(self, value: str | None) -> str | None:
-        if value:
-            if (
-                value.startswith(self._escape_column_name_format[0])
-                and value.endswith(self._escape_column_name_format[-1])
-            ):
-                return value[1:-1]
-        return value
+    def unescape_word(self, word: str | None) -> str | None:
+        """
+        Removes escape characters from word if any present.
+
+        :param word: Name of the column
+        :return: The un-escaped word if needed
+        """
+        if (
+            word and word.startswith(self._escape_word_format[0])
+            and word.endswith(self._escape_word_format[-1])
+        ):
+            return word[1:-1]
+        return word
 
     @classmethod
     def extract_schema_from_table(cls, table: str) -> tuple[str, str | None]:
@@ -104,8 +109,8 @@ class Dialect(LoggingMixin):
             for column in filter(
                 predicate,
                 self.inspector.get_columns(
-                    table_name=self.unescape_column_name(table),
-                    schema=self.unescape_column_name(schema) if schema else None,
+                    table_name=self.unescape_word(table),
+                    schema=self.unescape_word(schema) if schema else None,
                 ),
             )
         )
@@ -127,8 +132,8 @@ class Dialect(LoggingMixin):
         if schema is None:
             table, schema = self.extract_schema_from_table(table)
         primary_keys = self.inspector.get_pk_constraint(
-            table_name=self.unescape_column_name(table),
-            schema=self.unescape_column_name(schema) if schema else None,
+            table_name=self.unescape_word(table),
+            schema=self.unescape_word(schema) if schema else None,
         ).get("constrained_columns", [])
         self.log.debug("Primary keys for table '%s': %s", table, primary_keys)
         return primary_keys
@@ -163,7 +168,7 @@ class Dialect(LoggingMixin):
 
     def _joined_target_fields(self, target_fields) -> str:
         if target_fields:
-            target_fields = ", ".join(map(self.escape_column_name, target_fields))
+            target_fields = ", ".join(map(self.escape_word, target_fields))
             return f"({target_fields})"
         return ""
 

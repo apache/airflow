@@ -37,25 +37,25 @@ class TestDialect:
         inspector.get_pk_constraint.side_effect = lambda table_name, schema: {"constrained_columns": ["id"]}
         self.test_db_hook = MagicMock(placeholder="?", inspector=inspector, spec=DbApiHook)
         self.test_db_hook.reserved_words = {"index", "user"}
-        self.test_db_hook._escape_column_name_format = "[{}]"
+        self.test_db_hook._escape_word_format = "[{}]"
 
-    def test_unescape_column_name(self):
+    def test_unescape_word(self):
         dialect = Dialect(self.test_db_hook)
-        assert not dialect.unescape_column_name(None)
-        assert dialect.unescape_column_name("table") == "table"
-        assert dialect.unescape_column_name("t@ble") == "t@ble"
-        assert dialect.unescape_column_name("table_name") == "table_name"
-        assert dialect.unescape_column_name('"table"') == '"table"'
-        assert dialect.unescape_column_name("[table]") == "table"
+        assert not dialect.unescape_word(None)
+        assert dialect.unescape_word("table") == "table"
+        assert dialect.unescape_word("t@ble") == "t@ble"
+        assert dialect.unescape_word("table_name") == "table_name"
+        assert dialect.unescape_word('"table"') == '"table"'
+        assert dialect.unescape_word("[table]") == "table"
 
-    def test_escape_column_name(self):
+    def test_escape_word(self):
         dialect = Dialect(self.test_db_hook)
-        assert dialect.escape_column_name("name") == "name"
-        assert dialect.escape_column_name("[name]") == "[name]"
-        assert dialect.escape_column_name("n@me") == "[n@me]"
-        assert dialect.escape_column_name("index") == "[index]"
-        assert dialect.escape_column_name("User") == "[User]"
-        assert dialect.escape_column_name("attributes.id") == "[attributes.id]"
+        assert dialect.escape_word("name") == "name"
+        assert dialect.escape_word("[name]") == "[name]"
+        assert dialect.escape_word("n@me") == "[n@me]"
+        assert dialect.escape_word("index") == "[index]"
+        assert dialect.escape_word("User") == "[User]"
+        assert dialect.escape_word("attributes.id") == "[attributes.id]"
 
     def test_placeholder(self):
         assert Dialect(self.test_db_hook).placeholder == "?"

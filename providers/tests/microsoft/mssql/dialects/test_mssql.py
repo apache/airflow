@@ -37,7 +37,7 @@ class TestMsSqlDialect:
         self.test_db_hook = MagicMock(placeholder="?", inspector=inspector, spec=DbApiHook)
         self.test_db_hook.run.side_effect = lambda *args: [("index",)]
         self.test_db_hook.reserved_words = {"index", "user"}
-        self.test_db_hook._escape_column_name_format = "[{}]"
+        self.test_db_hook._escape_word_format = "[{}]"
 
     def test_placeholder(self):
         assert MsSqlDialect(self.test_db_hook).placeholder == "?"
