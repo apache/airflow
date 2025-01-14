@@ -53,10 +53,11 @@ runs:
       run: sudo chown -R ${USER} /mnt
       shell: bash
     - name: "Restore ${{ inputs.image-type }} docker image ${{ inputs.platform }}:${{ inputs.python }}"
-      uses: apache/infrastructure-actions/stash/restore@c94b890bbedc2fc61466d28e6bd9966bc6c6643c
+      uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
       with:
         key: ${{ inputs.image-type }}-image-save-${{ inputs.platform }}-${{ inputs.python }}
         path: "/mnt/"
+        only-current-branch: 'true'
     - name: "Load ${{ inputs.image-type }} image ${{ inputs.platform }}:${{ inputs.python }}"
       env:
         PLATFORM: ${{ inputs.platform }}
