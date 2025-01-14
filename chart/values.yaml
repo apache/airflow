@@ -126,7 +126,7 @@ images:
 
 # Select certain nodes for airflow pods.
 nodeSelector:
-  eks.amazonaws.com/nodegroup: production-applications-nodes
+  eks.amazonaws.com/nodegroup: production-application-nodes
 affinity: {}
 tolerations: []
 topologySpreadConstraints: []
@@ -708,7 +708,7 @@ workers:
 
   # Select certain nodes for airflow worker pods.
   nodeSelector:
-    eks.amazonaws.com/nodegroup: production-applications-nodes
+    eks.amazonaws.com/nodegroup: production-application-nodes
   runtimeClassName: ~
   priorityClassName: ~
   affinity: {}
@@ -915,7 +915,7 @@ scheduler:
 
   # Select certain nodes for airflow scheduler pods.
   nodeSelector:
-    eks.amazonaws.com/nodegroup: production-applications-nodes
+    eks.amazonaws.com/nodegroup: production-application-nodes
   affinity: {}
   # default scheduler affinity is:
   #  podAntiAffinity:
@@ -1054,7 +1054,7 @@ createUserJob:
   extraVolumeMounts: []
 
   nodeSelector:
-    eks.amazonaws.com/nodegroup: production-applications-nodes
+    eks.amazonaws.com/nodegroup: production-application-nodes
   affinity: {}
   tolerations: []
   topologySpreadConstraints: []
@@ -1151,7 +1151,7 @@ migrateDatabaseJob:
   extraVolumeMounts: []
 
   nodeSelector:
-    eks.amazonaws.com/nodegroup: production-applications-nodes
+    eks.amazonaws.com/nodegroup: production-application-nodes
   affinity: {}
   tolerations: []
   topologySpreadConstraints: []
@@ -1482,7 +1482,7 @@ triggerer:
 
   # Select certain nodes for airflow triggerer pods.
   nodeSelector:
-    eks.amazonaws.com/nodegroup: production-applications-nodes
+    eks.amazonaws.com/nodegroup: production-application-nodes
   affinity: {}
   # default triggerer affinity is:
   #  podAntiAffinity:
@@ -2172,7 +2172,7 @@ redis:
 
   # Select certain nodes for redis pods.
   nodeSelector:
-    eks.amazonaws.com/nodegroup: production-applications-nodes
+    eks.amazonaws.com/nodegroup: production-application-nodes
   affinity: {}
   tolerations: []
   topologySpreadConstraints: []
