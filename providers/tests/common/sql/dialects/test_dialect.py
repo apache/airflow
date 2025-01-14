@@ -36,13 +36,26 @@ class TestDialect:
         ]
         inspector.get_pk_constraint.side_effect = lambda table_name, schema: {"constrained_columns": ["id"]}
         self.test_db_hook = MagicMock(placeholder="?", inspector=inspector, spec=DbApiHook)
+        self.test_db_hook.reserved_words = {"index", "user"}
+        self.test_db_hook._escape_column_name_format = "[{}]"
 
-    def test_remove_quotes(self):
-        assert not Dialect.remove_quotes(None)
-        assert Dialect.remove_quotes("table") == "table"
-        assert Dialect.remove_quotes("table_name") == "table_name"
-        assert Dialect.remove_quotes('"table"') == "table"
-        assert Dialect.remove_quotes("[table]") == "table"
+    def test_unescape_column_name(self):
+        dialect = Dialect(self.test_db_hook)
+        assert not dialect.unescape_column_name(None)
+        assert dialect.unescape_column_name("table") == "table"
+        assert dialect.unescape_column_name("t@ble") == "t@ble"
+        assert dialect.unescape_column_name("table_name") == "table_name"
+        assert dialect.unescape_column_name('"table"') == '"table"'
+        assert dialect.unescape_column_name("[table]") == "table"
+
+    def test_escape_column_name(self):
+        dialect = Dialect(self.test_db_hook)
+        assert dialect.escape_column_name("name") == "name"
+        assert dialect.escape_column_name("[name]") == "[name]"
+        assert dialect.escape_column_name("n@me") == "[n@me]"
+        assert dialect.escape_column_name("index") == "[index]"
+        assert dialect.escape_column_name("User") == "[User]"
+        assert dialect.escape_column_name("attributes.id") == "[attributes.id]"
 
     def test_placeholder(self):
         assert Dialect(self.test_db_hook).placeholder == "?"

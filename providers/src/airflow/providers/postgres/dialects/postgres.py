@@ -51,7 +51,9 @@ class PostgresDialect(Dialect):
             and kcu.table_name = %s
         """
         pk_columns = [
-            row[0] for row in self.get_records(sql, (self.remove_quotes(schema), self.remove_quotes(table)))
+            row[0] for row in self.get_records(
+                sql, (self.unescape_column_name(schema), self.unescape_column_name(table))
+            )
         ]
         return pk_columns or None
 

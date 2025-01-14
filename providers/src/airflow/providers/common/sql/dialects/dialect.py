@@ -33,9 +33,7 @@ T = TypeVar("T")
 class Dialect(LoggingMixin):
     """Generic dialect implementation."""
 
-    #pattern = re.compile(r'"([a-zA-Z0-9_]+)"')
     pattern = re.compile(r"[^\w]")
-    #pattern = re.compile(r"^['\"\[\]]?(.*?)['\"\[\]]?$")
 
     def __init__(self, hook, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -46,11 +44,6 @@ class Dialect(LoggingMixin):
             raise TypeError(f"hook must be an instance of {DbApiHook.__class__.__name__}")
 
         self.hook: DbApiHook = hook
-
-    @classmethod
-    def remove_quotes(cls, value: str | None) -> str | None:
-        if value:
-            return cls.pattern.sub("", value)
 
     @property
     def placeholder(self) -> str:
@@ -72,6 +65,29 @@ class Dialect(LoggingMixin):
     def _escape_column_name_format(self) -> str:
         return self.hook._escape_column_name_format  # type: ignore
 
+    def escape_column_name(self, column_name: str) -> str:
+        """
+        Escape the column name if it's a reserved word or contains special characters.
+
+        :param column_name: Name of the column
+        :return: The escaped column name if needed
+        """
+        if (
+            column_name != self._escape_column_name_format.format(self.unescape_column_name(column_name))
+            and (column_name.casefold() in self.reserved_words or self.pattern.search(column_name))
+        ):
+            return self._escape_column_name_format.format(column_name)
+        return column_name
+
+    def unescape_column_name(self, value: str | None) -> str | None:
+        if value:
+            if (
+                value.startswith(self._escape_column_name_format[0])
+                and value.endswith(self._escape_column_name_format[-1])
+            ):
+                return value[1:-1]
+        return value
+
     @classmethod
     def extract_schema_from_table(cls, table: str) -> tuple[str, str | None]:
         parts = table.split(".")
@@ -88,8 +104,8 @@ class Dialect(LoggingMixin):
             for column in filter(
                 predicate,
                 self.inspector.get_columns(
-                    table_name=self.remove_quotes(table),
-                    schema=self.remove_quotes(schema) if schema else None,
+                    table_name=self.unescape_column_name(table),
+                    schema=self.unescape_column_name(schema) if schema else None,
                 ),
             )
         )
@@ -111,8 +127,8 @@ class Dialect(LoggingMixin):
         if schema is None:
             table, schema = self.extract_schema_from_table(table)
         primary_keys = self.inspector.get_pk_constraint(
-            table_name=self.remove_quotes(table),
-            schema=self.remove_quotes(schema) if schema else None,
+            table_name=self.unescape_column_name(table),
+            schema=self.unescape_column_name(schema) if schema else None,
         ).get("constrained_columns", [])
         self.log.debug("Primary keys for table '%s': %s", table, primary_keys)
         return primary_keys
@@ -138,20 +154,6 @@ class Dialect(LoggingMixin):
     @property
     def reserved_words(self) -> set[str]:
         return self.hook.reserved_words
-
-    def escape_column_name(self, column_name: str) -> str:
-        """
-        Escape the column name if it's a reserved word.
-
-        :param column_name: Name of the column
-        :return: The escaped column name if needed
-        """
-        if (
-            column_name != self._escape_column_name_format.format(column_name)
-            and column_name.casefold() in self.reserved_words
-        ):
-            return self._escape_column_name_format.format(column_name)
-        return column_name
 
     def _joined_placeholders(self, values) -> str:
         placeholders = [
