@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import json
 import re
-from functools import cache
 from typing import Any
 
 import pytest
@@ -30,6 +29,7 @@ from airflow_breeze.global_constants import (
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     GithubEvents,
 )
+from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.packages import get_available_packages
 from airflow_breeze.utils.selective_checks import (
     ALL_CI_SELECTIVE_TEST_TYPES,
@@ -59,7 +59,7 @@ def escape_ansi_colors(line):
     return ANSI_COLORS_MATCHER.sub("", line)
 
 
-@cache
+@clearable_cache
 def get_rich_console() -> Console:
     return Console(color_system="truecolor", force_terminal=True)
 
@@ -92,7 +92,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     print_in_color()
                     assert received_value == expected_value, f"Correct value for {expected_key!r}"
                 else:
-                    print(
+                    print_in_color(
                         f"\n[red]ERROR: The key '{expected_key}' missing but "
                         f"it is expected. Expected value:"
                     )
@@ -602,7 +602,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 (
                     "INTHEWILD.md",
                     "chart/aaaa.txt",
-                    "providers/tests/airbyte/file.py",
+                    "providers/airbyte/tests/file.py",
                 ),
                 {
                     "selected-providers-list-as-string": "airbyte",
@@ -654,8 +654,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": "Always",
                     "providers-test-types-list-as-string": "",
-                    "needs-mypy": "true",
-                    "mypy-checks": "['mypy-airflow']",
+                    "needs-mypy": "false",
+                    "mypy-checks": "[]",
                 },
                 id="Docs should run even if unimportant files were added and prod image "
                 "should be build for chart changes",
@@ -742,7 +742,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Providers tests run including amazon tests if amazon provider files changed",
         ),
         pytest.param(
-            ("providers/tests/airbyte/__init__.py",),
+            ("providers/airbyte/tests/airbyte/__init__.py",),
             {
                 "selected-providers-list-as-string": "airbyte",
                 "all-python-versions": "['3.9']",

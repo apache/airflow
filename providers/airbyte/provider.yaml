@@ -50,14 +50,10 @@ versions:
   - 2.0.0
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - airbyte-api>=0.52.0
-
 integrations:
   - integration-name: Airbyte
     external-doc-url: https://airbyte.com/
-    logo: /integration-logos/airbyte/Airbyte.png
+    logo: /docs/integration-logos/Airbyte.png
     how-to-guide:
       - /docs/apache-airflow-providers-airbyte/operators/airbyte.rst
     tags: [service]

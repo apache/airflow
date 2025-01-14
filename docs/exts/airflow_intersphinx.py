@@ -28,7 +28,6 @@ if TYPE_CHECKING:
 CURRENT_DIR = os.path.dirname(__file__)
 ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir))
 DOCS_DIR = os.path.join(ROOT_DIR, "docs")
-DOCS_PROVIDER_DIR = os.path.join(ROOT_DIR, "docs")
 
 
 def _create_init_py(app, config):
