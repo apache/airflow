@@ -22,29 +22,10 @@ from __future__ import annotations
 
 import json
 import platform
-import sys
 from enum import Enum
-
-from airflow_breeze.utils.console import get_console
-
-try:
-    from functools import cache
-except ImportError:
-    get_console().print(
-        "\n[error]Breeze doesn't support Python version <=3.8\n\n"
-        "[warning]Use Python 3.9 and force reinstall breeze:"
-        ""
-        " either with uv: \n\n"
-        "     uv tool install --force --reinstall --editable ./dev/breeze\n\n"
-        ""
-        " or with pipx\n\n"
-        "     pipx install --force -e ./dev/breeze --python 3.9\n"
-        "\nTo find out more, visit [info]https://github.com/apache/airflow/"
-        "blob/main/dev/breeze/doc/01_installation.rst[/]\n"
-    )
-    sys.exit(1)
 from pathlib import Path
 
+from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
@@ -222,12 +203,12 @@ REGULAR_DOC_PACKAGES = [
 ]
 
 
-@cache
+@clearable_cache
 def all_selective_core_test_types() -> tuple[str, ...]:
     return tuple(sorted(e.value for e in SelectiveCoreTestType))
 
 
-@cache
+@clearable_cache
 def providers_test_type() -> tuple[str, ...]:
     return tuple(sorted(e.value for e in SelectiveProvidersTestType))
 
@@ -278,7 +259,7 @@ ALL_TEST_SUITES: dict[str, tuple[str, ...]] = {
 }
 
 
-@cache
+@clearable_cache
 def all_helm_test_packages() -> list[str]:
     return sorted(
         [
@@ -297,7 +278,7 @@ ALLOWED_TEST_TYPE_CHOICES: dict[GroupOfTests, list[str]] = {
 }
 
 
-@cache
+@clearable_cache
 def all_task_sdk_test_packages() -> list[str]:
     try:
         return sorted(
@@ -517,7 +498,7 @@ def get_airflow_version():
     return airflow_version
 
 
-@cache
+@clearable_cache
 def get_airflow_extras():
     airflow_dockerfile = AIRFLOW_SOURCES_ROOT / "Dockerfile"
     with open(airflow_dockerfile) as dockerfile:
@@ -528,7 +509,7 @@ def get_airflow_extras():
 
 
 # Initialize integrations
-ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT, "airflow", "providers").rglob("provider.yaml")
+ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT, "providers").rglob("provider.yaml")
 PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "provider_info.schema.json"
 
 with Path(AIRFLOW_SOURCES_ROOT, "generated", "provider_dependencies.json").open() as f:
@@ -637,6 +618,6 @@ class GithubEvents(Enum):
     WORKFLOW_RUN = "workflow_run"
 
 
-@cache
+@clearable_cache
 def github_events() -> list[str]:
     return [e.value for e in GithubEvents]
