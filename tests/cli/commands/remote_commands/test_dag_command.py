@@ -79,7 +79,6 @@ class TestCliDags:
     def setup_method(self):
         clear_db_runs()  # clean-up all dag run before start each test
 
-    @pytest.mark.skip("AIP-66: reserialize is not implemented yet")
     def test_reserialize(self, session):
         # Assert that there are serialized Dags
         serialized_dags_before_command = session.query(SerializedDagModel).all()
@@ -99,8 +98,7 @@ class TestCliDags:
         dag_version_after_command = session.query(DagVersion).all()
         assert len(dag_version_after_command)
 
-    @pytest.mark.skip("AIP-66: reserialize is not implemented yet")
-    def test_reserialize_should_support_subdir_argument(self, session):
+    def test_reserialize_should_support_bundle_name_argument(self, configure_testing_dag_bundle, session):
         # Run clear of serialized dags
         session.query(DagVersion).delete()
 
@@ -108,20 +106,38 @@ class TestCliDags:
         serialized_dags_after_clear = session.query(SerializedDagModel).all()
         assert len(serialized_dags_after_clear) == 0
 
-        # Serialize manually
-        dag_path = self.dagbag.dags["example_bash_operator"].fileloc
-        # Set default value of include_examples parameter to false
-        dagbag_default = list(DagBag.__init__.__defaults__)
-        dagbag_default[1] = False
-        with mock.patch(
-            "airflow.cli.commands.remote_commands.dag_command.DagBag.__init__.__defaults__",
-            tuple(dagbag_default),
-        ):
-            dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize", "--subdir", dag_path]))
+        path_to_parse = TEST_DAGS_FOLDER / "test_dag_with_no_tags.py"
+
+        with configure_testing_dag_bundle(path_to_parse):
+            # reserializes only the above path
+            dag_command.dag_reserialize(
+                self.parser.parse_args(["dags", "reserialize", "--bundle-name", "testing"])
+            )
 
         # Check serialized DAG are back
         serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
-        assert len(serialized_dags_after_reserialize) == 1  # Serialized DAG back
+        assert len(serialized_dags_after_reserialize) == 1
+
+    def test_reserialize_should_support_more_than_one_bundle(self, configure_testing_dag_bundle, session):
+        # Run clear of serialized dags
+        session.query(DagVersion).delete()
+
+        # Assert no serialized Dags
+        serialized_dags_after_clear = session.query(SerializedDagModel).all()
+        assert len(serialized_dags_after_clear) == 0
+
+        path_to_parse = TEST_DAGS_FOLDER / "test_dag_with_no_tags.py"
+
+        with configure_testing_dag_bundle(path_to_parse):
+            # The command will now serialize the above bundle and the example dag bundle
+            dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize"]))
+
+        # Check serialized DAG are back
+        serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
+        assert len(serialized_dags_after_reserialize) > 1
+        serialized_dag_ids = [dag.dag_id for dag in serialized_dags_after_reserialize]
+        assert "test_dag_with_no_tags" in serialized_dag_ids
+        assert "example_bash_operator" in serialized_dag_ids
 
     def test_show_dag_dependencies_print(self):
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
