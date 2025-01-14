@@ -2148,8 +2148,6 @@ class DagModel(Base):
         "DagVersion", back_populates="dag_model", cascade="all, delete, delete-orphan"
     )
 
-    dag_bundle = relationship("DagBundleModel")
-
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         if self.max_active_tasks is None:
