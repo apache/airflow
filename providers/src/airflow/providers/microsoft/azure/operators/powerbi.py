@@ -158,6 +158,6 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
 
             self.xcom_push(
                 context=context,
-                key=f"{context['ti'].task_id}.powerbi_dataset_refresh_status",
+                key=f"{self.task_id}.powerbi_dataset_refresh_status",
                 value=event["dataset_refresh_status"],
             )
