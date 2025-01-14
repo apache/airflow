@@ -70,7 +70,7 @@ class TestBatchOperator:
             aws_conn_id="airflow_test",
             region_name="eu-west-1",
             tags={},
-            timeout={"attemptDurationSeconds": 3600},
+            boto3_timeout={"attemptDurationSeconds": 3600},
         )
         self.client_mock = self.get_client_type_mock.return_value
         # We're mocking all actual AWS calls and don't need a connection. This
@@ -110,7 +110,7 @@ class TestBatchOperator:
         assert self.batch.hook.client == self.client_mock
         assert self.batch.tags == {}
         assert self.batch.wait_for_completion is True
-        assert self.batch.timeout == {"attemptDurationSeconds": 3600}
+        assert self.batch.boto3_timeout == {"attemptDurationSeconds": 3600}
 
         self.get_client_type_mock.assert_called_once_with(region_name="eu-west-1")
 
@@ -143,7 +143,7 @@ class TestBatchOperator:
         assert issubclass(type(batch_job.hook.client), botocore.client.BaseClient)
         assert batch_job.tags == {}
         assert batch_job.wait_for_completion is True
-        assert batch_job.timeout is None
+        assert batch_job.boto3_timeout is None
 
     def test_template_fields_overrides(self):
         assert self.batch.template_fields == (
@@ -184,7 +184,7 @@ class TestBatchOperator:
             parameters={},
             retryStrategy={"attempts": 1},
             tags={},
-            timeout={"attemptDurationSeconds": 3600},
+            boto3_timeout={"attemptDurationSeconds": 3600},
         )
 
         assert self.batch.job_id == JOB_ID
@@ -209,7 +209,7 @@ class TestBatchOperator:
             parameters={},
             retryStrategy={"attempts": 1},
             tags={},
-            timeout={"attemptDurationSeconds": 3600},
+            boto3_timeout={"attemptDurationSeconds": 3600},
         )
 
     @mock.patch.object(BatchClientHook, "get_job_description")
@@ -266,7 +266,7 @@ class TestBatchOperator:
             parameters={},
             retryStrategy={"attempts": 1},
             tags={},
-            timeout={"attemptDurationSeconds": 3600},
+            boto3_timeout={"attemptDurationSeconds": 3600},
         )
 
     @mock.patch.object(BatchClientHook, "get_job_description")
@@ -365,7 +365,7 @@ class TestBatchOperator:
             parameters={},
             retryStrategy={"attempts": 1},
             tags={},
-            timeout={"attemptDurationSeconds": 3600},
+            boto3_timeout={"attemptDurationSeconds": 3600},
         )
 
     @mock.patch.object(BatchClientHook, "check_job_success")
