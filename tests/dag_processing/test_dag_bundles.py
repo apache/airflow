@@ -26,7 +26,7 @@ from git import Repo
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.bundles.dagfolder import DagsFolderDagBundle
-from airflow.dag_processing.bundles.git import GitDagBundle, GitHook, SSHHook
+from airflow.dag_processing.bundles.git import GitDagBundle, GitHook
 from airflow.dag_processing.bundles.local import LocalDagBundle
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -132,34 +132,31 @@ class TestGitHook:
         db.merge_conn(
             Connection(
                 conn_id=CONN_DEFAULT,
-                host="github.com",
+                host=AIRFLOW_GIT,
                 conn_type="git",
-                extra={"git_repo_url": AIRFLOW_GIT},
             )
         )
         db.merge_conn(
             Connection(
                 conn_id=CONN_HTTPS,
-                host="github.com",
+                host=AIRFLOW_HTTPS_URL,
+                password=ACCESS_TOKEN,
                 conn_type="git",
-                extra={"git_repo_url": AIRFLOW_HTTPS_URL, "git_access_token": ACCESS_TOKEN},
             )
         )
         db.merge_conn(
             Connection(
                 conn_id=CONN_HTTPS_PASSWORD,
-                host="github.com",
+                host=AIRFLOW_HTTPS_URL,
                 conn_type="git",
                 password=ACCESS_TOKEN,
-                extra={"git_repo_url": AIRFLOW_HTTPS_URL},
             )
         )
         db.merge_conn(
             Connection(
                 conn_id=CONN_ONLY_PATH,
-                host="github.com",
+                host="path/to/repo",
                 conn_type="git",
-                extra={"git_repo_url": "path/to/repo"},
             )
         )
 
@@ -176,12 +173,6 @@ class TestGitHook:
         hook = GitHook(git_conn_id=conn_id)
         assert hook.repo_url == expected_repo_url
 
-    @mock.patch.object(SSHHook, "get_conn")
-    def test_connection_made_to_ssh_hook(self, mock_ssh_hook_get_conn):
-        hook = GitHook(git_conn_id=CONN_DEFAULT)
-        hook.get_conn()
-        mock_ssh_hook_get_conn.assert_called_once_with()
-
 
 class TestGitDagBundle:
     @classmethod
@@ -193,17 +184,14 @@ class TestGitDagBundle:
         db.merge_conn(
             Connection(
                 conn_id="git_default",
-                host="github.com",
+                host="git@github.com:apache/airflow.git",
                 conn_type="git",
-                extra={"git_repo_url": "git@github.com:apache/airflow.git"},
             )
         )
         db.merge_conn(
             Connection(
                 conn_id=CONN_NO_REPO_URL,
-                host="github.com",
                 conn_type="git",
-                extra="{}",
             )
         )
 
