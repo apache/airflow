@@ -95,7 +95,7 @@ class BatchOperator(BaseOperator):
         If it is an array job, only the logs of the first task will be printed.
     :param awslogs_fetch_interval: The interval with which cloudwatch logs are to be fetched, 30 sec.
     :param poll_interval: (Deferrable mode only) Time in seconds to wait between polling.
-    :param boto3_timeout: timeout configuration for SubmitJob.
+    :param boto3_timeout: Timeout configuration for SubmitJob.
 
     .. note::
         Any custom waiters must return a waiter for these calls:
