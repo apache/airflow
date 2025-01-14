@@ -70,7 +70,7 @@ class TestBatchOperator:
             aws_conn_id="airflow_test",
             region_name="eu-west-1",
             tags={},
-            boto3_timeout={"attemptDurationSeconds": 3600},
+            timeout={"attemptDurationSeconds": 3600},
         )
         self.client_mock = self.get_client_type_mock.return_value
         # We're mocking all actual AWS calls and don't need a connection. This
