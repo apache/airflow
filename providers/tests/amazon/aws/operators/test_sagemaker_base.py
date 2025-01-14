@@ -92,6 +92,13 @@ class TestSageMakerBaseOperator:
         assert describe_mock.call_count == 3
         assert re.match("test-[0-9]+$", name)
 
+    def test_job_name_length(self):
+        describe_mock = MagicMock()
+        #scenario: The name is longer than 63 characters so we need the function to truncate the name and add a timestamp
+        describe_mock.side_effect = [None, None, self.ERROR_WHEN_RESOURCE_NOT_FOUND]
+        name = self.sagemaker._get_unique_job_name("ThisNameIsLongerThan64CharactersSoItShouldBeTruncatedWithATimestamp", False, describe_mock)
+        assert len(name) <= 63
+        
     def test_job_not_unique_with_fail(self):
         with pytest.raises(AirflowException):
             self.sagemaker._get_unique_job_name("test", True, lambda _: None)

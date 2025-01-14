@@ -168,7 +168,7 @@ class SageMakerBaseOperator(BaseOperator):
                 max_name_len = 63
                 timestamp_len = 13
                 timestamp = str(time.time_ns())[:timestamp_len]
-                name = f"{proposed_name[:max_name_len - timestamp_len - 1]}-{timestamp}"  #we subtract one to make provision for the dash between the truncated name and timestamp
+                name = f"{proposed_name[:max_name_len - timestamp_len - 1]}-{timestamp}"  # we subtract one to make provision for the dash between the truncated name and timestamp
                 self.log.info("Changed %s name to '%s' to avoid collision.", resource_type, name)
         return name
 
