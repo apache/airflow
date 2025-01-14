@@ -98,6 +98,29 @@ class TestSageMakerBaseOperator:
         describe_mock.side_effect = [None, None, self.ERROR_WHEN_RESOURCE_NOT_FOUND]
         name = self.sagemaker._get_unique_job_name("ThisNameIsLongerThan64CharactersSoItShouldBeTruncatedWithATimestamp", False, describe_mock)
         assert len(name) <= 63
+
+    def test_truncated_job_name(self):
+        describe_mock = MagicMock()
+        time_ns_mock = MagicMock()
+
+        describe_mock.side_effect = [None, None, self.ERROR_WHEN_RESOURCE_NOT_FOUND]
+
+        # return predictable time for test
+        time_patch = patch('airflow.providers.amazon.aws.operators.sagemaker.time')
+        time_mock = time_patch.start()
+        time_ns_mock.return_value = 1736842202860423000   # some specific time (14 Jan 2025) to be predictable
+        time_mock.time_ns = time_ns_mock
+
+        #scenario: The name is longer than 63 characters so we need the function to truncate the name and add a timestamp
+        full_name = "ThisNameIsLongerThan64CharactersSoItShouldBeTruncatedWithATimestamp"
+
+        name = self.sagemaker._get_unique_job_name(full_name, False, describe_mock)
+
+        base_name, timestamp = name.split('-')
+        assert base_name == full_name[:len(base_name)]
+        assert timestamp == str(1736842202860423000)[:10]
+
+        time_patch.stop()
         
     def test_job_not_unique_with_fail(self):
         with pytest.raises(AirflowException):

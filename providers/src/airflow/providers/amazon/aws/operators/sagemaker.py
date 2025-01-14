@@ -166,9 +166,8 @@ class SageMakerBaseOperator(BaseOperator):
                 raise AirflowException(f"A SageMaker {resource_type} with name {name} already exists.")
             else:
                 max_name_len = 63
-                timestamp_len = 13
-                timestamp = str(time.time_ns())[:timestamp_len]
-                name = f"{proposed_name[:max_name_len - timestamp_len - 1]}-{timestamp}"  # we subtract one to make provision for the dash between the truncated name and timestamp
+                timestamp = str(time.time_ns() // 1000000000)   # only keep the relevant datetime (first 10 digits)
+                name = f"{proposed_name[:max_name_len - len(timestamp) - 1]}-{timestamp}"  # we subtract one to make provision for the dash between the truncated name and timestamp
                 self.log.info("Changed %s name to '%s' to avoid collision.", resource_type, name)
         return name
 
