@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-14T02:21:54.411409
+# This constraints file was automatically generated on 2025-01-14T07:57:26.409012
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -96,7 +96,6 @@ analytics-python==1.2.9
 annotated-types==0.7.0
 ansicolors==1.1.8
 anyio==4.8.0
-apache-airflow-providers-airbyte==5.0.0
 apache-airflow-providers-alibaba==3.0.0
 apache-airflow-providers-amazon==9.2.0
 apache-airflow-providers-apache-cassandra==3.7.0
