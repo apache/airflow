@@ -264,7 +264,6 @@ class TestVaultClient:
             gcp_scopes="scope1,scope2",
             role_id="role",
             url="http://localhost:8180",
-            role_id="TODO",
             session=None,
         )
 
