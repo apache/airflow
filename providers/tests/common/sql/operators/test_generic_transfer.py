@@ -24,6 +24,7 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
+
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
@@ -254,7 +255,6 @@ class TestGenericTransfer:
                 assert events[0].payload["results"] == [[1, 2], [11, 12], [3, 4], [13, 14]]
                 assert events[1].payload["results"] == [[3, 4], [13, 14]]
                 assert not events[2].payload["results"]
-
 
     def test_when_provider_min_airflow_version_is_3_0_or_higher_remove_obsolete_method(self):
         """
