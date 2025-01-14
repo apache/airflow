@@ -83,7 +83,7 @@ from airflow.models.asset import (
 from airflow.models.base import Base, StringID
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagrun import DagRun
+from airflow.models.dagrun import RUN_ID_REGEX, DagRun
 from airflow.models.taskinstance import (
     Context,
     TaskInstance,
@@ -1770,6 +1770,16 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         if not isinstance(run_id, str):
             raise ValueError(f"`run_id` should be a str, not {type(run_id)}")
+
+        # This is also done on the DagRun model class, but SQLAlchemy column
+        # validator does not work well for some reason.
+        if not re2.match(RUN_ID_REGEX, run_id):
+            regex = airflow_conf.get("scheduler", "allowed_run_id_pattern").strip()
+            if not regex or not re2.match(regex, run_id):
+                raise ValueError(
+                    f"The run_id provided '{run_id}' does not match regex pattern "
+                    f"'{regex}' or '{RUN_ID_REGEX}'"
+                )
 
         # Prevent a manual run from using an ID that looks like a scheduled run.
         if run_type == DagRunType.MANUAL:

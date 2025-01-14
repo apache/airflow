@@ -732,7 +732,7 @@ This is an example test want to verify the structure of a code-generated DAG aga
 
     TEST_DAG_ID = "my_custom_operator_dag"
     TEST_TASK_ID = "my_custom_operator_task"
-    TEST_RUN_ID = "my_custom_oeprator_dag_run"
+    TEST_RUN_ID = "my_custom_operator_dag_run"
 
 
     @pytest.fixture()

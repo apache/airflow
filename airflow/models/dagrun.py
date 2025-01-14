@@ -284,7 +284,7 @@ class DagRun(Base, LoggingMixin):
         if regex and re2.match(regex, run_id):
             return run_id
         raise ValueError(
-            f"The run_id provided '{run_id}' does not match the pattern '{regex}' or '{RUN_ID_REGEX}'"
+            f"The run_id provided '{run_id}' does not match regex pattern '{regex}' or '{RUN_ID_REGEX}'"
         )
 
     @property
