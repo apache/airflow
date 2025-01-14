@@ -46,6 +46,10 @@ PYPROJECT_TOML_FILE_PATH = AIRFLOW_SOURCES_ROOT / "pyproject.toml"
 MY_FILE = Path(__file__).resolve()
 MY_MD5SUM_FILE = MY_FILE.parent / MY_FILE.name.replace(".py", ".py.md5sum")
 
+# TODO(potiuk) - remove this when we move all providers to the new structure
+NEW_STRUCTURE_PROVIDERS: set[str] = set()
+
+PYPROJECT_TOML_CONTENT: dict[str, dict[str, Any]] = {}
 
 sys.path.insert(0, str(AIRFLOW_SOURCES_ROOT))  # make sure setup is imported from Airflow
 
@@ -95,18 +99,46 @@ class ImportFinder(NodeVisitor):
             self.process_import(fullname)
 
 
+def load_pyproject_toml(pyproject_toml_file_path: Path) -> dict[str, Any]:
+    try:
+        import tomllib
+    except ImportError:
+        import tomli as tomllib
+    return tomllib.loads(pyproject_toml_file_path.read_text())
+
+
 def find_all_providers_and_provider_files():
-    for root, _, filenames in os.walk(AIRFLOW_PROVIDERS_SRC_DIR):
+    for root, dirs, filenames in os.walk(AIRFLOW_PROVIDERS_DIR):
         for filename in filenames:
             if filename == "provider.yaml":
-                provider_file = Path(root, filename)
-                provider_name = str(provider_file.parent.relative_to(AIRFLOW_PROVIDERS_SRC_DIR)).replace(
-                    os.sep, "."
-                )
-                provider_info = yaml.safe_load(provider_file.read_text())
+                provider_yaml_file = Path(root, filename)
+                if provider_yaml_file.is_relative_to(AIRFLOW_PROVIDERS_SRC_DIR):
+                    # TODO(potiuk) - remove this when we move all providers to the new structure
+                    provider_name = str(
+                        provider_yaml_file.parent.relative_to(AIRFLOW_PROVIDERS_SRC_DIR)
+                    ).replace(os.sep, ".")
+                else:
+                    provider_name = str(provider_yaml_file.parent.relative_to(AIRFLOW_PROVIDERS_DIR)).replace(
+                        os.sep, "."
+                    )
+                    NEW_STRUCTURE_PROVIDERS.add(provider_name)
+                    PYPROJECT_TOML_CONTENT[provider_name] = load_pyproject_toml(
+                        provider_yaml_file.parent / "pyproject.toml"
+                    )
+                    # only descend to "src" directory in the new structure
+                    # this avoids descending into .venv or "build" directories in case
+                    # someone works on providers in a separate virtualenv
+                    if "src" in dirs:
+                        dirs[:] = ["src"]
+                    else:
+                        raise ValueError(
+                            f"The provider {provider_name} does not have 'src' folder"
+                            f" in {provider_yaml_file.parent}"
+                        )
+                provider_info = yaml.safe_load(provider_yaml_file.read_text())
                 if provider_info["state"] == "suspended":
                     suspended_paths.append(
-                        provider_file.parent.relative_to(AIRFLOW_PROVIDERS_SRC_DIR).as_posix()
+                        provider_yaml_file.parent.relative_to(AIRFLOW_PROVIDERS_SRC_DIR).as_posix()
                     )
                 ALL_PROVIDERS[provider_name] = provider_info
             path = Path(root, filename)
@@ -145,30 +177,26 @@ def get_imports_from_file(file_path: Path) -> list[str]:
     return visitor.imports
 
 
-def get_provider_id_from_file_name(file_path: Path) -> str | None:
-    # is_relative_to is only available in Python 3.9 - we should simplify this check when we are Python 3.9+
-    try:
-        relative_path = file_path.relative_to(AIRFLOW_PROVIDERS_SRC_DIR)
-    except ValueError:
-        try:
-            relative_path = file_path.relative_to(AIRFLOW_SYSTEM_TESTS_PROVIDERS_DIR)
-        except ValueError:
-            try:
-                relative_path = file_path.relative_to(AIRFLOW_TESTS_PROVIDERS_DIR)
-            except ValueError:
-                errors.append(f"Wrong file not in the providers package = {file_path}")
+def get_provider_id_from_path(file_path: Path) -> str | None:
+    """
+    Get the provider id from the path of the file it belongs to.
+    """
+    for parent in file_path.parents:
+        # This works fine for both new and old providers structure - because we moved provider.yaml to
+        # the top-level of the provider and this code finding "providers"  will find the "providers" package
+        # in old structure and "providers" directory in new structure - in both cases we can determine
+        # the provider id from the relative folders
+        if (parent / "provider.yaml").exists():
+            for providers_root_candidate in parent.parents:
+                if providers_root_candidate.name == "providers":
+                    return parent.relative_to(providers_root_candidate).as_posix().replace("/", ".")
+            else:
                 return None
-    provider_id = get_provider_id_from_relative_import_or_file(str(relative_path))
-    if provider_id is None and file_path.name not in ["__init__.py", "get_provider_info.py"]:
-        if relative_path.as_posix().startswith(tuple(suspended_paths)):
-            return None
-        else:
-            warnings.append(f"We had a problem to classify the file {file_path} to a provider")
-    return provider_id
+    return None
 
 
 def check_if_different_provider_used(file_path: Path) -> None:
-    file_provider = get_provider_id_from_file_name(file_path)
+    file_provider = get_provider_id_from_path(file_path)
     if not file_provider:
         return
     imports = get_imports_from_file(file_path)
@@ -183,8 +211,9 @@ def check_if_different_provider_used(file_path: Path) -> None:
             # as a provider cross dependency
             if file_path.name == "celery_executor_utils.py" or "/example_dags/" in file_path.as_posix():
                 continue
-        if imported_provider and file_provider != imported_provider:
-            ALL_DEPENDENCIES[file_provider]["cross-providers-deps"].append(imported_provider)
+        if imported_provider:
+            if file_provider != imported_provider:
+                ALL_DEPENDENCIES[file_provider]["cross-providers-deps"].append(imported_provider)
 
 
 STATES: dict[str, str] = {}
@@ -198,8 +227,15 @@ if __name__ == "__main__":
     console.print(f"Found {num_providers} providers with {num_files} Python files.")
     for file in ALL_PROVIDER_FILES:
         check_if_different_provider_used(file)
-    for provider, provider_yaml_content in ALL_PROVIDERS.items():
-        ALL_DEPENDENCIES[provider]["deps"].extend(provider_yaml_content["dependencies"])
+    for provider in sorted(ALL_PROVIDERS.keys()):
+        provider_yaml_content = ALL_PROVIDERS[provider]
+        console.print(f"Reading dependencies for provider: {provider}")
+        if provider in NEW_STRUCTURE_PROVIDERS:
+            ALL_DEPENDENCIES[provider]["deps"].extend(
+                PYPROJECT_TOML_CONTENT[provider]["project"]["dependencies"]
+            )
+        else:
+            ALL_DEPENDENCIES[provider]["deps"].extend(provider_yaml_content["dependencies"])
         ALL_DEPENDENCIES[provider]["devel-deps"].extend(provider_yaml_content.get("devel-dependencies") or [])
         ALL_DEPENDENCIES[provider]["plugins"].extend(provider_yaml_content.get("plugins") or [])
         STATES[provider] = provider_yaml_content["state"]

@@ -334,6 +334,9 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 # Pydantic also require models to be imported during execution
 "airflow/serialization/pydantic/*.py" = ["I002", "UP007", "TC001"]
 
+# Provider's get_provider_info.py files are generated and do not need "from __future__ import annotations"
+"providers/**/get_provider_info.py" = ["I002"]
+
 # Failing to detect types and functions used in `Annotated[...]` syntax as required at runtime.
 # Annotated is central for FastAPI dependency injection, skipping rules for FastAPI folders.
 "airflow/api_fastapi/*" = ["TC001", "TC002"]
@@ -562,6 +565,7 @@ mypy_path = [
   "$MYPY_CONFIG_FILE_DIR",
   "$MYPY_CONFIG_FILE_DIR/providers/src",
   "$MYPY_CONFIG_FILE_DIR/task_sdk/src",
+  "$MYPY_CONFIG_FILE_DIR/providers/airbyte/src",
 ]
 
 [[tool.mypy.overrides]]
@@ -595,10 +599,12 @@ module=[
 ]
 ignore_errors = true
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
+  # TODO(potiuk): remove me when all providers are moved to new structure
   "local-providers",
-  "apache-airflow-task-sdk"
+  "apache-airflow-task-sdk",
+  "apache-airflow-providers-airbyte",
 ]
 
 [tool.uv.sources]
@@ -606,6 +612,7 @@ dev-dependencies = [
 # *not* the workspace folder paths
 local-providers = { workspace = true }
 apache-airflow-task-sdk = { workspace = true }
+apache-airflow-providers-airbyte = {workspace = true}
 
 [tool.uv.workspace]
-members = ["providers", "task_sdk"]
+members = ["providers", "task_sdk", "providers/airbyte" ]

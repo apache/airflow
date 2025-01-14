@@ -89,8 +89,11 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
             [
                 "providers/tests",
                 "--ignore=providers/tests/amazon",
+                "--ignore=providers/amazon",
                 "--ignore=providers/tests/google",
+                "--ignore=providers/google",
                 "--ignore=providers/tests/microsoft/azure",
+                "--ignore=providers/microsoft/tests/azure",
             ],
         ),
         (
