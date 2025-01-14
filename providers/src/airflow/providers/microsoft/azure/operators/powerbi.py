@@ -128,7 +128,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         if dataset_refresh_id:
             self.xcom_push(
                 context=context,
-                key=f"{context['ti'].task_id}.powerbi_dataset_refresh_Id",
+                key=f"{self.task_id}.powerbi_dataset_refresh_Id",
                 value=dataset_refresh_id,
             )
             self.defer(

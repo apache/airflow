@@ -126,16 +126,16 @@ class PowerBITrigger(BaseTrigger):
                     }
                 )
                 return
-            else:
-                yield TriggerEvent(
-                    {
-                        "status": "error",
-                        "dataset_refresh_status": None,
-                        "message": "Failed to trigger the dataset refresh.",
-                        "dataset_refresh_id": None,
-                    }
-                )
-                return
+
+            yield TriggerEvent(
+                {
+                    "status": "error",
+                    "dataset_refresh_status": None,
+                    "message": "Failed to trigger the dataset refresh.",
+                    "dataset_refresh_id": None,
+                }
+            )
+            return
 
         # The dataset refresh is already triggered. Poll for the dataset refresh status.
         @tenacity.retry(
