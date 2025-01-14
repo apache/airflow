@@ -82,10 +82,67 @@ class DatabaseInfo:
     :param database: Takes precedence over parsed database name.
     :param information_schema_columns: List of columns names from information schema table.
     :param information_schema_table_name: Information schema table name.
-    :param use_flat_cross_db_query: Specifies if single information schema table should be used
-        for cross-database queries (e.g. for Redshift).
-    :param is_information_schema_cross_db: Specifies if information schema contains
-        cross-database data.
+    :param use_flat_cross_db_query: Specifies whether a single, "global" information schema table should
+        be used for cross-database queries (e.g., in Redshift), or if multiple, per-database "local"
+        information schema tables should be queried individually.
+
+        If True, assumes a single, universal information schema table is available
+        (for example, in Redshift, the `SVV_REDSHIFT_COLUMNS` view)
+        [https://docs.aws.amazon.com/redshift/latest/dg/r_SVV_REDSHIFT_COLUMNS.html].
+        In this mode, we query only `information_schema_table_name` directly.
+        Depending on the `is_information_schema_cross_db` argument, you can also filter
+        by database name in the WHERE clause.
+
+        If False, treats each database as having its own local information schema table containing
+        metadata for that database only. As a result, one query per database may be generated
+        and then combined (often via `UNION ALL`).
+        This approach is necessary for dialects that do not maintain a single global view of
+        all metadata or that require per-database queries.
+        Depending on the `is_information_schema_cross_db` argument, queries can
+        include or omit database information in both identifiers and filters.
+
+        See `is_information_schema_cross_db` which also affects how final queries are constructed.
+    :param is_information_schema_cross_db: Specifies whether database information should be tracked
+        and included in queries that retrieve schema information from the information_schema_table.
+        In short, this determines whether queries are capable of spanning multiple databases.
+
+        If True, database identifiers are included wherever applicable, allowing retrieval of
+        metadata from more than one database. For instance, in Snowflake or MS SQL
+        (where each database is treated as a top-level namespace), you might have a query like:
+
+        ```
+        SELECT ...
+        FROM db1.information_schema.columns WHERE ...
+        UNION ALL
+        SELECT ...
+        FROM db2.information_schema.columns WHERE ...
+        ```
+
+        In Redshift, setting this to True together with `use_flat_cross_db_query=True` allows
+        adding database filters to the query, for example:
+
+        ```
+        SELECT ...
+        FROM SVV_REDSHIFT_COLUMNS
+        WHERE
+        SVV_REDSHIFT_COLUMNS.database == db1  # This is skipped when False
+        AND SVV_REDSHIFT_COLUMNS.schema == schema1
+        AND SVV_REDSHIFT_COLUMNS.table IN (table1, table2)
+        OR ...
+        ```
+
+        However, certain databases (e.g., PostgreSQL) do not permit true cross-database queries.
+        In such dialects, enabling cross-database support may lead to errors or be unnecessary.
+        Always consult your dialect's documentation or test sample queries to confirm if
+        cross-database querying is supported.
+
+        If False, database qualifiers are ignored, effectively restricting queries to a single
+        database (or making the database-level qualifier optional). This is typically
+        safer for databases that do not support cross-database operations or only provide a
+        two-level namespace (schema + table) instead of a three-level one (database + schema + table).
+        For example, some MySQL or PostgreSQL contexts might not need or permit cross-database queries at all.
+
+        See `use_flat_cross_db_query` which also affects how final queries are constructed.
     :param is_uppercase_names: Specifies if database accepts only uppercase names (e.g. Snowflake).
     :param normalize_name_method: Method to normalize database, schema and table names.
         Defaults to `name.lower()`.
