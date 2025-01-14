@@ -25,7 +25,7 @@ from tabulate import tabulate
 from airflow.utils.state import DagRunState
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk.definitions.context import Context
 
 logger = logging.getLogger(__name__)
 

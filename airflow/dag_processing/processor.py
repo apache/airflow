@@ -39,8 +39,8 @@ from airflow.stats import Stats
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
 
+    from airflow.sdk.definitions.context import Context
     from airflow.typing_compat import Self
-    from airflow.utils.context import Context
 
 
 def _parse_file_entrypoint():

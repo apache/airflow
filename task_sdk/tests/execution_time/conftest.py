@@ -83,7 +83,10 @@ def mocked_parse(spy_agency):
         task.dag = dag
         t = dag.task_dict[task.task_id]
         ti = RuntimeTaskInstance.model_construct(
-            **what.ti.model_dump(exclude_unset=True), task=t, _ti_context_from_server=what.ti_context
+            **what.ti.model_dump(exclude_unset=True),
+            task=t,
+            _ti_context_from_server=what.ti_context,
+            max_tries=what.ti_context.max_tries,
         )
         spy_agency.spy_on(parse, call_fake=lambda _: ti)
         return ti
