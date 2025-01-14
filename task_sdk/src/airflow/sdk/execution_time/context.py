@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import contextlib
-from collections.abc import Generator, Mapping
+from collections.abc import Generator
 from typing import TYPE_CHECKING, Any
 
 import structlog
@@ -28,6 +28,7 @@ from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.connection import Connection
+    from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.variable import Variable
     from airflow.sdk.execution_time.comms import ConnectionResult, VariableResult
 
@@ -163,7 +164,7 @@ class MacrosAccessor:
 
 
 @contextlib.contextmanager
-def set_current_context(context: Mapping[str, Any]) -> Generator[Mapping[str, Any], None, None]:
+def set_current_context(context: Context) -> Generator[Context, None, None]:
     """
     Set the current execution context to the provided context object.
 

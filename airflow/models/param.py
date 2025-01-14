@@ -28,7 +28,6 @@ from airflow.sdk.definitions._internal.mixins import ResolveMixin
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
-    from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
     from airflow.sdk.definitions.dag import DAG
 
@@ -332,19 +331,21 @@ class DagParam(ResolveMixin):
 def process_params(
     dag: DAG,
     task: Operator,
-    dag_run: DagRun | None,
+    dagrun_conf: dict[str, Any] | None,
     *,
     suppress_exception: bool,
 ) -> dict[str, Any]:
     """Merge, validate params, and convert them into a simple dict."""
     from airflow.configuration import conf
 
+    dagrun_conf = dagrun_conf or {}
+
     params = ParamsDict(suppress_exception=suppress_exception)
     with contextlib.suppress(AttributeError):
         params.update(dag.params)
     if task.params:
         params.update(task.params)
-    if conf.getboolean("core", "dag_run_conf_overrides_params") and dag_run and dag_run.conf:
-        logger.debug("Updating task params (%s) with DagRun.conf (%s)", params, dag_run.conf)
-        params.update(dag_run.conf)
+    if conf.getboolean("core", "dag_run_conf_overrides_params") and dagrun_conf:
+        logger.debug("Updating task params (%s) with DagRun.conf (%s)", params, dagrun_conf)
+        params.update(dagrun_conf)
     return params.validate()

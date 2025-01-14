@@ -28,8 +28,8 @@ from collections.abc import (
 from typing import (
     TYPE_CHECKING,
     Any,
-    SupportsIndex,
     Union,
+    cast,
 )
 
 import attrs
@@ -53,6 +53,7 @@ from airflow.sdk.definitions.asset import (
     AssetUriRef,
     BaseAssetUniqueKey,
 )
+from airflow.sdk.definitions.context import Context
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.session import create_session
 from airflow.utils.types import NOTSET
@@ -65,7 +66,7 @@ if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
 
 # NOTE: Please keep this in sync with the following:
-# * Context in airflow/utils/context.pyi.
+# * Context in task_sdk/src/airflow/sdk/definitions/context.py
 # * Table in docs/apache-airflow/templates-ref.rst
 KNOWN_CONTEXT_KEYS: set[str] = {
     "conn",
@@ -359,15 +360,7 @@ class AirflowContextDeprecationWarning(RemovedInAirflow3Warning):
     """Warn for usage of deprecated context variables in a task."""
 
 
-class Context(dict[str, Any]):
-    """Jinja2 template context for task rendering."""
-
-    def __reduce_ex__(self, protocol: SupportsIndex) -> tuple[Any, ...]:
-        """Pickle the context as a dict."""
-        return dict, (list(self.items()),)
-
-
-def context_merge(context: Mapping[str, Any], *args: Any, **kwargs: Any) -> None:
+def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
     """
     Merge parameters into an existing context.
 
@@ -386,7 +379,7 @@ def context_merge(context: Mapping[str, Any], *args: Any, **kwargs: Any) -> None
     context.update(*args, **kwargs)
 
 
-def context_update_for_unmapped(context: Mapping[str, Any], task: BaseOperator) -> None:
+def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
     """
     Update context after task unmapping.
 
@@ -399,21 +392,19 @@ def context_update_for_unmapped(context: Mapping[str, Any], task: BaseOperator) 
     from airflow.models.param import process_params
 
     context["task"] = context["ti"].task = task
-    context["params"] = process_params(context["dag"], task, context["dag_run"], suppress_exception=False)
+    context["params"] = process_params(
+        context["dag"], task, context["dag_run"].conf, suppress_exception=False
+    )
 
 
-def context_copy_partial(source: Mapping[str, Any], keys: Container[str]) -> Context:
+def context_copy_partial(source: Context, keys: Container[str]) -> Context:
     """
     Create a context by copying items under selected keys in ``source``.
 
-    This is implemented as a free function because the ``Context`` type is
-    "faked" as a ``TypedDict`` in ``context.pyi``, which cannot have custom
-    functions.
-
     :meta private:
     """
-    new = Context({k: v for k, v in source.items() if k in keys})
-    return new
+    new = {k: v for k, v in source.items() if k in keys}
+    return cast(Context, new)
 
 
 def context_get_outlet_events(context: Context) -> OutletEventAccessors:

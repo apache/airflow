@@ -101,7 +101,7 @@ from tests_common.test_utils.timetables import (
 )
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk.definitions.context import Context
 
 repo_root = Path(airflow.__file__).parent.parent
 

@@ -29,7 +29,7 @@ from tests_common.test_utils.compat import BaseOperatorLink
 if TYPE_CHECKING:
     import jinja2
 
-    from airflow.utils.context import Context
+    from airflow.sdk.definitions.context import Context
 
 
 class MockOperator(BaseOperator):

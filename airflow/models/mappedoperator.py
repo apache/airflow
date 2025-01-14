@@ -81,8 +81,8 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.models.param import ParamsDict
     from airflow.models.xcom_arg import XComArg
+    from airflow.sdk.definitions.context import Context
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-    from airflow.utils.context import Context
     from airflow.utils.operator_resources import Resources
     from airflow.utils.task_group import TaskGroup
     from airflow.utils.trigger_rule import TriggerRule
@@ -869,7 +869,7 @@ class MappedOperator(AbstractOperator):
 
     def render_template_fields(
         self,
-        context: Mapping[str, Any],
+        context: Context,
         jinja_env: jinja2.Environment | None = None,
     ) -> None:
         """

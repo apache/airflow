@@ -45,7 +45,10 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import ArgNotSet
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstance
+    try:
+        from airflow.sdk.definitions.protocols import RuntimeTaskInstanceProtocol as TaskInstance
+    except ImportError:
+        from airflow.models import TaskInstance  # type: ignore[assignment]
     from airflow.utils.context import Context
 
 try:
