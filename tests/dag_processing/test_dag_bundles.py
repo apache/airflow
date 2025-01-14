@@ -450,11 +450,18 @@ class TestGitDagBundle:
         ],
     )
     @mock.patch("airflow.dag_processing.bundles.git.Repo")
-    def test_view_url(self, mock_gitrepo, repo_url, expected_url):
+    def test_view_url(self, mock_gitrepo, repo_url, expected_url, session):
+        session.query(Connection).delete()
+        conn = Connection(
+            conn_id="git_default",
+            host=repo_url,
+            conn_type="git",
+        )
+        session.add(conn)
+        session.commit()
         bundle = GitDagBundle(
             name="test",
             refresh_interval=300,
-            repo_url=repo_url,
             tracking_ref="main",
         )
         view_url = bundle.view_url("0f0f0f")
@@ -465,7 +472,6 @@ class TestGitDagBundle:
         bundle = GitDagBundle(
             name="test",
             refresh_interval=300,
-            repo_url="git@github.com:apache/airflow.git",
             tracking_ref="main",
         )
         view_url = bundle.view_url(None)
