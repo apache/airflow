@@ -184,6 +184,7 @@ class TestBatchOperator:
             parameters={},
             retryStrategy={"attempts": 1},
             tags={},
+            timeout={"attemptDurationSeconds": 3600},
         )
 
         assert self.batch.job_id == JOB_ID
@@ -208,6 +209,7 @@ class TestBatchOperator:
             parameters={},
             retryStrategy={"attempts": 1},
             tags={},
+            timeout={"attemptDurationSeconds": 3600},
         )
 
     @mock.patch.object(BatchClientHook, "get_job_description")
@@ -264,6 +266,7 @@ class TestBatchOperator:
             parameters={},
             retryStrategy={"attempts": 1},
             tags={},
+            timeout={"attemptDurationSeconds": 3600},
         )
 
     @mock.patch.object(BatchClientHook, "get_job_description")
@@ -362,6 +365,7 @@ class TestBatchOperator:
             parameters={},
             retryStrategy={"attempts": 1},
             tags={},
+            timeout={"attemptDurationSeconds": 3600},
         )
 
     @mock.patch.object(BatchClientHook, "check_job_success")
