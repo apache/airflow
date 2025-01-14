@@ -110,24 +110,26 @@ class DatabaseInfo:
         metadata from more than one database. For instance, in Snowflake or MS SQL
         (where each database is treated as a top-level namespace), you might have a query like:
 
-            SELECT ...
-            FROM db1.information_schema.columns
-            ...
-            UNION ALL
-            SELECT ...
-            FROM db2.information_schema.columns
-            ...
+        ```
+        SELECT ...
+        FROM db1.information_schema.columns WHERE ...
+        UNION ALL
+        SELECT ...
+        FROM db2.information_schema.columns WHERE ...
+        ```
 
         In Redshift, setting this to True together with `use_flat_cross_db_query=True` allows
         adding database filters to the query, for example:
 
-            SELECT ...
-            FROM SVV_REDSHIFT_COLUMNS
-            WHERE
-                SVV_REDSHIFT_COLUMNS.database == db1  # This is skipped when False
-                AND SVV_REDSHIFT_COLUMNS.schema == schema1
-                AND SVV_REDSHIFT_COLUMNS.table IN (table1, table2)
-                OR ...
+        ```
+        SELECT ...
+        FROM SVV_REDSHIFT_COLUMNS
+        WHERE
+        SVV_REDSHIFT_COLUMNS.database == db1  # This is skipped when False
+        AND SVV_REDSHIFT_COLUMNS.schema == schema1
+        AND SVV_REDSHIFT_COLUMNS.table IN (table1, table2)
+        OR ...
+        ```
 
         However, certain databases (e.g., PostgreSQL) do not permit true cross-database queries.
         In such dialects, enabling cross-database support may lead to errors or be unnecessary.
