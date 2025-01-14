@@ -133,7 +133,9 @@ class TestCliDags:
         # Check serialized DAG are back
         serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
         assert len(serialized_dags_after_reserialize) > 1
-        assert "test_dag_with_no_tags" in [dag.dag_id for dag in serialized_dags_after_reserialize]
+        serialized_dag_ids = [dag.dag_id for dag in serialized_dags_after_reserialize]
+        assert "test_dag_with_no_tags" in serialized_dag_ids
+        assert "example_bash_operator" in serialized_dag_ids
 
     def test_show_dag_dependencies_print(self):
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
