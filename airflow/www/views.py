@@ -74,7 +74,7 @@ from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from markupsafe import Markup, escape
 from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
-from sqlalchemy import and_, case, desc, func, inspect, or_, select, union_all
+from sqlalchemy import and_, case, desc, func, inspect, or_, select, tuple_, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from wtforms import BooleanField, validators
@@ -1017,11 +1017,12 @@ class Airflow(AirflowBaseView):
                 if not can_read_all_dags:
                     # if the user doesn't have access to all DAGs, only display errors from visible DAGs
                     import_errors = import_errors.where(
-                        ParseImportError.filename.in_(
-                            select(DagModel.fileloc).distinct().where(DagModel.dag_id.in_(filter_dag_ids))
-                        ),
-                        ParseImportError.bundle_name.in_(
-                            select(DagModel.bundle_name).distinct().where(DagModel.dag_id.in_(filter_dag_ids))
+                        tuple_(
+                            (ParseImportError.filename, ParseImportError.bundle_name).in_(
+                                select(DagModel.fileloc, DagModel.bundle_name)
+                                .distinct()
+                                .where(DagModel.dag_id.in_(filter_dag_ids))
+                            )
                         ),
                     )
 

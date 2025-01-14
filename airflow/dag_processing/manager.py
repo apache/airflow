@@ -40,7 +40,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 
 import attrs
 from setproctitle import setproctitle
-from sqlalchemy import and_, delete, select, update
+from sqlalchemy import delete, select, tuple_, update
 from tabulate import tabulate
 from uuid6 import uuid7
 
@@ -756,9 +756,12 @@ class DagFileProcessorManager:
 
             if self._file_paths:
                 query = query.where(
-                    and_(
-                        ParseImportError.filename.notin_([f.path for f in self._file_paths]),
-                        ParseImportError.bundle_name.notin_([f.bundle_name for f in self._file_paths]),
+                    (
+                        tuple_(
+                            (ParseImportError.filename, ParseImportError.bundle_name).notin_(
+                                [(f.path, f.bundle_name) for f in self._file_paths]
+                            )
+                        ),
                     )
                 )
 
