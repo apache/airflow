@@ -29,7 +29,7 @@ export const FieldString = ({ name, param }: FlexibleFormElementProps) => (
       maxLength={param.schema.maxLength ?? undefined}
       minLength={param.schema.minLength ?? undefined}
       name={`element_${name}`}
-      placeholder={param.schema.examples ? "Start typing to see proposal values." : undefined}
+      placeholder={param.schema.examples ? "Start typing to see options." : undefined}
       size="sm"
     />
     {param.schema.examples ? (

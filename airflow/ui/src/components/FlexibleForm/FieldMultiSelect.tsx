@@ -21,7 +21,7 @@ import { useState } from "react";
 
 import type { FlexibleFormElementProps } from ".";
 
-const labelLookup = (key: string, valuesDisplay: Record<string, string> | null): string => {
+const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefined): string => {
   if (valuesDisplay && typeof valuesDisplay === "object") {
     return valuesDisplay[key] ?? key;
   }
@@ -41,7 +41,7 @@ export const FieldMultiSelect = ({ name, param }: FlexibleFormElementProps) => {
 
   return (
     <ReactSelect
-      aria-label="Select one or multiple Values"
+      aria-label="Select one or multiple values"
       id={`element_${name}`}
       isClearable
       isMulti

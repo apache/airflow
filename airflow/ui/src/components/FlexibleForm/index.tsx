@@ -16,76 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Stack, StackSeparator } from "@chakra-ui/react";
-
 import type { DagParamsSpec, ParamSpec } from "src/queries/useDagParams";
 
-import { Accordion, Alert } from "../ui";
-import { Row } from "./Row";
-
-type FlexibleFormProps = {
+export type FlexibleFormProps = {
   readonly params: DagParamsSpec;
 };
 
 export type FlexibleFormElementProps = {
-  readonly key: string;
   readonly name: string;
   readonly param: ParamSpec;
 };
 
-const FlexibleForm = ({ params }: FlexibleFormProps) => {
-  const processedSections = new Map();
+export const flexibleFormDefaultSection = "Run Parameters";
 
-  return (
-    <>
-      {Object.entries(params).some(([, param]) => typeof param.schema.section !== "string") ? (
-        <Accordion.Item key="params" value="params">
-          <Accordion.ItemTrigger cursor="button">Run Parameters</Accordion.ItemTrigger>
-          <Accordion.ItemContent>
-            <Stack separator={<StackSeparator />}>
-              {Object.keys(params).length > 0 && (
-                <Alert
-                  status="warning"
-                  title="Population of changes in trigger form fields is not implemented yet. Please stay tuned for upcoming updates... and change the run conf in the 'Advanced Options' conf section below meanwhile."
-                />
-              )}
-              {Object.entries(params)
-                .filter(([, param]) => typeof param.schema.section !== "string")
-                .map(([name, param]) => (
-                  <Row key={name} name={name} param={param} />
-                ))}
-            </Stack>
-          </Accordion.ItemContent>
-        </Accordion.Item>
-      ) : undefined}
-      {Object.entries(params)
-        .filter(([, secParam]) => secParam.schema.section)
-        .map(([, secParam]) => {
-          const currentSection = secParam.schema.section;
-
-          if (processedSections.has(currentSection)) {
-            return undefined;
-          } else {
-            processedSections.set(currentSection, true);
-
-            return (
-              <Accordion.Item key={secParam.schema.section ?? ""} value={secParam.schema.section ?? ""}>
-                <Accordion.ItemTrigger cursor="button">{secParam.schema.section}</Accordion.ItemTrigger>
-                <Accordion.ItemContent>
-                  <Stack separator={<StackSeparator />}>
-                    {Object.entries(params)
-                      .filter(([, param]) => param.schema.section === currentSection)
-                      .map(([name, param]) => (
-                        <Row key={name} name={name} param={param} />
-                      ))}
-                  </Stack>
-                </Accordion.ItemContent>
-              </Accordion.Item>
-            );
-          }
-        })}
-    </>
-  );
-};
-
-export default FlexibleForm;
+export { FlexibleForm } from "./FlexibleForm";

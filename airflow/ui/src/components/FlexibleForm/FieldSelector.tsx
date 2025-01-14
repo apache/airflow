@@ -21,7 +21,6 @@ import type { ParamSchema, ParamSpec } from "src/queries/useDagParams";
 import type { FlexibleFormElementProps } from ".";
 import { FieldAdvancedArray } from "./FieldAdvancedArray";
 import { FieldBool } from "./FieldBool";
-import { FieldDate } from "./FieldDate";
 import { FieldDateTime } from "./FieldDateTime";
 import { FieldDropdown } from "./FieldDropdown";
 import { FieldMultiSelect } from "./FieldMultiSelect";
@@ -30,7 +29,6 @@ import { FieldNumber } from "./FieldNumber";
 import { FieldObject } from "./FieldObject";
 import { FieldString } from "./FieldString";
 import { FieldStringArray } from "./FieldStringArray";
-import { FieldTime } from "./FieldTime";
 
 const inferType = (param: ParamSpec) => {
   if (Boolean(param.schema.type)) {
@@ -88,33 +86,33 @@ const isFieldStringArray = (fieldType: string, fieldSchema: ParamSchema) =>
 const isFieldTime = (fieldType: string, fieldSchema: ParamSchema) =>
   fieldType === "string" && fieldSchema.format === "date";
 
-export const SelectElement = ({ key, name, param }: FlexibleFormElementProps) => {
+export const FieldSelector = ({ name, param }: FlexibleFormElementProps) => {
   // FUTURE: Add support for other types as described in AIP-68 via Plugins
   const fieldType = inferType(param);
 
   if (isFieldBool(fieldType)) {
-    return <FieldBool key={key} name={name} param={param} />;
+    return <FieldBool name={name} param={param} />;
   } else if (isFieldDateTime(fieldType, param.schema)) {
-    return <FieldDateTime key={key} name={name} param={param} />;
+    return <FieldDateTime name={name} param={param} subType="datetime-local" />;
   } else if (isFieldDate(fieldType, param.schema)) {
-    return <FieldDate key={key} name={name} param={param} />;
+    return <FieldDateTime name={name} param={param} subType="date" />;
   } else if (isFieldTime(fieldType, param.schema)) {
-    return <FieldTime key={key} name={name} param={param} />;
+    return <FieldDateTime name={name} param={param} subType="time" />;
   } else if (isFieldDropdown(fieldType, param.schema)) {
-    return <FieldDropdown key={key} name={name} param={param} />;
+    return <FieldDropdown name={name} param={param} />;
   } else if (isFieldMultiSelect(fieldType, param.schema)) {
-    return <FieldMultiSelect key={key} name={name} param={param} />;
+    return <FieldMultiSelect name={name} param={param} />;
   } else if (isFieldStringArray(fieldType, param.schema)) {
-    return <FieldStringArray key={key} name={name} param={param} />;
+    return <FieldStringArray name={name} param={param} />;
   } else if (isFieldAdvancedArray(fieldType, param.schema)) {
-    return <FieldAdvancedArray key={key} name={name} param={param} />;
+    return <FieldAdvancedArray name={name} param={param} />;
   } else if (isFieldObject(fieldType)) {
-    return <FieldObject key={key} name={name} param={param} />;
+    return <FieldObject name={name} param={param} />;
   } else if (isFieldNumber(fieldType)) {
-    return <FieldNumber key={key} name={name} param={param} />;
+    return <FieldNumber name={name} param={param} />;
   } else if (isFieldMultilineText(fieldType, param.schema)) {
-    return <FieldMultilineText key={key} name={name} param={param} />;
+    return <FieldMultilineText name={name} param={param} />;
   } else {
-    return <FieldString key={key} name={name} param={param} />;
+    return <FieldString name={name} param={param} />;
   }
 };

@@ -23,7 +23,7 @@ import { Select } from "src/components/ui";
 
 import type { FlexibleFormElementProps } from ".";
 
-const labelLookup = (key: string, valuesDisplay: Record<string, string> | null): string => {
+const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefined): string => {
   if (valuesDisplay && typeof valuesDisplay === "object") {
     return valuesDisplay[key] ?? key;
   }

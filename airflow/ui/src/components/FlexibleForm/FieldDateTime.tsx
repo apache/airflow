@@ -20,13 +20,23 @@ import { Input } from "@chakra-ui/react";
 
 import type { FlexibleFormElementProps } from ".";
 
-export const FieldDateTime = ({ name, param }: FlexibleFormElementProps) => (
+export type DateTimeElementProps = {
+  readonly subType: string;
+} & FlexibleFormElementProps;
+
+const typeToPlaceholder: Record<string, string> = {
+  date: "yyyy-mm-dd",
+  "datetime-local": "yyyy-mm-ddThh:mm",
+  time: "hh:mm",
+};
+
+export const FieldDateTime = ({ name, param, subType }: DateTimeElementProps) => (
   <Input
     defaultValue={typeof param.value === "string" ? param.value : undefined}
     id={`element_${name}`}
     name={`element_${name}`}
-    placeholder="yyyy-mm-ddThh:mm"
+    placeholder={typeToPlaceholder.subtype}
     size="sm"
-    type="datetime-local"
+    type={subType}
   />
 );

@@ -22,26 +22,27 @@ import { toaster } from "src/components/ui";
 export type DagParamsSpec = Record<string, ParamSpec>;
 
 export type ParamSpec = {
-  description: string | null;
+  description: string | undefined;
   schema: ParamSchema;
   value: unknown;
 };
 
 export type ParamSchema = {
-  const: string | null;
-  description_md: string | null;
-  enum: Array<string> | null;
-  examples: Array<string> | null;
-  format: string | null;
-  items: Record<string, unknown> | null;
-  maximum: number | null;
-  maxLength: number | null;
-  minimum: number | null;
-  minLength: number | null;
-  section: string | null;
-  title: string | null;
-  type: Array<string> | string | null;
-  values_display: Record<string, string> | null;
+  // TODO define the structure on API as generated code
+  const: string | undefined;
+  description_md: string | undefined;
+  enum: Array<string> | undefined;
+  examples: Array<string> | undefined;
+  format: string | undefined;
+  items: Record<string, unknown> | undefined;
+  maximum: number | undefined;
+  maxLength: number | undefined;
+  minimum: number | undefined;
+  minLength: number | undefined;
+  section: string | undefined;
+  title: string | undefined;
+  type: Array<string> | string | undefined;
+  values_display: Record<string, string> | undefined;
 };
 
 export const useDagParams = (dagId: string, open: boolean) => {

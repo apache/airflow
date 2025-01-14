@@ -29,7 +29,7 @@ import { useDagParams } from "src/queries/useDagParams";
 import { useTrigger } from "src/queries/useTrigger";
 
 import { ErrorAlert } from "../ErrorAlert";
-import FlexibleForm from "../FlexibleForm";
+import { FlexibleForm, flexibleFormDefaultSection } from "../FlexibleForm";
 import { Accordion } from "../ui";
 
 type TriggerDAGFormProps = {
@@ -131,7 +131,14 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
 
   return (
     <>
-      <Accordion.Root collapsible defaultValue={["params"]} mb={4} mt={4} size="lg" variant="enclosed">
+      <Accordion.Root
+        collapsible
+        defaultValue={[flexibleFormDefaultSection]}
+        mb={4}
+        mt={4}
+        size="lg"
+        variant="enclosed"
+      >
         <FlexibleForm params={paramsDict} />
         <Accordion.Item key="advancedOptions" value="advancedOptions">
           <Accordion.ItemTrigger cursor="button">Advanced Options</Accordion.ItemTrigger>
