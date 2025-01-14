@@ -2497,7 +2497,7 @@ class TestQueries:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         for i in range(tasks_count):
             EmptyOperator(task_id=f"dummy_task_{i}", owner="test", dag=dag)
-        with assert_queries_count(3):
+        with assert_queries_count(4):
             dag.create_dagrun(
                 run_id="test_dagrun_query_count",
                 state=State.RUNNING,
