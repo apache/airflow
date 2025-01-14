@@ -33,7 +33,9 @@ T = TypeVar("T")
 class Dialect(LoggingMixin):
     """Generic dialect implementation."""
 
-    pattern = re.compile(r'"([a-zA-Z0-9_]+)"')
+    #pattern = re.compile(r'"([a-zA-Z0-9_]+)"')
+    pattern = re.compile(r"[^\w]")
+    #pattern = re.compile(r"^['\"\[\]]?(.*?)['\"\[\]]?$")
 
     def __init__(self, hook, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -48,7 +50,7 @@ class Dialect(LoggingMixin):
     @classmethod
     def remove_quotes(cls, value: str | None) -> str | None:
         if value:
-            return cls.pattern.sub(r"\1", value)
+            return cls.pattern.sub("", value)
 
     @property
     def placeholder(self) -> str:

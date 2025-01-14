@@ -40,7 +40,9 @@ class TestDialect:
     def test_remove_quotes(self):
         assert not Dialect.remove_quotes(None)
         assert Dialect.remove_quotes("table") == "table"
+        assert Dialect.remove_quotes("table_name") == "table_name"
         assert Dialect.remove_quotes('"table"') == "table"
+        assert Dialect.remove_quotes("[table]") == "table"
 
     def test_placeholder(self):
         assert Dialect(self.test_db_hook).placeholder == "?"
