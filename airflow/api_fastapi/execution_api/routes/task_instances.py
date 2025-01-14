@@ -43,6 +43,7 @@ from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, _update_rtif
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
+from airflow.models.xcom import XCom
 from airflow.utils import timezone
 from airflow.utils.state import State, TerminalTIState
 
@@ -73,9 +74,13 @@ def ti_run(
     # We only use UUID above for validation purposes
     ti_id_str = str(task_instance_id)
 
-    old = select(TI.state, TI.dag_id, TI.run_id).where(TI.id == ti_id_str).with_for_update()
+    old = (
+        select(TI.state, TI.dag_id, TI.run_id, TI.task_id, TI.map_index, TI.next_method)
+        .where(TI.id == ti_id_str)
+        .with_for_update()
+    )
     try:
-        (previous_state, dag_id, run_id) = session.execute(old).one()
+        (previous_state, dag_id, run_id, task_id, map_index, next_method) = session.execute(old).one()
     except NoResultFound:
         log.error("Task Instance %s not found", ti_id_str)
         raise HTTPException(
@@ -143,6 +148,20 @@ def ti_run(
 
         if not dr:
             raise ValueError(f"DagRun with dag_id={dag_id} and run_id={run_id} not found.")
+
+        # Clear XCom data for the task instance since we are certain it is executing
+        # However, do not clear it for deferral
+        if not next_method:
+            if map_index < 0:
+                map_index = None
+            log.info("Clearing xcom data for task id: %s", ti_id_str)
+            XCom.clear(
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+                map_index=map_index,
+                session=session,
+            )
 
         return TIRunContext(
             dag_run=DagRun.model_validate(dr, from_attributes=True),

@@ -52,10 +52,10 @@ from airflow.exceptions import (
     TaskNotFound,
 )
 from airflow.models.param import DagParam, ParamsDict
-from airflow.sdk.definitions.abstractoperator import AbstractOperator
+from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import AssetAll, BaseAsset
 from airflow.sdk.definitions.baseoperator import BaseOperator
-from airflow.sdk.types import NOTSET
 from airflow.timetables.base import Timetable
 from airflow.timetables.simple import (
     AssetTriggeredTimetable,
@@ -561,13 +561,13 @@ class DAG:
         return hash(tuple(hash_components))
 
     def __enter__(self) -> Self:
-        from airflow.sdk.definitions.contextmanager import DagContext
+        from airflow.sdk.definitions._internal.contextmanager import DagContext
 
         DagContext.push(self)
         return self
 
     def __exit__(self, _type, _value, _tb):
-        from airflow.sdk.definitions.contextmanager import DagContext
+        from airflow.sdk.definitions._internal.contextmanager import DagContext
 
         _ = DagContext.pop()
 
@@ -656,7 +656,7 @@ class DAG:
 
     def get_template_env(self, *, force_sandboxed: bool = False) -> jinja2.Environment:
         """Build a Jinja2 environment."""
-        from airflow.sdk.definitions.templater import NativeEnvironment, SandboxedEnvironment
+        from airflow.sdk.definitions._internal.templater import NativeEnvironment, SandboxedEnvironment
 
         # Collect directories to search for template files
         searchpath = [self.folder]
@@ -892,7 +892,7 @@ class DAG:
         """
         # FailStopDagInvalidTriggerRule.check(dag=self, trigger_rule=task.trigger_rule)
 
-        from airflow.sdk.definitions.contextmanager import TaskGroupContext
+        from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 
         # if the task has no start date, assign it the same as the DAG
         if not task.start_date:

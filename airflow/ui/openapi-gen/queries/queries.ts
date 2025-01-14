@@ -2711,6 +2711,42 @@ export const useBackfillServiceCreateBackfill = <
     ...options,
   });
 /**
+ * Create Backfill Dry Run
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns DryRunBackfillCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useBackfillServiceCreateBackfillDryRun = <
+  TData = Common.BackfillServiceCreateBackfillDryRunMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: BackfillPostBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: BackfillPostBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      BackfillService.createBackfillDryRun({ requestBody }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
  * Post Connection
  * Create connection entry.
  * @param data The data for the request.
@@ -2786,6 +2822,23 @@ export const useConnectionServiceTestConnection = <
   >({
     mutationFn: ({ requestBody }) =>
       ConnectionService.testConnection({ requestBody }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Create Default Connections
+ * Create default connections.
+ * @returns void Successful Response
+ * @throws ApiError
+ */
+export const useConnectionServiceCreateDefaultConnections = <
+  TData = Common.ConnectionServiceCreateDefaultConnectionsMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<UseMutationOptions<TData, TError, void, TContext>, "mutationFn">,
+) =>
+  useMutation<TData, TError, void, TContext>({
+    mutationFn: () => ConnectionService.createDefaultConnections() as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -2963,7 +3016,7 @@ export const useTaskInstanceServiceGetTaskInstancesBatch = <
  * @param data The data for the request.
  * @param data.dagId
  * @param data.requestBody
- * @returns TaskInstanceReferenceCollectionResponse Successful Response
+ * @returns TaskInstanceCollectionResponse Successful Response
  * @throws ApiError
  */
 export const useTaskInstanceServicePostClearTaskInstances = <

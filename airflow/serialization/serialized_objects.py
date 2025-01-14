@@ -99,7 +99,7 @@ if TYPE_CHECKING:
     from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.expandinput import ExpandInput
     from airflow.models.operator import Operator
-    from airflow.sdk.definitions.node import DAGNode
+    from airflow.sdk.definitions._internal.node import DAGNode
     from airflow.serialization.json_schema import Validator
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
@@ -781,7 +781,7 @@ class BaseSerialization:
             return cls._encode(var.to_json(), type_=DAT.DAG_CALLBACK_REQUEST)
         elif var.__class__ == Context:
             d = {}
-            for k, v in var._context.items():
+            for k, v in var.items():
                 obj = cls.serialize(v, strict=strict)
                 d[str(k)] = obj
             return cls._encode(d, type_=DAT.TASK_CONTEXT)

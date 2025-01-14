@@ -1596,11 +1596,17 @@ export type AssetServiceCreateAssetEventMutationResult = Awaited<
 export type BackfillServiceCreateBackfillMutationResult = Awaited<
   ReturnType<typeof BackfillService.createBackfill>
 >;
+export type BackfillServiceCreateBackfillDryRunMutationResult = Awaited<
+  ReturnType<typeof BackfillService.createBackfillDryRun>
+>;
 export type ConnectionServicePostConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.postConnection>
 >;
 export type ConnectionServiceTestConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.testConnection>
+>;
+export type ConnectionServiceCreateDefaultConnectionsMutationResult = Awaited<
+  ReturnType<typeof ConnectionService.createDefaultConnections>
 >;
 export type DagRunServiceClearDagRunMutationResult = Awaited<ReturnType<typeof DagRunService.clearDagRun>>;
 export type DagRunServiceTriggerDagRunMutationResult = Awaited<

@@ -17,17 +17,18 @@
 from __future__ import annotations
 
 import enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
-import airflow.sdk.types
-from airflow.typing_compat import TypeAlias, TypedDict
+import airflow.sdk.definitions._internal.types
 
 if TYPE_CHECKING:
     from datetime import datetime
 
-ArgNotSet: TypeAlias = airflow.sdk.types.ArgNotSet
+    from airflow.typing_compat import TypeAlias
 
-NOTSET = airflow.sdk.types.NOTSET
+ArgNotSet: TypeAlias = airflow.sdk.definitions._internal.types.ArgNotSet
+
+NOTSET = airflow.sdk.definitions._internal.types.NOTSET
 
 
 class AttributeRemoved:

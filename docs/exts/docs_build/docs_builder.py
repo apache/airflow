@@ -21,6 +21,7 @@ import re
 import shlex
 import shutil
 from glob import glob
+from pathlib import Path
 from subprocess import run
 
 from rich.console import Console
@@ -31,6 +32,7 @@ from docs.exts.docs_build.code_utils import (
     CONSOLE_WIDTH,
     DOCS_DIR,
     PROCESS_TIMEOUT,
+    ROOT_PROJECT_DIR,
 )
 from docs.exts.docs_build.errors import DocBuildError, parse_sphinx_warnings
 from docs.exts.docs_build.spelling_checks import SpellingError, parse_spelling_warnings
@@ -43,6 +45,12 @@ class AirflowDocsBuilder:
 
     def __init__(self, package_name: str):
         self.package_name = package_name
+        self.new_structure_provider = False
+        if self.package_name.startswith("apache-airflow-providers-"):
+            self.package_id = self.package_name.split("apache-airflow-providers-", 1)[1].replace("-", ".")
+            self.provider_path = (Path(ROOT_PROJECT_DIR) / "providers").joinpath(*self.package_id.split("."))
+            if self.provider_path.exists():
+                self.new_structure_provider = True
 
     @property
     def _doctree_dir(self) -> str:
@@ -100,7 +108,9 @@ class AirflowDocsBuilder:
         os.makedirs(api_dir, exist_ok=True)
         os.makedirs(self._build_dir, exist_ok=True)
 
-    def check_spelling(self, verbose: bool) -> tuple[list[SpellingError], list[DocBuildError]]:
+    def check_spelling(
+        self, skip_deletion: bool, verbose: bool
+    ) -> tuple[list[SpellingError], list[DocBuildError]]:
         """
         Checks spelling
 
@@ -113,6 +123,8 @@ class AirflowDocsBuilder:
         shutil.rmtree(self.log_spelling_output_dir, ignore_errors=True)
         os.makedirs(self.log_spelling_output_dir, exist_ok=True)
 
+        if self.new_structure_provider:
+            self.cleanup_new_provider_dir()
         build_cmd = [
             "sphinx-build",
             "-W",  # turn warnings into errors
@@ -132,10 +144,12 @@ class AirflowDocsBuilder:
         env["AIRFLOW_PACKAGE_NAME"] = self.package_name
         if verbose:
             console.print(
-                f"[info]{self.package_name:60}:[/] Executing cmd: ",
+                f"[bright_blue]{self.package_name:60}:[/] Executing cmd: ",
                 " ".join(shlex.quote(c) for c in build_cmd),
             )
-            console.print(f"[info]{self.package_name:60}:[/] The output is hidden until an error occurs.")
+            console.print(
+                f"[bright_blue]{self.package_name:60}:[/] The output is hidden until an error occurs."
+            )
         with open(self.log_spelling_filename, "w") as output:
             completed_proc = run(
                 build_cmd,
@@ -169,19 +183,46 @@ class AirflowDocsBuilder:
                 # Remove 7-bit C1 ANSI escape sequences
                 warning_text = re.sub(r"\x1B[@-_][0-?]*[ -/]*[@-~]", "", warning_text)
                 build_errors.extend(parse_sphinx_warnings(warning_text, self._src_dir))
-            console.print(f"[info]{self.package_name:60}:[/] [red]Finished spell-checking with errors[/]")
+            console.print(
+                f"[bright_blue]{self.package_name:60}:[/] [red]Finished spell-checking with errors[/]"
+            )
         else:
             if spelling_errors:
                 console.print(
-                    f"[info]{self.package_name:60}:[/] [yellow]Finished spell-checking with warnings[/]"
+                    f"[bright_blue]{self.package_name:60}:[/] [yellow]Finished spell-checking with warnings[/]"
                 )
             else:
                 console.print(
-                    f"[info]{self.package_name:60}:[/] [green]Finished spell-checking successfully[/]"
+                    f"[bright_blue]{self.package_name:60}:[/] [green]Finished spell-checking successfully[/]"
                 )
+        if self.new_structure_provider:
+            if skip_deletion:
+                console.print(
+                    f"[bright_blue]{self.package_name:60}:[/] [magenta](NEW)[/] Leaving generated files in {self._src_dir}."
+                )
+            else:
+                console.print(
+                    f"[bright_blue]{self.package_name:60}:[/] [magenta](NEW)[/] Cleaning up generated files in {self._src_dir}."
+                )
+                shutil.rmtree(self._src_dir, ignore_errors=True)
         return spelling_errors, build_errors
 
-    def build_sphinx_docs(self, verbose: bool) -> list[DocBuildError]:
+    def cleanup_new_provider_dir(self):
+        console.print(
+            f"[bright_blue]{self.package_name:60}:[/] [magenta](NEW)[/] Cleaning up old files in {self._src_dir}."
+        )
+        shutil.rmtree(self._src_dir, ignore_errors=True)
+        console.print(
+            f"[bright_blue]{self.package_name:60}:[/] [magenta](NEW)[/] Coping docs "
+            f"from {self.provider_path}/docs to {self._src_dir}."
+        )
+        shutil.copytree(
+            f"{self.provider_path}/docs",
+            self._src_dir,
+            dirs_exist_ok=True,
+        )
+
+    def build_sphinx_docs(self, skip_deletion: bool, verbose: bool) -> list[DocBuildError]:
         """
         Build Sphinx documentation.
 
@@ -191,6 +232,8 @@ class AirflowDocsBuilder:
         build_errors = []
         os.makedirs(self._build_dir, exist_ok=True)
 
+        if self.new_structure_provider:
+            self.cleanup_new_provider_dir()
         build_cmd = [
             "sphinx-build",
             "-T",  # show full traceback on exception
@@ -210,12 +253,12 @@ class AirflowDocsBuilder:
         env["AIRFLOW_PACKAGE_NAME"] = self.package_name
         if verbose:
             console.print(
-                f"[info]{self.package_name:60}:[/] Executing cmd: ",
+                f"[bright_blue]{self.package_name:60}:[/] Executing cmd: ",
                 " ".join(shlex.quote(c) for c in build_cmd),
             )
         else:
             console.print(
-                f"[info]{self.package_name:60}:[/] Running sphinx. "
+                f"[bright_blue]{self.package_name:60}:[/] Running sphinx. "
                 f"The output is hidden until an error occurs."
             )
         with open(self.log_build_filename, "w") as output:
@@ -242,9 +285,23 @@ class AirflowDocsBuilder:
             warning_text = re.sub(r"\x1B[@-_][0-?]*[ -/]*[@-~]", "", warning_text)
             build_errors.extend(parse_sphinx_warnings(warning_text, self._src_dir))
         if build_errors:
-            console.print(f"[info]{self.package_name:60}:[/] [red]Finished docs building with errors[/]")
+            console.print(
+                f"[bright_blue]{self.package_name:60}:[/] [red]Finished docs building with errors[/]"
+            )
         else:
-            console.print(f"[info]{self.package_name:60}:[/] [green]Finished docs building successfully[/]")
+            console.print(
+                f"[bright_blue]{self.package_name:60}:[/] [green]Finished docs building successfully[/]"
+            )
+        if self.new_structure_provider:
+            if skip_deletion:
+                console.print(
+                    f"[bright_blue]{self.package_name:60}:[/] [magenta](NEW)[/] Leaving generated files in {self._src_dir}."
+                )
+            else:
+                console.print(
+                    f"[bright_blue]{self.package_name:60}:[/] [magenta](NEW)[/] Cleaning up generated files in {self._src_dir}."
+                )
+                shutil.rmtree(self._src_dir, ignore_errors=True)
         return build_errors
 
 
