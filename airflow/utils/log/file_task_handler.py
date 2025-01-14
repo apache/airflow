@@ -24,7 +24,6 @@ import os
 from collections.abc import Iterable
 from contextlib import suppress
 from enum import Enum
-from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import urljoin
@@ -44,6 +43,7 @@ from airflow.utils.state import State, TaskInstanceState
 if TYPE_CHECKING:
     from pendulum import DateTime
 
+    from airflow.executors.base_executor import BaseExecutor
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 
@@ -314,10 +314,18 @@ class FileTaskHandler(logging.Handler):
     def _read_grouped_logs(self):
         return False
 
-    @cached_property
-    def _executor_get_task_log(self) -> Callable[[TaskInstance, int], tuple[list[str], list[str]]]:
-        """This cached property avoids loading executor repeatedly."""
-        executor = ExecutorLoader.get_default_executor()
+    def _get_executor_get_task_log(
+        self, ti: TaskInstance
+    ) -> Callable[[TaskInstance, int], tuple[list[str], list[str]]]:
+        """
+        Get the get_task_log method from executor of current task instance.
+
+        Since there might be multiple executors, so we need to get the executor of current task instance instead of getting from default executor.
+
+        :param ti: task instance object
+        :return: get_task_log method of the executor
+        """
+        executor: BaseExecutor = ExecutorLoader.load_executor(ti.executor)
         return executor.get_task_log
 
     def _read(
@@ -360,7 +368,8 @@ class FileTaskHandler(logging.Handler):
             messages_list.extend(remote_messages)
         has_k8s_exec_pod = False
         if ti.state == TaskInstanceState.RUNNING:
-            response = self._executor_get_task_log(ti, try_number)
+            executor_get_task_log = self._get_executor_get_task_log(ti)
+            response = executor_get_task_log(ti, try_number)
             if response:
                 executor_messages, executor_logs = response
             if executor_messages:
