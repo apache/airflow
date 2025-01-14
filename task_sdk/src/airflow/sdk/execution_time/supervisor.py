@@ -286,16 +286,28 @@ def _fork_main(
 
 @attrs.define(kw_only=True)
 class WatchedSubprocess:
+    """
+    Base class for managing subprocesses in Airflow's TaskSDK.
+
+    This class handles common functionalities required for subprocess management, such as
+    socket handling, process monitoring, and request handling.
+    """
+
     id: UUID
 
     pid: int
+    """The process ID of the child process"""
+
     stdin: BinaryIO
     """The handle connected to stdin of the child process"""
 
     decoder: TypeAdapter
+    """The decoder to use for incoming messages from the child process."""
 
     _process: psutil.Process
     _requests_fd: int
+    """File descriptor for request handling."""
+
     _num_open_sockets: int = 4
     _exit_code: int | None = attrs.field(default=None, init=False)
 
@@ -308,7 +320,7 @@ class WatchedSubprocess:
         logger: FilteringBoundLogger | None = None,
         **constructor_kwargs,
     ) -> Self:
-        """Fork and start a new subprocess to execute the given task."""
+        """Fork and start a new subprocess with the specified target function."""
         # Create socketpairs/"pipes" to connect to the stdin and out from the subprocess
         child_stdin, feed_stdin = mkpipe(remote_read=True)
         child_stdout, read_stdout = mkpipe()
@@ -538,6 +550,7 @@ class WatchedSubprocess:
 @attrs.define(kw_only=True)
 class ActivitySubprocess(WatchedSubprocess):
     client: Client
+    """The HTTP client to use for communication with the API server."""
 
     _terminal_state: str | None = attrs.field(default=None, init=False)
     _final_state: str | None = attrs.field(default=None, init=False)
@@ -568,7 +581,8 @@ class ActivitySubprocess(WatchedSubprocess):
         logger: FilteringBoundLogger | None = None,
         **kwargs,
     ) -> Self:
-        proc = super().start(id=what.id, client=client, target=target, logger=logger, **kwargs)
+        """Fork and start a new subprocess to execute the given task."""
+        proc: Self = super().start(id=what.id, client=client, target=target, logger=logger, **kwargs)
         # Tell the task process what it needs to do!
         proc._on_child_started(what, path)
         return proc
@@ -908,10 +922,7 @@ def supervise(
         # If we are told to write logs to a file, redirect the task logger to it.
         from airflow.sdk.log import init_log_file, logging_processors
 
-        try:
-            log_file = init_log_file(log_path)
-        except OSError as e:
-            log.warning("OSError while changing ownership of the log file. ", e)
+        log_file = init_log_file(log_path)
 
         pretty_logs = False
         if pretty_logs:

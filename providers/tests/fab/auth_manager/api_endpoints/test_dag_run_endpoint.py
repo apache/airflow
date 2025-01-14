@@ -20,7 +20,7 @@ from datetime import timedelta
 
 import pytest
 
-from airflow.models.dag import DAG, DagModel
+from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.param import Param
 from airflow.providers.fab.www.security import permissions
@@ -125,20 +125,19 @@ class TestDagRunEndpoint:
         clear_db_serialized_dags()
         clear_db_dags()
 
+    @pytest.fixture(autouse=True)
+    def create_dag(self, dag_maker, setup_attrs):
+        with dag_maker(
+            "TEST_DAG_ID", schedule=None, params={"validated_number": Param(1, minimum=1, maximum=10)}
+        ):
+            pass
+
+        dag_maker.sync_dagbag_to_db()
+
     def teardown_method(self) -> None:
         clear_db_runs()
         clear_db_dags()
         clear_db_serialized_dags()
-
-    def _create_dag(self, dag_id):
-        dag_instance = DagModel(dag_id=dag_id)
-        dag_instance.is_active = True
-        with create_session() as session:
-            session.add(dag_instance)
-        dag = DAG(dag_id=dag_id, schedule=None, params={"validated_number": Param(1, minimum=1, maximum=10)})
-        self.app.dag_bag.bag_dag(dag)
-        self.app.dag_bag.sync_to_db()
-        return dag_instance
 
     def _create_test_dag_run(self, state=DagRunState.RUNNING, extra_dag=False, commit=True, idx_start=1):
         dag_runs = []
@@ -146,8 +145,6 @@ class TestDagRunEndpoint:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
 
         for i in range(idx_start, idx_start + 2):
-            if i == 1:
-                dags.append(DagModel(dag_id="TEST_DAG_ID", is_active=True))
             dagrun_model = DagRun(
                 dag_id="TEST_DAG_ID",
                 run_id=f"TEST_DAG_RUN_ID_{i}",
@@ -247,7 +244,6 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
 
 class TestPostDagRun(TestDagRunEndpoint):
     def test_dagrun_trigger_with_dag_level_permissions(self):
-        self._create_dag("TEST_DAG_ID")
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns",
             json={"conf": {"validated_number": 1}},
@@ -260,7 +256,6 @@ class TestPostDagRun(TestDagRunEndpoint):
         ["test_dag_view_only", "test_view_dags", "test_granular_permissions"],
     )
     def test_should_raises_403_unauthorized(self, username):
-        self._create_dag("TEST_DAG_ID")
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns",
             json={

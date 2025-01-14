@@ -590,6 +590,8 @@ function install_airflow() {
     local installation_command_flags
     if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then
         # When installing from sources - we always use `--editable` mode
+        # TODO(potiuk) when we move all providers to new structure, we will be able to remove all that and
+        # Use `uv sync` rather than `uv pip install` rather than finding all pyproject toml / projects here
         installation_command_flags="--editable .[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION} --editable ./task_sdk"
         while IFS= read -r -d '' pyproject_toml_file; do
             project_folder=$(dirname ${pyproject_toml_file})

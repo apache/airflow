@@ -53,7 +53,7 @@ from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_pools, clear_db_runs
+from tests_common.test_utils.db import clear_db_pools, clear_db_runs, parse_and_sync_to_db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
@@ -97,12 +97,12 @@ class TestCliTasks:
     @pytest.fixture(autouse=True)
     def setup_class(cls):
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
-        cls.dagbag = DagBag(include_examples=True)
+        parse_and_sync_to_db(os.devnull, include_examples=True)
         cls.parser = cli_parser.get_parser()
         clear_db_runs()
 
+        cls.dagbag = DagBag(read_dags_from_db=True)
         cls.dag = cls.dagbag.get_dag(cls.dag_id)
-        cls.dagbag.sync_to_db()
         data_interval = cls.dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE)
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.CLI} if AIRFLOW_V_3_0_PLUS else {}
         cls.dag_run = cls.dag.create_dagrun(
@@ -164,7 +164,7 @@ class TestCliTasks:
         with conf_vars({("core", "dags_folder"): orig_dags_folder.as_posix()}):
             dagbag = DagBag(include_examples=False)
             dag = dagbag.get_dag("test_dags_folder")
-            dagbag.sync_to_db(session=session)
+            dagbag.sync_to_db("dags-folder", None, session=session)
 
         logical_date = pendulum.now("UTC")
         data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)

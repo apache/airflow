@@ -151,8 +151,8 @@ class EdgeExecutor(BaseExecutor):
                 map_index=key.map_index,
                 try_number=key.try_number,
                 state=TaskInstanceState.QUEUED,
-                queue=DEFAULT_QUEUE,  # TODO Queues to be added once implemented in AIP-72
-                concurrency_slots=1,  # TODO Pool slots to be added once implemented in AIP-72
+                queue=task_instance.queue,
+                concurrency_slots=task_instance.pool_slots,
                 command=workload.model_dump_json(),
             )
         )

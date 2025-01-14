@@ -49,7 +49,12 @@ def _parse_file_entrypoint():
     import structlog
 
     from airflow.sdk.execution_time import task_runner
+    from airflow.settings import configure_orm
     # Parse DAG file, send JSON back up!
+
+    # We need to reconfigure the orm here, as DagFileProcessorManager does db queries for bundles, and
+    # the session across forks blows things up.
+    configure_orm()
 
     comms_decoder = task_runner.CommsDecoder[DagFileParseRequest, DagFileParsingResult](
         input=sys.stdin,
@@ -203,7 +208,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
         target: Callable[[], None] = _parse_file_entrypoint,
         **kwargs,
     ) -> Self:
-        proc = super().start(target=target, **kwargs)
+        proc: Self = super().start(target=target, **kwargs)
         proc._on_child_started(callbacks, path)
         return proc
 
