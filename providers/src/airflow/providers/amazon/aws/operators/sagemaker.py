@@ -165,7 +165,7 @@ class SageMakerBaseOperator(BaseOperator):
             if fail_if_exists:
                 raise AirflowException(f"A SageMaker {resource_type} with name {name} already exists.")
             else:
-                timestamp = time.time_ns()//1000000
+                timestamp = str(time.time_ns()//1000000)
                 timestamp_length = len(timestamp)
                 name_length = len(name) 
                 if 63 > name_length + timestamp_length + 1: 
