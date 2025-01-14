@@ -481,10 +481,10 @@ class KubernetesPodOperator(BaseOperator):
 
         map_index = ti.map_index
         if map_index >= 0:
-            labels["map_index"] = map_index
+            labels["map_index"] = str(map_index)
 
         if include_try_number:
-            labels.update(try_number=ti.try_number)
+            labels.update(try_number=str(ti.try_number))
         # In the case of sub dags this is just useful
         # TODO: Remove this when the minimum version of Airflow is bumped to 3.0
         if getattr(context["dag"], "parent_dag", False):

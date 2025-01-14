@@ -183,7 +183,8 @@ def make_ti_context() -> MakeTIContextCallable:
                 data_interval_end=data_interval_end,  # type: ignore
                 start_date=start_date,  # type: ignore
                 run_type=run_type,  # type: ignore
-            )
+            ),
+            max_tries=0,
         )
 
     return _make_context

@@ -30,6 +30,7 @@ from starlette.responses import HTMLResponse
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 
+from airflow.api_fastapi.core_api.middleware import FlaskExceptionsMiddleware
 from airflow.exceptions import AirflowException
 from airflow.settings import AIRFLOW_PATH
 from airflow.www.extensions.init_dagbag import get_dag_bag
@@ -165,3 +166,7 @@ def init_error_handlers(app: FastAPI) -> None:
     # register database error handlers
     for handler in DatabaseErrorHandlers:
         app.add_exception_handler(handler.exception_cls, handler.exception_handler)
+
+
+def init_middlewares(app: FastAPI) -> None:
+    app.add_middleware(FlaskExceptionsMiddleware)

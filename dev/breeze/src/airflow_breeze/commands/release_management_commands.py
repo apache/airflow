@@ -136,7 +136,7 @@ from airflow_breeze.utils.parallel import (
     run_with_pool,
 )
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_PROVIDERS_SRC,
+    AIRFLOW_PROVIDERS_DIR,
     AIRFLOW_SOURCES_ROOT,
     CONSTRAINTS_CACHE_DIR,
     DIST_DIR,
@@ -728,7 +728,7 @@ def prepare_provider_documentation(
         PrepareReleaseDocsUserQuitException,
         PrepareReleaseDocsUserSkippedException,
         update_changelog,
-        update_min_airflow_version,
+        update_min_airflow_version_and_build_files,
         update_release_notes,
     )
 
@@ -772,7 +772,7 @@ def prepare_provider_documentation(
                         non_interactive=non_interactive,
                         only_min_version_update=only_min_version_update,
                     )
-                update_min_airflow_version(
+                update_min_airflow_version_and_build_files(
                     provider_package_id=provider_id,
                     with_breaking_changes=with_breaking_changes,
                     maybe_with_new_features=maybe_with_new_features,
@@ -838,9 +838,15 @@ def prepare_provider_documentation(
 
 def basic_provider_checks(provider_package_id: str) -> dict[str, Any]:
     provider_packages_metadata = get_provider_packages_metadata()
+    get_console().print(f"\n[info]Reading provider package metadata: {provider_package_id}[/]")
     provider_metadata = provider_packages_metadata.get(provider_package_id)
     if not provider_metadata:
-        get_console().print(f"[error]The package {provider_package_id} is not a provider package. Exiting[/]")
+        get_console().print(
+            f"[error]The package {provider_package_id} could not be found in the list "
+            f"of provider packages. Exiting[/]"
+        )
+        get_console().print("Available provider packages:")
+        get_console().print(provider_packages_metadata)
         sys.exit(1)
     if provider_metadata["state"] == "removed":
         get_console().print(
@@ -965,21 +971,43 @@ def prepare_provider_packages(
             get_console().print()
             with ci_group(f"Preparing provider package [special]{provider_id}"):
                 get_console().print()
-                target_provider_root_sources_path = copy_provider_sources_to_target(provider_id)
-                generate_build_files(
-                    provider_id=provider_id,
-                    version_suffix=package_version,
-                    target_provider_root_sources_path=target_provider_root_sources_path,
-                )
-                cleanup_build_remnants(target_provider_root_sources_path)
-                build_provider_package(
-                    provider_id=provider_id,
-                    package_format=package_format,
-                    target_provider_root_sources_path=target_provider_root_sources_path,
-                )
-                move_built_packages_and_cleanup(
-                    target_provider_root_sources_path, DIST_DIR, skip_cleanup=skip_deleting_generated_files
-                )
+                new_provider_root_dir = AIRFLOW_PROVIDERS_DIR.joinpath(*provider_id.split("."))
+                if (new_provider_root_dir / "provider.yaml").exists():
+                    get_console().print(
+                        f"[info]Provider {provider_id} is a new-style provider. "
+                        f"Skipping package generation as it is not needed for new-style providers."
+                    )
+                    cleanup_build_remnants(new_provider_root_dir)
+                    build_provider_package(
+                        provider_id=provider_id,
+                        package_format=package_format,
+                        target_provider_root_sources_path=new_provider_root_dir,
+                    )
+                    move_built_packages_and_cleanup(
+                        new_provider_root_dir,
+                        DIST_DIR,
+                        skip_cleanup=skip_deleting_generated_files,
+                        delete_only_build_and_dist_folders=True,
+                    )
+                else:
+                    # TODO(potiuk) - remove this once all providers are new-style
+                    target_provider_root_sources_path = copy_provider_sources_to_target(provider_id)
+                    generate_build_files(
+                        provider_id=provider_id,
+                        version_suffix=package_version,
+                        target_provider_root_sources_path=target_provider_root_sources_path,
+                    )
+                    cleanup_build_remnants(target_provider_root_sources_path)
+                    build_provider_package(
+                        provider_id=provider_id,
+                        package_format=package_format,
+                        target_provider_root_sources_path=target_provider_root_sources_path,
+                    )
+                    move_built_packages_and_cleanup(
+                        target_provider_root_sources_path,
+                        DIST_DIR,
+                        skip_cleanup=skip_deleting_generated_files,
+                    )
         except PrepareReleasePackageTagExistException:
             skipped_as_already_released_packages.append(provider_id)
         except PrepareReleasePackageWrongSetupException:
@@ -2154,7 +2182,6 @@ def generate_issue_content_providers(
     provider_packages: list[str],
 ):
     import jinja2
-    import yaml
     from github import Github, Issue, PullRequest, UnknownObjectException
 
     class ProviderPRInfo(NamedTuple):
@@ -2239,20 +2266,13 @@ def generate_issue_content_providers(
                                 f"Failed to retrieve linked issue #{linked_issue_number}: Unknown Issue"
                             )
                 progress.advance(task)
+        get_provider_packages_metadata.cache_clear()
         providers: dict[str, ProviderPRInfo] = {}
         for provider_id in prepared_package_ids:
             if provider_id not in provider_prs:
                 continue
             pull_request_list = [pull_requests[pr] for pr in provider_prs[provider_id] if pr in pull_requests]
-            provider_yaml_dict = yaml.safe_load(
-                (
-                    AIRFLOW_PROVIDERS_SRC
-                    / "airflow"
-                    / "providers"
-                    / provider_id.replace(".", os.sep)
-                    / "provider.yaml"
-                ).read_text()
-            )
+            provider_yaml_dict = get_provider_packages_metadata().get(provider_id)
             if pull_request_list:
                 package_suffix = get_suffix_from_package_in_dist(files_in_dist, provider_id)
                 providers[provider_id] = ProviderPRInfo(

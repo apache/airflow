@@ -89,7 +89,7 @@ class TestCommsDecoder:
             b'"ti_context":{"dag_run":{"dag_id":"c","run_id":"b","logical_date":"2024-12-01T01:00:00Z",'
             b'"data_interval_start":"2024-12-01T00:00:00Z","data_interval_end":"2024-12-01T01:00:00Z",'
             b'"start_date":"2024-12-01T01:00:00Z","end_date":null,"run_type":"manual","conf":null},'
-            b'"variables":null,"connections":null},"file": "/dev/null", "requests_fd": '
+            b'"max_tries":0,"variables":null,"connections":null},"file": "/dev/null", "requests_fd": '
             + str(w2.fileno()).encode("ascii")
             + b"}\n"
         )
@@ -772,7 +772,7 @@ class TestRuntimeTaskInstance:
                     dag_id="test_dag",
                     run_id="test_run",
                     task_id=task_id,
-                    map_index=None,
+                    map_index=-1,
                 ),
             )
 

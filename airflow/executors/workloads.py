@@ -48,7 +48,7 @@ class TaskInstance(BaseModel):
     dag_id: str
     run_id: str
     try_number: int
-    map_index: int | None = None
+    map_index: int = -1
 
     pool_slots: int
     queue: str
@@ -64,7 +64,7 @@ class TaskInstance(BaseModel):
             task_id=self.task_id,
             run_id=self.run_id,
             try_number=self.try_number,
-            map_index=-1 if self.map_index is None else self.map_index,
+            map_index=self.map_index,
         )
 
 

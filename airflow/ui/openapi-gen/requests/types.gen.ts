@@ -1280,6 +1280,98 @@ export type VariableBody = {
 };
 
 /**
+ * Serializer for individual bulk action responses.
+ *
+ * Represents the outcome of a single bulk operation (create, update, or delete).
+ * The response includes a list of successful keys and any errors encountered during the operation.
+ * This structure helps users understand which key actions succeeded and which failed.
+ */
+export type VariableBulkActionResponse = {
+  /**
+   * A list of keys representing successful operations.
+   */
+  success?: Array<string>;
+  /**
+   * A list of errors encountered during the operation, each containing details about the issue.
+   */
+  errors?: Array<{
+    [key: string]: unknown;
+  }>;
+};
+
+/**
+ * Request body for bulk variable operations (create, update, delete).
+ */
+export type VariableBulkBody = {
+  /**
+   * A list of variable actions to perform.
+   */
+  actions: Array<VariableBulkCreateAction | VariableBulkUpdateAction | VariableBulkDeleteAction>;
+};
+
+/**
+ * Bulk Create Variable serializer for request bodies.
+ */
+export type VariableBulkCreateAction = {
+  action?: "create";
+  /**
+   * A list of variables to be created.
+   */
+  variables: Array<VariableBody>;
+  action_if_exists?: "skip" | "overwrite" | "fail";
+};
+
+export type action_if_exists = "skip" | "overwrite" | "fail";
+
+/**
+ * Bulk Delete Variable serializer for request bodies.
+ */
+export type VariableBulkDeleteAction = {
+  action?: "delete";
+  /**
+   * A list of variable keys to be deleted.
+   */
+  keys: Array<string>;
+  action_if_not_exists?: "skip" | "fail";
+};
+
+export type action_if_not_exists = "skip" | "fail";
+
+/**
+ * Serializer for responses to bulk variable operations.
+ *
+ * This represents the results of create, update, and delete actions performed on variables in bulk.
+ * Each action (if requested) is represented as a field containing details about successful keys and any encountered errors.
+ * Fields are populated in the response only if the respective action was part of the request, else are set None.
+ */
+export type VariableBulkResponse = {
+  /**
+   * Details of the bulk create operation, including successful keys and errors.
+   */
+  create?: VariableBulkActionResponse | null;
+  /**
+   * Details of the bulk update operation, including successful keys and errors.
+   */
+  update?: VariableBulkActionResponse | null;
+  /**
+   * Details of the bulk delete operation, including successful keys and errors.
+   */
+  delete?: VariableBulkActionResponse | null;
+};
+
+/**
+ * Bulk Update Variable serializer for request bodies.
+ */
+export type VariableBulkUpdateAction = {
+  action?: "update";
+  /**
+   * A list of variables to be updated.
+   */
+  variables: Array<VariableBody>;
+  action_if_not_exists?: "skip" | "fail";
+};
+
+/**
  * Variable Collection serializer for responses.
  */
 export type VariableCollectionResponse = {
@@ -2160,6 +2252,12 @@ export type PostVariableData = {
 };
 
 export type PostVariableResponse = VariableResponse;
+
+export type BulkVariablesData = {
+  requestBody: VariableBulkBody;
+};
+
+export type BulkVariablesResponse = VariableBulkResponse;
 
 export type ImportVariablesData = {
   actionIfExists?: "overwrite" | "fail" | "skip";
@@ -4640,6 +4738,27 @@ export type $OpenApiTs = {
          * Conflict
          */
         409: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    patch: {
+      req: BulkVariablesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: VariableBulkResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */
