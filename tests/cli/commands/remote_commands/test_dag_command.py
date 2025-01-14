@@ -109,13 +109,14 @@ class TestCliDags:
         path_to_parse = TEST_DAGS_FOLDER / "test_dag_with_no_tags.py"
 
         with configure_testing_dag_bundle(path_to_parse):
+            # reserializes only the above path
             dag_command.dag_reserialize(
                 self.parser.parse_args(["dags", "reserialize", "--bundle-name", "testing"])
             )
 
         # Check serialized DAG are back
         serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
-        assert len(serialized_dags_after_reserialize) == 1  # Serialized DAG back
+        assert len(serialized_dags_after_reserialize) == 1
 
     def test_reserialize_should_support_more_than_one_bundle(self, configure_testing_dag_bundle, session):
         # Run clear of serialized dags
@@ -128,6 +129,7 @@ class TestCliDags:
         path_to_parse = TEST_DAGS_FOLDER / "test_dag_with_no_tags.py"
 
         with configure_testing_dag_bundle(path_to_parse):
+            # The command will now serialize the above bundle and the example dag bundle
             dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize"]))
 
         # Check serialized DAG are back
