@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-14T13:52:39.842261
+# This constraints file was automatically generated on 2025-01-14T19:50:27.598271
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -61,7 +61,7 @@ cgroupspy==0.2.3
 charset-normalizer==3.4.1
 click==8.1.8
 clickclick==20.10.2
-cloudpickle==3.1.0
+cloudpickle==3.1.1
 colorama==0.4.6
 colorlog==6.9.0
 connexion==2.14.2
@@ -114,7 +114,7 @@ marshmallow==3.25.1
 mdit-py-plugins==0.4.2
 mdurl==0.1.2
 methodtools==0.4.7
-more-itertools==10.5.0
+more-itertools==10.6.0
 multidict==6.1.0
 numpy==1.26.4
 opentelemetry-api==1.29.0

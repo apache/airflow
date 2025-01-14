@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-14T13:52:31.436929
+# This constraints file was automatically generated on 2025-01-14T19:50:19.577819
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -135,7 +135,7 @@ cattrs==24.1.2
 celery==5.4.0
 certifi==2024.12.14
 cffi==1.17.1
-cfn-lint==1.22.4
+cfn-lint==1.22.5
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.1
@@ -147,7 +147,7 @@ click-repl==0.3.0
 click==8.1.8
 clickclick==20.10.2
 cloudpickle==2.2.1
-cohere==5.13.6
+cohere==5.13.8
 colorama==0.4.6
 colorlog==6.9.0
 comm==0.2.2
@@ -355,7 +355,7 @@ microsoft-kiota-serialization-text==1.0.0
 mmh3==5.0.1
 mongomock==4.3.0
 monotonic==1.6
-more-itertools==10.5.0
+more-itertools==10.6.0
 moto==5.0.26
 mpmath==1.3.0
 msal-extensions==1.2.0
