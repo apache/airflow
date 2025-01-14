@@ -19,10 +19,9 @@
 
 labelPRBasedOnFilePath:
   provider:airbyte:
-    - providers/src/airflow/providers/airbyte/**/*
-    - docs/apache-airflow-providers-airbyte/**/*
-    - providers/tests/airbyte/**/*
-    - providers/tests/system/airbyte/**/*
+    - providers/airbyte/src/airflow/providers/airbyte/**/*
+    - providers/airbyte/docs/**/*
+    - providers/airbyte/tests/**/*
 
   provider:alibaba:
     - providers/src/airflow/providers/alibaba/**/*

@@ -348,12 +348,19 @@ repos:
         pass_filenames: true
         files: ^providers/src/airflow/providers/.*/(operators|transfers|sensors)/.*\.py$
         additional_dependencies: [ 'rich>=12.4.4' ]
-      - id: update-providers-init-py
-        name: Update providers __init__.py files
-        entry: ./scripts/ci/pre_commit/update_providers_init.py
+      - id: update-providers-build-files
+        name: Update providers build files files
+        entry: ./scripts/ci/pre_commit/update_providers_build_files.py
         language: python
         pass_filenames: true
-        files: ^providers/[^\/]*/__init__.py$|^providers/[^\/]*/[^\/]*/__init__.py$|^providers/.*/provider.yaml$|^airflow_breeze/templates/PROVIDER__INIT__PY_TEMPLATE.py.jinja2^
+        files: |
+          (?x)
+          ^providers/[^\/]*/src/airflow/providers/[^\/]*/__init__.py$|
+          ^providers/[^\/]*/[^\/]*/src/airflow/providers/[^\/]*/[^\/]*/__init__.py$|
+          ^providers/.*/provider.yaml$|
+          ^airflow_breeze/templates/PROVIDER__INIT__PY_TEMPLATE.py.jinja2$
+          ^airflow_breeze/templates/get_provider_info_TEMPLATE.py.jinja2$
+          ^airflow_breeze/templates/PROVIDER_README_TEMPLATE.rst.jinja2$
         additional_dependencies: ['rich>=12.4.4','requests']
         require_serial: true
       - id: ruff
@@ -701,8 +708,7 @@ repos:
           ^airflow/decorators/.*$|
           ^airflow/hooks/.*$|
           ^airflow/operators/.*$|
-          ^providers/src/airflow/providers/.*$|
-          ^providers/src/airflow/providers/standard/sensors/.*$|
+          ^providers/.*$|
           ^dev/provider_packages/.*$
       - id: check-base-operator-usage
         language: pygrep
@@ -781,6 +787,7 @@ repos:
         entry: ./scripts/ci/pre_commit/check_license.py
         language: python
         files: ^.*LICENSE.*$|^.*LICENCE.*$
+        exclude: ^providers/.*/src/.*/LICENSE$
         pass_filenames: false
       - id: check-aiobotocore-optional
         name: Check if aiobotocore is an optional dependency only
@@ -1376,7 +1383,7 @@ repos:
         name: Validate provider.yaml files
         entry: ./scripts/ci/pre_commit/check_provider_yaml_files.py
         language: python
-        files: ^providers/src/airflow/providers/.*/provider\.yaml$
+        files: ^providers/src/airflow/providers/.*/provider\.yaml$|^providers/.*/src/provider\.yaml$
         additional_dependencies: ['rich>=12.4.4']
         require_serial: true
       - id: check-template-fields-valid
