@@ -22,6 +22,8 @@ Writing logs to Elasticsearch
 
 Airflow can be configured to read task logs from Elasticsearch and optionally write logs to stdout in standard or json format. These logs can later be collected and forwarded to the Elasticsearch cluster using tools like fluentd, logstash or others.
 
+Airflow also supports writing log to Elasticsearch directly without requiring additional software like filebeat and logstash. To enable this feature, set ``write_to_es`` and ``json_format`` to ``True`` and ``write_stdout`` to ``False`` in ``airflow.cfg``. Please be aware that if you set both ``write_to_es`` and ``delete_local_logs`` in logging section to true, airflow will delete the local copy of task logs upon successfully writing task logs to ElasticSearch.
+
 You can choose to have all task logs from workers output to the highest parent level process, instead of the standard file locations. This allows for some additional flexibility in container environments like Kubernetes, where container stdout is already being logged to the host nodes. From there a log shipping tool can be used to forward them along to Elasticsearch. To use this feature, set the ``write_stdout`` option in ``airflow.cfg``.
 You can also choose to have the logs output in a JSON format, using the ``json_format`` option. Airflow uses the standard Python logging module and JSON fields are directly extracted from the LogRecord object. To use this feature, set the ``json_fields`` option in ``airflow.cfg``. Add the fields to the comma-delimited string that you want collected for the logs. These fields are from the LogRecord object in the ``logging`` module. `Documentation on different attributes can be found here <https://docs.python.org/3/library/logging.html#logrecord-objects/>`_.
 
@@ -47,6 +49,21 @@ To output task logs to stdout in JSON format, the following config could be used
     write_stdout = True
     json_format = True
 
+To output task logs to ElasticSearch, the following config could be used: (set ``delete_local_logs`` to true if you don't want retain a local copy of task log)
+
+.. code-block:: ini
+
+    [logging]
+    remote_logging = True
+    delete_local_logs = False
+
+    [elasticsearch]
+    host = <host>:<port>
+    write_stdout = False
+    json_format = True
+    write_to_es = True
+    target_index = [name of the index to store logs]
+
 .. _write-logs-elasticsearch-tls:
 
 Writing logs to Elasticsearch over TLS
@@ -54,6 +71,8 @@ Writing logs to Elasticsearch over TLS
 
 To add custom configurations to ElasticSearch (e.g. turning on ``ssl_verify``, adding a custom self-signed
 cert, etc.) use the ``elasticsearch_configs`` setting in your ``airflow.cfg``
+
+Note that these configurations also apply when you enable writing logs to ElasticSearch
 
 .. code-block:: ini
 

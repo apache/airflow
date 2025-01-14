@@ -74,11 +74,14 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-def _create_orm_dags(dags: Iterable[MaybeSerializedDAG], *, session: Session) -> Iterator[DagModel]:
+def _create_orm_dags(
+    bundle_name: str, dags: Iterable[MaybeSerializedDAG], *, session: Session
+) -> Iterator[DagModel]:
     for dag in dags:
         orm_dag = DagModel(dag_id=dag.dag_id)
         if dag.is_paused_upon_creation is not None:
             orm_dag.is_paused = dag.is_paused_upon_creation
+        orm_dag.bundle_name = bundle_name
         log.info("Creating ORM DAG for %s", dag.dag_id)
         session.add(orm_dag)
         yield orm_dag
@@ -270,6 +273,8 @@ def _update_import_errors(files_parsed: set[str], import_errors: dict[str, str],
 
 
 def update_dag_parsing_results_in_db(
+    bundle_name: str,
+    bundle_version: str | None,
     dags: Collection[MaybeSerializedDAG],
     import_errors: dict[str, str],
     warnings: set[DagWarning],
@@ -307,7 +312,7 @@ def update_dag_parsing_results_in_db(
             )
             log.debug("Calling the DAG.bulk_sync_to_db method")
             try:
-                DAG.bulk_write_to_db(dags, session=session)
+                DAG.bulk_write_to_db(bundle_name, bundle_version, dags, session=session)
                 # Write Serialized DAGs to DB, capturing errors
                 # Write Serialized DAGs to DB, capturing errors
                 for dag in dags:
@@ -346,6 +351,8 @@ class DagModelOperation(NamedTuple):
     """Collect DAG objects and perform database operations for them."""
 
     dags: dict[str, MaybeSerializedDAG]
+    bundle_name: str
+    bundle_version: str | None
 
     def find_orm_dags(self, *, session: Session) -> dict[str, DagModel]:
         """Find existing DagModel objects from DAG objects."""
@@ -365,7 +372,8 @@ class DagModelOperation(NamedTuple):
         orm_dags.update(
             (model.dag_id, model)
             for model in _create_orm_dags(
-                (dag for dag_id, dag in self.dags.items() if dag_id not in orm_dags),
+                bundle_name=self.bundle_name,
+                dags=(dag for dag_id, dag in self.dags.items() if dag_id not in orm_dags),
                 session=session,
             )
         )
@@ -430,6 +438,8 @@ class DagModelOperation(NamedTuple):
             dm.timetable_summary = dag.timetable.summary
             dm.timetable_description = dag.timetable.description
             dm.asset_expression = dag.timetable.asset_condition.as_expression()
+            dm.bundle_name = self.bundle_name
+            dm.latest_bundle_version = self.bundle_version
 
             last_automated_run: DagRun | None = run_info.latest_runs.get(dag.dag_id)
             if last_automated_run is None:
