@@ -100,13 +100,13 @@ def get_import_errors(
     if not can_read_all_dags:
         # if the user doesn't have access to all DAGs, only display errors from visible DAGs
         readable_dag_ids = security.get_readable_dags()
-        dagfiles_stmt = (
+        dagfiles_stmt = session.execute(
             select(DagModel.fileloc, DagModel.bundle_name)
             .distinct()
             .where(DagModel.dag_id.in_(readable_dag_ids))
-        )
+        ).all()
         query = query.where(
-            tuple_(ParseImportError.filename, ParseImportError.bundle_name).in_(dagfiles_stmt)
+            tuple_(ParseImportError.filename, ParseImportError.bundle_name or None).in_(dagfiles_stmt)
         )
         count_query = count_query.where(
             tuple_(ParseImportError.filename, ParseImportError.bundle_name).in_(dagfiles_stmt)

@@ -1017,12 +1017,10 @@ class Airflow(AirflowBaseView):
                 if not can_read_all_dags:
                     # if the user doesn't have access to all DAGs, only display errors from visible DAGs
                     import_errors = import_errors.where(
-                        tuple_(
-                            (ParseImportError.filename, ParseImportError.bundle_name).in_(
-                                select(DagModel.fileloc, DagModel.bundle_name)
-                                .distinct()
-                                .where(DagModel.dag_id.in_(filter_dag_ids))
-                            )
+                        tuple_(ParseImportError.filename, ParseImportError.bundle_name).in_(
+                            select(DagModel.fileloc, DagModel.bundle_name)
+                            .distinct()
+                            .where(DagModel.dag_id.in_(filter_dag_ids))
                         ),
                     )
 

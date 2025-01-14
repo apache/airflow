@@ -90,6 +90,7 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         response_data["import_error_id"] = 1
         assert response_data == {
             "filename": "Lorem_ipsum.py",
+            "bundle_name": None,
             "import_error_id": 1,
             "stack_trace": "Lorem ipsum",
             "timestamp": "2020-06-10T12:00:00+00:00",
@@ -147,12 +148,14 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
             "import_errors": [
                 {
                     "filename": "Lorem_ipsum.py",
+                    "bundle_name": None,
                     "import_error_id": 1,
                     "stack_trace": "Lorem ipsum",
                     "timestamp": "2020-06-10T12:00:00+00:00",
                 },
                 {
                     "filename": "Lorem_ipsum.py",
+                    "bundle_name": None,
                     "import_error_id": 2,
                     "stack_trace": "Lorem ipsum",
                     "timestamp": "2020-06-10T12:00:00+00:00",
@@ -184,12 +187,14 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
             "import_errors": [
                 {
                     "filename": "Lorem_ipsum1.py",
+                    "bundle_name": None,
                     "import_error_id": 1,  # id normalized with self._normalize_import_errors
                     "stack_trace": "Lorem ipsum",
                     "timestamp": "2020-06-09T12:00:00+00:00",
                 },
                 {
                     "filename": "Lorem_ipsum2.py",
+                    "bundle_name": None,
                     "import_error_id": 2,
                     "stack_trace": "Lorem ipsum",
                     "timestamp": "2020-06-08T12:00:00+00:00",
