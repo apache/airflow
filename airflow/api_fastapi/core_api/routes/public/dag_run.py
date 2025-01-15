@@ -61,6 +61,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.exceptions import ParamValidationError
+from airflow.listeners.listener import get_listener_manager
 from airflow.models import DAG, DagModel, DagRun
 from airflow.models.dag_version import DagVersion
 from airflow.timetables.base import DataInterval
@@ -159,10 +160,13 @@ def patch_dag_run(
             attr_value = getattr(patch_body, "state")
             if attr_value == DAGRunPatchStates.SUCCESS:
                 set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+                get_listener_manager().hook.on_dag_run_success(dag_run=dag_run, msg="")
             elif attr_value == DAGRunPatchStates.QUEUED:
                 set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+                # Not notifying on queued - only notifying on RUNNING, this is happening in scheduler
             elif attr_value == DAGRunPatchStates.FAILED:
                 set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+                get_listener_manager().hook.on_dag_run_failed(dag_run=dag_run, msg="")
         elif attr_name == "note":
             # Once Authentication is implemented in this FastAPI app,
             # user id will be added when updating dag run note
