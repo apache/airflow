@@ -55,15 +55,15 @@ class Dialect(LoggingMixin):
 
     @property
     def _insert_statement_format(self) -> str:
-        return self.hook._insert_statement_format  # type: ignore
+        return self.hook.insert_statement_format
 
     @property
     def _replace_statement_format(self) -> str:
-        return self.hook._replace_statement_format  # type: ignore
+        return self.hook.replace_statement_format
 
     @property
     def _escape_word_format(self) -> str:
-        return self.hook._escape_word_format  # type: ignore
+        return self.hook.escape_word_format
 
     def escape_word(self, word: str) -> str:
         """

@@ -184,13 +184,9 @@ class DbApiHook(BaseHook):
         self.__schema = schema
         self.log_sql = log_sql
         self.descriptions: list[Sequence[Sequence] | None] = []
-        self._insert_statement_format: str = kwargs.get(
-            "insert_statement_format", "INSERT INTO {} {} VALUES ({})"
-        )
-        self._replace_statement_format: str = kwargs.get(
-            "replace_statement_format", "REPLACE INTO {} {} VALUES ({})"
-        )
-        self._escape_word_format: str = kwargs.get("escape_word_format", '"{}"')
+        self._insert_statement_format: str | None = kwargs.get("insert_statement_format")
+        self._replace_statement_format: str | None = kwargs.get("replace_statement_format")
+        self._escape_word_format: str | None = kwargs.get("escape_word_format")
         self._connection: Connection | None = kwargs.pop("connection", None)
 
     def get_conn_id(self) -> str:
@@ -211,6 +207,33 @@ class DbApiHook(BaseHook):
                 self._placeholder,
             )
         return self._placeholder
+
+    @property
+    def insert_statement_format(self) -> str:
+        """Return the insert statement format."""
+        if not self._insert_statement_format:
+            self._insert_statement_format = self.connection_extra.get(
+                "insert_statement_format", "INSERT INTO {} {} VALUES ({})"
+            )
+        return self._insert_statement_format
+
+    @property
+    def replace_statement_format(self) -> str:
+        """Return the replacement statement format."""
+        if not self._replace_statement_format:
+            self._replace_statement_format = self.connection_extra.get(
+                "replace_statement_format", "REPLACE INTO {} {} VALUES ({})"
+            )
+        return self._replace_statement_format
+
+    @property
+    def escape_word_format(self) -> str:
+        """Return the escape word format."""
+        if not self._escape_word_format:
+            self._escape_word_format = self.connection_extra.get(
+                "escape_word_format", '"{}"'
+            )
+        return self._escape_word_format
 
     @property
     def connection(self) -> Connection:
