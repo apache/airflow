@@ -343,6 +343,15 @@ class TestExecutorLoader:
             )
             assert isinstance(ExecutorLoader.load_executor(executor_loader._executor_names[0]), LocalExecutor)
 
+    @mock.patch(
+        "airflow.executors.executor_loader.ExecutorLoader._get_executor_names",
+        wraps=ExecutorLoader._get_executor_names,
+    )
+    def test_call_load_executor_method_without_init_executors(self, mock_get_executor_names):
+        with conf_vars({("core", "executor"): "LocalExecutor"}):
+            ExecutorLoader.load_executor("LocalExecutor")
+            mock_get_executor_names.assert_called_once()
+
     @mock.patch("airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor", autospec=True)
     def test_load_custom_executor_with_classname(self, mock_executor):
         with conf_vars(
