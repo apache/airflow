@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box, Flex, HStack, Text, VStack } from "@chakra-ui/react";
-import { MdHourglassDisabled, MdHourglassFull } from "react-icons/md";
+import { FiClock } from "react-icons/fi";
 
 import type { PoolResponse } from "openapi/requests/types.gen";
 import { Tooltip } from "src/components/ui";
@@ -48,11 +48,11 @@ const PoolBar = ({ pool }: PoolBarProps) => {
             <Text fontSize="lg" fontWeight="bold">
               {pool.name} ({totalSlots} slots)
             </Text>
-            <Tooltip
-              content={pool.include_deferred ? "Deferred Slots Included" : "Deferred Slots Not Included"}
-            >
-              {pool.include_deferred ? <MdHourglassFull size={18} /> : <MdHourglassDisabled size={18} />}
-            </Tooltip>
+            {pool.include_deferred ? (
+              <Tooltip content="Deferred Slots Included">
+                <FiClock size={18} />
+              </Tooltip>
+            ) : undefined}
           </HStack>
           {pool.description ?? (
             <Text color="gray.fg" fontSize="sm">
@@ -63,7 +63,7 @@ const PoolBar = ({ pool }: PoolBarProps) => {
       </Flex>
 
       <Box margin={4}>
-        <Flex bg="gray.100" borderRadius="md" h="20px" overflow="hidden" w="100%">
+        <Flex bg="gray.muted" borderRadius="md" h="20px" overflow="hidden" w="100%">
           {Object.entries(slots).map(([slotKey, color]) => {
             const rawSlotValue = pool[slotKey as keyof PoolResponse];
             const slotValue = typeof rawSlotValue === "number" ? rawSlotValue : 0;
