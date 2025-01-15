@@ -70,7 +70,7 @@ class TestBatchOperator:
             aws_conn_id="airflow_test",
             region_name="eu-west-1",
             tags={},
-            timeout={"attemptDurationSeconds": 3600},
+            boto3_timeout={"attemptDurationSeconds": 3600},
         )
         self.client_mock = self.get_client_type_mock.return_value
         # We're mocking all actual AWS calls and don't need a connection. This
@@ -184,7 +184,7 @@ class TestBatchOperator:
             parameters={},
             retryStrategy={"attempts": 1},
             tags={},
-            boto3_timeout={"attemptDurationSeconds": 3600},
+            timeout={"attemptDurationSeconds": 3600},
         )
 
         assert self.batch.job_id == JOB_ID
@@ -209,7 +209,7 @@ class TestBatchOperator:
             parameters={},
             retryStrategy={"attempts": 1},
             tags={},
-            boto3_timeout={"attemptDurationSeconds": 3600},
+            timeout={"attemptDurationSeconds": 3600},
         )
 
     @mock.patch.object(BatchClientHook, "get_job_description")
@@ -266,7 +266,7 @@ class TestBatchOperator:
             parameters={},
             retryStrategy={"attempts": 1},
             tags={},
-            boto3_timeout={"attemptDurationSeconds": 3600},
+            timeout={"attemptDurationSeconds": 3600},
         )
 
     @mock.patch.object(BatchClientHook, "get_job_description")
@@ -365,7 +365,7 @@ class TestBatchOperator:
             parameters={},
             retryStrategy={"attempts": 1},
             tags={},
-            boto3_timeout={"attemptDurationSeconds": 3600},
+            timeout={"attemptDurationSeconds": 3600},
         )
 
     @mock.patch.object(BatchClientHook, "check_job_success")
