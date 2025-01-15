@@ -41,7 +41,7 @@ class TestPagerdutyNotifier:
             EmptyOperator(task_id="task1")
         notifier = send_pagerduty_notification(summary="DISK at 99%", severity="critical", action="trigger")
         notifier({"dag": dag})
-        mock_pagerduty_event_hook.return_value.create_event.assert_called_once_with(
+        mock_pagerduty_event_hook.return_value.send_event.assert_called_once_with(
             summary="DISK at 99%",
             severity="critical",
             action="trigger",
@@ -61,7 +61,7 @@ class TestPagerdutyNotifier:
             EmptyOperator(task_id="task1")
         notifier = PagerdutyNotifier(summary="DISK at 99%", severity="critical", action="trigger")
         notifier({"dag": dag})
-        mock_pagerduty_event_hook.return_value.create_event.assert_called_once_with(
+        mock_pagerduty_event_hook.return_value.send_event.assert_called_once_with(
             summary="DISK at 99%",
             severity="critical",
             action="trigger",
@@ -97,7 +97,7 @@ class TestPagerdutyNotifier:
         )
         context = {"dag": dag}
         notifier(context)
-        mock_pagerduty_event_hook.return_value.create_event.assert_called_once_with(
+        mock_pagerduty_event_hook.return_value.send_event.assert_called_once_with(
             action="trigger",
             summary="DISK at 99% test_notifier",
             severity="critical test_notifier",
