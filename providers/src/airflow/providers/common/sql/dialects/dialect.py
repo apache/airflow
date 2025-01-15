@@ -80,10 +80,10 @@ class Dialect(LoggingMixin):
 
     def unescape_word(self, word: str | None) -> str | None:
         """
-        Removes escape characters from word if any present.
+        Remove escape characters from the word if any are present.
 
         :param word: Name of the column
-        :return: The un-escaped word if needed
+        :return: The unescaped word if needed
         """
         if (
             word
