@@ -19,15 +19,11 @@
 import type { ParamSchema } from "src/queries/useDagParams";
 
 import type { FlexibleFormElementProps } from ".";
+import { FieldRow } from "./FieldRow";
 import { HiddenInput } from "./HiddenInput";
-import { NormalRow } from "./NormalRow";
 
 const isHidden = (fieldSchema: ParamSchema) => Boolean(fieldSchema.const);
 
 /** Generates a form row */
 export const Row = ({ name, param }: FlexibleFormElementProps) =>
-  isHidden(param.schema) ? (
-    <HiddenInput name={name} param={param} />
-  ) : (
-    <NormalRow name={name} param={param} />
-  );
+  isHidden(param.schema) ? <HiddenInput name={name} param={param} /> : <FieldRow name={name} param={param} />;

@@ -84,7 +84,7 @@ const isFieldStringArray = (fieldType: string, fieldSchema: ParamSchema) =>
   (!fieldSchema.items || fieldSchema.items.type === undefined || fieldSchema.items.type === "string");
 
 const isFieldTime = (fieldType: string, fieldSchema: ParamSchema) =>
-  fieldType === "string" && fieldSchema.format === "date";
+  fieldType === "string" && fieldSchema.format === "time";
 
 export const FieldSelector = ({ name, param }: FlexibleFormElementProps) => {
   // FUTURE: Add support for other types as described in AIP-68 via Plugins
@@ -93,11 +93,11 @@ export const FieldSelector = ({ name, param }: FlexibleFormElementProps) => {
   if (isFieldBool(fieldType)) {
     return <FieldBool name={name} param={param} />;
   } else if (isFieldDateTime(fieldType, param.schema)) {
-    return <FieldDateTime name={name} param={param} subType="datetime-local" />;
+    return <FieldDateTime name={name} param={param} type="datetime-local" />;
   } else if (isFieldDate(fieldType, param.schema)) {
-    return <FieldDateTime name={name} param={param} subType="date" />;
+    return <FieldDateTime name={name} param={param} type="date" />;
   } else if (isFieldTime(fieldType, param.schema)) {
-    return <FieldDateTime name={name} param={param} subType="time" />;
+    return <FieldDateTime name={name} param={param} type="time" />;
   } else if (isFieldDropdown(fieldType, param.schema)) {
     return <FieldDropdown name={name} param={param} />;
   } else if (isFieldMultiSelect(fieldType, param.schema)) {

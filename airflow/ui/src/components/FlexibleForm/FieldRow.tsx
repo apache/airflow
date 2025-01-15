@@ -32,10 +32,10 @@ const isRequired = (param: ParamSpec) =>
   Boolean(param.schema.type) && (!Array.isArray(param.schema.type) || !param.schema.type.includes("null"));
 
 /** Render a normal form row with a field that is auto-selected */
-export const NormalRow = ({ name, param }: FlexibleFormElementProps) => (
+export const FieldRow = ({ name, param }: FlexibleFormElementProps) => (
   <Field.Root orientation="horizontal" required={isRequired(param)}>
-    <Stack css={{ "flex-basis": "30%" }}>
-      <Field.Label css={{ "flex-basis": "0" }} fontSize="md">
+    <Stack>
+      <Field.Label fontSize="md">
         {param.schema.title ?? name} <Field.RequiredIndicator />
       </Field.Label>
     </Stack>
