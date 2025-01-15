@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import func, select
 
+from airflow.dag_processing.dag_store import DagStore
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import tuple_in_condition
@@ -104,8 +105,9 @@ def _get_external_task_group_task_ids(dttm_filter, external_task_group_id, exter
     :param external_dag_id: The ID of the external DAG.
     :param session: airflow session object
     """
-    refreshed_dag_info = DagBag(read_dags_from_db=True).get_dag(external_dag_id, session)
-    task_group = refreshed_dag_info.task_group_dict.get(external_task_group_id)
+    refreshed_dag_info = DagStore().load_dag(external_dag_id, session)
+
+    task_group = refreshed_dag_info.dag.task_group_dict.get(external_task_group_id)
 
     if task_group:
         group_tasks = session.scalars(

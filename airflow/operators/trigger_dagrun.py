@@ -34,10 +34,10 @@ from airflow.exceptions import (
     DagNotFound,
     DagRunAlreadyExists,
 )
+from airflow.dag_processing.dag_store import DagStore
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DagModel
-from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.xcom import XCom
 from airflow.triggers.external_task import DagStateTrigger
@@ -208,12 +208,14 @@ class TriggerDagRunOperator(BaseOperator):
                 # Get target dag object and call clear()
                 dag_model = DagModel.get_current(self.trigger_dag_id)
                 if dag_model is None:
-                    raise DagNotFound(f"Dag id {self.trigger_dag_id} not found in DagModel")
+                    raise DagNotFound(f"DAG id {self.trigger_dag_id} not found in DagModel")
 
                 # Note: here execution fails on database isolation mode. Needs structural changes for AIP-72
-                dag_bag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
-                dag = dag_bag.get_dag(self.trigger_dag_id)
-                dag.clear(start_date=dag_run.logical_date, end_date=dag_run.logical_date)
+                ingested_dag = DagStore().load_dag(self.trigger_dag_id)
+                if ingested_dag is None:
+                    raise DagNotFound(f"DAG id {self.trigger_dag_id} not found in DagModel")
+
+                ingested_dag.dag.clear(start_date=dag_run.logical_date, end_date=dag_run.logical_date)
             else:
                 if self.skip_when_already_exists:
                     raise AirflowSkipException(

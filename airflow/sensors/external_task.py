@@ -24,9 +24,9 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.dag_processing.dag_store import DagStore
 from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DagModel
-from airflow.models.dagbag import DagBag
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.sensors.base import BaseSensorOperator
@@ -380,11 +380,15 @@ class ExternalTaskSensor(BaseSensorOperator):
         if not dag_to_wait:
             raise AirflowException(f"The external DAG {self.external_dag_id} does not exist.")
 
-        if not os.path.exists(correct_maybe_zipped(dag_to_wait.fileloc)):
+        # TODO: This will break for virtual paths. Switching to data reading from DB instead.
+        # if not os.path.exists(correct_maybe_zipped(dag_to_wait.fileloc)):
+            # raise AirflowException(f"The external DAG {self.external_dag_id} was deleted.")
+        ingested_dag = DagStore().load_dag(self.external_dag_id)
+        if not ingested_dag:
             raise AirflowException(f"The external DAG {self.external_dag_id} was deleted.")
 
         if self.external_task_ids:
-            refreshed_dag_info = DagBag(dag_to_wait.fileloc).get_dag(self.external_dag_id)
+            refreshed_dag_info = ingested_dag.dag
             for external_task_id in self.external_task_ids:
                 if not refreshed_dag_info.has_task(external_task_id):
                     raise AirflowException(
@@ -393,7 +397,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                     )
 
         if self.external_task_group_id:
-            refreshed_dag_info = DagBag(dag_to_wait.fileloc).get_dag(self.external_dag_id)
+            refreshed_dag_info = ingested_dag.dag
             if not refreshed_dag_info.has_task_group(self.external_task_group_id):
                 raise AirflowException(
                     f"The external task group '{self.external_task_group_id}' in "

@@ -919,13 +919,15 @@ def check_and_run_migrations():
 
 
 def _reserialize_dags(*, session: Session) -> None:
-    from airflow.models.dagbag import DagBag
+    from airflow.dag_processing.dag_importer import ImportOptions
+    from airflow.dag_processing.dag_parser import DagParser
+    from airflow.dag_processing.dag_store import DagStore
     from airflow.models.serialized_dag import SerializedDagModel
 
     session.execute(delete(SerializedDagModel).execution_options(synchronize_session=False))
-    dagbag = DagBag(collect_dags=False)
-    dagbag.collect_dags(only_if_updated=False)
-    dagbag.sync_to_db(session=session)
+    parser = DagParser()
+    for result in parser.parse_paths(options=ImportOptions(skip_unchanged=True)):
+        DagStore().store_dags(result.dags.values(), session=session)
 
 
 @provide_session
@@ -1223,15 +1225,19 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
 
 @provide_session
 def bootstrap_dagbag(session: Session = NEW_SESSION):
+    from airflow.dag_processing.dag_parser import DagParser
+    from airflow.dag_processing.dag_store import DagStore
     from airflow.models.dag import DAG
-    from airflow.models.dagbag import DagBag
 
-    dagbag = DagBag()
-    # Save DAGs in the ORM
-    dagbag.sync_to_db(session=session)
+    parser = DagParser()
+    dag_ids = []
+    for result in parser.parse_paths():
+        # Save DAGs in the ORM
+        DagStore().store_dags(result.dags.values(), session=session)
+        dag_ids.extend(result.dags.keys())
 
     # Deactivate the unknown ones
-    DAG.deactivate_unknown_dags(dagbag.dags.keys(), session=session)
+    DAG.deactivate_unknown_dags(dag_ids, session=session)
 
 
 @provide_session

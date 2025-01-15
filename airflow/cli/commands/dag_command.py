@@ -33,6 +33,8 @@ from sqlalchemy import delete, select
 from airflow.api.client import get_current_api_client
 from airflow.api_connexion.schemas.dag_schema import dag_schema
 from airflow.cli.simple_table import AirflowConsole
+from airflow.dag_processing.dag_store import DagStore
+from airflow.dag_processing.dag_parser import DagParser
 from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
@@ -331,8 +333,14 @@ def dag_list_dags(args, session=NEW_SESSION) -> None:
             f"List of valid columns: {list(dag_schema.fields.keys())}",
             file=sys.stderr,
         )
-    dagbag = DagBag(process_subdir(args.subdir))
-    if dagbag.import_errors:
+    parser = DagParser()
+    dags = []
+    errors_present = False
+    for result in parser.parse_paths(process_subdir(args.subdir)):
+        errors_present = errors_present or result.import_errors
+        dags.extend(result.dags.values())
+    
+    if errors_present:
         from rich import print as rich_print
 
         rich_print(
@@ -350,7 +358,7 @@ def dag_list_dags(args, session=NEW_SESSION) -> None:
         return {col: dag_detail[col] for col in valid_cols}
 
     AirflowConsole().print_as(
-        data=sorted(dagbag.dags.values(), key=operator.attrgetter("dag_id")),
+        data=sorted(dags, key=operator.attrgetter("dag_id")),
         output=args.output,
         mapper=get_dag_detail,
     )
@@ -383,10 +391,12 @@ def dag_details(args, session=NEW_SESSION):
 @providers_configuration_loaded
 def dag_list_import_errors(args) -> None:
     """Display dags with import errors on the command line."""
-    dagbag = DagBag(process_subdir(args.subdir))
+    parser = DagParser()
+    
     data = []
-    for filename, errors in dagbag.import_errors.items():
-        data.append({"filepath": filename, "error": errors})
+    for result in parser.parse_paths(process_subdir(args.subdir)):
+        for filename, errors in result.import_errors.items():
+            data.append({"filepath": filename, "error": errors})
     AirflowConsole().print_as(
         data=data,
         output=args.output,
@@ -543,5 +553,6 @@ def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
     session.execute(delete(SerializedDagModel).execution_options(synchronize_session=False))
 
     if not args.clear_only:
-        dagbag = DagBag(process_subdir(args.subdir))
-        dagbag.sync_to_db(session=session)
+        parser = DagParser()
+        for result in parser.parse_paths(process_subdir(args.subdir)):
+            DagStore().store_dags(result.dags.values(), session=session)

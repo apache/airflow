@@ -272,12 +272,24 @@ class SerializedDagModel(Base):
         session.execute(cls.__table__.delete().where(cls.dag_id == dag_id))
 
     @classmethod
+    @provide_session
+    def remove_dags(cls, dag_ids: Collection[str], session: Session = NEW_SESSION) -> None:
+        """
+        Delete DAGs with given dag_id.
+
+        :param dag_ids: dag_ids to be deleted
+        :param session: ORM Session.
+        """
+        session.execute(cls.__table__.delete().where(cls.dag_id.in_(dag_ids)))
+
+    @classmethod
     @internal_api_call
     @provide_session
     def remove_deleted_dags(
         cls,
         alive_dag_filelocs: Collection[str],
         processor_subdir: str | None = None,
+        filepath_prefix: str = "",
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -298,6 +310,7 @@ class SerializedDagModel(Base):
                 and_(
                     cls.fileloc_hash.notin_(alive_fileloc_hashes),
                     cls.fileloc.notin_(alive_dag_filelocs),
+                    cls.fileloc.startswith(filepath_prefix),
                     or_(
                         cls.processor_subdir.is_(None),
                         cls.processor_subdir == processor_subdir,

@@ -178,12 +178,12 @@ def get_mapped_task_instances(
     # 0 can mean a mapped TI that expanded to an empty list, so it is not an automatic 404
     unfiltered_total_count = get_query_count(base_query, session=session)
     if unfiltered_total_count == 0:
-        dag = get_airflow_app().dag_bag.get_dag(dag_id)
-        if not dag:
+        ingested_dag = get_airflow_app().dag_source.load_dag(dag_id)
+        if not ingested_dag:
             error_message = f"DAG {dag_id} not found"
             raise NotFound(error_message)
         try:
-            task = dag.get_task(task_id)
+            task = ingested_dag.dag.get_task(task_id)
         except TaskNotFound:
             error_message = f"Task id {task_id} not found"
             raise NotFound(error_message)
@@ -443,10 +443,11 @@ def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) ->
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
 
-    dag = get_airflow_app().dag_bag.get_dag(dag_id)
-    if not dag:
+    ingested_dag = get_airflow_app().dag_source.load_dag(dag_id)
+    if not ingested_dag:
         error_message = f"Dag id {dag_id} not found"
         raise NotFound(error_message)
+    dag = ingested_dag.dag
     reset_dag_runs = data.pop("reset_dag_runs")
     dry_run = data.pop("dry_run")
     # We always pass dry_run here, otherwise this would try to confirm on the terminal!
@@ -478,7 +479,7 @@ def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) ->
         if len(dag.task_dict) > 1:
             # If we had upstream/downstream etc then also include those!
             task_ids.extend(tid for tid in dag.task_dict if tid != task_id)
-    task_instances = dag.clear(dry_run=True, dag_bag=get_airflow_app().dag_bag, task_ids=task_ids, **data)
+    task_instances = dag.clear(dry_run=True, dag_source=get_airflow_app().dag_source, task_ids=task_ids, **data)
 
     if not dry_run:
         clear_task_instances(
@@ -505,9 +506,10 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
         raise BadRequest(detail=str(err.messages))
 
     error_message = f"Dag ID {dag_id} not found"
-    dag = get_airflow_app().dag_bag.get_dag(dag_id)
-    if not dag:
+    ingested_dag = get_airflow_app().dag_source.load_dag(dag_id)
+    if not ingested_dag:
         raise NotFound(error_message)
+    dag = ingested_dag.dag
 
     task_id = data["task_id"]
     task = dag.task_dict.get(task_id)
@@ -574,9 +576,10 @@ def patch_task_instance(
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
 
-    dag = get_airflow_app().dag_bag.get_dag(dag_id)
-    if not dag:
+    ingested_dag = get_airflow_app().dag_source.load_dag(dag_id)
+    if not ingested_dag:
         raise NotFound("DAG not found", detail=f"DAG {dag_id!r} not found")
+    dag = ingested_dag.dag
 
     if not dag.has_task(task_id):
         raise NotFound("Task not found", detail=f"Task {task_id!r} not found in DAG {dag_id!r}")
@@ -691,11 +694,11 @@ def get_task_instance_dependencies(
     deps = []
 
     if ti.state in [None, TaskInstanceState.SCHEDULED]:
-        dag = get_airflow_app().dag_bag.get_dag(ti.dag_id)
+        ingested_dag = get_airflow_app().dag_source.load_dag(ti.dag_id)
 
-        if dag:
+        if ingested_dag:
             try:
-                ti.task = dag.get_task(ti.task_id)
+                ti.task = ingested_dag.dag.get_task(ti.task_id)
             except TaskNotFound:
                 pass
             else:

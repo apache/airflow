@@ -27,6 +27,7 @@ from airflow.exceptions import TaskNotFound
 from airflow.utils.airflow_flask_app import get_airflow_app
 
 if TYPE_CHECKING:
+    from airflow.dag_processing.dag_store import IngestedDag
     from airflow import DAG
     from airflow.api_connexion.types import APIResponse
 
@@ -34,12 +35,12 @@ if TYPE_CHECKING:
 @security.requires_access_dag("GET", DagAccessEntity.TASK)
 def get_task(*, dag_id: str, task_id: str) -> APIResponse:
     """Get simplified representation of a task."""
-    dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
-    if not dag:
+    ingested_dag: IngestedDag = get_airflow_app().dag_source.load_dag(dag_id)
+    if not ingested_dag:
         raise NotFound("DAG not found")
 
     try:
-        task = dag.get_task(task_id=task_id)
+        task = ingested_dag.dag.get_task(task_id=task_id)
     except TaskNotFound:
         raise NotFound("Task not found")
     return task_schema.dump(task)
@@ -48,10 +49,10 @@ def get_task(*, dag_id: str, task_id: str) -> APIResponse:
 @security.requires_access_dag("GET", DagAccessEntity.TASK)
 def get_tasks(*, dag_id: str, order_by: str = "task_id") -> APIResponse:
     """Get tasks for DAG."""
-    dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
-    if not dag:
+    ingested_dag: IngestedDag = get_airflow_app().dag_source.load_dag(dag_id)
+    if not ingested_dag:
         raise NotFound("DAG not found")
-    tasks = dag.tasks
+    tasks = ingested_dag.dag.tasks
 
     try:
         tasks = sorted(tasks, key=attrgetter(order_by.lstrip("-")), reverse=(order_by[0:1] == "-"))

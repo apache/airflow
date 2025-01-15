@@ -75,8 +75,9 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from airflow import __version__ as airflow_version
 from airflow.auth.managers.utils.fab import get_method_from_fab_action_map
 from airflow.configuration import conf
+from airflow.dag_processing.dag_store import DagStore
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, RemovedInAirflow3Warning
-from airflow.models import DagBag, DagModel
+from airflow.models import DagModel
 from airflow.providers.fab.auth_manager.models import (
     Action,
     Permission,
@@ -1071,9 +1072,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         if you only need to sync a single DAG.
         """
         perms = self.get_all_permissions()
-        dagbag = DagBag(read_dags_from_db=True)
-        dagbag.collect_dags_from_db()
-        dags = dagbag.dags.values()
+        dag_store = DagStore()
+        dags = []
+        for dag_metadata in dag_store.list_dags_metadata():
+            ingested_dag = dag_store.load_dag(dag_metadata.dag_id)
+            if ingested_dag:
+                dags.append(ingested_dag.dag)
 
         for dag in dags:
             # TODO: Remove this when the minimum version of Airflow is bumped to 3.0

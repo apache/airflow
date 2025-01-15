@@ -33,7 +33,7 @@ files_not_fully_covered = [
     "airflow/www/decorators.py",
     "airflow/www/extensions/init_appbuilder.py",
     "airflow/www/extensions/init_auth_manager.py",
-    "airflow/www/extensions/init_dagbag.py",
+    "airflow/www/extensions/init_dag_source.py",
     "airflow/www/extensions/init_jinja_globals.py",
     "airflow/www/extensions/init_manifest_files.py",
     "airflow/www/extensions/init_security.py",

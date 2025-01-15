@@ -109,7 +109,7 @@ def _get_dagrun(dag: DAG, run_id: str, session: Session | None = None) -> DagRun
 def _clear_task_instances(
     dag_id: str, run_id: str, task_ids: list[str], log: logging.Logger, session: Session | None = None
 ) -> None:
-    dag = airflow_app.dag_bag.get_dag(dag_id)
+    dag = airflow_app.dag_source.load_dag(dag_id).dag
     log.debug("task_ids %s to clear", str(task_ids))
     dr: DagRun = _get_dagrun(dag, run_id, session=session)
     tis_to_clear = [ti for ti in dr.get_task_instances() if _get_databricks_task_id(ti) in task_ids]
@@ -243,7 +243,7 @@ class WorkflowJobRunLink(BaseOperatorLink, LoggingMixin):
         if not task_group:
             raise AirflowException("Task group is required for generating Databricks Workflow Job Run Link.")
 
-        dag = airflow_app.dag_bag.get_dag(ti_key.dag_id)
+        dag = airflow_app.dag_source.load_dag(ti_key.dag_id)
         dag.get_task(ti_key.task_id)
         self.log.info("Getting link for task %s", ti_key.task_id)
         if ".launch" not in ti_key.task_id:
@@ -315,7 +315,7 @@ class WorkflowJobRepairAllFailedLink(BaseOperatorLink, LoggingMixin):
             raise AirflowException("Task group is required for generating repair link.")
         if not task_group.group_id:
             raise AirflowException("Task group ID is required for generating repair link.")
-        dag = airflow_app.dag_bag.get_dag(ti_key.dag_id)
+        dag = airflow_app.dag_source.load_dag(ti_key.dag_id)
         dr = _get_dagrun(dag, ti_key.run_id)
         log.debug("Getting failed and skipped tasks for dag run %s", dr.run_id)
         task_group_sub_tasks = self.get_task_group_children(task_group).items()
@@ -374,7 +374,7 @@ class WorkflowJobRepairSingleTaskLink(BaseOperatorLink, LoggingMixin):
             task_group.group_id,
             ti_key.task_id,
         )
-        dag = airflow_app.dag_bag.get_dag(ti_key.dag_id)
+        dag = airflow_app.dag_source.load_dag(ti_key.dag_id)
         task = dag.get_task(ti_key.task_id)
 
         if ".launch" not in ti_key.task_id:

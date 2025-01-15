@@ -90,6 +90,7 @@ from airflow.api.common.mark_tasks import (
 from airflow.assets import Asset, AssetAlias
 from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
 from airflow.configuration import AIRFLOW_CONFIG, conf
+from airflow.dag_processing.dag_store import IngestedDag
 from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,
@@ -1460,7 +1461,7 @@ class Airflow(AirflowBaseView):
         root = request.args.get("root", "")
 
         logger.info("Retrieving rendered templates.")
-        dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
+        dag: DAG = get_airflow_app().dag_source.load_dag(dag_id).dag
         dag_run = dag.get_dagrun(execution_date=dttm)
         raw_task = dag.get_task(task_id).prepare_for_execution()
 
@@ -1592,7 +1593,7 @@ class Airflow(AirflowBaseView):
         map_index = request.args.get("map_index", -1, type=int)
         logger.info("Retrieving rendered k8s.")
 
-        dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
+        dag: DAG = get_airflow_app().dag_source.load_dag(dag_id).dag
         task = dag.get_task(task_id)
         dag_run = dag.get_dagrun(execution_date=dttm, session=session)
         ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index, session=session)
@@ -1654,7 +1655,7 @@ class Airflow(AirflowBaseView):
         map_index = request.args.get("map_index", -1, type=int)
         logger.info("Retrieving rendered k8s data.")
 
-        dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
+        dag: DAG = get_airflow_app().dag_source.load_dag(dag_id).dag
         task = dag.get_task(task_id)
         dag_run = dag.get_dagrun(run_id=run_id, session=session)
         ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index, session=session)
@@ -1736,9 +1737,9 @@ class Airflow(AirflowBaseView):
             }
 
         try:
-            dag = get_airflow_app().dag_bag.get_dag(dag_id)
-            if dag:
-                ti.task = dag.get_task(ti.task_id)
+            ingested_dag: IngestedDag = get_airflow_app().dag_source.load_dag(dag_id)
+            if ingested_dag:
+                ti.task = ingested_dag.dag.get_task(ti.task_id)
 
             if response_format == "json":
                 logs, metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)
@@ -1847,11 +1848,12 @@ class Airflow(AirflowBaseView):
         map_index = request.args.get("map_index", -1, type=int)
         form = DateTimeForm(data={"execution_date": dttm})
         root = request.args.get("root", "")
-        dag = get_airflow_app().dag_bag.get_dag(dag_id)
+        ingested_dag = get_airflow_app().dag_source.load_dag(dag_id)
 
-        if not dag or task_id not in dag.task_ids:
+        if not ingested_dag or task_id not in ingested_dag.dag.task_ids:
             flash(f"Task [{dag_id}.{task_id}] doesn't seem to exist at the moment", "error")
             return redirect(url_for("Airflow.index"))
+        dag = ingested_dag.dag
         task = copy.copy(dag.get_task(task_id))
         task.resolve_template_files()
 
@@ -2055,7 +2057,8 @@ class Airflow(AirflowBaseView):
         request_conf = request.values.get("conf")
         request_execution_date = request.values.get("execution_date", default=timezone.utcnow().isoformat())
         is_dag_run_conf_overrides_params = conf.getboolean("core", "dag_run_conf_overrides_params")
-        dag = get_airflow_app().dag_bag.get_dag(dag_id)
+        ingested_dag = get_airflow_app().dag_source.load_dag(dag_id)
+        dag = ingested_dag.dag
         dag_orm: DagModel = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id).limit(1))
 
         # Prepare form fields with param struct details to render a proper form with schema information
@@ -2253,8 +2256,9 @@ class Airflow(AirflowBaseView):
                 state=DagRunState.QUEUED,
                 conf=run_conf,
                 external_trigger=True,
-                dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
+                dag_hash=ingested_dag.dag_hash,
                 run_id=run_id,
+
                 triggered_by=DagRunTriggeredByType.UI,
             )
         except (ValueError, ParamValidationError) as ve:
@@ -2351,7 +2355,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.form.get("dag_id")
         task_id = request.form.get("task_id")
         origin = get_safe_url(request.form.get("origin"))
-        dag = get_airflow_app().dag_bag.get_dag(dag_id)
+        dag = get_airflow_app().dag_source.load_dag(dag_id).dag
         group_id = request.form.get("group_id")
 
         if "map_index" not in request.form:
@@ -2443,7 +2447,7 @@ class Airflow(AirflowBaseView):
         confirmed = request.form.get("confirmed") == "true"
         only_failed = request.form.get("only_failed") == "true"
 
-        dag = get_airflow_app().dag_bag.get_dag(dag_id)
+        dag = get_airflow_app().dag_source.load_dag(dag_id).dag
         dr = dag.get_dagrun(run_id=dag_run_id)
         start_date = dr.logical_date
         end_date = dr.logical_date
@@ -2487,10 +2491,10 @@ class Airflow(AirflowBaseView):
         payload = []
         for dag_id, active_dag_runs in dags:
             max_active_runs = 0
-            dag = get_airflow_app().dag_bag.get_dag(dag_id)
-            if dag:
+            ingested_dag = get_airflow_app().dag_source.load_dag(dag_id)
+            if ingested_dag:
                 # TODO: Make max_active_runs a column so we can query for it directly
-                max_active_runs = dag.max_active_runs
+                max_active_runs = ingested_dag.dag.max_active_runs
             payload.append(
                 {
                     "dag_id": dag_id,
@@ -2504,10 +2508,11 @@ class Airflow(AirflowBaseView):
         if not dag_run_id:
             return {"status": "error", "message": "Invalid dag_run_id"}
 
-        dag = get_airflow_app().dag_bag.get_dag(dag_id)
+        ingested_dag = get_airflow_app().dag_source.load_dag(dag_id)
 
-        if not dag:
+        if not ingested_dag:
             return {"status": "error", "message": f"Cannot find DAG: {dag_id}"}
+        dag = ingested_dag.dag
 
         new_dag_state = set_dag_run_state_to_failed(dag=dag, run_id=dag_run_id, commit=confirmed)
 
@@ -2522,10 +2527,11 @@ class Airflow(AirflowBaseView):
         if not dag_run_id:
             return {"status": "error", "message": "Invalid dag_run_id"}
 
-        dag = get_airflow_app().dag_bag.get_dag(dag_id)
+        ingested_dag = get_airflow_app().dag_source.load_dag(dag_id)
 
-        if not dag:
+        if not ingested_dag:
             return {"status": "error", "message": f"Cannot find DAG: {dag_id}"}
+        dag = ingested_dag.dag
 
         new_dag_state = set_dag_run_state_to_success(dag=dag, run_id=dag_run_id, commit=confirmed)
 
@@ -2547,10 +2553,11 @@ class Airflow(AirflowBaseView):
         if not dag_run_id:
             return {"status": "error", "message": "Invalid dag_run_id"}
 
-        dag = get_airflow_app().dag_bag.get_dag(dag_id)
+        ingested_dag = get_airflow_app().dag_source.load_dag(dag_id)
 
-        if not dag:
+        if not ingested_dag:
             return {"status": "error", "message": f"Cannot find DAG: {dag_id}"}
+        dag = ingested_dag.dag
 
         set_dag_run_state_to_queued(dag=dag, run_id=dag_run_id, commit=confirmed)
 
@@ -2625,7 +2632,7 @@ class Airflow(AirflowBaseView):
         past: bool,
         state: TaskInstanceState,
     ):
-        dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
+        dag: DAG = get_airflow_app().dag_source.load_dag(dag_id).dag
 
         if not run_id:
             flash(f"Cannot mark tasks as {state}, seem that DAG {dag_id} has never run", "error")
@@ -2658,7 +2665,7 @@ class Airflow(AirflowBaseView):
         past: bool,
         state: TaskInstanceState,
     ):
-        dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
+        dag: DAG = get_airflow_app().dag_source.load_dag(dag_id).dag
 
         if not run_id:
             flash(f"Cannot mark tasks as {state}, as DAG {dag_id} has never run", "error")
@@ -2704,10 +2711,11 @@ class Airflow(AirflowBaseView):
         if not exactly_one(task_id, group_id):
             raise ValueError("Exactly one of task_id or group_id must be provided")
 
-        dag = get_airflow_app().dag_bag.get_dag(dag_id)
-        if not dag:
+        ingested_dag = get_airflow_app().dag_source.load_dag(dag_id)
+        if not ingested_dag:
             msg = f"DAG {dag_id} not found"
             return redirect_or_json(origin, msg, status="error", status_code=404)
+        dag = ingested_dag.dag
 
         if state not in (
             "success",
@@ -2896,12 +2904,13 @@ class Airflow(AirflowBaseView):
         color_log_error_keywords = conf.get("logging", "color_log_error_keywords", fallback="")
         color_log_warning_keywords = conf.get("logging", "color_log_warning_keywords", fallback="")
 
-        dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
+        ingested_dag = get_airflow_app().dag_source.load_dag(dag_id, session=session)
         url_serializer = URLSafeSerializer(current_app.config["SECRET_KEY"])
         dag_model = DagModel.get_dagmodel(dag_id, session=session)
-        if not dag:
+        if not ingested_dag:
             flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
             return redirect(url_for("Airflow.index"))
+        dag = ingested_dag.dag
         wwwutils.check_import_errors(dag.fileloc, session)
         wwwutils.check_dag_warnings(dag.dag_id, session)
 
@@ -2984,9 +2993,10 @@ class Airflow(AirflowBaseView):
     def calendar_data(self, session: Session = NEW_SESSION):
         """Get DAG runs as calendar."""
         dag_id = request.args.get("dag_id")
-        dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
-        if not dag:
+        ingested_dag = get_airflow_app().dag_source.load_dag(dag_id, session=session)
+        if not ingested_dag:
             return {"error": f"can't find dag {dag_id}"}, 404
+        dag = ingested_dag.dag
 
         dag_states = session.execute(
             select(
@@ -3091,10 +3101,13 @@ class Airflow(AirflowBaseView):
     @provide_session
     def graph(self, dag_id: str, session: Session = NEW_SESSION):
         """Redirect to the replacement - grid + graph. Kept for backwards compatibility."""
-        dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
-        if not dag:
+        ingested_dag = get_airflow_app().dag_source.load_dag(dag_id, session=session)
+
+        if not ingested_dag:
             flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
             return redirect(url_for("Airflow.index"))
+        dag = ingested_dag.dag
+
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
         dttm = dt_nr_dr_data["dttm"]
         dag_run = dag.get_dagrun(execution_date=dttm)
@@ -3169,7 +3182,7 @@ class Airflow(AirflowBaseView):
     @provide_session
     def gantt(self, dag_id: str, session: Session = NEW_SESSION):
         """Redirect to the replacement - grid + gantt. Kept for backwards compatibility."""
-        dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
+        dag = get_airflow_app().dag_source.load_dag(dag_id, session=session).dag
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
         dttm = dt_nr_dr_data["dttm"]
         dag_run = dag.get_dagrun(execution_date=dttm)
@@ -3206,12 +3219,12 @@ class Airflow(AirflowBaseView):
         map_index = request.args.get("map_index", -1, type=int)
         execution_date = request.args.get("execution_date")
         dttm = _safe_parse_datetime(execution_date)
-        dag = get_airflow_app().dag_bag.get_dag(dag_id)
+        ingested_dag = get_airflow_app().dag_source.load_dag(dag_id)
 
-        if not dag or task_id not in dag.task_ids:
-            return {"url": None, "error": f"can't find dag {dag} or task_id {task_id}"}, 404
+        if not ingested_dag or task_id not in ingested_dag.dag.task_ids:
+            return {"url": None, "error": f"can't find dag {dag_id} or task_id {task_id}"}, 404
 
-        task = dag.get_task(task_id)
+        task = ingested_dag.dag.get_task(task_id)
         link_name = request.args.get("link_name")
         if link_name is None:
             return {"url": None, "error": "Link name not passed"}, 400
@@ -3240,7 +3253,7 @@ class Airflow(AirflowBaseView):
     def graph_data(self):
         """Get Graph Data."""
         dag_id = request.args.get("dag_id")
-        dag = get_airflow_app().dag_bag.get_dag(dag_id)
+        dag = get_airflow_app().dag_source.load_dag(dag_id).dag
         root = request.args.get("root")
         if root:
             filter_upstream = request.args.get("filter_upstream") == "true"
@@ -3267,7 +3280,7 @@ class Airflow(AirflowBaseView):
     def task_instances(self):
         """Show task instances."""
         dag_id = request.args.get("dag_id")
-        dag = get_airflow_app().dag_bag.get_dag(dag_id)
+        dag = get_airflow_app().dag_source.load_dag(dag_id).dag
 
         dttm = request.args.get("execution_date")
         if dttm:
@@ -3288,10 +3301,11 @@ class Airflow(AirflowBaseView):
     def grid_data(self):
         """Return grid data."""
         dag_id = request.args.get("dag_id")
-        dag = get_airflow_app().dag_bag.get_dag(dag_id)
+        ingested_dag = get_airflow_app().dag_source.load_dag(dag_id)
 
-        if not dag:
+        if not ingested_dag:
             return {"error": f"can't find dag {dag_id}"}, 404
+        dag = ingested_dag.dag
 
         root = request.args.get("root")
         if root:
@@ -3412,9 +3426,10 @@ class Airflow(AirflowBaseView):
     @mark_fastapi_migration_done
     def next_run_assets(self, dag_id):
         """Return assets necessary, and their status, for the next dag run."""
-        dag = get_airflow_app().dag_bag.get_dag(dag_id)
-        if not dag:
+        ingested_dag = get_airflow_app().dag_source.load_dag(dag_id)
+        if not ingested_dag:
             return {"error": f"can't find dag {dag_id}"}, 404
+        dag = ingested_dag.dag
 
         with create_session() as session:
             dag_model = DagModel.get_dagmodel(dag_id, session=session)
@@ -4896,7 +4911,7 @@ class DagRunModelView(AirflowModelView):
             for dr in session.scalars(select(DagRun).where(DagRun.id.in_(dagrun.id for dagrun in drs))):
                 count += 1
                 altered_tis += set_dag_run_state_to_failed(
-                    dag=get_airflow_app().dag_bag.get_dag(dr.dag_id),
+                    dag=get_airflow_app().dag_source.load_dag(dr.dag_id).dag,
                     run_id=dr.run_id,
                     commit=True,
                     session=session,
@@ -4924,7 +4939,7 @@ class DagRunModelView(AirflowModelView):
             for dr in session.scalars(select(DagRun).where(DagRun.id.in_(dagrun.id for dagrun in drs))):
                 count += 1
                 altered_tis += set_dag_run_state_to_success(
-                    dag=get_airflow_app().dag_bag.get_dag(dr.dag_id),
+                    dag=get_airflow_app().dag_source.load_dag(dr.dag_id).dag,
                     run_id=dr.run_id,
                     commit=True,
                     session=session,
@@ -4947,7 +4962,7 @@ class DagRunModelView(AirflowModelView):
             dag_to_tis: dict[DAG, list[TaskInstance]] = {}
             for dr in session.scalars(select(DagRun).where(DagRun.id.in_(dagrun.id for dagrun in drs))):
                 count += 1
-                dag = get_airflow_app().dag_bag.get_dag(dr.dag_id)
+                dag = get_airflow_app().dag_source.load_dag(dr.dag_id).dag
                 tis_to_clear = dag_to_tis.setdefault(dag, [])
                 tis_to_clear += dr.get_task_instances()
 
@@ -5306,7 +5321,7 @@ class TaskInstanceModelView(AirflowModelView):
         tis_grouped_by_dag_id = itertools.groupby(task_instances, lambda ti: ti.dag_id)
 
         for dag_id, dag_tis in tis_grouped_by_dag_id:
-            dag = get_airflow_app().dag_bag.get_dag(dag_id)
+            dag = get_airflow_app().dag_source.load_dag(dag_id).dag
 
             tis_to_clear = list(dag_tis)
             downstream_tis_to_clear = []

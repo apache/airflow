@@ -136,6 +136,7 @@ class DagCode(Base):
         cls,
         alive_dag_filelocs: Collection[str],
         processor_subdir: str,
+        filepath_prefix: str = "",
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -154,6 +155,7 @@ class DagCode(Base):
             .where(
                 cls.fileloc_hash.notin_(alive_fileloc_hashes),
                 cls.fileloc.notin_(alive_dag_filelocs),
+                cls.fileloc.startswith(filepath_prefix),
                 cls.fileloc.contains(processor_subdir),
             )
             .execution_options(synchronize_session="fetch")

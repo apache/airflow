@@ -103,10 +103,10 @@ def get_log(
         metadata["end_of_log"] = True
         raise NotFound(title="TaskInstance not found")
 
-    dag = get_airflow_app().dag_bag.get_dag(dag_id)
-    if dag:
+    ingested_dag = get_airflow_app().dag_source.load_dag(dag_id)
+    if ingested_dag:
         try:
-            ti.task = dag.get_task(ti.task_id)
+            ti.task = ingested_dag.dag.get_task(ti.task_id)
         except TaskNotFound:
             pass
 

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow.dag_processing.dag_parser import DagParser
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
 from airflow.stats import Stats
@@ -28,15 +29,12 @@ from airflow.utils.session import NEW_SESSION, provide_session
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.dag_processing.manager import DagFileProcessorManager
-
 
 class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
     """
-    DagProcessorJobRunner is a job runner that runs a DagFileProcessorManager processor.
+    DagProcessorJobRunner is a job runner that runs a DagParser.
 
     :param job: Job instance to use
-    :param processor: DagFileProcessorManager instance to use
     """
 
     job_type = "DagProcessorJob"
@@ -44,13 +42,11 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
     def __init__(
         self,
         job: Job,
-        processor: DagFileProcessorManager,
         *args,
         **kwargs,
     ):
         super().__init__(job)
-        self.processor = processor
-        self.processor.heartbeat = lambda: perform_heartbeat(
+        self._heartbeat = lambda: perform_heartbeat(
             job=self.job,
             heartbeat_callback=self.heartbeat_callback,
             only_if_necessary=True,
@@ -59,13 +55,10 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
     def _execute(self) -> int | None:
         self.log.info("Starting the Dag Processor Job")
         try:
-            self.processor.start()
+            DagParser().run_ingestion(heartbeat_callback=self._heartbeat)
         except Exception:
             self.log.exception("Exception when executing DagProcessorJob")
             raise
-        finally:
-            self.processor.terminate()
-            self.processor.end()
         return None
 
     @provide_session

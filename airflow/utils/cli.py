@@ -36,6 +36,7 @@ from sqlalchemy import select
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig
+from airflow.dag_processing.dag_store import DagStore
 from airflow.exceptions import AirflowException
 from airflow.utils import cli_action_loggers, timezone
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
@@ -194,8 +195,7 @@ def get_dag_by_file_location(dag_id: str):
         raise AirflowException(
             f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse."
         )
-    dagbag = DagBag(dag_folder=dag_model.fileloc)
-    return dagbag.dags[dag_id]
+    return DagStore().load_dag(dag_id).dag
 
 
 def _search_for_dag_file(val: str | None) -> str | None:
@@ -227,22 +227,29 @@ def get_dag(subdir: str | None, dag_id: str, from_db: bool = False) -> DAG:
     find the correct path (assuming it's a file) and failing that, use the configured
     dags folder.
     """
-    from airflow.models import DagBag
+    from airflow.dag_processing.dag_parser import DagParser
 
     if from_db:
-        dagbag = DagBag(read_dags_from_db=True)
-        dag = dagbag.get_dag(dag_id)  # get_dag loads from the DB as requested
+        dag_store = DagStore()
+        ingested_dag = dag_store.load_dag(dag_id)  # get_dag loads from the DB as requested
+        dag = ingested_dag.dag if ingested_dag else None
     else:
         first_path = process_subdir(subdir)
-        dagbag = DagBag(first_path)
-        dag = dagbag.dags.get(dag_id)  # avoids db calls made in get_dag
+        parser = DagParser()
+        for parse_result in parser.parse_paths(first_path):
+            dag = parse_result.dags.get(dag_id)  # avoids db calls made in get_dag
+            if dag:
+                break
+
     if not dag:
         if from_db:
             raise AirflowException(f"Dag {dag_id!r} could not be found in DagBag read from database.")
         fallback_path = _search_for_dag_file(subdir) or settings.DAGS_FOLDER
         logger.warning("Dag %r not found in path %s; trying path %s", dag_id, first_path, fallback_path)
-        dagbag = DagBag(dag_folder=fallback_path)
-        dag = dagbag.get_dag(dag_id)
+        for parse_result in parser.parse_paths(fallback_path):
+            dag = parse_result.dags.get_dag(dag_id)
+            if dag:
+                break
         if not dag:
             raise AirflowException(
                 f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse."
@@ -252,12 +259,13 @@ def get_dag(subdir: str | None, dag_id: str, from_db: bool = False) -> DAG:
 
 def get_dags(subdir: str | None, dag_id: str, use_regex: bool = False):
     """Return DAG(s) matching a given regex or dag_id."""
-    from airflow.models import DagBag
+    dag_store = DagStore()
 
     if not use_regex:
-        return [get_dag(subdir, dag_id)]
-    dagbag = DagBag(process_subdir(subdir))
-    matched_dags = [dag for dag in dagbag.dags.values() if re2.search(dag_id, dag.dag_id)]
+        ingested_dag = dag_store.load_dag(dag_id)
+        return [] if not ingested_dag else [ingested_dag.dag]
+
+    matched_dags = [dag_store.load_dag(metadata.dag_id).dag for metadata in dag_store.list_dags_metadata() if re2.search(dag_id, metadata.dag_id)]
     if not matched_dags:
         raise AirflowException(
             f"dag_id could not be found with regex: {dag_id}. Either the dag did not exist or "

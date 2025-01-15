@@ -330,7 +330,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     )
     if not dagrun_instance:
         try:
-            dag = get_airflow_app().dag_bag.get_dag(dag_id)
+            ingested_dag = get_airflow_app().dag_source.load_dag(dag_id)
 
             data_interval_start = post_body.get("data_interval_start")
             data_interval_end = post_body.get("data_interval_end")
@@ -340,7 +340,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                     end=pendulum.instance(data_interval_end),
                 )
             else:
-                data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
+                data_interval = ingested_dag.dag.timetable.infer_manual_data_interval(run_after=logical_date)
 
             dag_run = dag.create_dagrun(
                 run_type=DagRunType.MANUAL,
@@ -350,7 +350,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                 state=DagRunState.QUEUED,
                 conf=post_body.get("conf"),
                 external_trigger=True,
-                dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
+                dag_hash=ingested_dag.dag_hash,
                 session=session,
                 triggered_by=DagRunTriggeredByType.REST_API,
             )
@@ -390,7 +390,7 @@ def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW
         raise BadRequest(detail=str(err))
 
     state = post_body["state"]
-    dag = get_airflow_app().dag_bag.get_dag(dag_id)
+    dag = get_airflow_app().dag_source.load_dag(dag_id).dag
     if state == DagRunState.SUCCESS:
         set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True)
     elif state == DagRunState.QUEUED:
@@ -418,7 +418,7 @@ def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSIO
         raise BadRequest(detail=str(err))
 
     dry_run = post_body.get("dry_run", False)
-    dag = get_airflow_app().dag_bag.get_dag(dag_id)
+    dag = get_airflow_app().dag_source.load_dag(dag_id).dag
     start_date = dag_run.logical_date
     end_date = dag_run.logical_date
 

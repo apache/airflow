@@ -78,9 +78,10 @@ def get_dag_details(
     *, dag_id: str, fields: Collection[str] | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Get details of DAG."""
-    dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
-    if not dag:
+    ingested_dag: DAG = get_airflow_app().dag_source.load_dag(dag_id)
+    if not ingested_dag:
         raise NotFound("DAG not found", detail=f"The DAG with dag_id: {dag_id} was not found")
+    dag = ingested_dag.dag
     dag_model: DagModel = session.get(DagModel, dag_id)
     for key, value in dag.__dict__.items():
         if not key.startswith("_") and not hasattr(dag_model, key):

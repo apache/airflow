@@ -89,7 +89,6 @@ from airflow.exceptions import (
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
-from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
 from airflow.models.param import process_params
 from airflow.models.renderedtifields import get_serialized_template_fields
@@ -448,13 +447,15 @@ def clear_task_instances(
         If set to False, DagRuns state will not be changed.
     :param dag: DAG object
     """
+    from airflow.dag_processing.dag_store import DagStore
+    from airflow.models.taskinstancehistory import TaskInstanceHistory
+
     job_ids = []
     # Keys: dag_id -> run_id -> map_indexes -> try_numbers -> task_id
     task_id_by_key: dict[str, dict[str, dict[int, dict[int, set[str]]]]] = defaultdict(
         lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
     )
-    dag_bag = DagBag(read_dags_from_db=True)
-    from airflow.models.taskinstancehistory import TaskInstanceHistory
+    dag_store = DagStore()
 
     for ti in tis:
         TaskInstanceHistory.record_ti(ti, session)
@@ -465,7 +466,11 @@ def clear_task_instances(
                 ti.state = TaskInstanceState.RESTARTING
                 job_ids.append(ti.job_id)
         else:
-            ti_dag = dag if dag and dag.dag_id == ti.dag_id else dag_bag.get_dag(ti.dag_id, session=session)
+            if dag and dag.dag_id == ti.dag_id:
+                ti_dag = dag
+            else:
+                ingested_dag = dag_store.load_dag(ti.dag_id, session=session)
+                ti_dag = ingested_dag.dag if ingested_dag else None
             task_id = ti.task_id
             if ti_dag and ti_dag.has_task(task_id):
                 task = ti_dag.get_task(task_id)
@@ -2595,12 +2600,15 @@ class TaskInstance(Base, LoggingMixin):
         cls, task_instance: TaskInstance | TaskInstancePydantic, session: Session = NEW_SESSION
     ) -> DAG:
         """Ensure that task has a dag object associated, might have been removed by serialization."""
+        from airflow.dag_processing.dag_store import DagStore
+
         if TYPE_CHECKING:
             assert task_instance.task
         if task_instance.task.dag is None or task_instance.task.dag.__class__ is AttributeRemoved:
-            task_instance.task.dag = DagBag(read_dags_from_db=True).get_dag(
+            ingested_dag = DagStore.load_dag(
                 dag_id=task_instance.dag_id, session=session
             )
+            task_instance.task.dag = ingested_dag.dag if ingested_dag else None
         if TYPE_CHECKING:
             assert task_instance.task.dag
         return task_instance.task.dag
@@ -2646,6 +2654,8 @@ class TaskInstance(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         :return: whether the state was changed to running or not
         """
+        from airflow.dag_processing.dag_store import DagStore
+
         if TYPE_CHECKING:
             assert task_instance.task
 
@@ -2654,7 +2664,8 @@ class TaskInstance(Base, LoggingMixin):
         else:  # isinstance(task_instance, TaskInstancePydantic)
             filters = (col == getattr(task_instance, col.name) for col in inspect(TaskInstance).primary_key)
             ti = session.query(TaskInstance).filter(*filters).scalar()
-            dag = DagBag(read_dags_from_db=True).get_dag(task_instance.dag_id, session=session)
+            # TODO: Handle DAG disappearing.
+            dag = DagStore().load_dag(task_instance.dag_id, session=session).dag
             task_instance.task = dag.task_dict[ti.task_id]
             ti.task = task_instance.task
         task = task_instance.task

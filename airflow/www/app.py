@@ -37,7 +37,7 @@ from airflow.utils.json import AirflowJsonProvider
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 from airflow.www.extensions.init_appbuilder_links import init_appbuilder_links
 from airflow.www.extensions.init_cache import init_cache
-from airflow.www.extensions.init_dagbag import init_dagbag
+from airflow.www.extensions.init_dag_source import init_dag_source
 from airflow.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.www.extensions.init_manifest_files import configure_manifest_files
 from airflow.www.extensions.init_robots import init_robots
@@ -136,7 +136,7 @@ def create_app(config=None, testing=False):
     db.session = settings.Session
     db.init_app(flask_app)
 
-    init_dagbag(flask_app)
+    init_dag_source(flask_app)
 
     init_api_auth(flask_app)
 

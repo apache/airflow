@@ -42,14 +42,7 @@ def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
         from airflow.models.renderedtifields import RenderedTaskInstanceFields  # noqa: F401
         from airflow.models.trigger import Trigger  # noqa: F401
     return DagProcessorJobRunner(
-        job=Job(),
-        processor=DagFileProcessorManager(
-            processor_timeout=processor_timeout,
-            dag_directory=args.subdir,
-            max_runs=args.num_runs,
-            dag_ids=[],
-            pickle_dags=args.do_pickle,
-        ),
+        job=Job()
     )
 
 

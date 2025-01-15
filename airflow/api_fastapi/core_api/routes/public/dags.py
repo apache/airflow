@@ -51,6 +51,7 @@ from airflow.api_fastapi.core_api.serializers.dags import (
     DAGResponse,
     DAGTagCollectionResponse,
 )
+from airflow.dag_processing.dag_store import DagStore, IngestedDag
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DAG, DagModel, DagTag
 
@@ -135,9 +136,10 @@ async def get_dag(
     dag_id: str, session: Annotated[Session, Depends(get_session)], request: Request
 ) -> DAGResponse:
     """Get basic information about a DAG."""
-    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
-    if not dag:
+    ingested_dag: IngestedDag = request.app.state.dag_source.load_dag(dag_id)
+    if not ingested_dag:
         raise HTTPException(404, f"Dag with id {dag_id} was not found")
+    dag: DAG = ingested_dag.dag
 
     dag_model: DagModel = session.get(DagModel, dag_id)
     if not dag_model:
@@ -155,9 +157,10 @@ async def get_dag_details(
     dag_id: str, session: Annotated[Session, Depends(get_session)], request: Request
 ) -> DAGDetailsResponse:
     """Get details of DAG."""
-    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
-    if not dag:
+    ingested_dag: IngestedDag = request.app.state.dag_source.load_dag(dag_id)
+    if not ingested_dag:
         raise HTTPException(404, f"Dag with id {dag_id} was not found")
+    dag: DAG = ingested_dag.dag
 
     dag_model: DagModel = session.get(DagModel, dag_id)
     if not dag_model:

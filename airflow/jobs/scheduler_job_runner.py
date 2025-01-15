@@ -27,7 +27,7 @@ from collections import Counter, defaultdict, deque
 from datetime import timedelta
 from functools import lru_cache, partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator, Optional
 
 from sqlalchemy import and_, delete, exists, func, not_, or_, select, text, update
 from sqlalchemy.exc import OperationalError
@@ -38,6 +38,7 @@ from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
+from airflow.dag_processing.dag_store import DagStore, CachedDagStore
 from airflow.exceptions import UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
@@ -53,7 +54,6 @@ from airflow.models.asset import (
 )
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DAG, DagModel
-from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
@@ -202,7 +202,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # Dag Processor agent - not used in Dag Processor standalone mode.
         self.processor_agent: DagFileProcessorAgent | None = None
 
-        self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
+        self.dag_store = DagStore()
+        self.dag_source = CachedDagStore(self.dag_store)
 
     @provide_session
     def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
@@ -477,9 +478,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if task_instance.dag_model.has_task_concurrency_limits:
                     # Many dags don't have a task_concurrency, so where we can avoid loading the full
                     # serialized DAG the better.
-                    serialized_dag = self.dagbag.get_dag(dag_id, session=session)
+                    ingested_dag = self.dag_source.load_dag(dag_id, session=session)
                     # If the dag is missing, fail the task and continue to the next task.
-                    if not serialized_dag:
+                    if not ingested_dag:
                         self.log.error(
                             "DAG '%s' for task instance %s not found in serialized_dag table",
                             dag_id,
@@ -492,6 +493,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             .execution_options(synchronize_session="fetch")
                         )
                         continue
+                    serialized_dag = ingested_dag.dag
 
                     task_concurrency_limit: int | None = None
                     if serialized_dag.has_task(task_instance.task_id):
@@ -718,12 +720,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             raise ValueError("Processor agent is not started.")
 
         return SchedulerJobRunner.process_executor_events(
-            executor=executor, dag_bag=self.dagbag, job_id=self.job.id, session=session
+            executor=executor, dag_store=self.dag_source, job_id=self.job.id, session=session
         )
 
     @classmethod
     def process_executor_events(
-        cls, executor: BaseExecutor, dag_bag: DagBag, job_id: str | None, session: Session
+        cls, executor: BaseExecutor, dag_store: DagStore, job_id: str | None, session: Session
     ) -> int:
         """
         Respond to executor events.
@@ -893,8 +895,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 # Get task from the Serialized DAG
                 try:
-                    dag = dag_bag.get_dag(ti.dag_id)
-                    task = dag.get_task(ti.task_id)
+                    # DAG is missing at this point only if it got removed mid-execution.
+                    ingested_dag = dag_store.load_dag(ti.dag_id, session)
+                    task = ingested_dag.dag.get_task(ti.task_id)
                 except Exception:
                     cls.logger().exception("Marking task instance %s as %s", ti, state)
                     ti.set_state(state)
@@ -978,7 +981,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     self.log.info(
                         "Deactivating DAGs that haven't been touched since %s", execute_start_time.isoformat()
                     )
-                    DAG.deactivate_stale_dags(execute_start_time)
+                    dags_to_deactivate = self.dag_store.list_dags_metadata(parsed_before=execute_start_time)
+                    self.dag_store.delete_dags(map(lambda dag: dag.dag_id, dags_to_deactivate))
 
             settings.Session.remove()  # type: ignore
         except Exception:
@@ -1013,8 +1017,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .group_by(DagRun)
             )
             for dag_run in paused_runs:
-                dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
-                if dag is not None:
+                ingested_dag = self.dag_source.load_dag(dag_run.dag_id, session=session)
+                if ingested_dag is not None:
+                    dag = ingested_dag
                     dag_run.dag = dag
                     _, callback_to_run = dag_run.update_state(execute_callbacks=False, session=session)
                     if callback_to_run:
@@ -1080,12 +1085,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             conf.getfloat("scheduler", "parsing_cleanup_interval"),
             self._orphan_unreferenced_assets,
         )
-
-        if self._standalone_dag_processor:
-            timers.call_regular_interval(
-                conf.getfloat("scheduler", "parsing_cleanup_interval"),
-                self._cleanup_stale_dags,
-            )
 
         for loop_count in itertools.count(start=1):
             with Trace.start_span(
@@ -1221,9 +1220,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # Send the callbacks after we commit to ensure the context is up to date when it gets run
         # cache saves time during scheduling of many dag_runs for same dag
-        cached_get_dag: Callable[[str], DAG | None] = lru_cache()(
-            partial(self.dagbag.get_dag, session=session)
-        )
+        cached_get_dag: Callable[[str], DAG | None] = self._make_lru_cached_get_dag(session)
+
         for dag_run, callback_to_run in callback_tuples:
             dag = cached_get_dag(dag_run.dag_id)
             if dag:
@@ -1340,12 +1338,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         for dag_model in dag_models:
-            dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
-            if not dag:
+            ingested_dag = self.dag_source.load_dag(dag_model.dag_id, session=session)
+            if not ingested_dag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
                 continue
 
-            dag_hash = self.dagbag.dags_hash.get(dag.dag_id)
+            dag = ingested_dag.dag
+            dag_hash = ingested_dag.dag_hash
 
             data_interval = dag.get_next_data_interval(dag_model)
             # Explicitly check if the DagRun already exists. This is an edge case
@@ -1412,11 +1411,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         for dag_model in dag_models:
-            dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
-            if not dag:
+            ingested_dag = self.dag_source.load_dag(dag_model.dag_id, session=session)
+            if not ingested_dag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
                 continue
 
+            dag = ingested_dag.dag
             if not isinstance(dag.timetable, AssetTriggeredTimetable):
                 self.log.error(
                     "DAG '%s' was asset-scheduled, but didn't have a AssetTriggeredTimetable!",
@@ -1424,7 +1424,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
 
-            dag_hash = self.dagbag.dags_hash.get(dag.dag_id)
+            dag_hash = ingested_dag.dag_hash
 
             # Explicitly check if the DagRun already exists. This is an edge case
             # where a Dag Run is created but `DagModel.next_dagrun` and `DagModel.next_dagrun_create_after`
@@ -1580,9 +1580,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
 
         # cache saves time during scheduling of many dag_runs for same dag
-        cached_get_dag: Callable[[str], DAG | None] = lru_cache()(
-            partial(self.dagbag.get_dag, session=session)
-        )
+        cached_get_dag: Callable[[str], DAG | None] = self._make_lru_cached_get_dag(session)
 
         span = Trace.get_current_span()
         for dag_run in dag_runs:
@@ -1667,12 +1665,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             span.set_attribute("run_type", dag_run.run_type)
             callback: DagCallbackRequest | None = None
 
-            dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
+            ingested_dag = self.dag_source.load_dag(dag_run.dag_id, session=session)
             dag_model = DM.get_dagmodel(dag_run.dag_id, session)
+            
 
-            if not dag or not dag_model:
-                self.log.error("Couldn't find DAG %s in DAG bag or database!", dag_run.dag_id)
+            if not ingested_dag or not dag_model:
+                self.log.error("Couldn't find DAG %s in database!", dag_run.dag_id)
                 return callback
+
+            dag = dag_run.dag = ingested_dag.dag
 
             if (
                 dag_run.start_date
@@ -1765,10 +1766,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         dag_run.dag_hash = latest_version
 
         # Refresh the DAG
-        dag_run.dag = self.dagbag.get_dag(dag_id=dag_run.dag_id, session=session)
-        if not dag_run.dag:
+        ingested_dag = self.dag_source.load_dag(dag_id=dag_run.dag_id, session=session)
+        
+        if not ingested_dag:
+            dag_run.dag = None
             return False
 
+        dag_run.dag = ingested_dag.dag
         # Verify integrity also takes care of session.flush
         dag_run.verify_integrity(session=session)
         return True
@@ -2043,31 +2047,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         return zombie_message_details
 
-    @provide_session
-    def _cleanup_stale_dags(self, session: Session = NEW_SESSION) -> None:
-        """
-        Find all dags that were not updated by Dag Processor recently and mark them as inactive.
-
-        In case one of DagProcessors is stopped (in case there are multiple of them
-        for different dag folders), its dags are never marked as inactive.
-        Also remove dags from SerializedDag table.
-        Executed on schedule only if [scheduler]standalone_dag_processor is True.
-        """
-        self.log.debug("Checking dags not parsed within last %s seconds.", self._dag_stale_not_seen_duration)
-        limit_lpt = timezone.utcnow() - timedelta(seconds=self._dag_stale_not_seen_duration)
-        stale_dags = session.scalars(
-            select(DagModel).where(DagModel.is_active, DagModel.last_parsed_time < limit_lpt)
-        ).all()
-        if not stale_dags:
-            self.log.debug("Not stale dags found.")
-            return
-
-        self.log.info("Found (%d) stales dags not parsed after %s.", len(stale_dags), limit_lpt)
-        for dag in stale_dags:
-            dag.is_active = False
-            SerializedDagModel.remove_dag(dag_id=dag.dag_id, session=session)
-        session.flush()
-
     def _get_orphaning_identifier(self, asset: AssetModel) -> tuple[str, str]:
         self.log.info("Orphaning unreferenced %s", asset)
         return asset.name, asset.uri
@@ -2133,3 +2112,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # ourselves here and the user should get some feedback about that.
             self.log.warning("Executor, %s, was not found but a Task was configured to use it", executor_name)
             return None
+    
+    def _make_lru_cached_get_dag(self, session: Session) -> Callable[str, Optional[DAG]]:
+        def _cached_get_dag(dag_id: str):
+            ingested_dag = self.dag_source.load_dag(dag_id, session=session)
+            return ingested_dag.dag if ingested_dag else None
+        
+        return lru_cache()(_cached_get_dag)

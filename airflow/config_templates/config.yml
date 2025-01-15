@@ -2477,6 +2477,13 @@ scheduler:
       type: boolean
       example: ~
       default: "False"
+    ingester_mode:
+      description: |
+        Ingester mode - "once" or "continuous".
+      version_added: 2.11.0
+      type: string
+      example: ~
+      default: "continuous"
     max_callbacks_per_loop:
       description: |
         Only applicable if ``[scheduler] standalone_dag_processor`` is true and  callbacks are stored

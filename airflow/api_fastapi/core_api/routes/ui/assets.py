@@ -24,6 +24,7 @@ from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import get_session
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.dag_processing.dag_store import IngestedDag
 from airflow.models import DagModel
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel, DagScheduleAssetReference
 
@@ -36,9 +37,8 @@ async def next_run_assets(
     request: Request,
     session: Annotated[Session, Depends(get_session)],
 ) -> dict:
-    dag = request.app.state.dag_bag.get_dag(dag_id)
-
-    if not dag:
+    ingested_dag: IngestedDag = request.app.state.dag_source.load_dag(dag_id)
+    if not ingested_dag:
         raise HTTPException(404, f"can't find dag {dag_id}")
 
     dag_model = DagModel.get_dagmodel(dag_id, session=session)

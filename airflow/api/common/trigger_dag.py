@@ -24,7 +24,8 @@ from typing import TYPE_CHECKING
 
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.exceptions import DagNotFound, DagRunAlreadyExists
-from airflow.models import DagBag, DagModel, DagRun
+from airflow.dag_processing.dag_store import DagStore
+from airflow.models import DagModel, DagRun
 from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
@@ -38,7 +39,7 @@ if TYPE_CHECKING:
 
 def _trigger_dag(
     dag_id: str,
-    dag_bag: DagBag,
+    dag_store: DagStore,
     *,
     triggered_by: DagRunTriggeredByType,
     run_id: str | None = None,
@@ -50,7 +51,7 @@ def _trigger_dag(
     Triggers DAG run.
 
     :param dag_id: DAG ID
-    :param dag_bag: DAG Bag model
+    :param dag_store: DAG store
     :param triggered_by: the entity which triggers the dag_run
     :param run_id: ID of the dag_run
     :param conf: configuration
@@ -58,10 +59,11 @@ def _trigger_dag(
     :param replace_microseconds: whether microseconds should be zeroed
     :return: list of triggered dags
     """
-    dag = dag_bag.get_dag(dag_id)  # prefetch dag if it is stored serialized
+    ingested_dag = dag_store.load_dag(dag_id)  # prefetch dag if it is stored serialized
 
-    if dag is None or dag_id not in dag_bag.dags:
+    if ingested_dag is None:
         raise DagNotFound(f"Dag id {dag_id} not found")
+    dag = ingested_dag.dag
 
     execution_date = execution_date or timezone.utcnow()
 
@@ -99,7 +101,7 @@ def _trigger_dag(
         state=DagRunState.QUEUED,
         conf=run_conf,
         external_trigger=True,
-        dag_hash=dag_bag.dags_hash.get(dag_id),
+        dag_hash=ingested_dag.dag_hash,
         data_interval=data_interval,
         triggered_by=triggered_by,
     )
@@ -135,10 +137,10 @@ def trigger_dag(
     if dag_model is None:
         raise DagNotFound(f"Dag id {dag_id} not found in DagModel")
 
-    dagbag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
+    dag_store = DagStore()
     dr = _trigger_dag(
         dag_id=dag_id,
-        dag_bag=dagbag,
+        dag_store=dag_store,
         run_id=run_id,
         conf=conf,
         execution_date=execution_date,

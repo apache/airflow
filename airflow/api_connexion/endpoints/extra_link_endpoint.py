@@ -23,6 +23,7 @@ from sqlalchemy import select
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
 from airflow.auth.managers.models.resource_details import DagAccessEntity
+from airflow.dag_processing.dag_store import IngestedDag
 from airflow.exceptions import TaskNotFound
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -32,7 +33,6 @@ if TYPE_CHECKING:
 
     from airflow import DAG
     from airflow.api_connexion.types import APIResponse
-    from airflow.models.dagbag import DagBag
 
 
 @security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
@@ -47,10 +47,11 @@ def get_extra_links(
     """Get extra links for task instance."""
     from airflow.models.taskinstance import TaskInstance
 
-    dagbag: DagBag = get_airflow_app().dag_bag
-    dag: DAG = dagbag.get_dag(dag_id)
-    if not dag:
+    ingested_dag: IngestedDag = get_airflow_app().dag_source.get_dag(dag_id)
+    
+    if not ingested_dag:
         raise NotFound("DAG not found", detail=f'DAG with ID = "{dag_id}" not found')
+    dag: DAG = ingested_dag.dag
 
     try:
         task = dag.get_task(task_id)

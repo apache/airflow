@@ -74,7 +74,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import backref, relationship
+from sqlalchemy.orm import backref, load_only, relationship
 from sqlalchemy.sql import Select, expression
 
 import airflow.templates
@@ -141,6 +141,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
 
+    from airflow.dag_processing.dag_store import DagSource, DagStore
     from airflow.decorators import TaskDecoratorCollection
     from airflow.models.dagbag import DagBag
     from airflow.models.operator import Operator
@@ -1456,7 +1457,7 @@ class DAG(LoggingMixin):
         include_dependent_dags: bool,
         exclude_task_ids: Collection[str | tuple[str, int]] | None,
         session: Session,
-        dag_bag: DagBag | None = ...,
+        dag_source: DagSource | None = ...,
     ) -> Iterable[TaskInstance]: ...  # pragma: no cover
 
     @overload
@@ -1472,7 +1473,7 @@ class DAG(LoggingMixin):
         include_dependent_dags: bool,
         exclude_task_ids: Collection[str | tuple[str, int]] | None,
         session: Session,
-        dag_bag: DagBag | None = ...,
+        dag_source: DagSource | None = ...,
         recursion_depth: int = ...,
         max_recursion_depth: int = ...,
         visited_external_tis: set[TaskInstanceKey] = ...,
@@ -1490,7 +1491,7 @@ class DAG(LoggingMixin):
         include_dependent_dags: bool,
         exclude_task_ids: Collection[str | tuple[str, int]] | None,
         session: Session,
-        dag_bag: DagBag | None = None,
+        dag_source: DagSource | None = None,
         recursion_depth: int = 0,
         max_recursion_depth: int | None = None,
         visited_external_tis: set[TaskInstanceKey] | None = None,
@@ -1596,14 +1597,14 @@ class DAG(LoggingMixin):
                 )
 
                 for tii in external_tis:
-                    if not dag_bag:
-                        from airflow.models.dagbag import DagBag
+                    if not dag_source:
+                        from airflow.dag_processing.dag_store import DagStore
 
-                        dag_bag = DagBag(read_dags_from_db=True)
-                    external_dag = dag_bag.get_dag(tii.dag_id, session=session)
+                        dag_source = DagStore()
+                    external_dag = dag_source.load_dag(tii.dag_id, session=session)
                     if not external_dag:
                         raise AirflowException(f"Could not find dag {tii.dag_id}")
-                    downstream = external_dag.partial_subset(
+                    downstream = external_dag.dag.partial_subset(
                         task_ids_or_regex=[tii.task_id],
                         include_upstream=False,
                         include_downstream=True,
@@ -1618,7 +1619,7 @@ class DAG(LoggingMixin):
                             include_dependent_dags=include_dependent_dags,
                             as_pk_tuple=True,
                             exclude_task_ids=exclude_task_ids,
-                            dag_bag=dag_bag,
+                            dag_source=dag_source,
                             session=session,
                             recursion_depth=recursion_depth + 1,
                             max_recursion_depth=max_recursion_depth,
@@ -1888,7 +1889,7 @@ class DAG(LoggingMixin):
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: bool = False,
         session: Session = NEW_SESSION,
-        dag_bag: DagBag | None = None,
+        dag_source: DagSource | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
     ) -> int | Iterable[TaskInstance]:
         """
@@ -1904,7 +1905,7 @@ class DAG(LoggingMixin):
             be changed.
         :param dry_run: Find the tasks to clear but don't clear them.
         :param session: The sqlalchemy session to use
-        :param dag_bag: The DagBag used to find the dags (Optional)
+        :param dag_source: The DagSource used to find the dags (Optional)
         :param exclude_task_ids: A set of ``task_id`` or (``task_id``, ``map_index``)
             tuples that should not be cleared
         """
@@ -1923,7 +1924,7 @@ class DAG(LoggingMixin):
             state=state,
             include_dependent_dags=True,
             session=session,
-            dag_bag=dag_bag,
+            dag_source=dag_source,
             exclude_task_ids=exclude_task_ids,
         )
 
@@ -2368,8 +2369,7 @@ class DAG(LoggingMixin):
             if use_executor:
                 from airflow.models.dagbag import DagBag
 
-                dag_bag = DagBag()
-                dag_bag.bag_dag(self)
+                # TODO: Validate DAG
 
                 executor = ExecutorLoader.get_default_executor()
                 executor.start()
@@ -2422,7 +2422,7 @@ class DAG(LoggingMixin):
                     from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 
                     SchedulerJobRunner.process_executor_events(
-                        executor=executor, dag_bag=dag_bag, job_id=None, session=session
+                        executor=executor, dag_store=DagStore(), job_id=None, session=session
                     )
             if use_executor:
                 executor.end()
@@ -2608,29 +2608,6 @@ class DAG(LoggingMixin):
             dag.is_active = False
             session.merge(dag)
         session.commit()
-
-    @staticmethod
-    @provide_session
-    def deactivate_stale_dags(expiration_date, session=NEW_SESSION):
-        """
-        Deactivate any DAGs that were last touched by the scheduler before the expiration date.
-
-        These DAGs were likely deleted.
-
-        :param expiration_date: set inactive DAGs that were touched before this time
-        :return: None
-        """
-        for dag in session.scalars(
-            select(DagModel).where(DagModel.last_parsed_time < expiration_date, DagModel.is_active)
-        ):
-            log.info(
-                "Deactivating DAG ID %s since it was last touched by the scheduler at %s",
-                dag.dag_id,
-                dag.last_parsed_time.isoformat(),
-            )
-            dag.is_active = False
-            session.merge(dag)
-            session.commit()
 
     @staticmethod
     @provide_session
@@ -3034,12 +3011,32 @@ class DagModel(Base):
         )
 
     @classmethod
+    @provide_session
+    def deactivate_dags(
+        cls,
+        dag_ids: Container[str],
+        session: Session = NEW_SESSION,
+    ) -> None:
+        """
+        Set ``is_active=False`` on the DAGs.
+
+        :param dag_ids: list of DAG IDs to deactivate
+        :param processor_subdir: dag processor subdir
+        :param session: ORM Session
+        """
+        log.debug("Deactivating DAGs from %s table ", cls.__tablename__)
+        dag_models = session.scalars(select(cls).where(cls.dag_id.in_(dag_ids)))
+        for dag_model in dag_models:
+            dag_model.is_active = False
+
+    @classmethod
     @internal_api_call
     @provide_session
     def deactivate_deleted_dags(
         cls,
         alive_dag_filelocs: Container[str],
         processor_subdir: str,
+        filepath_prefix: str = "",
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -3049,10 +3046,12 @@ class DagModel(Base):
         :param processor_subdir: dag processor subdir
         :param session: ORM Session
         """
+
         log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ", cls.__tablename__)
         dag_models = session.scalars(
             select(cls).where(
                 cls.fileloc.is_not(None),
+                cls.fileloc.startswith(filepath_prefix),
                 or_(
                     cls.processor_subdir.is_(None),
                     cls.processor_subdir == processor_subdir,
@@ -3063,6 +3062,15 @@ class DagModel(Base):
         for dag_model in dag_models:
             if dag_model.fileloc not in alive_dag_filelocs:
                 dag_model.is_active = False
+
+    @classmethod
+    def active_dag_filelocs(cls, session: Session) -> Iterable[DagModel]:
+        return session.scalars(
+                    select(cls).options(load_only(cls.dag_id, cls.fileloc, cls.processor_subdir)).where(
+                        cls.is_active, 
+                        cls.fileloc.is_not(None),
+                    )
+                )
 
     @classmethod
     def dags_needing_dagruns(cls, session: Session) -> tuple[Query, dict[str, tuple[datetime, datetime]]]:

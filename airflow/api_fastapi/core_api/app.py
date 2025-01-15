@@ -27,19 +27,20 @@ from starlette.responses import HTMLResponse
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 
+from airflow.dag_processing.dag_store import DagSource, DagStore
 from airflow.settings import AIRFLOW_PATH
-from airflow.www.extensions.init_dagbag import get_dag_bag
+
 
 log = logging.getLogger(__name__)
 
 
 def init_dag_bag(app: FastAPI) -> None:
     """
-    Create global DagBag for the FastAPI application.
+    Create global DagSource for the FastAPI application.
 
-    To access it use ``request.app.state.dag_bag``.
+    To access it use ``request.app.state.dag_source``.
     """
-    app.state.dag_bag = get_dag_bag()
+    app.state.dag_source: DagSource = DagStore()
 
 
 def init_views(app: FastAPI) -> None:

@@ -48,7 +48,7 @@ from airflow.models import import_all_models
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
-from airflow.www.extensions.init_dagbag import init_dagbag
+from airflow.www.extensions.init_dag_source import init_dag_source
 from airflow.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.www.extensions.init_manifest_files import configure_manifest_files
 from airflow.www.extensions.init_security import init_xframe_protection
@@ -236,7 +236,7 @@ def create_app(config=None, testing=False):
     db.session = settings.Session
     db.init_app(flask_app)
 
-    init_dagbag(flask_app)
+    init_dag_source(flask_app)
 
     cache_config = {"CACHE_TYPE": "flask_caching.backends.filesystem", "CACHE_DIR": gettempdir()}
     Cache(app=flask_app, config=cache_config)
