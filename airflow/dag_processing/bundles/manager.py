@@ -54,7 +54,7 @@ class DagBundlesManager(LoggingMixin):
         if self._bundle_config:
             return
 
-        backends = conf.getjson("dag_bundles", "backends")
+        backends = conf.getjson("dag_bundles", "config_list")
 
         if not backends:
             return

@@ -162,7 +162,7 @@ def test_sync_bundles_to_db(clear_db):
     assert _get_bundle_names_and_active() == [("dags-folder", False), ("my-test-bundle", True)]
 
 
-@conf_vars({("dag_bundles", "backends"): json.dumps(BASIC_BUNDLE_CONFIG)})
+@conf_vars({("dag_bundles", "config_list"): json.dumps(BASIC_BUNDLE_CONFIG)})
 @pytest.mark.parametrize("version", [None, "hello"])
 def test_view_url(version):
     """Test that view_url calls the bundle's view_url method."""
@@ -185,6 +185,6 @@ def test_example_dags_bundle_added():
 
 def test_example_dags_name_is_reserved():
     reserved_name_config = [{"name": "example_dags"}]
-    with conf_vars({("dag_bundles", "backends"): json.dumps(reserved_name_config)}):
+    with conf_vars({("dag_bundles", "config_list"): json.dumps(reserved_name_config)}):
         with pytest.raises(AirflowConfigException, match="Bundle name 'example_dags' is a reserved name."):
             DagBundlesManager().parse_config()
