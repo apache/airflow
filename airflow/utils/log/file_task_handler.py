@@ -24,7 +24,6 @@ import os
 from collections.abc import Iterable
 from contextlib import suppress
 from enum import Enum
-from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import urljoin
@@ -180,6 +179,8 @@ class FileTaskHandler(logging.Handler):
     inherits_from_empty_operator_log_message = (
         "Operator inherits from empty operator and thus does not have logs"
     )
+    executor_instances: dict[str, BaseExecutor] = {}
+    default_executor_key = "_default_executor"
 
     def __init__(
         self,
@@ -315,16 +316,6 @@ class FileTaskHandler(logging.Handler):
     def _read_grouped_logs(self):
         return False
 
-    @cached_property
-    def _available_executors(self) -> dict[str, BaseExecutor]:
-        """This cached property avoids loading executors repeatedly."""
-        return {ex.__class__.__name__: ex for ex in ExecutorLoader.init_executors()}
-
-    @cached_property
-    def _default_executor(self) -> BaseExecutor:
-        """This cached property avoids loading executors repeatedly."""
-        return next(iter(self._available_executors.values()))
-
     def _get_executor_get_task_log(
         self, ti: TaskInstance
     ) -> Callable[[TaskInstance, int], tuple[list[str], list[str]]]:
@@ -336,14 +327,16 @@ class FileTaskHandler(logging.Handler):
         :param ti: task instance object
         :return: get_task_log method of the executor
         """
-        executor_name = ti.executor
-        if executor_name is None:
-            executor = self._default_executor
-        elif executor_name in self._available_executors:
-            executor = self._available_executors[executor_name]
+        executor_name = ti.executor or self.default_executor_key
+        executor = self.executor_instances.get(executor_name)
+        if executor is not None:
+            return executor.get_task_log
+
+        if executor_name == self.default_executor_key:
+            self.executor_instances[executor_name] = ExecutorLoader.get_default_executor()
         else:
-            raise AirflowException(f"Executor {executor_name} not found for task {ti}")
-        return executor.get_task_log
+            self.executor_instances[executor_name] = ExecutorLoader.load_executor(executor_name)
+        return self.executor_instances[executor_name].get_task_log
 
     def _read(
         self,
