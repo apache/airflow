@@ -20,7 +20,7 @@ import contextlib
 import copy
 import json
 import logging
-from collections.abc import ItemsView, Iterable, Mapping, MutableMapping, ValuesView
+from collections.abc import ItemsView, Iterable, MutableMapping, ValuesView
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.exceptions import AirflowException, ParamValidationError
@@ -28,8 +28,8 @@ from airflow.sdk.definitions._internal.mixins import ResolveMixin
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
-    from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
+    from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
 
 logger = logging.getLogger(__name__)
@@ -294,10 +294,11 @@ class DagParam(ResolveMixin):
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         return ()
 
-    def resolve(self, context: Mapping[str, Any], *, include_xcom: bool = True) -> Any:
+    def resolve(self, context: Context, *, include_xcom: bool = True) -> Any:
         """Pull DagParam value from DagRun context. This method is run during ``op.execute()``."""
         with contextlib.suppress(KeyError):
-            return context["dag_run"].conf[self._name]
+            if context["dag_run"].conf:
+                return context["dag_run"].conf[self._name]
         if self._default is not NOTSET:
             return self._default
         with contextlib.suppress(KeyError):
@@ -332,19 +333,21 @@ class DagParam(ResolveMixin):
 def process_params(
     dag: DAG,
     task: Operator,
-    dag_run: DagRun | None,
+    dagrun_conf: dict[str, Any] | None,
     *,
     suppress_exception: bool,
 ) -> dict[str, Any]:
     """Merge, validate params, and convert them into a simple dict."""
     from airflow.configuration import conf
 
+    dagrun_conf = dagrun_conf or {}
+
     params = ParamsDict(suppress_exception=suppress_exception)
     with contextlib.suppress(AttributeError):
         params.update(dag.params)
     if task.params:
         params.update(task.params)
-    if conf.getboolean("core", "dag_run_conf_overrides_params") and dag_run and dag_run.conf:
-        logger.debug("Updating task params (%s) with DagRun.conf (%s)", params, dag_run.conf)
-        params.update(dag_run.conf)
+    if conf.getboolean("core", "dag_run_conf_overrides_params") and dagrun_conf:
+        logger.debug("Updating task params (%s) with DagRun.conf (%s)", params, dagrun_conf)
+        params.update(dagrun_conf)
     return params.validate()

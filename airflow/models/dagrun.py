@@ -166,6 +166,7 @@ class DagRun(Base, LoggingMixin):
     """
     dag_version_id = Column(UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="CASCADE"))
     dag_version = relationship("DagVersion", back_populates="dag_runs")
+    bundle_version = Column(StringID())
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
@@ -238,6 +239,7 @@ class DagRun(Base, LoggingMixin):
         triggered_by: DagRunTriggeredByType | None = None,
         backfill_id: int | None = None,
         dag_version: DagVersion | None = None,
+        bundle_version: str | None = None,
     ):
         if data_interval is None:
             # Legacy: Only happen for runs created prior to Airflow 2.2.
@@ -245,6 +247,7 @@ class DagRun(Base, LoggingMixin):
         else:
             self.data_interval_start, self.data_interval_end = data_interval
 
+        self.bundle_version = bundle_version
         self.dag_id = dag_id
         self.run_id = run_id
         self.logical_date = logical_date
@@ -275,12 +278,14 @@ class DagRun(Base, LoggingMixin):
     def validate_run_id(self, key: str, run_id: str) -> str | None:
         if not run_id:
             return None
-        regex = airflow_conf.get("scheduler", "allowed_run_id_pattern")
-        if not re2.match(regex, run_id) and not re2.match(RUN_ID_REGEX, run_id):
-            raise ValueError(
-                f"The run_id provided '{run_id}' does not match the pattern '{regex}' or '{RUN_ID_REGEX}'"
-            )
-        return run_id
+        if re2.match(RUN_ID_REGEX, run_id):
+            return run_id
+        regex = airflow_conf.get("scheduler", "allowed_run_id_pattern").strip()
+        if regex and re2.match(regex, run_id):
+            return run_id
+        raise ValueError(
+            f"The run_id provided '{run_id}' does not match regex pattern '{regex}' or '{RUN_ID_REGEX}'"
+        )
 
     @property
     def stats_tags(self) -> dict[str, str]:

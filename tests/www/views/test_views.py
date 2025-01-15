@@ -43,11 +43,7 @@ from airflow.www.views import (
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.www import check_content_in_response, check_content_not_in_response
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -312,13 +308,12 @@ def test_app():
     return app.create_app(testing=True)
 
 
-def test_mark_task_instance_state(test_app):
+def test_mark_task_instance_state(test_app, dag_maker):
     """
     Test that _mark_task_instance_state() does all three things:
     - Marks the given TaskInstance as SUCCESS;
     - Clears downstream TaskInstances in FAILED/UPSTREAM_FAILED state;
     """
-    from airflow.models.dag import DAG
     from airflow.models.dagbag import DagBag
     from airflow.models.taskinstance import TaskInstance
     from airflow.operators.empty import EmptyOperator
@@ -332,7 +327,7 @@ def test_mark_task_instance_state(test_app):
 
     clear_db_runs()
     start_date = datetime(2020, 1, 1)
-    with DAG("test_mark_task_instance_state", start_date=start_date, schedule="0 0 * * *") as dag:
+    with dag_maker("test_mark_task_instance_state", start_date=start_date, schedule="0 0 * * *") as dag:
         task_1 = EmptyOperator(task_id="task_1")
         task_2 = EmptyOperator(task_id="task_2")
         task_3 = EmptyOperator(task_id="task_3")
@@ -341,15 +336,7 @@ def test_mark_task_instance_state(test_app):
 
         task_1 >> [task_2, task_3, task_4, task_5]
 
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-    dagrun = dag.create_dagrun(
-        start_date=start_date,
-        logical_date=start_date,
-        data_interval=(start_date, start_date),
-        state=State.FAILED,
-        run_type=DagRunType.SCHEDULED,
-        **triggered_by_kwargs,
-    )
+    dagrun = dag_maker.create_dagrun(state=State.FAILED, run_type=DagRunType.SCHEDULED)
 
     def get_task_instance(session, task):
         return (
@@ -405,14 +392,13 @@ def test_mark_task_instance_state(test_app):
         assert dagrun.get_state() == State.QUEUED
 
 
-def test_mark_task_group_state(test_app):
+def test_mark_task_group_state(test_app, dag_maker):
     """
     Test that _mark_task_group_state() does all three things:
     - Marks the given TaskGroup as SUCCESS;
     - Clears downstream TaskInstances in FAILED/UPSTREAM_FAILED state;
     - Set DagRun to QUEUED.
     """
-    from airflow.models.dag import DAG
     from airflow.models.dagbag import DagBag
     from airflow.models.taskinstance import TaskInstance
     from airflow.operators.empty import EmptyOperator
@@ -426,7 +412,7 @@ def test_mark_task_group_state(test_app):
 
     clear_db_runs()
     start_date = datetime(2020, 1, 1)
-    with DAG("test_mark_task_group_state", start_date=start_date, schedule="0 0 * * *") as dag:
+    with dag_maker("test_mark_task_group_state", start_date=start_date, schedule="0 0 * * *") as dag:
         start = EmptyOperator(task_id="start")
 
         with TaskGroup("section_1", tooltip="Tasks for section_1") as section_1:
@@ -444,15 +430,7 @@ def test_mark_task_group_state(test_app):
 
         start >> section_1 >> [task_4, task_5, task_6, task_7, task_8]
 
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-    dagrun = dag.create_dagrun(
-        start_date=start_date,
-        logical_date=start_date,
-        data_interval=(start_date, start_date),
-        state=State.FAILED,
-        run_type=DagRunType.SCHEDULED,
-        **triggered_by_kwargs,
-    )
+    dagrun = dag_maker.create_dagrun(state=State.FAILED, run_type=DagRunType.SCHEDULED)
 
     def get_task_instance(session, task):
         return (

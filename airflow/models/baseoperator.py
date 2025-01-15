@@ -80,6 +80,7 @@ from airflow.sdk.definitions.baseoperator import (
 
 # Keeping this file at all is a temp thing as we migrate the repo to the task sdk as the base, but to keep
 # main working and useful for others to develop against we use the TaskSDK here but keep this file around
+from airflow.sdk.definitions.context import Context
 from airflow.sdk.definitions.dag import DAG, BaseOperator as TaskSDKBaseOperator
 from airflow.sdk.definitions.edges import EdgeModifier as TaskSDKEdgeModifier
 from airflow.serialization.enums import DagAttributeTypes
@@ -89,7 +90,7 @@ from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkipped
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
-from airflow.utils.context import Context, context_get_outlet_events
+from airflow.utils.context import context_get_outlet_events
 from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.operator_helpers import ExecutionCallableRunner
 from airflow.utils.operator_resources import Resources

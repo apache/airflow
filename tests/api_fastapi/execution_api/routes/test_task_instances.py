@@ -88,6 +88,7 @@ class TestTIRunState:
                 "run_type": "manual",
                 "conf": {},
             },
+            "max_tries": 0,
             "variables": [],
             "connections": [],
         }
