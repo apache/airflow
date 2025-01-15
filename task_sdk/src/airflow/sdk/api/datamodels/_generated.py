@@ -168,6 +168,11 @@ class XComResponse(BaseModel):
     value: Annotated[Any, Field(title="Value")]
 
 
+class BundleInfo(BaseModel):
+    name: str
+    version: str | None = None
+
+
 class TaskInstance(BaseModel):
     """
     Schema for TaskInstance model with minimal required fields needed for Runtime.
