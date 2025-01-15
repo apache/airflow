@@ -74,7 +74,7 @@ from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from markupsafe import Markup, escape
 from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
-from sqlalchemy import and_, case, desc, func, inspect, or_, select, union_all
+from sqlalchemy import and_, case, desc, func, inspect, or_, select, tuple_, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from wtforms import BooleanField, validators
@@ -1017,9 +1017,11 @@ class Airflow(AirflowBaseView):
                 if not can_read_all_dags:
                     # if the user doesn't have access to all DAGs, only display errors from visible DAGs
                     import_errors = import_errors.where(
-                        ParseImportError.filename.in_(
-                            select(DagModel.fileloc).distinct().where(DagModel.dag_id.in_(filter_dag_ids))
-                        )
+                        tuple_(ParseImportError.filename, ParseImportError.bundle_name).in_(
+                            select(DagModel.fileloc, DagModel.bundle_name)
+                            .distinct()
+                            .where(DagModel.dag_id.in_(filter_dag_ids))
+                        ),
                     )
 
                 import_errors = session.scalars(import_errors)
@@ -2884,10 +2886,10 @@ class Airflow(AirflowBaseView):
         dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
         url_serializer = URLSafeSerializer(current_app.config["SECRET_KEY"])
         dag_model = DagModel.get_dagmodel(dag_id, session=session)
-        if not dag:
+        if not dag or not dag_model:
             flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
             return redirect(url_for("Airflow.index"))
-        wwwutils.check_import_errors(dag.fileloc, session)
+        wwwutils.check_import_errors(dag.fileloc, dag_model.bundle_name, session)
         wwwutils.check_dag_warnings(dag.dag_id, session)
 
         included_events_raw = conf.get("webserver", "audit_view_included_events", fallback="")

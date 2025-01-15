@@ -329,9 +329,11 @@ class TestUpdateDagParsingResults:
         Test that existing import error is updated and new record not created
         for a dag with the same filename
         """
+        bundle_name = "testing"
         filename = "abc.py"
         prev_error = ParseImportError(
             filename=filename,
+            bundle_name=bundle_name,
             timestamp=tz.utcnow(),
             stacktrace="Some error",
         )
@@ -340,7 +342,7 @@ class TestUpdateDagParsingResults:
         prev_error_id = prev_error.id
 
         update_dag_parsing_results_in_db(
-            bundle_name="testing",
+            bundle_name=bundle_name,
             bundle_version=None,
             dags=[],
             import_errors={"abc.py": "New error"},
@@ -348,7 +350,11 @@ class TestUpdateDagParsingResults:
             session=session,
         )
 
-        import_error = session.query(ParseImportError).filter(ParseImportError.filename == filename).one()
+        import_error = (
+            session.query(ParseImportError)
+            .filter(ParseImportError.filename == filename, ParseImportError.bundle_name == bundle_name)
+            .one()
+        )
 
         # assert that the ID of the import error did not change
         assert import_error.id == prev_error_id
@@ -361,9 +367,11 @@ class TestUpdateDagParsingResults:
 
     def test_remove_error_clears_import_error(self, testing_dag_bundle, session):
         # Pre-condition: there is an import error for the dag file
+        bundle_name = "testing"
         filename = "abc.py"
         prev_error = ParseImportError(
             filename=filename,
+            bundle_name=bundle_name,
             timestamp=tz.utcnow(),
             stacktrace="Some error",
         )
@@ -373,6 +381,7 @@ class TestUpdateDagParsingResults:
         session.add(
             ParseImportError(
                 filename="def.py",
+                bundle_name=bundle_name,
                 timestamp=tz.utcnow(),
                 stacktrace="Some error",
             )
@@ -380,21 +389,21 @@ class TestUpdateDagParsingResults:
         session.flush()
 
         # Sanity check of pre-condition
-        import_errors = set(session.scalars(select(ParseImportError.filename)))
-        assert import_errors == {"abc.py", "def.py"}
+        import_errors = set(session.execute(select(ParseImportError.filename, ParseImportError.bundle_name)))
+        assert import_errors == {("abc.py", bundle_name), ("def.py", bundle_name)}
 
         dag = DAG(dag_id="test")
         dag.fileloc = filename
 
         import_errors = {}
-        update_dag_parsing_results_in_db("testing", None, [dag], import_errors, set(), session)
+        update_dag_parsing_results_in_db(bundle_name, None, [dag], import_errors, set(), session)
 
         dag_model: DagModel = session.get(DagModel, (dag.dag_id,))
         assert dag_model.has_import_errors is False
 
-        import_errors = set(session.scalars(select(ParseImportError.filename)))
+        import_errors = set(session.execute(select(ParseImportError.filename, ParseImportError.bundle_name)))
 
-        assert import_errors == {"def.py"}
+        assert import_errors == {("def.py", bundle_name)}
 
     def test_sync_perm_for_dag_with_dict_access_control(self, session, spy_agency: SpyAgency):
         """
