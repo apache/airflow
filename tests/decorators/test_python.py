@@ -444,7 +444,8 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = self.dag_non_serialized.create_dagrun(
-            run_id=DagRunType.MANUAL,
+            run_id="test",
+            run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             logical_date=DEFAULT_DATE,
             state=State.RUNNING,
@@ -508,7 +509,8 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = self.dag_non_serialized.create_dagrun(
-            run_id=DagRunType.MANUAL,
+            run_id="test",
+            run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             logical_date=DEFAULT_DATE,
             state=State.RUNNING,

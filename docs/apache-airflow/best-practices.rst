@@ -725,13 +725,14 @@ This is an example test want to verify the structure of a code-generated DAG aga
 
     from airflow import DAG
     from airflow.utils.state import DagRunState, TaskInstanceState
-    from airflow.utils.types import DagRunType
+    from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
     DATA_INTERVAL_START = pendulum.datetime(2021, 9, 13, tz="UTC")
     DATA_INTERVAL_END = DATA_INTERVAL_START + datetime.timedelta(days=1)
 
     TEST_DAG_ID = "my_custom_operator_dag"
     TEST_TASK_ID = "my_custom_operator_task"
+    TEST_RUN_ID = "my_custom_operator_dag_run"
 
 
     @pytest.fixture()
@@ -750,11 +751,13 @@ This is an example test want to verify the structure of a code-generated DAG aga
 
     def test_my_custom_operator_execute_no_trigger(dag):
         dagrun = dag.create_dagrun(
-            state=DagRunState.RUNNING,
-            execution_date=DATA_INTERVAL_START,
+            run_id=TEST_RUN_ID,
+            logical_date=DATA_INTERVAL_START,
             data_interval=(DATA_INTERVAL_START, DATA_INTERVAL_END),
-            start_date=DATA_INTERVAL_END,
             run_type=DagRunType.MANUAL,
+            triggered_by=DagRunTriggeredByType.TIMETABLE,
+            state=DagRunState.RUNNING,
+            start_date=DATA_INTERVAL_END,
         )
         ti = dagrun.get_task_instance(task_id=TEST_TASK_ID)
         ti.task = dag.get_task(task_id=TEST_TASK_ID)
