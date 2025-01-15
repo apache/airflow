@@ -27,13 +27,10 @@ from sqlalchemy.orm import lazyload
 
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
-from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
     from sqlalchemy.orm import Session as SASession
 
     from airflow.models.dag import DAG
@@ -136,36 +133,6 @@ def find_task_relatives(tasks, downstream, upstream):
         if upstream:
             for relative in task.get_flat_relatives(upstream=True):
                 yield relative.task_id
-
-
-@provide_session
-def get_logical_dates(
-    dag: DAG, logical_date: datetime, future: bool, past: bool, *, session: SASession = NEW_SESSION
-) -> list[datetime]:
-    """Return DAG logical dates."""
-    latest_logical_date = dag.get_latest_logical_date(session=session)
-    if latest_logical_date is None:
-        raise ValueError(f"Received non-localized date {logical_date}")
-    logical_date = timezone.coerce_datetime(logical_date)
-    # determine date range of dag runs and tasks to consider
-    end_date = latest_logical_date if future else logical_date
-    if dag.start_date:
-        start_date = dag.start_date
-    else:
-        start_date = logical_date
-    start_date = logical_date if not past else start_date
-    if not dag.timetable.can_be_scheduled:
-        # If the DAG never schedules, need to look at existing DagRun if the user wants future or
-        # past runs.
-        dag_runs = dag.get_dagruns_between(start_date=start_date, end_date=end_date)
-        dates = sorted({d.logical_date for d in dag_runs})
-    elif not dag.timetable.periodic:
-        dates = [start_date]
-    else:
-        dates = [
-            info.logical_date for info in dag.iter_dagrun_infos_between(start_date, end_date, align=False)
-        ]
-    return dates
 
 
 @provide_session

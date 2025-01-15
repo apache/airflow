@@ -43,7 +43,44 @@ class TestDagProcessor:
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
-        assert num_docs == len(docs)
+        assert len(docs) == num_docs
+
+    @pytest.mark.parametrize(
+        "airflow_version, num_docs",
+        [
+            ("2.10.4", 0),
+            ("3.0.0", 1),
+        ],
+    )
+    def test_enabled_by_airflow_version(self, airflow_version, num_docs):
+        """Tests that Dag Processor is enabled by default with Airflow 3"""
+        docs = render_chart(
+            values={"airflowVersion": airflow_version},
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+
+        assert len(docs) == num_docs
+
+    @pytest.mark.parametrize(
+        "airflow_version, enabled",
+        [
+            ("2.10.4", False),
+            ("2.10.4", True),
+            ("3.0.0", False),
+            ("3.0.0", True),
+        ],
+    )
+    def test_enabled_explicit(self, airflow_version, enabled):
+        """Tests that Dag Processor can be enabled/disabled regardless of version"""
+        docs = render_chart(
+            values={"airflowVersion": airflow_version, "dagProcessor": {"enabled": enabled}},
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+
+        if enabled:
+            assert len(docs) == 1
+        else:
+            assert len(docs) == 0
 
     def test_can_be_disabled(self):
         """Standalone Dag Processor is disabled by default."""

@@ -188,14 +188,20 @@ TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
 }
 
 ALL_NEW_PROVIDER_TEST_FOLDERS: list[str] = sorted(
-    [path.as_posix() for path in AIRFLOW_SOURCES_ROOT.glob("providers/*/test/")]
-    + [path.as_posix() for path in AIRFLOW_SOURCES_ROOT.glob("providers/*/*/test/")]
+    [
+        path.relative_to(AIRFLOW_SOURCES_ROOT).as_posix()
+        for path in AIRFLOW_SOURCES_ROOT.glob("providers/*/tests/")
+    ]
+    + [
+        path.relative_to(AIRFLOW_SOURCES_ROOT).as_posix()
+        for path in AIRFLOW_SOURCES_ROOT.glob("providers/*/*/tests/")
+    ]
 )
 
 TEST_GROUP_TO_TEST_FOLDERS: dict[GroupOfTests, list[str]] = {
     GroupOfTests.CORE: ["tests"],
     # TODO(potiuk): remove me when we migrate all providers to new structure
-    GroupOfTests.PROVIDERS: ["providers/tests", *ALL_NEW_PROVIDER_TEST_FOLDERS],
+    GroupOfTests.PROVIDERS: [*ALL_NEW_PROVIDER_TEST_FOLDERS, "providers/tests"],
     GroupOfTests.TASK_SDK: ["task_sdk/tests"],
     GroupOfTests.HELM: ["helm_tests"],
     GroupOfTests.INTEGRATION_CORE: ["tests/integration"],

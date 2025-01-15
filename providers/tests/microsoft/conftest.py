@@ -34,6 +34,15 @@ from msgraph_core import APIVersion
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIHook
 
+try:
+    from airflow.sdk.definitions.context import Context
+except ImportError:
+    # TODO: Remove once provider drops support for Airflow 2
+    from airflow.utils.context import Context
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
 T = TypeVar("T", dict, str, Connection)
 
 

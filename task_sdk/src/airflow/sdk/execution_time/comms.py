@@ -50,6 +50,7 @@ from fastapi import Body
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 from airflow.sdk.api.datamodels._generated import (
+    BundleInfo,
     ConnectionResponse,
     TaskInstance,
     TerminalTIState,
@@ -66,7 +67,8 @@ class StartupDetails(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     ti: TaskInstance
-    file: str
+    dag_rel_path: str
+    bundle_info: BundleInfo
     requests_fd: int
     """
     The channel for the task to send requests over.

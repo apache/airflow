@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import inspect
+import json
 import logging
 import os
 import selectors
@@ -27,7 +28,7 @@ from io import BytesIO
 from operator import attrgetter
 from time import sleep
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import httpx
 import psutil
@@ -35,6 +36,7 @@ import pytest
 from pytest_unordered import unordered
 from uuid6 import uuid7
 
+from airflow.executors.workloads import BundleInfo
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
@@ -57,6 +59,7 @@ from airflow.sdk.execution_time.task_runner import CommsDecoder
 from airflow.utils import timezone, timezone as tz
 
 from task_sdk.tests.api.test_client import make_client
+from task_sdk.tests.execution_time.test_task_runner import FAKE_BUNDLE
 
 if TYPE_CHECKING:
     import kgb
@@ -67,6 +70,20 @@ TI_ID = uuid7()
 def lineno():
     """Returns the current line number in our program."""
     return inspect.currentframe().f_back.f_lineno
+
+
+def local_dag_bundle_cfg(path, name="my-bundle"):
+    return {
+        "AIRFLOW__DAG_BUNDLES__BACKENDS": json.dumps(
+            [
+                {
+                    "name": name,
+                    "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                    "kwargs": {"local_folder": str(path), "refresh_interval": 1},
+                }
+            ]
+        )
+    }
 
 
 @pytest.mark.usefixtures("disable_capturing")
@@ -100,7 +117,8 @@ class TestWatchedSubprocess:
         time_machine.move_to(instant, tick=False)
 
         proc = ActivitySubprocess.start(
-            path=os.devnull,
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
             what=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
@@ -167,7 +185,8 @@ class TestWatchedSubprocess:
             os.kill(os.getpid(), signal.SIGKILL)
 
         proc = ActivitySubprocess.start(
-            path=os.devnull,
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
             what=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
@@ -190,7 +209,8 @@ class TestWatchedSubprocess:
             raise RuntimeError("Fake syntax error")
 
         proc = ActivitySubprocess.start(
-            path=os.devnull,
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
             what=TaskInstance(
                 id=uuid7(),
                 task_id="b",
@@ -226,7 +246,8 @@ class TestWatchedSubprocess:
         ti_id = uuid7()
         spy = spy_agency.spy_on(sdk_client.TaskInstanceOperations.heartbeat)
         proc = ActivitySubprocess.start(
-            path=os.devnull,
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
             what=TaskInstance(
                 id=ti_id,
                 task_id="b",
@@ -248,7 +269,7 @@ class TestWatchedSubprocess:
         instant = tz.datetime(2024, 11, 7, 12, 34, 56, 78901)
         time_machine.move_to(instant, tick=False)
 
-        dagfile_path = test_dags_dir / "super_basic_run.py"
+        dagfile_path = test_dags_dir
         ti = TaskInstance(
             id=uuid7(),
             task_id="hello",
@@ -256,8 +277,17 @@ class TestWatchedSubprocess:
             run_id="c",
             try_number=1,
         )
-        # Assert Exit Code is 0
-        assert supervise(ti=ti, dag_path=dagfile_path, token="", server="", dry_run=True) == 0, captured_logs
+        bundle_info = BundleInfo.model_construct(name="my-bundle", version=None)
+        with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
+            exit_code = supervise(
+                ti=ti,
+                dag_rel_path=dagfile_path,
+                token="",
+                server="",
+                dry_run=True,
+                bundle_info=bundle_info,
+            )
+            assert exit_code == 0, captured_logs
 
         # We should have a log from the task!
         assert {
@@ -281,7 +311,6 @@ class TestWatchedSubprocess:
         ti = TaskInstance(
             id=uuid7(), task_id="async", dag_id="super_basic_deferred_run", run_id="d", try_number=1
         )
-        dagfile_path = test_dags_dir / "super_basic_deferred_run.py"
 
         # Create a mock client to assert calls to the client
         # We assume the implementation of the client is correct and only need to check the calls
@@ -291,8 +320,16 @@ class TestWatchedSubprocess:
         instant = tz.datetime(2024, 11, 7, 12, 34, 56, 0)
         time_machine.move_to(instant, tick=False)
 
-        # Assert supervisor runs the task successfully
-        assert supervise(ti=ti, dag_path=dagfile_path, token="", client=mock_client) == 0, captured_logs
+        bundle_info = BundleInfo.model_construct(name="my-bundle", version=None)
+        with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
+            exit_code = supervise(
+                ti=ti,
+                dag_rel_path="super_basic_deferred_run.py",
+                token="",
+                client=mock_client,
+                bundle_info=bundle_info,
+            )
+        assert exit_code == 0, captured_logs
 
         # Validate calls to the client
         mock_client.task_instances.start.assert_called_once_with(ti.id, mocker.ANY, mocker.ANY)
@@ -341,7 +378,7 @@ class TestWatchedSubprocess:
         client = make_client(transport=httpx.MockTransport(handle_request))
 
         with pytest.raises(ServerResponseError, match="Server returned error") as err:
-            ActivitySubprocess.start(path=os.devnull, what=ti, client=client)
+            ActivitySubprocess.start(dag_rel_path=os.devnull, bundle_info=FAKE_BUNDLE, what=ti, client=client)
 
         assert err.value.response.status_code == 409
         assert err.value.detail == {
@@ -395,10 +432,11 @@ class TestWatchedSubprocess:
             return httpx.Response(status_code=204)
 
         proc = ActivitySubprocess.start(
-            path=os.devnull,
+            dag_rel_path=os.devnull,
             what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
             client=make_client(transport=httpx.MockTransport(handle_request)),
             target=subprocess_main,
+            bundle_info=FAKE_BUNDLE,
         )
 
         # Wait for the subprocess to finish -- it should have been terminated
@@ -666,7 +704,8 @@ class TestWatchedSubprocessKill:
         ti_id = uuid7()
 
         proc = ActivitySubprocess.start(
-            path=os.devnull,
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
             what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
             client=MagicMock(spec=sdk_client.Client),
             target=subprocess_main,

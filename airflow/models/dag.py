@@ -262,6 +262,13 @@ def _create_orm_dagrun(
     session,
     triggered_by,
 ):
+    bundle_version = session.scalar(
+        select(
+            DagModel.latest_bundle_version,
+        ).where(
+            DagModel.dag_id == dag.dag_id,
+        )
+    )
     run = DagRun(
         dag_id=dag_id,
         run_id=run_id,
@@ -276,6 +283,7 @@ def _create_orm_dagrun(
         data_interval=data_interval,
         triggered_by=triggered_by,
         backfill_id=backfill_id,
+        bundle_version=bundle_version,
     )
     # Load defaults into the following two fields to ensure result can be serialized detached
     run.log_template_id = int(session.scalar(select(func.max(LogTemplate.__table__.c.id))))
@@ -771,13 +779,13 @@ class DAG(TaskSDKDag, LoggingMixin):
         return session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == self.dag_id))
 
     @provide_session
-    def get_bundle_name(self, session=NEW_SESSION) -> None:
+    def get_bundle_name(self, session=NEW_SESSION) -> str | None:
         """Return the bundle name this DAG is in."""
         return session.scalar(select(DagModel.bundle_name).where(DagModel.dag_id == self.dag_id))
 
     @provide_session
-    def get_latest_bundle_version(self, session=NEW_SESSION) -> None:
-        """Return the bundle name this DAG is in."""
+    def get_latest_bundle_version(self, session=NEW_SESSION) -> str | None:
+        """Return the latest version of the bundle this DAG is in."""
         return session.scalar(select(DagModel.latest_bundle_version).where(DagModel.dag_id == self.dag_id))
 
     @methodtools.lru_cache(maxsize=None)

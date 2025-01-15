@@ -83,7 +83,10 @@ def mocked_parse(spy_agency):
         task.dag = dag
         t = dag.task_dict[task.task_id]
         ti = RuntimeTaskInstance.model_construct(
-            **what.ti.model_dump(exclude_unset=True), task=t, _ti_context_from_server=what.ti_context
+            **what.ti.model_dump(exclude_unset=True),
+            task=t,
+            _ti_context_from_server=what.ti_context,
+            max_tries=what.ti_context.max_tries,
         )
         spy_agency.spy_on(parse, call_fake=lambda _: ti)
         return ti
@@ -114,7 +117,7 @@ def create_runtime_ti(mocked_parse, make_ti_context):
     from uuid6 import uuid7
 
     from airflow.sdk.api.datamodels._generated import TaskInstance
-    from airflow.sdk.execution_time.comms import StartupDetails
+    from airflow.sdk.execution_time.comms import BundleInfo, StartupDetails
 
     def _create_task_instance(
         task: BaseOperator,
@@ -145,7 +148,8 @@ def create_runtime_ti(mocked_parse, make_ti_context):
             ti=TaskInstance(
                 id=ti_id, task_id=task.task_id, dag_id=dag_id, run_id=run_id, try_number=try_number
             ),
-            file="",
+            dag_rel_path="",
+            bundle_info=BundleInfo.model_construct(name="anything", version="any"),
             requests_fd=0,
             ti_context=ti_context,
         )
