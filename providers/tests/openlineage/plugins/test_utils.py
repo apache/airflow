@@ -47,6 +47,7 @@ from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils import timezone
 from airflow.utils.log.secrets_masker import _secrets_masker
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import (
     BashOperator,
@@ -100,12 +101,20 @@ def test_get_dagrun_start_end(dag_maker):
     dag_model = DagModel.get_dagmodel(dag.dag_id)
 
     run_id = str(uuid.uuid1())
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    data_interval = dag.get_next_data_interval(dag_model)
+    if AIRFLOW_V_3_0_PLUS:
+        dagrun_kwargs = {
+            "logical_date": data_interval.start,
+            "triggered_by": DagRunTriggeredByType.TEST,
+        }
+    else:
+        dagrun_kwargs = {"execution_date": data_interval.start}
     dagrun = dag.create_dagrun(
         state=State.NONE,
         run_id=run_id,
-        data_interval=dag.get_next_data_interval(dag_model),
-        **triggered_by_kwargs,
+        run_type=DagRunType.MANUAL,
+        data_interval=data_interval,
+        **dagrun_kwargs,
     )
     assert dagrun.data_interval_start is not None
     start_date_tz = datetime.datetime(2022, 1, 1, tzinfo=timezone.utc)

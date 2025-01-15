@@ -90,6 +90,7 @@ def create_dag_run(dag):
     def _create_dag_run(*, logical_date, session):
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         return dag.create_dagrun(
+            run_id=f"manual__{logical_date.isoformat()}",
             state=DagRunState.RUNNING,
             logical_date=logical_date,
             data_interval=(logical_date, logical_date),

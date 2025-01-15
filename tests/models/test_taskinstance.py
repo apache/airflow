@@ -1748,6 +1748,8 @@ class TestTaskInstance:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = ti.task.dag.create_dagrun(
             run_id="test2",
+            run_type=DagRunType.MANUAL,
+            logical_date=exec_date,
             data_interval=(exec_date, exec_date),
             state=None,
             **triggered_by_kwargs,
@@ -2022,6 +2024,7 @@ class TestTaskInstance:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = ti1.task.dag.create_dagrun(
             logical_date=logical_date,
+            run_type=DagRunType.MANUAL,
             state=None,
             run_id="2",
             session=session,

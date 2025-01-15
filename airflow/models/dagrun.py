@@ -278,12 +278,14 @@ class DagRun(Base, LoggingMixin):
     def validate_run_id(self, key: str, run_id: str) -> str | None:
         if not run_id:
             return None
-        regex = airflow_conf.get("scheduler", "allowed_run_id_pattern")
-        if not re2.match(regex, run_id) and not re2.match(RUN_ID_REGEX, run_id):
-            raise ValueError(
-                f"The run_id provided '{run_id}' does not match the pattern '{regex}' or '{RUN_ID_REGEX}'"
-            )
-        return run_id
+        if re2.match(RUN_ID_REGEX, run_id):
+            return run_id
+        regex = airflow_conf.get("scheduler", "allowed_run_id_pattern").strip()
+        if regex and re2.match(regex, run_id):
+            return run_id
+        raise ValueError(
+            f"The run_id provided '{run_id}' does not match regex pattern '{regex}' or '{RUN_ID_REGEX}'"
+        )
 
     @property
     def stats_tags(self) -> dict[str, str]:

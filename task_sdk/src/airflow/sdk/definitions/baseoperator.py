@@ -24,7 +24,7 @@ import copy
 import inspect
 import sys
 import warnings
-from collections.abc import Collection, Iterable, Mapping, Sequence
+from collections.abc import Collection, Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from functools import total_ordering, wraps
@@ -68,6 +68,7 @@ if TYPE_CHECKING:
     import jinja2
 
     from airflow.models.xcom_arg import XComArg
+    from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.serialization.enums import DagAttributeTypes
@@ -1244,7 +1245,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def render_template_fields(
         self,
-        context: Mapping[str, Any],  # TODO: Change to `Context` once we have it
+        context: Context,
         jinja_env: jinja2.Environment | None = None,
     ) -> None:
         """
