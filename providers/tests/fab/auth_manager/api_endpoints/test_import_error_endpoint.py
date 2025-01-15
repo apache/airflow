@@ -35,6 +35,7 @@ pytestmark = [
 ]
 
 TEST_DAG_IDS = ["test_dag", "test_dag2"]
+BUNDLE_NAME = "testing"
 
 
 @pytest.fixture(scope="module")
@@ -88,11 +89,14 @@ class TestBaseImportError:
 
 
 class TestGetImportErrorEndpoint(TestBaseImportError):
-    def test_should_raise_403_forbidden_without_dag_read(self, session):
+    def test_should_raise_403_forbidden_without_dag_read(self, configure_testing_dag_bundle, session):
+        with configure_testing_dag_bundle("/tmp"):
+            DagBundlesManager().sync_bundles_to_db()
         import_error = ParseImportError(
             filename="Lorem_ipsum.py",
             stacktrace="Lorem ipsum",
             timestamp=timezone.parse(self.timestamp, timezone="UTC"),
+            bundle_name=BUNDLE_NAME,
         )
         session.add(import_error)
         session.commit()
@@ -103,13 +107,16 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
 
         assert response.status_code == 403
 
-    def test_should_return_200_with_single_dag_read(self, session):
-        dag_model = DagModel(dag_id=TEST_DAG_IDS[0], fileloc="Lorem_ipsum.py")
+    def test_should_return_200_with_single_dag_read(self, session, configure_testing_dag_bundle):
+        with configure_testing_dag_bundle("/tmp"):
+            DagBundlesManager().sync_bundles_to_db()
+        dag_model = DagModel(dag_id=TEST_DAG_IDS[0], fileloc="Lorem_ipsum.py", bundle_name=BUNDLE_NAME)
         session.add(dag_model)
         import_error = ParseImportError(
             filename="Lorem_ipsum.py",
             stacktrace="Lorem ipsum",
             timestamp=timezone.parse(self.timestamp, timezone="UTC"),
+            bundle_name=BUNDLE_NAME,
         )
         session.add(import_error)
         session.commit()
@@ -123,20 +130,25 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         response_data["import_error_id"] = 1
         assert response_data == {
             "filename": "Lorem_ipsum.py",
-            "bundle_name": None,
+            "bundle_name": BUNDLE_NAME,
             "import_error_id": 1,
             "stack_trace": "Lorem ipsum",
             "timestamp": "2020-06-10T12:00:00+00:00",
         }
 
-    def test_should_return_200_redacted_with_single_dag_read_in_dagfile(self, session):
+    def test_should_return_200_redacted_with_single_dag_read_in_dagfile(
+        self, configure_testing_dag_bundle, session
+    ):
+        with configure_testing_dag_bundle("/tmp"):
+            DagBundlesManager().sync_bundles_to_db()
         for dag_id in TEST_DAG_IDS:
-            dag_model = DagModel(dag_id=dag_id, fileloc="Lorem_ipsum.py")
+            dag_model = DagModel(dag_id=dag_id, fileloc="Lorem_ipsum.py", bundle_name=BUNDLE_NAME)
             session.add(dag_model)
         import_error = ParseImportError(
             filename="Lorem_ipsum.py",
             stacktrace="Lorem ipsum",
             timestamp=timezone.parse(self.timestamp, timezone="UTC"),
+            bundle_name=BUNDLE_NAME,
         )
         session.add(import_error)
         session.commit()
@@ -150,7 +162,7 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         response_data["import_error_id"] = 1
         assert response_data == {
             "filename": "Lorem_ipsum.py",
-            "bundle_name": None,
+            "bundle_name": BUNDLE_NAME,
             "import_error_id": 1,
             "stack_trace": "REDACTED - you do not have read permission on all DAGs in the file",
             "timestamp": "2020-06-10T12:00:00+00:00",
@@ -163,11 +175,11 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
             DagBundlesManager().sync_bundles_to_db()
         for dag_id in TEST_DAG_IDS:
             fake_filename = f"/tmp/{dag_id}.py"
-            dag_model = DagModel(dag_id=dag_id, fileloc=fake_filename, bundle_name="testing")
+            dag_model = DagModel(dag_id=dag_id, fileloc=fake_filename, bundle_name=BUNDLE_NAME)
             session.add(dag_model)
             importerror = ParseImportError(
                 filename=fake_filename,
-                bundle_name="testing",
+                bundle_name=BUNDLE_NAME,
                 stacktrace="Lorem ipsum",
                 timestamp=timezone.parse(self.timestamp, timezone="UTC"),
             )
@@ -185,7 +197,7 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
             "import_errors": [
                 {
                     "filename": "/tmp/test_dag.py",
-                    "bundle_name": "testing",
+                    "bundle_name": BUNDLE_NAME,
                     "import_error_id": 1,
                     "stack_trace": "Lorem ipsum",
                     "timestamp": "2020-06-10T12:00:00+00:00",
@@ -204,7 +216,7 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
 
         importerror = ParseImportError(
             filename="/tmp/all_in_one.py",
-            bundle_name="testing",
+            bundle_name=BUNDLE_NAME,
             stacktrace="Lorem ipsum",
             timestamp=timezone.parse(self.timestamp, timezone="UTC"),
         )
@@ -222,7 +234,7 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
             "import_errors": [
                 {
                     "filename": "/tmp/all_in_one.py",
-                    "bundle_name": "testing",
+                    "bundle_name": BUNDLE_NAME,
                     "import_error_id": 1,
                     "stack_trace": "REDACTED - you do not have read permission on all DAGs in the file",
                     "timestamp": "2020-06-10T12:00:00+00:00",
