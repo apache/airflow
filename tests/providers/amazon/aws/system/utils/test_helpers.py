@@ -24,7 +24,7 @@ from __future__ import annotations
 import os
 import sys
 from io import StringIO
-from unittest.mock import ANY, patch
+from unittest.mock import patch
 
 import pytest
 from moto import mock_aws
@@ -79,8 +79,15 @@ class TestAmazonSystemTestHelpers:
     ) -> None:
         mock_getenv.return_value = env_value or ssm_value
 
-        result = utils.fetch_variable(ANY, default_value) if default_value else utils.fetch_variable(ANY_STR)
+        utils._fetch_from_ssm.cache_clear()
 
+        result = (
+            utils.fetch_variable("some_key", default_value)
+            if default_value
+            else utils.fetch_variable(ANY_STR)
+        )
+
+        utils._fetch_from_ssm.cache_clear()
         assert result == expected_result
 
     def test_fetch_variable_no_value_found_raises_exception(self):
