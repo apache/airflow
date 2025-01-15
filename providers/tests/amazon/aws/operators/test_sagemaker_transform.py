@@ -68,7 +68,7 @@ CREATE_MODEL_PARAMS: dict = {
 
 CONFIG: dict = {"Model": CREATE_MODEL_PARAMS, "Transform": CREATE_TRANSFORM_PARAMS}
 
-MOCK_UNIX_TIME: int = 1234567890123456789   # reproducable time for testing time.time_ns()
+MOCK_UNIX_TIME: int = 1234567890123456789  # reproducible time for testing time.time_ns()
 
 
 class TestSageMakerTransformOperator:
@@ -187,7 +187,9 @@ class TestSageMakerTransformOperator:
     @mock.patch(  # since it is divided by 1000000000, the added timestamp should be 1234567890.
         "airflow.providers.amazon.aws.operators.sagemaker.time.time_ns", return_value=MOCK_UNIX_TIME
     )
-    @mock.patch.object(SageMakerHook, "describe_transform_job", return_value={"ModelName": "model_name-1234567890"})
+    @mock.patch.object(
+        SageMakerHook, "describe_transform_job", return_value={"ModelName": "model_name-1234567890"}
+    )
     @mock.patch.object(
         SageMakerHook,
         "create_transform_job",

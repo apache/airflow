@@ -49,7 +49,7 @@ PARSED_CONFIG: dict = {
 
 EXPECTED_INTEGER_FIELDS: list[list[Any]] = []
 
-MOCK_UNIX_TIME = 1234567890123456789   # reproducable time for testing time.time_ns()
+MOCK_UNIX_TIME = 1234567890123456789  # reproducible time for testing time.time_ns()
 
 
 class TestSageMakerBaseOperator:
@@ -97,9 +97,11 @@ class TestSageMakerBaseOperator:
     @patch("airflow.providers.amazon.aws.operators.sagemaker.time.time_ns", return_value=MOCK_UNIX_TIME)
     def test_job_name_length(self, _):
         describe_mock = MagicMock()
-        #scenario: The name is longer than 63 characters so we need the function to truncate the name and add a timestamp
+        # scenario: The name is longer than 63 characters so we need the function to truncate the name and add a timestamp
         describe_mock.side_effect = [None, None, self.ERROR_WHEN_RESOURCE_NOT_FOUND]
-        name = self.sagemaker._get_unique_job_name("ThisNameIsLongerThan64CharactersSoItShouldBeTruncatedWithATimestamp", False, describe_mock)
+        name = self.sagemaker._get_unique_job_name(
+            "ThisNameIsLongerThan64CharactersSoItShouldBeTruncatedWithATimestamp", False, describe_mock
+        )
         assert len(name) <= 63
 
     @patch("airflow.providers.amazon.aws.operators.sagemaker.time.time_ns", return_value=MOCK_UNIX_TIME)
@@ -108,15 +110,15 @@ class TestSageMakerBaseOperator:
 
         describe_mock.side_effect = [None, None, self.ERROR_WHEN_RESOURCE_NOT_FOUND]
 
-        #scenario: The name is longer than 63 characters so we need the function to truncate the name and add a timestamp
+        # scenario: The name is longer than 63 characters so we need the function to truncate the name and add a timestamp
         full_name = "ThisNameIsLongerThan64CharactersSoItShouldBeTruncatedWithATimestamp"
 
         name = self.sagemaker._get_unique_job_name(full_name, False, describe_mock)
 
-        base_name, timestamp = name.split('-')
-        assert base_name == full_name[:len(base_name)]
+        base_name, timestamp = name.split("-")
+        assert base_name == full_name[: len(base_name)]
         assert timestamp == str(MOCK_UNIX_TIME)[:10]
-        
+
     def test_job_not_unique_with_fail(self):
         with pytest.raises(AirflowException):
             self.sagemaker._get_unique_job_name("test", True, lambda _: None)
