@@ -94,10 +94,12 @@ def test_irregular_provider_with_extra_ignore_should_be_valid_cmd(mock_run_comma
     # (the container id is simply to anchor the pattern so we know where we are starting; _run_tests should
     # be refactored to make arg testing easier but until then we have to regex-test the entire command string
     match_pattern = re.compile(
-        f" airflow providers/tests .+ --ignore=providers/tests/{fake_provider_name} --ignore=providers/tests/system/{fake_provider_name} --ignore=providers/tests/integration/{fake_provider_name}"
+        f".* airflow providers/.*/tests.*providers/tests .* --ignore=providers/tests/{fake_provider_name} "
+        f"--ignore=providers/tests/system/{fake_provider_name} "
+        f"--ignore=providers/tests/integration/{fake_provider_name}"
     )
 
-    assert match_pattern.search(arg_str)
+    assert match_pattern.search(arg_str), arg_str
 
 
 def test_primary_test_arg_is_excluded_by_extra_pytest_arg(mock_run_command):
