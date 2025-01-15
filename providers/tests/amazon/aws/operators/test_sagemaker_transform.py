@@ -74,7 +74,6 @@ class TestSageMakerTransformOperator:
     def setup_method(self):
         self.sagemaker = SageMakerTransformOperator(
             task_id="test_sagemaker_operator",
-            aws_conn_id="sagemaker_test_id",
             config=copy.deepcopy(CONFIG),
             wait_for_completion=False,
             check_interval=5,
@@ -131,8 +130,8 @@ class TestSageMakerTransformOperator:
     @mock.patch.object(SageMakerHook, "create_model")
     @mock.patch.object(SageMakerHook, "describe_model")
     @mock.patch.object(SageMakerHook, "create_transform_job")
-    @mock.patch.object(sagemaker, "serialize", return_value="")
-    def test_log_correct_url(self, _, mock_transform, __, ___, mock_desc):
+    # @mock.patch.object(sagemaker, "serialize", return_value="")
+    def test_log_correct_url(self, mock_transform, __, ___, mock_desc):
         region = "us-east-1"
         job_name = CONFIG["Transform"]["TransformJobName"]
         mock_desc.side_effect = [
