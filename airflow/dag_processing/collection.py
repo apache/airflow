@@ -407,10 +407,8 @@ class DagModelOperation(NamedTuple):
                 dm._dag_display_property_value = dag.dag_display_name
             dm.description = dag.description
 
-            # These "is not None" checks are because with a LazySerializedDag object where the user hasn't
-            # specified an explicit value, we don't get the default values from the config in the lazy
-            # serialized ver
-            # we just
+            # These "is not None" checks are because a LazySerializedDag object does not
+            # provide the default value if the user doesn't provide an explicit value.
             if dag.max_active_tasks is not None:
                 dm.max_active_tasks = dag.max_active_tasks
             elif dag.max_active_tasks is None and dm.max_active_tasks is None:
