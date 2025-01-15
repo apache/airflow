@@ -3586,8 +3586,11 @@
             "properties": {
                 "enabled": {
                     "description": "Enable standalone dag processor (requires Airflow 2.3.0+).",
-                    "type": "boolean",
-                    "default": false
+                    "type": [
+                        "boolean",
+                        "null"
+                    ],
+                    "default": null
                 },
                 "livenessProbe": {
                     "description": "Liveness probe configuration for dag processor.",
