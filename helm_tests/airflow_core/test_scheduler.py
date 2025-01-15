@@ -759,20 +759,32 @@ class TestScheduler:
         ]
 
     @pytest.mark.parametrize(
-        "dag_processor, executor, skip_dags_mount",
+        "airflow_version, dag_processor, executor, skip_dags_mount",
         [
-            (True, "LocalExecutor", False),
-            (True, "CeleryExecutor", True),
-            (True, "KubernetesExecutor", True),
-            (True, "LocalKubernetesExecutor", False),
-            (False, "LocalExecutor", False),
-            (False, "CeleryExecutor", False),
-            (False, "KubernetesExecutor", False),
-            (False, "LocalKubernetesExecutor", False),
+            # standalone dag_processor is optional on 2.10, so we can skip dags for non-local if its on
+            ("2.10.4", True, "LocalExecutor", False),
+            ("2.10.4", True, "CeleryExecutor", True),
+            ("2.10.4", True, "KubernetesExecutor", True),
+            ("2.10.4", True, "LocalKubernetesExecutor", False),
+            # but if standalone dag_processor is off, we must always have dags
+            ("2.10.4", False, "LocalExecutor", False),
+            ("2.10.4", False, "CeleryExecutor", False),
+            ("2.10.4", False, "KubernetesExecutor", False),
+            ("2.10.4", False, "LocalKubernetesExecutor", False),
+            # by default, we don't have a standalone dag_processor
+            ("2.10.4", None, "LocalExecutor", False),
+            ("2.10.4", None, "CeleryExecutor", False),
+            ("2.10.4", None, "KubernetesExecutor", False),
+            ("2.10.4", None, "LocalKubernetesExecutor", False),
+            # but in airflow 3, standalone dag_processor required, so we again can skip dags for non-local
+            ("3.0.0", None, "LocalExecutor", False),
+            ("3.0.0", None, "CeleryExecutor", True),
+            ("3.0.0", None, "KubernetesExecutor", True),
+            ("3.0.0", None, "LocalKubernetesExecutor", False),
         ],
     )
     def test_dags_mount_and_gitsync_expected_with_dag_processor(
-        self, dag_processor, executor, skip_dags_mount
+        self, airflow_version, dag_processor, executor, skip_dags_mount
     ):
         """
         DAG Processor can move gitsync and DAGs mount from the scheduler to the DAG Processor only.
@@ -780,13 +792,16 @@ class TestScheduler:
         The only exception is when we have a Local executor.
         In these cases, the scheduler does the worker role and needs access to DAGs anyway.
         """
+        values = {
+            "airflowVersion": airflow_version,
+            "executor": executor,
+            "dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": True}},
+            "scheduler": {"logGroomerSidecar": {"enabled": False}},
+        }
+        if dag_processor is not None:
+            values["dagProcessor"] = {"enabled": dag_processor}
         docs = render_chart(
-            values={
-                "dagProcessor": {"enabled": dag_processor},
-                "executor": executor,
-                "dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": True}},
-                "scheduler": {"logGroomerSidecar": {"enabled": False}},
-            },
+            values=values,
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
