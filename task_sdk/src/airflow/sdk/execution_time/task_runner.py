@@ -33,6 +33,7 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState, TIRunContext
+from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.execution_time.comms import (
     DeferTask,
@@ -406,8 +407,8 @@ def startup() -> tuple[RuntimeTaskInstance, Logger]:
         setproctitle(f"airflow worker -- {msg.ti.id}")
 
         log = structlog.get_logger(logger_name="task")
-        # TODO: set the "magic loop" context vars for parsing
-        ti = parse(msg)
+        with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
+            ti = parse(msg)
         log.debug("DAG file parsed", file=msg.dag_rel_path)
     else:
         raise RuntimeError(f"Unhandled  startup message {type(msg)} {msg}")

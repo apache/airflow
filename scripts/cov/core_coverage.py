@@ -104,7 +104,6 @@ files_not_fully_covered = [
     "airflow/utils/code_utils.py",
     "airflow/utils/context.py",
     "airflow/utils/dag_cycle_tester.py",
-    "airflow/utils/dag_parsing_context.py",
     "airflow/utils/dates.py",
     "airflow/utils/db.py",
     "airflow/utils/db_cleanup.py",
