@@ -5,8 +5,8 @@ should be imported from ``airflow.providers.celery.executors.default_celery.DEFA
 
 * Types of change
 
-  * [ ] DAG changes
-  * [x] Config changes
+  * [x] DAG changes
+  * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes
   * [ ] Behaviour changes
@@ -15,4 +15,8 @@ should be imported from ``airflow.providers.celery.executors.default_celery.DEFA
 
 * Migration rules needed
 
-    * AIR303 rewrite ``airflow.config_templates.default_celery.DEFAULT_CELERY_CONFIG`` to ``airflow.providers.celery.executors.default_celery.DEFAULT_CELERY_CONFIG``
+  * ruff
+
+    * AIR303
+
+      * [x] ``airflow.config_templates.default_celery.DEFAULT_CELERY_CONFIG`` → ``airflow.providers.celery.executors.default_celery.DEFAULT_CELERY_CONFIG``

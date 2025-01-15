@@ -3,7 +3,7 @@ Removed auth backend ``airflow.api.auth.backend.default``
 * Types of change
 
   * [ ] DAG changes
-  * [ ] Config changes
+  * [x] Config changes
   * [ ] API changes
   * [ ] CLI changes
   * [ ] Behaviour changes
@@ -12,7 +12,8 @@ Removed auth backend ``airflow.api.auth.backend.default``
 
 * Migration rules needed
 
-.. e.g.,
-.. * Remove context key ``execution_date``
-.. * context key ``triggering_dataset_events`` → ``triggering_asset_events``
-.. * Remove method ``airflow.providers_manager.ProvidersManager.initialize_providers_dataset_uri_resources`` → ``airflow.providers_manager.ProvidersManager.initialize_providers_asset_uri_resources``
+  * ruff
+
+    * AIR303
+
+      * [x] ``airflow.api.auth.backend.default`` → ``airflow.providers.fab.auth_manager.api.auth.backend.session``

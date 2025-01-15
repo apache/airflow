@@ -16,18 +16,26 @@ Removed deprecated metrics configuration.
 * Types of change
 
   * [ ] DAG changes
-  * [ ] Config changes
+  * [x] Config changes
   * [ ] API changes
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
 
-.. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
-
 * Migration rules needed
 
-.. e.g.,
-.. * Remove context key ``execution_date``
-.. * context key ``triggering_dataset_events`` → ``triggering_asset_events``
-.. * Remove method ``airflow.providers_manager.ProvidersManager.initialize_providers_dataset_uri_resources`` → ``airflow.providers_manager.ProvidersManager.initialize_providers_asset_uri_resources``
+  * ``airflow config lint``
+
+    * [x] ``metrics.statsd_allow_list`` → ``metrics.metrics_allow_list``
+    * [x] ``metrics.statsd_block_list`` → ``metrics.metrics_block_list``
+    * [x] ``scheduler.statsd_on`` → ``metrics.statsd_on``
+    * [x] ``scheduler.statsd_host`` → ``metrics.statsd_host``
+    * [x] ``scheduler.statsd_port`` → ``metrics.statsd_port``
+    * [x] ``scheduler.statsd_prefix`` → ``metrics.statsd_prefix``
+    * [x] ``scheduler.statsd_allow_list`` → ``metrics.statsd_allow_list``
+    * [x] ``scheduler.stat_name_handler`` → ``metrics.stat_name_handler``
+    * [x] ``scheduler.statsd_datadog_enabled`` → ``metrics.statsd_datadog_enabled``
+    * [x] ``scheduler.statsd_datadog_tags`` → ``metrics.statsd_datadog_tags``
+    * [x] ``scheduler.statsd_datadog_metrics_tags`` → ``metrics.statsd_datadog_metrics_tags``
+    * [x] ``scheduler.statsd_custom_client_path`` → ``metrics.statsd_custom_client_path``

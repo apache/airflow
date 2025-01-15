@@ -23,18 +23,24 @@ After:
 * Types of change
 
   * [ ] DAG changes
-  * [ ] Config changes
+  * [x] Config changes
   * [ ] API changes
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
 
-.. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
-
 * Migration rules needed
 
-.. e.g.,
-.. * Remove context key ``execution_date``
-.. * context key ``triggering_dataset_events`` → ``triggering_asset_events``
-.. * Remove method ``airflow.providers_manager.ProvidersManager.initialize_providers_dataset_uri_resources`` → ``airflow.providers_manager.ProvidersManager.initialize_providers_asset_uri_resources``
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.configuration.getboolean`` → ``airflow.configuration.conf.getboolean``
+      * [x] ``airflow.configuration.getfloat`` → ``airflow.configuration.conf.getfloat``
+      * [x] ``airflow.configuration.getint`` → ``airflow.configuration.conf.getint``
+      * [x] ``airflow.configuration.has_option`` → ``airflow.configuration.conf.has_option``
+      * [x] ``airflow.configuration.remove_option`` → ``airflow.configuration.conf.remove_option``
+      * [x] ``airflow.configuration.as_dict`` → ``airflow.configuration.conf.as_dict``
+      * [x] ``airflow.configuration.set`` → ``airflow.configuration.conf.set``
+      * [x] ``airflow.configuration.get`` → ``airflow.configuration.conf.get``

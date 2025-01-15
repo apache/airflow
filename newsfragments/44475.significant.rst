@@ -18,4 +18,8 @@ Remove ``TriggerRule.NONE_FAILED_OR_SKIPPED``
 
 * Migrations rules needed
 
-  * Remove attribute ``TriggerRule.NONE_FAILED_OR_SKIPPED``
+  * ruff
+
+    * AIR302
+
+      * [x] ``TriggerRule.NONE_FAILED_OR_SKIPPED``

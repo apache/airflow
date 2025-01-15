@@ -9,7 +9,7 @@ Following functions are removed:
 
 * Types of change
 
-  * [ ] DAG changes
+  * [x] DAG changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes
@@ -19,7 +19,11 @@ Following functions are removed:
 
 * Migration rules needed
 
-.. e.g.,
-.. * Remove context key ``execution_date``
-.. * context key ``triggering_dataset_events`` → ``triggering_asset_events``
-.. * Remove method ``airflow.providers_manager.ProvidersManager.initialize_providers_dataset_uri_resources`` → ``airflow.providers_manager.ProvidersManager.initialize_providers_asset_uri_resources``
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.utils.dates.parse_execution_date``
+      * [x] ``airflow.utils.dates.round_time``
+      * [x] ``airflow.utils.dates.scale_time_units``
+      * [x] ``airflow.utils.dates.infer_time_unit``

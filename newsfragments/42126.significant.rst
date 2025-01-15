@@ -16,18 +16,27 @@ Removed deprecated database configuration.
 * Types of change
 
   * [ ] DAG changes
-  * [ ] Config changes
+  * [x] Config changes
   * [ ] API changes
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
 
-.. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
-
 * Migration rules needed
 
-.. e.g.,
-.. * Remove context key ``execution_date``
-.. * context key ``triggering_dataset_events`` → ``triggering_asset_events``
-.. * Remove method ``airflow.providers_manager.ProvidersManager.initialize_providers_dataset_uri_resources`` → ``airflow.providers_manager.ProvidersManager.initialize_providers_asset_uri_resources``
+
+  * ``airflow config lint``
+
+    * [x] ``core.sql_alchemy_conn`` → ``database.sql_alchemy_conn``
+    * [x] ``core.sql_engine_encoding`` → ``database.sql_engine_encoding``
+    * [x] ``core.sql_engine_collation_for_ids`` → ``database.sql_engine_collation_for_ids``
+    * [x] ``core.sql_alchemy_pool_enabled`` → ``database.sql_alchemy_pool_enabled``
+    * [x] ``core.sql_alchemy_pool_size`` → ``database.sql_alchemy_pool_size``
+    * [x] ``core.sql_alchemy_max_overflow`` → ``database.sql_alchemy_max_overflow``
+    * [x] ``core.sql_alchemy_pool_recycle`` → ``database.sql_alchemy_pool_recycle``
+    * [x] ``core.sql_alchemy_pool_pre_ping`` → ``database.sql_alchemy_pool_pre_ping``
+    * [x] ``core.sql_alchemy_schema`` → ``database.sql_alchemy_schema``
+    * [x] ``core.sql_alchemy_connect_args`` → ``database.sql_alchemy_connect_args``
+    * [x] ``core.load_default_connections`` → ``database.load_default_connections``
+    * [x] ``core.max_db_retries`` → ``database.max_db_retries``

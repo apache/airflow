@@ -3,18 +3,22 @@ Metrics basic deprecated validators  (``AllowListValidator`` and ``BlockListVali
 * Types of change
 
   * [ ] DAG changes
-  * [ ] Config changes
+  * [x] Config changes
   * [ ] API changes
   * [ ] CLI changes
-  * [ ] Behaviour changes
+  * [x] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
 
-.. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
-
 * Migration rules needed
 
-.. e.g.,
-.. * Remove context key ``execution_date``
-.. * context key ``triggering_dataset_events`` → ``triggering_asset_events``
-.. * Remove method ``airflow.providers_manager.ProvidersManager.initialize_providers_dataset_uri_resources`` → ``airflow.providers_manager.ProvidersManager.initialize_providers_asset_uri_resources``
+  * ``airflow config liint``
+
+    * [x] ``metrics.metrics_use_pattern_match``
+
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.metrics.validators.AllowListValidator`` → ``airflow.metrics.validators.PatternAllowListValidator``
+      * [x] ``airflow.metrics.validators.BlockListValidator`` → ``airflow.metrics.validators.PatternBlockListValidator``

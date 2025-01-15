@@ -23,18 +23,33 @@ Removed deprecated logging configuration.
 * Types of change
 
   * [ ] DAG changes
-  * [ ] Config changes
+  * [x] Config changes
   * [ ] API changes
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
 
-.. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
-
 * Migration rules needed
 
-.. e.g.,
-.. * Remove context key ``execution_date``
-.. * context key ``triggering_dataset_events`` → ``triggering_asset_events``
-.. * Remove method ``airflow.providers_manager.ProvidersManager.initialize_providers_dataset_uri_resources`` → ``airflow.providers_manager.ProvidersManager.initialize_providers_asset_uri_resources``
+  * ``airflow config lint``
+
+    * [x] ``core.interleave_timestamp_parser`` → ``logging.interleave_timestamp_parser``
+    * [x] ``core.base_log_folder`` → ``logging.base_log_folder``
+    * [x] ``core.remote_logging`` → ``logging.remote_logging``
+    * [x] ``core.remote_log_conn_id`` → ``logging.remote_log_conn_id``
+    * [x] ``core.remote_base_log_folder`` → ``logging.remote_base_log_folder``
+    * [x] ``core.encrypt_s3_logs`` → ``logging.encrypt_s3_logs``
+    * [x] ``core.logging_level`` → ``logging.logging_level``
+    * [x] ``core.fab_logging_level`` → ``logging.fab_logging_level``
+    * [x] ``core.logging_config_class`` → ``logging.logging_config_class``
+    * [x] ``core.colored_console_log`` → ``logging.colored_console_log``
+    * [x] ``core.colored_log_format`` → ``logging.colored_log_format``
+    * [x] ``core.colored_formatter_class`` → ``logging.colored_formatter_class``
+    * [x] ``core.log_format`` → ``logging.log_format``
+    * [x] ``core.simple_log_format`` → ``logging.simple_log_format``
+    * [x] ``core.task_log_prefix_template`` → ``logging.task_log_prefix_template``
+    * [x] ``core.log_filename_template`` → ``logging.log_filename_template``
+    * [x] ``core.log_processor_filename_template`` → ``logging.log_processor_filename_template``
+    * [x] ``core.dag_processor_manager_log_location`` → ``logging.dag_processor_manager_log_location``
+    * [x] ``core.task_log_reader`` → ``logging.task_log_reader``

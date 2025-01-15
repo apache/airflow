@@ -2,11 +2,11 @@ The SLA feature is removed in Airflow 3.0, to be replaced with Airflow Alerts in
 
 * Types of change
 
-  * [ ] DAG changes
-  * [ ] Config changes
-  * [ ] API changes
+  * [x] DAG changes
+  * [x] Config changes
+  * [x] API changes
   * [ ] CLI changes
-  * [ ] Behaviour changes
+  * [x] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
 
@@ -14,7 +14,16 @@ The SLA feature is removed in Airflow 3.0, to be replaced with Airflow Alerts in
 
 * Migration rules needed
 
-.. e.g.,
-.. * Remove context key ``execution_date``
-.. * context key ``triggering_dataset_events`` → ``triggering_asset_events``
-.. * Remove method ``airflow.providers_manager.ProvidersManager.initialize_providers_dataset_uri_resources`` → ``airflow.providers_manager.ProvidersManager.initialize_providers_asset_uri_resources``
+  * ``airflow config lint``
+
+    * [x] ``core.check_slas``
+
+  * ruff
+
+    * AIR302
+
+      * argument in ``BaseOperator`` and its subclassses
+        * [x] ``sla``
+
+      * argument in ``DAG``
+        * [x] ``sla_miss_callback``

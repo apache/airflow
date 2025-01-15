@@ -2,7 +2,7 @@ Removed deprecated ``filename_template`` argument from ``airflow.utils.log.file_
 
 * Types of change
 
-  * [ ] DAG changes
+  * [x] DAG changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes
@@ -10,11 +10,12 @@ Removed deprecated ``filename_template`` argument from ``airflow.utils.log.file_
   * [ ] Plugin changes
   * [ ] Dependency change
 
-.. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
-
 * Migration rules needed
 
-.. e.g.,
-.. * Remove context key ``execution_date``
-.. * context key ``triggering_dataset_events`` → ``triggering_asset_events``
-.. * Remove method ``airflow.providers_manager.ProvidersManager.initialize_providers_dataset_uri_resources`` → ``airflow.providers_manager.ProvidersManager.initialize_providers_asset_uri_resources``
+  * ruff
+
+    * AIR302
+
+      * argument in ``airflow.utils.log.file_task_handler.FileTaskHandler`` and its subclassses
+
+        * [x] ``filename_template``

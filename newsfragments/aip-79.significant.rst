@@ -13,3 +13,13 @@ As part of this change the following breaking changes have occurred:
   - The property ``security_manager`` has been removed from the interface
 
   - The method ``filter_permitted_menu_items`` is now abstract and must be implemented
+
+* Types of change
+
+  * [ ] DAG changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency change

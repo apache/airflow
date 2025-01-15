@@ -2,13 +2,13 @@ Removed deprecated parameters from core-operators.
 
 Parameters removed:
 
-- airflow.operators.datetime.BranchDateTimeOperator: use_task_execution_date
-- airflow.operators.trigger_dagrun.TriggerDagRunOperator: execution_date
-- airflow.operators.weekday.BranchDayOfWeekOperator: use_task_execution_day
+- ``airflow.operators.datetime.BranchDateTimeOperator``: ``use_task_execution_date``
+- ``airflow.operators.trigger_dagrun.TriggerDagRunOperator``: ``execution_date``
+- ``airflow.operators.weekday.BranchDayOfWeekOperator``: ``use_task_execution_day``
 
 * Types of change
 
-  * [ ] DAG changes
+  * [x] DAG changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes
@@ -16,11 +16,20 @@ Parameters removed:
   * [ ] Plugin changes
   * [ ] Dependency change
 
-.. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
-
 * Migration rules needed
 
-.. e.g.,
-.. * Remove context key ``execution_date``
-.. * context key ``triggering_dataset_events`` → ``triggering_asset_events``
-.. * Remove method ``airflow.providers_manager.ProvidersManager.initialize_providers_dataset_uri_resources`` → ``airflow.providers_manager.ProvidersManager.initialize_providers_asset_uri_resources``
+  * ruff
+
+    * AIR302
+
+      * argument in ``airflow.operators.trigger_dagrun.TriggerDagRunOperator``
+
+        * [x] ``execution_date``
+
+      * argument in ``airflow.operators.datetime.BranchDateTimeOperator``
+
+        * [x] ``use_task_execution_day`` → ``use_task_logical_date``
+
+      * argument in ``airflow.operators.weekday.BranchDayOfWeekOperator``
+
+        * [x] ``use_task_execution_day`` → ``use_task_logical_date``

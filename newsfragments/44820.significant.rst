@@ -35,4 +35,10 @@ Example:
 
 * Migration rules needed
 
-  * Remove context key ``conf``
+  * ruff
+
+    * AIR302
+
+      * context key
+
+        * [ ] ``conf``

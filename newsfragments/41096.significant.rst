@@ -3,7 +3,7 @@ Removed deprecated ``processor_poll_interval`` configuration parameter from ``sc
 * Types of change
 
   * [ ] DAG changes
-  * [ ] Config changes
+  * [x] Config changes
   * [ ] API changes
   * [ ] CLI changes
   * [ ] Behaviour changes
@@ -12,7 +12,6 @@ Removed deprecated ``processor_poll_interval`` configuration parameter from ``sc
 
 * Migration rules needed
 
-.. e.g.,
-.. * Remove context key ``execution_date``
-.. * context key ``triggering_dataset_events`` → ``triggering_asset_events``
-.. * Remove method ``airflow.providers_manager.ProvidersManager.initialize_providers_dataset_uri_resources`` → ``airflow.providers_manager.ProvidersManager.initialize_providers_asset_uri_resources``
+  * ``airflow config lint``
+
+    * [x] ``scheduler.processor_poll_interval`` → ``scheduler.scheduler_idle_sleep_time``

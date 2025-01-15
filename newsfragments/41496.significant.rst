@@ -1,12 +1,13 @@
-Removed deprecated methods in airflow/utils/dates.py
+Removed deprecated methods in ``airflow/utils/dates.py``
 
-Methods removed:
-  * date_range
-  * days_ago (Use ``pendulum.today('UTC').add(days=-N, ...)``)
+* Methods removed
+
+  * ``date_range``
+  * ``days_ago`` (Use ``pendulum.today('UTC').add(days=-N, ...)``)
 
 * Types of change
 
-  * [ ] DAG changes
+  * [x] DAG changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes
@@ -14,11 +15,11 @@ Methods removed:
   * [ ] Plugin changes
   * [ ] Dependency change
 
-.. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
-
 * Migration rules needed
 
-.. e.g.,
-.. * Remove context key ``execution_date``
-.. * context key ``triggering_dataset_events`` → ``triggering_asset_events``
-.. * Remove method ``airflow.providers_manager.ProvidersManager.initialize_providers_dataset_uri_resources`` → ``airflow.providers_manager.ProvidersManager.initialize_providers_asset_uri_resources``
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.utils.dates.date_range``
+      * [x] ``airflow.utils.dates.days_ago`` → ``pendulum.today("UTC").add(days=-N, ...)``

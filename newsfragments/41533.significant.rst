@@ -1,6 +1,5 @@
-**Breaking Change**
-
 The ``load_connections`` function has been removed from the ``local_file_system``.
+
 This function was previously deprecated in favor of ``load_connections_dict``.
 
 If your code still uses ``load_connections``, you should update it to use ``load_connections_dict``
@@ -27,7 +26,7 @@ Example update:
 
 * Types of change
 
-  * [ ] DAG changes
+  * [x] DAG changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes
@@ -35,11 +34,11 @@ Example update:
   * [ ] Plugin changes
   * [ ] Dependency change
 
-.. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
-
 * Migration rules needed
 
-.. e.g.,
-.. * Remove context key ``execution_date``
-.. * context key ``triggering_dataset_events`` → ``triggering_asset_events``
-.. * Remove method ``airflow.providers_manager.ProvidersManager.initialize_providers_dataset_uri_resources`` → ``airflow.providers_manager.ProvidersManager.initialize_providers_asset_uri_resources``
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.secrets.local_filesystem.load_connections`` → ``airflow.secrets.local_filesystem.load_connections_dict``
+      * [x] ``airflow.secrets.local_filesystem.get_connection`` → ``airflow.secrets.local_filesystem.load_connections_dict``

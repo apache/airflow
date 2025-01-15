@@ -1,35 +1,27 @@
-Removed unused methods / properties in models/dag.py
+Removed unused methods / properties in ``airflow/models/dag.py``
 
-Methods removed:
-  * date_range
-  * is_fixed_time_schedule
-  * next_dagrun_after_date
-  * get_run_dates
-  * normalize_schedule
-  * full_filepath
-  * concurrency
-  * filepath
-  * concurrency_reached
-  * normalized_schedule_interval
-  * latest_execution_date
-  * set_dag_runs_state
-  * bulk_sync_to_db
+* Methods removed
+
+  * ``date_range``
+  * ``is_fixed_time_schedule``
+  * ``next_dagrun_after_date``
+  * ``get_run_dates``
+  * ``normalize_schedule``
+  * ``full_filepath``
+  * ``concurrency``
+  * ``filepath``
+  * ``concurrency_reached``
+  * ``normalized_schedule_interval``
+  * ``latest_execution_date``
+  * ``set_dag_runs_state``
+  * ``bulk_sync_to_db``
 
 * Types of change
 
-  * [ ] DAG changes
+  * [x] DAG changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
-
-.. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
-
-* Migration rules needed
-
-.. e.g.,
-.. * Remove context key ``execution_date``
-.. * context key ``triggering_dataset_events`` → ``triggering_asset_events``
-.. * Remove method ``airflow.providers_manager.ProvidersManager.initialize_providers_dataset_uri_resources`` → ``airflow.providers_manager.ProvidersManager.initialize_providers_asset_uri_resources``
