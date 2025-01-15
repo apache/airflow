@@ -193,6 +193,7 @@ class TestFileTaskLogHandler:
             (executor_constants.LOCAL_KUBERNETES_EXECUTOR),
             (executor_constants.CELERY_KUBERNETES_EXECUTOR),
             (executor_constants.KUBERNETES_EXECUTOR),
+            (None),
         ],
     )
     @conf_vars(
@@ -206,12 +207,26 @@ class TestFileTaskLogHandler:
             ),
         }
     )
-    def test_file_task_handler_with_multiple_executors(self, executor_name, create_task_instance):
-        reload(executor_loader)
+    @patch(
+        "airflow.executors.executor_loader.ExecutorLoader.load_executor",
+        wraps=executor_loader.ExecutorLoader.load_executor,
+    )
+    @patch(
+        "airflow.executors.executor_loader.ExecutorLoader.get_default_executor",
+        wraps=executor_loader.ExecutorLoader.get_default_executor,
+    )
+    def test_file_task_handler_with_multiple_executors(
+        self, mock_get_default_executor, mock_load_executor, executor_name, create_task_instance
+    ):
         executors_mapping = executor_loader.ExecutorLoader.executors
-        path_to_executor_class = executors_mapping[executor_name]
+        default_executor_name = executor_loader.ExecutorLoader.get_default_executor_name()
+        path_to_executor_class: str
+        if executor_name is None:
+            path_to_executor_class = executors_mapping.get(default_executor_name.alias)
+        else:
+            path_to_executor_class = executors_mapping.get(executor_name)
 
-        with patch(f"{path_to_executor_class}.get_task_log") as mock_get_task_log:
+        with patch(f"{path_to_executor_class}.get_task_log", return_value=([], [])) as mock_get_task_log:
             mock_get_task_log.return_value = ([], [])
             ti = create_task_instance(
                 dag_id="dag_for_testing_multiple_executors",
@@ -219,7 +234,8 @@ class TestFileTaskLogHandler:
                 run_type=DagRunType.SCHEDULED,
                 logical_date=DEFAULT_DATE,
             )
-            ti.executor = executor_name
+            if executor_name is not None:
+                ti.executor = executor_name
             ti.state = TaskInstanceState.RUNNING
             ti.try_number = 1
             logger = ti.log
@@ -246,6 +262,14 @@ class TestFileTaskLogHandler:
             file_handler.read(ti)
             os.remove(log_filename)
             mock_get_task_log.assert_called_once()
+
+            if executor_name is None:
+                mock_get_default_executor.assert_called_once()
+                # will be called in `ExecutorLoader.get_default_executor` method
+                mock_load_executor.assert_called_once_with(default_executor_name)
+            else:
+                mock_get_default_executor.assert_not_called()
+                mock_load_executor.assert_called_once_with(executor_name)
 
     def test_file_task_handler_running(self, dag_maker):
         def task_callable(ti):
