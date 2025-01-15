@@ -779,13 +779,13 @@ class DAG(TaskSDKDag, LoggingMixin):
         return session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == self.dag_id))
 
     @provide_session
-    def get_bundle_name(self, session=NEW_SESSION) -> None:
+    def get_bundle_name(self, session=NEW_SESSION) -> str | None:
         """Return the bundle name this DAG is in."""
         return session.scalar(select(DagModel.bundle_name).where(DagModel.dag_id == self.dag_id))
 
     @provide_session
-    def get_latest_bundle_version(self, session=NEW_SESSION) -> None:
-        """Return the bundle name this DAG is in."""
+    def get_latest_bundle_version(self, session=NEW_SESSION) -> str | None:
+        """Return the latest version of the bundle this DAG is in."""
         return session.scalar(select(DagModel.latest_bundle_version).where(DagModel.dag_id == self.dag_id))
 
     @methodtools.lru_cache(maxsize=None)
