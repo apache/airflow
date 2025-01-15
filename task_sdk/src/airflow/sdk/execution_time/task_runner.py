@@ -542,7 +542,7 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         SUPERVISOR_COMMS.send_request(msg=msg, log=log)
 
 
-def _execute_task(context: Mapping[str, Any], task: BaseOperator):
+def _execute_task(context: Context, task: BaseOperator):
     """Execute Task (optionally with a Timeout) and push Xcom results."""
     from airflow.exceptions import AirflowTaskTimeout
 
