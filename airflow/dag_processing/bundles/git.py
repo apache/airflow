@@ -118,10 +118,6 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         self.hook = GitHook(git_conn_id=self.git_conn_id)
         self.repo_url = self.hook.repo_url
 
-    def _clone_from(self, to_path: Path, bare: bool = False) -> Repo:
-        self.log.info("Cloning %s to %s", self.repo_url, to_path)
-        return Repo.clone_from(self.repo_url, to_path, bare=bare, env=self.hook.env)
-
     def _initialize(self):
         self._clone_bare_repo_if_required()
         self._ensure_version_in_bare_repo()
@@ -129,7 +125,7 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         self.repo.git.checkout(self.tracking_ref)
         if self.version:
             if not self._has_version(self.repo, self.version):
-                self._fetch_repo()
+                self.repo.remotes.origin.fetch()
             self.repo.head.set_reference(self.repo.commit(self.version))
             self.repo.head.reset(index=True, working_tree=True)
         else:
@@ -146,19 +142,26 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
             )
         else:
             self._initialize()
+        super().initialize()
 
     def _clone_repo_if_required(self) -> None:
         if not os.path.exists(self.repo_path):
-            self._clone_from(
+            self.log.info("Cloning repository to %s from %s", self.repo_path, self.bare_repo_path)
+            Repo.clone_from(
+                url=self.bare_repo_path,
                 to_path=self.repo_path,
             )
+
         self.repo = Repo(self.repo_path)
 
     def _clone_bare_repo_if_required(self) -> None:
         if not os.path.exists(self.bare_repo_path):
-            self._clone_from(
+            self.log.info("Cloning bare repository to %s", self.bare_repo_path)
+            Repo.clone_from(
+                url=self.repo_url,
                 to_path=self.bare_repo_path,
                 bare=True,
+                env=self.hook.env,
             )
         self.bare_repo = Repo(self.bare_repo_path)
 
@@ -197,13 +200,6 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         except BadName:
             return False
 
-    def _fetch_repo(self):
-        if self.hook.env:
-            with self.repo.git.custom_environment(GIT_SSH_COMMAND=self.hook.env.get("GIT_SSH_COMMAND")):
-                self.repo.remotes.origin.fetch()
-        else:
-            self.repo.remotes.origin.fetch()
-
     def _fetch_bare_repo(self):
         if self.hook.env:
             with self.bare_repo.git.custom_environment(GIT_SSH_COMMAND=self.hook.env.get("GIT_SSH_COMMAND")):
@@ -211,18 +207,11 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         else:
             self.bare_repo.remotes.origin.fetch("+refs/heads/*:refs/heads/*")
 
-    def _pull_repo(self):
-        if self.hook.env:
-            with self.repo.git.custom_environment(GIT_SSH_COMMAND=self.hook.env.get("GIT_SSH_COMMAND")):
-                self.repo.remotes.origin.pull()
-        else:
-            self.repo.remotes.origin.pull()
-
     def refresh(self) -> None:
         if self.version:
             raise AirflowException("Refreshing a specific version is not supported")
         self._fetch_bare_repo()
-        self._pull_repo()
+        self.repo.remotes.origin.pull()
 
     def _convert_git_ssh_url_to_https(self) -> str:
         if not self.repo_url.startswith("git@"):

@@ -215,7 +215,6 @@ class TestGitDagBundle:
 
     @mock.patch("airflow.dag_processing.bundles.git.GitHook")
     def test_get_specific_version(self, mock_githook, git_repo):
-        mock_githook.get_conn.return_value = mock.MagicMock()
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
         starting_commit = repo.head.commit
@@ -242,7 +241,6 @@ class TestGitDagBundle:
 
     @mock.patch("airflow.dag_processing.bundles.git.GitHook")
     def test_get_tag_version(self, mock_githook, git_repo):
-        mock_githook.get_conn.return_value = mock.MagicMock()
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
         starting_commit = repo.head.commit
@@ -272,7 +270,6 @@ class TestGitDagBundle:
 
     @mock.patch("airflow.dag_processing.bundles.git.GitHook")
     def test_get_latest(self, mock_githook, git_repo):
-        mock_githook.get_conn.return_value = mock.MagicMock()
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
         starting_commit = repo.head.commit
@@ -293,7 +290,6 @@ class TestGitDagBundle:
 
     @mock.patch("airflow.dag_processing.bundles.git.GitHook")
     def test_refresh(self, mock_githook, git_repo):
-        mock_githook.get_conn.return_value = mock.MagicMock()
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
         starting_commit = repo.head.commit
@@ -321,7 +317,6 @@ class TestGitDagBundle:
 
     @mock.patch("airflow.dag_processing.bundles.git.GitHook")
     def test_head(self, mock_githook, git_repo):
-        mock_githook.get_conn.return_value = mock.MagicMock()
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
 
@@ -332,7 +327,6 @@ class TestGitDagBundle:
 
     @mock.patch("airflow.dag_processing.bundles.git.GitHook")
     def test_version_not_found(self, mock_githook, git_repo):
-        mock_githook.get_conn.return_value = mock.MagicMock()
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
         bundle = GitDagBundle(
@@ -347,7 +341,6 @@ class TestGitDagBundle:
 
     @mock.patch("airflow.dag_processing.bundles.git.GitHook")
     def test_subdir(self, mock_githook, git_repo):
-        mock_githook.get_conn.return_value = mock.MagicMock()
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
 
@@ -387,8 +380,7 @@ class TestGitDagBundle:
 
     @mock.patch("airflow.dag_processing.bundles.git.GitHook")
     @mock.patch("airflow.dag_processing.bundles.git.Repo")
-    @mock.patch.object(GitDagBundle, "_clone_from")
-    def test_with_path_as_repo_url(self, mock_clone_from, mock_gitRepo, mock_githook):
+    def test_with_path_as_repo_url(self, mock_gitRepo, mock_githook):
         bundle = GitDagBundle(
             name="test",
             refresh_interval=300,
@@ -396,12 +388,11 @@ class TestGitDagBundle:
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
         bundle.initialize()
-        assert mock_clone_from.call_count == 2
+        assert mock_gitRepo.clone_from.call_count == 2
         assert mock_gitRepo.return_value.git.checkout.call_count == 1
 
-    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
     @mock.patch("airflow.dag_processing.bundles.git.Repo")
-    def test_refresh_with_git_connection(self, mock_gitRepo, mock_hook):
+    def test_refresh_with_git_connection(self, mock_gitRepo):
         bundle = GitDagBundle(
             name="test",
             refresh_interval=300,
@@ -423,7 +414,6 @@ class TestGitDagBundle:
     )
     @mock.patch("airflow.dag_processing.bundles.git.GitHook")
     def test_repo_url_validation_for_ssh(self, mock_hook, repo_url, session):
-        mock_hook.get_conn.return_value = mock.MagicMock()
         mock_hook.return_value.repo_url = repo_url
         bundle = GitDagBundle(
             name="test",
