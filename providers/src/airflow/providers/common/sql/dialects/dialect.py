@@ -70,7 +70,7 @@ class Dialect(LoggingMixin):
         Escape the word if it's a reserved word or contains special characters.
 
         :param word: Name of the column
-        :return: The escaped word if needed
+        :return: The escaped word
         """
         if word != self.escape_word_format.format(self.unescape_word(word)) and (
             word.casefold() in self.reserved_words or self.pattern.search(word)
@@ -80,18 +80,23 @@ class Dialect(LoggingMixin):
 
     def unescape_word(self, word: str | None) -> str | None:
         """
-        Remove escape characters from the word if any are present.
+        Remove escape characters from each part of a dotted identifier (e.g., schema.table).
 
-        :param word: Name of the column
-        :return: The unescaped word if needed
+        :param word: Escaped schema, table, or column name, potentially with multiple segments.
+        :return: The word without escaped characters.
         """
-        if (
-            word
-            and word.startswith(self.escape_word_format[0])
-            and word.endswith(self.escape_word_format[-1])
-        ):
-            return word[1:-1]
-        return word
+        if not word:
+            return word
+
+        escape_char_start = self.escape_word_format[0]
+        escape_char_end = self.escape_word_format[-1]
+
+        def unescape_part(part: str) -> str:
+            if part.startswith(escape_char_start) and part.endswith(escape_char_end):
+                return part[1:-1]
+            return part
+
+        return ".".join(map(unescape_part, word.split(".")))
 
     @classmethod
     def extract_schema_from_table(cls, table: str) -> tuple[str, str | None]:

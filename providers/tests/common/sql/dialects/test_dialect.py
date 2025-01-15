@@ -58,6 +58,9 @@ class TestDialect:
         assert dialect.unescape_word("table_name") == "table_name"
         assert dialect.unescape_word('"table"') == '"table"'
         assert dialect.unescape_word("[table]") == "table"
+        assert dialect.unescape_word("schema.[t@ble]") == "schema.t@ble"
+        assert dialect.unescape_word("[schema].[t@ble]") == "schema.t@ble"
+        assert dialect.unescape_word("[schema].table") == "schema.table"
 
     def test_escape_word(self):
         dialect = Dialect(self.test_db_hook)
