@@ -245,6 +245,9 @@ def _get_ti(
     # we do refresh_from_task so that if TI has come back via RPC, we ensure that ti.task
     # is the original task object and not the result of the round trip
     ti.refresh_from_task(task, pool_override=pool)
+
+    ti.dag_model  # we must ensure dag model is loaded eagerly for bundle info
+
     return ti, dr_created
 
 
@@ -286,7 +289,7 @@ def _run_task_by_executor(args, dag: DAG, ti: TaskInstance) -> None:
     if executor.queue_workload.__func__ is not BaseExecutor.queue_workload:  # type: ignore[attr-defined]
         from airflow.executors import workloads
 
-        workload = workloads.ExecuteTask.make(ti, dag_path=dag.relative_fileloc)
+        workload = workloads.ExecuteTask.make(ti, dag_rel_path=dag.relative_fileloc)
         with create_session() as session:
             executor.queue_workload(workload, session)
     else:
