@@ -19,12 +19,14 @@ from __future__ import annotations
 
 import sys
 from collections import deque
-from collections.abc import Mapping
 from types import ModuleType
-from typing import Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.taskgroup import TaskGroup
+
+if TYPE_CHECKING:
+    from airflow.sdk.definitions.context import Context
 
 T = TypeVar("T")
 
@@ -34,10 +36,10 @@ __all__ = ["DagContext", "TaskGroupContext"]
 # It is used to push the Context dictionary when Task starts execution
 # and it is used to retrieve the current context in PythonOperator or Taskflow API via
 # the `get_current_context` function.
-_CURRENT_CONTEXT: list[Mapping[str, Any]] = []
+_CURRENT_CONTEXT: list[Context] = []
 
 
-def _get_current_context() -> Mapping[str, Any]:
+def _get_current_context() -> Context:
     if not _CURRENT_CONTEXT:
         raise RuntimeError(
             "Current context was requested but no context was found! Are you running within an Airflow task?"

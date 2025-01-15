@@ -24,12 +24,14 @@ import sys
 from collections.abc import Iterable, Mapping
 from datetime import datetime, timezone
 from io import FileIO
+from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Generic, TextIO, TypeVar
 
 import attrs
 import structlog
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState, TIRunContext
 from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.execution_time.comms import (
@@ -50,10 +52,13 @@ from airflow.sdk.execution_time.context import (
     VariableAccessor,
     set_current_context,
 )
+from airflow.utils.net import get_hostname
 
 if TYPE_CHECKING:
     import jinja2
     from structlog.typing import FilteringBoundLogger as Logger
+
+    from airflow.sdk.definitions.context import Context
 
 
 # TODO: Move this entire class into a separate file:
@@ -66,12 +71,15 @@ class RuntimeTaskInstance(TaskInstance):
     _ti_context_from_server: Annotated[TIRunContext | None, Field(repr=False)] = None
     """The Task Instance context from the API server, if any."""
 
-    def get_template_context(self):
+    max_tries: int = 0
+    """The maximum number of retries for the task."""
+
+    def get_template_context(self) -> Context:
         # TODO: Move this to `airflow.sdk.execution_time.context`
         #   once we port the entire context logic from airflow/utils/context.py ?
 
         # TODO: Assess if we need to it through airflow.utils.timezone.coerce_datetime()
-        context: dict[str, Any] = {
+        context: Context = {
             # From the Task Execution interface
             "dag": self.task.dag,
             "inlets": self.task.inlets,
@@ -111,7 +119,7 @@ class RuntimeTaskInstance(TaskInstance):
             ts_nodash = logical_date.strftime("%Y%m%dT%H%M%S")
             ts_nodash_with_tz = ts.replace("-", "").replace(":", "")
 
-            context_from_server = {
+            context_from_server: Context = {
                 # TODO: Assess if we need to pass these through timezone.coerce_datetime
                 "dag_run": dag_run,
                 "data_interval_end": dag_run.data_interval_end,
@@ -125,11 +133,12 @@ class RuntimeTaskInstance(TaskInstance):
                 "ts_nodash_with_tz": ts_nodash_with_tz,
             }
             context.update(context_from_server)
+
         # TODO: We should use/move TypeDict from airflow.utils.context.Context
         return context
 
     def render_templates(
-        self, context: dict[str, Any] | None = None, jinja_env: jinja2.Environment | None = None
+        self, context: Context | None = None, jinja_env: jinja2.Environment | None = None
     ) -> BaseOperator:
         """
         Render templates in the operator fields.
@@ -294,8 +303,15 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
 
     from airflow.models.dagbag import DagBag
 
+    bundle_info = what.bundle_info
+    bundle_instance = DagBundlesManager().get_bundle(
+        name=bundle_info.name,
+        version=bundle_info.version,
+    )
+
+    dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
     bag = DagBag(
-        dag_folder=what.file,
+        dag_folder=dag_absolute_path,
         include_examples=False,
         safe_mode=False,
         load_op_links=False,
@@ -316,6 +332,7 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
         **what.ti.model_dump(exclude_unset=True),
         task=task,
         _ti_context_from_server=what.ti_context,
+        max_tries=what.ti_context.max_tries,
     )
 
 
@@ -391,7 +408,7 @@ def startup() -> tuple[RuntimeTaskInstance, Logger]:
         log = structlog.get_logger(logger_name="task")
         # TODO: set the "magic loop" context vars for parsing
         ti = parse(msg)
-        log.debug("DAG file parsed", file=msg.file)
+        log.debug("DAG file parsed", file=msg.dag_rel_path)
     else:
         raise RuntimeError(f"Unhandled  startup message {type(msg)} {msg}")
 
@@ -440,6 +457,7 @@ def run(ti: RuntimeTaskInstance, log: Logger):
     try:
         # TODO: pre execute etc.
         # TODO: Get a real context object
+        ti.hostname = get_hostname()
         ti.task = ti.task.prepare_for_execution()
         context = ti.get_template_context()
         with set_current_context(context):
@@ -524,7 +542,7 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         SUPERVISOR_COMMS.send_request(msg=msg, log=log)
 
 
-def _execute_task(context: Mapping[str, Any], task: BaseOperator):
+def _execute_task(context: Context, task: BaseOperator):
     """Execute Task (optionally with a Timeout) and push Xcom results."""
     from airflow.exceptions import AirflowTaskTimeout
 

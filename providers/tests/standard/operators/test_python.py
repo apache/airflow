@@ -1043,7 +1043,12 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
     def test_current_context(self):
         def f():
             from airflow.providers.standard.operators.python import get_current_context
-            from airflow.utils.context import Context
+
+            try:
+                from airflow.sdk.definitions.context import Context
+            except ImportError:
+                # TODO: Remove once provider drops support for Airflow 2
+                from airflow.utils.context import Context
 
             context = get_current_context()
             if not isinstance(context, Context):  # type: ignore[misc]
@@ -1099,7 +1104,12 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
     def test_use_airflow_context_touch_other_variables(self):
         def f():
             from airflow.providers.standard.operators.python import get_current_context
-            from airflow.utils.context import Context
+
+            try:
+                from airflow.sdk.definitions.context import Context
+            except ImportError:
+                # TODO: Remove once provider drops support for Airflow 2
+                from airflow.utils.context import Context
 
             context = get_current_context()
             if not isinstance(context, Context):  # type: ignore[misc]
@@ -1477,7 +1487,12 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
     def test_current_context_system_site_packages(self, session):
         def f():
             from airflow.providers.standard.operators.python import get_current_context
-            from airflow.utils.context import Context
+
+            try:
+                from airflow.sdk.definitions.context import Context
+            except ImportError:
+                # TODO: Remove once provider drops support for Airflow 2
+                from airflow.utils.context import Context
 
             context = get_current_context()
             if not isinstance(context, Context):  # type: ignore[misc]
@@ -1840,7 +1855,12 @@ class TestBranchPythonVirtualenvOperator(BaseTestBranchPythonVirtualenvOperator)
     def test_current_context_system_site_packages(self, session):
         def f():
             from airflow.providers.standard.operators.python import get_current_context
-            from airflow.utils.context import Context
+
+            try:
+                from airflow.sdk.definitions.context import Context
+            except ImportError:
+                # TODO: Remove once provider drops support for Airflow 2
+                from airflow.utils.context import Context
 
             context = get_current_context()
             if not isinstance(context, Context):  # type: ignore[misc]

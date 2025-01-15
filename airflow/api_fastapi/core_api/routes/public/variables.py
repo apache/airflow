@@ -34,11 +34,19 @@ from airflow.api_fastapi.common.parameters import (
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.variables import (
     VariableBody,
+    VariableBulkActionResponse,
+    VariableBulkBody,
+    VariableBulkResponse,
     VariableCollectionResponse,
     VariableResponse,
     VariablesImportResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.services.public.variables import (
+    handle_bulk_create,
+    handle_bulk_delete,
+    handle_bulk_update,
+)
 from airflow.models.variable import Variable
 
 variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
@@ -235,3 +243,25 @@ def import_variables(
         import_count=len(import_keys),
         created_variable_keys=list(create_keys),
     )
+
+
+@variables_router.patch("")
+def bulk_variables(
+    request: VariableBulkBody,
+    session: SessionDep,
+) -> VariableBulkResponse:
+    """Bulk create, update, and delete variables."""
+    results: dict[str, VariableBulkActionResponse] = {}
+
+    for action in request.actions:
+        if action.action not in results:
+            results[action.action] = VariableBulkActionResponse()
+
+        if action.action == "create":
+            handle_bulk_create(session, action, results[action.action])
+        elif action.action == "update":
+            handle_bulk_update(session, action, results[action.action])
+        elif action.action == "delete":
+            handle_bulk_delete(session, action, results[action.action])
+
+    return VariableBulkResponse(**results)

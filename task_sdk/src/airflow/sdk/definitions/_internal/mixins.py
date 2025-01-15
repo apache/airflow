@@ -18,12 +18,13 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.edges import EdgeModifier
 
 # TODO: Should this all just live on DAGNode?
@@ -132,7 +133,7 @@ class ResolveMixin:
         """
         raise NotImplementedError
 
-    def resolve(self, context: Mapping[str, Any], *, include_xcom: bool = True) -> Any:
+    def resolve(self, context: Context, *, include_xcom: bool = True) -> Any:
         """
         Resolve this value for runtime.
 

@@ -50,6 +50,7 @@ import {
   TaskInstancesBatchBody,
   TriggerDAGRunPostBody,
   VariableBody,
+  VariableBulkBody,
 } from "../requests/types.gen";
 import * as Common from "./common";
 
@@ -3807,6 +3808,43 @@ export const useVariableServicePatchVariable = <
   >({
     mutationFn: ({ requestBody, updateMask, variableKey }) =>
       VariableService.patchVariable({ requestBody, updateMask, variableKey }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Bulk Variables
+ * Bulk create, update, and delete variables.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns VariableBulkResponse Successful Response
+ * @throws ApiError
+ */
+export const useVariableServiceBulkVariables = <
+  TData = Common.VariableServiceBulkVariablesMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: VariableBulkBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: VariableBulkBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      VariableService.bulkVariables({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
