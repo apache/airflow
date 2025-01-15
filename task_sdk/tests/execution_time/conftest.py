@@ -117,7 +117,7 @@ def create_runtime_ti(mocked_parse, make_ti_context):
     from uuid6 import uuid7
 
     from airflow.sdk.api.datamodels._generated import TaskInstance
-    from airflow.sdk.execution_time.comms import StartupDetails
+    from airflow.sdk.execution_time.comms import BundleInfo, StartupDetails
 
     def _create_task_instance(
         task: BaseOperator,
@@ -148,7 +148,8 @@ def create_runtime_ti(mocked_parse, make_ti_context):
             ti=TaskInstance(
                 id=ti_id, task_id=task.task_id, dag_id=dag_id, run_id=run_id, try_number=try_number
             ),
-            file="",
+            dag_rel_path="",
+            bundle_info=BundleInfo.model_construct(name="anything", version="any"),
             requests_fd=0,
             ti_context=ti_context,
         )

@@ -116,7 +116,8 @@ def _execute_work(log: logging.Logger, workload: workloads.ExecuteTask) -> None:
     supervise(
         # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
         ti=workload.ti,  # type: ignore[arg-type]
-        dag_path=workload.dag_path,
+        dag_rel_path=workload.dag_rel_path,
+        bundle_info=workload.bundle_info,
         token=workload.token,
         server=conf.get("workers", "execution_api_server_url", fallback="http://localhost:9091/execution/"),
         log_path=workload.log_path,
