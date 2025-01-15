@@ -342,7 +342,6 @@ def trigger_dag_run(
             f"DAG with dag_id: '{dag_id}' has import errors and cannot be triggered",
         )
 
-    run_id = body.dag_run_id
     logical_date = pendulum.instance(body.logical_date)
 
     try:
@@ -355,18 +354,27 @@ def trigger_dag_run(
             )
         else:
             data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
-        dag_version = DagVersion.get_latest_version(dag.dag_id)
+
+        if body.dag_run_id:
+            run_id = body.dag_run_id
+        else:
+            run_id = dag.timetable.generate_run_id(
+                run_type=DagRunType.MANUAL,
+                logical_date=logical_date,
+                data_interval=data_interval,
+            )
+
         dag_run = dag.create_dagrun(
-            run_type=DagRunType.MANUAL,
             run_id=run_id,
             logical_date=logical_date,
             data_interval=data_interval,
-            state=DagRunState.QUEUED,
             conf=body.conf,
-            external_trigger=True,
-            dag_version=dag_version,
-            session=session,
+            run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.REST_API,
+            external_trigger=True,
+            dag_version=DagVersion.get_latest_version(dag.dag_id),
+            state=DagRunState.QUEUED,
+            session=session,
         )
         dag_run_note = body.note
         if dag_run_note:
