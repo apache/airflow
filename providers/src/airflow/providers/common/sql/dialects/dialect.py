@@ -54,15 +54,15 @@ class Dialect(LoggingMixin):
         return self.hook.inspector
 
     @property
-    def _insert_statement_format(self) -> str:
+    def insert_statement_format(self) -> str:
         return self.hook.insert_statement_format
 
     @property
-    def _replace_statement_format(self) -> str:
+    def replace_statement_format(self) -> str:
         return self.hook.replace_statement_format
 
     @property
-    def _escape_word_format(self) -> str:
+    def escape_word_format(self) -> str:
         return self.hook.escape_word_format
 
     def escape_word(self, word: str) -> str:
@@ -72,10 +72,10 @@ class Dialect(LoggingMixin):
         :param word: Name of the column
         :return: The escaped word if needed
         """
-        if word != self._escape_word_format.format(self.unescape_word(word)) and (
+        if word != self.escape_word_format.format(self.unescape_word(word)) and (
             word.casefold() in self.reserved_words or self.pattern.search(word)
         ):
-            return self._escape_word_format.format(word)
+            return self.escape_word_format.format(word)
         return word
 
     def unescape_word(self, word: str | None) -> str | None:
@@ -87,8 +87,8 @@ class Dialect(LoggingMixin):
         """
         if (
             word
-            and word.startswith(self._escape_word_format[0])
-            and word.endswith(self._escape_word_format[-1])
+            and word.startswith(self.escape_word_format[0])
+            and word.endswith(self.escape_word_format[-1])
         ):
             return word[1:-1]
         return word
@@ -181,7 +181,7 @@ class Dialect(LoggingMixin):
         :param target_fields: The names of the columns to fill in the table
         :return: The generated INSERT SQL statement
         """
-        return self._insert_statement_format.format(
+        return self.insert_statement_format.format(
             table, self._joined_target_fields(target_fields), self._joined_placeholders(values)
         )
 
@@ -194,6 +194,6 @@ class Dialect(LoggingMixin):
         :param target_fields: The names of the columns to fill in the table
         :return: The generated REPLACE SQL statement
         """
-        return self._replace_statement_format.format(
+        return self.replace_statement_format.format(
             table, self._joined_target_fields(target_fields), self._joined_placeholders(values)
         )

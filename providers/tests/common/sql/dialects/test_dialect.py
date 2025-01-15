@@ -37,7 +37,18 @@ class TestDialect:
         inspector.get_pk_constraint.side_effect = lambda table_name, schema: {"constrained_columns": ["id"]}
         self.test_db_hook = MagicMock(placeholder="?", inspector=inspector, spec=DbApiHook)
         self.test_db_hook.reserved_words = {"index", "user"}
+        self.test_db_hook.insert_statement_format = "INSERT INTO {} {} VALUES ({})"
+        self.test_db_hook.replace_statement_format = "REPLACE INTO {} {} VALUES ({})"
         self.test_db_hook.escape_word_format = "[{}]"
+
+    def test_insert_statement_format(self):
+        assert Dialect(self.test_db_hook).insert_statement_format == "INSERT INTO {} {} VALUES ({})"
+
+    def test_replace_statement_format(self):
+        assert Dialect(self.test_db_hook).replace_statement_format == "REPLACE INTO {} {} VALUES ({})"
+
+    def test_escape_word_format(self):
+        assert Dialect(self.test_db_hook).escape_word_format == "[{}]"
 
     def test_unescape_word(self):
         dialect = Dialect(self.test_db_hook)
