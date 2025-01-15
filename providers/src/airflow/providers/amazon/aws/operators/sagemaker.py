@@ -19,6 +19,7 @@ from __future__ import annotations
 import datetime
 import json
 import time
+import urllib
 from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, ClassVar
@@ -34,6 +35,7 @@ from airflow.providers.amazon.aws.hooks.sagemaker import (
     SageMakerHook,
     secondary_training_status_message,
 )
+from airflow.providers.amazon.aws.links.sagemaker import SageMakerTransformJobLink
 from airflow.providers.amazon.aws.triggers.sagemaker import (
     SageMakerPipelineTrigger,
     SageMakerTrigger,
@@ -659,6 +661,8 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
     :return Dict: Returns The ARN of the model created in Amazon SageMaker.
     """
 
+    operator_extra_links = (SageMakerTransformJobLink(),)
+
     def __init__(
         self,
         *,
@@ -764,6 +768,21 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         )
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Sagemaker transform Job creation failed: {response}")
+
+        transform_job_url = SageMakerTransformJobLink.format_str.format(
+            aws_domain=SageMakerTransformJobLink.get_aws_domain(self.hook.conn_partition),
+            region_name=self.hook.conn_region_name,
+            job_name=urllib.parse.quote(transform_config["TransformJobName"], safe=""),
+        )
+        SageMakerTransformJobLink.persist(
+            context=context,
+            operator=self,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
+            job_name=urllib.parse.quote(transform_config["TransformJobName"], safe=""),
+        )
+
+        self.log.info("You can monitor this SageMaker Transform job at %s", transform_job_url)
 
         if self.deferrable and self.wait_for_completion:
             response = self.hook.describe_transform_job(transform_config["TransformJobName"])
