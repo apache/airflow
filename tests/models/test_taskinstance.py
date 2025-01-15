@@ -2127,7 +2127,7 @@ class TestTaskInstance:
         dag_run.conf = {"override": True}
         ti.task.params = {"override": False}
 
-        params = process_params(ti.task.dag, ti.task, dag_run, suppress_exception=False)
+        params = process_params(ti.task.dag, ti.task, dag_run.conf, suppress_exception=False)
         assert params["override"] is True
 
     def test_overwrite_params_with_dag_run_none(self, create_task_instance):
@@ -2142,7 +2142,7 @@ class TestTaskInstance:
         dag_run = ti.dag_run
         ti.task.params = {"override": False}
 
-        params = process_params(ti.task.dag, ti.task, dag_run, suppress_exception=False)
+        params = process_params(ti.task.dag, ti.task, dag_run.conf, suppress_exception=False)
         assert params["override"] is False
 
     @pytest.mark.parametrize("use_native_obj", [True, False])

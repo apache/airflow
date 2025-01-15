@@ -39,6 +39,13 @@ class BaseActivity(BaseModel):
     """The identity token for this workload"""
 
 
+class BundleInfo(BaseModel):
+    """Schema for telling task which bundle to run with."""
+
+    name: str
+    version: str | None = None
+
+
 class TaskInstance(BaseModel):
     """Schema for TaskInstance with minimal required fields needed for Executors and Task SDK."""
 
@@ -48,7 +55,7 @@ class TaskInstance(BaseModel):
     dag_id: str
     run_id: str
     try_number: int
-    map_index: int | None = None
+    map_index: int = -1
 
     pool_slots: int
     queue: str
@@ -64,7 +71,7 @@ class TaskInstance(BaseModel):
             task_id=self.task_id,
             run_id=self.run_id,
             try_number=self.try_number,
-            map_index=-1 if self.map_index is None else self.map_index,
+            map_index=self.map_index,
         )
 
 
@@ -73,8 +80,10 @@ class ExecuteTask(BaseActivity):
 
     ti: TaskInstance
     """The TaskInstance to execute"""
-    dag_path: os.PathLike[str]
+    dag_rel_path: os.PathLike[str]
     """The filepath where the DAG can be found (likely prefixed with `DAG_FOLDER/`)"""
+
+    bundle_info: BundleInfo
 
     log_path: str | None
     """The rendered relative log filename template the task logs should be written to"""
@@ -82,21 +91,19 @@ class ExecuteTask(BaseActivity):
     kind: Literal["ExecuteTask"] = Field(init=False, default="ExecuteTask")
 
     @classmethod
-    def make(cls, ti: TIModel, dag_path: Path | None = None) -> ExecuteTask:
+    def make(cls, ti: TIModel, dag_rel_path: Path | None = None) -> ExecuteTask:
         from pathlib import Path
 
         from airflow.utils.helpers import log_filename_template_renderer
 
         ser_ti = TaskInstance.model_validate(ti, from_attributes=True)
-
-        dag_path = dag_path or Path(ti.dag_run.dag_model.relative_fileloc)
-
-        if dag_path and not dag_path.is_absolute():
-            # TODO: What about multiple dag sub folders
-            dag_path = "DAGS_FOLDER" / dag_path
-
+        bundle_info = BundleInfo.model_construct(
+            name=ti.dag_model.bundle_name,
+            version=ti.dag_run.bundle_version,
+        )
+        path = dag_rel_path or Path(ti.dag_run.dag_model.relative_fileloc)
         fname = log_filename_template_renderer()(ti=ti)
-        return cls(ti=ser_ti, dag_path=dag_path, token="", log_path=fname)
+        return cls(ti=ser_ti, dag_rel_path=path, token="", log_path=fname, bundle_info=bundle_info)
 
 
 All = Union[ExecuteTask]

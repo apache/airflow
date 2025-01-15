@@ -491,56 +491,56 @@ class TestCliTasks:
         from airflow.cli.commands.remote_commands import task_command
 
         with dag_maker(dag_id="test_executor", schedule="@daily") as dag:
-            with (
-                mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock,
-                mock.patch(
-                    "airflow.executors.executor_loader.ExecutorLoader.get_default_executor"
-                ) as get_default_mock,
-                mock.patch("airflow.executors.local_executor.SimpleQueue"),  # Prevent a task being queued
-                mock.patch("airflow.executors.local_executor.LocalExecutor.end"),
-            ):
-                EmptyOperator(task_id="task1")
-                EmptyOperator(task_id="task2", executor="foo_executor_alias")
+            EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2", executor="foo_executor_alias")
 
-                dag_maker.create_dagrun()
+        dag_maker.create_dagrun()
 
-                # Reload module to consume newly mocked executor loader
-                reload(task_command)
+        with (
+            mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock,
+            mock.patch(
+                "airflow.executors.executor_loader.ExecutorLoader.get_default_executor"
+            ) as get_default_mock,
+            mock.patch("airflow.executors.local_executor.SimpleQueue"),  # Prevent a task being queued
+            mock.patch("airflow.executors.local_executor.LocalExecutor.end"),
+        ):
+            # Reload module to consume newly mocked executor loader
+            reload(task_command)
 
-                loader_mock.return_value = LocalExecutor()
-                get_default_mock.return_value = LocalExecutor()
+            loader_mock.return_value = LocalExecutor()
+            get_default_mock.return_value = LocalExecutor()
 
-                # In the task1 case we will use the default executor
-                task_command.task_run(
-                    self.parser.parse_args(
-                        [
-                            "tasks",
-                            "run",
-                            "test_executor",
-                            "task1",
-                            DEFAULT_DATE.isoformat(),
-                        ]
-                    ),
-                    dag,
-                )
-                get_default_mock.assert_called_once()
-                loader_mock.assert_not_called()
+            # In the task1 case we will use the default executor
+            task_command.task_run(
+                self.parser.parse_args(
+                    [
+                        "tasks",
+                        "run",
+                        "test_executor",
+                        "task1",
+                        DEFAULT_DATE.isoformat(),
+                    ]
+                ),
+                dag,
+            )
+            get_default_mock.assert_called_once()
+            loader_mock.assert_not_called()
 
-                # In the task2 case we will use the executor configured on the task
-                task_command.task_run(
-                    self.parser.parse_args(
-                        [
-                            "tasks",
-                            "run",
-                            "test_executor",
-                            "task2",
-                            DEFAULT_DATE.isoformat(),
-                        ]
-                    ),
-                    dag,
-                )
-                get_default_mock.assert_called_once()  # Call from previous task
-                loader_mock.assert_called_once_with("foo_executor_alias")
+            # In the task2 case we will use the executor configured on the task
+            task_command.task_run(
+                self.parser.parse_args(
+                    [
+                        "tasks",
+                        "run",
+                        "test_executor",
+                        "task2",
+                        DEFAULT_DATE.isoformat(),
+                    ]
+                ),
+                dag,
+            )
+            get_default_mock.assert_called_once()  # Call from previous task
+            loader_mock.assert_called_once_with("foo_executor_alias")
 
         # Reload module to remove mocked version of executor loader
         reload(task_command)
