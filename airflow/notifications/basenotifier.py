@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     import jinja2
 
     from airflow import DAG
-    from airflow.utils.context import Context
+    from airflow.sdk.definitions.context import Context
 
 
 class BaseNotifier(LoggingMixin, Templater):

@@ -201,3 +201,42 @@ metadata:
         cfg = jmespath.search('data."airflow.cfg"', docs[0])
         expected_folder_config = f"dags_folder = {expected_default_dag_folder}"
         assert expected_folder_config in cfg.splitlines()
+
+    @pytest.mark.parametrize(
+        "airflow_version, enabled",
+        [
+            ("2.10.4", False),
+            ("3.0.0", True),
+        ],
+    )
+    def test_default_standalone_dag_processor_by_airflow_version(self, airflow_version, enabled):
+        docs = render_chart(
+            values={"airflowVersion": airflow_version},
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+
+        cfg = jmespath.search('data."airflow.cfg"', docs[0])
+        expected_line = f"standalone_dag_processor = {enabled}"
+        assert expected_line in cfg.splitlines()
+
+    @pytest.mark.parametrize(
+        "airflow_version, enabled",
+        [
+            ("2.10.4", False),
+            ("2.10.4", True),
+            ("3.0.0", False),
+            ("3.0.0", True),
+        ],
+    )
+    def test_standalone_dag_processor_explicit(self, airflow_version, enabled):
+        docs = render_chart(
+            values={
+                "airflowVersion": airflow_version,
+                "config": {"scheduler": {"standalone_dag_processor": enabled}},
+            },
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+
+        cfg = jmespath.search('data."airflow.cfg"', docs[0])
+        expected_line = f"standalone_dag_processor = {str(enabled).lower()}"
+        assert expected_line in cfg.splitlines()

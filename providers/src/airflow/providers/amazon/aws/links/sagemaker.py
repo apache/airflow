@@ -14,3 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+from airflow.providers.amazon.aws.links.base_aws import BASE_AWS_CONSOLE_LINK, BaseAwsLink
+
+
+class SageMakerTransformJobLink(BaseAwsLink):
+    """Helper class for constructing AWS Transform Run Details Link."""
+
+    name = "Amazon SageMaker Transform Job Details"
+    key = "sagemaker_transform_job_details"
+    format_str = BASE_AWS_CONSOLE_LINK + "/sagemaker/home?region={region_name}#/transform-jobs/{job_name}"

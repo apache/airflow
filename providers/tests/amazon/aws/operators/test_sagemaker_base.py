@@ -49,6 +49,8 @@ PARSED_CONFIG: dict = {
 
 EXPECTED_INTEGER_FIELDS: list[list[Any]] = []
 
+MOCK_UNIX_TIME = 1234567890123456789  # reproducible time for testing time.time_ns()
+
 
 class TestSageMakerBaseOperator:
     ERROR_WHEN_RESOURCE_NOT_FOUND = ClientError({"Error": {"Code": "ValidationException"}}, "op")
@@ -92,6 +94,31 @@ class TestSageMakerBaseOperator:
         assert describe_mock.call_count == 3
         assert re.match("test-[0-9]+$", name)
 
+    @patch("airflow.providers.amazon.aws.operators.sagemaker.time.time_ns", return_value=MOCK_UNIX_TIME)
+    def test_job_name_length(self, _):
+        describe_mock = MagicMock()
+        # scenario: The name is longer than 63 characters so we need the function to truncate the name and add a timestamp
+        describe_mock.side_effect = [None, None, self.ERROR_WHEN_RESOURCE_NOT_FOUND]
+        name = self.sagemaker._get_unique_job_name(
+            "ThisNameIsLongerThan64CharactersSoItShouldBeTruncatedWithATimestamp", False, describe_mock
+        )
+        assert len(name) <= 63
+
+    @patch("airflow.providers.amazon.aws.operators.sagemaker.time.time_ns", return_value=MOCK_UNIX_TIME)
+    def test_truncated_job_name(self, _):
+        describe_mock = MagicMock()
+
+        describe_mock.side_effect = [None, None, self.ERROR_WHEN_RESOURCE_NOT_FOUND]
+
+        # scenario: The name is longer than 63 characters so we need the function to truncate the name and add a timestamp
+        full_name = "ThisNameIsLongerThan64CharactersSoItShouldBeTruncatedWithATimestamp"
+
+        name = self.sagemaker._get_unique_job_name(full_name, False, describe_mock)
+
+        base_name, timestamp = name.split("-")
+        assert base_name == full_name[: len(base_name)]
+        assert timestamp == str(MOCK_UNIX_TIME)[:10]
+
     def test_job_not_unique_with_fail(self):
         with pytest.raises(AirflowException):
             self.sagemaker._get_unique_job_name("test", True, lambda _: None)
@@ -116,7 +143,7 @@ class TestSageMakerBaseOperator:
 
         assert str(context.value) == "A SageMaker model with name existing_name already exists."
 
-    @patch("airflow.providers.amazon.aws.operators.sagemaker.time.time_ns", return_value=3000000)
+    @patch("airflow.providers.amazon.aws.operators.sagemaker.time.time_ns", return_value=MOCK_UNIX_TIME)
     def test_get_unique_name_avoids_name_collision(self, time_mock):
         new_name = self.sagemaker._get_unique_name(
             "existing_name",
@@ -126,7 +153,7 @@ class TestSageMakerBaseOperator:
             resource_type="model",
         )
 
-        assert new_name == "existing_name-3"
+        assert new_name == "existing_name-1234567890"
 
     def test_get_unique_name_checks_only_once_when_resource_does_not_exist(self):
         describe_func = MagicMock(side_effect=ClientError({"Error": {"Code": "ValidationException"}}, "op"))
