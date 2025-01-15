@@ -68,6 +68,8 @@ CREATE_MODEL_PARAMS: dict = {
 
 CONFIG: dict = {"Model": CREATE_MODEL_PARAMS, "Transform": CREATE_TRANSFORM_PARAMS}
 
+MOCK_UNIX_TIME: int = 1234567890123456789  # reproducible time for testing time.time_ns()
+
 
 class TestSageMakerTransformOperator:
     def setup_method(self):
@@ -182,10 +184,12 @@ class TestSageMakerTransformOperator:
             max_ingestion_time=None,
         )
 
-    @mock.patch(  # since it is divided by 1000000, the added timestamp should be 2.
-        "airflow.providers.amazon.aws.operators.sagemaker.time.time_ns", return_value=2000000
+    @mock.patch(  # since it is divided by 1000000000, the added timestamp should be 1234567890.
+        "airflow.providers.amazon.aws.operators.sagemaker.time.time_ns", return_value=MOCK_UNIX_TIME
     )
-    @mock.patch.object(SageMakerHook, "describe_transform_job", return_value={"ModelName": "model_name-2"})
+    @mock.patch.object(
+        SageMakerHook, "describe_transform_job", return_value={"ModelName": "model_name-1234567890"}
+    )
     @mock.patch.object(
         SageMakerHook,
         "create_transform_job",
@@ -200,7 +204,7 @@ class TestSageMakerTransformOperator:
         side_effect=[
             None,
             ClientError({"Error": {"Code": "ValidationException"}}, "op"),
-            "model_name-2",
+            "model_name-1234567890",
         ],
     )
     @mock.patch.object(sagemaker, "serialize", return_value="")
@@ -215,9 +219,9 @@ class TestSageMakerTransformOperator:
         self.sagemaker.execute(None)
 
         mock_describe_model.assert_has_calls(
-            [mock.call("model_name"), mock.call("model_name-2"), mock.call("model_name-2")]
+            [mock.call("model_name"), mock.call("model_name-1234567890"), mock.call("model_name-1234567890")]
         )
-        mock_create_model.assert_called_once_with({"ModelName": "model_name-2"})
+        mock_create_model.assert_called_once_with({"ModelName": "model_name-1234567890"})
 
     @mock.patch.object(SageMakerHook, "describe_transform_job")
     @mock.patch.object(SageMakerHook, "create_transform_job")
