@@ -24,7 +24,7 @@ import string
 from inspect import currentframe
 from json import JSONDecodeError
 from os.path import dirname, join
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 from unittest.mock import MagicMock
 
 import pytest
@@ -33,15 +33,6 @@ from msgraph_core import APIVersion
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIHook
-
-try:
-    from airflow.sdk.definitions.context import Context
-except ImportError:
-    # TODO: Remove once provider drops support for Airflow 2
-    from airflow.utils.context import Context
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
 
 T = TypeVar("T", dict, str, Connection)
 
