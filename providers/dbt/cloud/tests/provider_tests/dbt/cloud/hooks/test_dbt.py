@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from datetime import timedelta
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -82,7 +83,6 @@ DEFAULT_LIST_JOBS_RESPONSE = {
         }
     ]
 }
-EMPTY_RESPONSE = {"data": []}
 
 
 def mock_response_json(response: dict):
@@ -442,7 +442,7 @@ class TestDbtCloudHook:
             ("", "", ""),
         ],
     )
-    @patch.object(DbtCloudHook, "list_jobs", return_value=[mock_response_json(EMPTY_RESPONSE)])
+    @patch.object(DbtCloudHook, "list_jobs", return_value=[mock_response_json(DEFAULT_LIST_JOBS_RESPONSE)])
     @patch.object(
         DbtCloudHook,
         "list_environments",
@@ -468,6 +468,58 @@ class TestDbtCloudHook:
                 job_name=job_name,
                 account_id=None,
             )
+
+    @pytest.mark.parametrize("duplicated", ["projects", "environments", "jobs"])
+    def test_get_job_by_duplicate_name_raises_exception(self, duplicated):
+        hook = DbtCloudHook(ACCOUNT_ID_CONN)
+        mock_list_jobs_response = deepcopy(DEFAULT_LIST_JOBS_RESPONSE)
+        mock_list_environments_response = deepcopy(DEFAULT_LIST_ENVIRONMENTS_RESPONSE)
+        mock_list_projects_response = deepcopy(DEFAULT_LIST_PROJECTS_RESPONSE)
+
+        if duplicated == "projects":
+            mock_list_projects_response["data"].append(
+                {
+                    "id": PROJECT_ID + 1,
+                    "name": PROJECT_NAME,
+                }
+            )
+        elif duplicated == "environments":
+            mock_list_environments_response["data"].append(
+                {
+                    "id": ENVIRONMENT_ID + 1,
+                    "name": ENVIRONMENT_NAME,
+                }
+            )
+        elif duplicated == "jobs":
+            mock_list_jobs_response["data"].append(
+                {
+                    "id": JOB_ID + 1,
+                    "name": JOB_NAME,
+                }
+            )
+
+        with (
+            patch.object(
+                DbtCloudHook, "list_jobs", return_value=[mock_response_json(mock_list_jobs_response)]
+            ),
+            patch.object(
+                DbtCloudHook,
+                "list_environments",
+                return_value=[mock_response_json(mock_list_environments_response)],
+            ),
+            patch.object(
+                DbtCloudHook,
+                "list_projects",
+                return_value=[mock_response_json(mock_list_projects_response)],
+            ),
+        ):
+            with pytest.raises(AirflowException, match=f"Found 2 {duplicated}"):
+                hook.get_job_by_name(
+                    project_name=PROJECT_NAME,
+                    environment_name=ENVIRONMENT_NAME,
+                    job_name=JOB_NAME,
+                    account_id=None,
+                )
 
     @pytest.mark.parametrize(
         argnames="conn_id, account_id",
