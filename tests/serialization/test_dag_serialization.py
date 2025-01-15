@@ -101,7 +101,7 @@ from tests_common.test_utils.timetables import (
 )
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk.definitions.context import Context
 
 repo_root = Path(airflow.__file__).parent.parent
 
@@ -140,6 +140,7 @@ serialized_simple_dag_ground_truth = {
         },
         "task_group": {
             "_group_id": None,
+            "group_display_name": "",
             "prefix_group_id": True,
             "children": {
                 "bash_task": ("operator", "bash_task"),
@@ -2994,6 +2995,7 @@ def test_mapped_task_group_serde():
                 "type": "dict-of-lists",
                 "value": {"__type": "dict", "__var": {"a": [".", ".."]}},
             },
+            "group_display_name": "",
             "is_mapped": True,
             "prefix_group_id": True,
             "tooltip": "",

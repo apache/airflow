@@ -262,6 +262,13 @@ def _create_orm_dagrun(
     session,
     triggered_by,
 ):
+    bundle_version = session.scalar(
+        select(
+            DagModel.latest_bundle_version,
+        ).where(
+            DagModel.dag_id == dag.dag_id,
+        )
+    )
     run = DagRun(
         dag_id=dag_id,
         run_id=run_id,
@@ -276,6 +283,7 @@ def _create_orm_dagrun(
         data_interval=data_interval,
         triggered_by=triggered_by,
         backfill_id=backfill_id,
+        bundle_version=bundle_version,
     )
     # Load defaults into the following two fields to ensure result can be serialized detached
     run.log_template_id = int(session.scalar(select(func.max(LogTemplate.__table__.c.id))))
@@ -769,6 +777,16 @@ class DAG(TaskSDKDag, LoggingMixin):
     def get_is_paused(self, session=NEW_SESSION) -> None:
         """Return a boolean indicating whether this DAG is paused."""
         return session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == self.dag_id))
+
+    @provide_session
+    def get_bundle_name(self, session=NEW_SESSION) -> str | None:
+        """Return the bundle name this DAG is in."""
+        return session.scalar(select(DagModel.bundle_name).where(DagModel.dag_id == self.dag_id))
+
+    @provide_session
+    def get_latest_bundle_version(self, session=NEW_SESSION) -> str | None:
+        """Return the latest version of the bundle this DAG is in."""
+        return session.scalar(select(DagModel.latest_bundle_version).where(DagModel.dag_id == self.dag_id))
 
     @methodtools.lru_cache(maxsize=None)
     @classmethod
@@ -1832,6 +1850,8 @@ class DAG(TaskSDKDag, LoggingMixin):
     @provide_session
     def bulk_write_to_db(
         cls,
+        bundle_name: str,
+        bundle_version: str | None,
         dags: Collection[MaybeSerializedDAG],
         session: Session = NEW_SESSION,
     ):
@@ -1847,7 +1867,9 @@ class DAG(TaskSDKDag, LoggingMixin):
         from airflow.dag_processing.collection import AssetModelOperation, DagModelOperation
 
         log.info("Sync %s DAGs", len(dags))
-        dag_op = DagModelOperation({dag.dag_id: dag for dag in dags})  # type: ignore[misc]
+        dag_op = DagModelOperation(
+            bundle_name=bundle_name, bundle_version=bundle_version, dags={d.dag_id: d for d in dags}
+        )  # type: ignore[misc]
 
         orm_dags = dag_op.add_dags(session=session)
         dag_op.update_dags(orm_dags, session=session)
@@ -1873,7 +1895,10 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         :return: None
         """
-        self.bulk_write_to_db([self], session=session)
+        # TODO: AIP-66 should this be in the model?
+        bundle_name = self.get_bundle_name(session=session)
+        bundle_version = self.get_latest_bundle_version(session=session)
+        self.bulk_write_to_db(bundle_name, bundle_version, [self], session=session)
 
     def get_default_view(self):
         """Allow backward compatible jinja2 templates."""

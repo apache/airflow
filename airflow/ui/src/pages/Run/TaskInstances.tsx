@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Link } from "@chakra-ui/react";
+import { Box, Flex, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Link as RouterLink, useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import { ClearTaskInstanceButton } from "src/components/Clear";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -35,9 +36,7 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
     accessorKey: "task_display_name",
     cell: ({ row: { original } }) => (
       <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink to={getTaskInstanceLink(original)}>
-          {original.task_display_name}
-        </RouterLink>
+        <RouterLink to={getTaskInstanceLink(original)}>{original.task_display_name}</RouterLink>
       </Link>
     ),
     enableSorting: false,
@@ -63,8 +62,7 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
     header: "End Date",
   },
   {
-    accessorFn: (row: TaskInstanceResponse) =>
-      row.rendered_map_index ?? row.map_index,
+    accessorFn: (row: TaskInstanceResponse) => row.rendered_map_index ?? row.map_index,
     header: "Map Index",
   },
 
@@ -80,9 +78,21 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
   },
 
   {
-    cell: ({ row: { original } }) =>
-      `${getDuration(original.start_date, original.end_date)}s`,
+    cell: ({ row: { original } }) => `${getDuration(original.start_date, original.end_date)}s`,
     header: "Duration",
+  },
+  {
+    accessorKey: "actions",
+    cell: ({ row }) => (
+      <Flex justifyContent="end">
+        <ClearTaskInstanceButton taskInstance={row.original} withText={false} />
+      </Flex>
+    ),
+    enableSorting: false,
+    header: "",
+    meta: {
+      skeletonWidth: 10,
+    },
   },
 ];
 
@@ -93,18 +103,17 @@ export const TaskInstances = () => {
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-start_date";
 
-  const { data, error, isFetching, isLoading } =
-    useTaskInstanceServiceGetTaskInstances(
-      {
-        dagId,
-        dagRunId: runId,
-        limit: pagination.pageSize,
-        offset: pagination.pageIndex * pagination.pageSize,
-        orderBy,
-      },
-      undefined,
-      { enabled: !isNaN(pagination.pageSize) },
-    );
+  const { data, error, isFetching, isLoading } = useTaskInstanceServiceGetTaskInstances(
+    {
+      dagId,
+      dagRunId: runId,
+      limit: pagination.pageSize,
+      offset: pagination.pageIndex * pagination.pageSize,
+      orderBy,
+    },
+    undefined,
+    { enabled: !isNaN(pagination.pageSize) },
+  );
 
   return (
     <Box>

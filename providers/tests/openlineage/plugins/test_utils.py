@@ -28,7 +28,7 @@ from attrs import define
 from openlineage.client.utils import RedactMixin
 from pkg_resources import parse_version
 
-from airflow.models import DAG as AIRFLOW_DAG, DagModel
+from airflow.models import DagModel
 from airflow.providers.common.compat.assets import Asset
 from airflow.providers.openlineage.plugins.facets import AirflowDebugRunFacet
 from airflow.providers.openlineage.utils.utils import (
@@ -91,12 +91,14 @@ def test_get_airflow_debug_facet_logging_set_to_debug(mock_debug_mode, mock_get_
 
 
 @pytest.mark.db_test
-def test_get_dagrun_start_end():
+def test_get_dagrun_start_end(dag_maker):
     start_date = datetime.datetime(2022, 1, 1)
     end_date = datetime.datetime(2022, 1, 1, hour=2)
-    dag = AIRFLOW_DAG("test", start_date=start_date, end_date=end_date, schedule="@once")
-    AIRFLOW_DAG.bulk_write_to_db([dag])
+    with dag_maker("test", start_date=start_date, end_date=end_date, schedule="@once") as dag:
+        pass
+    dag_maker.sync_dagbag_to_db()
     dag_model = DagModel.get_dagmodel(dag.dag_id)
+
     run_id = str(uuid.uuid1())
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dagrun = dag.create_dagrun(

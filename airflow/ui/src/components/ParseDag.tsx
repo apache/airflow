@@ -30,11 +30,7 @@ const ParseDag = ({ dagId, fileToken }: Props) => {
   const { isPending, mutate } = useDagParsing({ dagId });
 
   return (
-    <Button
-      loading={isPending}
-      onClick={() => mutate({ fileToken })}
-      variant="outline"
-    >
+    <Button loading={isPending} onClick={() => mutate({ fileToken })} variant="outline">
       <FiRefreshCw height={5} width={5} />
       Reparse Dag
     </Button>

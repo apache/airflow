@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import contextlib
 import warnings
-from collections.abc import Generator, Iterable, Mapping, Sequence
-from contextlib import closing, contextmanager
+from collections.abc import Generator, Iterable, Mapping, MutableMapping, Sequence
+from contextlib import closing, contextmanager, suppress
 from datetime import datetime
 from functools import cached_property
 from typing import (
@@ -34,15 +34,20 @@ from typing import (
 from urllib.parse import urlparse
 
 import sqlparse
+from methodtools import lru_cache
 from more_itertools import chunked
 from sqlalchemy import create_engine
-from sqlalchemy.engine import Inspector
+from sqlalchemy.engine import Inspector, make_url
+from sqlalchemy.exc import ArgumentError, NoSuchModuleError
 
+from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowOptionalProviderFeatureException,
 )
 from airflow.hooks.base import BaseHook
+from airflow.providers.common.sql.dialects.dialect import Dialect
+from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from pandas import DataFrame
@@ -81,6 +86,36 @@ def fetch_one_handler(cursor) -> list[tuple] | None:
     from airflow.providers.common.sql.hooks import handlers
 
     return handlers.fetch_one_handler(cursor)
+
+
+def resolve_dialects() -> MutableMapping[str, MutableMapping]:
+    from airflow.providers_manager import ProvidersManager
+
+    providers_manager = ProvidersManager()
+
+    # TODO: this check can be removed once common sql provider depends on Airflow 3.0 or higher,
+    #       we could then also use DialectInfo and won't need to convert it to a dict.
+    if hasattr(providers_manager, "dialects"):
+        return {key: dict(value._asdict()) for key, value in providers_manager.dialects.items()}
+
+    # TODO: this can be removed once common sql provider depends on Airflow 3.0 or higher
+    return {
+        "default": dict(
+            name="default",
+            dialect_class_name="airflow.providers.common.sql.dialects.dialect.Dialect",
+            provider_name="apache-airflow-providers-common-sql",
+        ),
+        "mssql": dict(
+            name="mssql",
+            dialect_class_name="airflow.providers.microsoft.mssql.dialects.mssql.MsSqlDialect",
+            provider_name="apache-airflow-providers-microsoft-mssql",
+        ),
+        "postgresql": dict(
+            name="postgresql",
+            dialect_class_name="airflow.providers.postgres.dialects.postgres.PostgresDialect",
+            provider_name="apache-airflow-providers-postgres",
+        ),
+    }
 
 
 class ConnectorProtocol(Protocol):
@@ -129,6 +164,8 @@ class DbApiHook(BaseHook):
     _test_connection_sql = "select 1"
     # Default SQL placeholder
     _placeholder: str = "%s"
+    _dialects: MutableMapping[str, MutableMapping] = resolve_dialects()
+    _resolve_target_fields = conf.getboolean("core", "dbapihook_resolve_target_fields", fallback=False)
 
     def __init__(self, *args, schema: str | None = None, log_sql: bool = True, **kwargs):
         super().__init__()
@@ -153,6 +190,7 @@ class DbApiHook(BaseHook):
         self._replace_statement_format: str = kwargs.get(
             "replace_statement_format", "REPLACE INTO {} {} VALUES ({})"
         )
+        self._escape_column_name_format: str = kwargs.get("escape_column_name_format", '"{}"')
         self._connection: Connection | None = kwargs.pop("connection", None)
 
     def get_conn_id(self) -> str:
@@ -261,6 +299,57 @@ class DbApiHook(BaseHook):
     @property
     def inspector(self) -> Inspector:
         return Inspector.from_engine(self.get_sqlalchemy_engine())
+
+    @cached_property
+    def dialect_name(self) -> str:
+        try:
+            return make_url(self.get_uri()).get_dialect().name
+        except (ArgumentError, NoSuchModuleError):
+            config = self.connection_extra
+            sqlalchemy_scheme = config.get("sqlalchemy_scheme")
+            if sqlalchemy_scheme:
+                return sqlalchemy_scheme.split("+")[0] if "+" in sqlalchemy_scheme else sqlalchemy_scheme
+            return config.get("dialect", "default")
+
+    @cached_property
+    def dialect(self) -> Dialect:
+        from airflow.utils.module_loading import import_string
+
+        dialect_info = self._dialects.get(self.dialect_name)
+
+        self.log.debug("dialect_info: %s", dialect_info)
+
+        if dialect_info:
+            try:
+                return import_string(dialect_info["dialect_class_name"])(self)
+            except ImportError:
+                raise AirflowOptionalProviderFeatureException(
+                    f"{dialect_info.dialect_class_name} not found, run: pip install "
+                    f"'{dialect_info.provider_name}'."
+                )
+        return Dialect(self)
+
+    @property
+    def reserved_words(self) -> set[str]:
+        return self.get_reserved_words(self.dialect_name)
+
+    @lru_cache(maxsize=None)
+    def get_reserved_words(self, dialect_name: str) -> set[str]:
+        result = set()
+        with suppress(ImportError, ModuleNotFoundError, NoSuchModuleError):
+            dialect_module = import_string(f"sqlalchemy.dialects.{dialect_name}.base")
+
+            if hasattr(dialect_module, "RESERVED_WORDS"):
+                result = set(dialect_module.RESERVED_WORDS)
+            else:
+                dialect_module = import_string(f"sqlalchemy.dialects.{dialect_name}.reserved_words")
+                reserved_words_attr = f"RESERVED_WORDS_{dialect_name.upper()}"
+
+                if hasattr(dialect_module, reserved_words_attr):
+                    result = set(getattr(dialect_module, reserved_words_attr))
+
+        self.log.debug("reserved words for '%s': %s", dialect_name, result)
+        return result
 
     def get_pandas_df(
         self,
@@ -543,7 +632,7 @@ class DbApiHook(BaseHook):
         """Return a cursor."""
         return self.get_conn().cursor()
 
-    def _generate_insert_sql(self, table, values, target_fields, replace, **kwargs) -> str:
+    def _generate_insert_sql(self, table, values, target_fields=None, replace: bool = False, **kwargs) -> str:
         """
         Generate the INSERT SQL statement.
 
@@ -551,24 +640,19 @@ class DbApiHook(BaseHook):
 
         :param table: Name of the target table
         :param values: The row to insert into the table
-        :param target_fields: The names of the columns to fill in the table
+        :param target_fields: The names of the columns to fill in the table. If no target fields are
+            specified, they will be determined dynamically from the table's metadata.
         :param replace: Whether to replace/upsert instead of insert
         :return: The generated INSERT or REPLACE/UPSERT SQL statement
         """
-        placeholders = [
-            self.placeholder,
-        ] * len(values)
+        if not target_fields and self._resolve_target_fields:
+            with suppress(Exception):
+                target_fields = self.dialect.get_target_fields(table)
 
-        if target_fields:
-            target_fields = ", ".join(target_fields)
-            target_fields = f"({target_fields})"
-        else:
-            target_fields = ""
+        if replace:
+            return self.dialect.generate_replace_sql(table, values, target_fields, **kwargs)
 
-        if not replace:
-            return self._insert_statement_format.format(table, target_fields, ",".join(placeholders))
-
-        return self._replace_statement_format.format(table, target_fields, ",".join(placeholders))
+        return self.dialect.generate_insert_sql(table, values, target_fields, **kwargs)
 
     @contextmanager
     def _create_autocommit_connection(self, autocommit: bool = False):

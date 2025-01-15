@@ -20,10 +20,9 @@ from __future__ import annotations
 import logging
 import socket
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Protocol
 
 from airflow.configuration import conf
-from airflow.typing_compat import Protocol
 
 log = logging.getLogger(__name__)
 

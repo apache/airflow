@@ -27,8 +27,8 @@ from airflow.lineage.backend import LineageBackend
 from airflow.lineage.entities import File
 from airflow.models import TaskInstance as TI
 from airflow.operators.empty import EmptyOperator
+from airflow.sdk.definitions.context import Context
 from airflow.utils import timezone
-from airflow.utils.context import Context
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars

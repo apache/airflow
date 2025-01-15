@@ -27,7 +27,12 @@ from openai.types.batch import Batch
 from airflow.exceptions import TaskDeferred
 from airflow.providers.openai.operators.openai import OpenAIEmbeddingOperator, OpenAITriggerBatchOperator
 from airflow.providers.openai.triggers.openai import OpenAIBatchTrigger
-from airflow.utils.context import Context
+
+try:
+    from airflow.sdk.definitions.context import Context
+except ImportError:
+    # TODO: Remove once provider drops support for Airflow 2
+    from airflow.utils.context import Context
 
 TASK_ID = "TaskId"
 CONN_ID = "test_conn_id"

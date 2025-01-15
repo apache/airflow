@@ -39,8 +39,8 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodManager
+from airflow.sdk.definitions.context import Context
 from airflow.utils import timezone
-from airflow.utils.context import Context
 from airflow.utils.types import DagRunType
 from airflow.version import version as airflow_version
 from kubernetes_tests.test_base import BaseK8STest, StringContainingId
@@ -1399,6 +1399,8 @@ class TestKubernetesPodOperatorSystem:
         )
 
 
+# TODO: Task SDK: https://github.com/apache/airflow/issues/45438
+@pytest.mark.skip(reason="AIP-72: Secret Masking yet to be implemented")
 def test_hide_sensitive_field_in_templated_fields_on_error(caplog, monkeypatch):
     logger = logging.getLogger("airflow.task")
     monkeypatch.setattr(logger, "propagate", True)

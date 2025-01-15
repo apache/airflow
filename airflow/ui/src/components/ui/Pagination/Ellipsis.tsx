@@ -24,10 +24,7 @@ import { paginationContext } from "./context";
 
 const [, useRootProps] = paginationContext;
 
-export const Ellipsis = forwardRef<
-  HTMLDivElement,
-  ChakraPagination.EllipsisProps
->((props, ref) => {
+export const Ellipsis = forwardRef<HTMLDivElement, ChakraPagination.EllipsisProps>((props, ref) => {
   const { size, variantMap } = useRootProps();
 
   return (

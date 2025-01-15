@@ -25,15 +25,12 @@ import {
   UseDagServiceGetDagDetailsKeyFn,
   useTaskInstanceServiceGetTaskInstancesKey,
 } from "openapi/queries";
-import type {
-  DAGRunClearBody,
-  TaskInstanceCollectionResponse,
-} from "openapi/requests/types.gen";
+import type { DAGRunClearBody, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
 
 const onError = () => {
   toaster.create({
-    description: "Clear Dag Run request failed.",
+    description: "Clear Dag Run request failed",
     title: "Failed to clear the Dag Run",
     type: "error",
   });
@@ -70,11 +67,7 @@ export const useClearDagRun = ({
         [useDagRunServiceGetDagRunsKey],
       ];
 
-      await Promise.all(
-        queryKeys.map((key) =>
-          queryClient.invalidateQueries({ queryKey: key }),
-        ),
-      );
+      await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
       onSuccessConfirm();
     }

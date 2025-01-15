@@ -2128,7 +2128,7 @@ class TestTaskInstance:
         dag_run.conf = {"override": True}
         ti.task.params = {"override": False}
 
-        params = process_params(ti.task.dag, ti.task, dag_run, suppress_exception=False)
+        params = process_params(ti.task.dag, ti.task, dag_run.conf, suppress_exception=False)
         assert params["override"] is True
 
     def test_overwrite_params_with_dag_run_none(self, create_task_instance):
@@ -2143,7 +2143,7 @@ class TestTaskInstance:
         dag_run = ti.dag_run
         ti.task.params = {"override": False}
 
-        params = process_params(ti.task.dag, ti.task, dag_run, suppress_exception=False)
+        params = process_params(ti.task.dag, ti.task, dag_run.conf, suppress_exception=False)
         assert params["override"] is False
 
     @pytest.mark.parametrize("use_native_obj", [True, False])
@@ -2281,7 +2281,7 @@ class TestTaskInstance:
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
-    def test_outlet_assets(self, create_task_instance):
+    def test_outlet_assets(self, create_task_instance, testing_dag_bundle):
         """
         Verify that when we have an outlet asset on a task, and the task
         completes successfully, an AssetDagRunQueue is logged.
@@ -2292,7 +2292,7 @@ class TestTaskInstance:
         session = settings.Session()
         dagbag = DagBag(dag_folder=example_assets.__file__)
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
-        dagbag.sync_to_db(session=session)
+        dagbag.sync_to_db("testing", None, session=session)
 
         asset_models = session.scalars(select(AssetModel)).all()
         SchedulerJobRunner._activate_referenced_assets(asset_models, session=session)
@@ -2344,7 +2344,7 @@ class TestTaskInstance:
             event.timestamp < adrq_timestamp for (adrq_timestamp,) in adrq_timestamps
         ), f"Some items in {[str(t) for t in adrq_timestamps]} are earlier than {event.timestamp}"
 
-    def test_outlet_assets_failed(self, create_task_instance):
+    def test_outlet_assets_failed(self, create_task_instance, testing_dag_bundle):
         """
         Verify that when we have an outlet asset on a task, and the task
         failed, an AssetDagRunQueue is not logged, and an AssetEvent is
@@ -2356,7 +2356,7 @@ class TestTaskInstance:
         session = settings.Session()
         dagbag = DagBag(dag_folder=test_assets.__file__)
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
-        dagbag.sync_to_db(session=session)
+        dagbag.sync_to_db("testing", None, session=session)
         run_id = str(uuid4())
         dr = DagRun(dag_with_fail_task.dag_id, run_id=run_id, run_type="anything")
         session.merge(dr)
@@ -2398,7 +2398,7 @@ class TestTaskInstance:
                 task_instance.run()
                 assert task_instance.current_state() == TaskInstanceState.SUCCESS
 
-    def test_outlet_assets_skipped(self):
+    def test_outlet_assets_skipped(self, testing_dag_bundle):
         """
         Verify that when we have an outlet asset on a task, and the task
         is skipped, an AssetDagRunQueue is not logged, and an AssetEvent is
@@ -2410,7 +2410,7 @@ class TestTaskInstance:
         session = settings.Session()
         dagbag = DagBag(dag_folder=test_assets.__file__)
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
-        dagbag.sync_to_db(session=session)
+        dagbag.sync_to_db("testing", None, session=session)
 
         asset_models = session.scalars(select(AssetModel)).all()
         SchedulerJobRunner._activate_referenced_assets(asset_models, session=session)

@@ -14,8 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# yaml-language-server: $schema=../../provider.yaml.schema.json
 ---
 package-name: apache-airflow-providers-edge
 name: Edge Executor
@@ -27,11 +25,12 @@ source-date-epoch: 1729683247
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:
-  - 0.9.6pre0
+  - 0.10.1pre0
 
 dependencies:
   - apache-airflow>=2.10.0
   - pydantic>=2.10.2
+  - retryhttp>=1.2.0
 
 plugins:
   - name: edge_executor

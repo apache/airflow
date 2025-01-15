@@ -166,6 +166,14 @@ ARG_SUBDIR = Arg(
     ),
     default="[AIRFLOW_HOME]/dags" if BUILD_DOCS else settings.DAGS_FOLDER,
 )
+ARG_BUNDLE_NAME = Arg(
+    (
+        "-B",
+        "--bundle-name",
+    ),
+    help=("The name of the DAG bundle to use."),
+    default=None,
+)
 ARG_START_DATE = Arg(("-s", "--start-date"), help="Override start_date YYYY-MM-DD", type=parsedate)
 ARG_END_DATE = Arg(("-e", "--end-date"), help="Override end_date YYYY-MM-DD", type=parsedate)
 ARG_OUTPUT_PATH = Arg(
@@ -592,14 +600,6 @@ ARG_MIGRATION_TIMEOUT = Arg(
     help="timeout to wait for db to migrate ",
     type=int,
     default=60,
-)
-ARG_DB_RESERIALIZE_DAGS = Arg(
-    ("--no-reserialize-dags",),
-    # Not intended for user, so dont show in help
-    help=argparse.SUPPRESS,
-    action="store_false",
-    default=True,
-    dest="reserialize_dags",
 )
 ARG_DB_VERSION__UPGRADE = Arg(
     ("-n", "--to-version"),
@@ -1238,7 +1238,7 @@ DAGS_COMMANDS = (
         ),
         func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_reserialize"),
         args=(
-            ARG_SUBDIR,
+            ARG_BUNDLE_NAME,
             ARG_VERBOSE,
         ),
     ),
@@ -1479,7 +1479,6 @@ DB_COMMANDS = (
             ARG_DB_SQL_ONLY,
             ARG_DB_FROM_REVISION,
             ARG_DB_FROM_VERSION,
-            ARG_DB_RESERIALIZE_DAGS,
             ARG_VERBOSE,
         ),
     ),

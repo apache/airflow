@@ -281,7 +281,7 @@ class DagBag(LoggingMixin):
 
     def process_file(self, filepath, only_if_updated=True, safe_mode=True):
         """Given a path to a python module or zip file, import the module and look for dag objects within."""
-        from airflow.sdk.definitions.contextmanager import DagContext
+        from airflow.sdk.definitions._internal.contextmanager import DagContext
 
         # if the source file no longer exists in the DB or in the filesystem,
         # return an empty list
@@ -358,7 +358,7 @@ class DagBag(LoggingMixin):
         return warnings
 
     def _load_modules_from_file(self, filepath, safe_mode):
-        from airflow.sdk.definitions.contextmanager import DagContext
+        from airflow.sdk.definitions._internal.contextmanager import DagContext
 
         if not might_contain_dag(filepath, safe_mode):
             # Don't want to spam user with skip messages
@@ -414,7 +414,7 @@ class DagBag(LoggingMixin):
             return parse(mod_name, filepath)
 
     def _load_modules_from_zip(self, filepath, safe_mode):
-        from airflow.sdk.definitions.contextmanager import DagContext
+        from airflow.sdk.definitions._internal.contextmanager import DagContext
 
         mods = []
         with zipfile.ZipFile(filepath) as current_zip_file:
@@ -464,7 +464,7 @@ class DagBag(LoggingMixin):
 
     def _process_modules(self, filepath, mods, file_last_changed_on_disk):
         from airflow.models.dag import DAG  # Avoid circular import
-        from airflow.sdk.definitions.contextmanager import DagContext
+        from airflow.sdk.definitions._internal.contextmanager import DagContext
 
         top_level_dags = {(o, m) for m in mods for o in m.__dict__.values() if isinstance(o, DAG)}
 
@@ -568,11 +568,17 @@ class DagBag(LoggingMixin):
 
         # Ensure dag_folder is a str -- it may have been a pathlib.Path
         dag_folder = correct_maybe_zipped(str(dag_folder))
-        for filepath in list_py_file_paths(
-            dag_folder,
-            safe_mode=safe_mode,
-            include_examples=include_examples,
-        ):
+
+        files_to_parse = list_py_file_paths(dag_folder, safe_mode=safe_mode)
+
+        if include_examples:
+            from airflow import example_dags
+
+            example_dag_folder = next(iter(example_dags.__path__))
+
+            files_to_parse.extend(list_py_file_paths(example_dag_folder, safe_mode=safe_mode))
+
+        for filepath in files_to_parse:
             try:
                 file_parse_start_dttm = timezone.utcnow()
                 found_dags = self.process_file(filepath, only_if_updated=only_if_updated, safe_mode=safe_mode)
@@ -626,11 +632,13 @@ class DagBag(LoggingMixin):
         return report
 
     @provide_session
-    def sync_to_db(self, session: Session = NEW_SESSION):
+    def sync_to_db(self, bundle_name: str, bundle_version: str | None, session: Session = NEW_SESSION):
         """Save attributes about list of DAG to the DB."""
         from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 
         update_dag_parsing_results_in_db(
+            bundle_name,
+            bundle_version,
             self.dags.values(),  # type: ignore[arg-type]  # We should create a proto for DAG|LazySerializedDAG
             self.import_errors,
             self.dag_warnings,

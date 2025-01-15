@@ -33,6 +33,7 @@ from typing import (
 
 import re2
 from sqlalchemy import (
+    JSON,
     Boolean,
     Column,
     Enum,
@@ -40,7 +41,6 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
-    PickleType,
     PrimaryKeyConstraint,
     String,
     Text,
@@ -53,6 +53,7 @@ from sqlalchemy import (
     tuple_,
     update,
 )
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.mutable import MutableDict
@@ -152,7 +153,7 @@ class DagRun(Base, LoggingMixin):
     triggered_by = Column(
         Enum(DagRunTriggeredByType, native_enum=False, length=50)
     )  # Airflow component that triggered the run.
-    conf = Column(PickleType)
+    conf = Column(JSON().with_variant(postgresql.JSONB, "postgresql"))
     # These two must be either both NULL or both datetime.
     data_interval_start = Column(UtcDateTime)
     data_interval_end = Column(UtcDateTime)
@@ -179,6 +180,7 @@ class DagRun(Base, LoggingMixin):
     """
     dag_version_id = Column(UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="CASCADE"))
     dag_version = relationship("DagVersion", back_populates="dag_runs")
+    bundle_version = Column(StringID())
 
     scheduled_by_job_id = Column(Integer)
     # Span context carrier, used for context propagation.
@@ -256,6 +258,7 @@ class DagRun(Base, LoggingMixin):
         triggered_by: DagRunTriggeredByType | None = None,
         backfill_id: int | None = None,
         dag_version: DagVersion | None = None,
+        bundle_version: str | None = None,
     ):
         if data_interval is None:
             # Legacy: Only happen for runs created prior to Airflow 2.2.
@@ -263,6 +266,7 @@ class DagRun(Base, LoggingMixin):
         else:
             self.data_interval_start, self.data_interval_end = data_interval
 
+        self.bundle_version = bundle_version
         self.dag_id = dag_id
         self.run_id = run_id
         self.logical_date = logical_date
