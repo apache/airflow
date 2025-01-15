@@ -24,4 +24,4 @@ class SageMakerTransformJobLink(BaseAwsLink):
 
     name = "Amazon SageMaker Transform Job Details"
     key = "sagemaker_transform_job_details"
-    format_str = BASE_AWS_CONSOLE_LINK + "/sagemaker/home?region={region_name}#/transform-jobs/{job_name}}"
+    format_str = BASE_AWS_CONSOLE_LINK + "/sagemaker/home?region={region_name}#/transform-jobs/{job_name}"
