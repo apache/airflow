@@ -521,13 +521,13 @@ class TestDagRun:
         assert dag_run.state == DagRunState.SUCCESS
         mock_on_success.assert_called_once()
 
-    def test_start_dr_spans_if_needed_new_span(self, session):
+    def test_start_dr_spans_if_needed_new_span(self, testing_dag_bundle, session):
         dag = DAG(
             dag_id="test_start_dr_spans_if_needed_new_span",
             schedule=datetime.timedelta(days=1),
             start_date=datetime.datetime(2017, 1, 1),
         )
-        DAG.bulk_write_to_db(dags=[dag], session=session)
+        DAG.bulk_write_to_db("testing", None, dags=[dag], session=session)
 
         dag_task1 = EmptyOperator(task_id="test_task1", dag=dag)
         dag_task2 = EmptyOperator(task_id="test_task2", dag=dag)
@@ -557,13 +557,13 @@ class TestDagRun:
         assert dag_run.span_status == SpanStatus.ACTIVE
         assert dag_run.active_spans.get(dag_run.run_id) is not None
 
-    def test_start_dr_spans_if_needed_span_with_continuance(self, session):
+    def test_start_dr_spans_if_needed_span_with_continuance(self, testing_dag_bundle, session):
         dag = DAG(
             dag_id="test_start_dr_spans_if_needed_span_with_continuance",
             schedule=datetime.timedelta(days=1),
             start_date=datetime.datetime(2017, 1, 1),
         )
-        DAG.bulk_write_to_db(dags=[dag], session=session)
+        DAG.bulk_write_to_db("testing", None, dags=[dag], session=session)
 
         dag_task1 = EmptyOperator(task_id="test_task1", dag=dag)
         dag_task2 = EmptyOperator(task_id="test_task2", dag=dag)
@@ -602,13 +602,13 @@ class TestDagRun:
         assert dag_run.active_spans.get(dag_run.run_id) is not None
         assert dag_run.active_spans.get(first_ti.key) is not None
 
-    def test_end_dr_span_if_needed(self, session):
+    def test_end_dr_span_if_needed(self, testing_dag_bundle, session):
         dag = DAG(
             dag_id="test_end_dr_span_if_needed",
             schedule=datetime.timedelta(days=1),
             start_date=datetime.datetime(2017, 1, 1),
         )
-        DAG.bulk_write_to_db(dags=[dag], session=session)
+        DAG.bulk_write_to_db("testing", None, dags=[dag], session=session)
 
         dag_task1 = EmptyOperator(task_id="test_task1", dag=dag)
         dag_task2 = EmptyOperator(task_id="test_task2", dag=dag)
@@ -642,13 +642,13 @@ class TestDagRun:
         assert dag_run.span_status == SpanStatus.ENDED
         assert dag_run.active_spans.get(dag_run.run_id) is None
 
-    def test_end_dr_span_if_needed_with_span_from_another_scheduler(self, session):
+    def test_end_dr_span_if_needed_with_span_from_another_scheduler(self, testing_dag_bundle, session):
         dag = DAG(
             dag_id="test_end_dr_span_if_needed_with_span_from_another_scheduler",
             schedule=datetime.timedelta(days=1),
             start_date=datetime.datetime(2017, 1, 1),
         )
-        DAG.bulk_write_to_db(dags=[dag], session=session)
+        DAG.bulk_write_to_db("testing", None, dags=[dag], session=session)
 
         dag_task1 = EmptyOperator(task_id="test_task1", dag=dag)
         dag_task2 = EmptyOperator(task_id="test_task2", dag=dag)
