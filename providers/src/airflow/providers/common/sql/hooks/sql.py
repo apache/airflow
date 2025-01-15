@@ -230,9 +230,7 @@ class DbApiHook(BaseHook):
     def escape_word_format(self) -> str:
         """Return the escape word format."""
         if not self._escape_word_format:
-            self._escape_word_format = self.connection_extra.get(
-                "escape_word_format", '"{}"'
-            )
+            self._escape_word_format = self.connection_extra.get("escape_word_format", '"{}"')
         return self._escape_word_format
 
     @property
