@@ -29,7 +29,11 @@
 # If we're using a StatefulSet
 {{- $stateful := and $local $persistence }}
 # We can skip DAGs mounts on scheduler if dagProcessor is enabled, except with $local mode
-{{- $localOrDagProcessorDisabled := or (not .Values.dagProcessor.enabled) $local }}
+{{- $dagProcessorEnabled := .Values.dagProcessor.enabled }}
+{{- if eq $dagProcessorEnabled nil}}
+  {{ $dagProcessorEnabled = ternary true false (semverCompare ">=3.0.0" .Values.airflowVersion) }}
+{{- end }}
+{{- $localOrDagProcessorDisabled := or (not $dagProcessorEnabled) $local }}
 # If we're using elasticsearch or opensearch logging
 {{- $remoteLogging := or .Values.elasticsearch.enabled .Values.opensearch.enabled }}
 {{- $nodeSelector := or .Values.scheduler.nodeSelector .Values.nodeSelector }}
