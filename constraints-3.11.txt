@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-13T19:14:31.023512
+# This constraints file was automatically generated on 2025-01-15T18:46:59.325266
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -248,7 +248,7 @@ celery==5.4.0
 certifi==2024.12.14
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.22.4
+cfn-lint==1.22.5
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.1
@@ -280,7 +280,7 @@ db-dtypes==1.3.1
 debugpy==1.8.11
 decorator==5.1.1
 defusedxml==0.7.1
-deltalake==0.23.2
+deltalake==0.24.0
 diagrams==0.24.1
 dill==0.3.1.1
 distlib==0.3.9
@@ -319,7 +319,7 @@ gitdb==4.0.12
 google-ads==25.1.0
 google-analytics-admin==0.23.3
 google-api-core==2.24.0
-google-api-python-client==2.158.0
+google-api-python-client==2.159.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.37.0
@@ -332,7 +332,7 @@ google-cloud-batch==0.17.33
 google-cloud-bigquery-datatransfer==3.18.0
 google-cloud-bigquery==3.20.1
 google-cloud-bigtable==2.28.0
-google-cloud-build==3.28.0
+google-cloud-build==3.29.0
 google-cloud-compute==1.23.0
 google-cloud-container==2.55.0
 google-cloud-core==2.4.1
@@ -343,11 +343,11 @@ google-cloud-dataplex==2.6.0
 google-cloud-dataproc-metastore==1.17.0
 google-cloud-dataproc==5.16.0
 google-cloud-dlp==3.26.0
-google-cloud-kms==3.2.1
+google-cloud-kms==3.2.2
 google-cloud-language==2.16.0
 google-cloud-logging==3.11.3
 google-cloud-memcache==1.11.0
-google-cloud-monitoring==2.25.0
+google-cloud-monitoring==2.26.0
 google-cloud-orchestration-airflow==1.16.0
 google-cloud-os-login==2.16.0
 google-cloud-pubsub==2.27.2
@@ -360,7 +360,7 @@ google-cloud-speech==2.30.0
 google-cloud-storage-transfer==1.15.0
 google-cloud-storage==2.19.0
 google-cloud-tasks==2.18.0
-google-cloud-texttospeech==2.23.0
+google-cloud-texttospeech==2.24.0
 google-cloud-translate==3.19.0
 google-cloud-videointelligence==2.15.0
 google-cloud-vision==3.9.0
@@ -446,7 +446,7 @@ ldap3==2.9.1
 limits==4.0.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
-looker-sdk==24.20.0
+looker-sdk==25.0.0
 lxml==5.3.0
 lz4==4.3.3
 markdown-it-py==3.0.0
@@ -465,12 +465,12 @@ microsoft-kiota-serialization-json==1.0.0
 microsoft-kiota-serialization-text==1.0.0
 mmh3==5.0.1
 mongomock==4.3.0
-more-itertools==10.5.0
+more-itertools==10.6.0
 moto==5.0.11
 mpmath==1.3.0
 msal-extensions==1.2.0
 msal==1.31.1
-msgraph-core==1.1.7
+msgraph-core==1.2.0
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
@@ -619,7 +619,7 @@ requests-oauthlib==1.3.1
 requests-toolbelt==1.0.0
 requests==2.32.3
 requests_ntlm==1.3.0
-responses==0.25.5
+responses==0.25.6
 restructuredtext_lint==1.4.0
 rfc3339-validator==0.1.4
 rfc3986==2.0.0
@@ -636,7 +636,7 @@ scrapbook==0.5.0
 semver==3.0.2
 sendgrid==6.11.0
 sentinels==1.0.0
-sentry-sdk==2.19.2
+sentry-sdk==2.20.0
 setproctitle==1.3.4
 shapely==2.0.6
 shellingham==1.5.4
@@ -649,7 +649,7 @@ sniffio==1.3.1
 snowballstemmer==2.2.0
 snowflake-connector-python==3.12.4
 snowflake-snowpark-python==1.26.0
-snowflake-sqlalchemy==1.7.2
+snowflake-sqlalchemy==1.7.3
 sortedcontainers==2.4.0
 soupsieve==2.6
 sphinx-airflow-theme==0.1.0
@@ -682,7 +682,7 @@ statsd==4.0.1
 std-uritemplate==2.0.1
 strictyaml==1.7.3
 sympy==1.13.3
-tableauserverclient==0.35
+tableauserverclient==0.36
 tabulate==0.9.0
 tenacity==9.0.0
 teradatasql==20.0.0.22
@@ -692,13 +692,13 @@ text-unidecode==1.3
 thrift-sasl==0.4.3
 thrift==0.16.0
 time-machine==2.16.0
-tomli_w==1.1.0
+tomli_w==1.2.0
 tomlkit==0.13.2
 tornado==6.4.2
 towncrier==24.8.0
 tqdm==4.67.1
 traitlets==5.14.3
-trino==0.331.0
+trino==0.332.0
 trove-classifiers==2025.1.10.15
 twine==6.0.1
 types-Deprecated==1.2.15.20241117
@@ -741,7 +741,7 @@ wcwidth==0.2.13
 weaviate-client==4.9.6
 websocket-client==1.8.0
 wirerope==0.4.8
-wrapt==1.17.1
+wrapt==1.17.2
 xmlsec==1.3.14
 xmltodict==0.14.2
 yamllint==1.35.1
@@ -749,7 +749,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.18.3
 ydb-dbapi==0.1.7
-ydb==3.18.14
+ydb==3.18.15
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.21.0

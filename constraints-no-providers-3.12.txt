@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-13T19:11:10.371285
+# This constraints file was automatically generated on 2025-01-15T18:43:38.804712
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -58,7 +58,7 @@ cgroupspy==0.2.3
 charset-normalizer==3.4.1
 click==8.1.8
 clickclick==20.10.2
-cloudpickle==3.1.0
+cloudpickle==3.1.1
 colorama==0.4.6
 colorlog==6.9.0
 connexion==2.14.2
@@ -110,7 +110,7 @@ marshmallow==3.25.1
 mdit-py-plugins==0.4.2
 mdurl==0.1.2
 methodtools==0.4.7
-more-itertools==10.5.0
+more-itertools==10.6.0
 multidict==6.1.0
 numpy==1.26.4
 opentelemetry-api==1.29.0
@@ -159,7 +159,7 @@ rich-argparse==1.6.0
 rich==13.9.4
 rpds-py==0.22.3
 s3fs==2024.12.0
-sentry-sdk==2.19.2
+sentry-sdk==2.20.0
 setproctitle==1.3.4
 setuptools==75.8.0
 six==1.17.0
@@ -182,7 +182,7 @@ uv==0.5.17
 vine==5.1.0
 virtualenv==20.28.1
 wirerope==0.4.8
-wrapt==1.17.1
+wrapt==1.17.2
 xmlsec==1.3.14
 yarl==1.18.3
 zipp==3.21.0
