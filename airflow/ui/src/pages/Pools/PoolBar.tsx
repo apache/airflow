@@ -16,94 +16,69 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Text, VStack } from "@chakra-ui/react";
+import { Box, Flex, HStack, Text, VStack } from "@chakra-ui/react";
 import { MdHourglassDisabled, MdHourglassFull } from "react-icons/md";
 
 import type { PoolResponse } from "openapi/requests/types.gen";
 import { Tooltip } from "src/components/ui";
+import { capitalize } from "src/utils";
 import { stateColor } from "src/utils/stateColor";
 
-type PoolBarProps = {
-  readonly pools: Array<PoolResponse>;
+const slots = {
+  deferred_slots: stateColor.deferred,
+  occupied_slots: stateColor.up_for_retry,
+  open_slots: stateColor.success,
+  queued_slots: stateColor.queued,
+  running_slots: stateColor.running,
+  scheduled_slots: stateColor.scheduled,
 };
 
-const PoolBar = ({ pools }: PoolBarProps) => (
-  <Flex direction="column" gap={4}>
-    {pools.map((pool) => {
-      // Calculate proportions
-      const totalSlots = pool.slots;
-      const openFlex = pool.open_slots / totalSlots || 0;
-      const scheduledFlex = pool.scheduled_slots / totalSlots || 0;
-      const runningFlex = pool.running_slots / totalSlots || 0;
-      const queuedFlex = pool.queued_slots / totalSlots || 0;
-      const occupiedFlex = pool.occupied_slots / totalSlots || 0;
-      const deferredFlex = (pool.include_deferred ? pool.deferred_slots / totalSlots : 0) || 0;
+type PoolBarProps = {
+  readonly pool: PoolResponse;
+};
 
-      return (
-        <Box
-          borderColor="border.emphasized"
-          borderRadius={8}
-          borderWidth={1}
-          key={pool.name}
-          overflow="hidden"
-        >
-          <Flex alignItems="center" bg="bg.muted" justifyContent="space-between" p={4}>
-            <VStack align="start">
-              <Text fontSize="lg" fontWeight="bold">
-                {pool.name}
-              </Text>
-              {Boolean(pool.description) ? (
-                <Text color="gray.fg" fontSize="sm">
-                  {pool.description}
-                </Text>
-              ) : undefined}
-            </VStack>
+const PoolBar = ({ pool }: PoolBarProps) => {
+  const totalSlots = pool.slots;
+
+  return (
+    <Box borderColor="border.emphasized" borderRadius={8} borderWidth={1} mb={2} overflow="hidden">
+      <Flex alignItems="center" bg="bg.muted" justifyContent="space-between" p={4}>
+        <VStack align="start">
+          <HStack>
+            <Text fontSize="lg" fontWeight="bold">
+              {pool.name} ({totalSlots} slots)
+            </Text>
             <Tooltip
               content={pool.include_deferred ? "Deferred Slots Included" : "Deferred Slots Not Included"}
             >
-              {pool.include_deferred ? <MdHourglassFull size={25} /> : <MdHourglassDisabled size={25} />}
+              {pool.include_deferred ? <MdHourglassFull size={18} /> : <MdHourglassDisabled size={18} />}
             </Tooltip>
-          </Flex>
+          </HStack>
+          {pool.description ?? (
+            <Text color="gray.fg" fontSize="sm">
+              {pool.description}
+            </Text>
+          )}
+        </VStack>
+      </Flex>
 
-          <Box margin={4}>
-            <Flex bg="gray.100" borderRadius="md" h="20px" overflow="hidden" w="100%">
-              {/* Open Slots */}
-              <Tooltip content={`Open Slots: ${pool.open_slots}`}>
-                <Box bg={stateColor.success} flex={openFlex} h="100%" />
+      <Box margin={4}>
+        <Flex bg="gray.100" borderRadius="md" h="20px" overflow="hidden" w="100%">
+          {Object.entries(slots).map(([slotKey, color]) => {
+            const rawSlotValue = pool[slotKey as keyof PoolResponse];
+            const slotValue = typeof rawSlotValue === "number" ? rawSlotValue : 0;
+            const flexValue = slotValue / totalSlots || 0;
+
+            return slotKey === "deferred_slots" && !pool.include_deferred ? undefined : (
+              <Tooltip content={`${capitalize(slotKey.replace("_", " "))}: ${slotValue}`} key={slotKey}>
+                <Box bg={color} flex={flexValue} h="100%" />
               </Tooltip>
-
-              {/* Scheduled Slots */}
-              <Tooltip content={`Scheduled Slots: ${pool.scheduled_slots}`}>
-                <Box bg={stateColor.scheduled} flex={scheduledFlex} h="100%" />
-              </Tooltip>
-
-              {/* Running Slots */}
-              <Tooltip content={`Running Slots: ${pool.running_slots}`}>
-                <Box bg={stateColor.running} flex={runningFlex} h="100%" />
-              </Tooltip>
-
-              {/* Queued Slots */}
-              <Tooltip content={`Queued Slots: ${pool.queued_slots}`}>
-                <Box bg={stateColor.queued} flex={queuedFlex} h="100%" />
-              </Tooltip>
-
-              {/* Occupied Slots */}
-              <Tooltip content={`Occupied Slots: ${pool.occupied_slots}`}>
-                <Box bg={stateColor.up_for_retry} flex={occupiedFlex} h="100%" />
-              </Tooltip>
-
-              {/* Deferred Slots */}
-              {pool.include_deferred && pool.deferred_slots > 0 ? (
-                <Tooltip content={`Deferred Slots: ${pool.deferred_slots}`}>
-                  <Box bg={stateColor.deferred} flex={deferredFlex} h="100%" />
-                </Tooltip>
-              ) : undefined}
-            </Flex>
-          </Box>
-        </Box>
-      );
-    })}
-  </Flex>
-);
+            );
+          })}
+        </Flex>
+      </Box>
+    </Box>
+  );
+};
 
 export default PoolBar;

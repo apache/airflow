@@ -31,9 +31,7 @@ export const Pools = () => {
   ) : (
     <>
       <ErrorAlert error={error} />
-      <Box p={2}>
-        <PoolBar pools={data?.pools ?? []} />
-      </Box>
+      <Box p={2}>{data?.pools.map((pool) => <PoolBar key={pool.name} pool={pool} />)}</Box>
     </>
   );
 };
