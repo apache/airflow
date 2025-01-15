@@ -160,6 +160,7 @@ def tis(dags, session):
     dag, dag_removed = dags
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dagrun = dag.create_dagrun(
+        run_id=f"scheduled__{DEFAULT_DATE.isoformat()}",
         run_type=DagRunType.SCHEDULED,
         logical_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
@@ -172,6 +173,7 @@ def tis(dags, session):
     ti.try_number = 1
     ti.hostname = "localhost"
     dagrun_removed = dag_removed.create_dagrun(
+        run_id=f"scheduled__{DEFAULT_DATE.isoformat()}",
         run_type=DagRunType.SCHEDULED,
         logical_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),

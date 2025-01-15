@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Mapping
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -37,7 +36,11 @@ from airflow.utils.helpers import prune_dict
 if TYPE_CHECKING:
     import jinja2
 
-    from airflow.utils.context import Context
+    try:
+        from airflow.sdk.definitions.context import Context
+    except ImportError:
+        # TODO: Remove once provider drops support for Airflow 2
+        from airflow.utils.context import Context
 
 
 class SparkKubernetesOperator(KubernetesPodOperator):
@@ -129,7 +132,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     def _render_nested_template_fields(
         self,
         content: Any,
-        context: Mapping[str, Any],
+        context: Context,
         jinja_env: jinja2.Environment,
         seen_oids: set,
     ) -> None:

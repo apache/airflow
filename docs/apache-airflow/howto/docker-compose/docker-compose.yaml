@@ -60,6 +60,7 @@ x-airflow-common:
     AIRFLOW__CORE__FERNET_KEY: ''
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'true'
+    AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR: 'true'
     AIRFLOW__API__AUTH_BACKENDS: >-
        airflow.providers.fab.auth_manager.api.auth.backend.basic_auth,airflow.api.auth.backend.session
     # yamllint disable rule:line-length
@@ -138,6 +139,21 @@ services:
     command: scheduler
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8974/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-dag-processor:
+    <<: *airflow-common
+    command: dag-processor
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type DagProcessorJob --hostname "$${HOSTNAME}"']
       interval: 30s
       timeout: 10s
       retries: 5

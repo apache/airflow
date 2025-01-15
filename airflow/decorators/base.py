@@ -63,8 +63,8 @@ if TYPE_CHECKING:
         OperatorExpandKwargsArgument,
     )
     from airflow.models.mappedoperator import ValidationSource
+    from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
-    from airflow.utils.context import Context
     from airflow.utils.task_group import TaskGroup
 
 

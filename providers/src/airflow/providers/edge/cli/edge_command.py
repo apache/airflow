@@ -223,7 +223,8 @@ class _EdgeWorkerCli:
                     # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
                     # Same like in airflow/executors/local_executor.py:_execute_work()
                     ti=workload.ti,  # type: ignore[arg-type]
-                    dag_path=workload.dag_path,
+                    dag_rel_path=workload.dag_rel_path,
+                    bundle_info=workload.bundle_info,
                     token=workload.token,
                     server=conf.get(
                         "workers", "execution_api_server_url", fallback="http://localhost:9091/execution/"

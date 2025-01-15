@@ -65,7 +65,7 @@ class TestSkipMixin:
             logical_date=now,
             state=State.FAILED,
         )
-        SkipMixin().skip(dag_run=dag_run, tasks=tasks)
+        SkipMixin().skip(dag_id=dag_run.dag_id, run_id=dag_run.run_id, tasks=tasks)
 
         session.query(TI).filter(
             TI.dag_id == "dag",
@@ -77,7 +77,7 @@ class TestSkipMixin:
 
     def test_skip_none_tasks(self):
         session = Mock()
-        SkipMixin().skip(dag_run=None, tasks=[])
+        SkipMixin().skip(dag_id="test_dag", run_id="test_run", tasks=[])
         assert not session.query.called
         assert not session.commit.called
 

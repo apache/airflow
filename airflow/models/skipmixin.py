@@ -59,7 +59,8 @@ class SkipMixin(LoggingMixin):
 
     @staticmethod
     def _set_state_to_skipped(
-        dag_run: DagRun,
+        dag_id: str,
+        run_id: str,
         tasks: Sequence[str] | Sequence[tuple[str, int]],
         session: Session,
     ) -> None:
@@ -71,8 +72,8 @@ class SkipMixin(LoggingMixin):
                 session.execute(
                     update(TaskInstance)
                     .where(
-                        TaskInstance.dag_id == dag_run.dag_id,
-                        TaskInstance.run_id == dag_run.run_id,
+                        TaskInstance.dag_id == dag_id,
+                        TaskInstance.run_id == run_id,
                         tuple_(TaskInstance.task_id, TaskInstance.map_index).in_(tasks),
                     )
                     .values(state=TaskInstanceState.SKIPPED, start_date=now, end_date=now)
@@ -82,8 +83,8 @@ class SkipMixin(LoggingMixin):
                 session.execute(
                     update(TaskInstance)
                     .where(
-                        TaskInstance.dag_id == dag_run.dag_id,
-                        TaskInstance.run_id == dag_run.run_id,
+                        TaskInstance.dag_id == dag_id,
+                        TaskInstance.run_id == run_id,
                         TaskInstance.task_id.in_(tasks),
                     )
                     .values(state=TaskInstanceState.SKIPPED, start_date=now, end_date=now)
@@ -93,7 +94,8 @@ class SkipMixin(LoggingMixin):
     @provide_session
     def skip(
         self,
-        dag_run: DagRun,
+        dag_id: str,
+        run_id: str,
         tasks: Iterable[DAGNode],
         map_index: int = -1,
         session: Session = NEW_SESSION,
@@ -105,7 +107,8 @@ class SkipMixin(LoggingMixin):
         so that NotPreviouslySkippedDep knows these tasks should be skipped when they
         are cleared.
 
-        :param dag_run: the DagRun for which to set the tasks to skipped
+        :param dag_id: the dag_id of the dag run for which to set the tasks to skipped
+        :param run_id: the run_id of the dag run for which to set the tasks to skipped
         :param tasks: tasks to skip (not task_ids)
         :param session: db session to use
         :param map_index: map_index of the current task instance
@@ -116,11 +119,8 @@ class SkipMixin(LoggingMixin):
         if not task_list:
             return
 
-        if dag_run is None:
-            raise ValueError("dag_run is required")
-
         task_ids_list = [d.task_id for d in task_list]
-        SkipMixin._set_state_to_skipped(dag_run, task_ids_list, session)
+        SkipMixin._set_state_to_skipped(dag_id, run_id, task_ids_list, session)
         session.commit()
 
         if task_id is not None:
@@ -130,8 +130,8 @@ class SkipMixin(LoggingMixin):
                 key=XCOM_SKIPMIXIN_KEY,
                 value={XCOM_SKIPMIXIN_SKIPPED: task_ids_list},
                 task_id=task_id,
-                dag_id=dag_run.dag_id,
-                run_id=dag_run.run_id,
+                dag_id=dag_id,
+                run_id=run_id,
                 map_index=map_index,
                 session=session,
             )
@@ -225,7 +225,7 @@ class SkipMixin(LoggingMixin):
 
             follow_task_ids = [t.task_id for t in downstream_tasks if t.task_id in branch_task_id_set]
             log.info("Skipping tasks %s", skip_tasks)
-            SkipMixin._set_state_to_skipped(dag_run, skip_tasks, session=session)
+            SkipMixin._set_state_to_skipped(dag_run.dag_id, dag_run.run_id, skip_tasks, session=session)
             ti.xcom_push(
                 key=XCOM_SKIPMIXIN_KEY, value={XCOM_SKIPMIXIN_FOLLOWED: follow_task_ids}, session=session
             )
