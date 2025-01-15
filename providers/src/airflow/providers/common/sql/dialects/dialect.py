@@ -72,9 +72,8 @@ class Dialect(LoggingMixin):
         :param word: Name of the column
         :return: The escaped word if needed
         """
-        if (
-            word != self._escape_word_format.format(self.unescape_word(word))
-            and (word.casefold() in self.reserved_words or self.pattern.search(word))
+        if word != self._escape_word_format.format(self.unescape_word(word)) and (
+            word.casefold() in self.reserved_words or self.pattern.search(word)
         ):
             return self._escape_word_format.format(word)
         return word
@@ -87,7 +86,8 @@ class Dialect(LoggingMixin):
         :return: The un-escaped word if needed
         """
         if (
-            word and word.startswith(self._escape_word_format[0])
+            word
+            and word.startswith(self._escape_word_format[0])
             and word.endswith(self._escape_word_format[-1])
         ):
             return word[1:-1]
