@@ -2089,6 +2089,27 @@ my_postgres_conn:
         orm_dag_owners = session.query(DagOwnerAttributes).all()
         assert not orm_dag_owners
 
+    def test_get_bundle_name(self, testing_dag_bundle):
+        dag = DAG("dag")
+
+        # until we've sycned, it'll be None
+        assert dag.get_bundle_name() is None
+
+        DAG.bulk_write_to_db("testing", None, [dag])
+        assert dag.get_bundle_name() == "testing"
+
+    def test_get_latest_bundle_version(self, testing_dag_bundle):
+        dag = DAG("dag")
+
+        # until we've sycned, it'll be None
+        assert dag.get_latest_bundle_version() is None
+
+        # Now, it can be none or a str
+        DAG.bulk_write_to_db("testing", None, [dag])
+        assert dag.get_latest_bundle_version() is None
+        DAG.bulk_write_to_db("testing", "abc", [dag])
+        assert dag.get_latest_bundle_version() == "abc"
+
 
 class TestDagModel:
     def _clean(self):
