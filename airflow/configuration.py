@@ -48,7 +48,6 @@ from typing_extensions import overload
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
 from airflow.utils import yaml
-from airflow.utils.empty_set import _get_empty_set_for_configuration
 from airflow.utils.module_loading import import_string
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.weight_rule import WeightRule
@@ -304,9 +303,7 @@ class AirflowConfigParser(ConfigParser):
     @functools.cached_property
     def sensitive_config_values(self) -> set[tuple[str, str]]:
         if self.configuration_description is None:
-            return (
-                _get_empty_set_for_configuration()
-            )  # we can't use set() here because set is defined below # ¯\_(ツ)_/¯
+            return set()
         flattened = {
             (s, k): item
             for s, s_c in self.configuration_description.items()
