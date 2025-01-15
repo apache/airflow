@@ -114,7 +114,6 @@ files_not_fully_covered = [
     "airflow/utils/dot_renderer.py",
     "airflow/utils/edgemodifier.py",
     "airflow/utils/email.py",
-    "airflow/utils/empty_set.py",
     "airflow/utils/entry_points.py",
     "airflow/utils/file.py",
     "airflow/utils/hashlib_wrapper.py",
