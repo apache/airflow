@@ -16,14 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Link, createListCollection, HStack, type SelectValueChangeDetails } from "@chakra-ui/react";
+import {
+  Box,
+  Flex,
+  Link,
+  createListCollection,
+  HStack,
+  type SelectValueChangeDetails,
+} from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useCallback, useState } from "react";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
-import { ClearTaskInstanceButton } from "src/components/Clear";
 import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
+import { ClearTaskInstanceButton } from "src/components/Clear";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
