@@ -205,7 +205,6 @@ class TestGitDagBundle:
 
     @mock.patch("airflow.dag_processing.bundles.git.GitHook")
     def test_get_current_version(self, mock_githook, git_repo):
-        mock_githook.get_conn.return_value = mock.MagicMock()
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
         bundle = GitDagBundle(name="test", refresh_interval=300, tracking_ref=GIT_DEFAULT_BRANCH)
@@ -423,7 +422,7 @@ class TestGitDagBundle:
         ],
     )
     @mock.patch("airflow.dag_processing.bundles.git.GitHook")
-    def test_repo_url_starts_with_git_when_using_ssh_conn_id(self, mock_hook, repo_url, session):
+    def test_repo_url_validation_for_ssh(self, mock_hook, repo_url, session):
         mock_hook.get_conn.return_value = mock.MagicMock()
         mock_hook.return_value.repo_url = repo_url
         bundle = GitDagBundle(
