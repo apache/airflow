@@ -97,4 +97,4 @@ In the following example, failures in any task call the ``task_failure_alert`` f
     to be executed in the desired event. Simply pass a list of callback functions to the callback args when defining your DAG/task
     callbacks: e.g ``on_failure_callback=[callback_func_1, callback_func_2]``
 
-Full list of variables available in ``context`` in :doc:`docs <../../templates-ref>` and `code <https://github.com/apache/airflow/blob/main/airflow/utils/context.pyi>`_.
+Full list of variables available in ``context`` in :doc:`docs <../../templates-ref>` and `code <https://github.com/apache/airflow/blob/main/airflow/utils/context.py>`_.
