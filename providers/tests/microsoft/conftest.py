@@ -24,7 +24,7 @@ import string
 from inspect import currentframe
 from json import JSONDecodeError
 from os.path import dirname, join
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import Any, TypeVar
 from unittest.mock import MagicMock
 
 import pytest
