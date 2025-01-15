@@ -19,3 +19,22 @@ Removed deprecated logging configuration.
     * Removed deprecated configuration ``log_processor_filename_template`` from ``core``. Please use ``log_processor_filename_template`` from ``logging`` instead.
     * Removed deprecated configuration ``dag_processor_manager_log_location`` from ``core``. Please use ``dag_processor_manager_log_location`` from ``logging`` instead.
     * Removed deprecated configuration ``task_log_reader`` from ``core``. Please use ``task_log_reader`` from ``logging`` instead.
+
+* Types of change
+
+  * [ ] DAG changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency change
+
+.. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
+
+* Migration rules needed
+
+.. e.g.,
+.. * Remove context key ``execution_date``
+.. * context key ``triggering_dataset_events`` → ``triggering_asset_events``
+.. * Remove method ``airflow.providers_manager.ProvidersManager.initialize_providers_dataset_uri_resources`` → ``airflow.providers_manager.ProvidersManager.initialize_providers_asset_uri_resources``

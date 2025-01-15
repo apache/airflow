@@ -10,3 +10,22 @@ Removed a set of deprecations in ``DAG`` from ``airflow.models``.
 - Removed implicit support to call ``create_dagrun()`` without data interval.
 - Removed support for deprecated parameter ``concurrency`` in ``DagModel``.
 - Removed support for ``datetime`` in ``DagModel.calculate_dagrun_date_fields``. Use ``DataInterval``.
+
+* Types of change
+
+  * [ ] DAG changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency change
+
+.. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
+
+* Migration rules needed
+
+.. e.g.,
+.. * Remove context key ``execution_date``
+.. * context key ``triggering_dataset_events`` → ``triggering_asset_events``
+.. * Remove method ``airflow.providers_manager.ProvidersManager.initialize_providers_dataset_uri_resources`` → ``airflow.providers_manager.ProvidersManager.initialize_providers_asset_uri_resources``

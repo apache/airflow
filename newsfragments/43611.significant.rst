@@ -4,3 +4,22 @@ Some database engines are limited to 32-bit integer values. As some users report
 weight rolled-over to negative values, we decided to cap the value to the 32-bit integer. Even
 if internally in python smaller or larger values to 64 bit are supported, ``priority_weight`` is
 capped and only storing values from -2147483648 to 2147483647.
+
+* Types of change
+
+  * [ ] DAG changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency change
+
+.. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
+
+* Migration rules needed
+
+.. e.g.,
+.. * Remove context key ``execution_date``
+.. * context key ``triggering_dataset_events`` → ``triggering_asset_events``
+.. * Remove method ``airflow.providers_manager.ProvidersManager.initialize_providers_dataset_uri_resources`` → ``airflow.providers_manager.ProvidersManager.initialize_providers_asset_uri_resources``

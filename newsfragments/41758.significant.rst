@@ -10,3 +10,22 @@ Removed deprecated functions and modules from ``airflow.www`` module.
   ``airflow.utils.log.secrets_masker.get_sensitive_variables_fields`` instead.
 - Removed the method ``should_hide_value_for_key()`` from ``airflow.www.utils``: Please use
   ``airflow.utils.log.secrets_masker.should_hide_value_for_key`` instead.
+
+* Types of change
+
+  * [ ] DAG changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency change
+
+.. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
+
+* Migration rules needed
+
+.. e.g.,
+.. * Remove context key ``execution_date``
+.. * context key ``triggering_dataset_events`` → ``triggering_asset_events``
+.. * Remove method ``airflow.providers_manager.ProvidersManager.initialize_providers_dataset_uri_resources`` → ``airflow.providers_manager.ProvidersManager.initialize_providers_asset_uri_resources``

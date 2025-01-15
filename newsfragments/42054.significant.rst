@@ -2,3 +2,22 @@ Dataset and DatasetAlias are no longer hashable
 
 This means they can no longer be used as dict keys or put into a set. Dataset's
 equality logic is also tweaked slightly to consider the extra dict.
+
+* Types of change
+
+  * [ ] DAG changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency change
+
+.. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
+
+* Migration rules needed
+
+.. e.g.,
+.. * Remove context key ``execution_date``
+.. * context key ``triggering_dataset_events`` → ``triggering_asset_events``
+.. * Remove method ``airflow.providers_manager.ProvidersManager.initialize_providers_dataset_uri_resources`` → ``airflow.providers_manager.ProvidersManager.initialize_providers_asset_uri_resources``

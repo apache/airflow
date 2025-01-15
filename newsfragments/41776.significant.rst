@@ -3,3 +3,22 @@ Removed a set of deprecations in from ``airflow.models.param``.
 - Removed deprecated direct access to DagParam as module. Please import from ``airflow.models.param``.
 - Ensure all param values are JSON serialiazable and raise a ``ParamValidationError`` if not.
 - Ensure parsed date and time values are RFC3339 compliant.
+
+* Types of change
+
+  * [ ] DAG changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency change
+
+.. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
+
+* Migration rules needed
+
+.. e.g.,
+.. * Remove context key ``execution_date``
+.. * context key ``triggering_dataset_events`` → ``triggering_asset_events``
+.. * Remove method ``airflow.providers_manager.ProvidersManager.initialize_providers_dataset_uri_resources`` → ``airflow.providers_manager.ProvidersManager.initialize_providers_asset_uri_resources``

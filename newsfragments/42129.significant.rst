@@ -15,3 +15,22 @@ Removed deprecated configuration.
       * Removed deprecated configuration ``auth_rate_limited`` from ``webserver``. Please use ``auth_rate_limited`` from ``fab`` instead.
       * Removed deprecated configuration ``auth_rate_limit`` from ``webserver``. Please use ``auth_rate_limit`` from ``fab`` instead.
       * Removed deprecated configuration section ``kubernetes``. Please use ``kubernetes_executor`` instead.
+
+* Types of change
+
+  * [ ] DAG changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency change
+
+.. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
+
+* Migration rules needed
+
+.. e.g.,
+.. * Remove context key ``execution_date``
+.. * context key ``triggering_dataset_events`` → ``triggering_asset_events``
+.. * Remove method ``airflow.providers_manager.ProvidersManager.initialize_providers_dataset_uri_resources`` → ``airflow.providers_manager.ProvidersManager.initialize_providers_asset_uri_resources``
