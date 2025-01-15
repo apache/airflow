@@ -1,3 +1,5 @@
+/* eslint-disable perfectionist/sort-objects */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -25,12 +27,12 @@ import { capitalize } from "src/utils";
 import { stateColor } from "src/utils/stateColor";
 
 const slots = {
-  deferred_slots: stateColor.deferred,
-  occupied_slots: stateColor.up_for_retry,
   open_slots: stateColor.success,
-  queued_slots: stateColor.queued,
+  occupied_slots: stateColor.up_for_retry,
   running_slots: stateColor.running,
+  queued_slots: stateColor.queued,
   scheduled_slots: stateColor.scheduled,
+  deferred_slots: stateColor.deferred,
 };
 
 type PoolBarProps = {
