@@ -2443,3 +2443,27 @@ class TestDatabricksTaskOperator:
 
         assert operator.task_config == task_config
         assert task_base_json == task_config
+
+    def test_generate_databricks_task_key(self):
+        task_config = {}
+        operator = DatabricksTaskOperator(
+            task_id="test_task",
+            databricks_conn_id="test_conn_id",
+            task_config=task_config,
+        )
+
+        task_key = f"{operator.dag_id}__{operator.task_id}".encode()
+        expected_task_key = hashlib.md5(task_key).hexdigest()
+        assert expected_task_key == operator.databricks_task_key
+
+    def test_user_databricks_task_key(self):
+        task_config = {}
+        operator = DatabricksTaskOperator(
+            task_id="test_task",
+            databricks_conn_id="test_conn_id",
+            databricks_task_key="test_task_key",
+            task_config=task_config,
+        )
+        expected_task_key = "test_task_key"
+
+        assert expected_task_key == operator.databricks_task_key
