@@ -795,6 +795,7 @@ export type ImportErrorResponse = {
   import_error_id: number;
   timestamp: string;
   filename: string;
+  bundle_name: string;
   stack_trace: string;
 };
 

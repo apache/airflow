@@ -24,13 +24,16 @@ import sys
 from collections.abc import Iterable, Mapping
 from datetime import datetime, timezone
 from io import FileIO
+from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Generic, TextIO, TypeVar
 
 import attrs
 import structlog
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState, TIRunContext
+from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.execution_time.comms import (
     DeferTask,
@@ -301,8 +304,15 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
 
     from airflow.models.dagbag import DagBag
 
+    bundle_info = what.bundle_info
+    bundle_instance = DagBundlesManager().get_bundle(
+        name=bundle_info.name,
+        version=bundle_info.version,
+    )
+
+    dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
     bag = DagBag(
-        dag_folder=what.file,
+        dag_folder=dag_absolute_path,
         include_examples=False,
         safe_mode=False,
         load_op_links=False,
@@ -397,9 +407,9 @@ def startup() -> tuple[RuntimeTaskInstance, Logger]:
         setproctitle(f"airflow worker -- {msg.ti.id}")
 
         log = structlog.get_logger(logger_name="task")
-        # TODO: set the "magic loop" context vars for parsing
-        ti = parse(msg)
-        log.debug("DAG file parsed", file=msg.file)
+        with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
+            ti = parse(msg)
+        log.debug("DAG file parsed", file=msg.dag_rel_path)
     else:
         raise RuntimeError(f"Unhandled  startup message {type(msg)} {msg}")
 
@@ -533,7 +543,7 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         SUPERVISOR_COMMS.send_request(msg=msg, log=log)
 
 
-def _execute_task(context: Mapping[str, Any], task: BaseOperator):
+def _execute_task(context: Context, task: BaseOperator):
     """Execute Task (optionally with a Timeout) and push Xcom results."""
     from airflow.exceptions import AirflowTaskTimeout
 

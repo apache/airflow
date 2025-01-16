@@ -54,6 +54,8 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from airflow.models.dag import DAG
+    from airflow.timetables.base import DagRunInfo
 
 log = logging.getLogger(__name__)
 
@@ -61,6 +63,14 @@ log = logging.getLogger(__name__)
 class AlreadyRunningBackfill(AirflowException):
     """
     Raised when attempting to create backfill and one already active.
+
+    :meta private:
+    """
+
+
+class DagNoScheduleException(AirflowException):
+    """
+    Raised when attempting to create backfill for a DAG with no schedule.
 
     :meta private:
     """
@@ -195,11 +205,18 @@ def _validate_backfill_params(dag, reverse, reprocess_behavior: ReprocessBehavio
 
 
 def _do_dry_run(*, dag_id, from_date, to_date, reverse, reprocess_behavior, session) -> list[datetime]:
+    from airflow.models import DagModel
     from airflow.models.serialized_dag import SerializedDagModel
 
     serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
     dag = serdag.dag
     _validate_backfill_params(dag, reverse, reprocess_behavior)
+
+    no_schedule = session.scalar(
+        select(func.count()).where(DagModel.timetable_summary == "None", DagModel.dag_id == dag_id)
+    )
+    if no_schedule:
+        raise DagNoScheduleException(f"{dag_id} has no schedule")
 
     dagrun_info_list = _get_info_list(
         dag=dag,
@@ -223,8 +240,8 @@ def _do_dry_run(*, dag_id, from_date, to_date, reverse, reprocess_behavior, sess
 
 def _create_backfill_dag_run(
     *,
-    dag,
-    info,
+    dag: DAG,
+    info: DagRunInfo,
     reprocess_behavior: ReprocessBehavior,
     backfill_id,
     dag_run_conf,
@@ -257,18 +274,21 @@ def _create_backfill_dag_run(
                 return
         dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
         dr = dag.create_dagrun(
-            triggered_by=DagRunTriggeredByType.BACKFILL,
+            run_id=dag.timetable.generate_run_id(
+                run_type=DagRunType.BACKFILL_JOB,
+                logical_date=info.logical_date,
+                data_interval=info.data_interval,
+            ),
             logical_date=info.logical_date,
             data_interval=info.data_interval,
-            start_date=timezone.utcnow(),
-            state=DagRunState.QUEUED,
-            external_trigger=False,
             conf=dag_run_conf,
             run_type=DagRunType.BACKFILL_JOB,
-            creating_job_id=None,
-            session=session,
-            backfill_id=backfill_id,
+            triggered_by=DagRunTriggeredByType.BACKFILL,
             dag_version=dag_version,
+            state=DagRunState.QUEUED,
+            start_date=timezone.utcnow(),
+            backfill_id=backfill_id,
+            session=session,
         )
         session.add(
             BackfillDagRun(
@@ -312,7 +332,12 @@ def _create_backfill(
         serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
         if not serdag:
             raise NotFound(f"Could not find dag {dag_id}")
-        # todo: if dag has no schedule, raise
+        no_schedule = session.scalar(
+            select(func.count()).where(DagModel.timetable_summary == "None", DagModel.dag_id == dag_id)
+        )
+        if no_schedule:
+            raise DagNoScheduleException(f"{dag_id} has no schedule")
+
         num_active = session.scalar(
             select(func.count()).where(
                 Backfill.dag_id == dag_id,

@@ -203,6 +203,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
     @classmethod
     def start(  # type: ignore[override]
         cls,
+        *,
         path: str | os.PathLike[str],
         callbacks: list[CallbackRequest],
         target: Callable[[], None] = _parse_file_entrypoint,

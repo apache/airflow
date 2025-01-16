@@ -23,7 +23,6 @@ from abc import abstractmethod
 from collections.abc import (
     Collection,
     Iterable,
-    Mapping,
 )
 from typing import (
     TYPE_CHECKING,
@@ -43,6 +42,7 @@ if TYPE_CHECKING:
     from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.operator import Operator
     from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
 
 DEFAULT_OWNER: str = "airflow"
@@ -291,7 +291,7 @@ class AbstractOperator(Templater, DAGNode):
         self,
         parent: Any,
         template_fields: Iterable[str],
-        context: Mapping[str, Any],
+        context: Context,
         jinja_env: jinja2.Environment,
         seen_oids: set[int],
     ) -> None:

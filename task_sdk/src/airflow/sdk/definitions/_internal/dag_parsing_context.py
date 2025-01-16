@@ -14,18 +14,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
+import os
+from contextlib import contextmanager
 
-def _get_empty_set_for_configuration() -> set[tuple[str, str]]:
-    """
-    Retrieve an empty_set_for_configuration.
+from airflow.sdk.definitions.context import _AIRFLOW_PARSING_CONTEXT_DAG_ID, _AIRFLOW_PARSING_CONTEXT_TASK_ID
 
-    This method is only needed because configuration module has a deprecated method called set, and it
-    confuses mypy. This method will be removed when we remove the deprecated method.
 
-    :meta private:
-    :return: empty set
-    """
-    return set()
+@contextmanager
+def _airflow_parsing_context_manager(dag_id: str | None = None, task_id: str | None = None):
+    old_dag_id = os.environ.get(_AIRFLOW_PARSING_CONTEXT_DAG_ID)
+    old_task_id = os.environ.get(_AIRFLOW_PARSING_CONTEXT_TASK_ID)
+    if dag_id is not None:
+        os.environ[_AIRFLOW_PARSING_CONTEXT_DAG_ID] = dag_id
+    if task_id is not None:
+        os.environ[_AIRFLOW_PARSING_CONTEXT_TASK_ID] = task_id
+    yield
+    if old_task_id is not None:
+        os.environ[_AIRFLOW_PARSING_CONTEXT_TASK_ID] = old_task_id
+    if old_dag_id is not None:
+        os.environ[_AIRFLOW_PARSING_CONTEXT_DAG_ID] = old_dag_id

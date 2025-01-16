@@ -40,7 +40,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 
 import attrs
 from setproctitle import setproctitle
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, select, tuple_, update
 from tabulate import tabulate
 from uuid6 import uuid7
 
@@ -319,9 +319,6 @@ class DagFileProcessorManager:
 
     _parallelism: int = attrs.field(factory=_config_int_factory("scheduler", "parsing_processes"))
 
-    dag_dir_list_interval: int = attrs.field(
-        factory=_config_int_factory("scheduler", "dag_dir_list_interval")
-    )
     parsing_cleanup_interval: float = attrs.field(
         factory=_config_int_factory("scheduler", "parsing_cleanup_interval")
     )
@@ -653,6 +650,10 @@ class DagFileProcessorManager:
         self.log.info("Refreshing DAG bundles")
 
         for bundle in self._dag_bundles:
+            # TODO: AIP-66 handle errors in the case of incomplete cloning? And test this.
+            #  What if the cloning/refreshing took too long(longer than the dag processor timeout)
+            if not bundle.is_initialized:
+                bundle.initialize()
             # TODO: AIP-66 test to make sure we get a fresh record from the db and it's not cached
             with create_session() as session:
                 bundle_model = session.get(DagBundleModel, bundle.name)
@@ -756,7 +757,11 @@ class DagFileProcessorManager:
 
             if self._file_paths:
                 query = query.where(
-                    ParseImportError.filename.notin_([f.path for f in self._file_paths]),
+                    (
+                        tuple_(ParseImportError.filename, ParseImportError.bundle_name).notin_(
+                            [(f.path, f.bundle_name) for f in self._file_paths]
+                        ),
+                    )
                 )
 
             session.execute(query.execution_options(synchronize_session="fetch"))

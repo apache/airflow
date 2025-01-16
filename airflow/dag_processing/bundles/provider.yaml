@@ -14,3 +14,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+---
+package-name: apache-airflow-providers-bundles
+name: GIT
+description: |
+    `GIT <https://git-scm.com/>`__
+
+state: not-ready
+source-date-epoch: 1726861127
+# note that those versions are maintained by release manager - do not update them manually
+versions:
+  - 1.0.0
+
+integrations:
+  - integration-name: GIT (Git)
+
+hooks:
+  - integration-name: GIT
+    python-modules:
+      - airflow.dag_processing.bundles.git
+
+
+connection-types:
+  - hook-class-name: airflow.dag_processing.bundles.git.GitHook
+    connection-type: git
