@@ -171,6 +171,24 @@ def equal_outlet_event_accessor(a: OutletEventAccessor, b: OutletEventAccessor) 
     return a.key == b.key and a.extra == b.extra and a.asset_alias_events == b.asset_alias_events
 
 
+def equal_asset(a: Asset, b: Asset) -> bool:
+    def _serialize_trigger(trigger: BaseTrigger | dict):
+        if isinstance(trigger, dict):
+            return trigger
+
+        classpath, kwargs = trigger.serialize()
+        return {
+            "classpath": classpath,
+            "kwargs": kwargs,
+        }
+
+    a_watchers = [_serialize_trigger(watcher) for watcher in a.watchers]
+    b_watchers = b.watchers
+    a.watchers = []
+    b.watchers = []
+    return a == b and a_watchers == b_watchers
+
+
 class MockLazySelectSequence(LazySelectSequence):
     _data = ["a", "b", "c"]
 
@@ -255,7 +273,11 @@ class MockLazySelectSequence(LazySelectSequence):
             lambda a, b: len(a) == len(b) and isinstance(b, list),
         ),
         (Asset(uri="test://asset1", name="test"), DAT.ASSET, equals),
-        (Asset(uri="test://asset1", name="test", watchers=[FileTrigger(filepath="/tmp")]), DAT.ASSET, equals),
+        (
+            Asset(uri="test://asset1", name="test", watchers=[FileTrigger(filepath="/tmp")]),
+            DAT.ASSET,
+            equal_asset,
+        ),
         (SimpleTaskInstance.from_ti(ti=TI), DAT.SIMPLE_TASK_INSTANCE, equals),
         (
             Connection(conn_id="TEST_ID", uri="mysql://"),
