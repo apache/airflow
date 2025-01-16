@@ -56,7 +56,8 @@ class BaseDagBundle(ABC):
         """
         Initialize the bundle.
 
-        This method is called by the DAG processor before the bundle is used.
+        This method is called by the DAG processor before the bundle is used,
+        and allows for deferring expensive operations until that point in time.
         """
         self.is_initialized = True
 

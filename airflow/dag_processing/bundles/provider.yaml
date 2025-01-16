@@ -29,7 +29,6 @@ versions:
 
 dependencies:
   - apache-airflow-providers-ssh
-  - paramiko>=2.9.0
 
 integrations:
   - integration-name: GIT (Git)
