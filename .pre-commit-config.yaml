@@ -223,6 +223,13 @@ repos:
         files: ^airflow/models/taskinstance.py$|^airflow/models/taskinstancehistory.py$
         pass_filenames: false
         require_serial: true
+      - id: prevent-usage-of-session.query
+        name: Prevent usage of session.query in core airflow
+        entry: ./scripts/ci/pre_commit/usage_session_attribute
+        language: python
+        additional_dependencies: ['rich>=12.4.4']
+        files: ^airflow.*\.py$
+        pass_filenames: true
       - id: check-deferrable-default
         name: Check and fix default value of default_deferrable
         language: python
