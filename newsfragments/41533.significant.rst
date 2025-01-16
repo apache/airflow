@@ -41,4 +41,4 @@ Example update:
     * AIR302
 
       * [x] ``airflow.secrets.local_filesystem.load_connections`` → ``airflow.secrets.local_filesystem.load_connections_dict``
-      * [x] ``airflow.secrets.local_filesystem.get_connection`` → ``airflow.secrets.local_filesystem.load_connections_dict``
+      * [x] ``airflow.secrets.local_filesystem.LocalFilesystemBackend.get_connection`` → ``airflow.secrets.local_filesystem.LocalFilesystemBackend.load_connections_dict``
