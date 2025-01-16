@@ -223,11 +223,95 @@ export type ConnectionBody = {
 };
 
 /**
- * Connections Serializer for requests body.
+ * Serializer for individual bulk action responses.
+ *
+ * Represents the outcome of a single bulk operation (create, update, or delete).
+ * The response includes a list of successful connection_ids and any errors encountered during the operation.
+ * This structure helps users understand which key actions succeeded and which failed.
+ */
+export type ConnectionBulkActionResponse = {
+  /**
+   * A list of connection_ids representing successful operations.
+   */
+  success?: Array<string>;
+  /**
+   * A list of errors encountered during the operation, each containing details about the issue.
+   */
+  errors?: Array<{
+    [key: string]: unknown;
+  }>;
+};
+
+/**
+ * Request body for bulk Connection operations (create, update, delete).
  */
 export type ConnectionBulkBody = {
+  /**
+   * A list of Connection actions to perform.
+   */
+  actions: Array<ConnectionBulkCreateAction | ConnectionBulkUpdateAction | ConnectionBulkDeleteAction>;
+};
+
+/**
+ * Bulk Create Variable serializer for request bodies.
+ */
+export type ConnectionBulkCreateAction = {
+  action?: "create";
+  /**
+   * A list of connections to be created.
+   */
   connections: Array<ConnectionBody>;
-  overwrite?: boolean | null;
+  action_if_exists?: "skip" | "overwrite" | "fail";
+};
+
+export type action_if_exists = "skip" | "overwrite" | "fail";
+
+/**
+ * Bulk Delete Connection serializer for request bodies.
+ */
+export type ConnectionBulkDeleteAction = {
+  action?: "delete";
+  /**
+   * A list of connection IDs to be deleted.
+   */
+  connection_ids: Array<string>;
+  action_if_not_exists?: "skip" | "fail";
+};
+
+export type action_if_not_exists = "skip" | "fail";
+
+/**
+ * Serializer for responses to bulk connection operations.
+ *
+ * This represents the results of create, update, and delete actions performed on connections in bulk.
+ * Each action (if requested) is represented as a field containing details about successful connection_ids and any encountered errors.
+ * Fields are populated in the response only if the respective action was part of the request, else are set None.
+ */
+export type ConnectionBulkResponse = {
+  /**
+   * Details of the bulk create operation, including successful connection_ids and errors.
+   */
+  create?: ConnectionBulkActionResponse | null;
+  /**
+   * Details of the bulk update operation, including successful connection_ids and errors.
+   */
+  update?: ConnectionBulkActionResponse | null;
+  /**
+   * Details of the bulk delete operation, including successful connection_ids and errors.
+   */
+  delete?: ConnectionBulkActionResponse | null;
+};
+
+/**
+ * Bulk Update Connection serializer for request bodies.
+ */
+export type ConnectionBulkUpdateAction = {
+  action?: "update";
+  /**
+   * A list of connections to be updated.
+   */
+  connections: Array<ConnectionBody>;
+  action_if_not_exists?: "skip" | "fail";
 };
 
 /**
@@ -1317,8 +1401,6 @@ export type VariableBulkCreateAction = {
   action_if_exists?: "skip" | "overwrite" | "fail";
 };
 
-export type action_if_exists = "skip" | "overwrite" | "fail";
-
 /**
  * Bulk Delete Variable serializer for request bodies.
  */
@@ -1330,8 +1412,6 @@ export type VariableBulkDeleteAction = {
   keys: Array<string>;
   action_if_not_exists?: "skip" | "fail";
 };
-
-export type action_if_not_exists = "skip" | "fail";
 
 /**
  * Serializer for responses to bulk variable operations.
@@ -1702,11 +1782,11 @@ export type PostConnectionData = {
 
 export type PostConnectionResponse = ConnectionResponse;
 
-export type PutConnectionsData = {
+export type BulkConnectionsData = {
   requestBody: ConnectionBulkBody;
 };
 
-export type PutConnectionsResponse = ConnectionCollectionResponse;
+export type BulkConnectionsResponse = ConnectionBulkResponse;
 
 export type TestConnectionData = {
   requestBody: ConnectionBody;
@@ -3104,19 +3184,13 @@ export type $OpenApiTs = {
         422: HTTPValidationError;
       };
     };
-  };
-  "/public/connections/bulk": {
-    put: {
-      req: PutConnectionsData;
+    patch: {
+      req: BulkConnectionsData;
       res: {
         /**
-         * Created with overwrite
+         * Successful Response
          */
-        200: ConnectionCollectionResponse;
-        /**
-         * Created
-         */
-        201: ConnectionCollectionResponse;
+        200: ConnectionBulkResponse;
         /**
          * Unauthorized
          */
@@ -3125,6 +3199,10 @@ export type $OpenApiTs = {
          * Forbidden
          */
         403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
         /**
          * Conflict
          */
@@ -4739,6 +4817,14 @@ export type $OpenApiTs = {
          * Forbidden
          */
         403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
         /**
          * Validation Error
          */
