@@ -21,7 +21,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from flask import Blueprint, requests
+from flask import Blueprint, request
 from flask_appbuilder import BaseView, expose
 from sqlalchemy import select
 
