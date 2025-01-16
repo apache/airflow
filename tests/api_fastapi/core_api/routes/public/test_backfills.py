@@ -237,7 +237,6 @@ class TestCreateBackfill(TestBackfillEndpoint):
             url="/public/backfills",
             json=data,
         )
-        print(response.json())
         assert response.status_code == 404
         assert response.json().get("detail") == "Could not find dag DAG_NOT_EXIST"
 
