@@ -130,6 +130,14 @@ CONFIGS_CHANGES = [
         "raising a hard error on validation failure.",
     ),
     ConfigChange(
+        config=ConfigParameter("core", "dataset_manager_class"),
+        renamed_to=ConfigParameter("core", "asset_manager_class"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("core", "dataset_manager_kwargs"),
+        renamed_to=ConfigParameter("core", "asset_manager_kwargs"),
+    ),
+    ConfigChange(
         config=ConfigParameter("core", "worker_precheck"),
         renamed_to=ConfigParameter("celery", "worker_precheck"),
     ),
