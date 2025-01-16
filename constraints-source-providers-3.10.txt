@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-16T07:50:49.893245
+# This constraints file was automatically generated on 2025-01-16T13:52:17.628915
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -577,7 +577,7 @@ starlette==0.41.3
 statsd==4.0.1
 std-uritemplate==2.0.1
 strictyaml==1.7.3
-structlog==24.4.0
+structlog==25.1.0
 sympy==1.13.3
 tableauserverclient==0.36
 tabulate==0.9.0
@@ -640,7 +640,7 @@ wcwidth==0.2.13
 weaviate-client==4.9.6
 websocket-client==1.8.0
 websockets==14.1
-wirerope==0.4.8
+wirerope==1.0.0
 wrapt==1.17.2
 xmlsec==1.3.14
 xmltodict==0.14.2
