@@ -9,4 +9,4 @@ Removed ``is_active`` property from ``BaseUser``. This property is longer used.
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
-  * [ ] Code interface change
+  * [x] Code interface change
