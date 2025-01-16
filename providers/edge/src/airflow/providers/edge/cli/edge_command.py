@@ -302,7 +302,7 @@ class _EdgeWorkerCli:
     def loop(self):
         """Run a loop of scheduling and monitoring tasks."""
         new_job = False
-        if not any(_EdgeWorkerCli.drain, _EdgeWorkerCli.maintenance_mode) and self.free_concurrency > 0:
+        if not any((_EdgeWorkerCli.drain, _EdgeWorkerCli.maintenance_mode)) and self.free_concurrency > 0:
             new_job = self.fetch_job()
         self.check_running_jobs()
 
