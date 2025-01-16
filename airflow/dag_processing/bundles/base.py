@@ -50,6 +50,16 @@ class BaseDagBundle(ABC):
         self.name = name
         self.version = version
         self.refresh_interval = refresh_interval
+        self.is_initialized: bool = False
+
+    def initialize(self) -> None:
+        """
+        Initialize the bundle.
+
+        This method is called by the DAG processor before the bundle is used,
+        and allows for deferring expensive operations until that point in time.
+        """
+        self.is_initialized = True
 
     @property
     def _dag_bundle_root_storage_path(self) -> Path:

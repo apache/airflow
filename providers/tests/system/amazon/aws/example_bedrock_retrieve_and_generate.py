@@ -128,7 +128,7 @@ def create_opensearch_policies(bedrock_role_arn: str, collection_name: str, poli
 
     def _create_security_policy(name, policy_type, policy):
         try:
-            aoss_client.create_security_policy(name=name, policy=json.dumps(policy), type=policy_type)
+            aoss_client.conn.create_security_policy(name=name, policy=json.dumps(policy), type=policy_type)
         except ClientError as e:
             if e.response["Error"]["Code"] == "ConflictException":
                 log.info("OpenSearch security policy %s already exists.", name)
@@ -136,7 +136,7 @@ def create_opensearch_policies(bedrock_role_arn: str, collection_name: str, poli
 
     def _create_access_policy(name, policy_type, policy):
         try:
-            aoss_client.create_access_policy(name=name, policy=json.dumps(policy), type=policy_type)
+            aoss_client.conn.create_access_policy(name=name, policy=json.dumps(policy), type=policy_type)
         except ClientError as e:
             if e.response["Error"]["Code"] == "ConflictException":
                 log.info("OpenSearch data access policy %s already exists.", name)
@@ -205,9 +205,9 @@ def create_collection(collection_name: str):
     :param collection_name: The name of the Collection to create.
     """
     log.info("\nCreating collection: %s.", collection_name)
-    return aoss_client.create_collection(name=collection_name, type="VECTORSEARCH")["createCollectionDetail"][
-        "id"
-    ]
+    return aoss_client.conn.create_collection(name=collection_name, type="VECTORSEARCH")[
+        "createCollectionDetail"
+    ]["id"]
 
 
 @task
@@ -321,7 +321,7 @@ def get_collection_arn(collection_id: str):
     """
     return next(
         colxn["arn"]
-        for colxn in aoss_client.list_collections()["collectionSummaries"]
+        for colxn in aoss_client.conn.list_collections()["collectionSummaries"]
         if colxn["id"] == collection_id
     )
 
@@ -340,7 +340,9 @@ def delete_data_source(knowledge_base_id: str, data_source_id: str):
     :param data_source_id: The unique identifier of the data source to delete.
     """
     log.info("Deleting data source %s from Knowledge Base %s.", data_source_id, knowledge_base_id)
-    bedrock_agent_client.delete_data_source(dataSourceId=data_source_id, knowledgeBaseId=knowledge_base_id)
+    bedrock_agent_client.conn.delete_data_source(
+        dataSourceId=data_source_id, knowledgeBaseId=knowledge_base_id
+    )
 
 
 # [END howto_operator_bedrock_delete_data_source]
@@ -359,7 +361,7 @@ def delete_knowledge_base(knowledge_base_id: str):
     :param knowledge_base_id: The unique identifier of the knowledge base to delete.
     """
     log.info("Deleting Knowledge Base %s.", knowledge_base_id)
-    bedrock_agent_client.delete_knowledge_base(knowledgeBaseId=knowledge_base_id)
+    bedrock_agent_client.conn.delete_knowledge_base(knowledgeBaseId=knowledge_base_id)
 
 
 # [END howto_operator_bedrock_delete_knowledge_base]
@@ -397,7 +399,7 @@ def delete_collection(collection_id: str):
     :param collection_id: ID of the collection to be indexed.
     """
     log.info("Deleting collection %s.", collection_id)
-    aoss_client.delete_collection(id=collection_id)
+    aoss_client.conn.delete_collection(id=collection_id)
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
@@ -408,7 +410,7 @@ def delete_opensearch_policies(collection_name: str):
     :param collection_name: All policies in the given collection name will be deleted.
     """
 
-    access_policies = aoss_client.list_access_policies(
+    access_policies = aoss_client.conn.list_access_policies(
         type="data", resource=[f"collection/{collection_name}"]
     )["accessPolicySummaries"]
     log.info("Found access policies for %s: %s", collection_name, access_policies)
@@ -416,10 +418,10 @@ def delete_opensearch_policies(collection_name: str):
         raise Exception("No access policies found?")
     for policy in access_policies:
         log.info("Deleting access policy for %s: %s", collection_name, policy["name"])
-        aoss_client.delete_access_policy(name=policy["name"], type="data")
+        aoss_client.conn.delete_access_policy(name=policy["name"], type="data")
 
     for policy_type in ["encryption", "network"]:
-        policies = aoss_client.list_security_policies(
+        policies = aoss_client.conn.list_security_policies(
             type=policy_type, resource=[f"collection/{collection_name}"]
         )["securityPolicySummaries"]
         if not policies:
@@ -427,7 +429,7 @@ def delete_opensearch_policies(collection_name: str):
         log.info("Found %s security policies for %s: %s", policy_type, collection_name, policies)
         for policy in policies:
             log.info("Deleting %s security policy for %s: %s", policy_type, collection_name, policy["name"])
-            aoss_client.delete_security_policy(name=policy["name"], type=policy_type)
+            aoss_client.conn.delete_security_policy(name=policy["name"], type=policy_type)
 
 
 with DAG(
@@ -440,8 +442,8 @@ with DAG(
     test_context = sys_test_context_task()
     env_id = test_context["ENV_ID"]
 
-    aoss_client = OpenSearchServerlessHook(aws_conn_id=None).conn
-    bedrock_agent_client = BedrockAgentHook(aws_conn_id=None).conn
+    aoss_client = OpenSearchServerlessHook(aws_conn_id=None)
+    bedrock_agent_client = BedrockAgentHook(aws_conn_id=None)
 
     region_name = boto3.session.Session().region_name
 

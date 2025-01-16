@@ -3259,13 +3259,17 @@ export const $ImportErrorResponse = {
       type: "string",
       title: "Filename",
     },
+    bundle_name: {
+      type: "string",
+      title: "Bundle Name",
+    },
     stack_trace: {
       type: "string",
       title: "Stack Trace",
     },
   },
   type: "object",
-  required: ["import_error_id", "timestamp", "filename", "stack_trace"],
+  required: ["import_error_id", "timestamp", "filename", "bundle_name", "stack_trace"],
   title: "ImportErrorResponse",
   description: "Import Error Response.",
 } as const;

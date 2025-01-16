@@ -15,19 +15,30 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import annotations
+---
+package-name: apache-airflow-providers-bundles
+name: GIT
+description: |
+    `GIT <https://git-scm.com/>`__
 
-import warnings
+state: not-ready
+source-date-epoch: 1726861127
+# note that those versions are maintained by release manager - do not update them manually
+versions:
+  - 1.0.0
 
-from airflow.sdk.definitions.context import get_parsing_context
+dependencies:
+  - apache-airflow-providers-ssh
 
-# TODO: Remove this module in Airflow 3.2
+integrations:
+  - integration-name: GIT (Git)
 
-warnings.warn(
-    "Import from the airflow.utils.dag_parsing_context module is deprecated and "
-    "will be removed in Airflow 3.2. Please import it from 'airflow.sdk'.",
-    DeprecationWarning,
-    stacklevel=2,
-)
+hooks:
+  - integration-name: GIT
+    python-modules:
+      - airflow.dag_processing.bundles.git
 
-__all__ = ["get_parsing_context"]
+
+connection-types:
+  - hook-class-name: airflow.dag_processing.bundles.git.GitHook
+    connection-type: git

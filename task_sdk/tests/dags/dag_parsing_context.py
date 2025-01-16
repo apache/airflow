@@ -14,20 +14,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-import warnings
+from datetime import datetime
 
-from airflow.sdk.definitions.context import get_parsing_context
+from airflow.sdk import DAG, BaseOperator, get_parsing_context
 
-# TODO: Remove this module in Airflow 3.2
+DAG_ID = "dag_parsing_context_test"
 
-warnings.warn(
-    "Import from the airflow.utils.dag_parsing_context module is deprecated and "
-    "will be removed in Airflow 3.2. Please import it from 'airflow.sdk'.",
-    DeprecationWarning,
-    stacklevel=2,
-)
+current_dag_id = get_parsing_context().dag_id
 
-__all__ = ["get_parsing_context"]
+with DAG(
+    DAG_ID,
+    start_date=datetime(2024, 2, 21),
+    schedule=None,
+) as the_dag:
+    BaseOperator(task_id="visible_task")
+
+    if current_dag_id == DAG_ID:
+        # this task will be invisible if the DAG ID is not properly set in the parsing context.
+        BaseOperator(task_id="conditional_task")

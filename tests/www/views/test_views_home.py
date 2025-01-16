@@ -240,7 +240,11 @@ def _broken_dags(session):
     from airflow.models.errors import ParseImportError
 
     for dag_id in TEST_FILTER_DAG_IDS:
-        session.add(ParseImportError(filename=f"/{dag_id}.py", stacktrace="Some Error\nTraceback:\n"))
+        session.add(
+            ParseImportError(
+                filename=f"/{dag_id}.py", bundle_name="dag_maker", stacktrace="Some Error\nTraceback:\n"
+            )
+        )
     session.commit()
 
 
@@ -253,7 +257,9 @@ def _broken_dags_after_working(dag_maker, session):
             pass
 
     # Then create an import error against that file
-    session.add(ParseImportError(filename=path, stacktrace="Some Error\nTraceback:\n"))
+    session.add(
+        ParseImportError(filename=path, bundle_name="dag_maker", stacktrace="Some Error\nTraceback:\n")
+    )
     session.commit()
 
 
