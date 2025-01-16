@@ -319,9 +319,6 @@ class DagFileProcessorManager:
 
     _parallelism: int = attrs.field(factory=_config_int_factory("scheduler", "parsing_processes"))
 
-    dag_dir_list_interval: int = attrs.field(
-        factory=_config_int_factory("scheduler", "dag_dir_list_interval")
-    )
     parsing_cleanup_interval: float = attrs.field(
         factory=_config_int_factory("scheduler", "parsing_cleanup_interval")
     )

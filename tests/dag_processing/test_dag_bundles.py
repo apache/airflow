@@ -46,7 +46,7 @@ def bundle_temp_dir(tmp_path):
 
 def test_default_dag_storage_path():
     with conf_vars({("core", "dag_bundle_storage_path"): ""}):
-        bundle = LocalDagBundle(name="test", refresh_interval=300, local_folder="/hello")
+        bundle = LocalDagBundle(name="test", local_folder="/hello")
         assert bundle._dag_bundle_root_storage_path == Path(tempfile.gettempdir(), "airflow", "dag_bundles")
 
 
@@ -62,19 +62,19 @@ def test_dag_bundle_root_storage_path():
             pass
 
     with conf_vars({("core", "dag_bundle_storage_path"): None}):
-        bundle = BasicBundle(name="test", refresh_interval=300)
+        bundle = BasicBundle(name="test")
         assert bundle._dag_bundle_root_storage_path == Path(tempfile.gettempdir(), "airflow", "dag_bundles")
 
 
 class TestLocalDagBundle:
     def test_path(self):
-        bundle = LocalDagBundle(name="test", refresh_interval=300, local_folder="/hello")
+        bundle = LocalDagBundle(name="test", local_folder="/hello")
         assert bundle.path == Path("/hello")
 
     def test_none_for_version(self):
         assert LocalDagBundle.supports_versioning is False
 
-        bundle = LocalDagBundle(name="test", refresh_interval=300, local_folder="/hello")
+        bundle = LocalDagBundle(name="test", local_folder="/hello")
 
         assert bundle.get_current_version() is None
 
@@ -84,16 +84,6 @@ class TestDagsFolderDagBundle:
     def test_path(self):
         bundle = DagsFolderDagBundle(name="test")
         assert bundle.path == Path("/tmp/somewhere/dags")
-
-    @conf_vars({("scheduler", "dag_dir_list_interval"): "10"})
-    def test_refresh_interval_from_config(self):
-        bundle = DagsFolderDagBundle(name="test")
-        assert bundle.refresh_interval == 10
-
-    @conf_vars({("scheduler", "dag_dir_list_interval"): "10"})
-    def test_refresh_interval_from_kwarg(self):
-        bundle = DagsFolderDagBundle(name="test", refresh_interval=30)
-        assert bundle.refresh_interval == 30
 
 
 GIT_DEFAULT_BRANCH = "main"
@@ -200,14 +190,14 @@ class TestGitDagBundle:
 
     def test_uses_dag_bundle_root_storage_path(self, git_repo):
         repo_path, repo = git_repo
-        bundle = GitDagBundle(name="test", refresh_interval=300, tracking_ref=GIT_DEFAULT_BRANCH)
+        bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH)
         assert str(bundle._dag_bundle_root_storage_path) in str(bundle.path)
 
     @mock.patch("airflow.dag_processing.bundles.git.GitHook")
     def test_get_current_version(self, mock_githook, git_repo):
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
-        bundle = GitDagBundle(name="test", refresh_interval=300, tracking_ref=GIT_DEFAULT_BRANCH)
+        bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH)
 
         bundle.initialize()
 
@@ -228,7 +218,6 @@ class TestGitDagBundle:
 
         bundle = GitDagBundle(
             name="test",
-            refresh_interval=300,
             version=starting_commit.hexsha,
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
@@ -258,7 +247,6 @@ class TestGitDagBundle:
 
         bundle = GitDagBundle(
             name="test",
-            refresh_interval=300,
             version="test",
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
@@ -280,7 +268,7 @@ class TestGitDagBundle:
         repo.index.add([file_path])
         repo.index.commit("Another commit")
 
-        bundle = GitDagBundle(name="test", refresh_interval=300, tracking_ref=GIT_DEFAULT_BRANCH)
+        bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH)
         bundle.initialize()
 
         assert bundle.get_current_version() != starting_commit.hexsha
@@ -294,7 +282,7 @@ class TestGitDagBundle:
         mock_githook.return_value.repo_url = repo_path
         starting_commit = repo.head.commit
 
-        bundle = GitDagBundle(name="test", refresh_interval=300, tracking_ref=GIT_DEFAULT_BRANCH)
+        bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH)
         bundle.initialize()
 
         assert bundle.get_current_version() == starting_commit.hexsha
@@ -321,7 +309,7 @@ class TestGitDagBundle:
         mock_githook.return_value.repo_url = repo_path
 
         repo.create_head("test")
-        bundle = GitDagBundle(name="test", refresh_interval=300, tracking_ref="test")
+        bundle = GitDagBundle(name="test", tracking_ref="test")
         bundle.initialize()
         assert bundle.repo.head.ref.name == "test"
 
@@ -331,7 +319,6 @@ class TestGitDagBundle:
         mock_githook.return_value.repo_url = repo_path
         bundle = GitDagBundle(
             name="test",
-            refresh_interval=300,
             version="not_found",
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
@@ -356,7 +343,6 @@ class TestGitDagBundle:
 
         bundle = GitDagBundle(
             name="test",
-            refresh_interval=300,
             tracking_ref=GIT_DEFAULT_BRANCH,
             subdir=subdir,
         )
@@ -369,7 +355,6 @@ class TestGitDagBundle:
     def test_raises_when_no_repo_url(self):
         bundle = GitDagBundle(
             name="test",
-            refresh_interval=300,
             git_conn_id=CONN_NO_REPO_URL,
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
@@ -383,7 +368,6 @@ class TestGitDagBundle:
     def test_with_path_as_repo_url(self, mock_gitRepo, mock_githook):
         bundle = GitDagBundle(
             name="test",
-            refresh_interval=300,
             git_conn_id=CONN_ONLY_PATH,
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
@@ -395,7 +379,6 @@ class TestGitDagBundle:
     def test_refresh_with_git_connection(self, mock_gitRepo):
         bundle = GitDagBundle(
             name="test",
-            refresh_interval=300,
             git_conn_id="git_default",
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
@@ -417,7 +400,6 @@ class TestGitDagBundle:
         mock_hook.return_value.repo_url = repo_url
         bundle = GitDagBundle(
             name="test",
-            refresh_interval=300,
             git_conn_id="git_default",
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
@@ -450,7 +432,6 @@ class TestGitDagBundle:
         session.commit()
         bundle = GitDagBundle(
             name="test",
-            refresh_interval=300,
             tracking_ref="main",
         )
         view_url = bundle.view_url("0f0f0f")
@@ -460,7 +441,6 @@ class TestGitDagBundle:
     def test_view_url_returns_none_when_no_version_in_view_url(self, mock_gitrepo):
         bundle = GitDagBundle(
             name="test",
-            refresh_interval=300,
             tracking_ref="main",
         )
         view_url = bundle.view_url(None)
