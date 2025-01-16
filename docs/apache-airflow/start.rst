@@ -134,6 +134,8 @@ the all-in-one ``standalone`` command, you can instead run:
 
     airflow dag-processor
 
+    airflow triggerer
+
 What's Next?
 ''''''''''''
 From this point, you can head to the :doc:`/tutorial/index` section for further examples or the :doc:`/howto/index` section if you're ready to get your hands dirty.
