@@ -233,14 +233,20 @@ def create_backfill_dry_run(
     from_date = timezone.coerce_datetime(body.from_date)
     to_date = timezone.coerce_datetime(body.to_date)
 
-    backfills_dry_run = _do_dry_run(
-        dag_id=body.dag_id,
-        from_date=from_date,
-        to_date=to_date,
-        reverse=body.run_backwards,
-        reprocess_behavior=body.reprocess_behavior,
-        session=session,
-    )
-    backfills = [DryRunBackfillResponse(logical_date=d) for d in backfills_dry_run]
+    try:
+        backfills_dry_run = _do_dry_run(
+            dag_id=body.dag_id,
+            from_date=from_date,
+            to_date=to_date,
+            reverse=body.run_backwards,
+            reprocess_behavior=body.reprocess_behavior,
+            session=session,
+        )
+        backfills = [DryRunBackfillResponse(logical_date=d) for d in backfills_dry_run]
 
-    return DryRunBackfillCollectionResponse(backfills=backfills, total_entries=len(backfills_dry_run))
+        return DryRunBackfillCollectionResponse(backfills=backfills, total_entries=len(backfills_dry_run))
+    except DagNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Could not find dag {body.dag_id}",
+        )
