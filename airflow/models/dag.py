@@ -778,7 +778,7 @@ class DAG(TaskSDKDag, LoggingMixin):
 
     @provide_session
     def get_bundle_version(self, session=NEW_SESSION) -> str | None:
-        """Return the latest version of the bundle this DAG is in."""
+        """Return the bundle version that was seen when this dag was processed."""
         return session.scalar(select(DagModel.bundle_version).where(DagModel.dag_id == self.dag_id))
 
     @methodtools.lru_cache(maxsize=None)
