@@ -23,7 +23,7 @@ from typing import Annotated
 
 from sqlalchemy import select
 
-from airflow.providers.edge.models.edge_worker import EdgeWorkerModel, set_metrics
+from airflow.providers.edge.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, set_metrics
 from airflow.providers.edge.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge.worker_api.datamodels import (
     WorkerQueueUpdateBody,  # noqa: TC001
@@ -141,6 +141,8 @@ def set_state(
     """Set state of worker and returns the current assigned queues."""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel = session.scalar(query)
+    if worker.state == EdgeWorkerState.MAINTENANCE_REQUESTED and body.state not in (EdgeWorkerState.MAINTENANCE_PENDING, EdgeWorkerState.MAINTENANCE_MODE):
+        body.state = EdgeWorkerState.MAINTENANCE_REQUESTED
     worker.state = body.state
     worker.jobs_active = body.jobs_active
     worker.sysinfo = json.dumps(body.sysinfo)
@@ -157,7 +159,7 @@ def set_state(
         queues=worker.queues,
     )
     _assert_version(body.sysinfo)  #  Exception only after worker state is in the DB
-    return worker.queues
+    return worker.state, worker.queues
 
 
 @worker_router.patch(

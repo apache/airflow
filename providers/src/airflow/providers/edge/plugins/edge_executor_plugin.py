@@ -21,7 +21,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from flask import Blueprint
+from flask import Blueprint, requests
 from flask_appbuilder import BaseView, expose
 from sqlalchemy import select
 
@@ -114,6 +114,17 @@ class EdgeWorkerHosts(BaseView):
         hosts = session.scalars(select(EdgeWorkerModel).order_by(EdgeWorkerModel.worker_name)).all()
         five_min_ago = datetime.now() - timedelta(minutes=5)
         return self.render_template("edge_worker_hosts.html", hosts=hosts, five_min_ago=five_min_ago)
+    
+    @expose("/status/maintenance",  methods=["POST"])
+    @has_access_view(AccessView.JOBS)
+    @provide_session
+    def worker_to_maintenance(self, session: Session = NEW_SESSION):
+        from airflow.providers.edge.models.edge_worker import EdgeWorkerModel ,EdgeWorkerState
+
+        worker_name = request.form.get('worker_name')
+        query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+        worker: EdgeWorkerModel = session.scalar(query)
+        worker.update_state(EdgeWorkerState.MAINTENANCE_REQUESTED)
 
 
 # Check if EdgeExecutor is actually loaded
