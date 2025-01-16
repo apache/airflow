@@ -2214,9 +2214,10 @@ class TestDatabricksNotebookOperator:
             source="test_source",
             databricks_conn_id="test_conn_id",
         )
-        operator._get_run_json()
-        log_message = "The task adhoc_airflow__test_task will be executed in serverless mode"
-        assert log_message in caplog.text
+        with pytest.raises(ValueError) as exc_info:
+            operator._get_run_json()
+        exception_message = "Must specify either existing_cluster_id, new_cluster or environments."
+        assert str(exc_info.value) == exception_message
 
     def test_job_runs_forever_by_default(self):
         operator = DatabricksNotebookOperator(
