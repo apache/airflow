@@ -1410,9 +1410,9 @@
 <text text-anchor="start" x="133.5" y="-1873.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
 <text text-anchor="start" x="138.5" y="-1873.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
 <polygon fill="none" stroke="black" points="30.5,-1839 30.5,-1864 282.5,-1864 282.5,-1839 30.5,-1839"/>
-<text text-anchor="start" x="35.5" y="-1848.8" font-family="Helvetica,sans-Serif" font-size="14.00">latest_version</text>
-<text text-anchor="start" x="132.5" y="-1848.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="137.5" y="-1848.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(200)]</text>
+<text text-anchor="start" x="35.5" y="-1848.8" font-family="Helvetica,sans-Serif" font-size="14.00">version</text>
+<text text-anchor="start" x="87.5" y="-1848.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="92.5" y="-1848.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(200)]</text>
 </g>
 <!-- dag -->
 <g id="node24" class="node">
