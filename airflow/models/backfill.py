@@ -68,6 +68,14 @@ class AlreadyRunningBackfill(AirflowException):
     """
 
 
+class DagNoScheduleException(AirflowException):
+    """
+    Raised when attempting to create backfill for a DAG with no schedule.
+
+    :meta private:
+    """
+
+
 class ReprocessBehavior(str, Enum):
     """
     Internal enum for setting reprocess behavior in a backfill.
@@ -197,11 +205,18 @@ def _validate_backfill_params(dag, reverse, reprocess_behavior: ReprocessBehavio
 
 
 def _do_dry_run(*, dag_id, from_date, to_date, reverse, reprocess_behavior, session) -> list[datetime]:
+    from airflow.models import DagModel
     from airflow.models.serialized_dag import SerializedDagModel
 
     serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
     dag = serdag.dag
     _validate_backfill_params(dag, reverse, reprocess_behavior)
+
+    no_schedule = session.scalar(
+        select(func.count()).where(DagModel.timetable_summary == "None", DagModel.dag_id == dag_id)
+    )
+    if no_schedule:
+        raise DagNoScheduleException(f"{dag_id} has no schedule")
 
     dagrun_info_list = _get_info_list(
         dag=dag,
@@ -317,7 +332,12 @@ def _create_backfill(
         serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
         if not serdag:
             raise NotFound(f"Could not find dag {dag_id}")
-        # todo: if dag has no schedule, raise
+        no_schedule = session.scalar(
+            select(func.count()).where(DagModel.timetable_summary == "None", DagModel.dag_id == dag_id)
+        )
+        if no_schedule:
+            raise DagNoScheduleException(f"{dag_id} has no schedule")
+
         num_active = session.scalar(
             select(func.count()).where(
                 Backfill.dag_id == dag_id,
