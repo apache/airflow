@@ -2141,12 +2141,13 @@ email:
       description: |
         Whether email alerts should be sent when a task is retried
       version_added: 2.0.0
-      deprecation_reason: |
-        This email integration is no longer coupled with Airflow core.
-        SmtpNotifier provide easy interface to send email notifications.
       type: boolean
       example: ~
       default: "True"
+      version_deprecated: 2.10.5
+      deprecation_reason: |
+        This email integration is no longer coupled with Airflow core.
+        SmtpNotifier provide easy interface to send email notifications.
     default_email_on_failure:
       description: |
         Whether email alerts should be sent when a task failed
