@@ -122,12 +122,11 @@ CONFIGS_CHANGES = [
     # core
     ConfigChange(
         config=ConfigParameter("core", "check_slas"),
-        suggestion="The SLA feature is removed in Airflow 3.0, to be replaced with Airflow Alerts in "
-        "future",
+        suggestion="The SLA feature is removed in Airflow 3.0, to be replaced with Airflow Alerts in future",
     ),
     ConfigChange(
-        config=ConfigParameter("core", "strict_asset_uri_validation"),
-        suggestion="Asset URI with a defined scheme will now always be validated strictly, "
+        config=ConfigParameter("core", "strict_dataset_uri_validation"),
+        suggestion="Dataset URI with a defined scheme will now always be validated strictly, "
         "raising a hard error on validation failure.",
     ),
     ConfigChange(
