@@ -284,7 +284,32 @@ class TestDbtCloudHook:
         _account_id = account_id or DEFAULT_ACCOUNT_ID
         hook.run.assert_not_called()
         hook._paginate.assert_called_once_with(
-            endpoint=f"api/v3/accounts/{_account_id}/projects/", payload=None, proxies=None
+            endpoint=f"api/v3/accounts/{_account_id}/projects/",
+            payload=None,
+            proxies=None,
+        )
+
+    @pytest.mark.parametrize(
+        argnames="conn_id, account_id, name_contains",
+        argvalues=[(ACCOUNT_ID_CONN, None, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID, PROJECT_NAME)],
+        ids=["default_account", "explicit_account"],
+    )
+    @patch.object(DbtCloudHook, "run")
+    @patch.object(DbtCloudHook, "_paginate")
+    def test_list_projects_with_payload(
+        self, mock_http_run, mock_paginate, conn_id, account_id, name_contains
+    ):
+        hook = DbtCloudHook(conn_id)
+        hook.list_projects(account_id=account_id, name_contains=name_contains)
+
+        assert hook.method == "GET"
+
+        _account_id = account_id or DEFAULT_ACCOUNT_ID
+        hook.run.assert_not_called()
+        hook._paginate.assert_called_once_with(
+            endpoint=f"api/v3/accounts/{_account_id}/projects/",
+            payload={"name__icontains": name_contains} if name_contains else None,
+            proxies=None,
         )
 
     @pytest.mark.parametrize(
@@ -324,6 +349,29 @@ class TestDbtCloudHook:
         hook._paginate.assert_called_once_with(
             endpoint=f"api/v3/accounts/{_account_id}/projects/{PROJECT_ID}/environments/",
             payload=None,
+            proxies=None,
+        )
+
+    @pytest.mark.parametrize(
+        argnames="conn_id, account_id, name_contains",
+        argvalues=[(ACCOUNT_ID_CONN, None, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID, ENVIRONMENT_NAME)],
+        ids=["default_account", "explicit_account"],
+    )
+    @patch.object(DbtCloudHook, "run")
+    @patch.object(DbtCloudHook, "_paginate")
+    def test_list_environments_with_payload(
+        self, mock_http_run, mock_paginate, conn_id, account_id, name_contains
+    ):
+        hook = DbtCloudHook(conn_id)
+        hook.list_environments(project_id=PROJECT_ID, account_id=account_id, name_contains=name_contains)
+
+        assert hook.method == "GET"
+
+        _account_id = account_id or DEFAULT_ACCOUNT_ID
+        hook.run.assert_not_called()
+        hook._paginate.assert_called_once_with(
+            endpoint=f"api/v3/accounts/{_account_id}/projects/{PROJECT_ID}/environments/",
+            payload={"name__icontains": name_contains} if name_contains else None,
             proxies=None,
         )
 
@@ -378,14 +426,25 @@ class TestDbtCloudHook:
     @patch.object(DbtCloudHook, "_paginate")
     def test_list_jobs_with_payload(self, mock_http_run, mock_paginate, conn_id, account_id):
         hook = DbtCloudHook(conn_id)
-        hook.list_jobs(project_id=PROJECT_ID, account_id=account_id, order_by="-id")
+        hook.list_jobs(
+            project_id=PROJECT_ID,
+            account_id=account_id,
+            order_by="-id",
+            environment_id=ENVIRONMENT_ID,
+            name_contains=JOB_NAME,
+        )
 
         assert hook.method == "GET"
 
         _account_id = account_id or DEFAULT_ACCOUNT_ID
         hook._paginate.assert_called_once_with(
             endpoint=f"api/v2/accounts/{_account_id}/jobs/",
-            payload={"order_by": "-id", "project_id": PROJECT_ID},
+            payload={
+                "order_by": "-id",
+                "project_id": PROJECT_ID,
+                "environment_id": ENVIRONMENT_ID,
+                "name__icontains": JOB_NAME,
+            },
             proxies=None,
         )
         hook.run.assert_not_called()

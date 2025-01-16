@@ -386,16 +386,21 @@ class DbtCloudHook(HttpHook):
         return self._run_and_get_response(endpoint=f"{account_id}/projects/{project_id}/", api_version="v3")
 
     @fallback_to_default_account
-    def list_environments(self, project_id: int, account_id: int | None = None) -> list[Response]:
+    def list_environments(
+        self, project_id: int, name_contains: str | None = None, account_id: int | None = None
+    ) -> list[Response]:
         """
         Retrieve metadata for all environments tied to a specified dbt Cloud project.
 
         :param project_id: The ID of a dbt Cloud project.
+        :param name_contains: Optional. The case-insensitive substring of a dbt Cloud environment name to filter by.
         :param account_id: Optional. The ID of a dbt Cloud account.
         :return: List of request responses.
         """
+        payload = {"name__icontains": name_contains} if name_contains else None
         return self._run_and_get_response(
             endpoint=f"{account_id}/projects/{project_id}/environments/",
+            payload=payload,
             paginate=True,
             api_version="v3",
         )
@@ -423,6 +428,7 @@ class DbtCloudHook(HttpHook):
         order_by: str | None = None,
         project_id: int | None = None,
         environment_id: int | None = None,
+        name_contains: str | None = None,
     ) -> list[Response]:
         """
         Retrieve metadata for all jobs tied to a specified dbt Cloud account.
@@ -435,11 +441,14 @@ class DbtCloudHook(HttpHook):
             For example, to use reverse order by the run ID use ``order_by=-id``.
         :param project_id: Optional. The ID of a dbt Cloud project.
         :param environment_id: Optional. The ID of a dbt Cloud environment.
+        :param name_contains: Optional. The case-insensitive substring of a dbt Cloud job name to filter by.
         :return: List of request responses.
         """
         payload = {"order_by": order_by, "project_id": project_id}
         if environment_id:
             payload["environment_id"] = environment_id
+        if name_contains:
+            payload["name__icontains"] = name_contains
         return self._run_and_get_response(
             endpoint=f"{account_id}/jobs/",
             payload=payload,
@@ -473,15 +482,29 @@ class DbtCloudHook(HttpHook):
         :return: The details of a job.
         """
         # get project_id using project_name
-        projects = self.list_projects(name_contains=project_name, account_id=account_id)[0].json()["data"]
-        projects = [project for project in projects if project["name"] == project_name]
+        projects = self.list_projects(name_contains=project_name, account_id=account_id)
+        # flatten & filter the list of responses
+        projects = [
+            project
+            for response in projects
+            for project in response.json()["data"]
+            if project["name"] == project_name
+        ]
         if len(projects) != 1:
             raise AirflowException(f"Found {len(projects)} projects with name `{project_name}`.")
         project_id = projects[0]["id"]
 
         # get environment_id using project_id and environment_name
-        environments = self.list_environments(project_id=project_id, account_id=account_id)[0].json()["data"]
-        environments = [env for env in environments if env["name"] == environment_name]
+        environments = self.list_environments(
+            project_id=project_id, name_contains=environment_name, account_id=account_id
+        )
+        # flatten & filter the list of responses
+        environments = [
+            env
+            for response in environments
+            for env in response.json()["data"]
+            if env["name"] == environment_name
+        ]
         if len(environments) != 1:
             raise AirflowException(
                 f"Found {len(environments)} environments with name `{environment_name}` in project `{project_name}`."
@@ -490,10 +513,18 @@ class DbtCloudHook(HttpHook):
 
         # get job using project_id, environment_id and job_name
         list_jobs_responses = self.list_jobs(
-            project_id=project_id, environment_id=environment_id, account_id=account_id
+            project_id=project_id,
+            environment_id=environment_id,
+            name_contains=job_name,
+            account_id=account_id,
         )
-        jobs = list_jobs_responses[0].json()["data"]
-        jobs = [job for job in jobs if job["name"] == job_name]
+        # flatten & filter the list of responses
+        jobs = [
+            job
+            for response in list_jobs_responses
+            for job in response.json()["data"]
+            if job["name"] == job_name
+        ]
         if len(jobs) != 1:
             raise AirflowException(
                 f"Found {len(jobs)} jobs with name `{job_name}` in project `{project_name}` and environment `{environment_name}`."
