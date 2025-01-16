@@ -9,6 +9,7 @@ Removed deprecated method ``requires_access`` from module ``airflow.api_connexio
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migration rules needed
 

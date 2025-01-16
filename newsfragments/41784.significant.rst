@@ -20,3 +20,4 @@ Removed a set of deprecations in from ``airflow.models.taskinstance``.
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change

@@ -9,6 +9,7 @@ Removed deprecated ``dependency_detector`` parameter from ``scheduler``.
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migration rules needed
 

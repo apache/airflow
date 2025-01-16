@@ -20,3 +20,4 @@ if the DAG is diorectly set to "failed" or "success".
   * [x] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change

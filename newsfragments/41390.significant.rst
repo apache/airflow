@@ -20,6 +20,7 @@ remove any usage of Subdags to maintain compatibility with future Airflow releas
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migration rules needed
 

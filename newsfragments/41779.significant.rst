@@ -9,3 +9,4 @@ Remove deprecated support for ``airflow.models.errors.ImportError`` which has be
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change

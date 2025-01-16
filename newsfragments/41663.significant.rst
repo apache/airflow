@@ -9,6 +9,7 @@ Removed deprecated auth ``airflow.api.auth.backend.basic_auth`` from ``auth_back
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migration rules needed
 

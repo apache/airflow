@@ -12,6 +12,7 @@ a hard error on validation failure.
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migrations rules needed
 

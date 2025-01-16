@@ -29,3 +29,4 @@ Rename ``Dataset`` endpoints as ``Asset`` endpoints
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change

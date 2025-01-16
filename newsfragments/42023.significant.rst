@@ -16,3 +16,4 @@ Rename ``Dataset`` as ``Asset`` in API endpoints
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change

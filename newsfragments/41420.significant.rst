@@ -17,3 +17,4 @@ as there are no actual duplicates at the tags.
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change

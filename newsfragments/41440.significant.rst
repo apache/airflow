@@ -25,3 +25,4 @@ Removed unused methods / properties in ``airflow/models/dag.py``
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change

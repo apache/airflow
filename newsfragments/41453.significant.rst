@@ -19,6 +19,7 @@ later will also no longer contain the field.
   * [x] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migration rules needed
 

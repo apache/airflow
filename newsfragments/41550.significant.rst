@@ -11,6 +11,7 @@ Removed deprecated ``policy`` parameter from ``airflow_local_settings``. Please 
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migration rules needed
 

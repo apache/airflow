@@ -9,3 +9,4 @@ Airflow core now depends on Pydantic v2. If you have Pydantic v1 installed, plea
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [x] Dependency change
+  * [ ] Code interface change

@@ -13,6 +13,7 @@ fetching logs to attach to the trace)
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migrations rules needed
 

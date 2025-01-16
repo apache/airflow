@@ -250,6 +250,7 @@ Rename ``Dataset`` as ``Asset``
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migration rules needed
 

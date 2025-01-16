@@ -12,6 +12,7 @@ are just treated as plain Python classes by Airflow, so there is no need to regi
   * [ ] Behaviour changes
   * [x] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migration rules needed
 

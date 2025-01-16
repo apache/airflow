@@ -12,3 +12,4 @@ It has been moved to ``airflow.models.errors.ParseImportError``.
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change

@@ -14,6 +14,7 @@ Removed deprecated methods in ``airflow/utils/helpers.py``
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migration rules needed
 

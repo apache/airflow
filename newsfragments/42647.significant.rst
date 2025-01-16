@@ -27,3 +27,4 @@ Removed deprecated aliases support for providers.
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change

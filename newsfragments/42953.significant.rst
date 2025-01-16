@@ -12,3 +12,4 @@ Vote thread: https://lists.apache.org/thread/9o84d3yn934m32gtlpokpwtbbmtxj47l.
   * [x] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change

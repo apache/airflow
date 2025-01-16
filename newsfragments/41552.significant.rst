@@ -9,6 +9,7 @@ Removed deprecated ``filename_template`` argument from ``airflow.utils.log.file_
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migration rules needed
 

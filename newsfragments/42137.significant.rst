@@ -9,3 +9,4 @@ Optional ``[saml]`` extra has been removed from Airflow core - instead Amazon Pr
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [x] Dependency change
+  * [ ] Code interface change

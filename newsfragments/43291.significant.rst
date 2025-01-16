@@ -24,6 +24,7 @@ You should instead import it as:
   * [ ] Behaviour changes
   * [x] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migration rules needed
 

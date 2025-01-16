@@ -15,3 +15,4 @@ To revert to the previous behavior, set the configuration to ``regexp``.
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change

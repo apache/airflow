@@ -31,7 +31,8 @@ Example:
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency changes
+  * [ ] Dependency change
+  * [ ] Code interface changes
 
 * Migration rules needed
 

@@ -12,3 +12,4 @@ should transition to using Rest API as an alternative.
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change

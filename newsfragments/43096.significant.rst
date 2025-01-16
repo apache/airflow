@@ -9,6 +9,7 @@ Removed auth backend ``airflow.api.auth.backend.default``
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migration rules needed
 

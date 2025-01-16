@@ -14,3 +14,4 @@ capped and only storing values from -2147483648 to 2147483647.
   * [x] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change

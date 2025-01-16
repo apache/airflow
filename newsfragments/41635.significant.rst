@@ -9,3 +9,4 @@ Removed deprecated ``--ignore-depends-on-past``  cli option from task command. P
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change

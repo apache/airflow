@@ -23,3 +23,4 @@ As part of this change the following breaking changes have occurred:
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change

@@ -9,6 +9,7 @@ Removed deprecated function ``get_connections()`` function in ``airflow.hooks.ba
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migration rules needed
 

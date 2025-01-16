@@ -13,6 +13,7 @@ The trigger rule ``TriggerRule.DUMMY`` was removed.
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migration rules needed
 

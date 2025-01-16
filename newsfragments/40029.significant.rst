@@ -9,6 +9,7 @@ Removed deprecated airflow configuration ``webserver.allow_raw_html_descriptions
   * [ ] Behaviour changes
   * [x] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migration rules needed
 

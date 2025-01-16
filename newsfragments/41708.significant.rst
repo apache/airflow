@@ -9,6 +9,7 @@ Removed deprecated auth manager ``airflow.auth.managers.fab.fab_auth_manager`` a
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migration rules needed
 

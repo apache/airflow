@@ -9,6 +9,7 @@ Removed deprecated ``smtp_user`` and ``smtp_password`` configuration parameters 
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migration rules needed
 

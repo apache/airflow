@@ -13,6 +13,7 @@
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 .. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
 

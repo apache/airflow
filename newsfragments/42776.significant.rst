@@ -9,3 +9,4 @@ Removed deprecated ``Chainable`` type from ``BaseOperator``.
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change

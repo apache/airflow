@@ -9,6 +9,7 @@ Removed deprecated ``apply_defaults`` function from ``airflow/utils/decorators.p
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migration rules needed
 

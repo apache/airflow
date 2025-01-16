@@ -18,6 +18,7 @@ The following deprecated functions, constants, and classes have been removed as 
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migration rules needed
 

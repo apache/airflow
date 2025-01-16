@@ -9,6 +9,7 @@ Removed deprecated auth ``airflow.api.auth.backend.kerberos_auth`` and ``airflow
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migration rules needed
 

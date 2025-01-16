@@ -14,3 +14,4 @@ The format of the output with that flag can be expensive to generate and extreme
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change

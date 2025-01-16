@@ -14,6 +14,7 @@ The shift towards ``logical_date`` helps move away from the limitations of ``exe
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migrations rules needed
 

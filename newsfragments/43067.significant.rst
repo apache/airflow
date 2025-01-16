@@ -12,3 +12,4 @@ Also, make DagRun.active_runs_of_dags private.
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change

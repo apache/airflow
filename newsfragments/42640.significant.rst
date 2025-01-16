@@ -9,3 +9,4 @@ Removed deprecated custom dag dependency detector.
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change

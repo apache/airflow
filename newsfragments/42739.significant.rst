@@ -9,3 +9,4 @@ Remove support for Python 3.8 as this version is not maintained within Python re
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [x] Dependency change
+  * [ ] Code interface change

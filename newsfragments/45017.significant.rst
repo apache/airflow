@@ -12,6 +12,7 @@ should be imported from ``airflow.providers.celery.executors.default_celery.DEFA
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migration rules needed
 

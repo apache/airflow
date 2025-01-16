@@ -12,3 +12,4 @@ to ensure compatibility with Airflow 3.0 and beyond.
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change

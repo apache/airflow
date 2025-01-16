@@ -13,3 +13,4 @@ If you would like to create default connections use ``airflow connections create
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change

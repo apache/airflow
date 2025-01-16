@@ -9,3 +9,4 @@ Rename ``DagRunTriggeredByType.DATASET`` as ``DagRunTriggeredByType.ASSET`` and 
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change

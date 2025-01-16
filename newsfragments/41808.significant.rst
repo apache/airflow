@@ -16,3 +16,4 @@ Note: there are no replacements. Direct access to DB is discouraged and will not
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change

@@ -12,3 +12,4 @@ equality logic is also tweaked slightly to consider the extra dict.
   * [x] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change

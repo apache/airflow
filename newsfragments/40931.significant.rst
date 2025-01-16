@@ -9,3 +9,4 @@ Removed dagbag deprecated ``store_serialized_dags`` parameter. Please use ``read
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change

@@ -9,6 +9,7 @@ Removed deprecated module ``airflow.kubernetes``.
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migration rules needed
 

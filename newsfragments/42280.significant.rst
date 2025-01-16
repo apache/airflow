@@ -13,3 +13,4 @@ Removed deprecated Rest API endpoints:
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change

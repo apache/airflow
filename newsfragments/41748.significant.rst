@@ -9,6 +9,7 @@ Deprecated module ``airflow.hooks.dbapi`` removed. Please use ``airflow.provider
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migration rules needed
 

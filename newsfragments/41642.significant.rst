@@ -11,6 +11,7 @@ Please use ``get_conn_value`` and ``get_connection`` instead.
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
+  * [ ] Code interface change
 
 * Migration rules needed
 

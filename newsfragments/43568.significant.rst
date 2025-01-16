@@ -9,3 +9,4 @@ Remove ``virtualenv`` extra as PythonVirtualenvOperator has been moved to standa
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [x] Dependency change
+  * [ ] Code interface change
