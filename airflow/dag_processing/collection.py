@@ -455,7 +455,7 @@ class DagModelOperation(NamedTuple):
             dm.timetable_description = dag.timetable.description
             dm.asset_expression = dag.timetable.asset_condition.as_expression()
             dm.bundle_name = self.bundle_name
-            dm.latest_bundle_version = self.bundle_version
+            dm.bundle_version = self.bundle_version
 
             last_automated_run: DagRun | None = run_info.latest_runs.get(dag.dag_id)
             if last_automated_run is None:
