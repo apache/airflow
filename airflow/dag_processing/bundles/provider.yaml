@@ -27,9 +27,6 @@ source-date-epoch: 1726861127
 versions:
   - 1.0.0
 
-dependencies:
-  - apache-airflow-providers-ssh
-
 integrations:
   - integration-name: GIT (Git)
 
