@@ -38,6 +38,7 @@ from airflow.api_fastapi.core_api.datamodels.backfills import (
 from airflow.api_fastapi.core_api.openapi.exceptions import (
     create_openapi_http_exception_doc,
 )
+from airflow.exceptions import DagNotFound
 from airflow.models import DagRun
 from airflow.models.backfill import (
     AlreadyRunningBackfill,
@@ -208,6 +209,11 @@ def create_backfill(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"There is already a running backfill for dag {backfill_request.dag_id}",
+        )
+    except DagNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Could not find dag {backfill_request.dag_id}",
         )
 
 
