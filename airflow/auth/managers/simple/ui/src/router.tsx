@@ -17,7 +17,7 @@
  * under the License.
  */
 import { createBrowserRouter } from "react-router-dom";
-import { Login } from "src/login/Controller";
+import { Login } from "src/login/Login";
 
 export const router = createBrowserRouter(
   [

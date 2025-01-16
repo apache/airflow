@@ -17,13 +17,11 @@
  * under the License.
  */
 
-/* global document */
-
 import React from "react";
 import {Alert, Container, Heading, Text} from "@chakra-ui/react";
 
 import {useCreateToken} from "src/queries/useCreateToken";
-import {LoginForm} from "src/login/Form";
+import {LoginForm} from "src/login/LoginForm";
 import type {ApiError} from "openapi-gen/requests/core/ApiError";
 import type {LoginResponse, HTTPExceptionResponse, HTTPValidationError} from "openapi-gen/requests/types.gen";
 

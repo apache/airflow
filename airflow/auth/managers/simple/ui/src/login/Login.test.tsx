@@ -17,14 +17,12 @@
  * under the License.
  */
 
-/* global describe  */
-
 import React from "react";
 
 import { render } from "@testing-library/react";
 import { describe, expect, test } from "vitest";
 
-import { Login } from "src/login/Controller";
+import { Login } from "src/login/Login";
 import {Wrapper} from "src/test-utils";
 
 describe("Login page", () => {

@@ -24,13 +24,5 @@ export const queryClient = new QueryClient({
       retry: 1,
       retryDelay: 500,
     },
-    queries: {
-      initialDataUpdatedAt: new Date().setMinutes(-6), // make sure initial data is already expired
-      refetchOnMount: true, // Refetches stale queries, not "always"
-      refetchOnWindowFocus: false,
-      retry: 1,
-      retryDelay: 500,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-    },
   },
 });

@@ -20,7 +20,7 @@
 import React from "react";
 import {Button, Field, Input, Stack} from "@chakra-ui/react";
 import {Controller, useForm} from "react-hook-form";
-import {LoginBody} from "./Controller";
+import {LoginBody} from "./Login";
 
 type LoginFormProps = {
     readonly onLogin: (loginBody: LoginBody) => string;
@@ -38,30 +38,32 @@ export const LoginForm = ({ onLogin, isPending }: LoginFormProps) => {
     });
 
     return <Stack spacing={4}>
-        <Controller
-            name="username"
-            control={control}
-            render={({field, fieldState}) => (
-                <Field.Root invalid={Boolean(fieldState.error)} required>
-                    <Field.Label>Username</Field.Label>
-                    <Input {...field} />
-                </Field.Root>)}
-            rules={{required: true}}
-        />
+        <form>
+            <Controller
+                name="username"
+                control={control}
+                render={({field, fieldState}) => (
+                    <Field.Root invalid={Boolean(fieldState.error)} required>
+                        <Field.Label>Username</Field.Label>
+                        <Input {...field} />
+                    </Field.Root>)}
+                rules={{required: true}}
+            />
 
-        <Controller
-            name="password"
-            control={control}
-            render={({field, fieldState}) => (
-                <Field.Root invalid={Boolean(fieldState.error)} required>
-                    <Field.Label>Username</Field.Label>
-                    <Input {...field} type="password"/>
-                </Field.Root>)}
-            rules={{required: true}}
-        />
+            <Controller
+                name="password"
+                control={control}
+                render={({field, fieldState}) => (
+                    <Field.Root invalid={Boolean(fieldState.error)} required>
+                        <Field.Label>Password</Field.Label>
+                        <Input {...field} type="password"/>
+                    </Field.Root>)}
+                rules={{required: true}}
+            />
 
-        <Button disabled={!isValid || isPending} colorPalette="blue" onClick={() => void handleSubmit(onLogin)()}>
-            Sign in
-        </Button>
+            <Button disabled={!isValid || isPending} colorPalette="blue" onClick={() => void handleSubmit(onLogin)()} type="submit">
+                Sign in
+            </Button>
+        </form>
     </Stack>
 }
