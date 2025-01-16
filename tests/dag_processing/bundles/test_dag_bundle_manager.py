@@ -70,7 +70,7 @@ def test_parse_bundle_config(value, expected):
     """Test that bundle_configs are read from configuration."""
     envs = {"AIRFLOW__CORE__LOAD_EXAMPLES": "False"}
     if value:
-        envs["AIRFLOW__DAG_BUNDLES__BACKENDS"] = value
+        envs["AIRFLOW__DAG_BUNDLES__CONFIG_LIST"] = value
     cm = nullcontext()
     exp_fail = False
     if isinstance(expected, str):
@@ -108,7 +108,7 @@ BASIC_BUNDLE_CONFIG = [
 def test_get_bundle():
     """Test that get_bundle builds and returns a bundle."""
 
-    with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__BACKENDS": json.dumps(BASIC_BUNDLE_CONFIG)}):
+    with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}):
         bundle_manager = DagBundlesManager()
 
         with pytest.raises(ValueError, match="'bundle-that-doesn't-exist' is not configured"):
@@ -120,7 +120,7 @@ def test_get_bundle():
     assert bundle.refresh_interval == 1
 
     # And none for version also works!
-    with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__BACKENDS": json.dumps(BASIC_BUNDLE_CONFIG)}):
+    with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}):
         bundle = bundle_manager.get_bundle(name="my-test-bundle")
     assert isinstance(bundle, BasicBundle)
     assert bundle.name == "my-test-bundle"
@@ -144,7 +144,7 @@ def test_sync_bundles_to_db(clear_db):
             )
 
     # Initial add
-    with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__BACKENDS": json.dumps(BASIC_BUNDLE_CONFIG)}):
+    with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}):
         manager = DagBundlesManager()
         manager.sync_bundles_to_db()
     assert _get_bundle_names_and_active() == [("my-test-bundle", True)]
@@ -156,7 +156,7 @@ def test_sync_bundles_to_db(clear_db):
     assert _get_bundle_names_and_active() == [("dags-folder", True), ("my-test-bundle", False)]
 
     # Re-enable one that reappears in config
-    with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__BACKENDS": json.dumps(BASIC_BUNDLE_CONFIG)}):
+    with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}):
         manager = DagBundlesManager()
         manager.sync_bundles_to_db()
     assert _get_bundle_names_and_active() == [("dags-folder", False), ("my-test-bundle", True)]
