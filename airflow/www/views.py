@@ -1774,7 +1774,7 @@ class Airflow(AirflowBaseView):
             title="Log by attempts",
             dag_id=dag_id,
             task_id=task_id,
-            task_display_name=ti.task_display_name,
+            task_display_name=ti.task_display_name if ti else "",
             logical_date=logical_date,
             map_index=map_index,
             form=form,
