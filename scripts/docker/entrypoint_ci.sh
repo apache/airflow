@@ -376,7 +376,7 @@ function start_webserver_with_examples(){
     echo
     echo "${COLOR_BLUE}Parsing example dags${COLOR_RESET}"
     echo
-    airflow scheduler --num-runs 100
+    airflow dags reserialize
     echo "Example dags parsing finished"
     echo "Create admin user"
     airflow users create -u admin -p admin -f Thor -l Administrator -r Admin -e admin@email.domain
