@@ -31,9 +31,9 @@ from typing import Callable
 
 from botocore.exceptions import ClientError
 from botocore.signers import RequestSigner
-from providers.src.airflow.providers.amazon.aws.hooks.sts import StsHook
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.hooks.sts import StsHook
 from airflow.utils import yaml
 from airflow.utils.json import AirflowJsonEncoder
 
