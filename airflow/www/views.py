@@ -1774,7 +1774,7 @@ class Airflow(AirflowBaseView):
             title="Log by attempts",
             dag_id=dag_id,
             task_id=task_id,
-            task_display_name=ti.task_display_name,
+            task_display_name=ti.task_display_name if ti else "",
             logical_date=logical_date,
             map_index=map_index,
             form=form,
@@ -5541,7 +5541,7 @@ class DagDependenciesView(AirflowBaseView):
         seconds=conf.getint(
             "webserver",
             "dag_dependencies_refresh_interval",
-            fallback=conf.getint("scheduler", "dag_dir_list_interval"),
+            fallback=300,
         )
     )
     last_refresh = timezone.utcnow() - refresh_interval

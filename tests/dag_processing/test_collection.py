@@ -537,4 +537,4 @@ class TestUpdateDagParsingResults:
         update_dag_parsing_results_in_db("testing", "1.0", [self.dag_to_lazy_serdag(dag)], {}, set(), session)
         orm_dag = session.get(DagModel, "mydag")
         assert orm_dag.bundle_name == "testing"
-        assert orm_dag.latest_bundle_version == "1.0"
+        assert orm_dag.bundle_version == "1.0"
