@@ -38,7 +38,6 @@ from airflow_breeze.commands.common_options import (
     option_postgres_version,
     option_project_name,
     option_python,
-    option_standalone_dag_processor,
     option_use_uv,
     option_uv_http_timeout,
     option_verbose,
@@ -118,7 +117,6 @@ class MainGroupWithAliases(BreezeGroup):
 @option_postgres_version
 @option_python
 @option_project_name
-@option_standalone_dag_processor
 @option_use_uv
 @option_uv_http_timeout
 @option_verbose

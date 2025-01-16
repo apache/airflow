@@ -362,12 +362,6 @@ option_skip_db_tests = click.option(
     is_flag=True,
     envvar="SKIP_DB_TESTS",
 )
-option_standalone_dag_processor = click.option(
-    "--standalone-dag-processor",
-    help="Run standalone dag processor for start-airflow.",
-    is_flag=True,
-    envvar="STANDALONE_DAG_PROCESSOR",
-)
 option_upgrade_boto = click.option(
     "--upgrade-boto",
     help="Remove aiobotocore and upgrade botocore and boto to the latest version.",

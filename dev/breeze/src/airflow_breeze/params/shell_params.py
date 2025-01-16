@@ -201,7 +201,6 @@ class ShellParams:
     skip_image_upgrade_check: bool = False
     skip_provider_dependencies_check: bool = False
     skip_ssh_setup: bool = os.environ.get("SKIP_SSH_SETUP", "false") == "true"
-    standalone_dag_processor: bool = False
     start_airflow: bool = False
     test_type: str | None = None
     start_webserver_with_examples: bool = False
@@ -597,7 +596,7 @@ class ShellParams:
         _set_var(_env, "SKIP_SSH_SETUP", self.skip_ssh_setup)
         _set_var(_env, "SQLITE_URL", self.sqlite_url)
         _set_var(_env, "SSH_PORT", None, SSH_PORT)
-        _set_var(_env, "STANDALONE_DAG_PROCESSOR", self.standalone_dag_processor)
+        _set_var(_env, "STANDALONE_DAG_PROCESSOR", "true")
         _set_var(_env, "START_AIRFLOW", self.start_airflow)
         _set_var(_env, "SUSPENDED_PROVIDERS_FOLDERS", self.suspended_providers_folders)
         _set_var(

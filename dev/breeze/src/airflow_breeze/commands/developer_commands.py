@@ -60,7 +60,6 @@ from airflow_breeze.commands.common_options import (
     option_python,
     option_run_db_tests_only,
     option_skip_db_tests,
-    option_standalone_dag_processor,
     option_upgrade_boto,
     option_use_airflow_version,
     option_use_uv,
@@ -308,7 +307,6 @@ option_start_webserver_with_examples = click.option(
 @option_skip_environment_initialization
 @option_skip_image_upgrade_check
 @option_warn_image_upgrade_needed
-@option_standalone_dag_processor
 @option_upgrade_boto
 @option_use_airflow_version
 @option_use_packages_from_dist
@@ -362,7 +360,6 @@ def shell(
     skip_environment_initialization: bool,
     skip_db_tests: bool,
     skip_image_upgrade_check: bool,
-    standalone_dag_processor: bool,
     start_webserver_with_examples: bool,
     tty: str,
     upgrade_boto: bool,
@@ -430,7 +427,6 @@ def shell(
         skip_db_tests=skip_db_tests,
         skip_image_upgrade_check=skip_image_upgrade_check,
         skip_environment_initialization=skip_environment_initialization,
-        standalone_dag_processor=standalone_dag_processor,
         start_webserver_with_examples=start_webserver_with_examples,
         tty=tty,
         upgrade_boto=upgrade_boto,
@@ -519,7 +515,6 @@ option_executor_start_airflow = click.option(
 @option_providers_skip_constraints
 @option_python
 @option_restart
-@option_standalone_dag_processor
 @option_use_uv
 @option_uv_http_timeout
 @option_use_airflow_version
@@ -561,7 +556,6 @@ def start_airflow(
     python: str,
     restart: bool,
     skip_assets_compilation: bool,
-    standalone_dag_processor: bool,
     use_airflow_version: str | None,
     use_packages_from_dist: bool,
     use_uv: bool,
@@ -629,7 +623,6 @@ def start_airflow(
         providers_skip_constraints=providers_skip_constraints,
         python=python,
         restart=restart,
-        standalone_dag_processor=standalone_dag_processor,
         start_airflow=True,
         use_airflow_version=use_airflow_version,
         use_packages_from_dist=use_packages_from_dist,
