@@ -1722,7 +1722,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             "encryptionConfiguration": self.encryption_configuration,
         }
 
-        if self.schema_fields:
+        if schema_fields:
             table_resource["schema"] = {"fields": schema_fields}
 
         # Save table as attribute for further use by OpenLineage
