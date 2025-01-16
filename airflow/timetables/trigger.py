@@ -31,6 +31,34 @@ if TYPE_CHECKING:
     from airflow.timetables.base import TimeRestriction
 
 
+def _serialize_interval(interval: datetime.timedelta | relativedelta) -> float | dict:
+    from airflow.serialization.serialized_objects import encode_relativedelta
+
+    if isinstance(interval, datetime.timedelta):
+        return interval.total_seconds()
+    return encode_relativedelta(interval)
+
+
+def _deserialize_interval(value: int | dict) -> datetime.timedelta | relativedelta:
+    from airflow.serialization.serialized_objects import decode_relativedelta
+
+    if isinstance(value, dict):
+        return decode_relativedelta(value)
+    return datetime.timedelta(seconds=value)
+
+
+def _serialize_run_immediately(value: bool | datetime.timedelta) -> bool | float:
+    if isinstance(value, datetime.timedelta):
+        return value.total_seconds()
+    return value
+
+
+def _deserialize_run_immediately(value: bool | float) -> bool | datetime.timedelta:
+    if isinstance(value, float):
+        return datetime.timedelta(seconds=value)
+    return value
+
+
 class CronTriggerTimetable(CronMixin, Timetable):
     """
     Timetable that triggers DAG runs according to a cron expression.
@@ -77,48 +105,23 @@ class CronTriggerTimetable(CronMixin, Timetable):
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
-        from airflow.serialization.serialized_objects import decode_relativedelta, decode_timezone
-
-        interval: datetime.timedelta | relativedelta
-        if isinstance(data["interval"], dict):
-            interval = decode_relativedelta(data["interval"])
-        else:
-            interval = datetime.timedelta(seconds=data["interval"])
-
-        immediate: bool | datetime.timedelta
-        if "immediate" not in data:
-            immediate = False
-        elif isinstance(data["immediate"], float):
-            immediate = datetime.timedelta(seconds=data["interval"])
-        else:
-            immediate = data["immediate"]
+        from airflow.serialization.serialized_objects import decode_timezone
 
         return cls(
             data["expression"],
             timezone=decode_timezone(data["timezone"]),
-            interval=interval,
-            run_immediately=immediate,
+            interval=_deserialize_interval(data["interval"]),
+            run_immediately=_deserialize_run_immediately(data.get("run_immediately", False)),
         )
 
     def serialize(self) -> dict[str, Any]:
-        from airflow.serialization.serialized_objects import encode_relativedelta, encode_timezone
+        from airflow.serialization.serialized_objects import encode_timezone
 
-        interval: float | dict[str, Any]
-        if isinstance(self._interval, datetime.timedelta):
-            interval = self._interval.total_seconds()
-        else:
-            interval = encode_relativedelta(self._interval)
-        timezone = encode_timezone(self._timezone)
-        immediate: bool | float
-        if isinstance(self.run_immediately, datetime.timedelta):
-            immediate = self.run_immediately.total_seconds()
-        else:
-            immediate = self.run_immediately
         return {
             "expression": self._expression,
-            "timezone": timezone,
-            "interval": interval,
-            "run_immediately": immediate,
+            "timezone": encode_timezone(self._timezone),
+            "interval": _serialize_interval(self._interval),
+            "run_immediately": _serialize_run_immediately(self.run_immediately),
         }
 
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
