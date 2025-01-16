@@ -131,7 +131,10 @@ class TestAssetModelOperation:
     )
     def test_add_asset_trigger_references(self, is_active, is_paused, expected_num_triggers, dag_maker):
         trigger = TimeDeltaTrigger(timedelta(seconds=0))
-        asset = Asset("test_add_asset_trigger_references_asset", watchers=[trigger])
+        classpath, kwargs = trigger.serialize()
+        asset = Asset(
+            "test_add_asset_trigger_references_asset", watchers=[{"classpath": classpath, "kwargs": kwargs}]
+        )
 
         with dag_maker(dag_id="test_add_asset_trigger_references_dag", schedule=[asset]) as dag:
             EmptyOperator(task_id="mytask")
