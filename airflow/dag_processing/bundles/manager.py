@@ -81,7 +81,7 @@ class DagBundlesManager(LoggingMixin):
                     "name": "example_dags",
                     "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
                     "kwargs": {
-                        "local_folder": example_dag_folder,
+                        "directory": example_dag_folder,
                     },
                 }
             )

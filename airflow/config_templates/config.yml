@@ -2707,7 +2707,7 @@ dag_bundles:
         [
             {{
               "name": "dags-folder",
-              "classpath": "airflow.dag_processing.bundles.dagfolder.DagsFolderDagBundle",
+              "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
               "kwargs": {{}}
             }}
             ]
