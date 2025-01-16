@@ -16,7 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import os
+from contextlib import contextmanager
+from pathlib import Path
 
 import pytest
 
@@ -77,3 +80,22 @@ def dagbag():
 
     parse_and_sync_to_db(os.devnull, include_examples=True)
     return DagBag(read_dags_from_db=True)
+
+
+@pytest.fixture
+def configure_testing_dag_bundle():
+    """Configure the testing DAG bundle with the provided path, and disable the DAGs folder bundle."""
+
+    @contextmanager
+    def _config_bundle(path_to_parse: Path | str):
+        bundle_config = [
+            {
+                "name": "testing",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"local_folder": str(path_to_parse), "refresh_interval": 0},
+            }
+        ]
+        with conf_vars({("dag_bundles", "backends"): json.dumps(bundle_config)}):
+            yield
+
+    return _config_bundle

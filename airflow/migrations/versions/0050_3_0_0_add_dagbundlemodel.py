@@ -56,6 +56,9 @@ def upgrade():
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.add_column(sa.Column("bundle_version", sa.String(length=250), nullable=True))
 
+    with op.batch_alter_table("import_error", schema=None) as batch_op:
+        batch_op.add_column(sa.Column("bundle_name", sa.String(length=250), nullable=True))
+
 
 def downgrade():
     with op.batch_alter_table("dag", schema=None) as batch_op:
@@ -64,5 +67,8 @@ def downgrade():
         batch_op.drop_column("bundle_name")
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.drop_column("bundle_version")
+
+    with op.batch_alter_table("import_error", schema=None) as batch_op:
+        batch_op.drop_column("bundle_name")
 
     op.drop_table("dag_bundle")
