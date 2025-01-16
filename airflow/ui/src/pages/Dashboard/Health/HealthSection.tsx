@@ -44,7 +44,6 @@ export const HealthSection = ({
         </div>
       }
       disabled={!Boolean(latestHeartbeat)}
-      showArrow
     >
       <Tag
         borderColor={status === "healthy" ? "success.100" : "error.100"}

@@ -125,7 +125,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--force-build",
                 "--platform",
-                "--image-tag",
                 "--github-repository",
                 "--builder",
                 "--use-uv",
@@ -254,7 +253,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Build CI image (before entering shell)",
             "options": [
                 "--force-build",
-                "--image-tag",
                 "--github-repository",
                 "--builder",
                 "--use-uv",
@@ -314,6 +312,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--spellcheck-only",
                 "--clean-build",
                 "--one-pass-only",
+                "--skip-deletion",
                 "--package-filter",
                 "--include-not-ready-providers",
                 "--include-removed-providers",
@@ -348,7 +347,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--skip-image-upgrade-check",
                 "--force-build",
-                "--image-tag",
                 "--github-repository",
                 "--builder",
             ],

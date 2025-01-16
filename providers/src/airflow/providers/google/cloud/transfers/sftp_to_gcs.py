@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Sequence
+from functools import cached_property
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
@@ -109,6 +110,10 @@ class SFTPToGCSOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.sftp_prefetch = sftp_prefetch
 
+    @cached_property
+    def sftp_hook(self):
+        return SFTPHook(self.sftp_conn_id)
+
     def execute(self, context: Context):
         self.destination_path = self._set_destination_path(self.destination_path)
         self.destination_bucket = self._set_bucket_name(self.destination_bucket)
@@ -116,8 +121,6 @@ class SFTPToGCSOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-
-        sftp_hook = SFTPHook(self.sftp_conn_id)
 
         if WILDCARD in self.source_path:
             total_wildcards = self.source_path.count(WILDCARD)
@@ -130,7 +133,7 @@ class SFTPToGCSOperator(BaseOperator):
             prefix, delimiter = self.source_path.split(WILDCARD, 1)
             base_path = os.path.dirname(prefix)
 
-            files, _, _ = sftp_hook.get_tree_map(base_path, prefix=prefix, delimiter=delimiter)
+            files, _, _ = self.sftp_hook.get_tree_map(base_path, prefix=prefix, delimiter=delimiter)
 
             for file in files:
                 destination_path = file.replace(base_path, self.destination_path, 1)
@@ -140,13 +143,13 @@ class SFTPToGCSOperator(BaseOperator):
                 # retain the "/" prefix, if it has.
                 if not self.destination_path:
                     destination_path = destination_path.lstrip("/")
-                self._copy_single_object(gcs_hook, sftp_hook, file, destination_path)
+                self._copy_single_object(gcs_hook, self.sftp_hook, file, destination_path)
 
         else:
             destination_object = (
                 self.destination_path if self.destination_path else self.source_path.rsplit("/", 1)[1]
             )
-            self._copy_single_object(gcs_hook, sftp_hook, self.source_path, destination_object)
+            self._copy_single_object(gcs_hook, self.sftp_hook, self.source_path, destination_object)
 
     def _copy_single_object(
         self,
@@ -188,3 +191,29 @@ class SFTPToGCSOperator(BaseOperator):
     def _set_bucket_name(name: str) -> str:
         bucket = name if not name.startswith("gs://") else name[5:]
         return bucket.strip("/")
+
+    def get_openlineage_facets_on_start(self):
+        from airflow.providers.common.compat.openlineage.facet import Dataset
+        from airflow.providers.google.cloud.openlineage.utils import extract_ds_name_from_gcs_path
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        source_name = extract_ds_name_from_gcs_path(self.source_path.split(WILDCARD, 1)[0])
+        if self.source_path.startswith("/") and source_name != "/":
+            source_name = "/" + source_name
+
+        if WILDCARD not in self.source_path and not self.destination_path:
+            dest_name = self.source_path.rsplit("/", 1)[1]
+        else:
+            dest_name = extract_ds_name_from_gcs_path(f"{self.destination_path}")
+
+        return OperatorLineage(
+            inputs=[
+                Dataset(
+                    namespace=f"file://{self.sftp_hook.remote_host}:{self.sftp_hook.port}",
+                    name=source_name,
+                )
+            ],
+            outputs=[
+                Dataset(namespace="gs://" + self._set_bucket_name(self.destination_bucket), name=dest_name)
+            ],
+        )

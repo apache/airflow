@@ -79,15 +79,9 @@ class TestAirflowTaskDecorator(BasePythonTest):
         "annotation",
         [
             "dict",
-            pytest.param(
-                "dict[str, int]",
-                marks=pytest.mark.skipif(
-                    sys.version_info < (3, 9),
-                    reason="PEP 585 is implemented in Python 3.9",
-                ),
-            ),
-            "typing.Dict",
             "dict[str, int]",
+            "typing.Dict",
+            "typing.Dict[str, int]",
         ],
     )
     def test_infer_multiple_outputs_using_dict_typing(self, resolve, annotation):
@@ -450,7 +444,8 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = self.dag_non_serialized.create_dagrun(
-            run_id=DagRunType.MANUAL,
+            run_id="test",
+            run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             logical_date=DEFAULT_DATE,
             state=State.RUNNING,
@@ -514,7 +509,8 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = self.dag_non_serialized.create_dagrun(
-            run_id=DagRunType.MANUAL,
+            run_id="test",
+            run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             logical_date=DEFAULT_DATE,
             state=State.RUNNING,

@@ -26,7 +26,6 @@ from typing import TYPE_CHECKING, Any, Callable, Protocol, TypeVar
 from airflow import settings
 from airflow.sdk.definitions.asset.metadata import Metadata
 from airflow.typing_compat import ParamSpec
-from airflow.utils.context import Context, lazy_mapping_from_context
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
@@ -151,9 +150,8 @@ class KeywordParameters:
     content and use it somewhere else without needing ``lazy-object-proxy``.
     """
 
-    def __init__(self, kwargs: Mapping[str, Any], *, wildcard: bool) -> None:
+    def __init__(self, kwargs: Mapping[str, Any]) -> None:
         self._kwargs = kwargs
-        self._wildcard = wildcard
 
     @classmethod
     def determine(
@@ -181,20 +179,14 @@ class KeywordParameters:
 
         if has_wildcard_kwargs:
             # If the callable has a **kwargs argument, it's ready to accept all the kwargs.
-            return cls(kwargs, wildcard=True)
+            return cls(kwargs)
 
         # If the callable has no **kwargs argument, it only wants the arguments it requested.
-        kwargs = {key: kwargs[key] for key in signature.parameters if key in kwargs}
-        return cls(kwargs, wildcard=False)
+        filtered_kwargs = {key: kwargs[key] for key in signature.parameters if key in kwargs}
+        return cls(filtered_kwargs)
 
     def unpacking(self) -> Mapping[str, Any]:
         """Dump the kwargs mapping to unpack with ``**`` in a function call."""
-        if self._wildcard and isinstance(self._kwargs, Context):  # type: ignore[misc]
-            return lazy_mapping_from_context(self._kwargs)
-        return self._kwargs
-
-    def serializing(self) -> Mapping[str, Any]:
-        """Dump the kwargs mapping for serialization purposes."""
         return self._kwargs
 
 

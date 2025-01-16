@@ -41,6 +41,7 @@ from flask_appbuilder.views import IndexView, UtilView
 from airflow import settings
 from airflow.api_fastapi.app import create_auth_manager, get_auth_manager
 from airflow.configuration import conf
+from airflow.www.security_manager import AirflowSecurityManagerV2
 
 if TYPE_CHECKING:
     from flask import Flask
@@ -211,7 +212,10 @@ class AirflowAppBuilder:
         auth_manager = create_auth_manager()
         auth_manager.appbuilder = self
         auth_manager.init()
-        self.sm = auth_manager.security_manager
+        if hasattr(auth_manager, "security_manager"):
+            self.sm = auth_manager.security_manager
+        else:
+            self.sm = AirflowSecurityManagerV2(self)
         self.bm = BabelManager(self)
         self._add_global_static()
         self._add_global_filters()

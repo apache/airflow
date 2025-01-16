@@ -19,10 +19,7 @@
 import { LiaSlashSolid } from "react-icons/lia";
 import { useParams, Link as RouterLink } from "react-router-dom";
 
-import {
-  useDagRunServiceGetDagRun,
-  useDagServiceGetDagDetails,
-} from "openapi/queries";
+import { useDagRunServiceGetDagRun, useDagServiceGetDagDetails } from "openapi/queries";
 import { Breadcrumb } from "src/components/ui";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 
@@ -55,20 +52,13 @@ export const Run = () => {
   });
 
   return (
-    <DetailsLayout
-      dag={dag}
-      error={error ?? dagError}
-      isLoading={isLoading || isLoadinDag}
-      tabs={tabs}
-    >
+    <DetailsLayout dag={dag} error={error ?? dagError} isLoading={isLoading || isLoadinDag} tabs={tabs}>
       <Breadcrumb.Root mb={3} separator={<LiaSlashSolid />}>
         <Breadcrumb.Link asChild color="fg.info">
           <RouterLink to="/dags">Dags</RouterLink>
         </Breadcrumb.Link>
         <Breadcrumb.Link asChild color="fg.info">
-          <RouterLink to={`/dags/${dagId}`}>
-            {dag?.dag_display_name ?? dagId}
-          </RouterLink>
+          <RouterLink to={`/dags/${dagId}`}>{dag?.dag_display_name ?? dagId}</RouterLink>
         </Breadcrumb.Link>
         <Breadcrumb.CurrentLink>{runId}</Breadcrumb.CurrentLink>
       </Breadcrumb.Root>

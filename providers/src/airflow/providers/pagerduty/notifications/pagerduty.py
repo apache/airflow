@@ -111,7 +111,7 @@ class PagerdutyNotifier(BaseNotifier):
 
     def notify(self, context):
         """Send a alert to a pagerduty event v2 API."""
-        self.hook.create_event(
+        self.hook.send_event(
             summary=self.summary,
             severity=self.severity,
             source=self.source,

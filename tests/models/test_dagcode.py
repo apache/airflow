@@ -41,8 +41,17 @@ pytestmark = pytest.mark.db_test
 
 def make_example_dags(module):
     """Loads DAGs from a module for test."""
+    # TODO: AIP-66 dedup with tests/models/test_serdag
+    from airflow.models.dagbundle import DagBundleModel
+    from airflow.utils.session import create_session
+
+    with create_session() as session:
+        if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
+            testing = DagBundleModel(name="testing")
+            session.add(testing)
+
     dagbag = DagBag(module.__path__[0])
-    DAG.bulk_write_to_db(dagbag.dags.values())
+    DAG.bulk_write_to_db("testing", None, dagbag.dags.values())
     return dagbag.dags
 
 

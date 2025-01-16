@@ -43,8 +43,9 @@ from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, _update_rtif
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
+from airflow.models.xcom import XCom
 from airflow.utils import timezone
-from airflow.utils.state import State
+from airflow.utils.state import State, TerminalTIState
 
 # TODO: Add dependency on JWT token
 router = AirflowRouter()
@@ -73,9 +74,15 @@ def ti_run(
     # We only use UUID above for validation purposes
     ti_id_str = str(task_instance_id)
 
-    old = select(TI.state, TI.dag_id, TI.run_id).where(TI.id == ti_id_str).with_for_update()
+    old = (
+        select(TI.state, TI.dag_id, TI.run_id, TI.task_id, TI.map_index, TI.next_method, TI.max_tries)
+        .where(TI.id == ti_id_str)
+        .with_for_update()
+    )
     try:
-        (previous_state, dag_id, run_id) = session.execute(old).one()
+        (previous_state, dag_id, run_id, task_id, map_index, next_method, max_tries) = session.execute(
+            old
+        ).one()
     except NoResultFound:
         log.error("Task Instance %s not found", ti_id_str)
         raise HTTPException(
@@ -144,8 +151,23 @@ def ti_run(
         if not dr:
             raise ValueError(f"DagRun with dag_id={dag_id} and run_id={run_id} not found.")
 
+        # Clear XCom data for the task instance since we are certain it is executing
+        # However, do not clear it for deferral
+        if not next_method:
+            if map_index < 0:
+                map_index = None
+            log.info("Clearing xcom data for task id: %s", ti_id_str)
+            XCom.clear(
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+                map_index=map_index,
+                session=session,
+            )
+
         return TIRunContext(
             dag_run=DagRun.model_validate(dr, from_attributes=True),
+            max_tries=max_tries,
             # TODO: Add variables and connections that are needed (and has perms) for the task
             variables=[],
             connections=[],
@@ -185,9 +207,13 @@ def ti_update_state(
     # We only use UUID above for validation purposes
     ti_id_str = str(task_instance_id)
 
-    old = select(TI.state).where(TI.id == ti_id_str).with_for_update()
+    old = select(TI.state, TI.try_number, TI.max_tries).where(TI.id == ti_id_str).with_for_update()
     try:
-        (previous_state,) = session.execute(old).one()
+        (
+            previous_state,
+            try_number,
+            max_tries,
+        ) = session.execute(old).one()
     except NoResultFound:
         log.error("Task Instance %s not found", ti_id_str)
         raise HTTPException(
@@ -205,11 +231,17 @@ def ti_update_state(
 
     if isinstance(ti_patch_payload, TITerminalStatePayload):
         query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
-        query = query.values(state=ti_patch_payload.state)
-        if ti_patch_payload.state == State.FAILED:
-            # clear the next_method and next_kwargs
-            query = query.values(next_method=None, next_kwargs=None)
+        updated_state = ti_patch_payload.state
+        # if we get failed, we should attempt to retry, as it is a more
+        # normal state. Tasks with retries are more frequent than without retries.
+        if ti_patch_payload.state == TerminalTIState.FAIL_WITHOUT_RETRY:
             updated_state = State.FAILED
+        elif ti_patch_payload.state == State.FAILED:
+            if _is_eligible_to_retry(previous_state, try_number, max_tries):
+                updated_state = State.UP_FOR_RETRY
+            else:
+                updated_state = State.FAILED
+        query = query.values(state=updated_state)
     elif isinstance(ti_patch_payload, TIDeferredStatePayload):
         # Calculate timeout if it was passed
         timeout = None
@@ -359,3 +391,15 @@ def ti_put_rtif(
     _update_rtif(task_instance, put_rtif_payload, session)
 
     return {"message": "Rendered task instance fields successfully set"}
+
+
+def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:
+    """Is task instance is eligible for retry."""
+    if state == State.RESTARTING:
+        # If a task is cleared when running, it goes into RESTARTING state and is always
+        # eligible for retry
+        return True
+
+    # max_tries is initialised with the retries defined at task level, we do not need to explicitly ask for
+    # retries from the task SDK now, we can handle using max_tries
+    return max_tries != 0 and try_number <= max_tries

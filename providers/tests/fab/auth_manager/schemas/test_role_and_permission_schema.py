@@ -23,7 +23,7 @@ from airflow.providers.fab.auth_manager.schemas.role_and_permission_schema impor
     role_collection_schema,
     role_schema,
 )
-from airflow.security import permissions
+from airflow.providers.fab.www.security import permissions
 
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_role, delete_role
 

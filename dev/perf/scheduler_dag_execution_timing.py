@@ -172,11 +172,14 @@ def create_dag_runs(dag, num_runs, session):
         dag.create_dagrun(
             run_id=f"{id_prefix}{logical_date.isoformat()}",
             logical_date=logical_date,
-            start_date=timezone.utcnow(),
-            state=DagRunState.RUNNING,
-            external_trigger=False,
-            session=session,
+            data_interval=(logical_date, logical_date),
+            run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.TEST,
+            external_trigger=False,
+            dag_version=None,
+            state=DagRunState.RUNNING,
+            start_date=timezone.utcnow(),
+            session=session,
         )
         last_dagrun_data_interval = next_info.data_interval
 
@@ -292,7 +295,8 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
 
     # Need a lambda to refer to the _latest_ value for scheduler_job, not just
     # the initial one
-    code_to_test = lambda: run_job(job=job_runner.job, execute_callable=job_runner._execute)
+    def code_to_test():
+        run_job(job=job_runner.job, execute_callable=job_runner._execute)
 
     for count in range(repeat):
         if not count:

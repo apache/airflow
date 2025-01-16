@@ -359,6 +359,13 @@ For selected test types (example - the tests will run for Providers/API/CLI code
 
      breeze testing providers-tests --skip-db-tests --parallel-test-types "Providers[google] Providers[amazon]"
 
+You can also enter interactive shell with ``--skip-db-tests`` flag and run the tests iteratively
+
+  .. code-block:: bash
+
+     breeze shell --skip-db-tests
+     > pytest tests/your_test.py
+
 
 How to make your test not depend on DB
 ......................................

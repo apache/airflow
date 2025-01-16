@@ -21,16 +21,19 @@ from __future__ import annotations
 
 import os
 import sys
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from datetime import datetime, timezone
 from io import FileIO
+from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Generic, TextIO, TypeVar
 
 import attrs
 import structlog
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState, TIRunContext
+from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.execution_time.comms import (
     DeferTask,
@@ -44,12 +47,24 @@ from airflow.sdk.execution_time.comms import (
     ToTask,
     XComResult,
 )
-from airflow.sdk.execution_time.context import ConnectionAccessor
+from airflow.sdk.execution_time.context import (
+    ConnectionAccessor,
+    MacrosAccessor,
+    VariableAccessor,
+    set_current_context,
+)
+from airflow.utils.net import get_hostname
 
 if TYPE_CHECKING:
+    import jinja2
     from structlog.typing import FilteringBoundLogger as Logger
 
+    from airflow.sdk.definitions.context import Context
 
+
+# TODO: Move this entire class into a separate file:
+#  `airflow/sdk/execution_time/task_instance.py`
+#   or `airflow/sdk/execution_time/runtime_ti.py`
 class RuntimeTaskInstance(TaskInstance):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -57,12 +72,15 @@ class RuntimeTaskInstance(TaskInstance):
     _ti_context_from_server: Annotated[TIRunContext | None, Field(repr=False)] = None
     """The Task Instance context from the API server, if any."""
 
-    def get_template_context(self):
+    max_tries: int = 0
+    """The maximum number of retries for the task."""
+
+    def get_template_context(self) -> Context:
         # TODO: Move this to `airflow.sdk.execution_time.context`
         #   once we port the entire context logic from airflow/utils/context.py ?
 
         # TODO: Assess if we need to it through airflow.utils.timezone.coerce_datetime()
-        context: dict[str, Any] = {
+        context: Context = {
             # From the Task Execution interface
             "dag": self.task.dag,
             "inlets": self.task.inlets,
@@ -76,8 +94,9 @@ class RuntimeTaskInstance(TaskInstance):
             "ti": self,
             # "outlet_events": OutletEventAccessors(),
             # "expanded_ti_count": expanded_ti_count,
+            "expanded_ti_count": None,  # TODO: Implement this
             # "inlet_events": InletEventsAccessors(task.inlets, session=session),
-            # "macros": macros,
+            "macros": MacrosAccessor(),
             # "params": validated_params,
             # "prev_data_interval_start_success": get_prev_data_interval_start_success(),
             # "prev_data_interval_end_success": get_prev_data_interval_end_success(),
@@ -85,10 +104,10 @@ class RuntimeTaskInstance(TaskInstance):
             # "prev_end_date_success": get_prev_end_date_success(),
             # "test_mode": task_instance.test_mode,
             # "triggering_asset_events": lazy_object_proxy.Proxy(get_triggering_events),
-            # "var": {
-            #     "json": VariableAccessor(deserialize_json=True),
-            #     "value": VariableAccessor(deserialize_json=False),
-            # },
+            "var": {
+                "json": VariableAccessor(deserialize_json=True),
+                "value": VariableAccessor(deserialize_json=False),
+            },
             "conn": ConnectionAccessor(),
         }
         if self._ti_context_from_server:
@@ -101,7 +120,7 @@ class RuntimeTaskInstance(TaskInstance):
             ts_nodash = logical_date.strftime("%Y%m%dT%H%M%S")
             ts_nodash_with_tz = ts.replace("-", "").replace(":", "")
 
-            context_from_server = {
+            context_from_server: Context = {
                 # TODO: Assess if we need to pass these through timezone.coerce_datetime
                 "dag_run": dag_run,
                 "data_interval_end": dag_run.data_interval_end,
@@ -115,12 +134,48 @@ class RuntimeTaskInstance(TaskInstance):
                 "ts_nodash_with_tz": ts_nodash_with_tz,
             }
             context.update(context_from_server)
+
         # TODO: We should use/move TypeDict from airflow.utils.context.Context
         return context
 
+    def render_templates(
+        self, context: Context | None = None, jinja_env: jinja2.Environment | None = None
+    ) -> BaseOperator:
+        """
+        Render templates in the operator fields.
+
+        If the task was originally mapped, this may replace ``self.task`` with
+        the unmapped, fully rendered BaseOperator. The original ``self.task``
+        before replacement is returned.
+        """
+        if not context:
+            context = self.get_template_context()
+        original_task = self.task
+
+        if TYPE_CHECKING:
+            assert context
+
+        ti = context["ti"]
+
+        if TYPE_CHECKING:
+            assert original_task
+            assert self.task
+            assert ti.task
+
+        # If self.task is mapped, this call replaces self.task to point to the
+        # unmapped BaseOperator created by this function! This is because the
+        # MappedOperator is useless for template rendering, and we need to be
+        # able to access the unmapped task instead.
+        original_task.render_template_fields(context, jinja_env)
+        # TODO: Add support for rendering templates in the MappedOperator
+        # if isinstance(self.task, MappedOperator):
+        #     self.task = context["ti"].task
+
+        return original_task
+
     def xcom_pull(
         self,
-        task_ids: str | Iterable[str] | None = None,  # TODO: Simplify to a single task_id? (breaking change)
+        task_ids: str | Iterable[str] | None = None,
         dag_id: str | None = None,
         key: str = "return_value",  # TODO: Make this a constant (``XCOM_RETURN_KEY``)
         include_prior_dates: bool = False,  # TODO: Add support for this
@@ -168,11 +223,10 @@ class RuntimeTaskInstance(TaskInstance):
             run_id = self.run_id
 
         if task_ids is None:
+            # default to the current task if not provided
             task_ids = self.task_id
-        elif not isinstance(task_ids, str) and isinstance(task_ids, Iterable):
-            # TODO: Handle multiple task_ids or remove support
-            raise NotImplementedError("Multiple task_ids are not supported yet")
-
+        elif isinstance(task_ids, str):
+            task_ids = [task_ids]
         if map_indexes is None:
             map_indexes = self.map_index
         elif isinstance(map_indexes, Iterable):
@@ -180,25 +234,37 @@ class RuntimeTaskInstance(TaskInstance):
             raise NotImplementedError("Multiple map_indexes are not supported yet")
 
         log = structlog.get_logger(logger_name="task")
-        SUPERVISOR_COMMS.send_request(
-            log=log,
-            msg=GetXCom(
-                key=key,
-                dag_id=dag_id,
-                task_id=task_ids,
-                run_id=run_id,
-                map_index=map_indexes,
-            ),
-        )
 
-        msg = SUPERVISOR_COMMS.get_message()
-        if TYPE_CHECKING:
-            assert isinstance(msg, XComResult)
+        xcoms = []
+        for t in task_ids:
+            SUPERVISOR_COMMS.send_request(
+                log=log,
+                msg=GetXCom(
+                    key=key,
+                    dag_id=dag_id,
+                    task_id=t,
+                    run_id=run_id,
+                    map_index=map_indexes,
+                ),
+            )
 
-        value = msg.value
-        if value is not None:
-            return value
-        return default
+            msg = SUPERVISOR_COMMS.get_message()
+            if not isinstance(msg, XComResult):
+                raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
+
+            if msg.value is not None:
+                from airflow.models.xcom import XCom
+
+                # TODO: Move XCom serialization & deserialization to Task SDK
+                #   https://github.com/apache/airflow/issues/45231
+                xcom = XCom.deserialize_value(msg)  # type: ignore[arg-type]
+                xcoms.append(xcom)
+            else:
+                xcoms.append(default)
+
+        if len(xcoms) == 1:
+            return xcoms[0]
+        return xcoms
 
     def xcom_push(self, key: str, value: Any):
         """
@@ -207,6 +273,12 @@ class RuntimeTaskInstance(TaskInstance):
         :param key: Key to store the value under.
         :param value: Value to store. Only be JSON-serializable may be used otherwise.
         """
+        from airflow.models.xcom import XCom
+
+        # TODO: Move XCom serialization & deserialization to Task SDK
+        #   https://github.com/apache/airflow/issues/45231
+        value = XCom.serialize_value(value)
+
         log = structlog.get_logger(logger_name="task")
         SUPERVISOR_COMMS.send_request(
             log=log,
@@ -219,6 +291,12 @@ class RuntimeTaskInstance(TaskInstance):
             ),
         )
 
+    def get_relevant_upstream_map_indexes(
+        self, upstream: BaseOperator, ti_count: int | None, session: Any
+    ) -> int | range | None:
+        # TODO: Implement this method
+        return None
+
 
 def parse(what: StartupDetails) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
@@ -226,8 +304,15 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
 
     from airflow.models.dagbag import DagBag
 
+    bundle_info = what.bundle_info
+    bundle_instance = DagBundlesManager().get_bundle(
+        name=bundle_info.name,
+        version=bundle_info.version,
+    )
+
+    dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
     bag = DagBag(
-        dag_folder=what.file,
+        dag_folder=dag_absolute_path,
         include_examples=False,
         safe_mode=False,
         load_op_links=False,
@@ -248,6 +333,7 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
         **what.ti.model_dump(exclude_unset=True),
         task=task,
         _ti_context_from_server=what.ti_context,
+        max_tries=what.ti_context.max_tries,
     )
 
 
@@ -321,9 +407,9 @@ def startup() -> tuple[RuntimeTaskInstance, Logger]:
         setproctitle(f"airflow worker -- {msg.ti.id}")
 
         log = structlog.get_logger(logger_name="task")
-        # TODO: set the "magic loop" context vars for parsing
-        ti = parse(msg)
-        log.debug("DAG file parsed", file=msg.file)
+        with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
+            ti = parse(msg)
+        log.debug("DAG file parsed", file=msg.dag_rel_path)
     else:
         raise RuntimeError(f"Unhandled  startup message {type(msg)} {msg}")
 
@@ -372,68 +458,143 @@ def run(ti: RuntimeTaskInstance, log: Logger):
     try:
         # TODO: pre execute etc.
         # TODO: Get a real context object
+        ti.hostname = get_hostname()
         ti.task = ti.task.prepare_for_execution()
         context = ti.get_template_context()
+        with set_current_context(context):
+            jinja_env = ti.task.dag.get_template_env()
+            ti.task = ti.render_templates(context=context, jinja_env=jinja_env)
+            result = _execute_task(context, ti.task)
+
+        _push_xcom_if_needed(result, ti)
+
         # TODO: Get things from _execute_task_with_callbacks
         #   - Clearing XCom
-        #   - Setting Current Context (set_current_context)
-        #   - Render Templates
         #   - Update RTIF
         #   - Pre Execute
         #   etc
-        ti.task.execute(context)  # type: ignore[attr-defined]
         msg = TaskState(state=TerminalTIState.SUCCESS, end_date=datetime.now(tz=timezone.utc))
     except TaskDeferred as defer:
+        # TODO: Should we use structlog.bind_contextvars here for dag_id, task_id & run_id?
+        log.info("Pausing task as DEFERRED. ", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
         classpath, trigger_kwargs = defer.trigger.serialize()
         next_method = defer.method_name
-        timeout = defer.timeout
+        defer_timeout = defer.timeout
         msg = DeferTask(
             classpath=classpath,
             trigger_kwargs=trigger_kwargs,
             next_method=next_method,
-            trigger_timeout=timeout,
+            trigger_timeout=defer_timeout,
         )
-    except AirflowSkipException:
+    except AirflowSkipException as e:
+        if e.args:
+            log.info("Skipping task.", reason=e.args[0])
         msg = TaskState(
             state=TerminalTIState.SKIPPED,
             end_date=datetime.now(tz=timezone.utc),
         )
     except AirflowRescheduleException as reschedule:
+        log.info("Rescheduling task, marking task as UP_FOR_RESCHEDULE")
         msg = RescheduleTask(
             reschedule_date=reschedule.reschedule_date, end_date=datetime.now(tz=timezone.utc)
         )
     except (AirflowFailException, AirflowSensorTimeout):
         # If AirflowFailException is raised, task should not retry.
         # If a sensor in reschedule mode reaches timeout, task should not retry.
-
+        log.exception("Task failed with exception")
         # TODO: Handle fail_stop here: https://github.com/apache/airflow/issues/44951
         # TODO: Handle addition to Log table: https://github.com/apache/airflow/issues/44952
+        msg = TaskState(
+            state=TerminalTIState.FAIL_WITHOUT_RETRY,
+            end_date=datetime.now(tz=timezone.utc),
+        )
+        # TODO: Run task failure callbacks here
+    except (AirflowTaskTimeout, AirflowException):
+        # We should allow retries if the task has defined it.
+        log.exception("Task failed with exception")
         msg = TaskState(
             state=TerminalTIState.FAILED,
             end_date=datetime.now(tz=timezone.utc),
         )
-
         # TODO: Run task failure callbacks here
-    except (AirflowTaskTimeout, AirflowException):
-        # TODO: handle the case of up_for_retry here
-        ...
     except AirflowTaskTerminated:
         # External state updates are already handled with `ti_heartbeat` and will be
         # updated already be another UI API. So, these exceptions should ideally never be thrown.
         # If these are thrown, we should mark the TI state as failed.
+        log.exception("Task failed with exception")
+        msg = TaskState(
+            state=TerminalTIState.FAIL_WITHOUT_RETRY,
+            end_date=datetime.now(tz=timezone.utc),
+        )
+        # TODO: Run task failure callbacks here
+    except SystemExit:
+        # SystemExit needs to be retried if they are eligible.
+        log.exception("Task failed with exception")
         msg = TaskState(
             state=TerminalTIState.FAILED,
             end_date=datetime.now(tz=timezone.utc),
         )
         # TODO: Run task failure callbacks here
-    except SystemExit:
-        ...
     except BaseException:
-        # TODO: Handle TI handle failure
-        raise
-
+        log.exception("Task failed with exception")
+        # TODO: Run task failure callbacks here
+        msg = TaskState(state=TerminalTIState.FAILED, end_date=datetime.now(tz=timezone.utc))
     if msg:
         SUPERVISOR_COMMS.send_request(msg=msg, log=log)
+
+
+def _execute_task(context: Context, task: BaseOperator):
+    """Execute Task (optionally with a Timeout) and push Xcom results."""
+    from airflow.exceptions import AirflowTaskTimeout
+
+    if task.execution_timeout:
+        # TODO: handle timeout in case of deferral
+        from airflow.utils.timeout import timeout
+
+        timeout_seconds = task.execution_timeout.total_seconds()
+        try:
+            # It's possible we're already timed out, so fast-fail if true
+            if timeout_seconds <= 0:
+                raise AirflowTaskTimeout()
+            # Run task in timeout wrapper
+            with timeout(timeout_seconds):
+                result = task.execute(context)  # type: ignore[attr-defined]
+        except AirflowTaskTimeout:
+            # TODO: handle on kill callback here
+            raise
+    else:
+        result = task.execute(context)  # type: ignore[attr-defined]
+    return result
+
+
+def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance):
+    """Push XCom values when task has ``do_xcom_push`` set to ``True`` and the task returns a result."""
+    if ti.task.do_xcom_push:
+        xcom_value = result
+    else:
+        xcom_value = None
+
+    # If the task returns a result, push an XCom containing it.
+    if xcom_value is None:
+        return
+
+    # If the task has multiple outputs, push each output as a separate XCom.
+    if ti.task.multiple_outputs:
+        if not isinstance(xcom_value, Mapping):
+            raise TypeError(
+                f"Returned output was type {type(xcom_value)} expected dictionary for multiple_outputs"
+            )
+        for key in xcom_value.keys():
+            if not isinstance(key, str):
+                raise TypeError(
+                    "Returned dictionary keys must be strings when using "
+                    f"multiple_outputs, found {key} ({type(key)}) instead"
+                )
+        for k, v in result.items():
+            ti.xcom_push(k, v)
+
+    # TODO: Use constant for XCom return key & use serialize_value from Task SDK
+    ti.xcom_push("return_value", result)
 
 
 def finalize(log: Logger): ...

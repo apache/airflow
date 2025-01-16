@@ -18,30 +18,42 @@
 from __future__ import annotations
 
 import json
+from unittest import mock
 
 import httpx
 import pytest
 import uuid6
 
 from airflow.sdk.api.client import Client, RemoteValidationError, ServerResponseError
-from airflow.sdk.api.datamodels._generated import VariableResponse, XComResponse
-from airflow.sdk.execution_time.comms import DeferTask, RescheduleTask
+from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse, XComResponse
+from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time.comms import DeferTask, ErrorResponse, RescheduleTask
 from airflow.utils import timezone
 from airflow.utils.state import TerminalTIState
 
 
+def make_client(transport: httpx.MockTransport) -> Client:
+    """Get a client with a custom transport"""
+    return Client(base_url="test://server", token="", transport=transport)
+
+
+def make_client_w_responses(responses: list[httpx.Response]) -> Client:
+    """Helper fixture to create a mock client with custom responses."""
+
+    def handle_request(request: httpx.Request) -> httpx.Response:
+        return responses.pop(0)
+
+    return Client(
+        base_url=None, dry_run=True, token="", mounts={"'http://": httpx.MockTransport(handle_request)}
+    )
+
+
 class TestClient:
     def test_error_parsing(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            """
-            A transport handle that always returns errors
-            """
-
-            return httpx.Response(422, json={"detail": [{"loc": ["#0"], "msg": "err", "type": "required"}]})
-
-        client = Client(
-            base_url=None, dry_run=True, token="", mounts={"'http://": httpx.MockTransport(handle_request)}
-        )
+        responses = [
+            httpx.Response(422, json={"detail": [{"loc": ["#0"], "msg": "err", "type": "required"}]})
+        ]
+        client = make_client_w_responses(responses)
 
         with pytest.raises(ServerResponseError) as err:
             client.get("http://error")
@@ -53,39 +65,92 @@ class TestClient:
         ]
 
     def test_error_parsing_plain_text(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            """
-            A transport handle that always returns errors
-            """
-
-            return httpx.Response(422, content=b"Internal Server Error")
-
-        client = Client(
-            base_url=None, dry_run=True, token="", mounts={"'http://": httpx.MockTransport(handle_request)}
-        )
+        responses = [httpx.Response(422, content=b"Internal Server Error")]
+        client = make_client_w_responses(responses)
 
         with pytest.raises(httpx.HTTPStatusError) as err:
             client.get("http://error")
         assert not isinstance(err.value, ServerResponseError)
 
     def test_error_parsing_other_json(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            # Some other json than an error body.
-            return httpx.Response(404, json={"detail": "Not found"})
-
-        client = Client(
-            base_url=None, dry_run=True, token="", mounts={"'http://": httpx.MockTransport(handle_request)}
-        )
+        responses = [httpx.Response(404, json={"detail": "Not found"})]
+        client = make_client_w_responses(responses)
 
         with pytest.raises(ServerResponseError) as err:
             client.get("http://error")
         assert err.value.args == ("Not found",)
         assert err.value.detail is None
 
+    @mock.patch("time.sleep", return_value=None)
+    def test_retry_handling_unrecoverable_error(self, mock_sleep):
+        responses: list[httpx.Response] = [
+            *[httpx.Response(500, text="Internal Server Error")] * 11,
+            httpx.Response(200, json={"detail": "Recovered from error - but will fail before"}),
+            httpx.Response(400, json={"detail": "Should not get here"}),
+        ]
+        client = make_client_w_responses(responses)
 
-def make_client(transport: httpx.MockTransport) -> Client:
-    """Get a client with a custom transport"""
-    return Client(base_url="test://server", token="", transport=transport)
+        with pytest.raises(httpx.HTTPStatusError) as err:
+            client.get("http://error")
+        assert not isinstance(err.value, ServerResponseError)
+        assert len(responses) == 3
+        assert mock_sleep.call_count == 9
+
+    @mock.patch("time.sleep", return_value=None)
+    def test_retry_handling_recovered(self, mock_sleep):
+        responses: list[httpx.Response] = [
+            *[httpx.Response(500, text="Internal Server Error")] * 3,
+            httpx.Response(200, json={"detail": "Recovered from error"}),
+            httpx.Response(400, json={"detail": "Should not get here"}),
+        ]
+        client = make_client_w_responses(responses)
+
+        response = client.get("http://error")
+        assert response.status_code == 200
+        assert len(responses) == 1
+        assert mock_sleep.call_count == 3
+
+    @mock.patch("time.sleep", return_value=None)
+    def test_retry_handling_overload(self, mock_sleep):
+        responses: list[httpx.Response] = [
+            httpx.Response(429, text="I am really busy atm, please back-off", headers={"Retry-After": "37"}),
+            httpx.Response(200, json={"detail": "Recovered from error"}),
+            httpx.Response(400, json={"detail": "Should not get here"}),
+        ]
+        client = make_client_w_responses(responses)
+
+        response = client.get("http://error")
+        assert response.status_code == 200
+        assert len(responses) == 1
+        assert mock_sleep.call_count == 1
+        assert mock_sleep.call_args[0][0] == 37
+
+    @mock.patch("time.sleep", return_value=None)
+    def test_retry_handling_non_retry_error(self, mock_sleep):
+        responses: list[httpx.Response] = [
+            httpx.Response(422, json={"detail": "Somehow this is a bad request"}),
+            httpx.Response(400, json={"detail": "Should not get here"}),
+        ]
+        client = make_client_w_responses(responses)
+
+        with pytest.raises(ServerResponseError) as err:
+            client.get("http://error")
+        assert len(responses) == 1
+        assert mock_sleep.call_count == 0
+        assert err.value.args == ("Somehow this is a bad request",)
+
+    @mock.patch("time.sleep", return_value=None)
+    def test_retry_handling_ok(self, mock_sleep):
+        responses: list[httpx.Response] = [
+            httpx.Response(200, json={"detail": "Recovered from error"}),
+            httpx.Response(400, json={"detail": "Should not get here"}),
+        ]
+        client = make_client_w_responses(responses)
+
+        response = client.get("http://error")
+        assert response.status_code == 200
+        assert len(responses) == 1
+        assert mock_sleep.call_count == 0
 
 
 class TestTaskInstanceOperations:
@@ -95,7 +160,8 @@ class TestTaskInstanceOperations:
     response parsing.
     """
 
-    def test_task_instance_start(self, make_ti_context):
+    @mock.patch("time.sleep", return_value=None)  # To have retries not slowing down tests
+    def test_task_instance_start(self, mock_sleep, make_ti_context):
         # Simulate a successful response from the server that starts a task
         ti_id = uuid6.uuid7()
         start_date = "2024-10-31T12:00:00Z"
@@ -105,7 +171,14 @@ class TestTaskInstanceOperations:
             run_type="manual",
         )
 
+        # ...including a validation that retry really works
+        call_count = 0
+
         def handle_request(request: httpx.Request) -> httpx.Response:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 4:
+                return httpx.Response(status_code=500, json={"detail": "Internal Server Error"})
             if request.url.path == f"/task-instances/{ti_id}/run":
                 actual_body = json.loads(request.read())
                 assert actual_body["pid"] == 100
@@ -120,6 +193,7 @@ class TestTaskInstanceOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         resp = client.task_instances.start(ti_id, 100, start_date)
         assert resp == ti_context
+        assert call_count == 4
 
     @pytest.mark.parametrize("state", [state for state in TerminalTIState])
     def test_task_instance_finish(self, state):
@@ -245,9 +319,17 @@ class TestVariableOperations:
     response parsing.
     """
 
-    def test_variable_get_success(self):
+    @mock.patch("time.sleep", return_value=None)  # To have retries not slowing down tests
+    def test_variable_get_success(self, mock_sleep):
         # Simulate a successful response from the server with a variable
+        # ...including a validation that retry really works
+        call_count = 0
+
         def handle_request(request: httpx.Request) -> httpx.Response:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                return httpx.Response(status_code=500, json={"detail": "Internal Server Error"})
             if request.url.path == "/variables/test_key":
                 return httpx.Response(
                     status_code=200,
@@ -261,6 +343,7 @@ class TestVariableOperations:
         assert isinstance(result, VariableResponse)
         assert result.key == "test_key"
         assert result.value == "test_value"
+        assert call_count == 2
 
     def test_variable_not_found(self):
         # Simulate a 404 response from the server
@@ -279,16 +362,32 @@ class TestVariableOperations:
 
         client = make_client(transport=httpx.MockTransport(handle_request))
 
-        with pytest.raises(ServerResponseError) as err:
-            client.variables.get(key="non_existent_var")
+        resp = client.variables.get(key="non_existent_var")
 
-        assert err.value.response.status_code == 404
-        assert err.value.detail == {
-            "detail": {
-                "message": "Variable with key 'non_existent_var' not found",
-                "reason": "not_found",
-            }
-        }
+        assert isinstance(resp, ErrorResponse)
+        assert resp.error == ErrorType.VARIABLE_NOT_FOUND
+        assert resp.detail == {"key": "non_existent_var"}
+
+    @mock.patch("time.sleep", return_value=None)
+    def test_variable_get_500_error(self, mock_sleep):
+        # Simulate a response from the server returning a 500 error
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/variables/test_key":
+                return httpx.Response(
+                    status_code=500,
+                    headers=[("content-Type", "application/json")],
+                    json={
+                        "reason": "internal_server_error",
+                        "message": "Internal Server Error",
+                    },
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        with pytest.raises(ServerResponseError):
+            client.variables.get(
+                key="test_key",
+            )
 
     def test_variable_set_success(self):
         # Simulate a successful response from the server when putting a variable
@@ -323,9 +422,17 @@ class TestXCOMOperations:
             pytest.param({"key": "test_key", "value": {"key2": "value2"}}, id="nested-dict-value"),
         ],
     )
-    def test_xcom_get_success(self, value):
+    @mock.patch("time.sleep", return_value=None)  # To have retries not slowing down tests
+    def test_xcom_get_success(self, mock_sleep, value):
         # Simulate a successful response from the server when getting an xcom
+        # ...including a validation that retry really works
+        call_count = 0
+
         def handle_request(request: httpx.Request) -> httpx.Response:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                return httpx.Response(status_code=500, json={"detail": "Internal Server Error"})
             if request.url.path == "/xcoms/dag_id/run_id/task_id/key":
                 return httpx.Response(
                     status_code=201,
@@ -343,6 +450,7 @@ class TestXCOMOperations:
         assert isinstance(result, XComResponse)
         assert result.key == "test_key"
         assert result.value == value
+        assert call_count == 3
 
     def test_xcom_get_success_with_map_index(self):
         # Simulate a successful response from the server when getting an xcom with map_index passed
@@ -368,6 +476,30 @@ class TestXCOMOperations:
         assert isinstance(result, XComResponse)
         assert result.key == "test_key"
         assert result.value == "test_value"
+
+    @mock.patch("time.sleep", return_value=None)
+    def test_xcom_get_500_error(self, mock_sleep):
+        # Simulate a successful response from the server returning a 500 error
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/xcoms/dag_id/run_id/task_id/key":
+                return httpx.Response(
+                    status_code=500,
+                    headers=[("content-Type", "application/json")],
+                    json={
+                        "reason": "invalid_format",
+                        "message": "XCom value is not a valid JSON",
+                    },
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        with pytest.raises(ServerResponseError):
+            client.xcoms.get(
+                dag_id="dag_id",
+                run_id="run_id",
+                task_id="task_id",
+                key="key",
+            )
 
     @pytest.mark.parametrize(
         "values",
@@ -423,3 +555,50 @@ class TestXCOMOperations:
             map_index=2,
         )
         assert result == {"ok": True}
+
+
+class TestConnectionOperations:
+    """
+    Test that the TestConnectionOperations class works as expected. While the operations are simple, it
+    still catches the basic functionality of the client for connections including endpoint and
+    response parsing.
+    """
+
+    def test_connection_get_success(self):
+        # Simulate a successful response from the server with a connection
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/connections/test_conn":
+                return httpx.Response(
+                    status_code=200,
+                    json={
+                        "conn_id": "test_conn",
+                        "conn_type": "mysql",
+                    },
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.connections.get(conn_id="test_conn")
+
+        assert isinstance(result, ConnectionResponse)
+        assert result.conn_id == "test_conn"
+        assert result.conn_type == "mysql"
+
+    def test_connection_get_404_not_found(self):
+        # Simulate a successful response from the server with a connection
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/connections/test_conn":
+                return httpx.Response(
+                    status_code=404,
+                    json={
+                        "reason": "not_found",
+                        "message": "Connection with ID test_conn not found",
+                    },
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.connections.get(conn_id="test_conn")
+
+        assert isinstance(result, ErrorResponse)
+        assert result.error == ErrorType.CONNECTION_NOT_FOUND

@@ -18,26 +18,24 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections.abc import Container, Sequence
-from functools import cached_property
-from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
-from flask_appbuilder.menu import MenuItem
 from sqlalchemy import select
 
 from airflow.auth.managers.models.base_user import BaseUser
-from airflow.auth.managers.models.resource_details import (
-    DagDetails,
-)
+from airflow.auth.managers.models.resource_details import DagDetails
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
-from airflow.security.permissions import ACTION_CAN_ACCESS_MENU
+from airflow.typing_compat import Literal
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from collections.abc import Container, Sequence
+
     from fastapi import FastAPI
     from flask import Blueprint
+    from flask_appbuilder.menu import MenuItem
     from sqlalchemy.orm import Session
 
     from airflow.auth.managers.models.batch_apis import (
@@ -56,8 +54,9 @@ if TYPE_CHECKING:
         VariableDetails,
     )
     from airflow.cli.cli_config import CLICommand
-    from airflow.www.security_manager import AirflowSecurityManagerV2
 
+# This cannot be in the TYPE_CHECKING block since some providers import it globally.
+# TODO: Move this inside once all providers drop Airflow 2.x support.
 ResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
 
 T = TypeVar("T", bound=BaseUser)
@@ -263,6 +262,14 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
 
+    @abstractmethod
+    def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
+        """
+        Filter menu items based on user permissions.
+
+        :param menu_items: list of all menu items
+        """
+
     def batch_is_authorized_connection(
         self,
         requests: Sequence[IsAuthorizedConnectionRequest],
@@ -394,47 +401,6 @@ class BaseAuthManager(Generic[T], LoggingMixin):
             for dag_id in dag_ids
             if _is_permitted_dag_id("GET", methods, dag_id) or _is_permitted_dag_id("PUT", methods, dag_id)
         }
-
-    def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
-        """
-        Filter menu items based on user permissions.
-
-        :param menu_items: list of all menu items
-        """
-        items = filter(
-            lambda item: self.security_manager.has_access(ACTION_CAN_ACCESS_MENU, item.name), menu_items
-        )
-        accessible_items = []
-        for menu_item in items:
-            menu_item_copy = MenuItem(
-                **{
-                    **menu_item.__dict__,
-                    "childs": [],
-                }
-            )
-            if menu_item.childs:
-                accessible_children = []
-                for child in menu_item.childs:
-                    if self.security_manager.has_access(ACTION_CAN_ACCESS_MENU, child.name):
-                        accessible_children.append(child)
-                menu_item_copy.childs = accessible_children
-            accessible_items.append(menu_item_copy)
-        return accessible_items
-
-    @cached_property
-    def security_manager(self) -> AirflowSecurityManagerV2:
-        """
-        Return the security manager.
-
-        By default, Airflow comes with the default security manager
-        ``airflow.www.security_manager.AirflowSecurityManagerV2``. The auth manager might need to extend this
-        default security manager for its own purposes.
-
-        By default, return the default AirflowSecurityManagerV2.
-        """
-        from airflow.www.security_manager import AirflowSecurityManagerV2
-
-        return AirflowSecurityManagerV2(getattr(self, "appbuilder"))
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:

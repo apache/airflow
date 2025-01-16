@@ -233,22 +233,29 @@ def validate_cmd_result(cmd_result, include_ci_env_check=False):
     sys.exit(cmd_result.returncode)
 
 
-def get_provider_from_path(file_path: Path) -> str | None:
+def get_provider_id_from_path(file_path: Path) -> str | None:
     """
-    Get the provider name from the path of the file it belongs to.
+    Get the provider id from the path of the file it belongs to.
     """
     for parent in file_path.parents:
+        # This works fine for both new and old providers structure - because we moved provider.yaml to
+        # the top-level of the provider and this code finding "providers"  will find the "providers" package
+        # in old structure and "providers" directory in new structure - in both cases we can determine
+        # the provider id from the relative folders
         if (parent / "provider.yaml").exists():
-            for providers_candidate in parent.parents:
-                if providers_candidate.name == "providers":
-                    return parent.relative_to(providers_candidate).as_posix().replace("/", ".")
+            for providers_root_candidate in parent.parents:
+                if providers_root_candidate.name == "providers":
+                    return parent.relative_to(providers_root_candidate).as_posix().replace("/", ".")
             else:
                 return None
     return None
 
 
-def get_provider_dir(provider_id: str) -> Path:
+def get_provider_base_dir_from_path(file_path: Path) -> Path | None:
     """
-    Get the provider directory from the provider =id.
+    Get the provider base dir (where provider.yaml is) from the path of the file it belongs to.
     """
-    return Path("providers") / "src" / "airflow" / "providers" / provider_id.replace(".", os.sep)
+    for parent in file_path.parents:
+        if (parent / "provider.yaml").exists():
+            return parent
+    return None

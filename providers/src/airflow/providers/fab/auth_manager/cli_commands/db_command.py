@@ -38,9 +38,7 @@ def migratedb(args):
     """Migrates the metadata database."""
     session = settings.Session()
     upgrade_command = FABDBManager(session).upgradedb
-    run_db_migrate_command(
-        args, upgrade_command, revision_heads_map=_REVISION_HEADS_MAP, reserialize_dags=False
-    )
+    run_db_migrate_command(args, upgrade_command, revision_heads_map=_REVISION_HEADS_MAP)
 
 
 @cli_utils.action_cli(check_db=False)

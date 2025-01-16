@@ -25,17 +25,17 @@ from os.path import isabs
 from typing import TYPE_CHECKING
 
 from flask import Flask
+from sqlalchemy.engine import make_url
 
 import airflow
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
-from airflow.www.app import make_url
-from airflow.www.extensions.init_appbuilder import init_appbuilder
-from airflow.www.extensions.init_session import init_airflow_session_interface
-from airflow.www.extensions.init_views import init_plugins
+from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
+from airflow.providers.fab.www.extensions.init_session import init_airflow_session_interface
+from airflow.providers.fab.www.extensions.init_views import init_plugins
 
 if TYPE_CHECKING:
-    from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
+    from airflow.providers.fab.www.extensions.init_appbuilder import AirflowAppBuilder
 
 
 @cache
