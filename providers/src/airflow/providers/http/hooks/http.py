@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import urlparse
 

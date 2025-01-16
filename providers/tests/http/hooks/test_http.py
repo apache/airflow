@@ -656,7 +656,8 @@ class TestHttpAsyncHook:
                         await hook.run(session=session, endpoint="v1/test")
                         headers = mocked_function.call_args.kwargs.get("headers")
                         assert all(
-                            key in headers and headers[key] == value for key, value in connection_extra.items()
+                            key in headers and headers[key] == value
+                            for key, value in connection_extra.items()
                         )
 
     @pytest.mark.asyncio
@@ -694,7 +695,8 @@ class TestHttpAsyncHook:
                         await hook.run(session=session, endpoint="v1/test")
                         headers = mocked_function.call_args.kwargs.get("headers")
                         assert all(
-                            key in headers and headers[key] == value for key, value in connection_extra.items()
+                            key in headers and headers[key] == value
+                            for key, value in connection_extra.items()
                         )
                         assert mocked_function.call_args.kwargs.get("proxy") == proxy
                         assert mocked_function.call_args.kwargs.get("timeout") == 60
@@ -760,11 +762,14 @@ class TestHttpAsyncHook:
         hook = HttpAsyncHook()
 
         with aioresponses() as m:
-            m.post("http://test.com:8080/v1/test", status=200, payload='{"status":{"status": 200}}', reason="OK")
+            m.post(
+                "http://test.com:8080/v1/test", status=200, payload='{"status":{"status": 200}}', reason="OK"
+            )
 
-            with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_empty_conn), mock.patch(
-                "aiohttp.ClientSession.post", new_callable=mock.AsyncMock
-            ) as mocked_function:
+            with (
+                mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_empty_conn),
+                mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_function,
+            ):
                 async with aiohttp.ClientSession() as session:
                     await hook.run(session=session, endpoint="test.com:8080/v1/test")
                     assert mocked_function.call_args.args[0] == "http://test.com:8080/v1/test"

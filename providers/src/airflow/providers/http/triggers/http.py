@@ -16,13 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-import aiohttp
 import asyncio
 import base64
 import pickle
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING, Any
 
+import aiohttp
 import requests
 from requests.cookies import RequestsCookieJar
 from requests.structures import CaseInsensitiveDict
