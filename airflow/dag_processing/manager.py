@@ -653,6 +653,10 @@ class DagFileProcessorManager:
         self.log.info("Refreshing DAG bundles")
 
         for bundle in self._dag_bundles:
+            # TODO: AIP-66 handle errors in the case of incomplete cloning? And test this.
+            #  What if the cloning/refreshing took too long(longer than the dag processor timeout)
+            if not bundle.is_initialized:
+                bundle.initialize()
             # TODO: AIP-66 test to make sure we get a fresh record from the db and it's not cached
             with create_session() as session:
                 bundle_model = session.get(DagBundleModel, bundle.name)
