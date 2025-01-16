@@ -614,6 +614,9 @@ class EksHook(AwsBaseHook):
     def fetch_access_token_for_cluster(self, eks_cluster_name: str) -> str:
         session = self.get_session()
         service_id = self.conn.meta.service_model.service_id
+        # This env variable is required so that we get a regionalized endpoint for STS in regions that
+        # otherwise default to global endpoints. The mechanism below to generate the token is very picky that
+        # the endpoint is regional.
         os.environ["AWS_STS_REGIONAL_ENDPOINTS"] = "regional"
         try:
             sts_url = f"{StsHook(region_name=session.region_name).conn_client_meta.endpoint_url}/?Action=GetCallerIdentity&Version=2011-06-15"
