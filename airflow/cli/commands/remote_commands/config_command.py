@@ -245,6 +245,9 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("webserver", "allow_raw_html_descriptions"),
     ),
     ConfigChange(
+        config=ConfigParameter("webserver", "cookie_samesite"),
+    ),
+    ConfigChange(
         config=ConfigParameter("webserver", "update_fab_perms"),
         renamed_to=ConfigParameter("fab", "update_fab_perms"),
     ),
