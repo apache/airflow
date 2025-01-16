@@ -254,7 +254,9 @@ def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
     """
     if isinstance(var, Asset):
 
-        def _encode_trigger(trigger: BaseTrigger):
+        def _encode_trigger(trigger: BaseTrigger | dict):
+            if isinstance(trigger, dict):
+                return trigger
             classpath, kwargs = trigger.serialize()
             return {
                 "classpath": classpath,
@@ -270,7 +272,7 @@ def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
         }
 
         if len(var.watchers) > 0:
-            asset["watchers"] = [_encode_trigger(cast(BaseTrigger, trigger)) for trigger in var.watchers]
+            asset["watchers"] = [_encode_trigger(trigger) for trigger in var.watchers]
 
         return asset
     if isinstance(var, AssetAlias):
