@@ -8699,11 +8699,6 @@ components:
         source:
           type: string
           title: Source
-        ti_deps:
-          items:
-            type: string
-          type: array
-          title: Ti Deps
         listeners:
           items:
             type: string
@@ -8725,7 +8720,6 @@ components:
       - global_operator_extra_links
       - operator_extra_links
       - source
-      - ti_deps
       - listeners
       - timetables
       title: PluginResponse
