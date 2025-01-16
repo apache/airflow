@@ -241,21 +241,36 @@ def _update_dag_warnings(
         session.merge(warning_to_add)
 
 
-def _update_import_errors(files_parsed: set[str], import_errors: dict[str, str], session: Session):
+def _update_import_errors(
+    files_parsed: set[str], bundle_name: str, import_errors: dict[str, str], session: Session
+):
     from airflow.listeners.listener import get_listener_manager
 
     # We can remove anything from files parsed in this batch that doesn't have an error. We need to remove old
     # errors (i.e. from files that are removed) separately
 
-    session.execute(delete(ParseImportError).where(ParseImportError.filename.in_(list(files_parsed))))
+    session.execute(
+        delete(ParseImportError).where(
+            ParseImportError.filename.in_(list(files_parsed)), ParseImportError.bundle_name == bundle_name
+        )
+    )
 
-    existing_import_error_files = set(session.scalars(select(ParseImportError.filename)))
+    existing_import_error_files = set(
+        session.execute(select(ParseImportError.filename, ParseImportError.bundle_name))
+    )
 
     # Add the errors of the processed files
     for filename, stacktrace in import_errors.items():
-        if filename in existing_import_error_files:
-            session.query(ParseImportError).where(ParseImportError.filename == filename).update(
-                {"filename": filename, "timestamp": utcnow(), "stacktrace": stacktrace},
+        if (filename, bundle_name) in existing_import_error_files:
+            session.query(ParseImportError).where(
+                ParseImportError.filename == filename, ParseImportError.bundle_name == bundle_name
+            ).update(
+                {
+                    "filename": filename,
+                    "bundle_name": bundle_name,
+                    "timestamp": utcnow(),
+                    "stacktrace": stacktrace,
+                },
             )
             # sending notification when an existing dag import error occurs
             get_listener_manager().hook.on_existing_dag_import_error(filename=filename, stacktrace=stacktrace)
@@ -263,13 +278,16 @@ def _update_import_errors(files_parsed: set[str], import_errors: dict[str, str],
             session.add(
                 ParseImportError(
                     filename=filename,
+                    bundle_name=bundle_name,
                     timestamp=utcnow(),
                     stacktrace=stacktrace,
                 )
             )
             # sending notification when a new dag import error occurs
             get_listener_manager().hook.on_new_dag_import_error(filename=filename, stacktrace=stacktrace)
-        session.query(DagModel).filter(DagModel.fileloc == filename).update({"has_import_errors": True})
+        session.query(DagModel).filter(
+            DagModel.fileloc == filename, DagModel.bundle_name == bundle_name
+        ).update({"has_import_errors": True})
 
 
 def update_dag_parsing_results_in_db(
@@ -314,7 +332,6 @@ def update_dag_parsing_results_in_db(
             try:
                 DAG.bulk_write_to_db(bundle_name, bundle_version, dags, session=session)
                 # Write Serialized DAGs to DB, capturing errors
-                # Write Serialized DAGs to DB, capturing errors
                 for dag in dags:
                     serialize_errors.extend(_serialize_dag_capturing_errors(dag, session))
             except OperationalError:
@@ -332,6 +349,7 @@ def update_dag_parsing_results_in_db(
         good_dag_filelocs = {dag.fileloc for dag in dags if dag.fileloc not in import_errors}
         _update_import_errors(
             files_parsed=good_dag_filelocs,
+            bundle_name=bundle_name,
             import_errors=import_errors,
             session=session,
         )
@@ -407,10 +425,8 @@ class DagModelOperation(NamedTuple):
                 dm._dag_display_property_value = dag.dag_display_name
             dm.description = dag.description
 
-            # These "is not None" checks are because with a LazySerializedDag object where the user hasn't
-            # specified an explicit value, we don't get the default values from the config in the lazy
-            # serialized ver
-            # we just
+            # These "is not None" checks are because a LazySerializedDag object does not
+            # provide the default value if the user doesn't provide an explicit value.
             if dag.max_active_tasks is not None:
                 dm.max_active_tasks = dag.max_active_tasks
             elif dag.max_active_tasks is None and dm.max_active_tasks is None:

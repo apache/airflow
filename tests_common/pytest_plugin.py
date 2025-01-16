@@ -832,7 +832,10 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 return
 
             dag.clear(session=self.session)
-            dag.sync_to_db(session=self.session)
+            if AIRFLOW_V_3_0_PLUS:
+                dag.bulk_write_to_db(self.bundle_name, None, [dag], session=self.session)
+            else:
+                dag.sync_to_db(session=self.session)
 
             if dag.access_control:
                 from airflow.www.security_appless import ApplessAirflowSecurityManager
@@ -951,13 +954,10 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 self.dagbag.sync_to_db()
                 return
 
-            from airflow.models.dagbundle import DagBundleModel
-
-            if self.session.query(DagBundleModel).filter(DagBundleModel.name == "dag_maker").count() == 0:
-                self.session.add(DagBundleModel(name="dag_maker"))
-                self.session.commit()
-
-            self.dagbag.sync_to_db("dag_maker", None)
+            self.dagbag.sync_to_db(
+                self.bundle_name,
+                None,
+            )
 
         def __call__(
             self,
@@ -966,6 +966,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             serialized=want_serialized,
             activate_assets=want_activate_assets,
             fileloc=None,
+            bundle_name=None,
             session=None,
             **kwargs,
         ):
@@ -997,6 +998,16 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             self.dag.fileloc = fileloc or request.module.__file__
             self.want_serialized = serialized
             self.want_activate_assets = activate_assets
+            self.bundle_name = bundle_name or "dag_maker"
+            if AIRFLOW_V_3_0_PLUS:
+                from airflow.models.dagbundle import DagBundleModel
+
+                if (
+                    self.session.query(DagBundleModel).filter(DagBundleModel.name == self.bundle_name).count()
+                    == 0
+                ):
+                    self.session.add(DagBundleModel(name=self.bundle_name))
+                    self.session.commit()
 
             return self
 
