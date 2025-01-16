@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-16T02:17:47.843886
+# This constraints file was automatically generated on 2025-01-16T07:50:49.921905
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -441,7 +441,7 @@ pure_eval==0.2.3
 py-partiql-parser==0.6.1
 py4j==0.10.9.7
 pyOpenSSL==24.3.0
-pyarrow==18.1.0
+pyarrow==19.0.0
 pyasn1==0.6.1
 pyasn1_modules==0.4.0
 pycountry==24.6.1
