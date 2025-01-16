@@ -52,6 +52,12 @@ class EdgeWorkerState(str, Enum):
     """Edge Worker was shut down."""
     UNKNOWN = "unknown"
     """No heartbeat signal from worker for some time, Edge Worker probably down."""
+    MAINTENANCE_REQUESTED = "maintenance mode requested"
+    """Maintenance mode was requested by user."""
+    MAINTENANCE_PENDING = "maintenance mode pending"
+    """Edge worerker recieved the request for maintenance, waiting for jobs to finish."""
+    MAINTENANCE_MODE = "maintenance mode"
+    """Edge worker is in maintenance mode."""
 
 
 class EdgeWorkerModel(Base, LoggingMixin):
@@ -114,6 +120,10 @@ class EdgeWorkerModel(Base, LoggingMixin):
             if queue_name in queues:
                 queues.remove(queue_name)
         self.queues = queues
+    
+    def update_state(self, state: EdgeWorkerState) -> None:
+        """Updates state field."""
+        self.state = state
 
 
 def set_metrics(
