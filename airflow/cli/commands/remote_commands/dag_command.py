@@ -37,9 +37,9 @@ from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.cli import get_dag, process_subdir, suppress_logs_and_warning
-from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.helpers import ask_yesno
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded

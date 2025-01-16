@@ -20,7 +20,7 @@ from datetime import datetime
 
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
-from airflow.utils.dag_parsing_context import get_parsing_context
+from airflow.sdk.definitions.context import get_parsing_context
 
 DAG_ID = "test_dag_parsing_context"
 

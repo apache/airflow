@@ -17,7 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypedDict
+import os
+from typing import TYPE_CHECKING, Any, NamedTuple, TypedDict
 
 if TYPE_CHECKING:
     # TODO: Should we use pendulum.DateTime instead of datetime like AF 2.x?
@@ -105,3 +106,27 @@ def get_current_context() -> Context:
     from airflow.sdk.definitions._internal.contextmanager import _get_current_context
 
     return _get_current_context()
+
+
+class AirflowParsingContext(NamedTuple):
+    """
+    Context of parsing for the DAG.
+
+    If these values are not None, they will contain the specific DAG and Task ID that Airflow is requesting to
+    execute. You can use these for optimizing dynamically generated DAG files.
+    """
+
+    dag_id: str | None
+    task_id: str | None
+
+
+_AIRFLOW_PARSING_CONTEXT_DAG_ID = "_AIRFLOW_PARSING_CONTEXT_DAG_ID"
+_AIRFLOW_PARSING_CONTEXT_TASK_ID = "_AIRFLOW_PARSING_CONTEXT_TASK_ID"
+
+
+def get_parsing_context() -> AirflowParsingContext:
+    """Return the current (DAG) parsing context info."""
+    return AirflowParsingContext(
+        dag_id=os.environ.get(_AIRFLOW_PARSING_CONTEXT_DAG_ID),
+        task_id=os.environ.get(_AIRFLOW_PARSING_CONTEXT_TASK_ID),
+    )
