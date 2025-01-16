@@ -257,7 +257,7 @@ with DAG(
             },
             "environment_key": "default_environment",
         },
-        databricks_environments=environments,
+        environments=environments,
     )
     # [END howto_operator_databricks_task_python]
 

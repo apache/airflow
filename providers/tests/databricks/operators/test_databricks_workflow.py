@@ -89,7 +89,7 @@ def test_create_workflow_json(mock_databricks_hook, context, mock_task_group):
     operator = _CreateDatabricksWorkflowOperator(
         task_id="test_task",
         databricks_conn_id="databricks_default",
-        databricks_environments=environments,
+        environments=environments,
     )
     operator.task_group = mock_task_group
 
@@ -227,7 +227,7 @@ def test_task_group_exit_creates_operator(mock_databricks_workflow_operator):
         task_group=task_group,
         task_id="launch",
         databricks_conn_id="databricks_conn",
-        databricks_environments=[],
+        environments=[],
         existing_clusters=[],
         extra_job_params={},
         job_clusters=[],

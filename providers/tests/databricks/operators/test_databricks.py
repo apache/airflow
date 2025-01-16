@@ -315,7 +315,7 @@ class TestDatabricksCreateJobsOperator:
             max_concurrent_runs=MAX_CONCURRENT_RUNS,
             git_source=GIT_SOURCE,
             access_control_list=ACCESS_CONTROL_LIST,
-            databricks_environments=ENVIRONMENTS,
+            environments=ENVIRONMENTS,
         )
         expected = utils.normalise_json_content(
             {
@@ -422,7 +422,7 @@ class TestDatabricksCreateJobsOperator:
             max_concurrent_runs=override_max_concurrent_runs,
             git_source=override_git_source,
             access_control_list=override_access_control_list,
-            databricks_environments=override_environments,
+            environments=override_environments,
         )
 
         expected = utils.normalise_json_content(
@@ -719,7 +719,7 @@ class TestDatabricksSubmitRunOperator:
         op = DatabricksSubmitRunOperator(
             task_id=TASK_ID,
             json=json,
-            databricks_environments=ENVIRONMENTS,
+            environments=ENVIRONMENTS,
         )
         expected = utils.normalise_json_content(
             {
@@ -2410,7 +2410,7 @@ class TestDatabricksTaskOperator:
             task_id="test_task",
             databricks_conn_id="test_conn_id",
             task_config=task_config,
-            databricks_environments=ENVIRONMENTS,
+            environments=ENVIRONMENTS,
         )
         task_base_json = operator._get_task_base_json()
 

@@ -292,7 +292,7 @@ class DatabricksCreateJobsOperator(BaseOperator):
     :param databricks_retry_delay: Number of seconds to wait between retries (it
             might be a floating point number).
     :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
-    :param databricks_environments: An optional list of task execution environment specifications
+    :param environments: An optional list of task execution environment specifications
         that can be referenced by serverless tasks of this job.
 
     """
@@ -325,7 +325,7 @@ class DatabricksCreateJobsOperator(BaseOperator):
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
         databricks_retry_args: dict[Any, Any] | None = None,
-        databricks_environments: list[dict] | None = None,
+        environments: list[dict] | None = None,
         **kwargs,
     ) -> None:
         """Create a new ``DatabricksCreateJobsOperator``."""
@@ -362,8 +362,8 @@ class DatabricksCreateJobsOperator(BaseOperator):
             self.json["git_source"] = git_source
         if access_control_list is not None:
             self.json["access_control_list"] = access_control_list
-        if databricks_environments is not None:
-            self.json["environments"] = databricks_environments
+        if environments is not None:
+            self.json["environments"] = environments
         if self.json:
             self.json = normalise_json_content(self.json)
 
@@ -507,7 +507,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
     :param git_source: Optional specification of a remote git repository from which
         supported task types are retrieved.
     :param deferrable: Run operator in the deferrable mode.
-    :param databricks_environments: An optional list of task execution environment specifications
+    :param environments: An optional list of task execution environment specifications
         that can be referenced by serverless tasks of this job.
 
         .. seealso::
@@ -549,7 +549,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         wait_for_termination: bool = True,
         git_source: dict[str, str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        databricks_environments: list[dict] | None = None,
+        environments: list[dict] | None = None,
         **kwargs,
     ) -> None:
         """Create a new ``DatabricksSubmitRunOperator``."""
@@ -594,8 +594,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
             self.json["access_control_list"] = access_control_list
         if git_source is not None:
             self.json["git_source"] = git_source
-        if databricks_environments is not None:
-            self.json["environments"] = databricks_environments
+        if environments is not None:
+            self.json["environments"] = environments
 
         if "dbt_task" in self.json and "git_source" not in self.json:
             raise AirflowException("git_source is required for dbt_task")
@@ -990,7 +990,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
     :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
     :param workflow_run_metadata: Metadata for the workflow run. This is used when the operator is used within
         a workflow. It is expected to be a dictionary containing the run_id and conn_id for the workflow.
-    :param databricks_environments: An optional list of task execution environment specifications
+    :param environments: An optional list of task execution environment specifications
         that can be referenced by serverless tasks of this job.
     """
 
@@ -1008,7 +1008,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         polling_period_seconds: int = 5,
         wait_for_termination: bool = True,
         workflow_run_metadata: dict[str, Any] | None = None,
-        databricks_environments: list[dict] | None = None,
+        environments: list[dict] | None = None,
         **kwargs: Any,
     ):
         self.caller = caller
@@ -1023,7 +1023,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         self.polling_period_seconds = polling_period_seconds
         self.wait_for_termination = wait_for_termination
         self.workflow_run_metadata = workflow_run_metadata
-        self.databricks_environments = databricks_environments
+        self.environments = environments
         self.databricks_run_id: int | None = None
 
         super().__init__(**kwargs)
@@ -1099,10 +1099,10 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             run_json["new_cluster"] = self.new_cluster
         elif self.existing_cluster_id:
             run_json["existing_cluster_id"] = self.existing_cluster_id
+        elif self.environments:
+            run_json["environments"] = self.environments
         else:
-            self.log.info("The task %s will be executed in serverless mode", run_json["run_name"])
-        if self.databricks_environments:
-            run_json["environments"] = self.databricks_environments
+            raise ValueError("Must specify either existing_cluster_id, new_cluster or environments.")
         return run_json
 
     def _launch_job(self, context: Context | None = None) -> int:
@@ -1387,28 +1387,28 @@ class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
 
 class DatabricksTaskOperator(DatabricksTaskBaseOperator):
     """
-        Runs a task on Databricks using an Airflow operator.
+    Runs a task on Databricks using an Airflow operator.
 
-        The DatabricksTaskOperator allows users to launch and monitor task job runs on Databricks as Airflow
-        tasks. It can be used as a part of a DatabricksWorkflowTaskGroup to take advantage of job clusters, which
-        allows users to run their tasks on cheaper clusters that can be shared between tasks.
+    The DatabricksTaskOperator allows users to launch and monitor task job runs on Databricks as Airflow
+    tasks. It can be used as a part of a DatabricksWorkflowTaskGroup to take advantage of job clusters, which
+    allows users to run their tasks on cheaper clusters that can be shared between tasks.
 
-        .. seealso::
-            For more information on how to use this operator, take a look at the guide:
-            :ref:`howto/operator:DatabricksTaskOperator`
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DatabricksTaskOperator`
 
-        :param task_config: The configuration of the task to be run on Databricks.
-        :param databricks_conn_id: The name of the Airflow connection to use.
-        :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
-        :param databricks_retry_delay: Number of seconds to wait between retries.
-        :param databricks_retry_limit: Amount of times to retry if the Databricks backend is unreachable.
-        :param deferrable: Whether to run the operator in the deferrable mode.
-        :param existing_cluster_id: ID for existing cluster on which to run this task.
-        :param job_cluster_key: The key for the job cluster.
-        :param new_cluster: Specs for a new cluster on which this task will be run.
-        :param polling_period_seconds: Controls the rate which we poll for the result of this notebook job run.
-        :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
-        :param databricks_environments: An optional list of task execution environment specifications
+    :param task_config: The configuration of the task to be run on Databricks.
+    :param databricks_conn_id: The name of the Airflow connection to use.
+    :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
+    :param databricks_retry_delay: Number of seconds to wait between retries.
+    :param databricks_retry_limit: Amount of times to retry if the Databricks backend is unreachable.
+    :param deferrable: Whether to run the operator in the deferrable mode.
+    :param existing_cluster_id: ID for existing cluster on which to run this task.
+    :param job_cluster_key: The key for the job cluster.
+    :param new_cluster: Specs for a new cluster on which this task will be run.
+    :param polling_period_seconds: Controls the rate which we poll for the result of this notebook job run.
+    :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
+    :param environments: An optional list of task execution environment specifications
     that can be referenced by serverless tasks of this job
     """
 
@@ -1429,7 +1429,7 @@ class DatabricksTaskOperator(DatabricksTaskBaseOperator):
         polling_period_seconds: int = 5,
         wait_for_termination: bool = True,
         workflow_run_metadata: dict | None = None,
-        databricks_environments: list[dict] | None = None,
+        environments: list[dict] | None = None,
         **kwargs,
     ):
         self.task_config = task_config
@@ -1447,7 +1447,7 @@ class DatabricksTaskOperator(DatabricksTaskBaseOperator):
             polling_period_seconds=polling_period_seconds,
             wait_for_termination=wait_for_termination,
             workflow_run_metadata=workflow_run_metadata,
-            databricks_environments=databricks_environments,
+            environments=environments,
             **kwargs,
         )
 
