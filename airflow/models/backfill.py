@@ -40,8 +40,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship, validates
 from sqlalchemy_jsonfield import JSONField
 
-from airflow.api_connexion.exceptions import NotFound
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
 from airflow.settings import json
@@ -209,6 +208,8 @@ def _do_dry_run(*, dag_id, from_date, to_date, reverse, reprocess_behavior, sess
     from airflow.models.serialized_dag import SerializedDagModel
 
     serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
+    if not serdag:
+        raise DagNotFound(f"Could not find dag {dag_id}")
     dag = serdag.dag
     _validate_backfill_params(dag, reverse, reprocess_behavior)
 
@@ -331,7 +332,7 @@ def _create_backfill(
     with create_session() as session:
         serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
         if not serdag:
-            raise NotFound(f"Could not find dag {dag_id}")
+            raise DagNotFound(f"Could not find dag {dag_id}")
         no_schedule = session.scalar(
             select(func.count()).where(DagModel.timetable_summary == "None", DagModel.dag_id == dag_id)
         )

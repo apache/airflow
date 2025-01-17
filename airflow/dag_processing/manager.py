@@ -761,11 +761,9 @@ class DagFileProcessorManager:
 
             if self._file_paths:
                 query = query.where(
-                    (
-                        tuple_(ParseImportError.filename, ParseImportError.bundle_name).notin_(
-                            [(f.path, f.bundle_name) for f in self._file_paths]
-                        ),
-                    )
+                    tuple_(ParseImportError.filename, ParseImportError.bundle_name).notin_(
+                        [(f.path, f.bundle_name) for f in self._file_paths]
+                    ),
                 )
 
             session.execute(query.execution_options(synchronize_session="fetch"))

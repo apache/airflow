@@ -38,6 +38,7 @@ from airflow.api_fastapi.core_api.datamodels.backfills import (
 from airflow.api_fastapi.core_api.openapi.exceptions import (
     create_openapi_http_exception_doc,
 )
+from airflow.exceptions import DagNotFound
 from airflow.models import DagRun
 from airflow.models.backfill import (
     AlreadyRunningBackfill,
@@ -216,6 +217,12 @@ def create_backfill(
             detail=f"{backfill_request.dag_id} has no schedule",
         )
 
+    except DagNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Could not find dag {backfill_request.dag_id}",
+        )
+
 
 @backfills_router.post(
     path="/dry_run",
@@ -245,7 +252,11 @@ def create_backfill_dry_run(
         backfills = [DryRunBackfillResponse(logical_date=d) for d in backfills_dry_run]
 
         return DryRunBackfillCollectionResponse(backfills=backfills, total_entries=len(backfills_dry_run))
-
+    except DagNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Could not find dag {body.dag_id}",
+        )
     except DagNoScheduleException:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
