@@ -354,6 +354,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                 run_id=run_id,
                 logical_date=logical_date,
                 data_interval=data_interval,
+                run_after=data_interval.end,
                 conf=post_body.get("conf"),
                 run_type=DagRunType.MANUAL,
                 triggered_by=DagRunTriggeredByType.REST_API,
