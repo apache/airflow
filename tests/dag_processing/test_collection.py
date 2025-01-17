@@ -50,7 +50,7 @@ from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
-from airflow.sdk.definitions.asset import Asset
+from airflow.sdk.definitions.asset import Asset, AssetWatcher
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.utils import timezone as tz
 from airflow.utils.session import create_session
@@ -133,7 +133,8 @@ class TestAssetModelOperation:
         trigger = TimeDeltaTrigger(timedelta(seconds=0))
         classpath, kwargs = trigger.serialize()
         asset = Asset(
-            "test_add_asset_trigger_references_asset", watchers=[{"classpath": classpath, "kwargs": kwargs}]
+            "test_add_asset_trigger_references_asset",
+            watchers=[AssetWatcher(name="test", trigger={"classpath": classpath, "kwargs": kwargs})],
         )
 
         with dag_maker(dag_id="test_add_asset_trigger_references_dag", schedule=[asset]) as dag:

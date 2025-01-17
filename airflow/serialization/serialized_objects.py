@@ -61,6 +61,7 @@ from airflow.sdk.definitions.asset import (
     AssetAny,
     AssetRef,
     AssetUniqueKey,
+    AssetWatcher,
     BaseAsset,
 )
 from airflow.sdk.definitions.baseoperator import BaseOperator as TaskSDKBaseOperator
@@ -254,6 +255,12 @@ def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
     """
     if isinstance(var, Asset):
 
+        def _encode_watcher(watcher: AssetWatcher):
+            return {
+                "name": watcher.name,
+                "trigger": _encode_trigger(watcher.trigger),
+            }
+
         def _encode_trigger(trigger: BaseTrigger | dict):
             if isinstance(trigger, dict):
                 return trigger
@@ -272,7 +279,7 @@ def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
         }
 
         if len(var.watchers) > 0:
-            asset["watchers"] = [_encode_trigger(trigger) for trigger in var.watchers]
+            asset["watchers"] = [_encode_watcher(watcher) for watcher in var.watchers]
 
         return asset
     if isinstance(var, AssetAlias):
@@ -300,12 +307,16 @@ def decode_asset_condition(var: dict[str, Any]) -> BaseAsset:
     """
     dat = var["__type"]
     if dat == DAT.ASSET:
+        serialized_watchers = var["watchers"] if "watchers" in var else []
         return Asset(
             name=var["name"],
             uri=var["uri"],
             group=var["group"],
             extra=var["extra"],
-            watchers=var["watchers"] if "watchers" in var else [],
+            watchers=[
+                AssetWatcher(name=watcher["name"], trigger=watcher["trigger"])
+                for watcher in serialized_watchers
+            ],
         )
     if dat == DAT.ASSET_ALL:
         return AssetAll(*(decode_asset_condition(x) for x in var["objects"]))
@@ -897,7 +908,13 @@ class BaseSerialization:
         elif type_ == DAT.XCOM_REF:
             return _XComRef(var)  # Delay deserializing XComArg objects until we have the entire DAG.
         elif type_ == DAT.ASSET:
-            return Asset(**var)
+            watchers = var.pop("watchers", [])
+            return Asset(
+                **var,
+                watchers=[
+                    AssetWatcher(name=watcher["name"], trigger=watcher["trigger"]) for watcher in watchers
+                ],
+            )
         elif type_ == DAT.ASSET_ALIAS:
             return AssetAlias(**var)
         elif type_ == DAT.ASSET_ANY:

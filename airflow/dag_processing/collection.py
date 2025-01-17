@@ -52,7 +52,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.trigger import Trigger
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUriRef
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUriRef, AssetWatcher
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.sqlalchemy import with_row_locks
@@ -742,10 +742,12 @@ class AssetModelOperation(NamedTuple):
 
         for name_uri, asset in self.assets.items():
             # If the asset belong to a DAG not active or paused, consider there is no watcher associated to it
-            asset_watchers: list[dict] = cast(list[dict], asset.watchers) if name_uri in active_assets else []
+            asset_watchers: list[AssetWatcher] = asset.watchers if name_uri in active_assets else []
             trigger_hash_to_trigger_dict: dict[int, dict] = {
-                self._get_trigger_hash(trigger["classpath"], trigger["kwargs"]): trigger
-                for trigger in asset_watchers
+                self._get_trigger_hash(
+                    cast(dict, watcher.trigger)["classpath"], cast(dict, watcher.trigger)["kwargs"]
+                ): cast(dict, watcher.trigger)
+                for watcher in asset_watchers
             }
             triggers.update(trigger_hash_to_trigger_dict)
             trigger_hash_from_asset: set[int] = set(trigger_hash_to_trigger_dict.keys())
