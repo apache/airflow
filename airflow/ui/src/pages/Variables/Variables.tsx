@@ -19,7 +19,7 @@
 import { Box, Flex, HStack, Spacer, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
-import { FiShare, FiTrash2 } from "react-icons/fi";
+import { FiShare } from "react-icons/fi";
 import { useSearchParams } from "react-router-dom";
 
 import { useVariableServiceGetVariables } from "openapi/queries";
@@ -35,6 +35,7 @@ import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { TrimText } from "src/utils/TrimText";
 
+import DeleteVariablesButton from "./DeleteVariablesButton";
 import ImportVariablesButton from "./ImportVariablesButton";
 import AddVariableButton from "./ManageVariable/AddVariableButton";
 import DeleteVariableButton from "./ManageVariable/DeleteVariableButton";
@@ -178,12 +179,9 @@ export const Variables = () => {
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>{selectedRows.size} selected</ActionBar.SelectionTrigger>
           <ActionBar.Separator />
-          {/* TODO: Implement the delete and export selected */}
-          <Tooltip content="Delete selected variable coming soon..">
-            <Button disabled size="sm" variant="outline">
-              <FiTrash2 />
-              Delete
-            </Button>
+          {/* TODO: Implement the export selected */}
+          <Tooltip content="Delete selected variables">
+            <DeleteVariablesButton clearSelections={clearSelections} deleteKeys={[...selectedRows.keys()]} />
           </Tooltip>
           <Tooltip content="Export selected variable coming soon..">
             <Button disabled size="sm" variant="outline">
