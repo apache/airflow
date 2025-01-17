@@ -7,7 +7,7 @@ The shift towards using ``run_id`` as the sole identifier for DAG runs eliminate
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [x] API changes
   * [ ] CLI changes

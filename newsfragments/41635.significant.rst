@@ -2,7 +2,7 @@ Removed deprecated ``--ignore-depends-on-past``  cli option from task command. P
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [x] CLI changes

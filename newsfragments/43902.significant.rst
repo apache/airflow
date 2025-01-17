@@ -7,7 +7,7 @@ The shift towards ``logical_date`` helps move away from the limitations of ``exe
 
 * Types of change
 
-  * [x] DAG changes
+  * [x] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

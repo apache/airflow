@@ -12,7 +12,7 @@ later will also no longer contain the field.
 
 * Types of change
 
-  * [x] DAG changes
+  * [x] Dag changes
   * [ ] Config changes
   * [x] API changes
   * [ ] CLI changes

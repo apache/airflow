@@ -2,7 +2,7 @@ Removed deprecated auth manager ``airflow.auth.managers.fab.fab_auth_manager`` a
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [x] Config changes
   * [ ] API changes
   * [ ] CLI changes

@@ -7,7 +7,7 @@ For easier change in the future, this function now takes only keyword arguments.
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

@@ -2,7 +2,7 @@ The SLA feature is removed in Airflow 3.0, to be replaced with Airflow Alerts in
 
 * Types of change
 
-  * [x] DAG changes
+  * [x] Dag changes
   * [x] Config changes
   * [x] API changes
   * [ ] CLI changes

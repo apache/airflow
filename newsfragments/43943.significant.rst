@@ -6,7 +6,7 @@ fetching logs to attach to the trace)
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [x] Config changes
   * [ ] API changes
   * [ ] CLI changes

@@ -9,7 +9,7 @@ Rename ``Dataset`` as ``Asset`` in API endpoints
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [x] API chanes
   * [ ] CLI changes

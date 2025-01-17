@@ -7,7 +7,7 @@ capped and only storing values from -2147483648 to 2147483647.
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

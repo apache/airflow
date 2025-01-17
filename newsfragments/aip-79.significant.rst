@@ -16,7 +16,7 @@ As part of this change the following breaking changes have occurred:
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

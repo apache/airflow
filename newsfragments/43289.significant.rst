@@ -5,7 +5,7 @@ are just treated as plain Python classes by Airflow, so there is no need to regi
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

@@ -13,7 +13,7 @@ remove any usage of Subdags to maintain compatibility with future Airflow releas
 
 * Types of change
 
-  * [x] DAG changes
+  * [x] Dag changes
   * [ ] Config changes
   * [x] API changes
   * [x] CLI changes

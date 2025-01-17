@@ -13,7 +13,7 @@ if the DAG is diorectly set to "failed" or "success".
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

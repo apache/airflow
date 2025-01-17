@@ -2,7 +2,7 @@ Removed deprecated ``apply_defaults`` function from ``airflow/utils/decorators.p
 
 * Types of change
 
-  * [x] DAG changes
+  * [x] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

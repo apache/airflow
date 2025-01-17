@@ -8,7 +8,7 @@ Removed a set of deprecations in ``Connection`` from ``airflow.models``.
 
 * Types of change
 
-  * [x] DAG changes
+  * [x] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

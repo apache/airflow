@@ -2,7 +2,7 @@ Airflow core now depends on Pydantic v2. If you have Pydantic v1 installed, plea
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

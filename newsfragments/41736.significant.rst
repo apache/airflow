@@ -8,7 +8,7 @@ Parameters removed:
 
 * Types of change
 
-  * [x] DAG changes
+  * [x] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

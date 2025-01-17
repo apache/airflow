@@ -9,7 +9,7 @@ Note: there are no replacements. Direct access to DB is discouraged and will not
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

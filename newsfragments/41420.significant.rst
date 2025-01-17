@@ -10,7 +10,7 @@ as there are no actual duplicates at the tags.
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

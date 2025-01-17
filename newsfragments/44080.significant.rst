@@ -4,7 +4,7 @@ PostgreSQL 12 is no longer being supported by the PostgreSQL community. You must
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

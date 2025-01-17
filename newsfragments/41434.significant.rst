@@ -5,7 +5,7 @@ should transition to using Rest API as an alternative.
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [x] API changes
   * [ ] CLI changes

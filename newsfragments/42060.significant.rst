@@ -2,7 +2,7 @@ Removed deprecated configuration ``stalled_task_timeout`` from ``celery``, ``tas
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [x] Config changes
   * [ ] API changes
   * [ ] CLI changes

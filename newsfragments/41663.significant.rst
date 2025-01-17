@@ -2,7 +2,7 @@ Removed deprecated auth ``airflow.api.auth.backend.basic_auth`` from ``auth_back
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [x] Config changes
   * [ ] API changes
   * [ ] CLI changes

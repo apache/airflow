@@ -7,7 +7,7 @@ DAG with ``TriggerDagRunOperator``.
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

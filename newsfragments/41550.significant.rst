@@ -4,7 +4,7 @@ Removed deprecated ``policy`` parameter from ``airflow_local_settings``. Please 
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [x] Config changes
   * [ ] API changes
   * [ ] CLI changes

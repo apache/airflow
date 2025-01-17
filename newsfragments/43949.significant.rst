@@ -6,7 +6,7 @@ no longer delete serialized dag without going through ``airflow db-clean`` comma
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [x] CLI changes

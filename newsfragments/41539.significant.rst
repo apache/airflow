@@ -2,7 +2,7 @@ Removed deprecated ``smtp_user`` and ``smtp_password`` configuration parameters 
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [x] Config changes
   * [ ] API changes
   * [ ] CLI changes

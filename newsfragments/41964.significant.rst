@@ -7,7 +7,7 @@ The format of the output with that flag can be expensive to generate and extreme
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [x] CLI changes

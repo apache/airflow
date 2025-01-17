@@ -11,7 +11,7 @@ The following deprecated functions, constants, and classes have been removed as 
 
 * Types of change
 
-  * [x] DAG changes
+  * [x] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

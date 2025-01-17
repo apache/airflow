@@ -2,7 +2,7 @@ Removed deprecated airflow configuration ``webserver.allow_raw_html_descriptions
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [x] Config changes
   * [ ] API changes
   * [ ] CLI changes

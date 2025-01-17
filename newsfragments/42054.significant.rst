@@ -5,7 +5,7 @@ equality logic is also tweaked slightly to consider the extra dict.
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

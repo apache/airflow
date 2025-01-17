@@ -13,7 +13,7 @@ Removed deprecated functions and modules from ``airflow.www`` module.
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [x] Config changes
   * [ ] API changes
   * [ ] CLI changes

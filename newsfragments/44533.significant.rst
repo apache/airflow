@@ -6,7 +6,7 @@ The ``conf`` column is changing from pickle to json, thus, the values in that co
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

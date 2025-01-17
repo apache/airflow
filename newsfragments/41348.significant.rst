@@ -243,7 +243,7 @@ Rename ``Dataset`` as ``Asset``
 
 * Types of change
 
-  * [x] DAG changes
+  * [x] Dag changes
   * [x] Config changes
   * [ ] API changes
   * [ ] CLI changes

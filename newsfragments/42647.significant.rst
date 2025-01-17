@@ -20,7 +20,7 @@ Removed deprecated aliases support for providers.
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

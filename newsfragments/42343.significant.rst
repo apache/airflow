@@ -8,7 +8,7 @@ Also, the ``session`` argument is now keyword-only.
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

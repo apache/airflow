@@ -5,7 +5,7 @@ It has been moved to ``airflow.models.errors.ParseImportError``.
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

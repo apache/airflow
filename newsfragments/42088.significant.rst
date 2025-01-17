@@ -15,7 +15,7 @@ Removed deprecated metrics configuration.
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [x] Config changes
   * [ ] API changes
   * [ ] CLI changes

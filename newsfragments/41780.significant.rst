@@ -2,7 +2,7 @@ Remove deprecated support for passing ``execution_date`` to ``airflow.models.ski
 
 * Types of change
 
-  * [x] DAG changes
+  * [x] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

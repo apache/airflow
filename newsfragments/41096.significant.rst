@@ -2,7 +2,7 @@ Removed deprecated ``processor_poll_interval`` configuration parameter from ``sc
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [x] Config changes
   * [ ] API changes
   * [ ] CLI changes

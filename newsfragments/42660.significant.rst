@@ -2,7 +2,7 @@ Deprecated field ``concurrency`` from ``DAGDetailSchema`` has been removed. Plea
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [x] API changes
   * [ ] CLI changes

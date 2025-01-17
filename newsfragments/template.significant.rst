@@ -8,13 +8,13 @@
 .. API changes: requires users to change their Airflow REST API calls
 .. CLI changes: requires users to change their Airflow CLI usage
 .. Behaviour changes: the existing code won't break, but the behavior is different
-.. Plugin changes: requires uesrs to change their Airflow plugin implementation
+.. Plugin changes: requires users to change their Airflow plugin implementation
 .. Dependency changes: requires users to change their dependencies (e.g., Postgres 12)
 .. Code interface changes: requires users to change other implementations (e.g., auth manager)
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

@@ -2,7 +2,7 @@ Remove support for Python 3.8 as this version is not maintained within Python re
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

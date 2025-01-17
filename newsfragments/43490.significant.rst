@@ -5,7 +5,7 @@ Use the REST API to get task failures instead (which gets it from the ``task_ins
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

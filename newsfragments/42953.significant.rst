@@ -5,7 +5,7 @@ Vote thread: https://lists.apache.org/thread/9o84d3yn934m32gtlpokpwtbbmtxj47l.
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

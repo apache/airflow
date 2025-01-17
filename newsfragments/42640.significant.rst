@@ -2,7 +2,7 @@ Removed deprecated custom dag dependency detector.
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

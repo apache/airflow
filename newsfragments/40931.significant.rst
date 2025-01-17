@@ -2,7 +2,7 @@ Removed dagbag deprecated ``store_serialized_dags`` parameter. Please use ``read
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes

@@ -22,7 +22,7 @@ Rename ``Dataset`` endpoints as ``Asset`` endpoints
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [x] API changes
   * [ ] CLI changes
