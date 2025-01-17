@@ -25,6 +25,7 @@ from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
+from airflow.providers.amazon.aws.links.sagemaker import SageMakerTransformJobLink
 from airflow.providers.amazon.aws.operators import sagemaker
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerTransformOperator
 from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerTrigger
@@ -68,12 +69,13 @@ CREATE_MODEL_PARAMS: dict = {
 
 CONFIG: dict = {"Model": CREATE_MODEL_PARAMS, "Transform": CREATE_TRANSFORM_PARAMS}
 
+MOCK_UNIX_TIME: int = 1234567890123456789  # reproducible time for testing time.time_ns()
+
 
 class TestSageMakerTransformOperator:
     def setup_method(self):
         self.sagemaker = SageMakerTransformOperator(
             task_id="test_sagemaker_operator",
-            aws_conn_id="sagemaker_test_id",
             config=copy.deepcopy(CONFIG),
             wait_for_completion=False,
             check_interval=5,
@@ -125,6 +127,33 @@ class TestSageMakerTransformOperator:
             check_interval=5,
             max_ingestion_time=None,
         )
+
+    @mock.patch.object(SageMakerHook, "describe_transform_job")
+    @mock.patch.object(SageMakerHook, "create_model")
+    @mock.patch.object(SageMakerHook, "describe_model")
+    @mock.patch.object(SageMakerHook, "create_transform_job")
+    # @mock.patch.object(sagemaker, "serialize", return_value="")
+    def test_log_correct_url(self, mock_transform, __, ___, mock_desc):
+        region = "us-east-1"
+        job_name = CONFIG["Transform"]["TransformJobName"]
+        mock_desc.side_effect = [
+            ClientError({"Error": {"Code": "ValidationException"}}, "op"),
+            {"ModelName": "model_name"},
+        ]
+        mock_transform.return_value = {
+            "TransformJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+
+        aws_domain = SageMakerTransformJobLink.get_aws_domain("aws")
+        job_run_url = (
+            f"https://console.{aws_domain}/sagemaker/home?region={region}#/transform-jobs/{job_name}"
+        )
+
+        with mock.patch.object(self.sagemaker.log, "info") as mock_log_info:
+            self.sagemaker.execute(None)
+            # assert job_run_id == JOB_RUN_ID
+        mock_log_info.assert_any_call("You can monitor this SageMaker Transform job at %s", job_run_url)
 
     @mock.patch.object(SageMakerHook, "describe_transform_job")
     @mock.patch.object(SageMakerHook, "create_model")
@@ -182,10 +211,12 @@ class TestSageMakerTransformOperator:
             max_ingestion_time=None,
         )
 
-    @mock.patch(  # since it is divided by 1000000, the added timestamp should be 2.
-        "airflow.providers.amazon.aws.operators.sagemaker.time.time_ns", return_value=2000000
+    @mock.patch(  # since it is divided by 1000000000, the added timestamp should be 1234567890.
+        "airflow.providers.amazon.aws.operators.sagemaker.time.time_ns", return_value=MOCK_UNIX_TIME
     )
-    @mock.patch.object(SageMakerHook, "describe_transform_job", return_value={"ModelName": "model_name-2"})
+    @mock.patch.object(
+        SageMakerHook, "describe_transform_job", return_value={"ModelName": "model_name-1234567890"}
+    )
     @mock.patch.object(
         SageMakerHook,
         "create_transform_job",
@@ -200,7 +231,7 @@ class TestSageMakerTransformOperator:
         side_effect=[
             None,
             ClientError({"Error": {"Code": "ValidationException"}}, "op"),
-            "model_name-2",
+            "model_name-1234567890",
         ],
     )
     @mock.patch.object(sagemaker, "serialize", return_value="")
@@ -215,9 +246,9 @@ class TestSageMakerTransformOperator:
         self.sagemaker.execute(None)
 
         mock_describe_model.assert_has_calls(
-            [mock.call("model_name"), mock.call("model_name-2"), mock.call("model_name-2")]
+            [mock.call("model_name"), mock.call("model_name-1234567890"), mock.call("model_name-1234567890")]
         )
-        mock_create_model.assert_called_once_with({"ModelName": "model_name-2"})
+        mock_create_model.assert_called_once_with({"ModelName": "model_name-1234567890"})
 
     @mock.patch.object(SageMakerHook, "describe_transform_job")
     @mock.patch.object(SageMakerHook, "create_transform_job")

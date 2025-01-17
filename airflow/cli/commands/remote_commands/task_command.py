@@ -67,7 +67,7 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState
 from airflow.utils.task_instance_session import set_current_task_instance_session
-from airflow.utils.types import DagRunTriggeredByType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -181,12 +181,14 @@ def _get_dag_run(
         return dag_run, True
     elif create_if_necessary == "db":
         dag_run = dag.create_dagrun(
-            state=DagRunState.QUEUED,
-            logical_date=dag_run_logical_date,
             run_id=_generate_temporary_run_id(),
+            logical_date=dag_run_logical_date,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_logical_date),
-            session=session,
+            run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.CLI,
+            dag_version=None,
+            state=DagRunState.QUEUED,
+            session=session,
         )
         return dag_run, True
     raise ValueError(f"unknown create_if_necessary value: {create_if_necessary!r}")

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from sqlalchemy import Column, Integer, String, Text
 
-from airflow.models.base import Base
+from airflow.models.base import Base, StringID
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
@@ -30,4 +30,5 @@ class ParseImportError(Base):
     id = Column(Integer, primary_key=True)
     timestamp = Column(UtcDateTime)
     filename = Column(String(1024))
+    bundle_name = Column(StringID())
     stacktrace = Column(Text)

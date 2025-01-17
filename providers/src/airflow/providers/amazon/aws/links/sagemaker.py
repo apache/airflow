@@ -14,18 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
+from airflow.providers.amazon.aws.links.base_aws import BASE_AWS_CONSOLE_LINK, BaseAwsLink
 
-def _get_empty_set_for_configuration() -> set[tuple[str, str]]:
-    """
-    Retrieve an empty_set_for_configuration.
 
-    This method is only needed because configuration module has a deprecated method called set, and it
-    confuses mypy. This method will be removed when we remove the deprecated method.
+class SageMakerTransformJobLink(BaseAwsLink):
+    """Helper class for constructing AWS Transform Run Details Link."""
 
-    :meta private:
-    :return: empty set
-    """
-    return set()
+    name = "Amazon SageMaker Transform Job Details"
+    key = "sagemaker_transform_job_details"
+    format_str = BASE_AWS_CONSOLE_LINK + "/sagemaker/home?region={region_name}#/transform-jobs/{job_name}"

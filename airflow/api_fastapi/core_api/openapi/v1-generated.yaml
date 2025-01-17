@@ -8440,6 +8440,9 @@ components:
         filename:
           type: string
           title: Filename
+        bundle_name:
+          type: string
+          title: Bundle Name
         stack_trace:
           type: string
           title: Stack Trace
@@ -8448,6 +8451,7 @@ components:
       - import_error_id
       - timestamp
       - filename
+      - bundle_name
       - stack_trace
       title: ImportErrorResponse
       description: Import Error Response.
@@ -8695,11 +8699,6 @@ components:
         source:
           type: string
           title: Source
-        ti_deps:
-          items:
-            type: string
-          type: array
-          title: Ti Deps
         listeners:
           items:
             type: string
@@ -8721,7 +8720,6 @@ components:
       - global_operator_extra_links
       - operator_extra_links
       - source
-      - ti_deps
       - listeners
       - timetables
       title: PluginResponse

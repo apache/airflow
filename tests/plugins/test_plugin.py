@@ -24,7 +24,6 @@ from flask_appbuilder import BaseView as AppBuilderBaseView, expose
 # This is the class you derive to create a plugin
 from airflow.plugins_manager import AirflowPlugin
 from airflow.task.priority_strategy import PriorityWeightStrategy
-from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.timetables.interval import CronDataIntervalTimetable
 
 from tests.listeners import empty_listener
@@ -95,10 +94,6 @@ class CustomCronDataIntervalTimetable(CronDataIntervalTimetable):
     pass
 
 
-class CustomTestTriggerRule(BaseTIDep):
-    pass
-
-
 class CustomPriorityWeightStrategy(PriorityWeightStrategy):
     def get_weight(self, ti):
         return 1
@@ -119,7 +114,6 @@ class AirflowTestPlugin(AirflowPlugin):
     operator_extra_links = [GoogleLink(), AirflowLink2(), CustomOpLink(), CustomBaseIndexOpLink(1)]
     timetables = [CustomCronDataIntervalTimetable]
     listeners = [empty_listener, ClassBasedListener()]
-    ti_deps = [CustomTestTriggerRule()]
     priority_weight_strategies = [CustomPriorityWeightStrategy]
 
 
