@@ -121,7 +121,7 @@ class EdgeWorkerModel(Base, LoggingMixin):
                 queues.remove(queue_name)
         self.queues = queues
     
-    def update_state(self, state: EdgeWorkerState) -> None:
+    def update_state(self, state: str) -> None:
         """Updates state field."""
         self.state = state
 
