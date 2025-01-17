@@ -229,6 +229,7 @@ repos:
         language: python
         additional_dependencies: ['rich>=12.4.4']
         files: ^airflow.*\.py$
+        exclude: ^airflow/tests/.*\.py$
         pass_filenames: true
       - id: check-deferrable-default
         name: Check and fix default value of default_deferrable
