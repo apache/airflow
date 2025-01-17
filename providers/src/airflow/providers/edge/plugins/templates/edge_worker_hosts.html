@@ -98,23 +98,11 @@
               </ul>
             </td>
             <td>
-              <button onclick="triggerMaintenance('../status/maintenance', '{{ host.worker_name }}')">Maintenance</button>
+              <a href="../status/maintenance/{{ host.worker_name }}">Enter maintenance mode</a>
             </td>
           </tr>
         {% endfor %}
       </table>
       {% endif %}
     {% endblock %}
-{% block tail %}
-  {{ super() }}
-  <script src="{{ url_for_asset('d3.min.js') }}"></script>
-  <script src="{{ url_for_asset('dags.js') }}"></script>
-  <script>
-
-    function triggerMaintenance(link, worker_name) {
-      postAsForm(link.href, {worker_name});
-      return false;
-    }
-  </script>
-{% endblock %}
 <html>

@@ -379,7 +379,7 @@ class _EdgeWorkerCli:
                 state = EdgeWorkerState.MAINTENANCE_MODE
             else:
                 state = EdgeWorkerState.IDLE
-
+        logger.info("Worker state: %s", state)
         sysinfo = self._get_sysinfo()
         try:
             state, self.queues = worker_set_state(self.hostname, state, len(self.jobs), self.queues, sysinfo)

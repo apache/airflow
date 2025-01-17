@@ -115,13 +115,12 @@ class EdgeWorkerHosts(BaseView):
         five_min_ago = datetime.now() - timedelta(minutes=5)
         return self.render_template("edge_worker_hosts.html", hosts=hosts, five_min_ago=five_min_ago)
     
-    @expose("/status/maintenance",  methods=["POST"])
+    @expose("/status/maintenance/{worker_name}")
     @has_access_view(AccessView.JOBS)
     @provide_session
-    def worker_to_maintenance(self, session: Session = NEW_SESSION):
+    def worker_to_maintenance(self, worker_name: str, session: Session = NEW_SESSION):
         from airflow.providers.edge.models.edge_worker import EdgeWorkerModel ,EdgeWorkerState
 
-        worker_name = request.form.get('worker_name')
         query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
         worker: EdgeWorkerModel = session.scalar(query)
         worker.update_state(EdgeWorkerState.MAINTENANCE_REQUESTED)
