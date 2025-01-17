@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-17T07:56:30.169865
+# This constraints file was automatically generated on 2025-01-17T13:59:54.615747
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -68,7 +68,7 @@ WTForms==3.2.1
 Werkzeug==2.2.3
 adal==1.2.7
 adlfs==2024.12.0
-aiobotocore==2.17.0
+aiobotocore==2.18.0
 aiofiles==23.2.1
 aiohappyeyeballs==2.4.4
 aiohttp==3.11.11
@@ -235,8 +235,8 @@ billiard==4.2.1
 bitarray==3.0.0
 black==24.10.0
 blinker==1.9.0
-boto3==1.35.93
-botocore==1.35.93
+boto3==1.36.1
+botocore==1.36.1
 cachelib==0.9.0
 cachetools==5.5.0
 cassandra-driver==3.29.2
@@ -608,7 +608,7 @@ python3-saml==1.16.0
 pytz==2024.2
 pywinrm==0.5.0
 pyzmq==26.2.0
-qdrant-client==1.12.2
+qdrant-client==1.13.0
 reactivex==4.0.4
 readme_renderer==44.0
 redis==5.2.1
@@ -635,7 +635,7 @@ rpds-py==0.22.3
 rsa==4.9
 ruff==0.8.1
 s3fs==2024.12.0
-s3transfer==0.10.4
+s3transfer==0.11.1
 scramp==1.4.5
 scrapbook==0.5.0
 semver==3.0.2
