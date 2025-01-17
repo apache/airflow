@@ -860,7 +860,8 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
-      "common.sql"
+      "common.sql",
+      "openlineage"
     ],
     "excluded-python-versions": [],
     "state": "ready"

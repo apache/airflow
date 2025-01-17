@@ -177,10 +177,6 @@ class XComNotFound(AirflowException):
         )
 
 
-class UnmappableOperator(AirflowException):
-    """Raise when an operator is not implemented to be mappable."""
-
-
 class XComForMappingNotPushed(AirflowException):
     """Raise when a mapped downstream's dependency fails to push XCom for task mapping."""
 

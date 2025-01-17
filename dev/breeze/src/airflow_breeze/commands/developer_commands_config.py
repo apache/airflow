@@ -81,6 +81,8 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--python",
                 "--integration",
+                "--load-example-dags",
+                "--load-default-connections",
                 "--standalone-dag-processor",
                 "--start-webserver-with-examples",
             ],

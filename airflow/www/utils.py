@@ -198,14 +198,19 @@ def encode_dag_run(
     return encoded_dag_run, None
 
 
-def check_import_errors(fileloc, session):
+def check_import_errors(fileloc, bundle_name, session):
     # Check dag import errors
     import_errors = session.scalars(
-        select(ParseImportError).where(ParseImportError.filename == fileloc)
+        select(ParseImportError).where(
+            ParseImportError.filename == fileloc, ParseImportError.bundle_name == bundle_name
+        )
     ).all()
     if import_errors:
         for import_error in import_errors:
-            flash(f"Broken DAG: [{import_error.filename}] {import_error.stacktrace}", "dag_import_error")
+            flash(
+                f"Broken DAG: [{import_error.filename}, Bundle name: {bundle_name}] {import_error.stacktrace}",
+                "dag_import_error",
+            )
 
 
 def check_dag_warnings(dag_id, session):

@@ -241,6 +241,22 @@ option_start_webserver_with_examples = click.option(
     envvar="START_WEBSERVER_WITH_EXAMPLES",
 )
 
+option_load_example_dags = click.option(
+    "-e",
+    "--load-example-dags",
+    help="Enable configuration to load example DAGs when starting Airflow.",
+    is_flag=True,
+    envvar="LOAD_EXAMPLES",
+)
+
+option_load_default_connections = click.option(
+    "-c",
+    "--load-default-connections",
+    help="Enable configuration to load default connections when starting Airflow.",
+    is_flag=True,
+    envvar="LOAD_DEFAULT_CONNECTIONS",
+)
+
 
 @main.command()
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
@@ -288,6 +304,8 @@ option_start_webserver_with_examples = click.option(
 @option_install_airflow_with_constraints_default_true
 @option_install_selected_providers
 @option_installation_package_format
+@option_load_example_dags
+@option_load_default_connections
 @option_all_integration
 @option_keep_env_variables
 @option_max_time
@@ -343,6 +361,8 @@ def shell(
     install_airflow_python_client: bool,
     integration: tuple[str, ...],
     keep_env_variables: bool,
+    load_example_dags: bool,
+    load_default_connections: bool,
     max_time: int | None,
     mount_sources: str,
     mysql_version: str,
@@ -412,6 +432,8 @@ def shell(
         install_selected_providers=install_selected_providers,
         integration=integration,
         keep_env_variables=keep_env_variables,
+        load_example_dags=load_example_dags,
+        load_default_connections=load_default_connections,
         mount_sources=mount_sources,
         mysql_version=mysql_version,
         no_db_cleanup=no_db_cleanup,
@@ -446,22 +468,6 @@ def shell(
     fix_ownership_using_docker()
     sys.exit(result.returncode)
 
-
-option_load_example_dags = click.option(
-    "-e",
-    "--load-example-dags",
-    help="Enable configuration to load example DAGs when starting Airflow.",
-    is_flag=True,
-    envvar="LOAD_EXAMPLES",
-)
-
-option_load_default_connection = click.option(
-    "-c",
-    "--load-default-connections",
-    help="Enable configuration to load default connections when starting Airflow.",
-    is_flag=True,
-    envvar="LOAD_DEFAULT_CONNECTIONS",
-)
 
 option_executor_start_airflow = click.option(
     "--executor",
@@ -506,7 +512,7 @@ option_executor_start_airflow = click.option(
 @option_installation_package_format
 @option_install_selected_providers
 @option_all_integration
-@option_load_default_connection
+@option_load_default_connections
 @option_load_example_dags
 @option_mount_sources
 @option_mysql_version
