@@ -36,6 +36,8 @@ class BaseCallbackRequest(BaseModel):
 
     full_filepath: str
     """File Path to use to run the callback"""
+    bundle_name: str
+    bundle_version: str | None = None
     msg: str | None = None
     """Additional Message that can be used for logging to determine failure/zombie"""
 

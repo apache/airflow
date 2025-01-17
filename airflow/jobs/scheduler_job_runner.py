@@ -854,6 +854,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     cls.logger().error(msg)
                     request = TaskCallbackRequest(
                         full_filepath=ti.dag_model.fileloc,
+                        bundle_name=ti.dag_model.bundle_name,
+                        bundle_version=ti.dag_model.bundle_version,
                         ti=ti,
                         msg=msg,
                     )
@@ -1630,6 +1632,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     full_filepath=dag.fileloc,
                     dag_id=dag.dag_id,
                     run_id=dag_run.run_id,
+                    bundle_name=dag_model.bundle_name,
+                    bundle_version=dag_run.bundle_version,
                     is_failure_callback=True,
                     msg="timed_out",
                 )
@@ -2013,6 +2017,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             zombie_message_details = self._generate_zombie_message_details(ti)
             request = TaskCallbackRequest(
                 full_filepath=file_loc,
+                bundle_name=ti.dag_model.bundle_name,
+                bundle_version=ti.dag_model.bundle_version,
                 ti=ti,
                 msg=str(zombie_message_details),
             )

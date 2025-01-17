@@ -492,6 +492,7 @@ class TestDagFileProcessorManager:
                         full_filepath="/opt/airflow/dags/dag_callback_dag.py",
                         dag_id="dag_id",
                         run_id="run_id",
+                        bundle_name="testing",
                         is_failure_callback=False,
                     )
                 ],
@@ -502,12 +503,14 @@ class TestDagFileProcessorManager:
                 b'"requests_fd":123,"callback_requests":'
                 b"["
                 b"{"
-                b'"full_filepath":"/opt/airflow/dags/dag_callback_dag.py",'
+                b'"filepath":"/opt/airflow/dags/dag_callback_dag.py",'
                 b'"msg":null,'
                 b'"dag_id":"dag_id",'
                 b'"run_id":"run_id",'
                 b'"is_failure_callback":false,'
                 b'"type":"DagCallbackRequest"'
+                b'"bundle_name":"testing"'
+                b'"bundle_version":null'
                 b"}"
                 b"],"
                 b'"type":"DagFileParseRequest"'
@@ -650,12 +653,14 @@ class TestDagFileProcessorManager:
 
         callback1 = DagCallbackRequest(
             dag_id="test_start_date_scheduling",
+            bundle_name="testing",
             full_filepath=str(dag_filepath),
             is_failure_callback=True,
             run_id="123",
         )
         callback2 = DagCallbackRequest(
             dag_id="test_start_date_scheduling",
+            bundle_name="testing",
             full_filepath=str(dag_filepath),
             is_failure_callback=True,
             run_id="456",
@@ -686,6 +691,7 @@ class TestDagFileProcessorManager:
             for i in range(5):
                 callback = DagCallbackRequest(
                     dag_id="test_start_date_scheduling",
+                    bundle_name="testing",
                     full_filepath=str(dag_filepath),
                     is_failure_callback=True,
                     run_id=str(i),
@@ -703,7 +709,6 @@ class TestDagFileProcessorManager:
                 manager.run()
                 assert session.query(DbCallbackRequest).count() == 1
 
-    @pytest.mark.skip("AIP-66: callbacks are not implemented yet")
     def test_callback_queue(self, tmp_path):
         """
         This test has gotten a bit out of sync with the codebase.
@@ -723,6 +728,7 @@ class TestDagFileProcessorManager:
             full_filepath=TEST_DAGS_FOLDER / "green_eggs/ham/file1.py",
             dag_id="dag1",
             run_id="run1",
+            bundle_name="testing",
             is_failure_callback=False,
             msg=None,
         )
@@ -730,6 +736,7 @@ class TestDagFileProcessorManager:
             full_filepath=TEST_DAGS_FOLDER / "green_eggs/ham/file1.py",
             dag_id="dag1",
             run_id="run1",
+            bundle_name="testing",
             is_failure_callback=False,
             msg=None,
         )
@@ -741,6 +748,7 @@ class TestDagFileProcessorManager:
             full_filepath=TEST_DAGS_FOLDER / "green_eggs/ham/file2.py",
             dag_id="dag2",
             run_id="run1",
+            bundle_name=dag2_path.bundle_name,
             is_failure_callback=False,
             msg=None,
         )
@@ -752,20 +760,20 @@ class TestDagFileProcessorManager:
         # then - requests should be in manager's queue, with dag2 ahead of dag1 (because it was added last)
         assert manager._file_queue == deque([dag2_path, dag1_path])
         assert set(manager._callback_to_execute.keys()) == {
-            dag1_req1.full_filepath,
-            dag2_req1.full_filepath,
+            dag1_path,
+            dag2_path,
         }
-        assert manager._callback_to_execute[dag2_req1.full_filepath] == [dag2_req1]
+        assert manager._callback_to_execute[dag2_path] == [dag2_req1]
 
         # update the queue, although the callback is registered
-        assert manager._file_queue == deque([dag2_req1.full_filepath, dag1_req1.full_filepath])
+        assert manager._file_queue == deque([dag2_path, dag1_path])
 
         # when
         manager._add_callback_to_queue(dag1_req2)
 
         # then - non-sla callback should have brought dag1 to the fore
-        assert manager._file_queue == deque([dag1_req1.full_filepath, dag2_req1.full_filepath])
-        assert manager._callback_to_execute[dag1_req1.full_filepath] == [
+        assert manager._file_queue == deque([dag1_path, dag2_path])
+        assert manager._callback_to_execute[dag1_path] == [
             dag1_req1,
             dag1_req2,
         ]
@@ -779,7 +787,7 @@ class TestDagFileProcessorManager:
             id=mock.ANY, path=dag1_req1.full_filepath, callbacks=[dag1_req1, dag1_req2], selector=mock.ANY
         )
         # And removed from the queue
-        assert dag1_req1.full_filepath not in manager._callback_to_execute
+        assert dag1_path not in manager._callback_to_execute
 
     def test_dag_with_assets(self, session, configure_testing_dag_bundle):
         """'Integration' test to ensure that the assets get parsed and stored correctly for parsed dags."""
