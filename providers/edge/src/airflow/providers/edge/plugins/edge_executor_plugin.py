@@ -115,7 +115,7 @@ class EdgeWorkerHosts(BaseView):
         five_min_ago = datetime.now() - timedelta(minutes=5)
         return self.render_template("edge_worker_hosts.html", hosts=hosts, five_min_ago=five_min_ago)
     
-    @expose("/status/maintenance/{worker_name}")
+    @expose("/status/maintenance/<string:worker_name>")
     @has_access_view(AccessView.JOBS)
     @provide_session
     def worker_to_maintenance(self, worker_name: str, session: Session = NEW_SESSION):
