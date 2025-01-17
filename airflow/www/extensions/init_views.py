@@ -25,6 +25,7 @@ from connexion import FlaskApi, ProblemException, Resolver
 from connexion.decorators.validation import RequestBodyValidator
 from connexion.exceptions import BadRequestProblem
 from flask import request
+from werkzeug import Request
 
 from airflow.api_connexion.exceptions import common_error_handler
 from airflow.api_fastapi.app import get_auth_manager
@@ -189,6 +190,21 @@ def set_cors_headers_on_response(response):
     return response
 
 
+def init_data_form_parameters():
+    """
+    Initialize custom values for data form parameters.
+
+    This is a workaround for Flask versions prior to 3.1.0.
+    In order to allow users customizing form data parameters, we need these two fields to be configurable.
+    Starting from Flask 3.1.0 these two parameters can be configured through Flask config, but unfortunately,
+    current version of flask supported in Airflow is way older. That's why this workaround was introduced.
+    See https://flask.palletsprojects.com/en/stable/api/#flask.Request.max_form_memory_size
+    # TODO: remove it when Flask upgraded to version 3.1.0 or higher.
+    """
+    Request.max_form_parts = conf.getint("webserver", "max_form_parts")
+    Request.max_form_memory_size = conf.getint("webserver", "max_form_memory_size")
+
+
 class _LazyResolution:
     """
     OpenAPI endpoint that lazily resolves the function on first use.
@@ -281,6 +297,7 @@ def init_api_connexion(app: Flask) -> None:
         validate_responses=True,
         validator_map={"body": _CustomErrorRequestBodyValidator},
     ).blueprint
+    api_bp.before_app_request(init_data_form_parameters)
     api_bp.after_request(set_cors_headers_on_response)
 
     app.register_blueprint(api_bp)
