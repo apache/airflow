@@ -25,7 +25,6 @@ import pytest
 from git import Repo
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
-from airflow.dag_processing.bundles.dagfolder import DagsFolderDagBundle
 from airflow.dag_processing.bundles.git import GitDagBundle, GitHook
 from airflow.dag_processing.bundles.local import LocalDagBundle
 from airflow.exceptions import AirflowException
@@ -46,7 +45,7 @@ def bundle_temp_dir(tmp_path):
 
 def test_default_dag_storage_path():
     with conf_vars({("core", "dag_bundle_storage_path"): ""}):
-        bundle = LocalDagBundle(name="test", local_folder="/hello")
+        bundle = LocalDagBundle(name="test", path="/hello")
         assert bundle._dag_bundle_root_storage_path == Path(tempfile.gettempdir(), "airflow", "dag_bundles")
 
 
@@ -68,22 +67,20 @@ def test_dag_bundle_root_storage_path():
 
 class TestLocalDagBundle:
     def test_path(self):
-        bundle = LocalDagBundle(name="test", local_folder="/hello")
+        bundle = LocalDagBundle(name="test", path="/hello")
         assert bundle.path == Path("/hello")
+
+    @conf_vars({("core", "dags_folder"): "/tmp/somewhere/dags"})
+    def test_path_default(self):
+        bundle = LocalDagBundle(name="test", refresh_interval=300)
+        assert bundle.path == Path("/tmp/somewhere/dags")
 
     def test_none_for_version(self):
         assert LocalDagBundle.supports_versioning is False
 
-        bundle = LocalDagBundle(name="test", local_folder="/hello")
+        bundle = LocalDagBundle(name="test", path="/hello")
 
         assert bundle.get_current_version() is None
-
-
-class TestDagsFolderDagBundle:
-    @conf_vars({("core", "dags_folder"): "/tmp/somewhere/dags"})
-    def test_path(self):
-        bundle = DagsFolderDagBundle(name="test")
-        assert bundle.path == Path("/tmp/somewhere/dags")
 
 
 GIT_DEFAULT_BRANCH = "main"
