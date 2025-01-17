@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Dict
 
 from sqlalchemy import select
 
@@ -137,7 +137,7 @@ def set_state(
     worker_name: Annotated[str, _worker_name_doc],
     body: Annotated[WorkerStateBody, _worker_state_doc],
     session: SessionDep,
-) -> list[str] | None:
+) -> Dict[str, str | list[str]] | None:
     """Set state of worker and returns the current assigned queues."""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel = session.scalar(query)
@@ -159,7 +159,7 @@ def set_state(
         queues=worker.queues,
     )
     _assert_version(body.sysinfo)  #  Exception only after worker state is in the DB
-    return worker.state, worker.queues
+    return {"state": worker.state.name, "queues": worker.queues}
 
 
 @worker_router.patch(
