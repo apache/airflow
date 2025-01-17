@@ -44,12 +44,9 @@ def check_session_query(mod: ast.Module) -> int:
 def main():
     for file in sys.argv[1:]:
         file_path = Path(file)
-        if file_path.name.startswith("test_"):
-            continue
-        else:
-            ast_module = ast.parse(file_path.read_text(encoding="utf-8"), file)
-            errors = check_session_query(ast_module)
-            return 1 if errors > 0 else 0
+        ast_module = ast.parse(file_path.read_text(encoding="utf-8"), file)
+        errors = check_session_query(ast_module)
+        return 1 if errors > 0 else 0
 
 
 if __name__ == "__main__":
