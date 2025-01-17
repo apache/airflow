@@ -327,6 +327,10 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("scheduler", "statsd_custom_client_path"),
         renamed_to=ConfigParameter("metrics", "statsd_custom_client_path"),
     ),
+    ConfigChange(
+        config=ConfigParameter("scheduler", "dag_dir_list_interval"),
+        renamed_to=ConfigParameter("dag_bundles", "refresh_interval"),
+    ),
     # celery
     ConfigChange(
         config=ConfigParameter("celery", "stalled_task_timeout"),
