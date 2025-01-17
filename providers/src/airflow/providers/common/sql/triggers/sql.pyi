@@ -39,9 +39,7 @@ from typing import Any
 
 class SQLExecuteQueryTrigger(BaseTrigger):
     def __init__(
-        self, sql: str | list[str], conn_id: str, hook_params: dict | None = None, **kwargs,
+        self, sql: str | list[str], conn_id: str, hook_params: dict | None = None, **kwargs
     ) -> None: ...
-
     def serialize(self) -> tuple[str, dict[str, Any]]: ...
-
     async def run(self) -> AsyncIterator[TriggerEvent]: ...
