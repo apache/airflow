@@ -35,6 +35,10 @@ DATAPLEX_CATALOG_ENTRY_GROUPS_LINK = "/dataplex/catalog/entry-groups?project={pr
 DATAPLEX_CATALOG_ENTRY_GROUP_LINK = (
     "/dataplex/projects/{project_id}/locations/{location}/entryGroups/{entry_group_id}?project={project_id}"
 )
+DATAPLEX_CATALOG_ENTRY_TYPE_LINK = (
+    "/dataplex/projects/{project_id}/locations/{location}/entryTypes/{entry_type_id}?project={project_id}"
+)
+DATAPLEX_CATALOG_ENTRY_TYPES_LINK = "/dataplex/catalog/entry-types?project={project_id}"
 
 
 class DataplexTaskLink(BaseGoogleLink):
@@ -145,6 +149,51 @@ class DataplexCatalogEntryGroupsLink(BaseGoogleLink):
         task_instance.xcom_push(
             context=context,
             key=DataplexCatalogEntryGroupsLink.key,
+            value={
+                "location": task_instance.location,
+                "project_id": task_instance.project_id,
+            },
+        )
+
+
+class DataplexCatalogEntryTypeLink(BaseGoogleLink):
+    """Helper class for constructing Dataplex Catalog EntryType link."""
+
+    name = "Dataplex Catalog EntryType"
+    key = "dataplex_catalog_entry_type_key"
+    format_str = DATAPLEX_CATALOG_ENTRY_TYPE_LINK
+
+    @staticmethod
+    def persist(
+        context: Context,
+        task_instance,
+    ):
+        task_instance.xcom_push(
+            context=context,
+            key=DataplexCatalogEntryTypeLink.key,
+            value={
+                "entry_type_id": task_instance.entry_type_id,
+                "location": task_instance.location,
+                "project_id": task_instance.project_id,
+            },
+        )
+
+
+class DataplexCatalogEntryTypesLink(BaseGoogleLink):
+    """Helper class for constructing Dataplex Catalog EntryTypes link."""
+
+    name = "Dataplex Catalog EntryTypes"
+    key = "dataplex_catalog_entry_types_key"
+    format_str = DATAPLEX_CATALOG_ENTRY_TYPES_LINK
+
+    @staticmethod
+    def persist(
+        context: Context,
+        task_instance,
+    ):
+        task_instance.xcom_push(
+            context=context,
+            key=DataplexCatalogEntryTypesLink.key,
             value={
                 "location": task_instance.location,
                 "project_id": task_instance.project_id,
