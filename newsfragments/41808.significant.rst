@@ -9,11 +9,11 @@ Note: there are no replacements. Direct access to DB is discouraged and will not
 
 * Types of change
 
-  * [x] DAG changes
+  * [ ] DAG changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency change
-  * [ ] Code interface change
+  * [x] Code interface change
