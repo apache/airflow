@@ -382,8 +382,9 @@ class _EdgeWorkerCli:
         logger.info("Worker state: %s", state)
         sysinfo = self._get_sysinfo()
         try:
-            state, self.queues = worker_set_state(self.hostname, state, len(self.jobs), self.queues, sysinfo)
-            if state in (EdgeWorkerState.MAINTENANCE_REQUESTED, EdgeWorkerState.MAINTENANCE_PENDING, EdgeWorkerState.MAINTENANCE_MODE):
+            worker_info = worker_set_state(self.hostname, state, len(self.jobs), self.queues, sysinfo)
+            self.queues = worker_info["queues"]
+            if EdgeWorkerState[worker_info["state"]] in (EdgeWorkerState.MAINTENANCE_REQUESTED, EdgeWorkerState.MAINTENANCE_PENDING, EdgeWorkerState.MAINTENANCE_MODE):
                 if not _EdgeWorkerCli.maintenance_mode:
                     logger.info("Maintenance mode requested!")
                 _EdgeWorkerCli.maintenance_mode = True
