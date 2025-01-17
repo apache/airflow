@@ -52,12 +52,17 @@ const getColumns = ({
     cell: ({ row }) => (
       <Checkbox
         checked={selectedRows.get(row.original.key)}
+        colorPalette="blue"
         onCheckedChange={(event) => onRowSelect(row.original.key, Boolean(event.checked))}
       />
     ),
     enableSorting: false,
     header: () => (
-      <Checkbox checked={allRowsSelected} onCheckedChange={(event) => onSelectAll(Boolean(event.checked))} />
+      <Checkbox
+        checked={allRowsSelected}
+        colorPalette="blue"
+        onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
+      />
     ),
     meta: {
       skeletonWidth: 10,
