@@ -5989,68 +5989,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/variables/import:
-    post:
-      tags:
-      - Variable
-      summary: Import Variables
-      description: Import variables from a JSON file.
-      operationId: import_variables
-      parameters:
-      - name: action_if_exists
-        in: query
-        required: false
-        schema:
-          enum:
-          - overwrite
-          - fail
-          - skip
-          type: string
-          default: fail
-          title: Action If Exists
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/Body_import_variables'
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/VariablesImportResponse'
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
-        '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unprocessable Entity
   /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}:
     get:
       tags:
@@ -6629,16 +6567,6 @@ components:
       - status
       title: BaseInfoResponse
       description: Base info serializer for responses.
-    Body_import_variables:
-      properties:
-        file:
-          type: string
-          format: binary
-          title: File
-      type: object
-      required:
-      - file
-      title: Body_import_variables
     ClearTaskInstancesBody:
       properties:
         dry_run:
@@ -10066,26 +9994,6 @@ components:
       - is_encrypted
       title: VariableResponse
       description: Variable serializer for responses.
-    VariablesImportResponse:
-      properties:
-        created_variable_keys:
-          items:
-            type: string
-          type: array
-          title: Created Variable Keys
-        import_count:
-          type: integer
-          title: Import Count
-        created_count:
-          type: integer
-          title: Created Count
-      type: object
-      required:
-      - created_variable_keys
-      - import_count
-      - created_count
-      title: VariablesImportResponse
-      description: Import Variables serializer for responses.
     VersionInfo:
       properties:
         version:
