@@ -415,6 +415,13 @@ class TestStringifiedDAGs:
                 )
             )
 
+    # Skip that test if latest botocore is used - it reads all example dags and in case latest botocore
+    # is upgraded to latest, usually aiobotocore can't be installed and some of the system tests will fail with
+    # import errors.
+    @pytest.mark.skipif(
+        os.environ.get("UPGRADE_BOTO", "") == "true",
+        reason="This test is skipped when latest botocore is installed",
+    )
     @pytest.mark.db_test
     def test_serialization(self):
         """Serialization and deserialization should work for every DAG and Operator."""
