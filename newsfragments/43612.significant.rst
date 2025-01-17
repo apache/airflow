@@ -9,8 +9,8 @@ AIRFLOW__STANDARD__VENV_INSTALL_METHOD option. The possible values are:
 
 * Types of change
 
-  * [ ] DAG changes
-  * [ ] Config changes
+  * [x] DAG changes
+  * [x] Config changes
   * [ ] API changes
   * [ ] CLI changes
   * [x] Behaviour changes
