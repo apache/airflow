@@ -1284,6 +1284,8 @@ export interface components {
       timestamp?: string;
       /** @description The filename */
       filename?: string;
+      /** @description The bundle name */
+      bundle_name?: string;
       /** @description The full stackstrace. */
       stack_trace?: string;
     };
