@@ -59,7 +59,7 @@ if TYPE_CHECKING:
     # Command to execute - list of strings
     # the first element is always "airflow".
     # It should be result of TaskInstance.generate_command method.
-    CommandType = list[str]
+    CommandType = Sequence[str]
 
     # Task that is queued. It contains all the information that is
     # needed to run the task.
@@ -223,7 +223,12 @@ class BaseExecutor(LoggingMixin):
         :param task_instance: TaskInstance
         :return: True if the task is known to this executor
         """
-        return task_instance.key in self.queued_tasks or task_instance.key in self.running
+        return (
+            task_instance.id in self.queued_tasks
+            or task_instance.id in self.running
+            or task_instance.key in self.queued_tasks
+            or task_instance.key in self.running
+        )
 
     def sync(self) -> None:
         """
@@ -319,6 +324,20 @@ class BaseExecutor(LoggingMixin):
 
         :return: List of tuples from the queued_tasks according to the priority.
         """
+        from airflow.executors import workloads
+
+        if not self.queued_tasks:
+            return []
+
+        kind = next(iter(self.queued_tasks.values()))
+        if isinstance(kind, workloads.BaseWorkload):
+            # V3 + new executor that supports workloads
+            return sorted(
+                self.queued_tasks.items(),
+                key=lambda x: x[1].ti.priority_weight,
+                reverse=True,
+            )
+
         return sorted(
             self.queued_tasks.items(),
             key=lambda x: x[1][1],
@@ -332,12 +351,12 @@ class BaseExecutor(LoggingMixin):
 
         :param open_slots: Number of open slots
         """
-        span = Trace.get_current_span()
         sorted_queue = self.order_queued_tasks_by_priority()
         task_tuples = []
+        workloads = []
 
         for _ in range(min((open_slots, len(self.queued_tasks)))):
-            key, (command, _, queue, ti) = sorted_queue.pop(0)
+            key, item = sorted_queue.pop(0)
 
             # If a task makes it here but is still understood by the executor
             # to be running, it generally means that the task has been killed
@@ -375,15 +394,19 @@ class BaseExecutor(LoggingMixin):
             else:
                 if key in self.attempts:
                     del self.attempts[key]
-                task_tuples.append((key, command, queue, ti.executor_config))
-                if span.is_recording():
-                    span.add_event(
-                        name="task to trigger",
-                        attributes={"command": str(command), "conf": str(ti.executor_config)},
-                    )
+                # TODO: TaskSDK: Compat, remove when KubeExecutor is fully moved over to TaskSDK too.
+                # TODO: TaskSDK: We need to minimum version requirements on executors with Airflow 3.
+                # How/where do we do that? Executor loader?
+                if hasattr(self, "_process_workloads"):
+                    workloads.append(item)
+                else:
+                    (command, _, queue, ti) = item
+                    task_tuples.append((key, command, queue, getattr(ti, "executor_config", None)))
 
         if task_tuples:
             self._process_tasks(task_tuples)
+        elif workloads:
+            self._process_workloads(workloads)  # type: ignore[attr-defined]
 
     @add_span
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
@@ -625,7 +648,7 @@ class BaseExecutor(LoggingMixin):
         return len(self.running) + len(self.queued_tasks)
 
     @staticmethod
-    def validate_airflow_tasks_run_command(command: list[str]) -> tuple[str | None, str | None]:
+    def validate_airflow_tasks_run_command(command: Sequence[str]) -> tuple[str | None, str | None]:
         """
         Check if the command to execute is airflow command.
 

@@ -25,8 +25,8 @@ import pytest
 from airflow.models import Variable
 from airflow.security import permissions
 from airflow.utils.session import create_session
+from providers.fab.tests.provider_tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user
 
-from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user
 from tests_common.test_utils.www import (
     _check_last_log,
     check_content_in_response,

@@ -43,6 +43,7 @@ from airflow.exceptions import (
     ParamValidationError,
     UnknownExecutorException,
 )
+from airflow.models import DagBag
 from airflow.models.asset import (
     AssetActive,
     AssetAliasModel,
@@ -63,7 +64,6 @@ from airflow.models.dag import (
 )
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
-from airflow.models.param import DagParam, Param
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.empty import EmptyOperator
@@ -73,6 +73,7 @@ from airflow.sdk import TaskGroup
 from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 from airflow.sdk.definitions._internal.templater import NativeEnvironment, SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
+from airflow.sdk.definitions.param import DagParam, Param
 from airflow.security import permissions
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import (
@@ -96,7 +97,6 @@ from tests.plugins.priority_weight_strategy import (
     TestPriorityWeightStrategyPlugin,
 )
 from tests_common.test_utils.asserts import assert_queries_count
-from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_dags,
@@ -138,6 +138,15 @@ def clear_assets():
     clear_db_assets()
 
 
+TEST_DAGS_FOLDER = Path(__file__).parent.parent / "dags"
+
+
+@pytest.fixture
+def test_dags_bundle(configure_testing_dag_bundle):
+    with configure_testing_dag_bundle(TEST_DAGS_FOLDER):
+        yield
+
+
 def _create_dagrun(
     dag: DAG,
     *,
@@ -150,7 +159,7 @@ def _create_dagrun(
     triggered_by_kwargs: dict = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     run_id = dag.timetable.generate_run_id(
         run_type=run_type,
-        logical_date=logical_date,
+        logical_date=logical_date,  # type: ignore
         data_interval=data_interval,
     )
     return dag.create_dagrun(
@@ -1035,7 +1044,7 @@ class TestDag:
         dag = DAG("test_dag2", schedule=None, max_consecutive_failed_dag_runs=2)
         assert dag.max_consecutive_failed_dag_runs == 2
 
-    def test_existing_dag_is_paused_after_limit(self):
+    def test_existing_dag_is_paused_after_limit(self, testing_dag_bundle):
         def add_failed_dag_run(dag, id, logical_date):
             triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dag_v = DagVersion.get_latest_version(dag_id=dag.dag_id)
@@ -1058,7 +1067,7 @@ class TestDag:
         dag.add_task(op1)
         session = settings.Session()
         dag.sync_to_db(session=session)
-        SerializedDagModel.write_dag(dag)
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
         assert not dag.get_is_paused()
 
         # dag should be paused after 2 failed dag_runs
@@ -1072,18 +1081,16 @@ class TestDag:
         dag.clear()
         self._clean_up(dag_id)
 
-    def test_dag_is_deactivated_upon_dagfile_deletion(self):
+    def test_dag_is_deactivated_upon_dagfile_deletion(self, dag_maker):
         dag_id = "old_existing_dag"
-        dag_fileloc = "/usr/local/airflow/dags/non_existing_path.py"
-        dag = DAG(dag_id, schedule=None, is_paused_upon_creation=True)
-        dag.fileloc = dag_fileloc
+        with dag_maker(dag_id, schedule=None, is_paused_upon_creation=True) as dag:
+            ...
         session = settings.Session()
         dag.sync_to_db(session=session)
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
 
         assert orm_dag.is_active
-        assert orm_dag.fileloc == dag_fileloc
 
         DagModel.deactivate_deleted_dags(list_py_file_paths(settings.DAGS_FOLDER))
 
@@ -1428,40 +1435,40 @@ class TestDag:
 
     def test_dag_add_task_checks_trigger_rule(self):
         # A non fail stop dag should allow any trigger rule
-        from airflow.exceptions import FailStopDagInvalidTriggerRule
+        from airflow.exceptions import FailFastDagInvalidTriggerRule
         from airflow.utils.trigger_rule import TriggerRule
 
         task_with_non_default_trigger_rule = EmptyOperator(
             task_id="task_with_non_default_trigger_rule", trigger_rule=TriggerRule.ALWAYS
         )
-        non_fail_stop_dag = DAG(
+        non_fail_fast_dag = DAG(
             dag_id="test_dag_add_task_checks_trigger_rule",
             schedule=None,
             start_date=DEFAULT_DATE,
-            fail_stop=False,
+            fail_fast=False,
         )
-        non_fail_stop_dag.add_task(task_with_non_default_trigger_rule)
+        non_fail_fast_dag.add_task(task_with_non_default_trigger_rule)
 
         # a fail stop dag should allow default trigger rule
         from airflow.models.abstractoperator import DEFAULT_TRIGGER_RULE
 
-        fail_stop_dag = DAG(
+        fail_fast_dag = DAG(
             dag_id="test_dag_add_task_checks_trigger_rule",
             schedule=None,
             start_date=DEFAULT_DATE,
-            fail_stop=True,
+            fail_fast=True,
         )
         task_with_default_trigger_rule = EmptyOperator(
             task_id="task_with_default_trigger_rule", trigger_rule=DEFAULT_TRIGGER_RULE
         )
-        fail_stop_dag.add_task(task_with_default_trigger_rule)
+        fail_fast_dag.add_task(task_with_default_trigger_rule)
 
         # a fail stop dag should not allow a non-default trigger rule
         task_with_non_default_trigger_rule = EmptyOperator(
             task_id="task_with_non_default_trigger_rule", trigger_rule=TriggerRule.ALWAYS
         )
-        with pytest.raises(FailStopDagInvalidTriggerRule):
-            fail_stop_dag.add_task(task_with_non_default_trigger_rule)
+        with pytest.raises(FailFastDagInvalidTriggerRule):
+            fail_fast_dag.add_task(task_with_non_default_trigger_rule)
 
     def test_dag_add_task_sets_default_task_group(self):
         dag = DAG(dag_id="test_dag_add_task_sets_default_task_group", schedule=None, start_date=DEFAULT_DATE)
@@ -1514,26 +1521,24 @@ class TestDag:
         assert dagrun.state == dag_run_state
 
     @pytest.mark.parametrize("dag_run_state", [DagRunState.QUEUED, DagRunState.RUNNING])
-    def test_clear_set_dagrun_state_for_mapped_task(self, dag_run_state):
+    @pytest.mark.need_serialized_dag
+    def test_clear_set_dagrun_state_for_mapped_task(self, dag_maker, dag_run_state):
         dag_id = "test_clear_set_dagrun_state"
         self._clean_up(dag_id)
         task_id = "t1"
 
-        dag = DAG(dag_id, schedule=None, start_date=DEFAULT_DATE, max_active_runs=1)
+        with dag_maker(dag_id, schedule=None, start_date=DEFAULT_DATE, max_active_runs=1) as dag:
 
-        @dag.task
-        def make_arg_lists():
-            return [[1], [2], [{"a": "b"}]]
+            @task_decorator
+            def make_arg_lists():
+                return [[1], [2], [{"a": "b"}]]
 
-        def consumer(value):
-            print(value)
+            def consumer(value):
+                print(value)
 
-        mapped = PythonOperator.partial(task_id=task_id, dag=dag, python_callable=consumer).expand(
-            op_args=make_arg_lists()
-        )
+            PythonOperator.partial(task_id=task_id, python_callable=consumer).expand(op_args=make_arg_lists())
 
-        session = settings.Session()
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        session = dag_maker.session
         dagrun_1 = dag.create_dagrun(
             run_id="backfill",
             run_type=DagRunType.BACKFILL_JOB,
@@ -1542,8 +1547,10 @@ class TestDag:
             logical_date=DEFAULT_DATE,
             session=session,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-            **triggered_by_kwargs,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
+        # Get the (de)serialized MappedOperator
+        mapped = dag.get_task(task_id)
         expand_mapped_task(mapped, dagrun_1.run_id, "make_arg_lists", length=2, session=session)
 
         upstream_ti = dagrun_1.get_task_instance("make_arg_lists", session=session)
@@ -2355,58 +2362,35 @@ class TestDagModel:
         needed = query.all()
         assert needed == []
 
-    @pytest.mark.parametrize(
-        ("fileloc", "expected_relative"),
-        [
-            (os.path.join(settings.DAGS_FOLDER, "a.py"), Path("a.py")),
-            ("/tmp/foo.py", Path("/tmp/foo.py")),
-        ],
-    )
-    def test_relative_fileloc(self, fileloc, expected_relative):
-        dag = DAG(dag_id="test", schedule=None)
-        dag.fileloc = fileloc
+    def test_relative_fileloc(self, session):
+        rel_path = "test_assets.py"
+        bundle_path = TEST_DAGS_FOLDER
+        file_path = bundle_path / rel_path
+        bag = DagBag(dag_folder=file_path, bundle_path=bundle_path)
 
-        assert dag.relative_fileloc == expected_relative
+        dag = bag.get_dag("dag_with_skip_task")
+        dag.sync_to_db(session=session)
 
-    @pytest.mark.parametrize(
-        "reader_dags_folder", [settings.DAGS_FOLDER, str(repo_root / "airflow/example_dags")]
-    )
-    @pytest.mark.parametrize(
-        ("fileloc", "expected_relative"),
-        [
-            (str(Path(settings.DAGS_FOLDER, "a.py")), Path("a.py")),
-            ("/tmp/foo.py", Path("/tmp/foo.py")),
-        ],
-    )
-    def test_relative_fileloc_serialized(
-        self, fileloc, expected_relative, session, clear_dags, reader_dags_folder
-    ):
-        """
-        The serialized dag model includes the dags folder as configured on the thing serializing
-        the dag.  On the thing deserializing the dag, when determining relative fileloc,
-        we should use the dags folder of the processor.  So even if the dags folder of
-        the deserializer is different (meaning that the full path is no longer relative to
-        the dags folder) then we should still get the relative fileloc as it existed on the
-        serializer process.  When the full path is not relative to the configured dags folder,
-        then relative fileloc should just be the full path.
-        """
-        dag = DAG(dag_id="test", schedule=None)
-        dag.fileloc = fileloc
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag)
+        assert dag.fileloc == str(file_path)
+        assert dag.relative_fileloc == str(rel_path)
+
+        SerializedDagModel.write_dag(dag, bundle_name="dag_maker", session=session)
+        session.commit()
         session.expunge_all()
-        sdm = SerializedDagModel.get(dag.dag_id, session)
-        dag = sdm.dag
-        with conf_vars({("core", "dags_folder"): reader_dags_folder}):
-            assert dag.relative_fileloc == expected_relative
+        dm = session.get(DagModel, dag.dag_id)
+        assert dm.fileloc == str(file_path)
+        assert dm.relative_fileloc == str(rel_path)
+        sdm = session.scalar(select(SerializedDagModel).where(SerializedDagModel.dag_id == dag.dag_id))
+        assert sdm.dag.fileloc == str(file_path)
+        assert sdm.dag.relative_fileloc == str(rel_path)
 
-    def test__processor_dags_folder(self, session):
+    def test__processor_dags_folder(self, session, testing_dag_bundle):
         """Only populated after deserializtion"""
         dag = DAG(dag_id="test", schedule=None)
         dag.fileloc = "/abc/test.py"
         dag.sync_to_db()
         assert dag._processor_dags_folder is None
-        SerializedDagModel.write_dag(dag)
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
         sdm = SerializedDagModel.get(dag.dag_id, session)
         assert sdm.dag._processor_dags_folder == settings.DAGS_FOLDER
 
@@ -2732,20 +2716,21 @@ def test_set_task_instance_state(run_id, session, dag_maker):
     }
 
 
+@pytest.mark.need_serialized_dag
 def test_set_task_instance_state_mapped(dag_maker, session):
     """Test that when setting an individual mapped TI that the other TIs are not affected"""
     task_id = "t1"
 
     with dag_maker(session=session) as dag:
 
-        @dag.task
+        @task_decorator
         def make_arg_lists():
             return [[1], [2], [{"a": "b"}]]
 
         def consumer(value):
             print(value)
 
-        mapped = PythonOperator.partial(task_id=task_id, dag=dag, python_callable=consumer).expand(
+        mapped = PythonOperator.partial(task_id=task_id, python_callable=consumer).expand(
             op_args=make_arg_lists()
         )
 
@@ -2755,6 +2740,8 @@ def test_set_task_instance_state_mapped(dag_maker, session):
         run_type=DagRunType.SCHEDULED,
         state=DagRunState.FAILED,
     )
+
+    mapped = dag.get_task(task_id)
     expand_mapped_task(mapped, dr1.run_id, "make_arg_lists", length=2, session=session)
 
     # set_state(future=True) only applies to scheduled runs

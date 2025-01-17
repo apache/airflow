@@ -102,48 +102,16 @@ def test_irregular_provider_with_extra_ignore_should_be_valid_cmd(mock_run_comma
     assert match_pattern.search(arg_str), arg_str
 
 
-def test_primary_test_arg_is_excluded_by_extra_pytest_arg(mock_run_command):
-    test_provider = "http"  # "Providers[<id>]" scans the source tree so we need to use a real provider id
-    test_provider_not_skipped = "ftp"
-    _run_test(
-        shell_params=ShellParams(
-            test_group=GroupOfTests.PROVIDERS,
-            test_type=f"Providers[{test_provider},{test_provider_not_skipped}]",
-        ),
-        extra_pytest_args=(f"--ignore=providers/tests/{test_provider}",),
-        python_version="3.9",
-        output=None,
-        test_timeout=60,
-        skip_docker_compose_down=True,
-    )
-
-    assert mock_run_command.call_count > 1
-    run_cmd_call = mock_run_command.call_args_list[1]
-    arg_str = " ".join(run_cmd_call.args[0])
-
-    # The command pattern we look for is "<container id> --verbosity=0 \
-    # <*other args we don't care about*> --ignore=providers/tests/<provider name>"
-    # The providers/tests/http argument has been eliminated by the code that preps the args; this is a bug,
-    # bc without a directory or module arg, pytest tests everything (which we don't want!)
-    # We check "--verbosity=0" to ensure nothing is between the airflow container id and the verbosity arg,
-    # IOW that the primary test arg is removed
-    match_pattern = re.compile(
-        f"airflow providers/tests/{test_provider_not_skipped} --verbosity=0 .+ --ignore=providers/tests/{test_provider}"
-    )
-
-    assert match_pattern.search(arg_str)
-
-
 def test_test_is_skipped_if_all_are_ignored(mock_run_command):
     test_providers = [
         "http",
-        "ftp",
+        "standard",
     ]  # "Providers[<id>]" scans the source tree so we need to use a real provider id
     _run_test(
         shell_params=ShellParams(
             test_group=GroupOfTests.PROVIDERS, test_type=f"Providers[{','.join(test_providers)}]"
         ),
-        extra_pytest_args=tuple(f"--ignore=providers/tests/{provider}" for provider in test_providers),
+        extra_pytest_args=tuple(f"--ignore=providers/{provider}/tests" for provider in test_providers),
         python_version="3.9",
         output=None,
         test_timeout=60,

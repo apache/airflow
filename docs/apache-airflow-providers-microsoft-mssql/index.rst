@@ -43,6 +43,7 @@
     :caption: References
 
     Python API <_api/airflow/providers/microsoft/mssql/index>
+    Dialects <dialects>
 
 .. toctree::
     :hidden:

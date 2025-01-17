@@ -21,7 +21,7 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 from connexion import NoContent
-from flask import g, request
+from flask import request
 from marshmallow import ValidationError
 from sqlalchemy import select, update
 from sqlalchemy.sql.expression import or_
@@ -122,7 +122,7 @@ def get_dags(
     if dag_id_pattern:
         dags_query = dags_query.where(DagModel.dag_id.ilike(f"%{dag_id_pattern}%"))
 
-    readable_dags = get_auth_manager().get_permitted_dag_ids(user=g.user)
+    readable_dags = get_auth_manager().get_permitted_dag_ids(user=get_auth_manager().get_user())
 
     dags_query = dags_query.where(DagModel.dag_id.in_(readable_dags))
     if tags:
@@ -193,7 +193,9 @@ def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pat
     if dag_id_pattern == "~":
         dag_id_pattern = "%"
     dags_query = dags_query.where(DagModel.dag_id.ilike(f"%{dag_id_pattern}%"))
-    editable_dags = get_auth_manager().get_permitted_dag_ids(methods=["PUT"], user=g.user)
+    editable_dags = get_auth_manager().get_permitted_dag_ids(
+        methods=["PUT"], user=get_auth_manager().get_user()
+    )
 
     dags_query = dags_query.where(DagModel.dag_id.in_(editable_dags))
     if tags:

@@ -21,11 +21,10 @@ import asyncio
 import copy
 import functools
 import logging
-import pathlib
 import sys
 import time
 from collections import defaultdict
-from collections.abc import Collection, Container, Generator, Iterable, Sequence
+from collections.abc import Collection, Generator, Iterable, Sequence
 from contextlib import ExitStack
 from datetime import datetime, timedelta
 from functools import cache
@@ -419,9 +418,9 @@ class DAG(TaskSDKDag, LoggingMixin):
         Can be used as an HTTP link (for example the link to your Slack channel), or a mailto link.
         e.g: {"dag_owner": "https://airflow.apache.org/"}
     :param auto_register: Automatically register this DAG when it is used in a ``with`` block
-    :param fail_stop: Fails currently running tasks when task in DAG fails.
-        **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
-        An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
+    :param fail_fast: Fails currently running tasks when task in DAG fails.
+        **Warning**: A fail fast dag can only have tasks with the default trigger rule ("all_success").
+        An exception will be thrown if any task in a fail fast dag has a non default trigger rule.
     :param dag_display_name: The display name of the DAG which appears on the UI.
     """
 
@@ -734,20 +733,6 @@ class DAG(TaskSDKDag, LoggingMixin):
     @property
     def timetable_summary(self) -> str:
         return self.timetable.summary
-
-    @property
-    def relative_fileloc(self) -> pathlib.Path:
-        """File location of the importable dag 'file' relative to the configured DAGs folder."""
-        path = pathlib.Path(self.fileloc)
-        try:
-            rel_path = path.relative_to(self._processor_dags_folder or settings.DAGS_FOLDER)
-            if rel_path == pathlib.Path("."):
-                return path
-            else:
-                return rel_path
-        except ValueError:
-            # Not relative to DAGS_FOLDER.
-            return path
 
     @provide_session
     def get_concurrency_reached(self, session=NEW_SESSION) -> bool:
@@ -1600,6 +1585,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         :param mark_success_pattern: regex of task_ids to mark as success instead of running
         :param session: database connection (optional)
         """
+        from airflow.serialization.serialized_objects import SerializedDAG
 
         def add_logger_if_needed(ti: TaskInstance):
             """
@@ -1642,8 +1628,10 @@ class DAG(TaskSDKDag, LoggingMixin):
             self.log.debug("Getting dagrun for dag %s", self.dag_id)
             logical_date = timezone.coerce_datetime(logical_date)
             data_interval = self.timetable.infer_manual_data_interval(run_after=logical_date)
+            scheduler_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(self))
+
             dr: DagRun = _get_or_create_dagrun(
-                dag=self,
+                dag=scheduler_dag,
                 start_date=logical_date,
                 logical_date=logical_date,
                 run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
@@ -1678,6 +1666,7 @@ class DAG(TaskSDKDag, LoggingMixin):
                     if s.state != TaskInstanceState.UP_FOR_RESCHEDULE:
                         s.try_number += 1
                     s.state = TaskInstanceState.SCHEDULED
+                    s.scheduled_dttm = timezone.utcnow()
                 session.commit()
                 # triggerer may mark tasks scheduled so we read from DB
                 all_tis = set(dr.get_task_instances(session=session))
@@ -2042,6 +2031,7 @@ class DagModel(Base):
     # packaged DAG, it will point to the subpath of the DAG within the
     # associated zip.
     fileloc = Column(String(2000))
+    relative_fileloc = Column(String(2000))
     bundle_name = Column(StringID(), ForeignKey("dag_bundle.name"), nullable=True)
     # The version of the bundle the last time the DAG was processed
     bundle_version = Column(String(200), nullable=True)
@@ -2211,18 +2201,6 @@ class DagModel(Base):
     def safe_dag_id(self):
         return self.dag_id.replace(".", "__dot__")
 
-    @property
-    def relative_fileloc(self) -> pathlib.Path | None:
-        """File location of the importable dag 'file' relative to the configured DAGs folder."""
-        if self.fileloc is None:
-            return None
-        path = pathlib.Path(self.fileloc)
-        try:
-            return path.relative_to(settings.DAGS_FOLDER)
-        except ValueError:
-            # Not relative to DAGS_FOLDER.
-            return path
-
     @provide_session
     def set_is_paused(self, is_paused: bool, session=NEW_SESSION) -> None:
         """
@@ -2263,25 +2241,25 @@ class DagModel(Base):
     @provide_session
     def deactivate_deleted_dags(
         cls,
-        alive_dag_filelocs: Container[str],
+        active: set[tuple[str, str]],
         session: Session = NEW_SESSION,
     ) -> None:
         """
         Set ``is_active=False`` on the DAGs for which the DAG files have been removed.
 
-        :param alive_dag_filelocs: file paths of alive DAGs
+        :param active_paths: file paths of alive DAGs
         :param session: ORM Session
         """
         log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ", cls.__tablename__)
         dag_models = session.scalars(
             select(cls).where(
-                cls.fileloc.is_not(None),
+                cls.relative_fileloc.is_not(None),
             )
         )
 
-        for dag_model in dag_models:
-            if dag_model.fileloc not in alive_dag_filelocs:
-                dag_model.is_active = False
+        for dm in dag_models:
+            if (dm.bundle_name, dm.relative_fileloc) not in active:
+                dm.is_active = False
 
     @classmethod
     def dags_needing_dagruns(cls, session: Session) -> tuple[Query, dict[str, tuple[datetime, datetime]]]:

@@ -17,12 +17,10 @@
  * under the License.
  */
 import { Box, useDisclosure } from "@chakra-ui/react";
-import { useState } from "react";
 import { FiRefreshCw } from "react-icons/fi";
 
-import type { TaskInstanceCollectionResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
+import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import ActionButton from "src/components/ui/ActionButton";
-import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 
 import ClearTaskInstanceDialog from "./ClearTaskInstanceDialog";
 
@@ -34,21 +32,6 @@ type Props = {
 const ClearTaskInstanceButton = ({ taskInstance, withText = true }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
 
-  const [affectedTasks, setAffectedTasks] = useState<TaskInstanceCollectionResponse>({
-    task_instances: [],
-    total_entries: 0,
-  });
-
-  const dagId = taskInstance.dag_id;
-  const dagRunId = taskInstance.dag_run_id;
-
-  const { isPending, mutate } = useClearTaskInstances({
-    dagId,
-    dagRunId,
-    onSuccessConfirm: onClose,
-    onSuccessDryRun: setAffectedTasks,
-  });
-
   return (
     <Box>
       <ActionButton
@@ -59,14 +42,7 @@ const ClearTaskInstanceButton = ({ taskInstance, withText = true }: Props) => {
         withText={withText}
       />
 
-      <ClearTaskInstanceDialog
-        affectedTasks={affectedTasks}
-        isPending={isPending}
-        mutate={mutate}
-        onClose={onClose}
-        open={open}
-        taskInstance={taskInstance}
-      />
+      <ClearTaskInstanceDialog onClose={onClose} open={open} taskInstance={taskInstance} />
     </Box>
   );
 };

@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.providers.amazon.aws.hooks.datasync import DataSyncHook
+from airflow.providers.amazon.aws.links.datasync import DataSyncTaskExecutionLink, DataSyncTaskLink
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
@@ -130,6 +131,8 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
     }
     ui_color = "#44b5e2"
 
+    operator_extra_links = (DataSyncTaskLink(), DataSyncTaskExecutionLink())
+
     def __init__(
         self,
         *,
@@ -215,6 +218,23 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
         if not self.task_arn:
             raise AirflowException("DataSync TaskArn could not be identified or created.")
 
+        task_id = self.task_arn.split("/")[-1]
+
+        task_url = DataSyncTaskLink.format_str.format(
+            aws_domain=DataSyncTaskLink.get_aws_domain(self.hook.conn_partition),
+            region_name=self.hook.conn_region_name,
+            task_id=task_id,
+        )
+
+        DataSyncTaskLink.persist(
+            context=context,
+            operator=self,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
+            task_id=task_id,
+        )
+        self.log.info("You can view this DataSync task at %s", task_url)
+
         self.log.info("Using DataSync TaskArn %s", self.task_arn)
 
         # Update the DataSync Task
@@ -222,7 +242,7 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
             self._update_datasync_task()
 
         # Execute the DataSync Task
-        self._execute_datasync_task()
+        self._execute_datasync_task(context=context)
 
         if not self.task_execution_arn:
             raise AirflowException("Nothing was executed")
@@ -327,7 +347,7 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
         self.hook.update_task(self.task_arn, **self.update_task_kwargs)
         self.log.info("Updated TaskArn %s", self.task_arn)
 
-    def _execute_datasync_task(self) -> None:
+    def _execute_datasync_task(self, context: Context) -> None:
         """Create and monitor an AWS DataSync TaskExecution for a Task."""
         if not self.task_arn:
             raise AirflowException("Missing TaskArn")
@@ -336,6 +356,24 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
         self.log.info("Starting execution for TaskArn %s", self.task_arn)
         self.task_execution_arn = self.hook.start_task_execution(self.task_arn, **self.task_execution_kwargs)
         self.log.info("Started TaskExecutionArn %s", self.task_execution_arn)
+
+        # Create the execution extra link
+        execution_url = DataSyncTaskExecutionLink.format_str.format(
+            aws_domain=DataSyncTaskExecutionLink.get_aws_domain(self.hook.conn_partition),
+            region_name=self.hook.conn_region_name,
+            task_id=self.task_arn.split("/")[-1],
+            task_execution_id=self.task_execution_arn.split("/")[-1],
+        )
+        DataSyncTaskExecutionLink.persist(
+            context=context,
+            operator=self,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
+            task_id=self.task_arn.split("/")[-1],
+            task_execution_id=self.task_execution_arn.split("/")[-1],
+        )
+
+        self.log.info("You can view this DataSync task execution at %s", execution_url)
 
         if not self.wait_for_completion:
             return

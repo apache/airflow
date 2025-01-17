@@ -1,5 +1,3 @@
-**Breaking Change**
-
 Replaced Python's ``list`` with ``MutableSet`` for the property ``DAG.tags``.
 
 At the constractur you still can use list,
@@ -9,3 +7,14 @@ you actually can use any data structure that implements the
 The ``tags`` property of the ``DAG`` model would be of type
 ``MutableSet`` instead of ``list``,
 as there are no actual duplicates at the tags.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

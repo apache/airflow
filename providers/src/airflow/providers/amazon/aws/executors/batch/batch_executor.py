@@ -56,7 +56,7 @@ from airflow.providers.amazon.aws.executors.batch.utils import (
 )
 from airflow.utils.state import State
 
-CommandType = list[str]
+CommandType = Sequence[str]
 ExecutorConfigType = dict[str, Any]
 
 INVALID_CREDENTIALS_EXCEPTIONS = [
@@ -350,7 +350,7 @@ class AwsBatchExecutor(BaseExecutor):
         self.pending_jobs.append(
             BatchQueuedJob(
                 key=key,
-                command=command,
+                command=list(command),
                 queue=queue,
                 executor_config=executor_config or {},
                 attempt_number=1,

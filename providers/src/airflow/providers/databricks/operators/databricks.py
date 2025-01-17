@@ -293,6 +293,8 @@ class DatabricksCreateJobsOperator(BaseOperator):
     :param databricks_retry_delay: Number of seconds to wait between retries (it
             might be a floating point number).
     :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
+    :param environments: An optional list of task execution environment specifications
+        that can be referenced by serverless tasks of this job.
 
     """
 
@@ -324,6 +326,7 @@ class DatabricksCreateJobsOperator(BaseOperator):
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
         databricks_retry_args: dict[Any, Any] | None = None,
+        environments: list[dict] | None = None,
         **kwargs,
     ) -> None:
         """Create a new ``DatabricksCreateJobsOperator``."""
@@ -360,6 +363,8 @@ class DatabricksCreateJobsOperator(BaseOperator):
             self.json["git_source"] = git_source
         if access_control_list is not None:
             self.json["access_control_list"] = access_control_list
+        if environments is not None:
+            self.json["environments"] = environments
         if self.json:
             self.json = normalise_json_content(self.json)
 
@@ -503,6 +508,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
     :param git_source: Optional specification of a remote git repository from which
         supported task types are retrieved.
     :param deferrable: Run operator in the deferrable mode.
+    :param environments: An optional list of task execution environment specifications
+        that can be referenced by serverless tasks of this job.
 
         .. seealso::
             https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit
@@ -543,6 +550,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         wait_for_termination: bool = True,
         git_source: dict[str, str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        environments: list[dict] | None = None,
         **kwargs,
     ) -> None:
         """Create a new ``DatabricksSubmitRunOperator``."""
@@ -587,6 +595,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
             self.json["access_control_list"] = access_control_list
         if git_source is not None:
             self.json["git_source"] = git_source
+        if environments is not None:
+            self.json["environments"] = environments
 
         if "dbt_task" in self.json and "git_source" not in self.json:
             raise AirflowException("git_source is required for dbt_task")
@@ -983,6 +993,8 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
     :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
     :param workflow_run_metadata: Metadata for the workflow run. This is used when the operator is used within
         a workflow. It is expected to be a dictionary containing the run_id and conn_id for the workflow.
+    :param environments: An optional list of task execution environment specifications
+        that can be referenced by serverless tasks of this job.
     """
 
     def __init__(
@@ -1000,6 +1012,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         polling_period_seconds: int = 5,
         wait_for_termination: bool = True,
         workflow_run_metadata: dict[str, Any] | None = None,
+        environments: list[dict] | None = None,
         **kwargs: Any,
     ):
         self.caller = caller
@@ -1015,7 +1028,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         self.polling_period_seconds = polling_period_seconds
         self.wait_for_termination = wait_for_termination
         self.workflow_run_metadata = workflow_run_metadata
-
+        self.environments = environments
         self.databricks_run_id: int | None = None
 
         super().__init__(**kwargs)
@@ -1095,8 +1108,10 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             run_json["new_cluster"] = self.new_cluster
         elif self.existing_cluster_id:
             run_json["existing_cluster_id"] = self.existing_cluster_id
+        elif self.environments:
+            run_json["environments"] = self.environments
         else:
-            raise ValueError("Must specify either existing_cluster_id or new_cluster.")
+            raise ValueError("Must specify either existing_cluster_id, new_cluster or environments.")
         return run_json
 
     def _launch_job(self, context: Context | None = None) -> int:
@@ -1400,6 +1415,8 @@ class DatabricksTaskOperator(DatabricksTaskBaseOperator):
     :param new_cluster: Specs for a new cluster on which this task will be run.
     :param polling_period_seconds: Controls the rate which we poll for the result of this notebook job run.
     :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
+    :param environments: An optional list of task execution environment specifications
+        that can be referenced by serverless tasks of this job
     """
 
     CALLER = "DatabricksTaskOperator"
@@ -1419,6 +1436,7 @@ class DatabricksTaskOperator(DatabricksTaskBaseOperator):
         polling_period_seconds: int = 5,
         wait_for_termination: bool = True,
         workflow_run_metadata: dict | None = None,
+        environments: list[dict] | None = None,
         **kwargs,
     ):
         self.task_config = task_config
@@ -1436,6 +1454,7 @@ class DatabricksTaskOperator(DatabricksTaskBaseOperator):
             polling_period_seconds=polling_period_seconds,
             wait_for_termination=wait_for_termination,
             workflow_run_metadata=workflow_run_metadata,
+            environments=environments,
             **kwargs,
         )
 

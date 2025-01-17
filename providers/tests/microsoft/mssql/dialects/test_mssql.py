@@ -29,21 +29,23 @@ class TestMsSqlDialect:
     def setup_method(self):
         inspector = MagicMock(spc=Inspector)
         inspector.get_columns.side_effect = lambda table_name, schema: [
-            {"name": "id", "identity": True},
+            {"name": "index", "identity": True},
             {"name": "name"},
             {"name": "firstname"},
             {"name": "age"},
         ]
         self.test_db_hook = MagicMock(placeholder="?", inspector=inspector, spec=DbApiHook)
-        self.test_db_hook.run.side_effect = lambda *args: [("id",)]
-        self.test_db_hook._escape_column_name_format = '"{}"'
+        self.test_db_hook.run.side_effect = lambda *args: [("index",)]
+        self.test_db_hook.reserved_words = {"index", "user"}
+        self.test_db_hook.escape_word_format = "[{}]"
+        self.test_db_hook.escape_column_names = False
 
     def test_placeholder(self):
         assert MsSqlDialect(self.test_db_hook).placeholder == "?"
 
     def test_get_column_names(self):
         assert MsSqlDialect(self.test_db_hook).get_column_names("hollywood.actors") == [
-            "id",
+            "index",
             "name",
             "firstname",
             "age",
@@ -57,27 +59,51 @@ class TestMsSqlDialect:
         ]
 
     def test_get_primary_keys(self):
-        assert MsSqlDialect(self.test_db_hook).get_primary_keys("hollywood.actors") == ["id"]
+        assert MsSqlDialect(self.test_db_hook).get_primary_keys("hollywood.actors") == ["index"]
 
     def test_generate_replace_sql(self):
         values = [
-            {"id": "id", "name": "Stallone", "firstname": "Sylvester", "age": "78"},
-            {"id": "id", "name": "Statham", "firstname": "Jason", "age": "57"},
-            {"id": "id", "name": "Li", "firstname": "Jet", "age": "61"},
-            {"id": "id", "name": "Lundgren", "firstname": "Dolph", "age": "66"},
-            {"id": "id", "name": "Norris", "firstname": "Chuck", "age": "84"},
+            {"index": 1, "name": "Stallone", "firstname": "Sylvester", "age": "78"},
+            {"index": 2, "name": "Statham", "firstname": "Jason", "age": "57"},
+            {"index": 3, "name": "Li", "firstname": "Jet", "age": "61"},
+            {"index": 4, "name": "Lundgren", "firstname": "Dolph", "age": "66"},
+            {"index": 5, "name": "Norris", "firstname": "Chuck", "age": "84"},
         ]
-        target_fields = ["id", "name", "firstname", "age"]
+        target_fields = ["index", "name", "firstname", "age"]
         sql = MsSqlDialect(self.test_db_hook).generate_replace_sql("hollywood.actors", values, target_fields)
         assert (
             sql
             == """
             MERGE INTO hollywood.actors WITH (ROWLOCK) AS target
-            USING (SELECT ? AS id, ? AS name, ? AS firstname, ? AS age) AS source
-            ON target.id = source.id
+            USING (SELECT ? AS [index], ? AS name, ? AS firstname, ? AS age) AS source
+            ON target.[index] = source.[index]
             WHEN MATCHED THEN
                 UPDATE SET target.name = source.name, target.firstname = source.firstname, target.age = source.age
             WHEN NOT MATCHED THEN
-                INSERT (id, name, firstname, age) VALUES (source.id, source.name, source.firstname, source.age);
+                INSERT ([index], name, firstname, age) VALUES (source.[index], source.name, source.firstname, source.age);
+        """.strip()
+        )
+
+    def test_generate_replace_sql_when_escape_column_names_is_enabled(self):
+        values = [
+            {"index": 1, "name": "Stallone", "firstname": "Sylvester", "age": "78"},
+            {"index": 2, "name": "Statham", "firstname": "Jason", "age": "57"},
+            {"index": 3, "name": "Li", "firstname": "Jet", "age": "61"},
+            {"index": 4, "name": "Lundgren", "firstname": "Dolph", "age": "66"},
+            {"index": 5, "name": "Norris", "firstname": "Chuck", "age": "84"},
+        ]
+        target_fields = ["index", "name", "firstname", "age"]
+        self.test_db_hook.escape_column_names = True
+        sql = MsSqlDialect(self.test_db_hook).generate_replace_sql("hollywood.actors", values, target_fields)
+        assert (
+            sql
+            == """
+            MERGE INTO hollywood.actors WITH (ROWLOCK) AS target
+            USING (SELECT ? AS [index], ? AS [name], ? AS [firstname], ? AS [age]) AS source
+            ON target.[index] = source.[index]
+            WHEN MATCHED THEN
+                UPDATE SET target.[name] = source.[name], target.[firstname] = source.[firstname], target.[age] = source.[age]
+            WHEN NOT MATCHED THEN
+                INSERT ([index], [name], [firstname], [age]) VALUES (source.[index], source.[name], source.[firstname], source.[age]);
         """.strip()
         )

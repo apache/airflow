@@ -41,11 +41,11 @@ from airflow.models.expandinput import (
     ListOfDictsExpandInput,
     is_mappable,
 )
-from airflow.models.mappedoperator import MappedOperator, ensure_xcomarg_return_value
-from airflow.models.xcom_arg import XComArg
 from airflow.sdk.definitions._internal.contextmanager import DagContext, TaskGroupContext
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.baseoperator import BaseOperator as TaskSDKBaseOperator
+from airflow.sdk.definitions.mappedoperator import MappedOperator, ensure_xcomarg_return_value
+from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.typing_compat import ParamSpec
 from airflow.utils import timezone
 from airflow.utils.context import KNOWN_CONTEXT_KEYS
@@ -62,9 +62,9 @@ if TYPE_CHECKING:
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
-    from airflow.models.mappedoperator import ValidationSource
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
+    from airflow.sdk.definitions.mappedoperator import ValidationSource
     from airflow.utils.task_group import TaskGroup
 
 

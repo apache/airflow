@@ -22,7 +22,7 @@ from enum import Enum
 
 from pydantic import AwareDatetime, Field, NonNegativeInt, computed_field, model_validator
 
-from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.models import DagRun
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
@@ -37,14 +37,14 @@ class DAGRunPatchStates(str, Enum):
     FAILED = DagRunState.FAILED
 
 
-class DAGRunPatchBody(BaseModel):
+class DAGRunPatchBody(StrictBaseModel):
     """DAG Run Serializer for PATCH requests."""
 
     state: DAGRunPatchStates | None = None
     note: str | None = Field(None, max_length=1000)
 
 
-class DAGRunClearBody(BaseModel):
+class DAGRunClearBody(StrictBaseModel):
     """DAG Run serializer for clear endpoint body."""
 
     dry_run: bool = True
@@ -78,7 +78,7 @@ class DAGRunCollectionResponse(BaseModel):
     total_entries: int
 
 
-class TriggerDAGRunPostBody(BaseModel):
+class TriggerDAGRunPostBody(StrictBaseModel):
     """Trigger DAG Run Serializer for POST body."""
 
     dag_run_id: str | None = None
@@ -109,7 +109,7 @@ class TriggerDAGRunPostBody(BaseModel):
         return timezone.utcnow()
 
 
-class DAGRunsBatchBody(BaseModel):
+class DAGRunsBatchBody(StrictBaseModel):
     """List DAG Runs body for batch endpoint."""
 
     order_by: str | None = None

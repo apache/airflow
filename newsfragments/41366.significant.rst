@@ -1,3 +1,22 @@
 ``airflow.contrib`` modules have been removed
 
 All modules from ``airflow.contrib``, which were deprecated in Airflow 2, have been removed.
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.contrib.*``

@@ -44,16 +44,27 @@ if TYPE_CHECKING:
     from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 
 
-class EmptyAuthManager(BaseAuthManager[BaseUser]):
+class BaseAuthManagerUserTest(BaseUser):
+    def __init__(self, *, name: str) -> None:
+        self.name = name
+
+    def get_id(self) -> str:
+        return self.name
+
+    def get_name(self) -> str:
+        return self.name
+
+
+class EmptyAuthManager(BaseAuthManager[BaseAuthManagerUserTest]):
     appbuilder: AirflowAppBuilder | None = None
 
-    def get_user(self) -> BaseUser:
+    def get_user(self) -> BaseAuthManagerUserTest:
         raise NotImplementedError()
 
-    def deserialize_user(self, token: dict[str, Any]) -> BaseUser:
+    def deserialize_user(self, token: dict[str, Any]) -> BaseAuthManagerUserTest:
         raise NotImplementedError()
 
-    def serialize_user(self, user: BaseUser) -> dict[str, Any]:
+    def serialize_user(self, user: BaseAuthManagerUserTest) -> dict[str, Any]:
         raise NotImplementedError()
 
     def is_authorized_configuration(
@@ -61,7 +72,7 @@ class EmptyAuthManager(BaseAuthManager[BaseUser]):
         *,
         method: ResourceMethod,
         details: ConfigurationDetails | None = None,
-        user: BaseUser | None = None,
+        user: BaseAuthManagerUserTest | None = None,
     ) -> bool:
         raise NotImplementedError()
 
@@ -70,7 +81,7 @@ class EmptyAuthManager(BaseAuthManager[BaseUser]):
         *,
         method: ResourceMethod,
         details: ConnectionDetails | None = None,
-        user: BaseUser | None = None,
+        user: BaseAuthManagerUserTest | None = None,
     ) -> bool:
         raise NotImplementedError()
 
@@ -80,30 +91,44 @@ class EmptyAuthManager(BaseAuthManager[BaseUser]):
         method: ResourceMethod,
         access_entity: DagAccessEntity | None = None,
         details: DagDetails | None = None,
-        user: BaseUser | None = None,
+        user: BaseAuthManagerUserTest | None = None,
     ) -> bool:
         raise NotImplementedError()
 
     def is_authorized_asset(
-        self, *, method: ResourceMethod, details: AssetDetails | None = None, user: BaseUser | None = None
+        self,
+        *,
+        method: ResourceMethod,
+        details: AssetDetails | None = None,
+        user: BaseAuthManagerUserTest | None = None,
     ) -> bool:
         raise NotImplementedError()
 
     def is_authorized_pool(
-        self, *, method: ResourceMethod, details: PoolDetails | None = None, user: BaseUser | None = None
+        self,
+        *,
+        method: ResourceMethod,
+        details: PoolDetails | None = None,
+        user: BaseAuthManagerUserTest | None = None,
     ) -> bool:
         raise NotImplementedError()
 
     def is_authorized_variable(
-        self, *, method: ResourceMethod, details: VariableDetails | None = None, user: BaseUser | None = None
+        self,
+        *,
+        method: ResourceMethod,
+        details: VariableDetails | None = None,
+        user: BaseAuthManagerUserTest | None = None,
     ) -> bool:
         raise NotImplementedError()
 
-    def is_authorized_view(self, *, access_view: AccessView, user: BaseUser | None = None) -> bool:
+    def is_authorized_view(
+        self, *, access_view: AccessView, user: BaseAuthManagerUserTest | None = None
+    ) -> bool:
         raise NotImplementedError()
 
     def is_authorized_custom_view(
-        self, *, method: ResourceMethod | str, resource_name: str, user: BaseUser | None = None
+        self, *, method: ResourceMethod | str, resource_name: str, user: BaseAuthManagerUserTest | None = None
     ):
         raise NotImplementedError()
 
@@ -165,6 +190,40 @@ class TestBaseAuthManager:
     def test_get_url_user_profile_return_none(self, auth_manager):
         assert auth_manager.get_url_user_profile() is None
 
+    @patch("airflow.auth.managers.base_auth_manager.JWTSigner")
+    @patch.object(EmptyAuthManager, "deserialize_user")
+    def test_get_user_from_token(self, mock_deserialize_user, mock_jwt_signer, auth_manager):
+        token = "token"
+        payload = {}
+        user = BaseAuthManagerUserTest(name="test")
+        signer = Mock()
+        signer.verify_token.return_value = payload
+        mock_jwt_signer.return_value = signer
+        mock_deserialize_user.return_value = user
+
+        result = auth_manager.get_user_from_token(token)
+
+        mock_deserialize_user.assert_called_once_with(payload)
+        signer.verify_token.assert_called_once_with(token)
+        assert result == user
+
+    @patch("airflow.auth.managers.base_auth_manager.JWTSigner")
+    @patch.object(EmptyAuthManager, "serialize_user")
+    def test_get_jwt_token(self, mock_serialize_user, mock_jwt_signer, auth_manager):
+        token = "token"
+        serialized_user = "serialized_user"
+        signer = Mock()
+        signer.generate_signed_token.return_value = token
+        mock_jwt_signer.return_value = signer
+        mock_serialize_user.return_value = serialized_user
+        user = BaseAuthManagerUserTest(name="test")
+
+        result = auth_manager.get_jwt_token(user)
+
+        mock_serialize_user.assert_called_once_with(user)
+        signer.generate_signed_token.assert_called_once_with(serialized_user)
+        assert result == token
+
     @pytest.mark.parametrize(
         "return_values, expected",
         [
@@ -180,7 +239,8 @@ class TestBaseAuthManager:
             [
                 {"method": "GET", "details": DagDetails(id="dag1")},
                 {"method": "GET", "details": DagDetails(id="dag2")},
-            ]
+            ],
+            user=Mock(),
         )
         assert result == expected
 
@@ -201,7 +261,8 @@ class TestBaseAuthManager:
             [
                 {"method": "GET", "details": ConnectionDetails(conn_id="conn1")},
                 {"method": "GET", "details": ConnectionDetails(conn_id="conn2")},
-            ]
+            ],
+            user=Mock(),
         )
         assert result == expected
 
@@ -220,7 +281,8 @@ class TestBaseAuthManager:
             [
                 {"method": "GET", "details": PoolDetails(name="pool1")},
                 {"method": "GET", "details": PoolDetails(name="pool2")},
-            ]
+            ],
+            user=Mock(),
         )
         assert result == expected
 
@@ -241,7 +303,8 @@ class TestBaseAuthManager:
             [
                 {"method": "GET", "details": VariableDetails(key="var1")},
                 {"method": "GET", "details": VariableDetails(key="var2")},
-            ]
+            ],
+            user=Mock(),
         )
         assert result == expected
 
@@ -279,7 +342,7 @@ class TestBaseAuthManager:
             method: ResourceMethod,
             access_entity: DagAccessEntity | None = None,
             details: DagDetails | None = None,
-            user: BaseUser | None = None,
+            user: BaseAuthManagerUserTest | None = None,
         ):
             if not details:
                 return access_all

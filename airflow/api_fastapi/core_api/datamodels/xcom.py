@@ -52,8 +52,8 @@ class XComResponseString(XComResponse):
         return str(v) if v is not None else None
 
 
-class XComCollection(BaseModel):
-    """List of XCom items."""
+class XComCollectionResponse(BaseModel):
+    """XCom Collection serializer for responses."""
 
     xcom_entries: list[XComResponse]
     total_entries: int

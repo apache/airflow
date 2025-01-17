@@ -17,8 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 import json
-from unittest.mock import patch
+import tempfile
+from unittest.mock import MagicMock, patch
 
 from airflow.models import Connection
 from airflow.providers.smtp.operators.smtp import EmailOperator
@@ -37,22 +39,42 @@ class TestEmailOperator:
         custom_retry_limit = 10
         custom_timeout = 60
         sender_email = "sender_email"
-        mock_hook_conn.return_value = Connection(
-            conn_id="mock_conn",
-            conn_type="smtp",
-            host="smtp_server_address",
-            login="smtp_user",
-            password="smtp_password",
-            port=465,
-            extra=json.dumps(
-                dict(from_email=sender_email, timeout=custom_timeout, retry_limit=custom_retry_limit)
-            ),
-        )
-        smtp_client_mock = mock_smtplib.SMTP_SSL()
-        op = EmailOperator(task_id="test_email", **self.default_op_kwargs)
-        op.execute({})
-        call_args = smtp_client_mock.sendmail.call_args.kwargs
-        assert call_args["from_addr"] == sender_email
+        with (
+            tempfile.NamedTemporaryFile(mode="wt", suffix=".txt") as f_subject,
+            tempfile.NamedTemporaryFile(mode="wt", suffix=".txt") as f_content,
+        ):
+            f_subject.write("Task {{ ti.task_id }} failed")
+            f_subject.flush()
+
+            f_content.write("Mock content goes here")
+            f_content.flush()
+
+            mock_hook_conn.return_value = Connection(
+                conn_id="mock_conn",
+                conn_type="smtp",
+                host="smtp_server_address",
+                login="smtp_user",
+                password="smtp_password",
+                port=465,
+                extra=json.dumps(
+                    dict(
+                        from_email=sender_email,
+                        timeout=custom_timeout,
+                        retry_limit=custom_retry_limit,
+                        subject_template=f_subject.name,
+                        html_content_template=f_content.name,
+                    )
+                ),
+            )
+            smtp_client_mock = mock_smtplib.SMTP_SSL()
+            op = EmailOperator(task_id="test_email", to="to")
+            op.execute({"ti": MagicMock(task_id="some_id")})
+            call_args = smtp_client_mock.sendmail.call_args.kwargs
+            assert call_args["from_addr"] == sender_email
+            assert "Subject: Task some_id failed" in call_args["msg"]
+            assert (
+                base64.b64encode("Mock content goes here".encode("ascii")).decode("ascii") in call_args["msg"]
+            )
 
     def test_assert_templated_fields(self):
         """Test expected templated fields."""

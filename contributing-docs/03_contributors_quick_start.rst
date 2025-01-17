@@ -168,7 +168,7 @@ Setting up virtual-env
    See [PEP-517](https://peps.python.org/pep-0517/#terminology-and-goals) for explanation of what the
    frontend and backend meaning is
 
-2. After creating, you need to install a few more required packages for Airflow. The below command adds
+2. After creating the environment, you need to install a few more required packages for Airflow. The below command adds
    basic system-level dependencies on Debian/Ubuntu-like system. You will have to adapt it to install similar packages
    if your operating system is MacOS or another flavour of Linux
 
@@ -232,7 +232,7 @@ Forking and cloning Project
 Configuring Pre-commit
 ----------------------
 
-Before committing changes to github or raising a pull request, code needs to be checked for certain quality standards
+Before committing changes to github or raising a pull request, the code needs to be checked for certain quality standards
 such as spell check, code syntax, code formatting, compatibility with Apache License requirements etc. This set of
 tests are applied when you commit your code.
 
@@ -244,7 +244,7 @@ tests are applied when you commit your code.
   </div>
 
 
-To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be run locally before committing changes.
+To avoid burden on our CI infrastructure and to save time, Pre-commit hooks can be run locally before committing changes.
 
 .. note::
     We have recently started to recommend ``uv`` for our local development.
@@ -271,11 +271,15 @@ on macOS, install via
 
 2. Installing pre-commit:
 
+.. note::
+  You might need to pass ``--python <python>`` to force the python version if not it uses the latest system python version.
+  python value can be fetched from ``uv python list``
+
 .. code-block:: bash
 
   uv tool install pre-commit --with pre-commit-uv
 
-You can add ``uv`` support for ``pre-commit`` even you install it with ``pipx`` using the commands
+You can add ``uv`` support for ``pre-commit`` even if you've installed it with ``pipx`` using the commands
 (then pre-commit will use ``uv`` to create virtualenvs for the hooks):
 
 .. code-block:: bash
@@ -335,7 +339,9 @@ You can add ``uv`` support for ``pre-commit`` even you install it with ``pipx`` 
     Run ruff............................................................Passed
 
 
-7. Enabling Pre-commit check before push. It will run pre-commit automatically before committing and stops the commit
+7. Enabling Pre-commit check before push
+
+It will run pre-commit automatically before committing and stops the commit on failure
 
 .. code-block:: bash
 
@@ -350,7 +356,7 @@ You can add ``uv`` support for ``pre-commit`` even you install it with ``pipx`` 
   cd ~/Projects/airflow
   pre-commit uninstall
 
-- For more information on visit |08_static_code_checks.rst|
+- For more information on this visit |08_static_code_checks.rst|
 
 .. |08_static_code_checks.rst| raw:: html
 
@@ -384,22 +390,25 @@ syndrome - because not only others can reproduce easily what you do, but also th
 the same environment to run all tests - so you should be able to easily reproduce the same failures you
 see in CI in your local environment.
 
-1. Install ``uv`` or ``pipx``. We recommend to install ``uv`` as general purpose python development
+1. Install ``uv`` or ``pipx``. We recommend to install ``uv`` as the general purpose python development
    environment - you can install it via https://docs.astral.sh/uv/getting-started/installation/ or you can
    install ``pipx`` (>=1.2.1) - follow the instructions in `Install pipx <https://pipx.pypa.io/stable/>`_
    It is important to install version of pipx >= 1.2.1 to workaround ``packaging`` breaking change introduced
    in September 2023
 
 2. Run ``uv tool install -e ./dev/breeze`` (or ``pipx install -e ./dev/breeze`` in your checked-out
-   repository. Make sure to follow any instructions printed by during the installation - this is needed
-   to make sure that ``breeze`` command is available in your PATH
+   repository. Make sure to follow any instructions printed during the installation - this is needed
+   to make sure that the ``breeze`` command is available in your PATH
 
 .. warning::
 
-  If you see below warning while running pipx - it means that you hit the
+  If you see below warning while running pipx - it means that you have hit the
   `known issue <https://github.com/pypa/pipx/issues/1092>`_ with ``packaging`` version 23.2:
-  ⚠️ Ignoring --editable install option. pipx disallows it for anything but a local path,
-  to avoid having to create a new src/ directory.
+
+  .. code-block:: bash
+
+    ⚠️ Ignoring --editable install option. pipx disallows it for anything but a local path,
+    to avoid having to create a new src/ directory.
 
   The workaround is to downgrade packaging to 23.1 and re-running the ``pipx install`` command, for example
   by running ``pip install "packaging<23.2"``.
@@ -432,11 +441,11 @@ see in CI in your local environment.
    Once the package is installed, execute the breeze command again to resume image building.
 
 
-5. When you enter Breeze environment you should see prompt similar to ``root@e4756f6ac886:/opt/airflow#``. This
+5. When you enter the Breeze environment you should see a prompt similar to ``root@e4756f6ac886:/opt/airflow#``. This
    means that you are inside the Breeze container and ready to run most of the development tasks. You can leave
    the environment with ``exit`` and re-enter it with just ``breeze`` command
 
-6. Once you enter breeze environment, create airflow tables and users from the breeze CLI. ``airflow db reset``
+6. Once you enter the Breeze environment, create airflow tables and users from the breeze CLI. ``airflow db reset``
    is required to execute at least once for Airflow Breeze to get the database/tables created. If you run
    tests, however - the test database will be initialized automatically for you
 
@@ -454,9 +463,9 @@ see in CI in your local environment.
                 --email admin@example.org
 
 
-7. Exiting Breeze environment. After successfully finishing above command will leave you in container,
+7. Exiting the Breeze environment. After successfully finishing above command will leave you in container,
    type ``exit`` to exit the container. The database created before will remain and servers will be
-   running though, until you stop breeze environment completely
+   running though, until you stop the Breeze environment completely
 
 .. code-block:: bash
 
@@ -473,10 +482,10 @@ see in CI in your local environment.
 Using Breeze
 ------------
 
-1. Starting breeze environment using ``breeze start-airflow`` starts Breeze environment with last configuration run(
-   In this case python and backend will be picked up from last execution ``breeze --python 3.9 --backend postgres``)
-   It also automatically starts webserver, backend and scheduler. It drops you in tmux with scheduler in bottom left
-   and webserver in bottom right. Use ``[Ctrl + B] and Arrow keys`` to navigate.
+1. Starting the Breeze environment using ``breeze start-airflow`` starts the Breeze environment with last configuration run(
+   In this case python version and backend are picked up from last execution ``breeze --python 3.9 --backend postgres``)
+   It also automatically starts the webserver, triggerer, dag processor, FastAPI api and scheduler. It drops you in tmux with triggerer to the right, and
+   scheduler, FastAPI api, dag processor and webserver from left to right at the bottom. Use ``[Ctrl + B] and Arrow keys`` to navigate.
 
 .. code-block:: bash
 
@@ -520,7 +529,7 @@ Using Breeze
       </div>
 
 
-- Alternatively you can start the same using following commands
+- Alternatively you can start the same using the following commands
 
   1. Start Breeze
 
@@ -545,7 +554,30 @@ Using Breeze
 
   .. code-block:: bash
 
+    root@0c6e4ff0ab3d:/opt/airflow# airflow fast-api
+
+  5. Press Ctrl + B and %
+
+  .. code-block:: bash
+
+    root@0c6e4ff0ab3d:/opt/airflow# airflow dag-processor
+
+  6. Press Ctrl + B and %
+
+  .. code-block:: bash
+
     root@0c6e4ff0ab3d:/opt/airflow# airflow webserver
+
+  7. Press Ctrl + B and up arrow followed by Ctrl + B and %
+
+  .. code-block:: bash
+
+    root@0c6e4ff0ab3d:/opt/airflow# airflow triggerer
+
+  8. Press Ctrl + B followed by (Optional step for better tile arrangement)
+  .. code-block:: bash
+
+    :select-layout tiled
 
 
 2. Now you can access airflow web interface on your local machine at |http://127.0.0.1:28080| with user name ``admin``
@@ -658,7 +690,7 @@ All Tests are inside ./tests directory.
 
    ================================================================== 4 passed in 3.30s ===================================================================
 
-- Running All the test with Breeze by specifying required python version, backend, backend version
+- Running All the tests with Breeze by specifying the required python version, backend, backend version
 
 .. code-block:: bash
 
@@ -701,7 +733,7 @@ Contribution guide
 
    <a href="https://github.com/apache/airflow/blob/main/contributing-docs/README.rst" target="_blank">README.rst</a>
 
-- Following are some of important links of Contribution documentation
+- Following are some of the important links of Contribution documentation
 
   - |Types of contributions|
 

@@ -18,11 +18,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.models.abstractoperator import AbstractOperator
+from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 
 if TYPE_CHECKING:
-    from airflow.models import Operator
-    from airflow.models.dag import DAG
+    from airflow.sdk import DAG
+    from airflow.sdk.types import Operator
 
 
 def dag_edges(dag: DAG):

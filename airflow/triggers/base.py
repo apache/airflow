@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.callbacks.callback_requests import TaskCallbackRequest
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
+from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
@@ -172,6 +173,7 @@ class TriggerEvent:
 
         # Set the state of the task instance to scheduled
         task_instance.state = TaskInstanceState.SCHEDULED
+        task_instance.scheduled_dttm = timezone.utcnow()
 
 
 class BaseTaskEndEvent(TriggerEvent):

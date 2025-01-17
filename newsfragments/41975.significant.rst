@@ -1,1 +1,25 @@
 Metrics basic deprecated validators  (``AllowListValidator`` and ``BlockListValidator``) were removed in favor of pattern matching. Pattern matching validators (``PatternAllowListValidator`` and ``PatternBlockListValidator``) are enabled by default. Configuration parameter ``metrics_use_pattern_match``was removed from the ``metrics`` section.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ``airflow config liint``
+
+    * [x] ``metrics.metrics_use_pattern_match``
+
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.metrics.validators.AllowListValidator`` → ``airflow.metrics.validators.PatternAllowListValidator``
+      * [x] ``airflow.metrics.validators.BlockListValidator`` → ``airflow.metrics.validators.PatternBlockListValidator``

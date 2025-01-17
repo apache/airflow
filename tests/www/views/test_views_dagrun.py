@@ -25,12 +25,12 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 from airflow.www.views import DagRunModelView
-
-from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
+from providers.fab.tests.provider_tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
     delete_roles,
     delete_user,
 )
+
 from tests.www.views.test_views_tasks import _get_appbuilder_pk_string
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.www import (

@@ -1,1 +1,21 @@
 Removed deprecated configuration ``stalled_task_timeout`` from ``celery``, ``task_adoption_timeout`` from ``celery`` and ``worker_pods_pending_timeout`` from ``kubernetes_executor``. Please use ``task_queued_timeout`` from ``scheduler`` instead.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ``airflow config lint``
+
+    * [x] ``celery.stalled_task_timeout``
+    * [x] ``kubernetes_executor.worker_pods_pending_timeout`` → ``scheduler.task_queued_timeout``
+    * [x] ``celery.task_adoption_timeout`` → ``scheduler.task_queued_timeout``
+    * [x] ``kubernetes_executor.worker_pods_pending_timeout`` → ``scheduler.task_queued_timeout``

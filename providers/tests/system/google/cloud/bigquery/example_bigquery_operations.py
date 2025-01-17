@@ -34,6 +34,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
+from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "bigquery_operations"
@@ -86,6 +87,11 @@ with DAG(
         task_id="delete_bucket", bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
+    check_openlineage_events = OpenLineageTestOperator(
+        task_id="check_openlineage_events",
+        file_path=str(Path(__file__).parent / "resources" / "openlineage" / "bigquery_operations.json"),
+    )
+
     (
         # TEST SETUP
         [create_bucket, create_dataset]
@@ -95,6 +101,7 @@ with DAG(
         # TEST TEARDOWN
         >> delete_dataset
         >> delete_bucket
+        >> check_openlineage_events
     )
 
     from tests_common.test_utils.watcher import watcher

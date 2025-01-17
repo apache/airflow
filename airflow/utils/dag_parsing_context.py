@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import warnings
 
+from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.definitions.context import get_parsing_context
 
 # TODO: Remove this module in Airflow 3.2
@@ -30,4 +31,4 @@ warnings.warn(
     stacklevel=2,
 )
 
-__all__ = ["get_parsing_context"]
+__all__ = ["get_parsing_context", "_airflow_parsing_context_manager"]

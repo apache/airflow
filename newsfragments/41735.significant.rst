@@ -1,1 +1,56 @@
 Removed deprecated module ``airflow.kubernetes``.
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR303
+
+      * [x] ``airflow.kubernetes.kubernetes_helper_functions.add_pod_suffix`` → ``airflow.providers.cncf.kubernetes.kubernetes_helper_functions.add_pod_suffix``
+      * [x] ``airflow.kubernetes.kubernetes_helper_functions.annotations_for_logging_task_metadata`` → ``airflow.providers.cncf.kubernetes.kubernetes_helper_functions.annotations_for_logging_task_metadata``
+      * [x] ``airflow.kubernetes.kubernetes_helper_functions.annotations_to_key`` → ``airflow.providers.cncf.kubernetes.kubernetes_helper_functions.annotations_to_key``
+      * [x] ``airflow.kubernetes.kubernetes_helper_functions.create_pod_id`` → ``airflow.providers.cncf.kubernetes.kubernetes_helper_functions.create_pod_id``
+      * [x] ``airflow.kubernetes.kubernetes_helper_functions.get_logs_task_metadata`` → ``airflow.providers.cncf.kubernetes.kubernetes_helper_functions.get_logs_task_metadata``
+      * [x] ``airflow.kubernetes.kubernetes_helper_functions.rand_str`` → ``airflow.providers.cncf.kubernetes.kubernetes_helper_functions.rand_str``
+      * [x] ``airflow.kubernetes.pod.Port`` → ``kubernetes.client.models.V1ContainerPort``
+      * [x] ``airflow.kubernetes.pod.Resources`` → ``kubernetes.client.models.V1ResourceRequirements``
+      * [x] ``airflow.kubernetes.pod_launcher.PodLauncher`` → ``airflow.providers.cncf.kubernetes.pod_launcher.PodLauncher``
+      * [x] ``airflow.kubernetes.pod_launcher.PodStatus`` → ``airflow.providers.cncf.kubernetes.pod_launcher.PodStatus``
+      * [x] ``airflow.kubernetes.pod_launcher_deprecated.PodLauncher`` → ``airflow.providers.cncf.kubernetes.pod_launcher_deprecated.PodLauncher``
+      * [x] ``airflow.kubernetes.pod_launcher_deprecated.PodStatus`` → ``airflow.providers.cncf.kubernetes.pod_launcher_deprecated.PodStatus``
+      * [x] ``airflow.kubernetes.pod_launcher_deprecated.get_kube_client`` → ``airflow.providers.cncf.kubernetes.kube_client.get_kube_client``
+      * [x] ``airflow.kubernetes.pod_launcher_deprecated.PodDefaults`` → ``airflow.providers.cncf.kubernetes.pod_generator_deprecated.PodDefaults``
+      * [x] ``airflow.kubernetes.pod_runtime_info_env.PodRuntimeInfoEnv`` → ``kubernetes.client.models.V1EnvVar``
+      * [x] ``airflow.kubernetes.volume.Volume`` → ``kubernetes.client.models.V1Volume``
+      * [x] ``airflow.kubernetes.volume_mount.VolumeMount`` → ``kubernetes.client.models.V1VolumeMount``
+      * [x] ``airflow.kubernetes.k8s_model.K8SModel`` → ``airflow.providers.cncf.kubernetes.k8s_model.K8SModel``
+      * [x] ``airflow.kubernetes.k8s_model.append_to_pod`` → ``airflow.providers.cncf.kubernetes.k8s_model.append_to_pod``
+      * [x] ``airflow.kubernetes.kube_client._disable_verify_ssl`` → ``airflow.kubernetes.airflow.providers.cncf.kubernetes.kube_client._disable_verify_ssl``
+      * [x] ``airflow.kubernetes.kube_client._enable_tcp_keepalive`` → ``airflow.kubernetes.airflow.providers.cncf.kubernetes.kube_client._enable_tcp_keepalive``
+      * [x] ``airflow.kubernetes.kube_client.get_kube_client`` → ``airflow.kubernetes.airflow.providers.cncf.kubernetes.kube_client.get_kube_client``
+      * [x] ``airflow.kubernetes.pod_generator.datetime_to_label_safe_datestring`` → ``airflow.providers.cncf.kubernetes.pod_generator.datetime_to_label_safe_datestring``
+      * [x] ``airflow.kubernetes.pod_generator.extend_object_field`` → ``airflow.kubernetes.airflow.providers.cncf.kubernetes.pod_generator.extend_object_field``
+      * [x] ``airflow.kubernetes.pod_generator.label_safe_datestring_to_datetime`` → ``airflow.providers.cncf.kubernetes.pod_generator.label_safe_datestring_to_datetime``
+      * [x] ``airflow.kubernetes.pod_generator.make_safe_label_value`` → ``airflow.providers.cncf.kubernetes.pod_generator.make_safe_label_value``
+      * [x] ``airflow.kubernetes.pod_generator.merge_objects`` → ``airflow.providers.cncf.kubernetes.pod_generator.merge_objects``
+      * [x] ``airflow.kubernetes.pod_generator.PodGenerator`` → ``airflow.providers.cncf.kubernetes.pod_generator.PodGenerator``
+      * [x] ``airflow.kubernetes.pod_generator.PodGeneratorDeprecated`` → ``airflow.providers.cncf.kubernetes.pod_generator.PodGenerator``
+      * [x] ``airflow.kubernetes.pod_generator.PodDefaults`` → ``airflow.providers.cncf.kubernetes.pod_generator_deprecated.PodDefaults``
+      * [x] ``airflow.kubernetes.pod_generator.add_pod_suffix`` → ``airflow.providers.cncf.kubernetes.kubernetes_helper_functions.add_pod_suffix``
+      * [x] ``airflow.kubernetes.pod_generator.rand_str`` → ``airflow.providers.cncf.kubernetes.kubernetes_helper_functions.rand_str``
+      * [x] ``airflow.kubernetes.pod_generator_deprecated.make_safe_label_value`` → ``airflow.providers.cncf.kubernetes.pod_generator_deprecated.make_safe_label_value``
+      * [x] ``airflow.kubernetes.pod_generator_deprecated.PodDefaults`` → ``airflow.providers.cncf.kubernetes.pod_generator_deprecated.PodDefaults``
+      * [x] ``airflow.kubernetes.pod_generator_deprecated.PodGenerator`` → ``airflow.providers.cncf.kubernetes.pod_generator_deprecated.PodGenerator``
+      * [x] ``airflow.kubernetes.secret.Secret`` → ``airflow.providers.cncf.kubernetes.secret.Secret``
+      * [x] ``airflow.kubernetes.secret.K8SModel`` → ``airflow.providers.cncf.kubernetes.k8s_model.K8SModel``

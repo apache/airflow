@@ -19,11 +19,16 @@
 import type { ParamSchema } from "src/queries/useDagParams";
 
 import type { FlexibleFormElementProps } from ".";
+import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
 import { FieldRow } from "./FieldRow";
 import { HiddenInput } from "./HiddenInput";
 
 const isHidden = (fieldSchema: ParamSchema) => Boolean(fieldSchema.const);
 
 /** Generates a form row */
-export const Row = ({ name, param }: FlexibleFormElementProps) =>
-  isHidden(param.schema) ? <HiddenInput name={name} param={param} /> : <FieldRow name={name} param={param} />;
+export const Row = ({ name }: FlexibleFormElementProps) => {
+  const { paramsDict } = useParamStore();
+  const param = paramsDict[name] ?? paramPlaceholder;
+
+  return isHidden(param.schema) ? <HiddenInput name={name} /> : <FieldRow name={name} />;
+};

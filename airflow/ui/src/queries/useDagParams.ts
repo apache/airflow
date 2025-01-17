@@ -64,13 +64,7 @@ export const useDagParams = (dagId: string, open: boolean) => {
     });
   }
 
-  const transformedParams = data?.params
-    ? Object.fromEntries(Object.entries(data.params).map(([key, param]) => [key, param.value]))
-    : {};
-
-  const initialConf = JSON.stringify(transformedParams, undefined, 2);
-
   const paramsDict: DagParamsSpec = data?.params ?? ({} as DagParamsSpec);
 
-  return { initialConf, paramsDict };
+  return { paramsDict };
 };

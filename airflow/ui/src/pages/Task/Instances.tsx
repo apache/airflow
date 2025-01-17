@@ -25,8 +25,8 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Status } from "src/components/ui";
 import { getDuration } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
@@ -47,7 +47,7 @@ const columns = (isMapped?: boolean): Array<ColumnDef<TaskInstanceResponse>> => 
       row: {
         original: { state },
       },
-    }) => <Status state={state}>{state}</Status>,
+    }) => <StateBadge state={state}>{state}</StateBadge>,
     header: () => "State",
   },
   {

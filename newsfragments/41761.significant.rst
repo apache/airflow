@@ -5,3 +5,28 @@ Removed a set of deprecations in BaseOperator.
 - Support for trigger rule ``dummy`` removed. Please use ``always``.
 - Support for trigger rule ``none_failed_or_skipped`` removed. Please use ``none_failed_min_one_success``.
 - Support to load ``BaseOperatorLink`` via ``airflow.models.baseoperator`` module removed.
+- Config ``operators.allow_illegal_arguments`` removed.
+
+* Types of change
+
+  * [x] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ``airflow config lint``
+
+    * [x] ``operators.allow_illegal_arguments``
+
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.utils.trigger_rule.TriggerRule.NONE_FAILED_OR_SKIPPED``
+      * [x] argument ``task_concurrency`` → ``max_active_tis_per_dag`` in ``BaseOperator`` and its subclassses

@@ -29,11 +29,19 @@ type Props = {
   readonly buttonProps?: ButtonProps;
   readonly defaultValue: string;
   readonly groupProps?: InputGroupProps;
+  readonly hideAdvanced?: boolean;
   readonly onChange: (value: string) => void;
   readonly placeHolder: string;
 };
 
-export const SearchBar = ({ buttonProps, defaultValue, groupProps, onChange, placeHolder }: Props) => {
+export const SearchBar = ({
+  buttonProps,
+  defaultValue,
+  groupProps,
+  hideAdvanced = false,
+  onChange,
+  placeHolder,
+}: Props) => {
   const handleSearchChange = useDebouncedCallback((val: string) => onChange(val), debounceDelay);
 
   const [value, setValue] = useState(defaultValue);
@@ -61,9 +69,11 @@ export const SearchBar = ({ buttonProps, defaultValue, groupProps, onChange, pla
               size="xs"
             />
           ) : undefined}
-          <Button fontWeight="normal" height="1.75rem" variant="ghost" width={140} {...buttonProps}>
-            Advanced Search
-          </Button>
+          {Boolean(hideAdvanced) ? undefined : (
+            <Button fontWeight="normal" height="1.75rem" variant="ghost" width={140} {...buttonProps}>
+              Advanced Search
+            </Button>
+          )}
         </>
       }
       startElement={<FiSearch />}

@@ -56,7 +56,7 @@ def get_import_error(*, import_error_id: int, session: Session = NEW_SESSION) ->
         )
     session.expunge(error)
 
-    can_read_all_dags = get_auth_manager().is_authorized_dag(method="GET")
+    can_read_all_dags = get_auth_manager().is_authorized_dag(method="GET", user=get_auth_manager().get_user())
     if not can_read_all_dags:
         readable_dag_ids = security.get_readable_dags()
         file_dag_ids = {
@@ -95,7 +95,7 @@ def get_import_errors(
     query = select(ParseImportError)
     query = apply_sorting(query, order_by, to_replace, allowed_sort_attrs)
 
-    can_read_all_dags = get_auth_manager().is_authorized_dag(method="GET")
+    can_read_all_dags = get_auth_manager().is_authorized_dag(method="GET", user=get_auth_manager().get_user())
 
     if not can_read_all_dags:
         # if the user doesn't have access to all DAGs, only display errors from visible DAGs
@@ -133,7 +133,7 @@ def get_import_errors(
                 }
                 for dag_id in file_dag_ids
             ]
-            if not get_auth_manager().batch_is_authorized_dag(requests):
+            if not get_auth_manager().batch_is_authorized_dag(requests, user=get_auth_manager().get_user()):
                 session.expunge(import_error)
                 import_error.stacktrace = "REDACTED - you do not have read permission on all DAGs in the file"
 

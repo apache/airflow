@@ -16,14 +16,42 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Stack, StackSeparator } from "@chakra-ui/react";
+import { Box, Stack, StackSeparator } from "@chakra-ui/react";
+import { useEffect } from "react";
 
-import { flexibleFormDefaultSection, type FlexibleFormProps } from ".";
-import { Accordion, Alert } from "../ui";
+import type { DagParamsSpec } from "src/queries/useDagParams";
+
+import { flexibleFormDefaultSection } from ".";
+import { useParamStore } from "../TriggerDag/useParamStore";
+import { Accordion } from "../ui";
 import { Row } from "./Row";
 
-export const FlexibleForm = ({ params }: FlexibleFormProps) => {
+export type FlexibleFormProps = {
+  initialParamsDict: { paramsDict: DagParamsSpec };
+};
+
+export const FlexibleForm = ({ initialParamsDict }: FlexibleFormProps) => {
+  const { paramsDict: params, setinitialParamDict, setParamsDict } = useParamStore();
   const processedSections = new Map();
+
+  useEffect(() => {
+    // Initialize paramsDict and initialParamDict when modal opens
+    if (Object.keys(initialParamsDict.paramsDict).length > 0 && Object.keys(params).length === 0) {
+      const paramsCopy = structuredClone(initialParamsDict.paramsDict);
+
+      setParamsDict(paramsCopy);
+      setinitialParamDict(initialParamsDict.paramsDict);
+    }
+  }, [initialParamsDict, params, setParamsDict, setinitialParamDict]);
+
+  useEffect(
+    () => () => {
+      // Clear paramsDict and initialParamDict when the component is unmounted or modal closes
+      setParamsDict({});
+      setinitialParamDict({});
+    },
+    [setParamsDict, setinitialParamDict],
+  );
 
   return Object.entries(params).some(([, param]) => typeof param.schema.section !== "string")
     ? Object.entries(params).map(([, secParam]) => {
@@ -37,22 +65,20 @@ export const FlexibleForm = ({ params }: FlexibleFormProps) => {
           return (
             <Accordion.Item key={currentSection} value={currentSection}>
               <Accordion.ItemTrigger cursor="button">{currentSection}</Accordion.ItemTrigger>
-              <Accordion.ItemContent>
-                <Stack separator={<StackSeparator />}>
-                  <Alert
-                    status="warning"
-                    title="Population of changes in trigger form fields is not implemented yet. Please stay tuned for upcoming updates... and change the run conf in the 'Advanced Options' conf section below meanwhile."
-                  />
-                  {Object.entries(params)
-                    .filter(
-                      ([, param]) =>
-                        param.schema.section === currentSection ||
-                        (currentSection === flexibleFormDefaultSection && !Boolean(param.schema.section)),
-                    )
-                    .map(([name, param]) => (
-                      <Row key={name} name={name} param={param} />
-                    ))}
-                </Stack>
+              <Accordion.ItemContent paddingTop={0}>
+                <Box p={5}>
+                  <Stack separator={<StackSeparator />}>
+                    {Object.entries(params)
+                      .filter(
+                        ([, param]) =>
+                          param.schema.section === currentSection ||
+                          (currentSection === flexibleFormDefaultSection && !Boolean(param.schema.section)),
+                      )
+                      .map(([name]) => (
+                        <Row key={name} name={name} />
+                      ))}
+                  </Stack>
+                </Box>
               </Accordion.ItemContent>
             </Accordion.Item>
           );
@@ -60,5 +86,3 @@ export const FlexibleForm = ({ params }: FlexibleFormProps) => {
       })
     : undefined;
 };
-
-export default FlexibleForm;

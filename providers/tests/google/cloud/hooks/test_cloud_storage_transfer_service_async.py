@@ -23,8 +23,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     CloudDataTransferServiceAsyncHook,
+    GcpTransferOperationStatus,
 )
 
 from providers.tests.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
@@ -119,3 +121,82 @@ class TestCloudDataTransferServiceAsyncHook:
         get_operation.assert_not_called()
         mock_deserialize.assert_not_called()
         assert operation == expected_operation
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRANSFER_HOOK_PATH}.CloudDataTransferServiceAsyncHook.get_conn")
+    @mock.patch("google.api_core.protobuf_helpers.from_any_pb")
+    async def test_list_transfer_operations(self, from_any_pb, mock_conn, hook_async):
+        expected_operations = [mock.MagicMock(), mock.MagicMock()]
+        from_any_pb.side_effect = expected_operations
+
+        mock_conn.return_value.list_operations.side_effect = [
+            mock.MagicMock(next_page_token="token", operations=[mock.MagicMock()]),
+            mock.MagicMock(next_page_token=None, operations=[mock.MagicMock()]),
+        ]
+
+        actual_operations = await hook_async.list_transfer_operations(
+            request_filter={
+                "project_id": TEST_PROJECT_ID,
+            },
+        )
+        assert actual_operations == expected_operations
+        assert mock_conn.return_value.list_operations.call_count == 2
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "statuses, expected_statuses",
+        [
+            ([GcpTransferOperationStatus.ABORTED], (GcpTransferOperationStatus.IN_PROGRESS,)),
+            (
+                [GcpTransferOperationStatus.SUCCESS, GcpTransferOperationStatus.ABORTED],
+                (GcpTransferOperationStatus.IN_PROGRESS,),
+            ),
+            (
+                [GcpTransferOperationStatus.PAUSED, GcpTransferOperationStatus.ABORTED],
+                (GcpTransferOperationStatus.IN_PROGRESS,),
+            ),
+        ],
+    )
+    async def test_operations_contain_expected_statuses_red_path(self, statuses, expected_statuses):
+        operations = [mock.MagicMock(**{"status.name": status}) for status in statuses]
+
+        with pytest.raises(
+            AirflowException,
+            match=f"An unexpected operation status was encountered. Expected: {', '.join(expected_statuses)}",
+        ):
+            await CloudDataTransferServiceAsyncHook.operations_contain_expected_statuses(
+                operations, GcpTransferOperationStatus.IN_PROGRESS
+            )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "statuses, expected_statuses",
+        [
+            ([GcpTransferOperationStatus.ABORTED], GcpTransferOperationStatus.ABORTED),
+            (
+                [GcpTransferOperationStatus.SUCCESS, GcpTransferOperationStatus.ABORTED],
+                GcpTransferOperationStatus.ABORTED,
+            ),
+            (
+                [GcpTransferOperationStatus.PAUSED, GcpTransferOperationStatus.ABORTED],
+                GcpTransferOperationStatus.ABORTED,
+            ),
+            ([GcpTransferOperationStatus.ABORTED], (GcpTransferOperationStatus.ABORTED,)),
+            (
+                [GcpTransferOperationStatus.SUCCESS, GcpTransferOperationStatus.ABORTED],
+                (GcpTransferOperationStatus.ABORTED,),
+            ),
+            (
+                [GcpTransferOperationStatus.PAUSED, GcpTransferOperationStatus.ABORTED],
+                (GcpTransferOperationStatus.ABORTED,),
+            ),
+        ],
+    )
+    async def test_operations_contain_expected_statuses_green_path(self, statuses, expected_statuses):
+        operations = [mock.MagicMock(**{"status.name": status}) for status in statuses]
+
+        result = await CloudDataTransferServiceAsyncHook.operations_contain_expected_statuses(
+            operations, expected_statuses
+        )
+
+        assert result

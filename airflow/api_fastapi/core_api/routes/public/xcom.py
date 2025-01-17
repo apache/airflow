@@ -26,7 +26,7 @@ from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.xcom import (
-    XComCollection,
+    XComCollectionResponse,
     XComResponseNative,
     XComResponseString,
 )
@@ -112,7 +112,7 @@ def get_xcom_entries(
     session: SessionDep,
     xcom_key: Annotated[str | None, Query()] = None,
     map_index: Annotated[int | None, Query(ge=-1)] = None,
-) -> XComCollection:
+) -> XComCollectionResponse:
     """
     Get all XCom entries.
 
@@ -140,4 +140,4 @@ def get_xcom_entries(
     )
     query = query.order_by(XCom.dag_id, XCom.task_id, XCom.run_id, XCom.map_index, XCom.key)
     xcoms = session.scalars(query)
-    return XComCollection(xcom_entries=xcoms, total_entries=total_entries)
+    return XComCollectionResponse(xcom_entries=xcoms, total_entries=total_entries)

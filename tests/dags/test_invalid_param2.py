@@ -19,8 +19,8 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import DAG
-from airflow.models.param import Param
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk.definitions.param import Param
 
 with DAG(
     "test_invalid_param2",

@@ -34,7 +34,7 @@ log = logging.getLogger(__name__)
 
 def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
     """Create DagFileProcessorProcess instance."""
-    processor_timeout_seconds: int = conf.getint("core", "dag_file_processor_timeout")
+    processor_timeout_seconds: int = conf.getint("dag_processor", "dag_file_processor_timeout")
     return DagProcessorJobRunner(
         job=Job(),
         processor=DagFileProcessorManager(
@@ -48,9 +48,6 @@ def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
 @providers_configuration_loaded
 def dag_processor(args):
     """Start Airflow Dag Processor Job."""
-    if not conf.getboolean("scheduler", "standalone_dag_processor"):
-        raise SystemExit("The option [scheduler/standalone_dag_processor] must be True.")
-
     job_runner = _create_dag_processor_job_runner(args)
 
     reload_configuration_for_dag_processing()

@@ -4,3 +4,14 @@ The shift towards using ``run_id`` as the sole identifier for DAG runs eliminate
 
 - Removed ``logical_date`` arguments from public APIs and Python functions related to DAG run lookups.
 - ``run_id`` is now the exclusive identifier for DAG runs in these contexts.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [x] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

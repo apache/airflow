@@ -42,12 +42,21 @@ As part of this change the following breaking changes have occurred:
 
   It is recommended that you replace such a custom operator with a deferrable sensor, a condition or another triggering mechanism.
 
+
 * Types of change
 
-  * [ ] DAG changes
-  * [ ] Config changes
+  * [x] Dag changes
+  * [x] Config changes
   * [ ] API changes
   * [ ] CLI changes
   * [x] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migrations rules needed
+
+  * ``airflow config lint``
+
+    * [x] ``core.task_runner``
+    * [x] ``core.enable_xcom_pickling``

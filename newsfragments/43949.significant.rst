@@ -3,3 +3,14 @@ The ``--clear-only`` option of ``airflow dags reserialize`` command is now remov
 The ``--clear-only`` option was added to clear the serialized DAGs without reserializing them.
 This option has been removed as it is no longer needed. We have implemented DAG versioning and can
 no longer delete serialized dag without going through ``airflow db-clean`` command. This command is now only for reserializing DAGs.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [x] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

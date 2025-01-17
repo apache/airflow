@@ -1,1 +1,12 @@
 Removed deprecated ``--ignore-depends-on-past``  cli option from task command. Please use ``--depends-on-past ignore``.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [x] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

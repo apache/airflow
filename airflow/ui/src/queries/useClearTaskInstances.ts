@@ -21,12 +21,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   UseDagRunServiceGetDagRunKeyFn,
   useDagRunServiceGetDagRunsKey,
-  UseTaskInstanceServiceGetTaskInstanceKeyFn,
-  useTaskInstanceServiceGetTaskInstancesKey,
+  UseTaskInstanceServiceGetMappedTaskInstanceKeyFn,
   useTaskInstanceServicePostClearTaskInstances,
 } from "openapi/queries";
 import type { ClearTaskInstancesBody, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
+
+import { useClearTaskInstancesDryRunKey } from "./useClearTaskInstancesDryRun";
+import { usePatchTaskInstanceDryRunKey } from "./usePatchTaskInstanceDryRun";
 
 const onError = () => {
   toaster.create({
@@ -40,49 +42,50 @@ export const useClearTaskInstances = ({
   dagId,
   dagRunId,
   onSuccessConfirm,
-  onSuccessDryRun,
 }: {
   dagId: string;
   dagRunId: string;
   onSuccessConfirm: () => void;
-  onSuccessDryRun: (date: TaskInstanceCollectionResponse) => void;
 }) => {
   const queryClient = useQueryClient();
 
   const onSuccess = async (
-    data: TaskInstanceCollectionResponse,
-    variables: {
-      dagId: string;
-      requestBody: ClearTaskInstancesBody;
-    },
+    _: TaskInstanceCollectionResponse,
+    variables: { dagId: string; requestBody: ClearTaskInstancesBody },
   ) => {
-    if (variables.requestBody.dry_run) {
-      onSuccessDryRun(data);
-    } else {
-      const taskInstanceKeys = (variables.requestBody.task_ids ?? [])
-        .map((taskId) => {
-          const runId = variables.requestBody.dag_run_id;
+    // deduplication using set as user can clear multiple map index of the same task_id.
+    const taskInstanceKeys = [
+      ...new Set(
+        (variables.requestBody.task_ids ?? [])
+          .filter((taskId) => typeof taskId === "string" || Array.isArray(taskId))
+          .map((taskId) => {
+            const actualTaskId = Array.isArray(taskId) ? taskId[0] : taskId;
+            const runId = variables.requestBody.dag_run_id;
 
-          if (runId === null || runId === undefined) {
-            return undefined;
-          }
-          const params = { dagId, dagRunId: runId, taskId };
+            if (runId === null || runId === undefined) {
+              return undefined;
+            }
 
-          return UseTaskInstanceServiceGetTaskInstanceKeyFn(params);
-        })
-        .filter((key) => key !== undefined);
+            // TODO: update mapIndex when the endpoint supports clearing mapped tasks
+            const params = { dagId, dagRunId: runId, mapIndex: -1, taskId: actualTaskId };
 
-      const queryKeys = [
-        [useTaskInstanceServiceGetTaskInstancesKey],
-        ...taskInstanceKeys,
-        UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
-        [useDagRunServiceGetDagRunsKey],
-      ];
+            return UseTaskInstanceServiceGetMappedTaskInstanceKeyFn(params);
+          })
+          .filter((key) => key !== undefined),
+      ),
+    ];
 
-      await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+    const queryKeys = [
+      ...taskInstanceKeys,
+      UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
+      [useDagRunServiceGetDagRunsKey],
+      [useClearTaskInstancesDryRunKey, dagId],
+      [usePatchTaskInstanceDryRunKey, dagId, dagRunId],
+    ];
 
-      onSuccessConfirm();
-    }
+    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+
+    onSuccessConfirm();
   };
 
   return useTaskInstanceServicePostClearTaskInstances({

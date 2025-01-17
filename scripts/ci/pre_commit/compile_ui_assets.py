@@ -31,7 +31,12 @@ from pathlib import Path
 # They are importing rich library which is not available in the node environment.
 
 AIRFLOW_SOURCES_PATH = Path(__file__).parents[3].resolve()
-UI_HASH_FILE = AIRFLOW_SOURCES_PATH / ".build" / "ui" / "hash.txt"
+
+MAIN_UI_DIRECTORY = AIRFLOW_SOURCES_PATH / "airflow" / "ui"
+MAIN_UI_HASH_FILE = AIRFLOW_SOURCES_PATH / ".build" / "ui" / "hash.txt"
+
+SIMPLE_AUTH_MANAGER_UI_DIRECTORY = AIRFLOW_SOURCES_PATH / "airflow" / "auth" / "managers" / "simple" / "ui"
+SIMPLE_AUTH_MANAGER_UI_HASH_FILE = AIRFLOW_SOURCES_PATH / ".build" / "ui" / "simple-auth-manager-hash.txt"
 
 INTERNAL_SERVER_ERROR = "500 Internal Server Error"
 
@@ -48,19 +53,12 @@ def get_directory_hash(directory: Path, skip_path_regexp: str | None = None) -> 
     return sha.hexdigest()
 
 
-if __name__ not in ("__main__", "__mp_main__"):
-    raise SystemExit(
-        "This file is intended to be executed as an executable program. You cannot use it as a module."
-        f"To run this script, run the ./{__file__} command"
-    )
-
-if __name__ == "__main__":
-    ui_directory = AIRFLOW_SOURCES_PATH / "airflow" / "ui"
+def compile_assets(ui_directory: Path, hash_file: Path):
     node_modules_directory = ui_directory / "node_modules"
     dist_directory = ui_directory / "dist"
-    UI_HASH_FILE.parent.mkdir(exist_ok=True, parents=True)
+    hash_file.parent.mkdir(exist_ok=True, parents=True)
     if node_modules_directory.exists() and dist_directory.exists():
-        old_hash = UI_HASH_FILE.read_text() if UI_HASH_FILE.exists() else ""
+        old_hash = hash_file.read_text() if hash_file.exists() else ""
         new_hash = get_directory_hash(ui_directory, skip_path_regexp=r".*node_modules.*")
         if new_hash == old_hash:
             print("The UI directory has not changed! Skip regeneration.")
@@ -86,4 +84,15 @@ if __name__ == "__main__":
             sys.exit(result.returncode)
     subprocess.check_call(["pnpm", "run", "build"], cwd=os.fspath(ui_directory), env=env)
     new_hash = get_directory_hash(ui_directory, skip_path_regexp=r".*node_modules.*")
-    UI_HASH_FILE.write_text(new_hash)
+    hash_file.write_text(new_hash)
+
+
+if __name__ not in ("__main__", "__mp_main__"):
+    raise SystemExit(
+        "This file is intended to be executed as an executable program. You cannot use it as a module."
+        f"To run this script, run the ./{__file__} command"
+    )
+
+if __name__ == "__main__":
+    compile_assets(MAIN_UI_DIRECTORY, MAIN_UI_HASH_FILE)
+    compile_assets(SIMPLE_AUTH_MANAGER_UI_DIRECTORY, SIMPLE_AUTH_MANAGER_UI_HASH_FILE)

@@ -1,1 +1,20 @@
 Removed auth backend ``airflow.api.auth.backend.default``
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR303
+
+      * [x] ``airflow.api.auth.backend.default`` → ``airflow.providers.fab.auth_manager.api.auth.backend.session``

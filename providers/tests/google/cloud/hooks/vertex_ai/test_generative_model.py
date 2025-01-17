@@ -149,61 +149,6 @@ class TestGenerativeModelWithDefaultProjectIdHook:
             self.hook.get_credentials = self.dummy_get_credentials
 
     @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_text_generation_model"))
-    def test_prompt_language_model(self, mock_model) -> None:
-        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
-            self.hook.prompt_language_model(
-                project_id=GCP_PROJECT,
-                location=GCP_LOCATION,
-                prompt=TEST_PROMPT,
-                pretrained_model=TEST_LANGUAGE_PRETRAINED_MODEL,
-                temperature=TEST_TEMPERATURE,
-                max_output_tokens=TEST_MAX_OUTPUT_TOKENS,
-                top_p=TEST_TOP_P,
-                top_k=TEST_TOP_K,
-            )
-            assert_warning("text_generation_model_predict", warnings)
-
-    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_text_embedding_model"))
-    def test_generate_text_embeddings(self, mock_model) -> None:
-        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
-            self.hook.generate_text_embeddings(
-                project_id=GCP_PROJECT,
-                location=GCP_LOCATION,
-                prompt=TEST_PROMPT,
-                pretrained_model=TEST_TEXT_EMBEDDING_MODEL,
-            )
-            assert_warning("text_embedding_model_get_embeddings", warnings)
-
-    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model"))
-    def test_prompt_multimodal_model(self, mock_model) -> None:
-        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
-            self.hook.prompt_multimodal_model(
-                project_id=GCP_PROJECT,
-                location=GCP_LOCATION,
-                prompt=TEST_PROMPT,
-                generation_config=TEST_GENERATION_CONFIG,
-                safety_settings=TEST_SAFETY_SETTINGS,
-                pretrained_model=TEST_MULTIMODAL_PRETRAINED_MODEL,
-            )
-            assert_warning("generative_model_generate_content", warnings)
-
-    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model_part"))
-    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model"))
-    def test_prompt_multimodal_model_with_media(self, mock_model, mock_part) -> None:
-        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
-            self.hook.prompt_multimodal_model_with_media(
-                project_id=GCP_PROJECT,
-                location=GCP_LOCATION,
-                prompt=TEST_VISION_PROMPT,
-                generation_config=TEST_GENERATION_CONFIG,
-                safety_settings=TEST_SAFETY_SETTINGS,
-                pretrained_model=TEST_MULTIMODAL_VISION_MODEL,
-                media_gcs_path=TEST_MEDIA_GCS_PATH,
-                mime_type=TEST_MIME_TYPE,
-            )
-            assert_warning("generative_model_generate_content", warnings)
-
-    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_text_generation_model"))
     def test_text_generation_model_predict(self, mock_model) -> None:
         with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
             self.hook.text_generation_model_predict(

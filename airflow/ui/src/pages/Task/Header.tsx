@@ -17,10 +17,11 @@
  * under the License.
  */
 import { Box, Flex, Heading, HStack, SimpleGrid, Text } from "@chakra-ui/react";
+import { FiBookOpen } from "react-icons/fi";
 
 import type { TaskResponse } from "openapi/requests/types.gen";
 import { TaskIcon } from "src/assets/TaskIcon";
-import DocumentationModal from "src/components/DocumentationModal";
+import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { Stat } from "src/components/Stat";
 
 export const Header = ({ task }: { readonly task: TaskResponse }) => (
@@ -37,7 +38,14 @@ export const Header = ({ task }: { readonly task: TaskResponse }) => (
           <div />
         </Flex>
       </HStack>
-      {task.doc_md === null ? undefined : <DocumentationModal docMd={task.doc_md} docType="Task" />}
+      {task.doc_md === null ? undefined : (
+        <DisplayMarkdownButton
+          header="Task Documentation"
+          icon={<FiBookOpen />}
+          mdContent={task.doc_md}
+          text="Task Docs"
+        />
+      )}
     </Flex>
     <SimpleGrid columns={4} gap={4}>
       <Stat label="Operator">

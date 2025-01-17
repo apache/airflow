@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import io
 import itertools
 import logging.config
 import os
@@ -39,7 +40,9 @@ __all__ = [
 ]
 
 
-def exception_group_tracebacks(format_exception: Callable[[ExcInfo], list[dict[str, Any]]]) -> Processor:
+def exception_group_tracebacks(
+    format_exception: Callable[[ExcInfo], list[dict[str, Any]]],
+) -> Processor:
     # Make mypy happy
     if not hasattr(__builtins__, "BaseExceptionGroup"):
         T = TypeVar("T")
@@ -178,13 +181,6 @@ def logging_processors(
             "console": console,
         }
     else:
-        # Imports to suppress showing code from these modules
-        import contextlib
-
-        import click
-        import httpcore
-        import httpx
-
         dict_exc_formatter = structlog.tracebacks.ExceptionDictTransformer(
             use_rich=False, show_locals=False, suppress=suppress
         )
@@ -196,13 +192,21 @@ def logging_processors(
         else:
             exc_group_processor = None
 
-        encoder = msgspec.json.Encoder()
-
         def json_dumps(msg, default):
-            return encoder.encode(msg)
+            # Note: this is likely an "expensive" step, but lets massage the dict order for nice
+            # viewing of the raw JSON logs.
+            # Maybe we don't need this once the UI renders the JSON instead of displaying the raw text
+            msg = {
+                "timestamp": msg.pop("timestamp"),
+                "level": msg.pop("level"),
+                "event": msg.pop("event"),
+                **msg,
+            }
+            return msgspec.json.encode(msg, enc_hook=default)
 
         def json_processor(logger: Any, method_name: Any, event_dict: EventDict) -> str:
-            return encoder.encode(event_dict).decode("utf-8")
+            # Stdlib logging doesn't need the re-ordering, it's fine as it is
+            return msgspec.json.encode(event_dict).decode("utf-8")
 
         json = structlog.processors.JSONRenderer(serializer=json_dumps)
 
@@ -226,13 +230,11 @@ def logging_processors(
 def configure_logging(
     enable_pretty_log: bool = True,
     log_level: str = "DEBUG",
-    output: BinaryIO | None = None,
+    output: BinaryIO | TextIO | None = None,
     cache_logger_on_first_use: bool = True,
+    sending_to_supervisor: bool = False,
 ):
     """Set up struct logging and stdlib logging config."""
-    if enable_pretty_log and output is not None:
-        raise ValueError("output can only be set if enable_pretty_log is not")
-
     lvl = structlog.stdlib.NAME_TO_LEVEL[log_level.lower()]
 
     if enable_pretty_log:
@@ -265,13 +267,30 @@ def configure_logging(
 
     wrapper_class = structlog.make_filtering_bound_logger(lvl)
     if enable_pretty_log:
+        if output is not None and not isinstance(output, TextIO):
+            wrapper = io.TextIOWrapper(output, line_buffering=True)
+            logger_factory = structlog.WriteLoggerFactory(wrapper)
+        else:
+            logger_factory = structlog.WriteLoggerFactory(output)
         structlog.configure(
             processors=processors,
             cache_logger_on_first_use=cache_logger_on_first_use,
             wrapper_class=wrapper_class,
+            logger_factory=logger_factory,
         )
         color_formatter.append(named["console"])
     else:
+        if output is not None and "b" not in output.mode:
+            if not hasattr(output, "buffer"):
+                raise ValueError(
+                    f"output needed to be a binary stream, but it didn't have a buffer attribute ({output=})"
+                )
+            else:
+                output = output.buffer
+        if TYPE_CHECKING:
+            # Not all binary streams are isinstance of BinaryIO, so we check via looking at `mode` at
+            # runtime. mypy doesn't grok that though
+            assert isinstance(output, BinaryIO)
         structlog.configure(
             processors=processors,
             cache_logger_on_first_use=cache_logger_on_first_use,
@@ -326,7 +345,7 @@ def configure_logging(
             "loggers": {
                 # Set Airflow logging to the level requested, but most everything else at "INFO"
                 "": {
-                    "handlers": ["to_supervisor" if output else "default"],
+                    "handlers": ["to_supervisor" if sending_to_supervisor else "default"],
                     "level": "INFO",
                     "propagate": True,
                 },
@@ -415,10 +434,12 @@ def init_log_file(local_relative_path: str) -> Path:
     from airflow.configuration import conf
 
     new_file_permissions = int(
-        conf.get("logging", "file_task_handler_new_file_permissions", fallback="0o664"), 8
+        conf.get("logging", "file_task_handler_new_file_permissions", fallback="0o664"),
+        8,
     )
     new_folder_permissions = int(
-        conf.get("logging", "file_task_handler_new_folder_permissions", fallback="0o775"), 8
+        conf.get("logging", "file_task_handler_new_folder_permissions", fallback="0o775"),
+        8,
     )
 
     base_log_folder = conf.get("logging", "base_log_folder")

@@ -23,7 +23,7 @@ from airflow.models.taskmap import TaskMap
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.mappedoperator import MappedOperator
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
 
 
 def expand_mapped_task(
@@ -41,4 +41,4 @@ def expand_mapped_task(
     )
     session.flush()
 
-    mapped.expand_mapped_task(run_id, session=session)
+    TaskMap.expand_mapped_task(mapped, run_id, session=session)

@@ -34,13 +34,14 @@ After:
 
 * Types of change
 
-  * [x] DAG changes
+  * [x] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
+  * [ ] Dependency changes
+  * [ ] Code interface changes
 
 * Migration rules needed
 
@@ -48,4 +49,4 @@ After:
 
     * AIR302
 
-      * [ ] ``airflow.utils.dag_parsing_context.get_parsing_context`` -> ``airflow.sdk.get_parsing_context``
+      * [x] ``airflow.utils.dag_parsing_context.get_parsing_context`` -> ``airflow.sdk.get_parsing_context``

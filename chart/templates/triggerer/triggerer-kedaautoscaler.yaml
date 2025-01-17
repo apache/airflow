@@ -40,6 +40,7 @@ spec:
   scaleTargetRef:
     kind: {{ ternary "StatefulSet" "Deployment" .Values.triggerer.persistence.enabled }}
     name: {{ .Release.Name }}-triggerer
+    envSourceContainerName: triggerer
   pollingInterval:  {{ .Values.triggerer.keda.pollingInterval }}
   cooldownPeriod: {{ .Values.triggerer.keda.cooldownPeriod }}
   minReplicaCount: {{ .Values.triggerer.keda.minReplicaCount }}

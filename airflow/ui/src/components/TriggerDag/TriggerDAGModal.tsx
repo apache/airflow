@@ -41,7 +41,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
 }) => (
   <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl" unmountOnExit>
     <Dialog.Content backdrop>
-      <Dialog.Header>
+      <Dialog.Header paddingBottom={0}>
         <VStack align="start" gap={4}>
           <Heading size="xl">
             Trigger Dag - {dagDisplayName} <TogglePause dagId={dagId} isPaused={isPaused} skipConfirm />

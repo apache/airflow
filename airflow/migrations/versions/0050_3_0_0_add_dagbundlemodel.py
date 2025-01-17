@@ -29,6 +29,7 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
+from airflow.migrations.db_types import StringID
 from airflow.utils.sqlalchemy import UtcDateTime
 
 revision = "e229247a6cb1"
@@ -59,6 +60,10 @@ def upgrade():
     with op.batch_alter_table("import_error", schema=None) as batch_op:
         batch_op.add_column(sa.Column("bundle_name", sa.String(length=250), nullable=True))
 
+    with op.batch_alter_table("dag_version", schema=None) as batch_op:
+        batch_op.add_column(sa.Column("bundle_name", StringID(), nullable=False))
+        batch_op.add_column(sa.Column("bundle_version", StringID()))
+
 
 def downgrade():
     with op.batch_alter_table("dag", schema=None) as batch_op:
@@ -69,6 +74,10 @@ def downgrade():
         batch_op.drop_column("bundle_version")
 
     with op.batch_alter_table("import_error", schema=None) as batch_op:
+        batch_op.drop_column("bundle_name")
+
+    with op.batch_alter_table("dag_version", schema=None) as batch_op:
+        batch_op.drop_column("bundle_version")
         batch_op.drop_column("bundle_name")
 
     op.drop_table("dag_bundle")

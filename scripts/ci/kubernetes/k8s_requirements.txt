@@ -1,3 +1,4 @@
 -e .[devel-devscripts,devel-tests,cncf.kubernetes,sqlite]
+-e ./providers/standard
 -e ./providers
 -e ./task_sdk

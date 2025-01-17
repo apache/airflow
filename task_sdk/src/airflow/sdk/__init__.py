@@ -19,39 +19,52 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 __all__ = [
+    "__version__",
+    "Asset",
+    "AssetWatcher",
     "BaseOperator",
+    "Connection",
     "DAG",
     "EdgeModifier",
     "Label",
+    "MappedOperator",
     "TaskGroup",
+    "XComArg",
     "dag",
-    "Connection",
     "get_current_context",
     "get_parsing_context",
-    "__version__",
 ]
 
-__version__ = "1.0.0.dev1"
+__version__ = "1.0.0.alpha1"
 
 if TYPE_CHECKING:
+    from airflow.sdk.definitions.asset import Asset, AssetWatcher
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import get_current_context, get_parsing_context
     from airflow.sdk.definitions.dag import DAG, dag
     from airflow.sdk.definitions.edges import EdgeModifier, Label
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import TaskGroup
+    from airflow.sdk.definitions.xcom_arg import XComArg
 
 __lazy_imports: dict[str, str] = {
-    "DAG": ".definitions.dag",
-    "dag": ".definitions.dag",
     "BaseOperator": ".definitions.baseoperator",
-    "TaskGroup": ".definitions.taskgroup",
+    "Connection": ".definitions.connection",
+    "Param": ".definitions.param",
+    "ParamsDict": ".definitions.param",
+    "DAG": ".definitions.dag",
     "EdgeModifier": ".definitions.edges",
     "Label": ".definitions.edges",
-    "Connection": ".definitions.connection",
+    "MappedOperator": ".definitions.mappedoperator",
+    "TaskGroup": ".definitions.taskgroup",
     "Variable": ".definitions.variable",
+    "XComArg": ".definitions.xcom_arg",
+    "dag": ".definitions.dag",
     "get_current_context": ".definitions.context",
     "get_parsing_context": ".definitions.context",
+    "Asset": ".definitions.asset",
+    "AssetWatcher": ".definitions.asset",
 }
 
 

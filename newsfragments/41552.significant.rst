@@ -1,1 +1,20 @@
 Removed deprecated ``filename_template`` argument from ``airflow.utils.log.file_task_handler.FileTaskHandler``.
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] argument ``filename_template`` in ``airflow.utils.log.file_task_handler.FileTaskHandler`` and its subclassses

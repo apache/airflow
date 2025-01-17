@@ -58,6 +58,19 @@ class TestKeda:
     @pytest.mark.parametrize(
         "executor", ["CeleryExecutor", "CeleryKubernetesExecutor", "CeleryExecutor,KubernetesExecutor"]
     )
+    def test_include_event_source_container_name_in_scaled_object(self, executor):
+        docs = render_chart(
+            values={
+                "workers": {"keda": {"enabled": True}, "persistence": {"enabled": False}},
+                "executor": executor,
+            },
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+        assert jmespath.search("spec.scaleTargetRef.envSourceContainerName", docs[0]) == "worker"
+
+    @pytest.mark.parametrize(
+        "executor", ["CeleryExecutor", "CeleryKubernetesExecutor", "CeleryExecutor,KubernetesExecutor"]
+    )
     def test_keda_advanced(self, executor):
         """Verify keda advanced config."""
         expected_advanced = {

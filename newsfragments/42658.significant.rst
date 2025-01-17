@@ -1,1 +1,12 @@
 * Changing dag_id from flag (-d, --dag-id) to a positional argument in the 'dags list-runs' CLI command.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [x] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

@@ -16,9 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Annotated, cast
+from typing import Annotated
 
-from fastapi import Depends, HTTPException, Query, Response, status
+from fastapi import Depends, HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import delete, select
@@ -26,15 +26,16 @@ from sqlalchemy import delete, select
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.pools import (
     BasePool,
+    PoolBody,
     PoolCollectionResponse,
     PoolPatchBody,
-    PoolPostBody,
-    PoolPostBulkBody,
     PoolResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.services.public.pools import BulkPoolService
 from airflow.models.pool import Pool
 
 pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
@@ -147,7 +148,7 @@ def patch_pool(
         fields_to_update = fields_to_update.intersection(update_mask)
         data = patch_body.model_dump(include=fields_to_update, by_alias=True)
     else:
-        data = patch_body.model_dump(by_alias=True)
+        data = patch_body.model_dump(include=fields_to_update, by_alias=True)
         try:
             BasePool.model_validate(data)
         except ValidationError as e:
@@ -167,7 +168,7 @@ def patch_pool(
     ),  # handled by global exception handler
 )
 def post_pool(
-    body: PoolPostBody,
+    body: PoolBody,
     session: SessionDep,
 ) -> PoolResponse:
     """Create a Pool."""
@@ -176,51 +177,10 @@ def post_pool(
     return pool
 
 
-@pools_router.put(
-    "/bulk",
-    status_code=status.HTTP_201_CREATED,
-    responses={
-        **create_openapi_http_exception_doc(
-            [
-                status.HTTP_409_CONFLICT,  # handled by global exception handler
-            ]
-        ),
-        status.HTTP_201_CREATED: {
-            "description": "Created",
-            "model": PoolCollectionResponse,
-        },
-        status.HTTP_200_OK: {
-            "description": "Created with overwriting",
-            "model": PoolCollectionResponse,
-        },
-    },
-)
-def put_pools(
-    response: Response,
-    put_body: PoolPostBulkBody,
+@pools_router.patch("")
+def bulk_pools(
+    request: BulkBody[PoolBody],
     session: SessionDep,
-) -> PoolCollectionResponse:
-    """Create multiple pools."""
-    response.status_code = status.HTTP_201_CREATED if not put_body.overwrite else status.HTTP_200_OK
-    pools: list[Pool]
-    if not put_body.overwrite:
-        pools = [Pool(**body.model_dump()) for body in put_body.pools]
-    else:
-        pool_names = [pool.pool for pool in put_body.pools]
-        existed_pools = session.execute(select(Pool).filter(Pool.pool.in_(pool_names))).scalars()
-        existed_pools_dict = {pool.pool: pool for pool in existed_pools}
-        pools = []
-        # if pool already exists, update the corresponding pool, else add a new pool
-        for body in put_body.pools:
-            if body.pool in existed_pools_dict:
-                pool = existed_pools_dict[body.pool]
-                for key, val in body.model_dump().items():
-                    setattr(pool, key, val)
-                pools.append(pool)
-            else:
-                pools.append(Pool(**body.model_dump()))
-    session.add_all(pools)
-    return PoolCollectionResponse(
-        pools=cast(list[PoolResponse], pools),
-        total_entries=len(pools),
-    )
+) -> BulkResponse:
+    """Bulk create, update, and delete pools."""
+    return BulkPoolService(session=session, request=request).handle_request()

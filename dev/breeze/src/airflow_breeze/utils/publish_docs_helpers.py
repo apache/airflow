@@ -30,6 +30,7 @@ CONSOLE_WIDTH = 180
 
 # TODO(potiuk): remove it when we move all providers to the new structure
 OLD_PROVIDER_DATA_SCHEMA_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "provider.yaml.schema.json"
+# TODO(potiuk) - rename when all providers are new-style
 NEW_PROVIDER_DATA_SCHEMA_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "new_provider.yaml.schema.json"
 
 

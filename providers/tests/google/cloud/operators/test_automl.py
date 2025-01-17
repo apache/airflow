@@ -26,13 +26,12 @@ import pytest
 pytest.importorskip("google.cloud.aiplatform_v1")
 
 from google.api_core.gapic_v1.method import DEFAULT
-from google.cloud.automl_v1beta1 import BatchPredictResult, Dataset, Model, PredictResponse
+from google.cloud.automl_v1beta1 import Dataset, Model, PredictResponse
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.hooks.vertex_ai.prediction_service import PredictionServiceHook
 from airflow.providers.google.cloud.operators.automl import (
-    AutoMLBatchPredictOperator,
     AutoMLCreateDatasetOperator,
     AutoMLDeleteDatasetOperator,
     AutoMLDeleteModelOperator,
@@ -123,73 +122,6 @@ class TestAutoMLTrainModelOperator:
         assert task.model == "model"
         assert task.location == "location"
         assert task.impersonation_chain == "impersonation_chain"
-
-
-class TestAutoMLBatchPredictOperator:
-    @mock.patch("airflow.providers.google.cloud.links.translate.TranslationLegacyModelPredictLink.persist")
-    @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
-    def test_execute(self, mock_hook, mock_link_persist):
-        mock_hook.return_value.batch_predict.return_value.result.return_value = BatchPredictResult()
-        mock_hook.return_value.extract_object_id = extract_object_id
-        mock_hook.return_value.wait_for_operation.return_value = BatchPredictResult()
-        mock_hook.return_value.get_model.return_value = mock.MagicMock(**MODEL)
-        mock_context = {"ti": mock.MagicMock()}
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            op = AutoMLBatchPredictOperator(
-                model_id=MODEL_ID,
-                location=GCP_LOCATION,
-                project_id=GCP_PROJECT_ID,
-                input_config=INPUT_CONFIG,
-                output_config=OUTPUT_CONFIG,
-                task_id=TASK_ID,
-                prediction_params={},
-            )
-        op.execute(context=mock_context)
-        mock_hook.return_value.batch_predict.assert_called_once_with(
-            input_config=INPUT_CONFIG,
-            location=GCP_LOCATION,
-            metadata=(),
-            model_id=MODEL_ID,
-            output_config=OUTPUT_CONFIG,
-            params={},
-            project_id=GCP_PROJECT_ID,
-            retry=DEFAULT,
-            timeout=None,
-        )
-        mock_link_persist.assert_called_once_with(
-            context=mock_context,
-            task_instance=op,
-            model_id=MODEL_ID,
-            project_id=GCP_PROJECT_ID,
-            dataset_id=DATASET_ID,
-        )
-
-    @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator, session):
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            ti = create_task_instance_of_operator(
-                AutoMLBatchPredictOperator,
-                # Templated fields
-                model_id="{{ 'model' }}",
-                input_config="{{ 'input-config' }}",
-                output_config="{{ 'output-config' }}",
-                location="{{ 'location' }}",
-                project_id="{{ 'project-id' }}",
-                impersonation_chain="{{ 'impersonation-chain' }}",
-                # Other parameters
-                dag_id="test_template_body_templating_dag",
-                task_id="test_template_body_templating_task",
-            )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        task: AutoMLBatchPredictOperator = ti.task
-        assert task.model_id == "model"
-        assert task.input_config == "input-config"
-        assert task.output_config == "output-config"
-        assert task.location == "location"
-        assert task.project_id == "project-id"
-        assert task.impersonation_chain == "impersonation-chain"
 
 
 class TestAutoMLPredictOperator:

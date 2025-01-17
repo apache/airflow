@@ -25,32 +25,20 @@ import { useDeleteVariable } from "src/queries/useDeleteVariable";
 
 type Props = {
   readonly deleteKey: string;
+  readonly disabled: boolean;
 };
 
-const DeleteVariableButton = ({ deleteKey: variableKey }: Props) => {
+const DeleteVariableButton = ({ deleteKey: variableKey, disabled }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { isPending, mutate } = useDeleteVariable({
     onSuccessConfirm: onClose,
   });
 
-  const renderDeleteButton = () => (
-    <Button
-      colorPalette="red"
-      loading={isPending}
-      onClick={() => {
-        mutate({
-          variableKey,
-        });
-      }}
-    >
-      <FiTrash /> Delete
-    </Button>
-  );
-
   return (
     <>
       <ActionButton
         actionName="Delete Variable"
+        disabled={disabled}
         icon={<FiTrash />}
         onClick={() => {
           onOpen();
@@ -70,9 +58,24 @@ const DeleteVariableButton = ({ deleteKey: variableKey }: Props) => {
           <Dialog.CloseTrigger />
 
           <Dialog.Body width="full">
-            <Text>Are you sure you want to delete the variable key: `{variableKey}`?</Text>
+            <Text color="gray.solid" fontSize="md" fontWeight="semibold" mb={4}>
+              You are about to delete variable with key <strong>{variableKey}</strong>.
+              <br />
+              This action is permanent and cannot be undone.{" "}
+              <strong>Are you sure you want to proceed?</strong>
+            </Text>
             <Flex justifyContent="end" mt={3}>
-              {renderDeleteButton()}
+              <Button
+                colorPalette="red"
+                loading={isPending}
+                onClick={() => {
+                  mutate({
+                    variableKey,
+                  });
+                }}
+              >
+                <FiTrash /> <Text fontWeight="bold">Yes, Delete</Text>
+              </Button>
             </Flex>
           </Dialog.Body>
         </Dialog.Content>

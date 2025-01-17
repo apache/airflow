@@ -39,9 +39,9 @@ from kubernetes.client.api_client import ApiClient
 
 from airflow.exceptions import (
     AirflowConfigException,
-    AirflowException,
 )
 from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
+from airflow.providers.cncf.kubernetes.exceptions import PodMutationHookException, PodReconciliationError
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     POD_NAME_MAX_LENGTH,
     add_unique_suffix,
@@ -56,14 +56,6 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 MAX_LABEL_LEN = 63
-
-
-class PodMutationHookException(AirflowException):
-    """Raised when exception happens during Pod Mutation Hook execution."""
-
-
-class PodReconciliationError(AirflowException):
-    """Raised when an error is encountered while trying to merge pod configs."""
 
 
 def make_safe_label_value(string: str) -> str:

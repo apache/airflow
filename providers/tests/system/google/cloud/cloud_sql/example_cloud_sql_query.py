@@ -44,6 +44,7 @@ from airflow.providers.google.cloud.operators.cloud_sql import (
 )
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
+from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
@@ -384,6 +385,11 @@ with DAG(
     catchup=False,
     tags=["example", "cloudsql", "postgres"],
 ) as dag:
+    check_openlineage_events = OpenLineageTestOperator(
+        task_id="check_openlineage_events",
+        file_path=str(Path(__file__).parent / "resources" / "openlineage" / "cloud_sql_query.json"),
+    )
+
     for db_provider in DB_PROVIDERS:
         database_type: str = db_provider["database_type"]
         cloud_sql_instance_name: str = db_provider["cloud_sql_instance_name"]
@@ -537,7 +543,7 @@ with DAG(
             # TEST BODY
             >> execute_queries_task
             # TEST TEARDOWN
-            >> [delete_instance, delete_connections_task]
+            >> [delete_instance, delete_connections_task, check_openlineage_events]
         )
 
     # ### Everything below this line is not part of example ###

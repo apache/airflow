@@ -177,7 +177,6 @@ class StandaloneCommand:
         We override some settings as part of being standalone.
         """
         env = dict(os.environ)
-        env["AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR"] = "True"
 
         # Make sure we're using a local executor flavour
         executor_class, _ = ExecutorLoader.import_default_executor_cls()

@@ -36,8 +36,8 @@ except ImportError:
     graphviz = None
 
 from airflow.exceptions import AirflowException
-from airflow.models.baseoperator import BaseOperator
-from airflow.models.mappedoperator import MappedOperator
+from airflow.sdk import BaseOperator
+from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup

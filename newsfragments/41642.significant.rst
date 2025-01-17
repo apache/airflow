@@ -1,3 +1,23 @@
 Removed deprecated secrets backend methods ``get_conn_uri`` and ``get_connections``.
 
 Please use ``get_conn_value`` and ``get_connection`` instead.
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.secrets.base_secrets.BaseSecretsBackend.get_conn_uri`` → ``airflow.secrets.base_secrets.BaseSecretsBackend.get_conn_value``
+      * [x] ``airflow.secrets.base_secrets.BaseSecretsBackend.get_connections`` → ``airflow.secrets.base_secrets.BaseSecretsBackend.get_connection``

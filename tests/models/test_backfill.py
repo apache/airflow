@@ -31,6 +31,8 @@ from airflow.models.backfill import (
     Backfill,
     BackfillDagRun,
     BackfillDagRunExceptionReason,
+    InvalidBackfillDirection,
+    InvalidReprocessBehavior,
     ReprocessBehavior,
     _create_backfill,
 )
@@ -74,7 +76,10 @@ def test_reverse_and_depends_on_past_fails(dep_on_past, dag_maker, session):
     session.commit()
     cm = nullcontext()
     if dep_on_past:
-        cm = pytest.raises(ValueError, match="cannot be run in reverse")
+        cm = pytest.raises(
+            InvalidBackfillDirection,
+            match="Backfill cannot be run in reverse when the DAG has tasks where depends_on_past=True.",
+        )
     b = None
     with cm:
         b = _create_backfill(
@@ -432,7 +437,10 @@ def test_depends_on_past_requires_reprocess_failed(dep_on_past, behavior, dag_ma
             python_callable=lambda: print,
             depends_on_past=dep_on_past,
         )
-    raises_cm = pytest.raises(ValueError, match="Dag has task for which depends_on_past is true")
+    raises_cm = pytest.raises(
+        InvalidReprocessBehavior,
+        match="DAG has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed.",
+    )
     null_cm = nullcontext()
     cm = null_cm
     if dep_on_past and behavior in (ReprocessBehavior.NONE, None):

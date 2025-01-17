@@ -23,13 +23,12 @@ Base operator for all operators.
 
 from __future__ import annotations
 
-import collections.abc
-import contextlib
 import functools
 import logging
-from collections.abc import Collection, Iterable, Sequence
+import operator
+from collections.abc import Collection, Iterable, Iterator, Sequence
 from datetime import datetime, timedelta
-from functools import wraps
+from functools import singledispatchmethod, wraps
 from threading import local
 from types import FunctionType
 from typing import (
@@ -53,36 +52,27 @@ from airflow.exceptions import (
     TaskDeferred,
 )
 from airflow.lineage import apply_lineage, prepare_lineage
-from airflow.models.abstractoperator import (
-    DEFAULT_EXECUTOR,
-    DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
-    DEFAULT_OWNER,
-    DEFAULT_POOL_SLOTS,
-    DEFAULT_PRIORITY_WEIGHT,
-    DEFAULT_QUEUE,
-    DEFAULT_RETRIES,
-    DEFAULT_RETRY_DELAY,
-    DEFAULT_TASK_EXECUTION_TIMEOUT,
-    DEFAULT_TRIGGER_RULE,
-    DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
-    DEFAULT_WEIGHT_RULE,
-    AbstractOperator,
-)
-from airflow.models.base import _sentinel
-from airflow.models.mappedoperator import OperatorPartial, validate_mapping_kwargs
-from airflow.models.taskinstance import TaskInstance, clear_task_instances
-from airflow.models.taskmixin import DependencyMixin
-from airflow.models.trigger import TRIGGER_FAIL_REPR, TriggerFailureReason
-from airflow.sdk.definitions.baseoperator import (
-    BaseOperatorMeta as TaskSDKBaseOperatorMeta,
-    get_merged_defaults,
-)
 
 # Keeping this file at all is a temp thing as we migrate the repo to the task sdk as the base, but to keep
 # main working and useful for others to develop against we use the TaskSDK here but keep this file around
+from airflow.models.abstractoperator import (
+    AbstractOperator,
+    NotMapped,
+)
+from airflow.models.base import _sentinel
+from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.models.taskmixin import DependencyMixin
+from airflow.models.trigger import TRIGGER_FAIL_REPR, TriggerFailureReason
+from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator as TaskSDKAbstractOperator
+from airflow.sdk.definitions.baseoperator import (
+    BaseOperatorMeta as TaskSDKBaseOperatorMeta,
+    get_merged_defaults as get_merged_defaults,  # Re-export for compat
+)
 from airflow.sdk.definitions.context import Context
-from airflow.sdk.definitions.dag import DAG, BaseOperator as TaskSDKBaseOperator
+from airflow.sdk.definitions.dag import BaseOperator as TaskSDKBaseOperator
 from airflow.sdk.definitions.edges import EdgeModifier as TaskSDKEdgeModifier
+from airflow.sdk.definitions.mappedoperator import MappedOperator
+from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.ti_deps.deps.mapped_task_upstream_dep import MappedTaskUpstreamDep
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
@@ -95,27 +85,20 @@ from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.operator_helpers import ExecutionCallableRunner
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.types import NOTSET, DagRunTriggeredByType
+from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunTriggeredByType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
-    from types import ClassMethodDescriptorType
-
     from sqlalchemy.orm import Session
 
     from airflow.models.abstractoperator import TaskStateChangeCallback
     from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.dag import DAG as SchedulerDAG
     from airflow.models.operator import Operator
-    from airflow.task.priority_strategy import PriorityWeightStrategy
+    from airflow.sdk.definitions.node import DAGNode
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import BaseTrigger, StartTriggerArgs
-    from airflow.utils.types import ArgNotSet
-
-
-# Todo: AIP-44: Once we get rid of AIP-44 we can remove this. But without this here pydantic fails to resolve
-# types for serialization
-from airflow.utils.task_group import TaskGroup  # noqa: TC001
 
 TaskPreExecuteHook = Callable[[Context], None]
 TaskPostExecuteHook = Callable[[Context, Any], None]
@@ -151,193 +134,6 @@ def coerce_resources(resources: dict[str, Any] | None) -> Resources | None:
     if resources is None:
         return None
     return Resources(**resources)
-
-
-class _PartialDescriptor:
-    """A descriptor that guards against ``.partial`` being called on Task objects."""
-
-    class_method: ClassMethodDescriptorType | None = None
-
-    def __get__(
-        self, obj: BaseOperator, cls: type[BaseOperator] | None = None
-    ) -> Callable[..., OperatorPartial]:
-        # Call this "partial" so it looks nicer in stack traces.
-        def partial(**kwargs):
-            raise TypeError("partial can only be called on Operator classes, not Tasks themselves")
-
-        if obj is not None:
-            return partial
-        return self.class_method.__get__(cls, cls)
-
-
-_PARTIAL_DEFAULTS: dict[str, Any] = {
-    "map_index_template": None,
-    "owner": DEFAULT_OWNER,
-    "trigger_rule": DEFAULT_TRIGGER_RULE,
-    "depends_on_past": False,
-    "ignore_first_depends_on_past": DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
-    "wait_for_past_depends_before_skipping": DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
-    "wait_for_downstream": False,
-    "retries": DEFAULT_RETRIES,
-    "executor": DEFAULT_EXECUTOR,
-    "queue": DEFAULT_QUEUE,
-    "pool_slots": DEFAULT_POOL_SLOTS,
-    "execution_timeout": DEFAULT_TASK_EXECUTION_TIMEOUT,
-    "retry_delay": DEFAULT_RETRY_DELAY,
-    "retry_exponential_backoff": False,
-    "priority_weight": DEFAULT_PRIORITY_WEIGHT,
-    "weight_rule": DEFAULT_WEIGHT_RULE,
-    "inlets": [],
-    "outlets": [],
-    "allow_nested_operators": True,
-}
-
-
-# This is what handles the actual mapping.
-
-if TYPE_CHECKING:
-
-    def partial(
-        operator_class: type[BaseOperator],
-        *,
-        task_id: str,
-        dag: DAG | None = None,
-        task_group: TaskGroup | None = None,
-        start_date: datetime | ArgNotSet = NOTSET,
-        end_date: datetime | ArgNotSet = NOTSET,
-        owner: str | ArgNotSet = NOTSET,
-        email: None | str | Iterable[str] | ArgNotSet = NOTSET,
-        params: collections.abc.MutableMapping | None = None,
-        resources: dict[str, Any] | None | ArgNotSet = NOTSET,
-        trigger_rule: str | ArgNotSet = NOTSET,
-        depends_on_past: bool | ArgNotSet = NOTSET,
-        ignore_first_depends_on_past: bool | ArgNotSet = NOTSET,
-        wait_for_past_depends_before_skipping: bool | ArgNotSet = NOTSET,
-        wait_for_downstream: bool | ArgNotSet = NOTSET,
-        retries: int | None | ArgNotSet = NOTSET,
-        queue: str | ArgNotSet = NOTSET,
-        pool: str | ArgNotSet = NOTSET,
-        pool_slots: int | ArgNotSet = NOTSET,
-        execution_timeout: timedelta | None | ArgNotSet = NOTSET,
-        max_retry_delay: None | timedelta | float | ArgNotSet = NOTSET,
-        retry_delay: timedelta | float | ArgNotSet = NOTSET,
-        retry_exponential_backoff: bool | ArgNotSet = NOTSET,
-        priority_weight: int | ArgNotSet = NOTSET,
-        weight_rule: str | PriorityWeightStrategy | ArgNotSet = NOTSET,
-        sla: timedelta | None | ArgNotSet = NOTSET,
-        map_index_template: str | None | ArgNotSet = NOTSET,
-        max_active_tis_per_dag: int | None | ArgNotSet = NOTSET,
-        max_active_tis_per_dagrun: int | None | ArgNotSet = NOTSET,
-        on_execute_callback: None
-        | TaskStateChangeCallback
-        | list[TaskStateChangeCallback]
-        | ArgNotSet = NOTSET,
-        on_failure_callback: None
-        | TaskStateChangeCallback
-        | list[TaskStateChangeCallback]
-        | ArgNotSet = NOTSET,
-        on_success_callback: None
-        | TaskStateChangeCallback
-        | list[TaskStateChangeCallback]
-        | ArgNotSet = NOTSET,
-        on_retry_callback: None
-        | TaskStateChangeCallback
-        | list[TaskStateChangeCallback]
-        | ArgNotSet = NOTSET,
-        on_skipped_callback: None
-        | TaskStateChangeCallback
-        | list[TaskStateChangeCallback]
-        | ArgNotSet = NOTSET,
-        run_as_user: str | None | ArgNotSet = NOTSET,
-        executor: str | None | ArgNotSet = NOTSET,
-        executor_config: dict | None | ArgNotSet = NOTSET,
-        inlets: Any | None | ArgNotSet = NOTSET,
-        outlets: Any | None | ArgNotSet = NOTSET,
-        doc: str | None | ArgNotSet = NOTSET,
-        doc_md: str | None | ArgNotSet = NOTSET,
-        doc_json: str | None | ArgNotSet = NOTSET,
-        doc_yaml: str | None | ArgNotSet = NOTSET,
-        doc_rst: str | None | ArgNotSet = NOTSET,
-        task_display_name: str | None | ArgNotSet = NOTSET,
-        logger_name: str | None | ArgNotSet = NOTSET,
-        allow_nested_operators: bool = True,
-        **kwargs,
-    ) -> OperatorPartial: ...
-else:
-
-    def partial(
-        operator_class: type[BaseOperator],
-        *,
-        task_id: str,
-        dag: DAG | None = None,
-        task_group: TaskGroup | None = None,
-        params: collections.abc.MutableMapping | None = None,
-        **kwargs,
-    ):
-        from airflow.sdk.definitions._internal.contextmanager import DagContext, TaskGroupContext
-
-        validate_mapping_kwargs(operator_class, "partial", kwargs)
-
-        dag = dag or DagContext.get_current()
-        if dag:
-            task_group = task_group or TaskGroupContext.get_current(dag)
-        if task_group:
-            task_id = task_group.child_id(task_id)
-
-        # Merge DAG and task group level defaults into user-supplied values.
-        dag_default_args, partial_params = get_merged_defaults(
-            dag=dag,
-            task_group=task_group,
-            task_params=params,
-            task_default_args=kwargs.pop("default_args", None),
-        )
-
-        # Create partial_kwargs from args and kwargs
-        partial_kwargs: dict[str, Any] = {
-            "task_id": task_id,
-            "dag": dag,
-            "task_group": task_group,
-            **kwargs,
-        }
-
-        # Inject DAG-level default args into args provided to this function.
-        partial_kwargs.update(
-            (k, v) for k, v in dag_default_args.items() if partial_kwargs.get(k, NOTSET) is NOTSET
-        )
-
-        # Fill fields not provided by the user with default values.
-        for k, v in _PARTIAL_DEFAULTS.items():
-            partial_kwargs.setdefault(k, v)
-
-        # Post-process arguments. Should be kept in sync with _TaskDecorator.expand().
-        if "task_concurrency" in kwargs:  # Reject deprecated option.
-            raise TypeError("unexpected argument: task_concurrency")
-        if wait := partial_kwargs.get("wait_for_downstream", False):
-            partial_kwargs["depends_on_past"] = wait
-        if start_date := partial_kwargs.get("start_date", None):
-            partial_kwargs["start_date"] = timezone.convert_to_utc(start_date)
-        if end_date := partial_kwargs.get("end_date", None):
-            partial_kwargs["end_date"] = timezone.convert_to_utc(end_date)
-        if partial_kwargs["pool_slots"] < 1:
-            dag_str = ""
-            if dag:
-                dag_str = f" in dag {dag.dag_id}"
-            raise ValueError(f"pool slots for {task_id}{dag_str} cannot be less than 1")
-        if retries := partial_kwargs.get("retries"):
-            partial_kwargs["retries"] = parse_retries(retries)
-        partial_kwargs["retry_delay"] = coerce_timedelta(partial_kwargs["retry_delay"], key="retry_delay")
-        if partial_kwargs.get("max_retry_delay", None) is not None:
-            partial_kwargs["max_retry_delay"] = coerce_timedelta(
-                partial_kwargs["max_retry_delay"],
-                key="max_retry_delay",
-            )
-        partial_kwargs.setdefault("executor_config", {})
-
-        return OperatorPartial(
-            operator_class=operator_class,
-            kwargs=partial_kwargs,
-            params=partial_params,
-        )
 
 
 class ExecutorSafeguard:
@@ -388,12 +184,6 @@ class BaseOperatorMeta(TaskSDKBaseOperatorMeta):
         if callable(execute_method) and not getattr(execute_method, "__isabstractmethod__", False):
             namespace["execute"] = ExecutorSafeguard().decorator(execute_method)
         new_cls = super().__new__(cls, name, bases, namespace, **kwargs)
-        with contextlib.suppress(KeyError):
-            # Update the partial descriptor with the class method, so it calls the actual function
-            # (but let subclasses override it if they need to)
-            partial_desc = vars(new_cls)["partial"]
-            if isinstance(partial_desc, _PartialDescriptor):
-                partial_desc.class_method = classmethod(partial)
         return new_cls
 
 
@@ -653,8 +443,6 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
             # For type checking only
             ...
 
-    partial: Callable[..., OperatorPartial] = _PartialDescriptor()  # type: ignore
-
     @classmethod
     @methodtools.lru_cache(maxsize=None)
     def get_serialized_fields(cls):
@@ -845,6 +633,7 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
                     logical_date=info.logical_date,
                     data_interval=info.data_interval,
                     triggered_by=DagRunTriggeredByType.TEST,
+                    state=DagRunState.RUNNING,
                 )
                 ti = TaskInstance(self, run_id=dr.run_id)
                 ti.dag_run = dr
@@ -1017,6 +806,89 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
         :meta private:
         """
         return self.start_trigger_args
+
+    if TYPE_CHECKING:
+
+        @classmethod
+        def get_mapped_ti_count(
+            cls, node: DAGNode | MappedTaskGroup, run_id: str, *, session: Session
+        ) -> int:
+            """
+            Return the number of mapped TaskInstances that can be created at run time.
+
+            This considers both literal and non-literal mapped arguments, and the
+            result is therefore available when all depended tasks have finished. The
+            return value should be identical to ``parse_time_mapped_ti_count`` if
+            all mapped arguments are literal.
+
+            :raise NotFullyPopulated: If upstream tasks are not all complete yet.
+            :raise NotMapped: If the operator is neither mapped, nor has any parent
+                mapped task groups.
+            :return: Total number of mapped TIs this task should have.
+            """
+    else:
+
+        @singledispatchmethod
+        @classmethod
+        def get_mapped_ti_count(cls, task: DAGNode, run_id: str, *, session: Session) -> int:
+            raise NotImplementedError(f"Not implemented for {type(task)}")
+
+        # https://github.com/python/cpython/issues/86153
+        # WHile we support Python 3.9 we can't rely on the type hint, we need to pass the type explicitly to
+        # register.
+        @get_mapped_ti_count.register(TaskSDKAbstractOperator)
+        @classmethod
+        def _(cls, task: TaskSDKAbstractOperator, run_id: str, *, session: Session) -> int:
+            group = task.get_closest_mapped_task_group()
+            if group is None:
+                raise NotMapped()
+            return cls.get_mapped_ti_count(group, run_id, session=session)
+
+        @get_mapped_ti_count.register(MappedOperator)
+        @classmethod
+        def _(cls, task: MappedOperator, run_id: str, *, session: Session) -> int:
+            from airflow.serialization.serialized_objects import _ExpandInputRef
+
+            exp_input = task._get_specified_expand_input()
+            if isinstance(exp_input, _ExpandInputRef):
+                exp_input = exp_input.deref(task.dag)
+            current_count = exp_input.get_total_map_length(run_id, session=session)
+
+            group = task.get_closest_mapped_task_group()
+            if group is None:
+                return current_count
+            parent_count = cls.get_mapped_ti_count(group, run_id, session=session)
+            return parent_count * current_count
+
+        @get_mapped_ti_count.register(TaskGroup)
+        @classmethod
+        def _(cls, group: TaskGroup, run_id: str, *, session: Session) -> int:
+            """
+            Return the number of instances a task in this group should be mapped to at run time.
+
+            This considers both literal and non-literal mapped arguments, and the
+            result is therefore available when all depended tasks have finished. The
+            return value should be identical to ``parse_time_mapped_ti_count`` if
+            all mapped arguments are literal.
+
+            If this group is inside mapped task groups, all the nested counts are
+            multiplied and accounted.
+
+            :raise NotFullyPopulated: If upstream tasks are not all complete yet.
+            :return: Total number of mapped TIs this task should have.
+            """
+
+            def iter_mapped_task_groups(group) -> Iterator[MappedTaskGroup]:
+                while group is not None:
+                    if isinstance(group, MappedTaskGroup):
+                        yield group
+                    group = group.parent_group
+
+            groups = iter_mapped_task_groups(group)
+            return functools.reduce(
+                operator.mul,
+                (g._expand_input.get_total_map_length(run_id, session=session) for g in groups),
+            )
 
 
 def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:

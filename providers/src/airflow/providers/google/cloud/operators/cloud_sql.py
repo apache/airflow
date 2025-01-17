@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
+from contextlib import contextmanager
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
@@ -38,8 +39,7 @@ from airflow.providers.google.common.links.storage import FileDetailsLink
 
 if TYPE_CHECKING:
     from airflow.models import Connection
-    from airflow.providers.mysql.hooks.mysql import MySqlHook
-    from airflow.providers.postgres.hooks.postgres import PostgresHook
+    from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.context import Context
 
 
@@ -1256,7 +1256,8 @@ class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
         self.ssl_client_key = ssl_client_key
         self.ssl_secret_id = ssl_secret_id
 
-    def _execute_query(self, hook: CloudSQLDatabaseHook, database_hook: PostgresHook | MySqlHook) -> None:
+    @contextmanager
+    def cloud_sql_proxy_context(self, hook: CloudSQLDatabaseHook):
         cloud_sql_proxy_runner = None
         try:
             if hook.use_proxy:
@@ -1266,27 +1267,27 @@ class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
                 # be taken over here by another bind(0).
                 # It's quite unlikely to happen though!
                 cloud_sql_proxy_runner.start_proxy()
-            self.log.info('Executing: "%s"', self.sql)
-            database_hook.run(self.sql, self.autocommit, parameters=self.parameters)
+            yield
         finally:
             if cloud_sql_proxy_runner:
                 cloud_sql_proxy_runner.stop_proxy()
 
     def execute(self, context: Context):
-        self.gcp_connection = BaseHook.get_connection(self.gcp_conn_id)
-
         hook = self.hook
         hook.validate_ssl_certs()
         connection = hook.create_connection()
         hook.validate_socket_path_length()
         database_hook = hook.get_database_hook(connection=connection)
         try:
-            self._execute_query(hook, database_hook)
+            with self.cloud_sql_proxy_context(hook):
+                self.log.info('Executing: "%s"', self.sql)
+                database_hook.run(self.sql, self.autocommit, parameters=self.parameters)
         finally:
             hook.cleanup_database_hook()
 
     @cached_property
     def hook(self):
+        self.gcp_connection = BaseHook.get_connection(self.gcp_conn_id)
         return CloudSQLDatabaseHook(
             gcp_cloudsql_conn_id=self.gcp_cloudsql_conn_id,
             gcp_conn_id=self.gcp_conn_id,
@@ -1297,3 +1298,14 @@ class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
             ssl_key=self.ssl_client_key,
             ssl_secret_id=self.ssl_secret_id,
         )
+
+    def get_openlineage_facets_on_complete(self, _) -> OperatorLineage | None:
+        from airflow.providers.common.compat.openlineage.utils.sql import get_openlineage_facets_with_sql
+
+        with self.cloud_sql_proxy_context(self.hook):
+            return get_openlineage_facets_with_sql(
+                hook=self.hook.db_hook,
+                sql=self.sql,  # type:ignore[arg-type]  # Iterable[str] instead of list[str]
+                conn_id=self.gcp_cloudsql_conn_id,
+                database=self.hook.database,
+            )

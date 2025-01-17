@@ -31,21 +31,25 @@ from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     DagRun,
+    PrevSuccessfulDagRunResponse,
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
     TIRescheduleStatePayload,
     TIRunContext,
+    TIRuntimeCheckPayload,
     TIStateUpdate,
+    TISuccessStatePayload,
     TITerminalStatePayload,
 )
+from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, _update_rtif
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.xcom import XCom
 from airflow.utils import timezone
-from airflow.utils.state import State, TerminalTIState
+from airflow.utils.state import DagRunState, State, TerminalTIState
 
 # TODO: Add dependency on JWT token
 router = AirflowRouter()
@@ -225,7 +229,7 @@ def ti_update_state(
         )
 
     # We exclude_unset to avoid updating fields that are not set in the payload
-    data = ti_patch_payload.model_dump(exclude_unset=True)
+    data = ti_patch_payload.model_dump(exclude={"task_outlets", "outlet_events"}, exclude_unset=True)
 
     query = update(TI).where(TI.id == ti_id_str).values(data)
 
@@ -241,6 +245,17 @@ def ti_update_state(
                 updated_state = State.UP_FOR_RETRY
             else:
                 updated_state = State.FAILED
+        query = query.values(state=updated_state)
+    elif isinstance(ti_patch_payload, TISuccessStatePayload):
+        query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
+        updated_state = ti_patch_payload.state
+        task_instance = session.get(TI, ti_id_str)
+        TI.register_asset_changes_in_db(
+            task_instance,
+            ti_patch_payload.task_outlets,  # type: ignore
+            ti_patch_payload.outlet_events,
+            session,
+        )
         query = query.values(state=updated_state)
     elif isinstance(ti_patch_payload, TIDeferredStatePayload):
         # Calculate timeout if it was passed
@@ -391,6 +406,82 @@ def ti_put_rtif(
     _update_rtif(task_instance, put_rtif_payload, session)
 
     return {"message": "Rendered task instance fields successfully set"}
+
+
+@router.get(
+    "/{task_instance_id}/previous-successful-dagrun",
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "Task Instance or Dag Run not found"},
+    },
+)
+def get_previous_successful_dagrun(
+    task_instance_id: UUID, session: SessionDep
+) -> PrevSuccessfulDagRunResponse:
+    """
+    Get the previous successful DagRun for a TaskInstance.
+
+    The data from this endpoint is used to get values for Task Context.
+    """
+    ti_id_str = str(task_instance_id)
+    task_instance = session.scalar(select(TI).where(TI.id == ti_id_str))
+    if not task_instance:
+        return PrevSuccessfulDagRunResponse()
+
+    dag_run = session.scalar(
+        select(DR)
+        .where(
+            DR.dag_id == task_instance.dag_id,
+            DR.logical_date < task_instance.logical_date,
+            DR.state == DagRunState.SUCCESS,
+        )
+        .order_by(DR.logical_date.desc())
+        .limit(1)
+    )
+    if not dag_run:
+        return PrevSuccessfulDagRunResponse()
+
+    return PrevSuccessfulDagRunResponse.model_validate(dag_run)
+
+
+@router.post(
+    "/{task_instance_id}/runtime-checks",
+    status_code=status.HTTP_204_NO_CONTENT,
+    # TODO: Add description to the operation
+    # TODO: Add Operation ID to control the function name in the OpenAPI spec
+    # TODO: Do we need to use create_openapi_http_exception_doc here?
+    responses={
+        status.HTTP_400_BAD_REQUEST: {"description": "Task Instance failed the runtime checks."},
+        status.HTTP_409_CONFLICT: {
+            "description": "Task Instance isn't in a running state. Cannot perform runtime checks."
+        },
+        status.HTTP_422_UNPROCESSABLE_ENTITY: {
+            "description": "Invalid payload for requested runtime checks on the Task Instance."
+        },
+    },
+)
+def ti_runtime_checks(
+    task_instance_id: UUID,
+    payload: TIRuntimeCheckPayload,
+    session: SessionDep,
+):
+    ti_id_str = str(task_instance_id)
+    task_instance = session.scalar(select(TI).where(TI.id == ti_id_str))
+    if task_instance.state != State.RUNNING:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT)
+
+    try:
+        TI.validate_inlet_outlet_assets_activeness(payload.inlets, payload.outlets, session)  # type: ignore
+    except AirflowInactiveAssetInInletOrOutletException as e:
+        log.error("Task Instance %s fails the runtime checks.", ti_id_str)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "reason": "validation_failed",
+                "message": "Task Instance fails the runtime checks",
+                "error": str(e),
+            },
+        )
 
 
 def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:

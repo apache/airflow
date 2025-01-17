@@ -43,7 +43,6 @@
   <script>
     const stateColors = {{ state_color_mapping|tojson }};
     const autoRefreshInterval = {{ auto_refresh_interval }};
-    const standaloneDagProcessor = {{ standalone_dag_processor|tojson }} === true ;
   </script>
   <script src="{{ url_for_asset('clusterActivity.js') }}"></script>
 {% endblock %}

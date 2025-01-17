@@ -1,7 +1,5 @@
 Support for SubDags is removed
 
-**Breaking Change**
-
 Subdags have been removed from the following locations:
 
 - CLI
@@ -12,3 +10,22 @@ This removal marks the end of Subdag support across all interfaces. Users
 should transition to using TaskGroups as a more efficient and maintainable
 alternative. Please ensure your DAGs are updated to
 remove any usage of Subdags to maintain compatibility with future Airflow releases.
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [x] API changes
+  * [x] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.operators.subdag.*``

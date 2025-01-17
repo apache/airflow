@@ -128,6 +128,8 @@ class TestSmtpNotifier:
             from_email=conf.get("smtp", "smtp_mail_from"),
             to="test_reciver@test.com",
         )
+        mock_smtphook_hook.return_value.subject_template = None
+        mock_smtphook_hook.return_value.html_content_template = None
         notifier(context)
         mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
             from_email=conf.get("smtp", "smtp_mail_from"),
@@ -149,6 +151,10 @@ class TestSmtpNotifier:
     def test_notifier_with_nondefault_conf_vars(self, mock_smtphook_hook, create_task_instance):
         ti = create_task_instance(dag_id="dag", task_id="op", logical_date=timezone.datetime(2018, 1, 1))
         context = {"dag": ti.dag_run.dag, "ti": ti}
+
+        mock_smtphook_hook.return_value.from_email = None
+        mock_smtphook_hook.return_value.subject_template = None
+        mock_smtphook_hook.return_value.html_content_template = None
 
         with (
             tempfile.NamedTemporaryFile(mode="wt", suffix=".txt") as f_subject,
@@ -184,3 +190,39 @@ class TestSmtpNotifier:
                     mime_charset="utf-8",
                     custom_headers=None,
                 )
+
+    @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
+    def test_notifier_with_nondefault_connection_extra(self, mock_smtphook_hook, create_task_instance):
+        ti = create_task_instance(dag_id="dag", task_id="op", logical_date=timezone.datetime(2018, 1, 1))
+        context = {"dag": ti.dag_run.dag, "ti": ti}
+
+        with (
+            tempfile.NamedTemporaryFile(mode="wt", suffix=".txt") as f_subject,
+            tempfile.NamedTemporaryFile(mode="wt", suffix=".txt") as f_content,
+        ):
+            f_subject.write("Task {{ ti.task_id }} failed")
+            f_subject.flush()
+
+            f_content.write("Mock content goes here")
+            f_content.flush()
+
+            mock_smtphook_hook.return_value.subject_template = f_subject.name
+            mock_smtphook_hook.return_value.html_content_template = f_content.name
+            notifier = SmtpNotifier(
+                from_email=conf.get("smtp", "smtp_mail_from"),
+                to="test_reciver@test.com",
+            )
+            notifier(context)
+            mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
+                from_email=conf.get("smtp", "smtp_mail_from"),
+                to="test_reciver@test.com",
+                subject="Task op failed",
+                html_content="Mock content goes here",
+                smtp_conn_id="smtp_default",
+                files=None,
+                cc=None,
+                bcc=None,
+                mime_subtype="mixed",
+                mime_charset="utf-8",
+                custom_headers=None,
+            )

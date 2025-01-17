@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Any
 from googleapiclient.errors import HttpError
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
     DataflowHook,
@@ -40,7 +40,6 @@ from airflow.providers.google.cloud.triggers.dataflow import (
     TemplateJobStartTrigger,
 )
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
-from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
@@ -647,116 +646,6 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
     def on_kill(self) -> None:
         self.log.info("On kill.")
         if self.job is not None:
-            self.hook.cancel_job(
-                job_id=self.job.get("id"),
-                project_id=self.job.get("projectId"),
-                location=self.job.get("location"),
-            )
-
-
-@deprecated(
-    planned_removal_date="January 31, 2025",
-    use_instead="DataflowStartYamlJobOperator",
-    category=AirflowProviderDeprecationWarning,
-)
-class DataflowStartSqlJobOperator(GoogleCloudBaseOperator):
-    """
-    Starts Dataflow SQL query.
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:DataflowStartSqlJobOperator`
-
-    .. warning::
-        This operator requires ``gcloud`` command (Google Cloud SDK) must be installed on the Airflow worker
-        <https://cloud.google.com/sdk/docs/install>`__
-
-    :param job_name: The unique name to assign to the Cloud Dataflow job.
-    :param query: The SQL query to execute.
-    :param options: Job parameters to be executed. It can be a dictionary with the following keys.
-
-        For more information, look at:
-        `https://cloud.google.com/sdk/gcloud/reference/beta/dataflow/sql/query
-        <gcloud beta dataflow sql query>`__
-        command reference
-
-    :param location: The location of the Dataflow job (for example europe-west1)
-    :param project_id: The ID of the GCP project that owns the job.
-        If set to ``None`` or missing, the default project_id from the GCP connection is used.
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud
-        Platform.
-    :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
-        instead of canceling during killing task instance. See:
-        https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
-    """
-
-    template_fields: Sequence[str] = (
-        "job_name",
-        "query",
-        "options",
-        "location",
-        "project_id",
-        "gcp_conn_id",
-    )
-    template_fields_renderers = {"query": "sql"}
-
-    def __init__(
-        self,
-        job_name: str,
-        query: str,
-        options: dict[str, Any],
-        location: str = DEFAULT_DATAFLOW_LOCATION,
-        project_id: str = PROVIDE_PROJECT_ID,
-        gcp_conn_id: str = "google_cloud_default",
-        drain_pipeline: bool = False,
-        impersonation_chain: str | Sequence[str] | None = None,
-        *args,
-        **kwargs,
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.job_name = job_name
-        self.query = query
-        self.options = options
-        self.location = location
-        self.project_id = project_id
-        self.gcp_conn_id = gcp_conn_id
-        self.drain_pipeline = drain_pipeline
-        self.impersonation_chain = impersonation_chain
-        self.job = None
-        self.hook: DataflowHook | None = None
-
-    def execute(self, context: Context):
-        self.hook = DataflowHook(
-            gcp_conn_id=self.gcp_conn_id,
-            drain_pipeline=self.drain_pipeline,
-            impersonation_chain=self.impersonation_chain,
-        )
-
-        def set_current_job(current_job):
-            self.job = current_job
-
-        job = self.hook.start_sql_job(
-            job_name=self.job_name,
-            query=self.query,
-            options=self.options,
-            location=self.location,
-            project_id=self.project_id,
-            on_new_job_callback=set_current_job,
-        )
-
-        return job
-
-    def on_kill(self) -> None:
-        self.log.info("On kill.")
-        if self.job:
             self.hook.cancel_job(
                 job_id=self.job.get("id"),
                 project_id=self.job.get("projectId"),

@@ -368,13 +368,6 @@ config:
         type: boolean
         example: ~
         default: "True"
-      worker_pods_queued_check_interval:
-        description: |
-          How often in seconds to check for task instances stuck in "queued" status without a pod
-        version_added: ~
-        type: integer
-        example: ~
-        default: "60"
       ssl_ca_cert:
         description: |
           Path to a CA certificate to be used by the Kubernetes client to verify the server's SSL certificate.

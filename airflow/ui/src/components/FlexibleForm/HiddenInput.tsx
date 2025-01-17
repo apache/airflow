@@ -19,10 +19,21 @@
 import { VisuallyHidden } from "@chakra-ui/react";
 
 import type { FlexibleFormElementProps } from ".";
+import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
 
 /** Render a "const" field where user can not change data as hidden */
-export const HiddenInput = ({ name, param }: FlexibleFormElementProps) => (
-  <VisuallyHidden asChild>
-    <input id={`element_${name}`} name={`element_${name}`} type="hidden" value={String(param.value ?? "")} />
-  </VisuallyHidden>
-);
+export const HiddenInput = ({ name }: FlexibleFormElementProps) => {
+  const { paramsDict } = useParamStore();
+  const param = paramsDict[name] ?? paramPlaceholder;
+
+  return (
+    <VisuallyHidden asChild>
+      <input
+        id={`element_${name}`}
+        name={`element_${name}`}
+        type="hidden"
+        value={String(param.value ?? "")}
+      />
+    </VisuallyHidden>
+  );
+};

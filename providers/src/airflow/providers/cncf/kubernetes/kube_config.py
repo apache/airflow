@@ -76,10 +76,6 @@ class KubeConfig:
         # interact with cluster components.
         self.executor_namespace = conf.get(self.kubernetes_section, "namespace")
 
-        self.worker_pods_queued_check_interval = conf.getint(
-            self.kubernetes_section, "worker_pods_queued_check_interval"
-        )
-
         self.kube_client_request_args = conf.getjson(
             self.kubernetes_section, "kube_client_request_args", fallback={}
         )

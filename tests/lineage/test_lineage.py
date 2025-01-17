@@ -24,9 +24,9 @@ import pytest
 
 from airflow.lineage import AUTO, apply_lineage, get_backend, prepare_lineage
 from airflow.lineage.backend import LineageBackend
-from airflow.lineage.entities import File
 from airflow.models import TaskInstance as TI
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.common.compat.lineage.entities import File
 from airflow.sdk.definitions.context import Context
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType

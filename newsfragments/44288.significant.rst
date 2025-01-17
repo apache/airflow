@@ -1,0 +1,21 @@
+ Move external task sensor to standard provider #44288
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR303
+
+      * [x] ``airflow.sensors.external_task.ExternalTaskMarker`` → ``airflow.providers.standard.sensors.external_task.ExternalTaskMarker``
+      * [x] ``airflow.sensors.external_task.ExternalTaskSensor`` → ``airflow.providers.standard.sensors.external_task.ExternalTaskSensor``

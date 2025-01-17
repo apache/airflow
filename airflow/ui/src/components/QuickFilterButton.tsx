@@ -26,11 +26,9 @@ export const QuickFilterButton = ({ children, isActive, ...rest }: QuickFilterBu
   <Button
     _hover={{ bg: "colorPalette.subtle" }}
     bg={isActive ? "colorPalette.muted" : undefined}
-    borderColor="colorPalette.fg"
     borderRadius={20}
     borderWidth={1}
     color="colorPalette.fg"
-    colorPalette="blue"
     fontWeight="normal"
     size="sm"
     variant={isActive ? "solid" : "outline"}

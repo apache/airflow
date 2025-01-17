@@ -33,7 +33,7 @@ from time import sleep
 from typing import Any, NamedTuple
 from urllib import request
 
-from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
+from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
     ALLOWED_ARCHITECTURES,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -336,7 +336,7 @@ def _install_packages_in_k8s_virtualenv():
             "--constraint",
             "https://raw.githubusercontent.com/"
             f"{APACHE_AIRFLOW_GITHUB_REPOSITORY}/"
-            f"constraints-{AIRFLOW_BRANCH}/constraints-{python_major_minor_version}.txt",
+            f"{DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH}/constraints-{python_major_minor_version}.txt",
         ],
     )
     install_packages_result = run_command(

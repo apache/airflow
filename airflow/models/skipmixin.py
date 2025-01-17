@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import tuple_, update
 
+from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
@@ -33,7 +34,6 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
     from airflow.sdk.definitions._internal.node import DAGNode
 
@@ -136,12 +136,10 @@ class SkipMixin(LoggingMixin):
                 session=session,
             )
 
-    @provide_session
     def skip_all_except(
         self,
         ti: TaskInstance,
         branch_task_ids: None | str | Iterable[str],
-        session: Session = NEW_SESSION,
     ):
         """
         Implement the logic for a branching operator.
@@ -178,12 +176,11 @@ class SkipMixin(LoggingMixin):
 
         log.info("Following branch %s", branch_task_id_set)
 
-        dag_run = ti.get_dagrun(session=session)
         if TYPE_CHECKING:
-            assert isinstance(dag_run, DagRun)
             assert ti.task
 
         task = ti.task
+        session = settings.Session()
         dag = TaskInstance.ensure_dag(ti, session=session)
 
         valid_task_ids = set(dag.task_ids)
@@ -212,6 +209,7 @@ class SkipMixin(LoggingMixin):
             for branch_task_id in list(branch_task_id_set):
                 branch_task_id_set.update(dag.get_task(branch_task_id).get_flat_relative_ids(upstream=False))
 
+            dag_run = ti.get_dagrun(session=session)
             skip_tasks = [
                 (t.task_id, downstream_ti.map_index)
                 for t in downstream_tasks

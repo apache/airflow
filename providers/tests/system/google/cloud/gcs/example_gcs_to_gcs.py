@@ -25,6 +25,7 @@ from __future__ import annotations
 import os
 import shutil
 from datetime import datetime
+from pathlib import Path
 
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
@@ -40,6 +41,7 @@ from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesyste
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.trigger_rule import TriggerRule
+from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
@@ -247,6 +249,11 @@ with DAG(
         task_id="delete_bucket_dst", bucket_name=BUCKET_NAME_DST, trigger_rule=TriggerRule.ALL_DONE
     )
 
+    check_openlineage_events = OpenLineageTestOperator(
+        task_id="check_openlineage_events",
+        file_path=str(Path(__file__).parent / "resources" / "openlineage" / "gcs_to_gcs.json"),
+    )
+
     @task(trigger_rule=TriggerRule.ALL_DONE)
     def delete_work_dir(create_workdir_result: str) -> None:
         shutil.rmtree(create_workdir_result)
@@ -272,7 +279,12 @@ with DAG(
         list_objects,
         assert_copied_files_exist,
         # TEST TEARDOWN
-        [delete_bucket_src, delete_bucket_dst, delete_work_dir(create_workdir_task)],
+        [
+            delete_bucket_src,
+            delete_bucket_dst,
+            delete_work_dir(create_workdir_task),
+            check_openlineage_events,
+        ],
     )
 
     from tests_common.test_utils.watcher import watcher

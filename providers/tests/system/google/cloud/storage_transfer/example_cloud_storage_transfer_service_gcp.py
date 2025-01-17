@@ -148,6 +148,14 @@ with DAG(
         expected_statuses={GcpTransferOperationStatus.SUCCESS},
     )
 
+    wait_for_transfer_defered = CloudDataTransferServiceJobStatusSensor(
+        task_id="wait_for_transfer_defered",
+        job_name="{{task_instance.xcom_pull('create_transfer')['name']}}",
+        project_id=PROJECT_ID_TRANSFER,
+        expected_statuses={GcpTransferOperationStatus.SUCCESS},
+        deferrable=True,
+    )
+
     # [START howto_operator_gcp_transfer_run_job]
     run_transfer = CloudDataTransferServiceRunJobOperator(
         task_id="run_transfer",
@@ -187,7 +195,7 @@ with DAG(
         [create_bucket_src, create_bucket_dst]
         >> upload_file
         >> create_transfer
-        >> wait_for_transfer
+        >> [wait_for_transfer, wait_for_transfer_defered]
         >> update_transfer
         >> run_transfer
         >> list_operations

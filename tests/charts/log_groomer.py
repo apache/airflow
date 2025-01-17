@@ -90,6 +90,32 @@ class LogGroomerTestBase:
         )
         assert jmespath.search("spec.template.spec.containers[1].env[0].value", docs[0]) == "15"
 
+    def test_log_groomer_collector_custom_env(self):
+        env = [
+            {"name": "APP_RELEASE_NAME", "value": "{{ .Release.Name }}-airflow"},
+            {"name": "APP__LOG_RETENTION_DAYS", "value": "5"},
+        ]
+
+        if self.obj_name == "dag-processor":
+            values = {"dagProcessor": {"enabled": True, "logGroomerSidecar": {"env": env}}}
+        else:
+            values = {
+                "workers": {"logGroomerSidecar": {"env": env}},
+                "scheduler": {"logGroomerSidecar": {"env": env}},
+                "triggerer": {"logGroomerSidecar": {"env": env}},
+            }
+
+        docs = render_chart(
+            values=values, show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
+        )
+
+        assert {"name": "APP_RELEASE_NAME", "value": "release-name-airflow"} in jmespath.search(
+            "spec.template.spec.containers[1].env", docs[0]
+        )
+        assert {"name": "APP__LOG_RETENTION_DAYS", "value": "5"} in jmespath.search(
+            "spec.template.spec.containers[1].env", docs[0]
+        )
+
     @pytest.mark.parametrize("command", [None, ["custom", "command"]])
     @pytest.mark.parametrize("args", [None, ["custom", "args"]])
     def test_log_groomer_command_and_args_overrides(self, command, args):
@@ -163,7 +189,7 @@ class LogGroomerTestBase:
                 "spec.template.spec.containers[1].env[0].value", docs[0]
             )
         else:
-            assert jmespath.search("spec.template.spec.containers[1].env", docs[0]) is None
+            assert len(jmespath.search("spec.template.spec.containers[1].env", docs[0])) == 1
 
     def test_log_groomer_resources(self):
         if self.obj_name == "dag-processor":

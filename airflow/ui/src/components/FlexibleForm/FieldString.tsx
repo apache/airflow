@@ -19,27 +19,45 @@
 import { Input } from "@chakra-ui/react";
 
 import type { FlexibleFormElementProps } from ".";
+import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
 
-export const FieldString = ({ name, param }: FlexibleFormElementProps) => (
-  <>
-    <Input
-      defaultValue={String(param.value ?? "")}
-      id={`element_${name}`}
-      list={param.schema.examples ? `list_${name}` : undefined}
-      maxLength={param.schema.maxLength ?? undefined}
-      minLength={param.schema.minLength ?? undefined}
-      name={`element_${name}`}
-      placeholder={param.schema.examples ? "Start typing to see options." : undefined}
-      size="sm"
-    />
-    {param.schema.examples ? (
-      <datalist id={`list_${name}`}>
-        {param.schema.examples.map((example) => (
-          <option key={example} value={example}>
-            {example}
-          </option>
-        ))}
-      </datalist>
-    ) : undefined}
-  </>
-);
+export const FieldString = ({ name }: FlexibleFormElementProps) => {
+  const { paramsDict, setParamsDict } = useParamStore();
+  const param = paramsDict[name] ?? paramPlaceholder;
+  const handleChange = (value: string) => {
+    if (paramsDict[name]) {
+      // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
+      // eslint-disable-next-line unicorn/no-null
+      paramsDict[name].value = value === "" ? null : value;
+    }
+
+    setParamsDict(paramsDict);
+  };
+
+  return (
+    <>
+      <Input
+        id={`element_${name}`}
+        list={param.schema.examples ? `list_${name}` : undefined}
+        maxLength={param.schema.maxLength ?? undefined}
+        minLength={param.schema.minLength ?? undefined}
+        name={`element_${name}`}
+        onChange={(event) => {
+          handleChange(event.target.value);
+        }}
+        placeholder={param.schema.examples ? "Start typing to see options." : undefined}
+        size="sm"
+        value={String(param.value ?? "")}
+      />
+      {param.schema.examples ? (
+        <datalist id={`list_${name}`}>
+          {param.schema.examples.map((example) => (
+            <option key={example} value={example}>
+              {example}
+            </option>
+          ))}
+        </datalist>
+      ) : undefined}
+    </>
+  );
+};

@@ -30,6 +30,8 @@ from rich.console import Console
 
 AIRFLOW_SOURCES_ROOT_PATH = Path(__file__).parents[3].resolve()
 AIRFLOW_BREEZE_SOURCES_PATH = AIRFLOW_SOURCES_ROOT_PATH / "dev" / "breeze"
+AIRFLOW_PROVIDERS_ROOT_PATH = AIRFLOW_SOURCES_ROOT_PATH / "providers"
+
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.9"
 
 console = Console(width=400, color_system="standard")
@@ -259,3 +261,47 @@ def get_provider_base_dir_from_path(file_path: Path) -> Path | None:
         if (parent / "provider.yaml").exists():
             return parent
     return None
+
+
+# TODO(potiuk): rename this function when all providers are moved to new structure
+def get_all_new_provider_ids() -> list[str]:
+    """
+    Get all providers from the new provider structure
+    """
+    all_provider_ids = []
+    for provider_file in AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml"):
+        if provider_file.is_relative_to(AIRFLOW_PROVIDERS_ROOT_PATH / "src"):
+            continue
+        provider_id = get_provider_id_from_path(provider_file)
+        if provider_id:
+            all_provider_ids.append(provider_id)
+    return all_provider_ids
+
+
+# TODO(potiuk): rename this function when all providers are moved to new structure
+def get_all_new_provider_yaml_files() -> list[Path]:
+    """
+    Get all providers from the new provider structure
+    """
+    all_provider_yaml_files = []
+    for provider_file in AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml"):
+        if provider_file.is_relative_to(AIRFLOW_PROVIDERS_ROOT_PATH / "src"):
+            continue
+        all_provider_yaml_files.append(provider_file)
+    return all_provider_yaml_files
+
+
+# TODO(potiuk): rename this function when all providers are moved to new structure
+def get_all_new_provider_info_dicts() -> dict[str, dict]:
+    """
+    Get provider yaml info for all providers from the new provider structure
+    """
+    providers: dict[str, dict] = {}
+    for provider_file in get_all_new_provider_yaml_files():
+        provider_id = str(provider_file.parent.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)).replace(os.sep, ".")
+        import yaml
+
+        provider_info = yaml.safe_load(provider_file.read_text())
+        if provider_info["state"] != "suspended":
+            providers[provider_id] = provider_info
+    return providers

@@ -43,8 +43,6 @@ class TestCliConfigList:
         self.job_runner = None
 
     def teardown_method(self) -> None:
-        if self.job_runner and self.job_runner.processor_agent:
-            self.job_runner.processor_agent.end()
         clear_db_jobs()
 
     def test_should_report_success_for_one_working_scheduler(self):
@@ -91,18 +89,13 @@ class TestCliConfigList:
                 job_runners.append(job_runner)
             session.commit()
             scheduler_job.heartbeat(heartbeat_callback=job_runner.heartbeat_callback)
-        try:
-            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
-                jobs_command.check(
-                    self.parser.parse_args(
-                        ["jobs", "check", "--job-type", "SchedulerJob", "--limit", "100", "--allow-multiple"]
-                    )
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            jobs_command.check(
+                self.parser.parse_args(
+                    ["jobs", "check", "--job-type", "SchedulerJob", "--limit", "100", "--allow-multiple"]
                 )
-            assert "Found 3 alive jobs." in temp_stdout.getvalue()
-        finally:
-            for job_runner in job_runners:
-                if job_runner.processor_agent:
-                    job_runner.processor_agent.end()
+            )
+        assert "Found 3 alive jobs." in temp_stdout.getvalue()
 
     def test_should_ignore_not_running_jobs(self):
         scheduler_jobs = []
@@ -119,9 +112,6 @@ class TestCliConfigList:
         # No alive jobs found.
         with pytest.raises(SystemExit, match=r"No alive jobs found."):
             jobs_command.check(self.parser.parse_args(["jobs", "check"]))
-        for job_runner in job_runners:
-            if job_runner.processor_agent:
-                job_runner.processor_agent.end()
 
     def test_should_raise_exception_for_multiple_scheduler_on_one_host(self):
         scheduler_jobs = []
@@ -152,9 +142,6 @@ class TestCliConfigList:
                     ]
                 )
             )
-        for job_runner in job_runners:
-            if job_runner.processor_agent:
-                job_runner.processor_agent.end()
 
     def test_should_raise_exception_for_allow_multiple_and_limit_1(self):
         with pytest.raises(

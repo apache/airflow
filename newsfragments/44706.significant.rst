@@ -6,10 +6,11 @@ If you would like to create default connections use ``airflow connections create
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [x] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
+  * [ ] Dependency changes
+  * [ ] Code interface changes

@@ -19,7 +19,6 @@ from __future__ import annotations
 import copy
 from typing import TYPE_CHECKING
 
-from flask import g
 from sqlalchemy import and_, select
 
 from airflow.api_connexion import security
@@ -63,7 +62,9 @@ def get_xcom_entries(
     """Get all XCom values."""
     query = select(XCom)
     if dag_id == "~":
-        readable_dag_ids = get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=g.user)
+        readable_dag_ids = get_auth_manager().get_permitted_dag_ids(
+            methods=["GET"], user=get_auth_manager().get_user()
+        )
         query = query.where(XCom.dag_id.in_(readable_dag_ids))
         query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.run_id == DR.run_id))
     else:

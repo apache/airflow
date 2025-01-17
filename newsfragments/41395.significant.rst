@@ -8,3 +8,26 @@ The following deprecated functions, constants, and classes have been removed as 
 - ``airflow.utils.file.mkdirs`` function: Use ``pathlib.Path.mkdir`` instead.
 - ``airflow.utils.state.SHUTDOWN`` state: No action needed; this state is no longer used.
 - ``airflow.utils.state.terminating_states`` constant: No action needed; this constant is no longer used.
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.utils.file.TemporaryDirectory`` → ``tempfile.TemporaryDirectory``
+      * [x] ``airflow.utils.file.mkdirs`` → ``pathlib.Path({path}).mkdir``
+      * [x] ``airflow.utils.dag_cycle_tester.test_cycle``
+      * [x] ``airflow.utils.state.SHUTDOWN``
+      * [x] ``airflow.utils.state.terminating_states``

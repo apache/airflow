@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator, Iterable
+from collections.abc import AsyncIterator, Iterable, Sequence
 from typing import Any
 
 from google.api_core.exceptions import GoogleAPIError
@@ -27,6 +27,7 @@ from google.cloud.storage_transfer_v1.types import TransferOperation
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     CloudDataTransferServiceAsyncHook,
+    GcpTransferOperationStatus,
 )
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -132,3 +133,101 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
             project_id=self.project_id,
             gcp_conn_id=self.gcp_conn_id,
         )
+
+
+class CloudStorageTransferServiceCheckJobStatusTrigger(BaseTrigger):
+    """
+    CloudStorageTransferServiceCheckJobStatusTrigger run on the trigger worker to check Cloud Storage Transfer job.
+
+    :param job_name: The name of the transfer job
+    :param expected_statuses: The expected state of the operation.
+        See:
+        https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferOperations#Status
+    :param project_id: The ID of the project that owns the Transfer Job.
+    :param poke_interval: Polling period in seconds to check for the status
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    def __init__(
+        self,
+        job_name: str,
+        expected_statuses: set[str] | str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+        poke_interval: float = 10.0,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+    ):
+        super().__init__()
+        self.job_name = job_name
+        self.expected_statuses = expected_statuses
+        self.project_id = project_id
+        self.poke_interval = poke_interval
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serialize CloudStorageTransferServiceCheckJobStatusTrigger arguments and classpath."""
+        return (
+            f"{self.__class__.__module__ }.{self.__class__.__qualname__}",
+            {
+                "job_name": self.job_name,
+                "expected_statuses": self.expected_statuses,
+                "project_id": self.project_id,
+                "poke_interval": self.poke_interval,
+                "gcp_conn_id": self.gcp_conn_id,
+                "impersonation_chain": self.impersonation_chain,
+            },
+        )
+
+    def _get_async_hook(self) -> CloudDataTransferServiceAsyncHook:
+        return CloudDataTransferServiceAsyncHook(
+            project_id=self.project_id,
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        """Check the status of the transfer job and yield a TriggerEvent."""
+        hook = self._get_async_hook()
+        expected_statuses = (
+            {GcpTransferOperationStatus.SUCCESS} if not self.expected_statuses else self.expected_statuses
+        )
+
+        try:
+            while True:
+                operations = await hook.list_transfer_operations(
+                    request_filter={
+                        "project_id": self.project_id or hook.project_id,
+                        "job_names": [self.job_name],
+                    }
+                )
+                check = await CloudDataTransferServiceAsyncHook.operations_contain_expected_statuses(
+                    operations=operations,
+                    expected_statuses=expected_statuses,
+                )
+                if check:
+                    yield TriggerEvent(
+                        {
+                            "status": "success",
+                            "message": "Transfer operation completed successfully",
+                            "operations": operations,
+                        }
+                    )
+                    return
+
+                self.log.info(
+                    "Sleeping for %s seconds.",
+                    self.poke_interval,
+                )
+                await asyncio.sleep(self.poke_interval)
+        except Exception as e:
+            self.log.exception("Exception occurred while checking for query completion")
+            yield TriggerEvent({"status": "error", "message": str(e)})

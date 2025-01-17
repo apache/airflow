@@ -22,10 +22,11 @@ from __future__ import annotations
 import json
 from collections.abc import Iterable, Sequence
 from datetime import datetime, timedelta
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 from dateutil import parser
-from google.cloud.orchestration.airflow.service_v1.types import ExecuteAirflowCommandResponse
+from google.cloud.orchestration.airflow.service_v1.types import Environment, ExecuteAirflowCommandResponse
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -135,19 +136,20 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
 
     def _pull_dag_runs(self) -> list[dict]:
         """Pull the list of dag runs."""
-        hook = CloudComposerHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
+        cmd_parameters = (
+            ["-d", self.composer_dag_id, "-o", "json"]
+            if self._composer_airflow_version < 3
+            else [self.composer_dag_id, "-o", "json"]
         )
-        dag_runs_cmd = hook.execute_airflow_command(
+        dag_runs_cmd = self.hook.execute_airflow_command(
             project_id=self.project_id,
             region=self.region,
             environment_id=self.environment_id,
             command="dags",
             subcommand="list-runs",
-            parameters=["-d", self.composer_dag_id, "-o", "json"],
+            parameters=cmd_parameters,
         )
-        cmd_result = hook.wait_command_execution_result(
+        cmd_result = self.hook.wait_command_execution_result(
             project_id=self.project_id,
             region=self.region,
             environment_id=self.environment_id,
@@ -165,13 +167,27 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
         for dag_run in dag_runs:
             if (
                 start_date.timestamp()
-                < parser.parse(dag_run["logical_date"]).timestamp()
+                < parser.parse(
+                    dag_run["execution_date" if self._composer_airflow_version < 3 else "logical_date"]
+                ).timestamp()
                 < end_date.timestamp()
             ) and dag_run["state"] not in self.allowed_states:
                 return False
         return True
 
+    def _get_composer_airflow_version(self) -> int:
+        """Return Composer Airflow version."""
+        environment_obj = self.hook.get_environment(
+            project_id=self.project_id,
+            region=self.region,
+            environment_id=self.environment_id,
+        )
+        environment_config = Environment.to_dict(environment_obj)
+        image_version = environment_config["config"]["software_config"]["image_version"]
+        return int(image_version.split("airflow-")[1].split(".")[0])
+
     def execute(self, context: Context) -> None:
+        self._composer_airflow_version = self._get_composer_airflow_version()
         if self.deferrable:
             start_date, end_date = self._get_logical_dates(context)
             self.defer(
@@ -186,6 +202,7 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
                     gcp_conn_id=self.gcp_conn_id,
                     impersonation_chain=self.impersonation_chain,
                     poll_interval=self.poll_interval,
+                    composer_airflow_version=self._composer_airflow_version,
                 ),
                 method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
             )
@@ -195,3 +212,10 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
         if event and event["status"] == "error":
             raise AirflowException(event["message"])
         self.log.info("DAG %s has executed successfully.", self.composer_dag_id)
+
+    @cached_property
+    def hook(self) -> CloudComposerHook:
+        return CloudComposerHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )

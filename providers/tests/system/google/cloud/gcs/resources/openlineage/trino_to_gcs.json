@@ -1,0 +1,102 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "example_trino_to_gcs.trino_to_gcs_basic"
+        },
+        "run": {
+            "facets": {
+                "sql": {
+                    "query": "select * from memory.information_schema.columns"
+                }
+            }
+        },
+        "inputs": [
+            {
+                "namespace": "{{ result.startswith('trino://') }}",
+                "name": "information_schema.columns"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket_example_trino_to_gcs_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "/"
+            }
+        ]
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "example_trino_to_gcs.trino_to_gcs_basic"
+        },
+        "run": {
+            "facets": {
+                "sql": {
+                    "query": "select * from memory.information_schema.columns"
+                }
+            }
+        },
+        "inputs": [
+            {
+                "namespace": "{{ result.startswith('trino://') }}",
+                "name": "information_schema.columns"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket_example_trino_to_gcs_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "/"
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "example_trino_to_gcs.trino_to_gcs_many_chunks"
+        },
+        "run": {
+            "facets": {
+                "sql": {
+                    "query": "select * from tpch.sf1.customer"
+                }
+            }
+        },
+        "inputs": [
+            {
+                "namespace": "{{ result.startswith('trino://') }}",
+                "name": "tpch.sf1.customer"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket_example_trino_to_gcs_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "/"
+            }
+        ]
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "example_trino_to_gcs.trino_to_gcs_many_chunks"
+        },
+        "run": {
+            "facets": {
+                "sql": {
+                    "query": "select * from tpch.sf1.customer"
+                }
+            }
+        },
+        "inputs": [
+            {
+                "namespace": "{{ result.startswith('trino://') }}",
+                "name": "tpch.sf1.customer"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket_example_trino_to_gcs_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "/"
+            }
+        ]
+    }
+]

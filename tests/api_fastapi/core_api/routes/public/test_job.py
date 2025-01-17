@@ -122,10 +122,6 @@ class TestJobEndpoint:
         setup_method(session)
 
     def teardown_method(self) -> None:
-        if self.job_runners:
-            for job_runner in self.job_runners:
-                if job_runner.processor_agent:
-                    job_runner.processor_agent.end()
         clear_db_jobs()
 
 

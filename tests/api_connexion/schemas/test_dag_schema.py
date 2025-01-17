@@ -167,7 +167,7 @@ def test_serialize_test_dag_detail_schema(url_safe_serializer):
         "owners": [],
         "params": {
             "foo": {
-                "__class": "airflow.models.param.Param",
+                "__class": "airflow.sdk.definitions.param.Param",
                 "value": 1,
                 "description": None,
                 "schema": {},
@@ -229,7 +229,7 @@ def test_serialize_test_dag_with_asset_schedule_detail_schema(url_safe_serialize
         "owners": [],
         "params": {
             "foo": {
-                "__class": "airflow.models.param.Param",
+                "__class": "airflow.sdk.definitions.param.Param",
                 "value": 1,
                 "description": None,
                 "schema": {},

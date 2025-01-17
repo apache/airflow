@@ -135,7 +135,6 @@ concepts/xcoms.rst core-concepts/xcoms.rst
 concepts/scheduler.rst administration-and-deployment/scheduler.rst
 concepts/pools.rst administration-and-deployment/pools.rst
 concepts/priority-weight.rst administration-and-deployment/priority-weight.rst
-concepts/dagfile-processing.rst authoring-and-scheduling/dagfile-processing.rst
 concepts/deferring.rst authoring-and-scheduling/deferring.rst
 concepts/datasets.rst authoring-and-scheduling/datasets.rst
 concepts/cluster-policies.rst administration-and-deployment/cluster-policies.rst
@@ -150,6 +149,8 @@ executor/sequential.rst core-concepts/executor/sequential.rst
 upgrading-from-1-10/upgrade-check.rst howto/upgrading-from-1-10/upgrade-check.rst
 core-concepts/dag-run.rst authoring-and-scheduling/cron.rst
 core-concepts/executor/debug.rst core-concepts/debug.rst
+concepts/dagfile-processing.rst administration-and-deployment/dagfile-processing.rst
+authoring-and-scheduling/dagfile-processing.rst administration-and-deployment/dagfile-processing.rst
 
 # Moving provider executor docs to providers
 ## The ``../`` indicates that it will move to the root of the docs directory, unlike the rest of

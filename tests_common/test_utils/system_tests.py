@@ -25,6 +25,7 @@ from tabulate import tabulate
 from airflow.utils.state import DagRunState
 
 if TYPE_CHECKING:
+    from airflow.models.dagrun import DagRun
     from airflow.sdk.definitions.context import Context
 
 logger = logging.getLogger(__name__)
@@ -32,6 +33,8 @@ logger = logging.getLogger(__name__)
 
 def get_test_run(dag, **test_kwargs):
     def callback(context: Context):
+        if TYPE_CHECKING:
+            assert isinstance(context["dag_run"], DagRun)
         ti = context["dag_run"].get_task_instances()
         if not ti:
             logger.warning("could not retrieve tasks that ran in the DAG, cannot display a summary")

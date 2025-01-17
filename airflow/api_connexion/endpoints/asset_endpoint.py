@@ -280,7 +280,9 @@ def get_asset_queued_events(
     *, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Get queued asset events for an asset."""
-    permitted_dag_ids = get_auth_manager().get_permitted_dag_ids(methods=["GET"])
+    permitted_dag_ids = get_auth_manager().get_permitted_dag_ids(
+        user=get_auth_manager().get_user(), methods=["GET"]
+    )
     where_clause = _generate_queued_event_where_clause(
         uri=uri, before=before, permitted_dag_ids=permitted_dag_ids
     )
@@ -313,7 +315,9 @@ def delete_asset_queued_events(
     *, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Delete queued asset events for an asset."""
-    permitted_dag_ids = get_auth_manager().get_permitted_dag_ids(methods=["GET"])
+    permitted_dag_ids = get_auth_manager().get_permitted_dag_ids(
+        user=get_auth_manager().get_user(), methods=["GET"]
+    )
     where_clause = _generate_queued_event_where_clause(
         uri=uri, before=before, permitted_dag_ids=permitted_dag_ids
     )

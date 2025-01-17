@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from functools import cached_property
@@ -29,6 +30,7 @@ from typing import TextIO
 import requests
 from click import Choice
 from in_container_utils import click, console, run_command
+from rich.syntax import Syntax
 
 AIRFLOW_SOURCE_DIR = Path(__file__).resolve().parents[2]
 
@@ -141,14 +143,14 @@ class ConfigParams:
     @cached_property
     def get_install_command(self) -> list[str]:
         if self.use_uv:
-            return ["uv", "pip", "install", "--python", sys.executable]
+            return ["uv", "pip", "install", "--system"]
         else:
             return ["pip", "install"]
 
     @cached_property
     def get_uninstall_command(self) -> list[str]:
         if self.use_uv:
-            return ["uv", "pip", "uninstall", "--python", sys.executable]
+            return ["uv", "pip", "uninstall", "--system"]
         else:
             return ["pip", "uninstall"]
 
@@ -334,6 +336,36 @@ def generate_constraints_source_providers(config_params: ConfigParams) -> None:
     diff_constraints(config_params)
 
 
+@contextmanager
+def remove_providers_from_workspace_for_pyproject_toml():
+    pyproject_toml = AIRFLOW_SOURCE_DIR / "pyproject.toml"
+    old_content = pyproject_toml.read_text()
+    new_content_lines = []
+    console.print(
+        "[yellow]Removing providers from workspace for pyproject.toml (workaround uv missing "
+        "--no-workspace feature of uv pip install"
+    )
+    # Temporarily remove providers from workspace - this is needed until
+    # https://github.com/astral-sh/uv/issues/10991 is resolved in uv
+    for line in old_content.split("\n"):
+        if (
+            line.strip().startswith("apache-airflow-providers-")
+            or line.strip().startswith('"apache-airflow-providers-')
+            or line.strip().startswith('"providers/')
+        ):
+            continue
+        new_content_lines.append(line)
+    new_content = "\n".join(new_content_lines) + "\n"
+    pyproject_toml.write_text(new_content)
+    if os.environ.get("VERBOSE", "false").lower() == "true":
+        console.print("[bright_blue]New content of pyproject.toml:\n")
+        console.print(Syntax(new_content, "toml", theme="ansi_dark"))
+    try:
+        yield
+    finally:
+        pyproject_toml.write_text(old_content)
+
+
 def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     """
     Generates constraints with provider installed from PyPI. This is the default constraints file
@@ -375,29 +407,37 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
             # Skip checking if chicken egg provider is available in PyPI - it does not have to be there
             continue
         console.print(f"[bright_blue]Checking if {provider_package} is available in PyPI: ... ", end="")
-        r = requests.head(f"https://pypi.org/pypi/{provider_package}/json", timeout=60)
+        r = requests.get(f"https://pypi.org/pypi/{provider_package}/json", timeout=60)
         if r.status_code == 200:
+            version = r.json()["info"]["version"]
             console.print("[green]OK")
-            packages_to_install.append(provider_package)
+            # TODO: In the future we might make it a bit more sophisticated and allow to install
+            # earlier versions of providers here - but for now we just install the latest version
+            # But in practice latest version does not have to be supported by current version of airflow
+            # This should be a very rare case though - such provider packages should only be released
+            # in pre-release mode
+            packages_to_install.append(f"{provider_package}=={version}")
         else:
             console.print("[yellow]NOK. Skipping.")
-    run_command(
-        cmd=[
-            *config_params.get_install_command,
-            ".[all-core]",
-            *packages_to_install,
-            *config_params.eager_upgrade_additional_requirements_list,
-            *config_params.get_resolution_highest_args,
-        ],
-        github_actions=config_params.github_actions,
-        check=True,
-    )
-    console.print("[success]Installed airflow with PyPI providers with eager upgrade.")
-    with config_params.current_constraints_file.open("w") as constraints_file:
-        constraints_file.write(PYPI_PROVIDERS_CONSTRAINTS_PREFIX)
-        freeze_packages_to_file(config_params, constraints_file)
-    download_latest_constraint_file(config_params)
-    diff_constraints(config_params)
+    with remove_providers_from_workspace_for_pyproject_toml():
+        run_command(
+            cmd=[
+                *config_params.get_install_command,
+                ".[all-core]",
+                "--reinstall",  # We need to pull the provider packages from PyPI - not use the local ones
+                *packages_to_install,
+                *config_params.eager_upgrade_additional_requirements_list,
+                *config_params.get_resolution_highest_args,
+            ],
+            github_actions=config_params.github_actions,
+            check=True,
+        )
+        console.print("[success]Installed airflow with PyPI providers with eager upgrade.")
+        with config_params.current_constraints_file.open("w") as constraints_file:
+            constraints_file.write(PYPI_PROVIDERS_CONSTRAINTS_PREFIX)
+            freeze_packages_to_file(config_params, constraints_file)
+        download_latest_constraint_file(config_params)
+        diff_constraints(config_params)
 
 
 def generate_constraints_no_providers(config_params: ConfigParams) -> None:
@@ -405,16 +445,17 @@ def generate_constraints_no_providers(config_params: ConfigParams) -> None:
     Generates constraints without any provider dependencies. This is used mostly to generate SBOM
     files - where we generate list of dependencies for Airflow without any provider installed.
     """
-    uninstall_all_packages(config_params)
-    console.print(
-        "[bright_blue]Installing airflow with `all-core` extras only with eager upgrade in "
-        "installable mode."
-    )
-    install_local_airflow_with_eager_upgrade(config_params)
-    console.print("[success]Installed airflow with [all-core] extras only with eager upgrade.")
-    with config_params.current_constraints_file.open("w") as constraints_file:
-        constraints_file.write(NO_PROVIDERS_CONSTRAINTS_PREFIX)
-        freeze_packages_to_file(config_params, constraints_file)
+    with remove_providers_from_workspace_for_pyproject_toml():
+        uninstall_all_packages(config_params)
+        console.print(
+            "[bright_blue]Installing airflow with `all-core` extras only with eager upgrade in "
+            "installable mode."
+        )
+        install_local_airflow_with_eager_upgrade(config_params)
+        console.print("[success]Installed airflow with [all-core] extras only with eager upgrade.")
+        with config_params.current_constraints_file.open("w") as constraints_file:
+            constraints_file.write(NO_PROVIDERS_CONSTRAINTS_PREFIX)
+            freeze_packages_to_file(config_params, constraints_file)
     download_latest_constraint_file(config_params)
     diff_constraints(config_params)
 

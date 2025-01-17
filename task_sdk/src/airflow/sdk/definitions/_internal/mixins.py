@@ -22,7 +22,7 @@ from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from airflow.models.operator import Operator
+    from airflow.sdk.definitions._internal.abstractoperator import Operator
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.edges import EdgeModifier

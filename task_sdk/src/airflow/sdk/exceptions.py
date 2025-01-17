@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from airflow.sdk.execution_time.comms import ErrorResponse
@@ -35,3 +35,23 @@ class ErrorType(enum.Enum):
     VARIABLE_NOT_FOUND = "VARIABLE_NOT_FOUND"
     XCOM_NOT_FOUND = "XCOM_NOT_FOUND"
     GENERIC_ERROR = "GENERIC_ERROR"
+
+
+class XComForMappingNotPushed(TypeError):
+    """Raise when a mapped downstream's dependency fails to push XCom for task mapping."""
+
+    def __str__(self) -> str:
+        return "did not push XCom for task mapping"
+
+
+class UnmappableXComTypePushed(TypeError):
+    """Raise when an unmappable type is pushed as a mapped downstream's dependency."""
+
+    def __init__(self, value: Any, *values: Any) -> None:
+        super().__init__(value, *values)
+
+    def __str__(self) -> str:
+        typename = type(self.args[0]).__qualname__
+        for arg in self.args[1:]:
+            typename = f"{typename}[{type(arg).__qualname__}]"
+        return f"unmappable return type {typename!r}"

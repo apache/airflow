@@ -37,7 +37,7 @@ def get_latest_airflow_version():
     return latest_released_version
 
 
-def create_package_version(version_suffix_for_pypi: str, version_suffix_for_local: str) -> str:
+def get_package_version_suffix(version_suffix_for_pypi: str, version_suffix_for_local: str) -> str:
     """
     Creates a package version by combining the version suffix for PyPI and the version suffix for local. If
     either one is an empty string, it is ignored. If the local suffix does not have a leading plus sign,

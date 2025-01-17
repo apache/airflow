@@ -1,5 +1,23 @@
-**Breaking Change**
-
 The ``airflow.providers.standard.sensors.external_task.ExternalTaskSensorLink`` class has been removed.
+
 This class was deprecated and is no longer available. Users should now use
 the ``airflow.providers.standard.sensors.external_task.ExternalDagLink`` class directly.
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.sensors.external_task.ExternalTaskSensorLink`` → ``airflow.sensors.external_task.ExternalDagLink``

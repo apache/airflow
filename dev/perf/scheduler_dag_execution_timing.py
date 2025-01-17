@@ -92,7 +92,7 @@ class ShortCircuitExecutorMixin:
 
             if not self.dags_to_watch:
                 self.log.warning("STOPPING SCHEDULER -- all runs complete")
-                self.job_runner.processor_agent._done = True
+                self.job_runner.num_runs = 1
                 return
         self.log.warning(
             "WAITING ON %d RUNS", sum(map(attrgetter("waiting_for"), self.dags_to_watch.values()))

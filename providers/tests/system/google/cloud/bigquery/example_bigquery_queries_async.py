@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
@@ -37,6 +38,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
 )
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
+from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
@@ -55,10 +57,10 @@ SCHEMA = [
     {"name": "ds", "type": "STRING", "mode": "NULLABLE"},
 ]
 
-INSERT_DATE = datetime.now().strftime("%Y-%m-%d")
+INSERT_DATE = "2030-01-01"
 INSERT_ROWS_QUERY = (
     f"INSERT {DATASET_NAME}.{TABLE_NAME_1} VALUES "
-    f"(42, 'monthy python', '{INSERT_DATE}'), "
+    f"(42, 'monty python', '{INSERT_DATE}'), "
     f"(42, 'fishy fish', '{INSERT_DATE}');"
 )
 
@@ -252,12 +254,18 @@ with DAG(
         deferrable=True,
     )
 
+    check_openlineage_events = OpenLineageTestOperator(
+        task_id="check_openlineage_events",
+        file_path=str(Path(__file__).parent / "resources" / "openlineage" / "bigquery_queries_async.json"),
+    )
+
     create_dataset >> create_table_1 >> insert_query_job
     insert_query_job >> select_query_job >> check_count
     insert_query_job >> get_data >> get_data_result
     insert_query_job >> execute_query_save >> bigquery_execute_multi_query
     insert_query_job >> execute_long_running_query >> check_value >> check_interval
     [check_count, check_interval, bigquery_execute_multi_query, get_data_result] >> delete_dataset
+    delete_dataset >> check_openlineage_events
 
     from tests_common.test_utils.watcher import watcher
 

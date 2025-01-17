@@ -59,18 +59,6 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
     def test_avp_policy_store_id(self, facade):
         assert hasattr(facade, "avp_policy_store_id")
 
-    def test_is_authorized_no_user(self, facade):
-        method: ResourceMethod = "GET"
-        entity_type = AvpEntities.VARIABLE
-
-        result = facade.is_authorized(
-            method=method,
-            entity_type=entity_type,
-            user=None,
-        )
-
-        assert result is False
-
     @pytest.mark.parametrize(
         "entity_id, context, user, expected_entities, expected_context, avp_response, expected",
         [

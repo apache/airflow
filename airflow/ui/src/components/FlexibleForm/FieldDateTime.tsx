@@ -19,13 +19,35 @@
 import { Input, type InputProps } from "@chakra-ui/react";
 
 import type { FlexibleFormElementProps } from ".";
+import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
 
-export const FieldDateTime = ({ name, param, ...rest }: FlexibleFormElementProps & InputProps) => (
-  <Input
-    defaultValue={typeof param.value === "string" ? param.value : undefined}
-    id={`element_${name}`}
-    name={`element_${name}`}
-    size="sm"
-    type={rest.type}
-  />
-);
+export const FieldDateTime = ({ name, ...rest }: FlexibleFormElementProps & InputProps) => {
+  const { paramsDict, setParamsDict } = useParamStore();
+  const param = paramsDict[name] ?? paramPlaceholder;
+  const handleChange = (value: string) => {
+    if (paramsDict[name]) {
+      if (rest.type === "datetime-local") {
+        // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
+        // eslint-disable-next-line unicorn/no-null
+        paramsDict[name].value = value === "" ? null : `${value}:00+00:00`; // Need to suffix to make it UTC like
+      } else {
+        // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
+        // eslint-disable-next-line unicorn/no-null
+        paramsDict[name].value = value === "" ? null : value;
+      }
+    }
+
+    setParamsDict(paramsDict);
+  };
+
+  return (
+    <Input
+      id={`element_${name}`}
+      name={`element_${name}`}
+      onChange={(event) => handleChange(event.target.value)}
+      size="sm"
+      type={rest.type}
+      value={param.value !== null && param.value !== undefined ? String(param.value).slice(0, 16) : ""}
+    />
+  );
+};

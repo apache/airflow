@@ -16,3 +16,14 @@ After:
 .. code-block::
 
   http://<URL>:<PORT>/<PATH>?param=item1&param=item2
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [x] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

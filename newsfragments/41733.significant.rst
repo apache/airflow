@@ -1,1 +1,20 @@
 Removed deprecated function ``get_connections()`` function in ``airflow.hooks.base.BaseHook``.
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.hooks.base.BaseHook.get_connections`` → ``airflow.hooks.base.BaseHook.get_connection``

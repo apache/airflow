@@ -24,6 +24,7 @@ from __future__ import annotations
 import os
 import re
 from datetime import datetime
+from pathlib import Path
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
@@ -35,6 +36,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.trino_to_gcs import TrinoToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
+from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "example_trino_to_gcs"
@@ -75,7 +77,7 @@ with DAG(
     delete_bucket = GCSDeleteBucketOperator(task_id="delete_bucket", bucket_name=GCS_BUCKET)
 
     # [START howto_operator_trino_to_gcs_basic]
-    trino_to_gcs_basic = TrinoToGCSOperator(
+    trino_to_gcs_basic = TrinoToGCSOperator(  # TODO
         task_id="trino_to_gcs_basic",
         sql=f"select * from {SOURCE_SCHEMA_COLUMNS}",
         bucket=GCS_BUCKET,
@@ -84,7 +86,7 @@ with DAG(
     # [END howto_operator_trino_to_gcs_basic]
 
     # [START howto_operator_trino_to_gcs_multiple_types]
-    trino_to_gcs_multiple_types = TrinoToGCSOperator(
+    trino_to_gcs_multiple_types = TrinoToGCSOperator(  # TODO
         task_id="trino_to_gcs_multiple_types",
         sql=f"select * from {SOURCE_SCHEMA_COLUMNS}",
         bucket=GCS_BUCKET,
@@ -95,7 +97,7 @@ with DAG(
     # [END howto_operator_trino_to_gcs_multiple_types]
 
     # [START howto_operator_create_external_table_multiple_types]
-    create_external_table_multiple_types = BigQueryCreateExternalTableOperator(
+    create_external_table_multiple_types = BigQueryCreateExternalTableOperator(  # TODO
         task_id="create_external_table_multiple_types",
         bucket=GCS_BUCKET,
         table_resource={
@@ -139,7 +141,7 @@ with DAG(
     )
 
     # [START howto_operator_trino_to_gcs_many_chunks]
-    trino_to_gcs_many_chunks = TrinoToGCSOperator(
+    trino_to_gcs_many_chunks = TrinoToGCSOperator(  # TODO
         task_id="trino_to_gcs_many_chunks",
         sql=f"select * from {SOURCE_CUSTOMER_TABLE}",
         bucket=GCS_BUCKET,
@@ -205,6 +207,11 @@ with DAG(
     )
     # [END howto_operator_trino_to_gcs_csv]
 
+    check_openlineage_events = OpenLineageTestOperator(
+        task_id="check_openlineage_events",
+        file_path=str(Path(__file__).parent / "resources" / "openlineage" / "trino_to_gcs.json"),
+    )
+
     (
         # TEST SETUP
         [create_dataset, create_bucket]
@@ -218,7 +225,7 @@ with DAG(
         >> read_data_from_gcs_multiple_types
         >> read_data_from_gcs_many_chunks
         # TEST TEARDOWN
-        >> [delete_dataset, delete_bucket]
+        >> [delete_dataset, delete_bucket, check_openlineage_events]
     )
 
     from tests_common.test_utils.watcher import watcher
