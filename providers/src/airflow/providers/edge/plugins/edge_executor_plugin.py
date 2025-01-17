@@ -123,7 +123,8 @@ class EdgeWorkerHosts(BaseView):
 
         query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
         worker: EdgeWorkerModel = session.scalar(query)
-        worker.update_state(EdgeWorkerState.MAINTENANCE_REQUEST.name)
+        worker.state = EdgeWorkerState.MAINTENANCE_REQUEST
+        session.commit()
         return self.status(session)
 
 

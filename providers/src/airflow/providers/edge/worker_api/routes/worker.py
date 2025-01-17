@@ -159,7 +159,7 @@ def set_state(
         queues=worker.queues,
     )
     _assert_version(body.sysinfo)  #  Exception only after worker state is in the DB
-    return {"state": worker.state.name, "queues": worker.queues}
+    return {"state": worker.state, "queues": worker.queues}
 
 
 @worker_router.patch(
