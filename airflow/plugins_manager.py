@@ -27,6 +27,7 @@ import logging
 import os
 import sys
 import types
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable
 
@@ -431,6 +432,17 @@ def initialize_ti_deps_plugins():
     registered_ti_dep_classes = {}
 
     for plugin in plugins:
+        if not plugin.ti_deps:
+            continue
+
+        from airflow.exceptions import RemovedInAirflow3Warning
+
+        warnings.warn(
+            "Using custom `ti_deps` on operators has been removed in Airflow 3.0",
+            RemovedInAirflow3Warning,
+            stacklevel=1,
+        )
+
         registered_ti_dep_classes.update(
             {qualname(ti_dep.__class__): ti_dep.__class__ for ti_dep in plugin.ti_deps}
         )

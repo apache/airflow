@@ -408,6 +408,21 @@ def timetable_plugin(monkeypatch):
     )
 
 
+@pytest.fixture
+def custom_ti_dep(monkeypatch):
+    """Patch plugins manager to always and only return our custom timetable."""
+    from test_plugin import CustomTestTriggerRule
+
+    from airflow import plugins_manager
+
+    monkeypatch.setattr(plugins_manager, "initialize_ti_deps_plugins", lambda: None)
+    monkeypatch.setattr(
+        plugins_manager,
+        "registered_ti_dep_classes",
+        {"test_plugin.CustomTestTriggerRule": CustomTestTriggerRule},
+    )
+
+
 # TODO: (potiuk) - AIP-44 - check why this test hangs
 @pytest.mark.skip_if_database_isolation_mode
 class TestStringifiedDAGs:
@@ -430,6 +445,7 @@ class TestStringifiedDAGs:
             )
 
     @pytest.mark.db_test
+    @pytest.mark.filterwarnings("ignore::airflow.exceptions.RemovedInAirflow3Warning")
     def test_serialization(self):
         """Serialization and deserialization should work for every DAG and Operator."""
         dags = collect_dags()
@@ -539,6 +555,7 @@ class TestStringifiedDAGs:
         return actual, expected
 
     @pytest.mark.db_test
+    @pytest.mark.filterwarnings("ignore::airflow.exceptions.RemovedInAirflow3Warning")
     def test_deserialization_across_process(self):
         """A serialized DAG can be deserialized in another process."""
 
@@ -1596,6 +1613,7 @@ class TestStringifiedDAGs:
             "airflow.ti_deps.deps.trigger_rule_dep.TriggerRuleDep",
         ]
 
+    @pytest.mark.filterwarnings("ignore::airflow.exceptions.RemovedInAirflow3Warning")
     def test_error_on_unregistered_ti_dep_serialization(self):
         # trigger rule not registered through the plugin system will not be serialized
         class DummyTriggerRule(BaseTIDep):
@@ -1634,6 +1652,8 @@ class TestStringifiedDAGs:
             SerializedBaseOperator.deserialize_operator(serialize_op)
 
     @pytest.mark.db_test
+    @pytest.mark.usefixtures("custom_ti_dep")
+    @pytest.mark.filterwarnings("ignore::airflow.exceptions.RemovedInAirflow3Warning")
     def test_serialize_and_deserialize_custom_ti_deps(self):
         from test_plugin import CustomTestTriggerRule
 
