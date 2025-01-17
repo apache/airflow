@@ -110,8 +110,6 @@
   <script src="{{ url_for_asset('d3.min.js') }}"></script>
   <script src="{{ url_for_asset('dags.js') }}"></script>
   <script>
-    const STATE_COLOR = {{ state_color|tojson }};
-    const autoRefreshInterval = {{ auto_refresh_interval }};
 
     function triggerMaintenance(link, worker_name) {
       postAsForm(link.href, {worker_name});
