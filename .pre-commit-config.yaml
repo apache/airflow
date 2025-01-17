@@ -225,7 +225,7 @@ repos:
         require_serial: true
       - id: prevent-usage-of-session.query
         name: Prevent usage of session.query in core airflow
-        entry: ./scripts/ci/pre_commit/usage_session_attribute
+        entry: ./scripts/ci/pre_commit/usage_session_query.py
         language: python
         additional_dependencies: ['rich>=12.4.4']
         files: ^airflow.*\.py$
