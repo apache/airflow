@@ -28,14 +28,6 @@ core:
       type: string
       example: ~
       default: "{AIRFLOW_HOME}/dags"
-    dag_bundle_storage_path:
-      description: |
-        The folder where Airflow bundles can store files locally (if required).
-        By default, this is ``tempfile.gettempdir()/airflow``. This path must be absolute.
-      version_added: 3.0.0
-      type: string
-      example: "`tempfile.gettempdir()/dag_bundles"
-      default: ~
     hostname_callable:
       description: |
         Hostname by providing a path to a callable, which will resolve the hostname.
@@ -2670,7 +2662,17 @@ dag_bundles:
     Configuration for the DAG bundles. This allows Airflow to load DAGs from different sources.
 
   options:
-    backends:
+    dag_bundle_storage_path:
+      description: |
+        String path to folder where Airflow bundles can store files locally. Not templated.
+        If no path is provided, Airflow will use ``Path(tempfile.gettempdir()) / "airflow"``.
+        This path must be absolute.
+      version_added: 3.0.0
+      type: string
+      example: "/tmp/some-place"
+      default: ~
+
+    config_list:
       description: |
         List of backend configs.  Must supply name, classpath, and kwargs for each backend.
 
