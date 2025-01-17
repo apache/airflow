@@ -21,9 +21,13 @@ from unittest import mock
 
 import pytest
 
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import GcpTransferOperationStatus
 from airflow.providers.google.cloud.sensors.cloud_storage_transfer_service import (
     CloudDataTransferServiceJobStatusSensor,
+)
+from airflow.providers.google.cloud.triggers.cloud_storage_transfer_service import (
+    CloudStorageTransferServiceCheckJobStatusTrigger,
 )
 
 TEST_NAME = "transferOperations/transferJobs-123-456"
@@ -218,3 +222,71 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor:
         mock_tool.operations_contain_expected_statuses.assert_called_once_with(
             operations=operations, expected_statuses=received_status
         )
+
+    @mock.patch(
+        "airflow.providers.google.cloud.sensors.cloud_storage_transfer_service.CloudDataTransferServiceHook"
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.sensors.cloud_storage_transfer_service"
+        ".CloudDataTransferServiceJobStatusSensor.defer"
+    )
+    def test_job_status_sensor_finish_before_deferred(self, mock_defer, mock_hook):
+        op = CloudDataTransferServiceJobStatusSensor(
+            task_id="task-id",
+            job_name=JOB_NAME,
+            project_id="project-id",
+            expected_statuses=GcpTransferOperationStatus.SUCCESS,
+            deferrable=True,
+        )
+
+        mock_hook.operations_contain_expected_statuses.return_value = True
+        context = {"ti": (mock.Mock(**{"xcom_push.return_value": None}))}
+
+        op.execute(context)
+        assert not mock_defer.called
+
+    @mock.patch(
+        "airflow.providers.google.cloud.sensors.cloud_storage_transfer_service.CloudDataTransferServiceHook"
+    )
+    def test_execute_deferred(self, mock_hook):
+        op = CloudDataTransferServiceJobStatusSensor(
+            task_id="task-id",
+            job_name=JOB_NAME,
+            project_id="project-id",
+            expected_statuses=GcpTransferOperationStatus.SUCCESS,
+            deferrable=True,
+        )
+
+        mock_hook.operations_contain_expected_statuses.return_value = False
+        context = {"ti": (mock.Mock(**{"xcom_push.return_value": None}))}
+
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(context)
+        assert isinstance(exc.value.trigger, CloudStorageTransferServiceCheckJobStatusTrigger)
+
+    def test_execute_deferred_failure(self):
+        op = CloudDataTransferServiceJobStatusSensor(
+            task_id="task-id",
+            job_name=JOB_NAME,
+            project_id="project-id",
+            expected_statuses=GcpTransferOperationStatus.SUCCESS,
+            deferrable=True,
+        )
+
+        context = {"ti": (mock.Mock(**{"xcom_push.return_value": None}))}
+
+        with pytest.raises(AirflowException):
+            op.execute_complete(context=context, event={"status": "error", "message": "test failure message"})
+
+    def test_execute_complete(self):
+        op = CloudDataTransferServiceJobStatusSensor(
+            task_id="task-id",
+            job_name=JOB_NAME,
+            project_id="project-id",
+            expected_statuses=GcpTransferOperationStatus.SUCCESS,
+            deferrable=True,
+        )
+
+        context = {"ti": (mock.Mock(**{"xcom_push.return_value": None}))}
+
+        op.execute_complete(context=context, event={"status": "success", "operations": []})
