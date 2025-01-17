@@ -141,8 +141,8 @@ def set_state(
     """Set state of worker and returns the current assigned queues."""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel = session.scalar(query)
-    if worker.state == EdgeWorkerState.MAINTENANCE_REQUESTED and body.state not in (EdgeWorkerState.MAINTENANCE_PENDING, EdgeWorkerState.MAINTENANCE_MODE):
-        body.state = EdgeWorkerState.MAINTENANCE_REQUESTED
+    if worker.state == EdgeWorkerState.MAINTENANCE_REQUEST and body.state not in (EdgeWorkerState.MAINTENANCE_PENDING, EdgeWorkerState.MAINTENANCE_MODE):
+        body.state = EdgeWorkerState.MAINTENANCE_REQUEST
     worker.state = body.state
     worker.jobs_active = body.jobs_active
     worker.sysinfo = json.dumps(body.sysinfo)
