@@ -586,6 +586,9 @@ components:
       - terminating
       - offline
       - unknown
+      - maintenance mode
+      - maintenance request
+      - maintenance pending
       title: EdgeWorkerState
       type: string
     WorkerStateBody:
