@@ -288,7 +288,7 @@ class KiotaRequestAdapterHook(BaseHook):
             http_client = GraphClientFactory.create_with_default_middleware(
                 api_version=api_version,  # type: ignore
                 client=httpx.AsyncClient(
-                    mounts=httpx_proxies,
+                    proxy=httpx_proxies,  # type: ignore
                     timeout=Timeout(timeout=self.timeout),
                     verify=verify,
                     trust_env=trust_env,
