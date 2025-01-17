@@ -135,7 +135,7 @@ def test_parse(test_dags_dir: Path, make_ti_context):
                     {
                         "name": "my-bundle",
                         "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                        "kwargs": {"local_folder": str(test_dags_dir), "refresh_interval": 1},
+                        "kwargs": {"path": str(test_dags_dir), "refresh_interval": 1},
                     }
                 ]
             ),
@@ -569,7 +569,7 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
             {
                 "name": "my-bundle",
                 "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                "kwargs": {"local_folder": str(test_dags_dir), "refresh_interval": 1},
+                "kwargs": {"path": str(test_dags_dir), "refresh_interval": 1},
             }
         ]
     )

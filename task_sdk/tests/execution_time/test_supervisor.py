@@ -79,7 +79,7 @@ def local_dag_bundle_cfg(path, name="my-bundle"):
                 {
                     "name": name,
                     "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                    "kwargs": {"local_folder": str(path), "refresh_interval": 1},
+                    "kwargs": {"path": str(path), "refresh_interval": 1},
                 }
             ]
         )
