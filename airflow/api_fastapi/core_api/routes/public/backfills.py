@@ -44,6 +44,7 @@ from airflow.models.backfill import (
     AlreadyRunningBackfill,
     Backfill,
     BackfillDagRun,
+    DagNoScheduleException,
     _create_backfill,
     _do_dry_run,
 )
@@ -210,6 +211,12 @@ def create_backfill(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"There is already a running backfill for dag {backfill_request.dag_id}",
         )
+    except DagNoScheduleException:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"{backfill_request.dag_id} has no schedule",
+        )
+
     except DagNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -249,4 +256,9 @@ def create_backfill_dry_run(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Could not find dag {body.dag_id}",
+        )
+    except DagNoScheduleException:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"{body.dag_id} has no schedule",
         )
