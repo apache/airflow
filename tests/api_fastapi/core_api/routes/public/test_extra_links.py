@@ -74,15 +74,14 @@ class TestExtraLinks:
         test_client.app.state.dag_bag = dag_bag
         dag_bag.sync_to_db("dags-folder", None)
 
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST}
-
         self.dag.create_dagrun(
             run_id=self.dag_run_id,
             logical_date=self.default_time,
             run_type=DagRunType.MANUAL,
             state=DagRunState.SUCCESS,
             data_interval=(timezone.datetime(2020, 1, 1), timezone.datetime(2020, 1, 2)),
-            **triggered_by_kwargs,
+            run_after=timezone.datetime(2020, 1, 2),
+            triggered_by=DagRunTriggeredByType.TEST,
         )
 
     def teardown_method(self) -> None:
