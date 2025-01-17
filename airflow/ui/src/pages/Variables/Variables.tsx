@@ -86,8 +86,8 @@ const getColumns = ({
     accessorKey: "actions",
     cell: ({ row: { original } }) => (
       <Flex justifyContent="end">
-        <EditVariableButton variable={original} />
-        <DeleteVariableButton deleteKey={original.key} />
+        <EditVariableButton disabled={selectedRows.size > 0} variable={original} />
+        <DeleteVariableButton deleteKey={original.key} disabled={selectedRows.size > 0} />
       </Flex>
     ),
     enableSorting: false,
@@ -157,9 +157,9 @@ export const Variables = () => {
           placeHolder="Search Keys"
         />
         <HStack gap={4} mt={2}>
-          <ImportVariablesButton />
+          <ImportVariablesButton disabled={selectedRows.size > 0} />
           <Spacer />
-          <AddVariableButton />
+          <AddVariableButton disabled={selectedRows.size > 0} />
         </HStack>
       </VStack>
       <Box overflow="auto">

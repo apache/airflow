@@ -25,9 +25,10 @@ import { useDeleteVariable } from "src/queries/useDeleteVariable";
 
 type Props = {
   readonly deleteKey: string;
+  readonly disabled: boolean;
 };
 
-const DeleteVariableButton = ({ deleteKey: variableKey }: Props) => {
+const DeleteVariableButton = ({ deleteKey: variableKey, disabled }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { isPending, mutate } = useDeleteVariable({
     onSuccessConfirm: onClose,
@@ -51,6 +52,7 @@ const DeleteVariableButton = ({ deleteKey: variableKey }: Props) => {
     <>
       <ActionButton
         actionName="Delete Variable"
+        disabled={disabled}
         icon={<FiTrash />}
         onClick={() => {
           onOpen();
