@@ -104,7 +104,9 @@ const getColumns = ({
 ];
 
 export const Variables = () => {
-  const { setTableURLState, tableURLState } = useTableURLState();
+  const { setTableURLState, tableURLState } = useTableURLState({
+    pagination: { pageIndex: 0, pageSize: 30 },
+  }); // To make multiselection smooth
   const [searchParams, setSearchParams] = useSearchParams();
   const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
   const [variableKeyPattern, setVariableKeyPattern] = useState(
