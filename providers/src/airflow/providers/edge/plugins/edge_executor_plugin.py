@@ -124,6 +124,7 @@ class EdgeWorkerHosts(BaseView):
         query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
         worker: EdgeWorkerModel = session.scalar(query)
         worker.update_state(EdgeWorkerState.MAINTENANCE_REQUEST.name)
+        return None
 
 
 # Check if EdgeExecutor is actually loaded
