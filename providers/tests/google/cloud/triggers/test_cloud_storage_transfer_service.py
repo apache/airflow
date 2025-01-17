@@ -25,8 +25,10 @@ from google.cloud.storage_transfer_v1 import TransferOperation
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     CloudDataTransferServiceAsyncHook,
+    GcpTransferOperationStatus,
 )
 from airflow.providers.google.cloud.triggers.cloud_storage_transfer_service import (
+    CloudStorageTransferServiceCheckJobStatusTrigger,
     CloudStorageTransferServiceCreateJobsTrigger,
 )
 from airflow.triggers.base import TriggerEvent
@@ -47,6 +49,8 @@ CLASS_PATH = (
 ASYNC_HOOK_CLASS_PATH = (
     "airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.CloudDataTransferServiceAsyncHook"
 )
+EXPECTED_STATUSES = GcpTransferOperationStatus.SUCCESS
+IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
 @pytest.fixture(scope="session")
@@ -298,5 +302,92 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
 
         generator = trigger.run()
         actual_event = await generator.asend(None)
+
+        assert actual_event == expected_event
+
+
+class TestCloudStorageTransferServiceCheckJobStatusTrigger:
+    @pytest.fixture
+    def trigger(self):
+        return CloudStorageTransferServiceCheckJobStatusTrigger(
+            project_id=PROJECT_ID,
+            job_name=JOB_0,
+            expected_statuses=EXPECTED_STATUSES,
+            poke_interval=POLL_INTERVAL,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+    def test_serialize(self, trigger):
+        class_path, serialized = trigger.serialize()
+        assert class_path == (
+            "airflow.providers.google.cloud.triggers.cloud_storage_transfer_service"
+            ".CloudStorageTransferServiceCheckJobStatusTrigger"
+        )
+        assert serialized == {
+            "project_id": PROJECT_ID,
+            "job_name": JOB_0,
+            "expected_statuses": EXPECTED_STATUSES,
+            "poke_interval": POLL_INTERVAL,
+            "gcp_conn_id": GCP_CONN_ID,
+            "impersonation_chain": IMPERSONATION_CHAIN,
+        }
+
+    @pytest.mark.parametrize(
+        "attr, expected_value",
+        [
+            ("gcp_conn_id", GCP_CONN_ID),
+            ("impersonation_chain", IMPERSONATION_CHAIN),
+        ],
+    )
+    def test_get_async_hook(self, attr, expected_value, trigger):
+        hook = trigger._get_async_hook()
+        actual_value = hook._hook_kwargs.get(attr)
+        assert isinstance(hook, CloudDataTransferServiceAsyncHook)
+        assert hook._hook_kwargs is not None
+        assert actual_value == expected_value
+
+    @pytest.mark.asyncio
+    @mock.patch(ASYNC_HOOK_CLASS_PATH + ".list_transfer_operations")
+    @mock.patch(ASYNC_HOOK_CLASS_PATH + ".operations_contain_expected_statuses")
+    async def test_run_returns_success_event(
+        self,
+        operations_contain_expected_statuses,
+        list_transfer_operations,
+        trigger,
+    ):
+        operations_contain_expected_statuses.side_effect = [
+            False,
+            True,
+        ]
+        expected_event = TriggerEvent(
+            {
+                "status": "success",
+                "message": "Transfer operation completed successfully",
+                "operations": list_transfer_operations.return_value,
+            }
+        )
+
+        actual_event = await trigger.run().asend(None)
+
+        assert actual_event == expected_event
+        assert operations_contain_expected_statuses.call_count == 2
+
+    @pytest.mark.asyncio
+    @mock.patch(ASYNC_HOOK_CLASS_PATH + ".list_transfer_operations")
+    async def test_run_returns_exception_event(
+        self,
+        list_transfer_operations,
+        trigger,
+    ):
+        list_transfer_operations.side_effect = Exception("Transfer operation failed")
+        expected_event = TriggerEvent(
+            {
+                "status": "error",
+                "message": "Transfer operation failed",
+            }
+        )
+
+        actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event

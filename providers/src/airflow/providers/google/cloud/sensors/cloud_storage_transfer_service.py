@@ -20,8 +20,10 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     COUNTERS,
     METADATA,
@@ -29,6 +31,9 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
     CloudDataTransferServiceHook,
 )
 from airflow.providers.google.cloud.links.cloud_storage_transfer import CloudStorageTransferJobLink
+from airflow.providers.google.cloud.triggers.cloud_storage_transfer_service import (
+    CloudStorageTransferServiceCheckJobStatusTrigger,
+)
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.sensors.base import BaseSensorOperator
 
@@ -60,6 +65,7 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable: Run sensor in deferrable mode
     """
 
     # [START gcp_transfer_job_sensor_template_fields]
@@ -78,6 +84,7 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -88,6 +95,7 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         self.project_id = project_id
         self.gcp_cloud_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.deferrable = deferrable
 
     def poke(self, context: Context) -> bool:
         hook = CloudDataTransferServiceHook(
@@ -117,3 +125,33 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
             )
 
         return check
+
+    def execute(self, context: Context) -> None:
+        """Run on the worker and defer using the triggers if deferrable is set to True."""
+        if not self.deferrable:
+            super().execute(context)
+        elif not self.poke(context=context):
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=CloudStorageTransferServiceCheckJobStatusTrigger(
+                    job_name=self.job_name,
+                    expected_statuses=self.expected_statuses,
+                    project_id=self.project_id,
+                    poke_interval=self.poke_interval,
+                    gcp_conn_id=self.gcp_cloud_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
+        """
+        Act as a callback for when the trigger fires.
+
+        This returns immediately. It relies on trigger to throw an exception,
+        otherwise it assumes execution was successful.
+        """
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
+
+        self.xcom_push(key="sensed_operations", value=event["operations"], context=context)
