@@ -28,14 +28,6 @@ core:
       type: string
       example: ~
       default: "{AIRFLOW_HOME}/dags"
-    dag_bundle_storage_path:
-      description: |
-        The folder where Airflow bundles can store files locally (if required).
-        By default, this is ``tempfile.gettempdir()/airflow``. This path must be absolute.
-      version_added: 3.0.0
-      type: string
-      example: "`tempfile.gettempdir()/dag_bundles"
-      default: ~
     hostname_callable:
       description: |
         Hostname by providing a path to a callable, which will resolve the hostname.
@@ -2286,13 +2278,6 @@ scheduler:
       type: integer
       example: ~
       default: "50"
-    dag_dir_list_interval:
-      description: |
-        How often (in seconds) to scan the DAGs directory for new files. Default to 5 minutes.
-      version_added: ~
-      type: integer
-      example: ~
-      default: "300"
     print_stats_interval:
       description: |
         How often should stats be printed to the logs. Setting to 0 will disable printing stats
@@ -2677,11 +2662,21 @@ dag_bundles:
     Configuration for the DAG bundles. This allows Airflow to load DAGs from different sources.
 
   options:
-    backends:
+    dag_bundle_storage_path:
+      description: |
+        String path to folder where Airflow bundles can store files locally. Not templated.
+        If no path is provided, Airflow will use ``Path(tempfile.gettempdir()) / "airflow"``.
+        This path must be absolute.
+      version_added: 3.0.0
+      type: string
+      example: "/tmp/some-place"
+      default: ~
+
+    config_list:
       description: |
         List of backend configs.  Must supply name, classpath, and kwargs for each backend.
 
-        By default, ``refresh_interval`` is set to ``[scheduler] dag_dir_list_interval``, but that can
+        By default, ``refresh_interval`` is set to ``[dag_bundles] refresh_interval``, but that can
         also be overridden in kwargs if desired.
 
         The default is the dags folder dag bundle.
@@ -2707,7 +2702,14 @@ dag_bundles:
         [
             {{
               "name": "dags-folder",
-              "classpath": "airflow.dag_processing.bundles.dagfolder.DagsFolderDagBundle",
+              "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
               "kwargs": {{}}
             }}
             ]
+    refresh_interval:
+      description: |
+        How often (in seconds) to refresh, or look for new files, in a DAG bundle.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "300"

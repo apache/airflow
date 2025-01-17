@@ -116,7 +116,6 @@ class TestPluginsCommand:
                         "label": "The Apache Software Foundation",
                     },
                 ],
-                "ti_deps": ["<TIDep(CustomTestTriggerRule)>"],
                 "priority_weight_strategies": ["tests.plugins.test_plugin.CustomPriorityWeightStrategy"],
             }
         ]

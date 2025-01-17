@@ -130,12 +130,12 @@ def test_parse(test_dags_dir: Path, make_ti_context):
     with patch.dict(
         os.environ,
         {
-            "AIRFLOW__DAG_BUNDLES__BACKENDS": json.dumps(
+            "AIRFLOW__DAG_BUNDLES__CONFIG_LIST": json.dumps(
                 [
                     {
                         "name": "my-bundle",
                         "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                        "kwargs": {"local_folder": str(test_dags_dir), "refresh_interval": 1},
+                        "kwargs": {"path": str(test_dags_dir), "refresh_interval": 1},
                     }
                 ]
             ),
@@ -569,12 +569,12 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
             {
                 "name": "my-bundle",
                 "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                "kwargs": {"local_folder": str(test_dags_dir), "refresh_interval": 1},
+                "kwargs": {"path": str(test_dags_dir), "refresh_interval": 1},
             }
         ]
     )
 
-    monkeypatch.setenv("AIRFLOW__DAG_BUNDLES__BACKENDS", dag_bundle_val)
+    monkeypatch.setenv("AIRFLOW__DAG_BUNDLES__CONFIG_LIST", dag_bundle_val)
     ti, _ = startup()
 
     # Presence of `conditional_task` below means DAG ID is properly set in the parsing context!

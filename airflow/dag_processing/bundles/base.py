@@ -46,7 +46,13 @@ class BaseDagBundle(ABC):
 
     supports_versioning: bool = False
 
-    def __init__(self, *, name: str, refresh_interval: int = 300, version: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        name: str,
+        refresh_interval: int = conf.getint("dag_bundles", "refresh_interval"),
+        version: str | None = None,
+    ) -> None:
         self.name = name
         self.version = version
         self.refresh_interval = refresh_interval
@@ -68,7 +74,7 @@ class BaseDagBundle(ABC):
 
         This is the root path, shared by various bundles. Each bundle should have its own subdirectory.
         """
-        if configured_location := conf.get("core", "dag_bundle_storage_path", fallback=None):
+        if configured_location := conf.get("dag_bundles", "dag_bundle_storage_path", fallback=None):
             return Path(configured_location)
         return Path(tempfile.gettempdir(), "airflow", "dag_bundles")
 

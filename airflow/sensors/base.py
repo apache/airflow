@@ -130,6 +130,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     ui_color: str = "#e6f1f2"
     valid_modes: Iterable[str] = ["poke", "reschedule"]
 
+    _is_sensor: bool = True
+
     # Adds one additional dependency for all sensor operators that checks if a
     # sensor task instance can be rescheduled.
     deps = BaseOperator.deps | {ReadyToRescheduleDep()}
@@ -406,7 +408,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
     @classmethod
     def get_serialized_fields(cls):
-        return super().get_serialized_fields() | {"reschedule"}
+        return super().get_serialized_fields() | {"reschedule", "_is_sensor"}
 
 
 def poke_mode_only(cls):
