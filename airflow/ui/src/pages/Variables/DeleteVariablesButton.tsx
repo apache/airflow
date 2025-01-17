@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, useDisclosure, Text, VStack, Heading } from "@chakra-ui/react";
+import { Flex, useDisclosure, Text, VStack, Heading, Code } from "@chakra-ui/react";
 import { FiTrash, FiTrash2 } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -49,15 +49,25 @@ const DeleteVariablesButton = ({ clearSelections, deleteKeys: variableKeys }: Pr
         <Dialog.Content backdrop>
           <Dialog.Header>
             <VStack align="start" gap={4}>
-              <Heading size="xl">Delete Variables</Heading>
+              <Heading size="xl">Delete Variable{variableKeys.length > 1 ? "s" : ""}</Heading>
             </VStack>
           </Dialog.Header>
 
           <Dialog.CloseTrigger />
 
           <Dialog.Body width="full">
-            <Text mb={2}>
-              Are you sure you want to delete the following variable keys: `{variableKeys.join(", ")}`?
+            <Text color="gray.solid" fontSize="md" fontWeight="semibold" mb={4}>
+              You are about to delete{" "}
+              <strong>
+                {variableKeys.length} variable{variableKeys.length > 1 ? "s" : ""}.
+              </strong>
+              <br />
+              <Code mb={2} mt={2} p={4}>
+                {variableKeys.join(", ")}
+              </Code>
+              <br />
+              This action is permanent and cannot be undone.{" "}
+              <strong>Are you sure you want to proceed?</strong>
             </Text>
             <ErrorAlert error={error} />
             <Flex justifyContent="end" mt={3}>
@@ -78,7 +88,7 @@ const DeleteVariablesButton = ({ clearSelections, deleteKeys: variableKeys }: Pr
                   });
                 }}
               >
-                <FiTrash /> Delete
+                <FiTrash /> <Text fontWeight="bold">Yes, Delete</Text>
               </Button>
             </Flex>
           </Dialog.Body>
