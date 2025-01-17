@@ -40,6 +40,7 @@ from collections.abc import Sequence
 from functools import cached_property as cached_property
 from typing import Any
 
+
 class GenericTransfer(BaseOperator):
     template_fields: Sequence[str]
     template_ext: Sequence[str]
