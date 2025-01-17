@@ -36,7 +36,11 @@ def check_session_query(mod: ast.Module) -> int:
                 and isinstance(node.func.value, ast.Name)
                 and node.func.value.id == "session"
             ):
-                console.print(f"Remove session.query from line {node.lineno}")
+                console.print(
+                    f"\nUse of legacy `session.query` detected on line {node.lineno}. "
+                    f"\nSQLAlchemy 2.0 deprecates the `Query` object"
+                    f"use the `select()` construct instead."
+                )
         errors += 1
     return errors
 
