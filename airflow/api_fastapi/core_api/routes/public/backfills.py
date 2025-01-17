@@ -44,6 +44,8 @@ from airflow.models.backfill import (
     Backfill,
     BackfillDagRun,
     DagNoScheduleException,
+    InvalidBackfillDirection,
+    InvalidReprocessBehavior,
     _create_backfill,
     _do_dry_run,
 )
@@ -215,6 +217,17 @@ def create_backfill(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"{backfill_request.dag_id} has no schedule",
         )
+    except InvalidReprocessBehavior:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"{backfill_request.dag_id} has tasks for which depends_on_past=True. "
+            "You must set reprocess behavior to reprocess completed or reprocess failed.",
+        )
+    except InvalidBackfillDirection:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Backfill cannot be run in reverse when the DAG has tasks where depends_on_past=True.",
+        )
 
 
 @backfills_router.post(
@@ -250,4 +263,16 @@ def create_backfill_dry_run(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"{body.dag_id} has no schedule",
+        )
+
+    except InvalidReprocessBehavior:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"{body.dag_id} has tasks for which depends_on_past=True. "
+            "You must set reprocess behavior to reprocess completed or reprocess failed.",
+        )
+    except InvalidBackfillDirection:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Backfill cannot be run in reverse when the DAG has tasks where depends_on_past=True.",
         )
