@@ -279,12 +279,6 @@
           "items": { "type": "string" }
         },
         "_is_dummy": { "type": "boolean" },
-        "deps": {
-          "description": "list of dep classes -- if non-standard",
-          "type": "array",
-          "items": { "type": "string" },
-          "uniqueItems": true
-        },
         "doc":  { "type": "string" },
         "doc_md":  { "type": "string" },
         "doc_json":  { "type": "string" },
@@ -293,6 +287,7 @@
         "_logger_name": { "type": "string" },
         "_log_config_logger_name": { "type": "string" },
         "_is_mapped": { "const": true, "$comment": "only present when True" },
+        "_is_sensor": { "const": true, "$comment": "only present when True" },
         "expand_input": { "type": "object" },
         "partial_kwargs": { "type": "object" },
         "map_index_template": { "type": "string" },

@@ -795,6 +795,7 @@ export type ImportErrorResponse = {
   import_error_id: number;
   timestamp: string;
   filename: string;
+  bundle_name: string;
   stack_trace: string;
 };
 
@@ -881,7 +882,6 @@ export type PluginResponse = {
   global_operator_extra_links: Array<string>;
   operator_extra_links: Array<string>;
   source: string;
-  ti_deps: Array<string>;
   listeners: Array<string>;
   timetables: Array<string>;
 };

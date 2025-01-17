@@ -2286,13 +2286,6 @@ scheduler:
       type: integer
       example: ~
       default: "50"
-    dag_dir_list_interval:
-      description: |
-        How often (in seconds) to scan the DAGs directory for new files. Default to 5 minutes.
-      version_added: ~
-      type: integer
-      example: ~
-      default: "300"
     print_stats_interval:
       description: |
         How often should stats be printed to the logs. Setting to 0 will disable printing stats
@@ -2681,7 +2674,7 @@ dag_bundles:
       description: |
         List of backend configs.  Must supply name, classpath, and kwargs for each backend.
 
-        By default, ``refresh_interval`` is set to ``[scheduler] dag_dir_list_interval``, but that can
+        By default, ``refresh_interval`` is set to ``[dag_bundles] refresh_interval``, but that can
         also be overridden in kwargs if desired.
 
         The default is the dags folder dag bundle.
@@ -2707,7 +2700,14 @@ dag_bundles:
         [
             {{
               "name": "dags-folder",
-              "classpath": "airflow.dag_processing.bundles.dagfolder.DagsFolderDagBundle",
+              "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
               "kwargs": {{}}
             }}
             ]
+    refresh_interval:
+      description: |
+        How often (in seconds) to refresh, or look for new files, in a DAG bundle.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "300"

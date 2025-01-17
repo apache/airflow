@@ -122,13 +122,20 @@ CONFIGS_CHANGES = [
     # core
     ConfigChange(
         config=ConfigParameter("core", "check_slas"),
-        suggestion="The SLA feature is removed in Airflow 3.0, to be replaced with Airflow Alerts in "
-        "future",
+        suggestion="The SLA feature is removed in Airflow 3.0, to be replaced with Airflow Alerts in future",
     ),
     ConfigChange(
-        config=ConfigParameter("core", "strict_asset_uri_validation"),
-        suggestion="Asset URI with a defined scheme will now always be validated strictly, "
+        config=ConfigParameter("core", "strict_dataset_uri_validation"),
+        suggestion="Dataset URI with a defined scheme will now always be validated strictly, "
         "raising a hard error on validation failure.",
+    ),
+    ConfigChange(
+        config=ConfigParameter("core", "dataset_manager_class"),
+        renamed_to=ConfigParameter("core", "asset_manager_class"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("core", "dataset_manager_kwargs"),
+        renamed_to=ConfigParameter("core", "asset_manager_kwargs"),
     ),
     ConfigChange(
         config=ConfigParameter("core", "worker_precheck"),
@@ -236,6 +243,9 @@ CONFIGS_CHANGES = [
     # webserver
     ConfigChange(
         config=ConfigParameter("webserver", "allow_raw_html_descriptions"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "cookie_samesite"),
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "update_fab_perms"),
