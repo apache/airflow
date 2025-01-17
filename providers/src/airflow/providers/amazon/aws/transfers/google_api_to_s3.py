@@ -31,7 +31,7 @@ from airflow.providers.google.common.hooks.discovery_api import GoogleDiscoveryA
 
 if TYPE_CHECKING:
     try:
-        from airflow.sdk.definitions.protocols import RuntimeTaskInstanceProtocol
+        from airflow.sdk.types import RuntimeTaskInstanceProtocol
     except ImportError:
         from airflow.models import TaskInstance as RuntimeTaskInstanceProtocol  # type: ignore[assignment]
     from airflow.utils.context import Context

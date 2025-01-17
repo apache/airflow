@@ -46,7 +46,7 @@ from airflow.utils.types import ArgNotSet
 
 if TYPE_CHECKING:
     try:
-        from airflow.sdk.definitions.protocols import RuntimeTaskInstanceProtocol as TaskInstance
+        from airflow.sdk.types import RuntimeTaskInstanceProtocol as TaskInstance
     except ImportError:
         from airflow.models import TaskInstance  # type: ignore[assignment]
     from airflow.utils.context import Context

@@ -20,8 +20,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from datetime import datetime
 
+    from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, BaseAssetUniqueKey
     from airflow.sdk.definitions.baseoperator import BaseOperator
 
 
@@ -65,3 +67,28 @@ class RuntimeTaskInstanceProtocol(Protocol):
     ) -> Any: ...
 
     def xcom_push(self, key: str, value: Any) -> None: ...
+
+
+class OutletEventAccessorProtocol(Protocol):
+    """Protocol for managing access to a specific outlet event accessor."""
+
+    key: BaseAssetUniqueKey
+    extra: dict[str, Any]
+    asset_alias_events: list[AssetAliasEvent]
+
+    def __init__(
+        self,
+        *,
+        key: BaseAssetUniqueKey,
+        extra: dict[str, Any],
+        asset_alias_events: list[AssetAliasEvent],
+    ) -> None: ...
+    def add(self, asset: Asset, extra: dict[str, Any] | None = None) -> None: ...
+
+
+class OutletEventAccessorsProtocol(Protocol):
+    """Protocol for managing access to outlet event accessors."""
+
+    def __iter__(self) -> Iterator[Asset | AssetAlias]: ...
+    def __len__(self) -> int: ...
+    def __getitem__(self, key: Asset | AssetAlias) -> OutletEventAccessorProtocol: ...

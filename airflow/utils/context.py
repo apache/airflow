@@ -63,6 +63,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.expression import Select, TextClause
 
     from airflow.models.baseoperator import BaseOperator
+    from airflow.sdk.types import OutletEventAccessorsProtocol
 
 # NOTE: Please keep this in sync with the following:
 # * Context in task_sdk/src/airflow/sdk/definitions/context.py
@@ -331,7 +332,7 @@ def context_copy_partial(source: Context, keys: Container[str]) -> Context:
     return cast(Context, new)
 
 
-def context_get_outlet_events(context: Context) -> OutletEventAccessors:
+def context_get_outlet_events(context: Context) -> OutletEventAccessorsProtocol:
     try:
         return context["outlet_events"]
     except KeyError:

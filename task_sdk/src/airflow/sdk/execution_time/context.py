@@ -28,6 +28,7 @@ from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
+    AssetAliasEvent,
     AssetAliasUniqueKey,
     AssetNameRef,
     AssetRef,
@@ -172,15 +173,6 @@ class MacrosAccessor:
         if not isinstance(other, MacrosAccessor):
             return False
         return True
-
-
-@attrs.define
-class AssetAliasEvent:
-    """Representation of asset event to be triggered by an asset alias."""
-
-    source_alias_name: str
-    dest_asset_key: AssetUniqueKey
-    extra: dict[str, Any]
 
 
 @attrs.define
