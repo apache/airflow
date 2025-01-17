@@ -43,7 +43,6 @@ from typing import Any
 class GenericTransfer(BaseOperator):
     template_fields: Sequence[str]
     template_ext: Sequence[str]
-    template_fields_renderers: Incomplete
     ui_color: str
     sql: Incomplete
     destination_table: Incomplete
