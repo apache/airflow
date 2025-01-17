@@ -370,12 +370,12 @@ class _EdgeWorkerCli:
         if _EdgeWorkerCli.drain:
             state = EdgeWorkerState.TERMINATING
         elif self.jobs:
-            if maintenance_mode:
+            if _EdgeWorkerCli.maintenance_mode:
                 state = EdgeWorkerState.MAINTENANCE_PENDING
             else:
                 state = EdgeWorkerState.RUNNING
         else:
-            if maintenance_mode:
+            if _EdgeWorkerCli.maintenance_mode:
                 state = EdgeWorkerState.MAINTENANCE_MODE
             else:
                 state = EdgeWorkerState.IDLE
