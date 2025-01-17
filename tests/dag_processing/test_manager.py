@@ -839,12 +839,12 @@ class TestDagFileProcessorManager:
             {
                 "name": "bundleone",
                 "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                "kwargs": {"local_folder": "/dev/null", "refresh_interval": 0},
+                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
             },
             {
                 "name": "bundletwo",
                 "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                "kwargs": {"local_folder": "/dev/null", "refresh_interval": 300},
+                "kwargs": {"path": "/dev/null", "refresh_interval": 300},
             },
         ]
 
@@ -900,7 +900,7 @@ class TestDagFileProcessorManager:
             {
                 "name": "mybundle",
                 "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                "kwargs": {"local_folder": "/dev/null", "refresh_interval": 0},
+                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
             },
         ]
 
