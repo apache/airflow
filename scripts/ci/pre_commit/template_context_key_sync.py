@@ -29,7 +29,7 @@ ROOT_DIR = pathlib.Path(__file__).resolve().parents[3]
 
 TASKINSTANCE_PY = ROOT_DIR.joinpath("airflow", "models", "taskinstance.py")
 CONTEXT_PY = ROOT_DIR.joinpath("airflow", "utils", "context.py")
-CONTEXT_PYI = ROOT_DIR.joinpath("airflow", "utils", "context.pyi")
+CONTEXT_HINT = ROOT_DIR.joinpath("task_sdk", "src", "airflow", "sdk", "definitions", "context.py")
 TEMPLATES_REF_RST = ROOT_DIR.joinpath("docs", "apache-airflow", "templates-ref.rst")
 
 
@@ -73,13 +73,16 @@ def _iter_template_context_keys_from_declaration() -> typing.Iterator[str]:
 
 
 def _iter_template_context_keys_from_type_hints() -> typing.Iterator[str]:
-    context_mod = ast.parse(CONTEXT_PYI.read_text("utf-8"), str(CONTEXT_PYI))
+    context_mod = ast.parse(CONTEXT_HINT.read_text("utf-8"), str(CONTEXT_HINT))
     cls_context = next(
         node
         for node in ast.iter_child_nodes(context_mod)
         if isinstance(node, ast.ClassDef) and node.name == "Context"
     )
     for stmt in cls_context.body:
+        if isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Constant):
+            # Skip docstring
+            continue
         if not isinstance(stmt, ast.AnnAssign) or not isinstance(stmt.target, ast.Name):
             raise ValueError("key in 'Context' hint is not an annotated assignment")
         yield stmt.target.id
@@ -112,7 +115,7 @@ def _compare_keys(retn_keys: set[str], decl_keys: set[str], hint_keys: set[str],
     canonical_keys = set.union(*(s for _, s in check_candidates))
 
     def _check_one(identifier: str, keys: set[str]) -> int:
-        if missing := canonical_keys.difference(retn_keys):
+        if missing := canonical_keys.difference(keys):
             print("Missing template variables from", f"{identifier}:", ", ".join(sorted(missing)))
         return len(missing)
 

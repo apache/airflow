@@ -66,7 +66,7 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
         (
             GroupOfTests.PROVIDERS,
             "Providers",
-            ["providers/tests"],
+            ["providers/airbyte/tests", "providers/tests"],
         ),
         (
             GroupOfTests.PROVIDERS,
@@ -87,10 +87,14 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
             GroupOfTests.PROVIDERS,
             "Providers[-amazon,google,microsoft.azure]",
             [
+                "providers/airbyte/tests",
                 "providers/tests",
                 "--ignore=providers/tests/amazon",
+                "--ignore=providers/amazon",
                 "--ignore=providers/tests/google",
+                "--ignore=providers/google",
                 "--ignore=providers/tests/microsoft/azure",
+                "--ignore=providers/microsoft/tests/azure",
             ],
         ),
         (
@@ -101,7 +105,7 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
         (
             GroupOfTests.PROVIDERS,
             "All-Quarantined",
-            ["providers/tests", "-m", "quarantined", "--include-quarantined"],
+            ["providers/airbyte/tests", "providers/tests", "-m", "quarantined", "--include-quarantined"],
         ),
         (
             GroupOfTests.CORE,
@@ -199,6 +203,7 @@ def test_pytest_args_for_missing_provider():
             GroupOfTests.PROVIDERS,
             "Providers",
             [
+                "providers/airbyte/tests",
                 "providers/tests",
             ],
         ),
@@ -221,6 +226,7 @@ def test_pytest_args_for_missing_provider():
             GroupOfTests.PROVIDERS,
             "Providers[-amazon,google]",
             [
+                "providers/airbyte/tests",
                 "providers/tests",
             ],
         ),
@@ -228,6 +234,7 @@ def test_pytest_args_for_missing_provider():
             GroupOfTests.PROVIDERS,
             "Providers[-amazon,google] Providers[amazon] Providers[google]",
             [
+                "providers/airbyte/tests",
                 "providers/tests",
             ],
         ),

@@ -17,11 +17,66 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Mapping
-from typing import Any
+import os
+from typing import TYPE_CHECKING, Any, NamedTuple, TypedDict
+
+if TYPE_CHECKING:
+    # TODO: Should we use pendulum.DateTime instead of datetime like AF 2.x?
+    from datetime import datetime
+
+    from airflow.models.operator import Operator
+    from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.definitions.dag import DAG
+    from airflow.sdk.definitions.protocols import DagRunProtocol, RuntimeTaskInstanceProtocol
 
 
-def get_current_context() -> Mapping[str, Any]:
+class Context(TypedDict, total=False):
+    """Jinja2 template context for task rendering."""
+
+    conn: Any
+    dag: DAG
+    dag_run: DagRunProtocol
+    data_interval_end: datetime | None
+    data_interval_start: datetime | None
+    # outlet_events: OutletEventAccessors
+    outlet_events: Any
+    ds: str
+    ds_nodash: str
+    expanded_ti_count: int | None
+    exception: None | str | BaseException
+    inlets: list
+    # inlet_events: InletEventsAccessors
+    inlet_events: Any
+    logical_date: datetime
+    macros: Any
+    map_index_template: str | None
+    outlets: list
+    params: dict[str, Any]
+    prev_data_interval_start_success: datetime | None
+    prev_data_interval_end_success: datetime | None
+    prev_start_date_success: datetime | None
+    prev_end_date_success: datetime | None
+    reason: str | None
+    run_id: str
+    # TODO: Remove Operator from below once we have MappedOperator to the Task SDK
+    #   and once we can remove context related code from the Scheduler/models.TaskInstance
+    task: BaseOperator | Operator
+    task_instance: RuntimeTaskInstanceProtocol
+    task_instance_key_str: str
+    # `templates_dict` is only set in PythonOperator
+    templates_dict: dict[str, Any] | None
+    test_mode: bool
+    ti: RuntimeTaskInstanceProtocol
+    # triggering_asset_events: Mapping[str, Collection[AssetEvent | AssetEventPydantic]]
+    triggering_asset_events: Any
+    try_number: int | None
+    ts: str
+    ts_nodash: str
+    ts_nodash_with_tz: str
+    var: Any
+
+
+def get_current_context() -> Context:
     """
     Retrieve the execution context dictionary without altering user method's signature.
 
@@ -51,3 +106,27 @@ def get_current_context() -> Mapping[str, Any]:
     from airflow.sdk.definitions._internal.contextmanager import _get_current_context
 
     return _get_current_context()
+
+
+class AirflowParsingContext(NamedTuple):
+    """
+    Context of parsing for the DAG.
+
+    If these values are not None, they will contain the specific DAG and Task ID that Airflow is requesting to
+    execute. You can use these for optimizing dynamically generated DAG files.
+    """
+
+    dag_id: str | None
+    task_id: str | None
+
+
+_AIRFLOW_PARSING_CONTEXT_DAG_ID = "_AIRFLOW_PARSING_CONTEXT_DAG_ID"
+_AIRFLOW_PARSING_CONTEXT_TASK_ID = "_AIRFLOW_PARSING_CONTEXT_TASK_ID"
+
+
+def get_parsing_context() -> AirflowParsingContext:
+    """Return the current (DAG) parsing context info."""
+    return AirflowParsingContext(
+        dag_id=os.environ.get(_AIRFLOW_PARSING_CONTEXT_DAG_ID),
+        task_id=os.environ.get(_AIRFLOW_PARSING_CONTEXT_TASK_ID),
+    )

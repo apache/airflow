@@ -54,6 +54,8 @@ import type {
   UnpauseBackfillResponse,
   CancelBackfillData,
   CancelBackfillResponse,
+  CreateBackfillDryRunData,
+  CreateBackfillDryRunResponse,
   GridDataData,
   GridDataResponse,
   DeleteConnectionData,
@@ -183,6 +185,8 @@ import type {
   GetVariablesResponse,
   PostVariableData,
   PostVariableResponse,
+  BulkVariablesData,
+  BulkVariablesResponse,
   ImportVariablesData,
   ImportVariablesResponse,
   ReparseDagFileData,
@@ -918,6 +922,31 @@ export class BackfillService {
       path: {
         backfill_id: data.backfillId,
       },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        409: "Conflict",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Create Backfill Dry Run
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns DryRunBackfillCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static createBackfillDryRun(
+    data: CreateBackfillDryRunData,
+  ): CancelablePromise<CreateBackfillDryRunResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/backfills/dry_run",
+      body: data.requestBody,
+      mediaType: "application/json",
       errors: {
         401: "Unauthorized",
         403: "Forbidden",
@@ -3040,6 +3069,28 @@ export class VariableService {
         401: "Unauthorized",
         403: "Forbidden",
         409: "Conflict",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Bulk Variables
+   * Bulk create, update, and delete variables.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns VariableBulkResponse Successful Response
+   * @throws ApiError
+   */
+  public static bulkVariables(data: BulkVariablesData): CancelablePromise<BulkVariablesResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/variables",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
         422: "Validation Error",
       },
     });

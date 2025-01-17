@@ -297,9 +297,13 @@ class TestEdgeExecutor:
                 dag_id="dummy",
                 run_id="dummy",
                 try_number=1,
+                pool_slots=1,
+                queue="default",
+                priority_weight=1,
             ),
-            dag_path="dummy.py",
+            dag_rel_path="dummy.py",
             log_path="dummy.log",
+            bundle_info={"name": "n/a", "version": "no matter"},
         )
         executor.queue_workload(workload=workload)
 

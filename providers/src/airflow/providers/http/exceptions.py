@@ -14,18 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
+from airflow.exceptions import AirflowException
 
-def _get_empty_set_for_configuration() -> set[tuple[str, str]]:
-    """
-    Retrieve an empty_set_for_configuration.
 
-    This method is only needed because configuration module has a deprecated method called set, and it
-    confuses mypy. This method will be removed when we remove the deprecated method.
+class HttpErrorException(AirflowException):
+    """Exception raised for HTTP error in Http hook."""
 
-    :meta private:
-    :return: empty set
-    """
-    return set()
+
+class HttpMethodException(AirflowException):
+    """Exception raised for invalid HTTP methods in Http hook."""

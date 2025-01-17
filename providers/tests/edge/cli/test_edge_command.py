@@ -48,9 +48,13 @@ MOCK_COMMAND = (
             "dag_id": "dummy",
             "run_id": "dummy",
             "try_number": 1,
+            "pool_slots": 1,
+            "queue": "default",
+            "priority_weight": 1,
         },
-        "dag_path": "dummy.py",
+        "dag_rel_path": "dummy.py",
         "log_path": "dummy.log",
+        "bundle_info": {"name": "hello", "version": "abc"},
     }
     if AIRFLOW_V_3_0_PLUS
     else ["test", "command"]  # Airflow 2.10

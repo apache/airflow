@@ -310,6 +310,7 @@ class TestLocalTaskJob:
             triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dr = dag.create_dagrun(
                 run_id="test_heartbeat_failed_fast_run",
+                run_type=DagRunType.MANUAL,
                 state=State.RUNNING,
                 logical_date=DEFAULT_DATE,
                 start_date=DEFAULT_DATE,
@@ -347,6 +348,7 @@ class TestLocalTaskJob:
         data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
+            run_id="test",
             state=State.RUNNING,
             logical_date=DEFAULT_DATE,
             run_type=DagRunType.SCHEDULED,
@@ -382,6 +384,7 @@ class TestLocalTaskJob:
         dag.clear()
         dr = dag.create_dagrun(
             run_id="test",
+            run_type=DagRunType.MANUAL,
             state=State.SUCCESS,
             logical_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
@@ -485,6 +488,7 @@ class TestLocalTaskJob:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         with create_session() as session:
             dr = dag.create_dagrun(
+                run_id="test",
                 state=State.RUNNING,
                 logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
@@ -520,6 +524,7 @@ class TestLocalTaskJob:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         with create_session() as session:
             dr = dag.create_dagrun(
+                run_id="test",
                 state=State.RUNNING,
                 start_date=DEFAULT_DATE,
                 logical_date=DEFAULT_DATE,
@@ -555,6 +560,7 @@ class TestLocalTaskJob:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         with create_session() as session:
             dr = dag.create_dagrun(
+                run_id="test",
                 state=State.RUNNING,
                 logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
@@ -591,6 +597,7 @@ class TestLocalTaskJob:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         with create_session() as session:
             dr = dag.create_dagrun(
+                run_id="test",
                 state=State.RUNNING,
                 logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
@@ -627,6 +634,7 @@ class TestLocalTaskJob:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         with create_session() as session:
             dr = dag.create_dagrun(
+                run_id="test",
                 state=State.RUNNING,
                 logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
@@ -666,6 +674,7 @@ class TestLocalTaskJob:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         with create_session() as session:
             dr = dag.create_dagrun(
+                run_id="test",
                 state=State.RUNNING,
                 logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
@@ -705,6 +714,7 @@ class TestLocalTaskJob:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         with create_session() as session:
             dr = dag.create_dagrun(
+                run_id="test",
                 state=State.RUNNING,
                 logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
@@ -748,6 +758,7 @@ class TestLocalTaskJob:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         with create_session() as session:
             dag.create_dagrun(
+                run_id="test",
                 state=State.RUNNING,
                 logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
@@ -1007,6 +1018,7 @@ class TestSigtermOnRunner:
         data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dag_run = dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             run_id=run_id,
             logical_date=logical_date,

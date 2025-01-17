@@ -45,7 +45,6 @@ from airflow.exceptions import (
     AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
     AirflowException,
-    AirflowTaskTimeout,
 )
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base
@@ -383,7 +382,13 @@ class DagBag(LoggingMixin):
                 sys.modules[spec.name] = new_module
                 loader.exec_module(new_module)
                 return [new_module]
-            except (Exception, AirflowTaskTimeout) as e:
+            except KeyboardInterrupt:
+                # re-raise ctrl-c
+                raise
+            except BaseException as e:
+                # Normally you shouldn't catch BaseException, but in this case we want to, as, pytest.skip
+                # raises an exception which does not inherit from Exception, and we want to catch that here.
+                # This would also catch `exit()` in a dag file
                 DagContext.autoregistered_dags.clear()
                 self.log.exception("Failed to import: %s", filepath)
                 if self.dagbag_import_error_tracebacks:
@@ -568,11 +573,17 @@ class DagBag(LoggingMixin):
 
         # Ensure dag_folder is a str -- it may have been a pathlib.Path
         dag_folder = correct_maybe_zipped(str(dag_folder))
-        for filepath in list_py_file_paths(
-            dag_folder,
-            safe_mode=safe_mode,
-            include_examples=include_examples,
-        ):
+
+        files_to_parse = list_py_file_paths(dag_folder, safe_mode=safe_mode)
+
+        if include_examples:
+            from airflow import example_dags
+
+            example_dag_folder = next(iter(example_dags.__path__))
+
+            files_to_parse.extend(list_py_file_paths(example_dag_folder, safe_mode=safe_mode))
+
+        for filepath in files_to_parse:
             try:
                 file_parse_start_dttm = timezone.utcnow()
                 found_dags = self.process_file(filepath, only_if_updated=only_if_updated, safe_mode=safe_mode)
@@ -626,11 +637,13 @@ class DagBag(LoggingMixin):
         return report
 
     @provide_session
-    def sync_to_db(self, session: Session = NEW_SESSION):
+    def sync_to_db(self, bundle_name: str, bundle_version: str | None, session: Session = NEW_SESSION):
         """Save attributes about list of DAG to the DB."""
         from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 
         update_dag_parsing_results_in_db(
+            bundle_name,
+            bundle_version,
             self.dags.values(),  # type: ignore[arg-type]  # We should create a proto for DAG|LazySerializedDAG
             self.import_errors,
             self.dag_warnings,

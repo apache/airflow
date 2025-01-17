@@ -37,9 +37,9 @@ from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.cli import get_dag, process_subdir, suppress_logs_and_warning
-from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.helpers import ask_yesno
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -537,7 +537,19 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
 @provide_session
 def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
     """Serialize a DAG instance."""
-    # TODO: AIP-66 bundle centric reserialize
-    raise NotImplementedError(
-        "AIP-66: This command is not implemented yet - use `dag-processor --num-runs 1` in the meantime."
-    )
+    from airflow.dag_processing.bundles.manager import DagBundlesManager
+
+    manager = DagBundlesManager()
+    manager.sync_bundles_to_db(session=session)
+    session.commit()
+    if args.bundle_name:
+        bundle = manager.get_bundle(args.bundle_name)
+        if not bundle:
+            raise SystemExit(f"Bundle {args.bundle_name} not found")
+        dag_bag = DagBag(bundle.path, include_examples=False)
+        dag_bag.sync_to_db(bundle.name, bundle_version=bundle.get_current_version(), session=session)
+    else:
+        bundles = manager.get_all_dag_bundles()
+        for bundle in bundles:
+            dag_bag = DagBag(bundle.path, include_examples=False)
+            dag_bag.sync_to_db(bundle.name, bundle_version=bundle.get_current_version(), session=session)
