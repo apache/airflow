@@ -74,12 +74,12 @@ def lineno():
 
 def local_dag_bundle_cfg(path, name="my-bundle"):
     return {
-        "AIRFLOW__DAG_BUNDLES__BACKENDS": json.dumps(
+        "AIRFLOW__DAG_BUNDLES__CONFIG_LIST": json.dumps(
             [
                 {
                     "name": name,
                     "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                    "kwargs": {"local_folder": str(path), "refresh_interval": 1},
+                    "kwargs": {"path": str(path), "refresh_interval": 1},
                 }
             ]
         )

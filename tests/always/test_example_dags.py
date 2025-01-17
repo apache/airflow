@@ -22,12 +22,14 @@ import sys
 from glob import glob
 from importlib import metadata as importlib_metadata
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 
-from airflow.models import DagBag
+from airflow.hooks.base import BaseHook
+from airflow.models import Connection, DagBag
 from airflow.utils import yaml
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -209,3 +211,21 @@ def test_should_not_do_database_queries(example: str):
             dag_folder=example,
             include_examples=False,
         )
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize("example", example_not_excluded_dags(xfail_db_exception=True))
+def test_should_not_run_hook_connections(example: str):
+    # Example dags should never run BaseHook.get_connection() class method when parsed
+    with patch.object(BaseHook, "get_connection") as mock_get_connection:
+        mock_get_connection.return_value = Connection()
+        DagBag(
+            dag_folder=example,
+            include_examples=False,
+        )
+    assert mock_get_connection.call_count == 0, (
+        f"BaseHook.get_connection() should not be called during DAG parsing. "
+        f"It was called {mock_get_connection.call_count} times. Please make sure that no "
+        "connections are created during DAG parsing. NOTE! Do not set conn_id to None to avoid it, just make "
+        "sure that you do not create connection object in the `__init__` method of your operator."
+    )

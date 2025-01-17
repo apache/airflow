@@ -19,10 +19,37 @@
 import { useDagServiceGetDagDetails } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
+export type DagParamsSpec = Record<string, ParamSpec>;
+
+export type ParamSpec = {
+  description: string | undefined;
+  schema: ParamSchema;
+  value: unknown;
+};
+
+export type ParamSchema = {
+  // TODO define the structure on API as generated code
+  const: string | undefined;
+  description_md: string | undefined;
+  enum: Array<string> | undefined;
+  examples: Array<string> | undefined;
+  format: string | undefined;
+  items: Record<string, unknown> | undefined;
+  maximum: number | undefined;
+  maxLength: number | undefined;
+  minimum: number | undefined;
+  minLength: number | undefined;
+  section: string | undefined;
+  title: string | undefined;
+  type: Array<string> | string | undefined;
+  values_display: Record<string, string> | undefined;
+};
+
 export const useDagParams = (dagId: string, open: boolean) => {
-  const { data, error } = useDagServiceGetDagDetails({ dagId }, undefined, {
-    enabled: open,
-  });
+  const { data, error }: { data?: Record<string, DagParamsSpec>; error?: unknown } =
+    useDagServiceGetDagDetails({ dagId }, undefined, {
+      enabled: open,
+    });
 
   if (Boolean(error)) {
     const errorDescription =
@@ -38,12 +65,12 @@ export const useDagParams = (dagId: string, open: boolean) => {
   }
 
   const transformedParams = data?.params
-    ? Object.fromEntries(
-        Object.entries(data.params).map(([key, param]) => [key, (param as { value: unknown }).value]),
-      )
+    ? Object.fromEntries(Object.entries(data.params).map(([key, param]) => [key, param.value]))
     : {};
 
   const initialConf = JSON.stringify(transformedParams, undefined, 2);
 
-  return initialConf;
+  const paramsDict: DagParamsSpec = data?.params ?? ({} as DagParamsSpec);
+
+  return { initialConf, paramsDict };
 };

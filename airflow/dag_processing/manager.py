@@ -319,9 +319,6 @@ class DagFileProcessorManager:
 
     _parallelism: int = attrs.field(factory=_config_int_factory("scheduler", "parsing_processes"))
 
-    dag_dir_list_interval: int = attrs.field(
-        factory=_config_int_factory("scheduler", "dag_dir_list_interval")
-    )
     parsing_cleanup_interval: float = attrs.field(
         factory=_config_int_factory("scheduler", "parsing_cleanup_interval")
     )
@@ -653,17 +650,22 @@ class DagFileProcessorManager:
         self.log.info("Refreshing DAG bundles")
 
         for bundle in self._dag_bundles:
+            # TODO: AIP-66 handle errors in the case of incomplete cloning? And test this.
+            #  What if the cloning/refreshing took too long(longer than the dag processor timeout)
+            if not bundle.is_initialized:
+                bundle.initialize()
             # TODO: AIP-66 test to make sure we get a fresh record from the db and it's not cached
             with create_session() as session:
-                bundle_model = session.get(DagBundleModel, bundle.name)
+                bundle_model: DagBundleModel = session.get(DagBundleModel, bundle.name)
                 elapsed_time_since_refresh = (
                     now - (bundle_model.last_refreshed or timezone.utc_epoch())
                 ).total_seconds()
-                current_version = bundle.get_current_version()
+                pre_refresh_version = bundle.get_current_version()
+                previously_seen = bundle.name in self._bundle_versions
                 if (
                     elapsed_time_since_refresh < bundle.refresh_interval
-                    and bundle_model.latest_version == current_version
-                    and bundle.name in self._bundle_versions
+                    and bundle_model.version == pre_refresh_version
+                    and previously_seen
                 ):
                     self.log.info("Not time to refresh %s", bundle.name)
                     continue
@@ -676,17 +678,20 @@ class DagFileProcessorManager:
 
                 bundle_model.last_refreshed = now
 
-                new_version = bundle.get_current_version()
+                version_after_refresh = bundle.get_current_version()
                 if bundle.supports_versioning:
-                    # We can short-circuit the rest of the refresh if the version hasn't changed
-                    # and we've already fully "refreshed" this bundle before in this dag processor.
-                    if current_version == new_version and bundle.name in self._bundle_versions:
+                    # We can short-circuit the rest of this if (1) bundle was seen before by
+                    # this dag processor and (2) the version of the bundle did not change
+                    # after refreshing it
+                    if previously_seen and pre_refresh_version == version_after_refresh:
                         self.log.debug("Bundle %s version not changed after refresh", bundle.name)
                         continue
 
-                    bundle_model.latest_version = new_version
+                    bundle_model.version = version_after_refresh
 
-                    self.log.info("Version changed for %s, new version: %s", bundle.name, new_version)
+                    self.log.info(
+                        "Version changed for %s, new version: %s", bundle.name, version_after_refresh
+                    )
 
             bundle_file_paths = self._find_files_in_bundle(bundle)
 
@@ -756,11 +761,9 @@ class DagFileProcessorManager:
 
             if self._file_paths:
                 query = query.where(
-                    (
-                        tuple_(ParseImportError.filename, ParseImportError.bundle_name).notin_(
-                            [(f.path, f.bundle_name) for f in self._file_paths]
-                        ),
-                    )
+                    tuple_(ParseImportError.filename, ParseImportError.bundle_name).notin_(
+                        [(f.path, f.bundle_name) for f in self._file_paths]
+                    ),
                 )
 
             session.execute(query.execution_options(synchronize_session="fetch"))

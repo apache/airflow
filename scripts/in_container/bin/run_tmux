@@ -59,10 +59,12 @@ tmux send-keys 'airflow scheduler' C-m
 tmux split-window -h
 tmux select-pane -t 2
 
-if [[ ${DEV_MODE=} == "true" ]]; then
-    tmux send-keys 'airflow fastapi-api -d' C-m
-else
-    tmux send-keys 'airflow fastapi-api' C-m
+if [[ ! ${USE_AIRFLOW_VERSION=} =~ ^2\..*  ]]; then
+    if [[ ${DEV_MODE=} == "true" ]]; then
+        tmux send-keys 'airflow fastapi-api -d' C-m
+    else
+        tmux send-keys 'airflow fastapi-api' C-m
+    fi
 fi
 
 tmux split-window -h
