@@ -8,8 +8,8 @@ The SLA feature is removed in Airflow 3.0, to be replaced with Airflow Alerts in
   * [ ] CLI changes
   * [x] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [ ] Code interface change
+  * [ ] Dependency changes
+  * [ ] Code interface changes
 
 .. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
 

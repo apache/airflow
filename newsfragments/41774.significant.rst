@@ -19,5 +19,5 @@ Removed a set of deprecations in ``DAG`` from ``airflow.models``.
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [x] Code interface change
+  * [ ] Dependency changes
+  * [x] Code interface changes

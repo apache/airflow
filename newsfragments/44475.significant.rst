@@ -12,8 +12,8 @@ Remove ``TriggerRule.NONE_FAILED_OR_SKIPPED``
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [ ] Code interface change
+  * [ ] Dependency changes
+  * [ ] Code interface changes
 
 .. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
 

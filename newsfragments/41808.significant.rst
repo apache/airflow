@@ -15,5 +15,5 @@ Note: there are no replacements. Direct access to DB is discouraged and will not
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [x] Code interface change
+  * [ ] Dependency changes
+  * [x] Code interface changes

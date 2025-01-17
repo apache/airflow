@@ -13,5 +13,5 @@ The format of the output with that flag can be expensive to generate and extreme
   * [x] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [ ] Code interface change
+  * [ ] Dependency changes
+  * [ ] Code interface changes

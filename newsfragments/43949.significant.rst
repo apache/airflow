@@ -12,5 +12,5 @@ no longer delete serialized dag without going through ``airflow db-clean`` comma
   * [x] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [ ] Code interface change
+  * [ ] Dependency changes
+  * [ ] Code interface changes

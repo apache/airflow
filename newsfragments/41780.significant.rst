@@ -8,5 +8,5 @@ Remove deprecated support for passing ``execution_date`` to ``airflow.models.ski
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [ ] Code interface change
+  * [ ] Dependency changes
+  * [ ] Code interface changes

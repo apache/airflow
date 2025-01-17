@@ -8,8 +8,8 @@ Removed deprecated ``dependency_detector`` parameter from ``scheduler``.
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [ ] Code interface change
+  * [ ] Dependency changes
+  * [ ] Code interface changes
 
 * Migration rules needed
 

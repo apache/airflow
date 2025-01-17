@@ -11,8 +11,8 @@ a hard error on validation failure.
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [ ] Code interface change
+  * [ ] Dependency changes
+  * [ ] Code interface changes
 
 * Migrations rules needed
 

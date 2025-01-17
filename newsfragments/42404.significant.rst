@@ -13,5 +13,5 @@ The shift towards using ``run_id`` as the sole identifier for DAG runs eliminate
   * [ ] CLI changes
   * [x] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [ ] Code interface change
+  * [ ] Dependency changes
+  * [ ] Code interface changes

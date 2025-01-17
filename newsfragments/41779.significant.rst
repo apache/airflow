@@ -8,5 +8,5 @@ Remove deprecated support for ``airflow.models.errors.ImportError`` which has be
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [ ] Code interface change
+  * [ ] Dependency changes
+  * [ ] Code interface changes

@@ -11,5 +11,5 @@ It has been moved to ``airflow.models.errors.ParseImportError``.
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [ ] Code interface change
+  * [ ] Dependency changes
+  * [ ] Code interface changes

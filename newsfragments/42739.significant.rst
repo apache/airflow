@@ -8,5 +8,5 @@ Remove support for Python 3.8 as this version is not maintained within Python re
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [x] Dependency change
-  * [ ] Code interface change
+  * [x] Dependency changes
+  * [ ] Code interface changes

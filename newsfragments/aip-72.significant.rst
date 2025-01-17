@@ -51,8 +51,8 @@ As part of this change the following breaking changes have occurred:
   * [ ] CLI changes
   * [x] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [ ] Code interface change
+  * [ ] Dependency changes
+  * [ ] Code interface changes
 
 * Migrations rules needed
 

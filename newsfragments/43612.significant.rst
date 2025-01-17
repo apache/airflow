@@ -15,5 +15,5 @@ AIRFLOW__STANDARD__VENV_INSTALL_METHOD option. The possible values are:
   * [ ] CLI changes
   * [x] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [ ] Code interface change
+  * [ ] Dependency changes
+  * [ ] Code interface changes

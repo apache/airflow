@@ -11,8 +11,8 @@ are just treated as plain Python classes by Airflow, so there is no need to regi
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [x] Plugin changes
-  * [ ] Dependency change
-  * [ ] Code interface change
+  * [ ] Dependency changes
+  * [ ] Code interface changes
 
 * Migration rules needed
 

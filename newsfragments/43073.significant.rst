@@ -8,5 +8,5 @@ Rename ``DagRunTriggeredByType.DATASET`` as ``DagRunTriggeredByType.ASSET`` and 
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [ ] Code interface change
+  * [ ] Dependency changes
+  * [ ] Code interface changes

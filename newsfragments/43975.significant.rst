@@ -15,8 +15,8 @@ backwards compatibility with the previous versions of Airflow.
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [ ] Code interface change
+  * [ ] Dependency changes
+  * [ ] Code interface changes
 
 * Migrations rules needed
 

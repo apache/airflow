@@ -11,5 +11,5 @@ Use the REST API to get task failures instead (which gets it from the ``task_ins
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [ ] Code interface change
+  * [ ] Dependency changes
+  * [ ] Code interface changes

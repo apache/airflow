@@ -10,5 +10,5 @@ Removed backfill job command cli option ``treat-dag-as-regex``. Please use ``tre
   * [x] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [ ] Code interface change
+  * [ ] Dependency changes
+  * [ ] Code interface changes

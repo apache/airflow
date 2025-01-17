@@ -13,8 +13,8 @@ For easier change in the future, this function now takes only keyword arguments.
   * [ ] CLI changes
   * [x] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [ ] Code interface change
+  * [ ] Dependency changes
+  * [ ] Code interface changes
 
 * Migrations rules needed
 

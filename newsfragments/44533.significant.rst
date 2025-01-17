@@ -12,5 +12,5 @@ The ``conf`` column is changing from pickle to json, thus, the values in that co
   * [ ] CLI changes
   * [x] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [ ] Code interface change
+  * [ ] Dependency changes
+  * [ ] Code interface changes

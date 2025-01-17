@@ -11,5 +11,5 @@ Removed a set of deprecations in from ``airflow.models.dagrun``.
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [ ] Code interface change
+  * [ ] Dependency changes
+  * [ ] Code interface changes

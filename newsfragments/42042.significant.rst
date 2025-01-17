@@ -8,5 +8,5 @@ Removed ``is_active`` property from ``BaseUser``. This property is longer used.
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [x] Code interface change
+  * [ ] Dependency changes
+  * [x] Code interface changes

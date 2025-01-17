@@ -8,5 +8,5 @@ Deprecated field ``concurrency`` from ``DAGDetailSchema`` has been removed. Plea
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [ ] Code interface change
+  * [ ] Dependency changes
+  * [ ] Code interface changes

@@ -22,5 +22,5 @@ As part of this change the following breaking changes have occurred:
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [x] Code interface change
+  * [ ] Dependency changes
+  * [x] Code interface changes

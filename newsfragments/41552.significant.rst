@@ -8,8 +8,8 @@ Removed deprecated ``filename_template`` argument from ``airflow.utils.log.file_
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [ ] Code interface change
+  * [ ] Dependency changes
+  * [ ] Code interface changes
 
 * Migration rules needed
 

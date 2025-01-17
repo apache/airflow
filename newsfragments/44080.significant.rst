@@ -10,5 +10,5 @@ PostgreSQL 12 is no longer being supported by the PostgreSQL community. You must
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [x] Dependency change
-  * [ ] Code interface change
+  * [x] Dependency changes
+  * [ ] Code interface changes

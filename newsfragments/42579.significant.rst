@@ -28,5 +28,5 @@ Rename ``Dataset`` endpoints as ``Asset`` endpoints
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [ ] Code interface change
+  * [ ] Dependency changes
+  * [ ] Code interface changes

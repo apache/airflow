@@ -8,8 +8,8 @@ Removed deprecated ``processor_poll_interval`` configuration parameter from ``sc
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [ ] Code interface change
+  * [ ] Dependency changes
+  * [ ] Code interface changes
 
 * Migration rules needed
 
