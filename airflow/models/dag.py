@@ -276,9 +276,7 @@ def _create_orm_dagrun(
         data_interval=data_interval,
         triggered_by=triggered_by,
         backfill_id=backfill_id,
-        bundle_version=session.scalar(
-            select(DagModel.latest_bundle_version).where(DagModel.dag_id == dag.dag_id)
-        ),
+        bundle_version=session.scalar(select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id)),
     )
     # Load defaults into the following two fields to ensure result can be serialized detached
     run.log_template_id = int(session.scalar(select(func.max(LogTemplate.__table__.c.id))))
@@ -779,9 +777,9 @@ class DAG(TaskSDKDag, LoggingMixin):
         return session.scalar(select(DagModel.bundle_name).where(DagModel.dag_id == self.dag_id))
 
     @provide_session
-    def get_latest_bundle_version(self, session=NEW_SESSION) -> str | None:
-        """Return the latest version of the bundle this DAG is in."""
-        return session.scalar(select(DagModel.latest_bundle_version).where(DagModel.dag_id == self.dag_id))
+    def get_bundle_version(self, session=NEW_SESSION) -> str | None:
+        """Return the bundle version that was seen when this dag was processed."""
+        return session.scalar(select(DagModel.bundle_version).where(DagModel.dag_id == self.dag_id))
 
     @methodtools.lru_cache(maxsize=None)
     @classmethod
@@ -1868,7 +1866,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         """
         # TODO: AIP-66 should this be in the model?
         bundle_name = self.get_bundle_name(session=session)
-        bundle_version = self.get_latest_bundle_version(session=session)
+        bundle_version = self.get_bundle_version(session=session)
         self.bulk_write_to_db(bundle_name, bundle_version, [self], session=session)
 
     def get_default_view(self):
@@ -2045,8 +2043,8 @@ class DagModel(Base):
     # associated zip.
     fileloc = Column(String(2000))
     bundle_name = Column(StringID(), ForeignKey("dag_bundle.name"), nullable=True)
-    # The version of the bundle the last time the DAG was parsed
-    latest_bundle_version = Column(String(200), nullable=True)
+    # The version of the bundle the last time the DAG was processed
+    bundle_version = Column(String(200), nullable=True)
     # String representing the owners
     owners = Column(String(2000))
     # Display name of the dag

@@ -43,13 +43,13 @@ def upgrade():
         "dag_bundle",
         sa.Column("name", sa.String(length=250), nullable=False),
         sa.Column("active", sa.Boolean(), nullable=True),
-        sa.Column("latest_version", sa.String(length=200), nullable=True),
+        sa.Column("version", sa.String(length=200), nullable=True),
         sa.Column("last_refreshed", UtcDateTime(timezone=True), nullable=True),
         sa.PrimaryKeyConstraint("name", name=op.f("dag_bundle_pkey")),
     )
     with op.batch_alter_table("dag", schema=None) as batch_op:
         batch_op.add_column(sa.Column("bundle_name", sa.String(length=250), nullable=True))
-        batch_op.add_column(sa.Column("latest_bundle_version", sa.String(length=200), nullable=True))
+        batch_op.add_column(sa.Column("bundle_version", sa.String(length=200), nullable=True))
         batch_op.create_foreign_key(
             batch_op.f("dag_bundle_name_fkey"), "dag_bundle", ["bundle_name"], ["name"]
         )
@@ -63,7 +63,7 @@ def upgrade():
 def downgrade():
     with op.batch_alter_table("dag", schema=None) as batch_op:
         batch_op.drop_constraint(batch_op.f("dag_bundle_name_fkey"), type_="foreignkey")
-        batch_op.drop_column("latest_bundle_version")
+        batch_op.drop_column("bundle_version")
         batch_op.drop_column("bundle_name")
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.drop_column("bundle_version")

@@ -81,8 +81,7 @@ class DagBundlesManager(LoggingMixin):
                     "name": "example_dags",
                     "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
                     "kwargs": {
-                        "local_folder": example_dag_folder,
-                        "refresh_interval": conf.getint("scheduler", "dag_dir_list_interval"),
+                        "path": example_dag_folder,
                     },
                 }
             )
