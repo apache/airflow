@@ -3649,13 +3649,6 @@ export const $PluginResponse = {
       type: "string",
       title: "Source",
     },
-    ti_deps: {
-      items: {
-        type: "string",
-      },
-      type: "array",
-      title: "Ti Deps",
-    },
     listeners: {
       items: {
         type: "string",
@@ -3682,7 +3675,6 @@ export const $PluginResponse = {
     "global_operator_extra_links",
     "operator_extra_links",
     "source",
-    "ti_deps",
     "listeners",
     "timetables",
   ],

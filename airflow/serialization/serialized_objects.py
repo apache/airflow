@@ -101,7 +101,6 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.sdk.definitions._internal.node import DAGNode
     from airflow.serialization.json_schema import Validator
-    from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 
     HAS_KUBERNETES: bool
@@ -933,6 +932,8 @@ class BaseSerialization:
                 return True
             if cls._CONSTRUCTOR_PARAMS[attrname] is attrs.NOTHING and value is None:
                 return True
+        if attrs.has(type(instance)):
+            return any(fld.default is value for fld in attrs.fields(type(instance)) if fld.name == attrname)
         return False
 
     @classmethod
@@ -1154,7 +1155,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def serialize_mapped_operator(cls, op: MappedOperator) -> dict[str, Any]:
-        serialized_op = cls._serialize_node(op, include_deps=op.deps != MappedOperator.deps_for(BaseOperator))
+        serialized_op = cls._serialize_node(op)
         # Handle expand_input and op_kwargs_expand_input.
         expansion_kwargs = op._get_specified_expand_input()
         if TYPE_CHECKING:  # Let Mypy check the input type for us!
@@ -1180,10 +1181,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def serialize_operator(cls, op: BaseOperator | MappedOperator) -> dict[str, Any]:
-        return cls._serialize_node(op, include_deps=op.deps is not BaseOperator.deps)
+        return cls._serialize_node(op)
 
     @classmethod
-    def _serialize_node(cls, op: BaseOperator | MappedOperator, include_deps: bool) -> dict[str, Any]:
+    def _serialize_node(cls, op: BaseOperator | MappedOperator) -> dict[str, Any]:
         """Serialize operator into a JSON object."""
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
 
@@ -1213,9 +1214,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 else op.operator_extra_links
             )
 
-        if include_deps:
-            serialize_op["deps"] = cls._serialize_deps(op.deps)
-
         # Store all template_fields as they are if there are JSON Serializable
         # If not, store them as strings
         # And raise an exception if the field is not templateable
@@ -1239,32 +1237,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             serialize_op["params"] = cls._serialize_params_dict(op.params)
 
         return serialize_op
-
-    @classmethod
-    def _serialize_deps(cls, op_deps: Iterable[BaseTIDep]) -> list[str]:
-        from airflow import plugins_manager
-
-        plugins_manager.initialize_ti_deps_plugins()
-        if plugins_manager.registered_ti_dep_classes is None:
-            raise AirflowException("Can not load plugins")
-
-        deps = []
-        for dep in op_deps:
-            klass = type(dep)
-            module_name = klass.__module__
-            qualname = f"{module_name}.{klass.__name__}"
-            if (
-                not qualname.startswith("airflow.ti_deps.deps.")
-                and qualname not in plugins_manager.registered_ti_dep_classes
-            ):
-                raise SerializationError(
-                    f"Custom dep class {qualname} not serialized, please register it through plugins."
-                )
-            deps.append(qualname)
-        # deps needs to be sorted here, because op_deps is a set, which is unstable when traversing,
-        # and the same call may get different results.
-        # When calling json.dumps(self.data, sort_keys=True) to generate dag_hash, misjudgment will occur
-        return sorted(deps)
 
     @classmethod
     def populate_operator(cls, op: Operator, encoded_op: dict[str, Any]) -> None:
@@ -1326,6 +1298,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             if k == "_downstream_task_ids":
                 # Upgrade from old format/name
                 k = "downstream_task_ids"
+
             if k == "label":
                 # Label shouldn't be set anymore --  it's computed from task_id now
                 continue
@@ -1351,8 +1324,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = list(op_predefined_extra_links.values())
                 k = "operator_extra_links"
 
-            elif k == "deps":
-                v = cls._deserialize_deps(v)
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
                 if op.params:  # Merge existing params if needed.
@@ -1364,6 +1335,13 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = _ExpandInputRef(v["type"], cls.deserialize(v["value"]))
             elif k == "operator_class":
                 v = {k_: cls.deserialize(v_) for k_, v_ in v.items()}
+            elif k == "_is_sensor":
+                from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
+
+                if v is False:
+                    raise RuntimeError("_is_sensor=False should never have been serialized!")
+                object.__setattr__(op, "deps", op.deps | {ReadyToRescheduleDep()})
+                continue
             elif (
                 k in cls._decorated_fields
                 or k not in op.get_serialized_fields()
@@ -1374,6 +1352,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 k = "_on_failure_fail_dagrun"
             elif k == "weight_rule":
                 v = decode_priority_weight_strategy(v)
+
             # else use v as it is
 
             setattr(op, k, v)
@@ -1442,7 +1421,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 partial_kwargs={},
                 task_id=encoded_op["task_id"],
                 params={},
-                deps=MappedOperator.deps_for(BaseOperator),
                 operator_extra_links=BaseOperator.operator_extra_links,
                 template_ext=BaseOperator.template_ext,
                 template_fields=BaseOperator.template_fields,
@@ -1450,6 +1428,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 ui_color=BaseOperator.ui_color,
                 ui_fgcolor=BaseOperator.ui_fgcolor,
                 is_empty=False,
+                is_sensor=encoded_op.get("_is_sensor", False),
                 task_module=encoded_op["_task_module"],
                 task_type=encoded_op["task_type"],
                 operator_name=operator_name,
@@ -1489,30 +1468,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             if var is dag_date or var == dag_date:
                 return True
         return super()._is_excluded(var, attrname, op)
-
-    @classmethod
-    def _deserialize_deps(cls, deps: list[str]) -> set[BaseTIDep]:
-        from airflow import plugins_manager
-
-        plugins_manager.initialize_ti_deps_plugins()
-        if plugins_manager.registered_ti_dep_classes is None:
-            raise AirflowException("Can not load plugins")
-
-        instances = set()
-        for qn in set(deps):
-            if (
-                not qn.startswith("airflow.ti_deps.deps.")
-                and qn not in plugins_manager.registered_ti_dep_classes
-            ):
-                raise SerializationError(
-                    f"Custom dep class {qn} not deserialized, please register it through plugins."
-                )
-
-            try:
-                instances.add(import_string(qn)())
-            except ImportError:
-                log.warning("Error importing dep %r", qn, exc_info=True)
-        return instances
 
     @classmethod
     def _deserialize_operator_extra_links(cls, encoded_op_links: list) -> dict[str, BaseOperatorLink]:
