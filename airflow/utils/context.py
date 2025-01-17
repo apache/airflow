@@ -19,7 +19,6 @@
 
 from __future__ import annotations
 
-import contextlib
 from collections.abc import (
     Container,
     Iterator,
@@ -51,9 +50,9 @@ from airflow.sdk.definitions.asset import (
     AssetRef,
     AssetUniqueKey,
     AssetUriRef,
-    BaseAssetUniqueKey,
 )
 from airflow.sdk.definitions.context import Context
+from airflow.sdk.execution_time.context import OutletEventAccessors as OutletEventAccessorsSDK
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.session import create_session
 from airflow.utils.types import NOTSET
@@ -156,104 +155,29 @@ class ConnectionAccessor:
             return default_conn
 
 
-@attrs.define()
-class AssetAliasEvent:
-    """
-    Represeation of asset event to be triggered by an asset alias.
-
-    :meta private:
-    """
-
-    source_alias_name: str
-    dest_asset_key: AssetUniqueKey
-    extra: dict[str, Any]
-
-
-@attrs.define()
-class OutletEventAccessor:
-    """
-    Wrapper to access an outlet asset event in template.
-
-    :meta private:
-    """
-
-    key: BaseAssetUniqueKey
-    extra: dict[str, Any] = attrs.Factory(dict)
-    asset_alias_events: list[AssetAliasEvent] = attrs.field(factory=list)
-
-    def add(self, asset: Asset, extra: dict[str, Any] | None = None) -> None:
-        """Add an AssetEvent to an existing Asset."""
-        if not isinstance(self.key, AssetAliasUniqueKey):
-            return
-
-        asset_alias_name = self.key.name
-        event = AssetAliasEvent(
-            source_alias_name=asset_alias_name,
-            dest_asset_key=AssetUniqueKey.from_asset(asset),
-            extra=extra or {},
-        )
-        self.asset_alias_events.append(event)
-
-
-class OutletEventAccessors(Mapping[Union[Asset, AssetAlias], OutletEventAccessor]):
+class OutletEventAccessors(OutletEventAccessorsSDK):
     """
     Lazy mapping of outlet asset event accessors.
 
     :meta private:
     """
 
-    _asset_ref_cache: dict[AssetRef, AssetUniqueKey] = {}
-
-    def __init__(self) -> None:
-        self._dict: dict[BaseAssetUniqueKey, OutletEventAccessor] = {}
-
-    def __str__(self) -> str:
-        return f"OutletEventAccessors(_dict={self._dict})"
-
-    def __iter__(self) -> Iterator[Asset | AssetAlias]:
-        return (
-            key.to_asset() if isinstance(key, AssetUniqueKey) else key.to_asset_alias() for key in self._dict
-        )
-
-    def __len__(self) -> int:
-        return len(self._dict)
-
-    def __getitem__(self, key: Asset | AssetAlias) -> OutletEventAccessor:
-        hashable_key: BaseAssetUniqueKey
-        if isinstance(key, Asset):
-            hashable_key = AssetUniqueKey.from_asset(key)
-        elif isinstance(key, AssetAlias):
-            hashable_key = AssetAliasUniqueKey.from_asset_alias(key)
-        elif isinstance(key, AssetRef):
-            hashable_key = self._resolve_asset_ref(key)
+    @staticmethod
+    def _get_asset_from_db(name: str | None = None, uri: str | None = None) -> Asset:
+        if name:
+            with create_session() as session:
+                asset = session.scalar(
+                    select(AssetModel).where(AssetModel.name == name, AssetModel.active.has())
+                )
+        elif uri:
+            with create_session() as session:
+                asset = session.scalar(
+                    select(AssetModel).where(AssetModel.uri == uri, AssetModel.active.has())
+                )
         else:
-            raise TypeError(f"Key should be either an asset or an asset alias, not {type(key)}")
+            raise ValueError("Either name or uri must be provided")
 
-        if hashable_key not in self._dict:
-            self._dict[hashable_key] = OutletEventAccessor(extra={}, key=hashable_key)
-        return self._dict[hashable_key]
-
-    def _resolve_asset_ref(self, ref: AssetRef) -> AssetUniqueKey:
-        with contextlib.suppress(KeyError):
-            return self._asset_ref_cache[ref]
-
-        refs_to_cache: list[AssetRef]
-        with create_session() as session:
-            if isinstance(ref, AssetNameRef):
-                asset = session.scalar(
-                    select(AssetModel).where(AssetModel.name == ref.name, AssetModel.active.has())
-                )
-                refs_to_cache = [ref, AssetUriRef(asset.uri)]
-            elif isinstance(ref, AssetUriRef):
-                asset = session.scalar(
-                    select(AssetModel).where(AssetModel.uri == ref.uri, AssetModel.active.has())
-                )
-                refs_to_cache = [ref, AssetNameRef(asset.name)]
-            else:
-                raise TypeError(f"Unimplemented asset ref: {type(ref)}")
-            for ref in refs_to_cache:
-                self._asset_ref_cache[ref] = unique_key = AssetUniqueKey.from_asset(asset)
-        return unique_key
+        return asset.to_public()
 
 
 class LazyAssetEventSelectSequence(LazySelectSequence[AssetEvent]):
