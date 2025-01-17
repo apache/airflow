@@ -45,7 +45,7 @@ def bundle_temp_dir(tmp_path):
 
 def test_default_dag_storage_path():
     with conf_vars({("core", "dag_bundle_storage_path"): ""}):
-        bundle = LocalDagBundle(name="test", directory="/hello")
+        bundle = LocalDagBundle(name="test", path="/hello")
         assert bundle._dag_bundle_root_storage_path == Path(tempfile.gettempdir(), "airflow", "dag_bundles")
 
 
@@ -67,7 +67,7 @@ def test_dag_bundle_root_storage_path():
 
 class TestLocalDagBundle:
     def test_path(self):
-        bundle = LocalDagBundle(name="test", directory="/hello")
+        bundle = LocalDagBundle(name="test", path="/hello")
         assert bundle.path == Path("/hello")
 
     @conf_vars({("core", "dags_folder"): "/tmp/somewhere/dags"})
@@ -78,7 +78,7 @@ class TestLocalDagBundle:
     def test_none_for_version(self):
         assert LocalDagBundle.supports_versioning is False
 
-        bundle = LocalDagBundle(name="test", directory="/hello")
+        bundle = LocalDagBundle(name="test", path="/hello")
 
         assert bundle.get_current_version() is None
 
