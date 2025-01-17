@@ -482,11 +482,11 @@ class DbtCloudHook(HttpHook):
         :return: The details of a job.
         """
         # get project_id using project_name
-        projects = self.list_projects(name_contains=project_name, account_id=account_id)
-        # flatten & filter the list of responses
+        list_projects_responses = self.list_projects(name_contains=project_name, account_id=account_id)
+        # flatten & filter the list of responses to find the exact match
         projects = [
             project
-            for response in projects
+            for response in list_projects_responses
             for project in response.json()["data"]
             if project["name"] == project_name
         ]
@@ -495,13 +495,13 @@ class DbtCloudHook(HttpHook):
         project_id = projects[0]["id"]
 
         # get environment_id using project_id and environment_name
-        environments = self.list_environments(
+        list_environments_responses = self.list_environments(
             project_id=project_id, name_contains=environment_name, account_id=account_id
         )
-        # flatten & filter the list of responses
+        # flatten & filter the list of responses to find the exact match
         environments = [
             env
-            for response in environments
+            for response in list_environments_responses
             for env in response.json()["data"]
             if env["name"] == environment_name
         ]
@@ -518,7 +518,7 @@ class DbtCloudHook(HttpHook):
             name_contains=job_name,
             account_id=account_id,
         )
-        # flatten & filter the list of responses
+        # flatten & filter the list of responses to find the exact match
         jobs = [
             job
             for response in list_jobs_responses
@@ -527,7 +527,7 @@ class DbtCloudHook(HttpHook):
         ]
         if len(jobs) != 1:
             raise AirflowException(
-                f"Found {len(jobs)} jobs with name `{job_name}` in project `{project_name}` and environment `{environment_name}`."
+                f"Found {len(jobs)} jobs with name `{job_name}` in environment `{environment_name}` in project `{project_name}`."
             )
 
         return jobs[0]
