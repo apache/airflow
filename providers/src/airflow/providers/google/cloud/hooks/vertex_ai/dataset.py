@@ -26,9 +26,9 @@ from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform_v1 import DatasetServiceClient
 
-from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.operation_helpers import OperationHelper
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
@@ -42,7 +42,7 @@ if TYPE_CHECKING:
     from google.protobuf.field_mask_pb2 import FieldMask
 
 
-class DatasetHook(GoogleBaseHook):
+class DatasetHook(GoogleBaseHook, OperationHelper):
     """Hook for Google Cloud Vertex AI Dataset APIs."""
 
     def get_dataset_service_client(self, region: str | None = None) -> DatasetServiceClient:
@@ -55,14 +55,6 @@ class DatasetHook(GoogleBaseHook):
         return DatasetServiceClient(
             credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
-
-    def wait_for_operation(self, operation: Operation, timeout: float | None = None):
-        """Wait for long-lasting operation to complete."""
-        try:
-            return operation.result(timeout=timeout)
-        except Exception:
-            error = operation.exception(timeout=timeout)
-            raise AirflowException(error)
 
     @staticmethod
     def extract_dataset_id(obj: dict) -> str:
