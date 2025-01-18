@@ -978,7 +978,7 @@ DAGS_COMMANDS = (
         name="list",
         help="List all the DAGs",
         func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_list_dags"),
-        args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE, ARG_DAG_LIST_COLUMNS),
+        args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE, ARG_DAG_LIST_COLUMNS, ARG_BUNDLE_NAME),
     ),
     ActionCommand(
         name="list-import-errors",
